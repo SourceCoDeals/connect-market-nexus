@@ -2,7 +2,19 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { MapPin, FileCheck, Clock, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  MapPin,
+  FileCheck,
+  Clock,
+  Mail,
+  ChevronDown,
+  ChevronUp,
+  Phone,
+  UserCheck,
+  Shield,
+  FileText,
+  CalendarCheck,
+} from 'lucide-react';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import type { RecommendedBuyer } from '@/hooks/admin/use-recommended-buyers';
@@ -120,7 +132,7 @@ export function BuyerRecommendationCard({
       )}
 
       {/* Status row */}
-      <div className="flex items-center gap-4 pl-8 text-xs text-muted-foreground">
+      <div className="flex items-center gap-4 pl-8 text-xs text-muted-foreground flex-wrap">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -131,12 +143,81 @@ export function BuyerRecommendationCard({
                     buyer.has_fee_agreement ? 'text-emerald-500' : 'text-muted-foreground/40',
                   )}
                 />
-                {buyer.has_fee_agreement ? 'Signed' : 'None'}
+                {buyer.has_fee_agreement ? 'Signed' : 'No Fee Agmt'}
               </span>
             </TooltipTrigger>
             <TooltipContent>Fee Agreement Status</TooltipContent>
           </Tooltip>
+
+          {/* Transcript call count */}
+          {buyer.transcript_insights.call_count > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 text-blue-500">
+                  <Phone className="h-3 w-3" />
+                  {buyer.transcript_insights.call_count} call
+                  {buyer.transcript_insights.call_count !== 1 ? 's' : ''}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {buyer.transcript_insights.call_count} recorded call
+                {buyer.transcript_insights.call_count !== 1 ? 's' : ''}
+                {buyer.transcript_insights.latest_call_date &&
+                  ` · Last: ${new Date(buyer.transcript_insights.latest_call_date).toLocaleDateString()}`}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* CEO detection */}
+          {buyer.transcript_insights.ceo_detected && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 text-emerald-600">
+                  <UserCheck className="h-3 w-3" />
+                  CEO
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>CEO/owner participated in call</TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Outreach funnel indicators */}
+          {buyer.outreach_info.nda_signed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 text-emerald-600">
+                  <Shield className="h-3 w-3" />
+                  NDA
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>NDA executed</TooltipContent>
+            </Tooltip>
+          )}
+          {buyer.outreach_info.cim_sent && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 text-blue-600">
+                  <FileText className="h-3 w-3" />
+                  CIM
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>CIM sent to buyer</TooltipContent>
+            </Tooltip>
+          )}
+          {buyer.outreach_info.meeting_scheduled && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-1 text-violet-600">
+                  <CalendarCheck className="h-3 w-3" />
+                  Meeting
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Meeting scheduled</TooltipContent>
+            </Tooltip>
+          )}
         </TooltipProvider>
+
+        <span className="text-muted-foreground/30">|</span>
 
         <span className="flex items-center gap-1">
           <Clock
@@ -147,7 +228,7 @@ export function BuyerRecommendationCard({
           />
           {buyer.last_engagement
             ? formatDistanceToNow(new Date(buyer.last_engagement), { addSuffix: true })
-            : 'No engagement recorded'}
+            : 'No engagement'}
         </span>
 
         {buyer.engagement_cold && buyer.last_engagement && (
@@ -201,7 +282,8 @@ export function BuyerRecommendationCard({
 
       {/* Expanded details */}
       {expanded && (
-        <div className="pl-8 pt-2 border-t border-border/30 space-y-2">
+        <div className="pl-8 pt-2 border-t border-border/30 space-y-3">
+          {/* Score breakdown */}
           <div className="grid grid-cols-4 gap-2 text-xs">
             <div>
               <span className="text-muted-foreground">Geography</span>
@@ -220,6 +302,59 @@ export function BuyerRecommendationCard({
               <div className="font-medium mt-0.5">{buyer.owner_goals_score}/100</div>
             </div>
           </div>
+
+          {/* Outreach funnel progress */}
+          {buyer.outreach_info.contacted && (
+            <div className="text-xs">
+              <span className="text-muted-foreground font-medium">Outreach Funnel:</span>
+              <div className="flex items-center gap-1 mt-1">
+                {[
+                  { done: buyer.outreach_info.contacted, label: 'Contacted' },
+                  { done: buyer.outreach_info.nda_signed, label: 'NDA Signed' },
+                  { done: buyer.outreach_info.cim_sent, label: 'CIM Sent' },
+                  { done: buyer.outreach_info.meeting_scheduled, label: 'Meeting' },
+                ].map((step, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    {i > 0 && (
+                      <span
+                        className={cn('w-3 h-px', step.done ? 'bg-emerald-500' : 'bg-border')}
+                      />
+                    )}
+                    <span
+                      className={cn(
+                        'px-1.5 py-0.5 rounded text-[10px]',
+                        step.done
+                          ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                          : 'bg-muted/30 text-muted-foreground/50 border border-border/30',
+                      )}
+                    >
+                      {step.label}
+                    </span>
+                  </span>
+                ))}
+                {buyer.outreach_info.outcome && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-600 border border-blue-500/20">
+                    {buyer.outreach_info.outcome}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Transcript insights */}
+          {buyer.transcript_insights.call_count > 0 && (
+            <div className="text-xs">
+              <span className="text-muted-foreground font-medium">Call Activity:</span>
+              <span className="ml-1.5">
+                {buyer.transcript_insights.call_count} call
+                {buyer.transcript_insights.call_count !== 1 ? 's' : ''}
+                {buyer.transcript_insights.ceo_detected && ' · CEO/owner participated'}
+                {buyer.transcript_insights.latest_call_date &&
+                  ` · Last call ${formatDistanceToNow(new Date(buyer.transcript_insights.latest_call_date), { addSuffix: true })}`}
+              </span>
+            </div>
+          )}
+
           {buyer.fit_reasoning && (
             <p className="text-xs text-muted-foreground leading-relaxed">{buyer.fit_reasoning}</p>
           )}

@@ -10,7 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Sparkles, RefreshCw, Search } from 'lucide-react';
+import {
+  Loader2,
+  Sparkles,
+  RefreshCw,
+  Search,
+  Phone,
+  UserCheck,
+  Mail as MailIcon,
+} from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useRecommendedBuyers } from '@/hooks/admin/use-recommended-buyers';
 import { useQueryClient } from '@tanstack/react-query';
@@ -190,6 +198,32 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
             </Button>
           </div>
         </div>
+
+        {/* Data enrichment stats */}
+        {(data.dataStats.buyers_with_transcripts > 0 ||
+          data.dataStats.buyers_with_outreach > 0 ||
+          data.dataStats.buyers_with_ceo_engagement > 0) && (
+          <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
+            {data.dataStats.buyers_with_transcripts > 0 && (
+              <span className="flex items-center gap-1">
+                <Phone className="h-3 w-3 text-blue-500" />
+                {data.dataStats.buyers_with_transcripts} with calls
+              </span>
+            )}
+            {data.dataStats.buyers_with_ceo_engagement > 0 && (
+              <span className="flex items-center gap-1">
+                <UserCheck className="h-3 w-3 text-emerald-500" />
+                {data.dataStats.buyers_with_ceo_engagement} CEO engaged
+              </span>
+            )}
+            {data.dataStats.buyers_with_outreach > 0 && (
+              <span className="flex items-center gap-1">
+                <MailIcon className="h-3 w-3 text-violet-500" />
+                {data.dataStats.buyers_with_outreach} contacted
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Narrative Panel */}
         <BuyerNarrativePanel

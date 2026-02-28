@@ -130,8 +130,9 @@ FORMAT: Return buyer matches as: name, type, HQ, revenue range, key services, al
   BUYER_ANALYSIS: `Present scores with context: composite, geography, service, size, owner goals, portfolio, business_model, acquisition.
 Explain score drivers and flags. Use get_score_breakdown for per-dimension breakdown. Use explain_buyer_score for human-readable explanations with data source citations.
 Pair search_buyers with get_buyer_profile for deep-dives (note: top 10 scored deals only).
+For "recommended buyers" or "buyer strategy", prefer get_recommended_buyers — it synthesizes across ALL data sources: scores, transcripts (call + buyer + deal), buyer universes, outreach records, and full deal context in a single call.
 For "competitors": clarify if they mean competing acquirers or industry competitors.
-DATA PROVENANCE: Size criteria may be from PE firm website and may represent new-platform criteria, not add-on criteria. HQ location may be the PE firm's headquarters, not the platform's operating base. When transcript data is unavailable, note it explicitly — never hallucinate transcript quotes.`,
+DATA PROVENANCE: Size criteria may be from PE firm website and may represent new-platform criteria, not add-on criteria. HQ location may be the PE firm's headquarters, not the platform's operating base. When transcript data is unavailable, note it explicitly — never hallucinate transcript quotes. When transcript_insights include key_quotes, cite them — they are real verbatim quotes from call recordings.`,
 
   MEETING_INTEL: `Extract the most relevant quotes and insights from transcripts.
 Note if CEO/owner was present. Highlight action items and commitments.
@@ -255,14 +256,35 @@ Show what will be created and ask for confirmation.`,
   PROACTIVE: `Use get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, get_stale_deals, get_proactive_alerts.
 Present findings with actionable recommendations. For alerts, show severity (critical/warning/info), entity name, and suggested action.`,
 
-  RECOMMENDED_BUYERS: `Use get_recommended_buyers to return a ranked buyer list with composite fit scores, tier classification (Move Now / Strong Candidate / Speculative), fit signals, engagement data, and fee agreement status.
-Use generate_buyer_narrative (produces a structured strategy document) when the user asks for a written buyer strategy or briefing.
-Present buyers with: rank, company name, score/100, tier label, top 3 fit signals, fee agreement status, last engagement date.
-Group by tier when showing 10+ buyers. Highlight "Move Now" buyers first — these have score 80+ AND either a fee agreement or active acquisition mandate.
-For each top buyer, suggest a specific action: send CIM, initiate fee agreement, re-engage, or draft outreach.
-Use get_deal_details first if you need deal context (revenue, EBITDA, location, services) to explain fit reasoning.
-Use explain_buyer_score or get_score_breakdown for per-dimension justification when the user asks "why is this buyer ranked high/low?"
-Use draft_outreach_email when the user wants to draft outreach to a recommended buyer.`,
+  RECOMMENDED_BUYERS: `get_recommended_buyers synthesizes data from ALL platform sources to produce a ranked buyer list:
+DATA SOURCES (all fetched in parallel for speed):
+1. remarketing_scores — composite fit scores (geography, size, service, owner_goals dimensions)
+2. remarketing_buyers — buyer profile, thesis, target criteria, acquisition appetite
+3. remarketing_buyer_universes — universe fit criteria, scoring weights, M&A guide
+4. call_transcripts — buyer-specific call recordings with CEO detection, key quotes, extracted buyer criteria
+5. buyer_transcripts — Fireflies calls buyers manually attached (thesis context)
+6. deal_transcripts — deal meeting recordings, extracted data (financials, services, buyer criteria)
+7. outreach_records — full outreach funnel (NDA sent/signed, CIM sent, meeting scheduled, outcome)
+8. connection_requests — engagement tracking
+9. listings — full deal context (investment thesis, owner goals, business model, key risks, growth trajectory)
+
+RESPONSE FORMAT:
+Each buyer card includes: fit score, tier, fit signals (up to 5), transcript_insights (call count, CEO detected, key quotes, buyer thesis from calls), outreach_status (NDA/CIM/meeting status), and universe_name.
+The response also includes: full deal context (thesis, owner goals, business model), universe criteria, deal transcript summary, and data source stats.
+
+PRESENTATION RULES:
+- Lead with "Move Now" tier buyers (score 80+, active mandate or agreement)
+- Highlight buyers with CEO engagement from transcripts — these show strongest interest
+- Reference buyer quotes from call_transcripts when explaining fit
+- Show outreach funnel status (NDA → CIM → meeting → outcome) for context
+- Mention universe context when relevant (e.g., "Part of the HVAC Services universe")
+- When thesis_from_calls differs from the buyer's stated thesis, note the discrepancy
+- Include deal investment thesis and owner goals context when explaining recommendations
+
+Use generate_buyer_narrative for a written strategy document with full multi-source synthesis.
+Use explain_buyer_score or get_score_breakdown for per-dimension justification.
+Use draft_outreach_email when the user wants to draft outreach to a recommended buyer.
+Use search_transcripts or semantic_transcript_search if the user wants to dig deeper into specific call content.`,
 
   ALERTS: `Use get_proactive_alerts to surface issues needing attention: stale deals, cold buyers, overdue tasks, unprocessed transcripts, unsigned agreements, critical signals.
 Present alerts grouped by severity. For each alert, show the entity name, what's wrong, and what to do about it.

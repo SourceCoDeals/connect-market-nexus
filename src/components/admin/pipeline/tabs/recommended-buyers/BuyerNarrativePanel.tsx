@@ -230,12 +230,27 @@ function generateLocalNarrative(
   const moveNow = buyers.filter((b) => b.tier === 'move_now');
   const strong = buyers.filter((b) => b.tier === 'strong_candidate');
   const spec = buyers.filter((b) => b.tier === 'speculative');
+  const withCalls = buyers.filter((b) => b.transcript_insights.call_count > 0);
+  const withCeo = buyers.filter((b) => b.transcript_insights.ceo_detected);
+  const withOutreach = buyers.filter((b) => b.outreach_info.contacted);
+  const withNda = buyers.filter((b) => b.outreach_info.nda_signed);
   const top10 = buyers.slice(0, 10);
 
   let text = `# Buyer Strategy \u2014 ${dealTitle}\n`;
   text += `*Generated ${new Date().toISOString().split('T')[0]}*\n\n`;
   text += `## Overview\n`;
-  text += `Based on alignment scoring across ${totalScored} evaluated buyers, ${moveNow.length} are classified as "Move Now" candidates, ${strong.length} as "Strong Candidates", and ${spec.length} as "Speculative".\n\n`;
+  text += `Based on alignment scoring across ${totalScored} evaluated buyers, ${moveNow.length} are classified as "Move Now" candidates, ${strong.length} as "Strong Candidates", and ${spec.length} as "Speculative".`;
+
+  // Enrichment summary
+  const enrichmentParts: string[] = [];
+  if (withCalls.length > 0) enrichmentParts.push(`${withCalls.length} have recorded calls`);
+  if (withCeo.length > 0) enrichmentParts.push(`${withCeo.length} with CEO/owner engagement`);
+  if (withOutreach.length > 0) enrichmentParts.push(`${withOutreach.length} have been contacted`);
+  if (withNda.length > 0) enrichmentParts.push(`${withNda.length} with NDAs signed`);
+  if (enrichmentParts.length > 0) {
+    text += ` Engagement data: ${enrichmentParts.join(', ')}.`;
+  }
+  text += '\n\n';
   text += `## Ranked Buyer Shortlist\n\n`;
 
   for (const [idx, b] of top10.entries()) {
@@ -248,6 +263,26 @@ function generateLocalNarrative(
     text += `**#${idx + 1}. ${name}** \u2014 Score: ${b.composite_fit_score}/100 [${b.tier_label}]\n`;
     text += `${typeLabel} headquartered in ${hq}. ${feeStatus}. Key fit signals: ${signals}.`;
     if (b.fit_reasoning) text += ` ${b.fit_reasoning}`;
+
+    // Transcript insights
+    if (b.transcript_insights.call_count > 0) {
+      text += ` ${b.transcript_insights.call_count} call(s) on record`;
+      if (b.transcript_insights.ceo_detected) text += ' (CEO participated)';
+      text += '.';
+    }
+
+    // Outreach progress
+    const outreachSteps: string[] = [];
+    if (b.outreach_info.contacted) outreachSteps.push('contacted');
+    if (b.outreach_info.nda_signed) outreachSteps.push('NDA signed');
+    if (b.outreach_info.cim_sent) outreachSteps.push('CIM sent');
+    if (b.outreach_info.meeting_scheduled) outreachSteps.push('meeting scheduled');
+    if (outreachSteps.length > 0) {
+      text += ` Outreach: ${outreachSteps.join(' \u2192 ')}.`;
+    }
+    if (b.outreach_info.outcome) {
+      text += ` Outcome: ${b.outreach_info.outcome}.`;
+    }
     text += '\n\n';
   }
 
