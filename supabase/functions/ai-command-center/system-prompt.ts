@@ -238,7 +238,31 @@ Show what will be created and ask for confirmation.`,
   PROACTIVE: `Use get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, get_stale_deals.
 Present findings with actionable recommendations.`,
 
-  INDUSTRY: `Use get_industry_trackers to list tracked verticals. Use search_buyer_universes for universe-level industry data.`,
+  INDUSTRY: `You are preparing industry intelligence for a PE deal team. Use research_industry as your PRIMARY tool — it searches M&A guides, Google, internal transcripts, buyers, and deals in parallel.
+
+DATA SOURCE PRIORITY (use in this order):
+1. M&A Guides (ma_guides in results) — HIGHEST VALUE. These are detailed, multi-section industry research documents generated for our buyer universes. If a guide exists for this industry, it contains PE-specific diligence frameworks, KPIs, competitive dynamics, and deal structure guidance. Lead with this data.
+2. Internal transcripts/buyers/deals — Real SourceCo data. If we have buyers or deals in this space, cite them.
+3. Web research — Current market data from Google. Good for trends, recent transactions, market sizing.
+4. General M&A knowledge — Label as such.
+
+RESPONSE STRUCTURE for industry research:
+1. **Industry Overview** — What is this industry? Revenue drivers, business model, key players.
+2. **PE/M&A Landscape** — Who is buying in this space? Roll-up activity, recent transactions. Include any SourceCo buyers found.
+3. **Key Metrics PE Cares About** — Industry-specific KPIs, margin benchmarks, revenue quality indicators. Be specific to THIS vertical, not generic M&A.
+4. **Due Diligence Questions** — 8-12 questions specific to this industry. NOT generic "what's your revenue" — focus on industry-specific operational, regulatory, and competitive dynamics.
+5. **Red Flags** — What would make a PE buyer pass on a deal in this space?
+
+SOURCE LABELING (critical):
+- M&A Guide: "From our [Universe Name] industry guide..."
+- Internal data: "From our deal history..." or "We have X buyers active in this space..."
+- Web research: "Based on current market data..."
+- General knowledge: "In PE practice..."
+
+If research_industry returns ma_guides, these are the richest source — use them extensively.
+If we have active buyers in this space, mention them by name.
+For industry tracker lookups only, use get_industry_trackers. For universe searches, use search_buyer_universes.
+Always end with: "Want me to search for specific buyers in this space or dig deeper into any of these areas?"`,
 
   CONNECTION: `Use get_connection_requests for buyer intake pipeline. get_connection_messages for message threads.`,
 };

@@ -730,7 +730,43 @@ const BYPASS_RULES: Array<{
       confidence: 0.85,
     },
   },
-  // Industry trackers
+  // Industry research — "tell me about X industry", "prep me for a call with X"
+  {
+    test: (q) =>
+      /\b(tell me about|what should I know about|prep me for|don.?t know anything about|research the|industry overview|industry primer|what do PE buyers look for in)\b/i.test(q) &&
+      /\b(industry|vertical|sector|space|market|company|business)\b/i.test(q),
+    result: {
+      category: 'INDUSTRY',
+      tier: 'DEEP',
+      tools: ['research_industry', 'google_search_companies', 'semantic_transcript_search', 'retrieve_knowledge'],
+      confidence: 0.88,
+    },
+  },
+  // Industry research — "I have a call with a X company and don't know the space"
+  {
+    test: (q) =>
+      /\b(have a call|meeting with|call with|prepping for)\b/i.test(q) &&
+      /\b(don.?t know|no idea|not familiar|never dealt|first time|new to)\b/i.test(q),
+    result: {
+      category: 'INDUSTRY',
+      tier: 'DEEP',
+      tools: ['research_industry', 'google_search_companies', 'semantic_transcript_search', 'retrieve_knowledge'],
+      confidence: 0.85,
+    },
+  },
+  // Industry research — "what questions should I ask a X company"
+  {
+    test: (q) =>
+      /\b(what questions|due diligence questions|diligence questions|questions.*ask|questions.*call)\b/i.test(q) &&
+      /\b(industry|company|business|firm|shop|vertical|sector)\b/i.test(q),
+    result: {
+      category: 'INDUSTRY',
+      tier: 'DEEP',
+      tools: ['research_industry', 'retrieve_knowledge'],
+      confidence: 0.85,
+    },
+  },
+  // Industry trackers (narrow — just tracker/config lookups)
   {
     test: (q) =>
       /\b(industry tracker|tracker|which industries|industry vertical|vertical.*deal|scoring config)\b/i.test(
@@ -1089,12 +1125,12 @@ Categories:
 - GOOGLE_SEARCH: Search Google for companies, websites, LinkedIn pages, research
 - DEAL_CONVERSION: Convert remarketing match to pipeline deal
 - SMARTLEAD_OUTREACH: Smartlead cold email campaigns, email outreach history, push contacts to email campaigns, campaign stats
-- INDUSTRY: Industry trackers, vertical scoring configs
+- INDUSTRY: Industry research, vertical deep-dives, PE due diligence prep, "tell me about X industry", call prep for unfamiliar verticals, M&A trends in a sector, industry trackers, vertical scoring configs
 - TASK_INBOX: Task inbox, "what's on my plate", create tasks, snooze tasks, confirm/dismiss AI tasks, buyer spotlight, deal signals, bulk reassign
 - PLATFORM_GUIDE: Questions about how to use the platform, what features do, how workflows work, what the chatbot can do
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_communication, get_deal_scoring_adjustments, get_deal_referrals, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_signals, get_buyer_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, search_transcripts, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_contact, find_contact, push_to_phoneburner, push_to_smartlead, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap, get_smartlead_campaigns, get_smartlead_campaign_stats, get_smartlead_email_history, retrieve_knowledge
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_communication, get_deal_scoring_adjustments, get_deal_referrals, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_signals, get_buyer_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, search_transcripts, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_contact, find_contact, push_to_phoneburner, push_to_smartlead, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap, get_smartlead_campaigns, get_smartlead_campaign_stats, get_smartlead_email_history, retrieve_knowledge, research_industry
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}
