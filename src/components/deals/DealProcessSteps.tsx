@@ -342,14 +342,12 @@ export function DealProcessSteps({
                     )}
 
                   {/* Post-Rejection Re-Engagement Panel */}
-                  {step.id === 'declined' &&
-                    step.status === 'active' &&
-                    normalizedStatus === 'rejected' && (
-                      <PostRejectionPanel
-                        listingCategory={listingCategory}
-                        listingLocation={listingLocation}
-                      />
-                    )}
+                  {step.id === 'declined' && normalizedStatus === 'rejected' && (
+                    <PostRejectionPanel
+                      listingCategory={listingCategory}
+                      listingLocation={listingLocation}
+                    />
+                  )}
                 </div>
               </div>
             );

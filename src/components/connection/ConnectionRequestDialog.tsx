@@ -73,11 +73,11 @@ const ConnectionRequestDialog = ({
       setMessage(data.message || '');
       setHasUsedAI(true);
     } catch (err: unknown) {
-      const message =
+      const errMsg =
         err instanceof Error
           ? err.message
           : 'Failed to generate draft. Please try writing manually.';
-      setDraftError(message);
+      setDraftError(errMsg);
     } finally {
       setIsDrafting(false);
     }
