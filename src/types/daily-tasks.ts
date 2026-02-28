@@ -251,7 +251,13 @@ export const TASK_TYPE_SCORES: Record<TaskType, number> = {
   schedule_call: 80,
   follow_up_with_buyer: 75,
   send_materials: 70,
+  nda_execution: 65,
+  ioi_loi_process: 60,
+  due_diligence: 55,
+  buyer_qualification: 50,
   build_buyer_universe: 50,
+  seller_relationship: 45,
+  buyer_ic_followup: 40,
   update_pipeline: 30,
   other: 40,
 };
