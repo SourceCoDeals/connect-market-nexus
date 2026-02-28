@@ -7,8 +7,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MessageSquare, Send, Loader2 } from 'lucide-react';
-import { useTaskComments, useAddTaskComment } from '@/hooks/useTaskComments';
+import { MessageSquare, Send, Loader2, Trash2 } from 'lucide-react';
+import { useTaskComments, useAddTaskComment, useDeleteTaskComment } from '@/hooks/useTaskComments';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface TaskCommentsPanelProps {
@@ -18,6 +19,8 @@ interface TaskCommentsPanelProps {
 export function TaskCommentsPanel({ taskId }: TaskCommentsPanelProps) {
   const { data: comments, isLoading } = useTaskComments(taskId);
   const addComment = useAddTaskComment();
+  const deleteComment = useDeleteTaskComment();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [body, setBody] = useState('');
 
@@ -56,12 +59,35 @@ export function TaskCommentsPanel({ taskId }: TaskCommentsPanelProps) {
               ? `${c.user.first_name || ''} ${c.user.last_name || ''}`.trim() || c.user.email
               : 'Unknown';
             return (
-              <div key={c.id} className="rounded-md border px-3 py-2 bg-muted/30 text-sm">
+              <div key={c.id} className="group rounded-md border px-3 py-2 bg-muted/30 text-sm">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-xs">{name}</span>
                   <span className="text-[10px] text-muted-foreground">
                     {formatDistanceToNow(new Date(c.created_at), { addSuffix: true })}
                   </span>
+                  {c.user?.id === user?.id && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        deleteComment.mutate(
+                          { commentId: c.id, taskId },
+                          {
+                            onError: (err) =>
+                              toast({
+                                title: 'Failed to delete comment',
+                                description: err instanceof Error ? err.message : 'Unknown error',
+                                variant: 'destructive',
+                              }),
+                          },
+                        );
+                      }}
+                      disabled={deleteComment.isPending}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{c.body}</p>
               </div>

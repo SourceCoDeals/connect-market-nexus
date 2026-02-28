@@ -146,6 +146,14 @@ ALTER TABLE public.daily_standup_tasks
     )
     NOT VALID;
 
+-- Chatbot tasks also require entity linking
+ALTER TABLE public.daily_standup_tasks
+  ADD CONSTRAINT dst_chatbot_entity_required
+    CHECK (
+      source != 'chatbot' OR entity_id IS NOT NULL
+    )
+    NOT VALID;
+
 -- Template tasks also require entity linking
 ALTER TABLE public.daily_standup_tasks
   ADD CONSTRAINT dst_template_entity_required
@@ -159,6 +167,7 @@ ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_entity_type_check
 ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_source_check;
 ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_priority_check;
 ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_ai_entity_required;
+ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_chatbot_entity_required;
 ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_template_entity_required;
 
 
@@ -614,7 +623,170 @@ END;
 $$;
 
 
--- ─── 17. Additional performance indexes ──────────────────────────
+-- ─── 17. task_type CHECK constraint ──────────────────────────────
+
+-- Drop any existing constraint first
+DO $$
+BEGIN
+  ALTER TABLE public.daily_standup_tasks
+    DROP CONSTRAINT IF EXISTS dst_task_type_check;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+ALTER TABLE public.daily_standup_tasks
+  ADD CONSTRAINT dst_task_type_check
+    CHECK (task_type IN (
+      'contact_owner','build_buyer_universe','follow_up_with_buyer',
+      'send_materials','update_pipeline','schedule_call',
+      'nda_execution','ioi_loi_process','due_diligence',
+      'buyer_qualification','seller_relationship','buyer_ic_followup',
+      'other'
+    ))
+    NOT VALID;
+
+ALTER TABLE public.daily_standup_tasks VALIDATE CONSTRAINT dst_task_type_check;
+
+
+-- ─── 18. Dynamic priority_score calculation ──────────────────────
+-- Computes a 0-100 score based on task type weight, due-date urgency,
+-- buyer deal score, and entity importance. Called on insert/update.
+
+CREATE OR REPLACE FUNCTION public.compute_task_priority_score()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  type_weight integer;
+  urgency_score integer;
+  buyer_bonus integer;
+  days_until_due integer;
+BEGIN
+  -- Task type weight (mirrors TASK_TYPE_SCORES from TypeScript)
+  type_weight := CASE NEW.task_type
+    WHEN 'contact_owner' THEN 90
+    WHEN 'schedule_call' THEN 80
+    WHEN 'follow_up_with_buyer' THEN 75
+    WHEN 'send_materials' THEN 70
+    WHEN 'nda_execution' THEN 65
+    WHEN 'ioi_loi_process' THEN 60
+    WHEN 'due_diligence' THEN 55
+    WHEN 'buyer_qualification' THEN 50
+    WHEN 'build_buyer_universe' THEN 50
+    WHEN 'seller_relationship' THEN 45
+    WHEN 'buyer_ic_followup' THEN 40
+    WHEN 'update_pipeline' THEN 30
+    ELSE 40 -- 'other'
+  END;
+
+  -- Due-date urgency: overdue tasks get max boost, far-future tasks get none
+  days_until_due := (NEW.due_date - CURRENT_DATE);
+  urgency_score := CASE
+    WHEN days_until_due < 0  THEN 30                              -- overdue: max urgency
+    WHEN days_until_due = 0  THEN 25                              -- due today
+    WHEN days_until_due = 1  THEN 20                              -- due tomorrow
+    WHEN days_until_due <= 3 THEN 15                              -- due within 3 days
+    WHEN days_until_due <= 7 THEN 10                              -- due this week
+    ELSE 0                                                        -- future
+  END;
+
+  -- Buyer deal score bonus (if available): 0-15 range
+  buyer_bonus := COALESCE(LEAST(NEW.buyer_deal_score / 7, 15), 0);
+
+  -- Priority text modifier
+  IF NEW.priority = 'urgent' THEN
+    type_weight := type_weight + 10;
+  ELSIF NEW.priority = 'high' THEN
+    type_weight := type_weight + 5;
+  ELSIF NEW.priority = 'low' THEN
+    type_weight := type_weight - 10;
+  END IF;
+
+  -- Composite score: 35% type + 40% urgency + 25% buyer bonus, scaled to 0-100
+  -- type_weight is 30-100, urgency is 0-30, buyer is 0-15
+  NEW.priority_score := LEAST(
+    GREATEST(
+      (type_weight * 0.55 + urgency_score * 1.0 + buyer_bonus * 1.0)::integer,
+      1
+    ),
+    100
+  );
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_compute_priority_score ON public.daily_standup_tasks;
+CREATE TRIGGER trg_compute_priority_score
+  BEFORE INSERT OR UPDATE OF task_type, due_date, priority, buyer_deal_score
+  ON public.daily_standup_tasks
+  FOR EACH ROW
+  EXECUTE FUNCTION public.compute_task_priority_score();
+
+-- Backfill existing tasks with computed scores
+UPDATE public.daily_standup_tasks
+SET priority_score = priority_score  -- triggers the BEFORE UPDATE trigger
+WHERE status IN ('pending', 'pending_approval', 'in_progress', 'overdue');
+
+
+-- ─── 19. pg_cron scheduling ─────────────────────────────────────
+-- Schedule recurring maintenance jobs. pg_cron must be enabled in
+-- Supabase dashboard (Database → Extensions → pg_cron).
+-- These are wrapped in DO blocks so the migration doesn't fail if
+-- pg_cron is not yet enabled.
+
+DO $$
+BEGIN
+  -- Wake snoozed tasks every morning at 6:00 AM UTC
+  PERFORM cron.schedule(
+    'wake-snoozed-tasks',
+    '0 6 * * *',
+    'SELECT public.wake_snoozed_tasks()'
+  );
+EXCEPTION WHEN undefined_function THEN
+  RAISE NOTICE 'pg_cron not available — skipping wake-snoozed-tasks schedule';
+END $$;
+
+DO $$
+BEGIN
+  -- Expire unreviewed AI tasks every morning at 6:05 AM UTC
+  PERFORM cron.schedule(
+    'expire-ai-tasks',
+    '5 6 * * *',
+    'SELECT public.expire_unreviewed_ai_tasks()'
+  );
+EXCEPTION WHEN undefined_function THEN
+  RAISE NOTICE 'pg_cron not available — skipping expire-ai-tasks schedule';
+END $$;
+
+DO $$
+BEGIN
+  -- Purge old AI quotes nightly at 3:00 AM UTC
+  PERFORM cron.schedule(
+    'purge-ai-quotes',
+    '0 3 * * *',
+    'SELECT public.purge_ai_quotes()'
+  );
+EXCEPTION WHEN undefined_function THEN
+  RAISE NOTICE 'pg_cron not available — skipping purge-ai-quotes schedule';
+END $$;
+
+DO $$
+BEGIN
+  -- Mark overdue tasks every morning at 5:55 AM UTC
+  PERFORM cron.schedule(
+    'mark-overdue-tasks',
+    '55 5 * * *',
+    $$UPDATE public.daily_standup_tasks
+      SET status = 'overdue', updated_at = now()
+      WHERE status IN ('pending','in_progress')
+        AND due_date < CURRENT_DATE$$
+  );
+EXCEPTION WHEN undefined_function THEN
+  RAISE NOTICE 'pg_cron not available — skipping mark-overdue-tasks schedule';
+END $$;
+
+
+-- ─── 20. Additional performance indexes ──────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_task_activity_created
   ON public.rm_task_activity_log(created_at);
