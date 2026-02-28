@@ -1,15 +1,65 @@
+/**
+ * MyRequests (My Deals) — The buyer's deal pipeline page.
+ *
+ * This is the primary hub for buyers to track all their active opportunities,
+ * take required actions, and communicate with the SourceCo deal team.
+ *
+ * Layout (desktop):
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │  Page Header: "My Deals" + subtitle + deal count                    │
+ * ├──────────────────────────────────────────────────────────────────────┤
+ * │  Action Hub: Navy bar with aggregated action chips across ALL deals │
+ * ├──────────────────┬───────────────────────────────────────────────────┤
+ * │  Deal Cards      │  Detail Panel                                    │
+ * │  (340px sidebar) │  ┌──────────────────────────────────────────────┐│
+ * │  ┌──────────┐    │  │ Navy Header: icon + title + tags + EBITDA   ││
+ * │  │ Card 1 ● │    │  │ Pipeline progress: 6-stage checklist        ││
+ * │  └──────────┘    │  ├──────────────────────────────────────────────┤│
+ * │  ┌──────────┐    │  │ Tabs: Overview | Messages | Documents | Log ││
+ * │  │ Card 2   │    │  ├──────────────────────────────────────────────┤│
+ * │  └──────────┘    │  │ Tab Content                                 ││
+ * │  ┌──────────┐    │  │  - Overview: Stats + Next Steps + Process   ││
+ * │  │ Card 3   │    │  │  - Messages: Human-only chat thread         ││
+ * │  └──────────┘    │  │  - Documents: Agreements + data room        ││
+ * │                  │  │  - Activity: System notification timeline    ││
+ * │                  │  └──────────────────────────────────────────────┘│
+ * └──────────────────┴───────────────────────────────────────────────────┘
+ *
+ * Key design decisions:
+ *
+ *   • The Overview tab layers THREE information types:
+ *     1. DealNextSteps — the per-deal action checklist (Sign NDA, Fee, CIM)
+ *     2. DealMetricsCard — financial summary and key stats
+ *     3. DealProcessSteps — request lifecycle progress + DealReviewPanel +
+ *        WhileYouWaitChecklist + PostRejectionPanel
+ *     4. DealDetailsCard — about the opportunity, submission date
+ *
+ *     The Next Steps checklist is placed FIRST because it answers the
+ *     buyer's most urgent question: "What do I need to do right now?"
+ *
+ *   • The detail panel header (DealDetailHeader) uses a navy background
+ *     to create clear visual separation from the tab content below.  It
+ *     shows EBITDA prominently (the primary valuation metric) and a
+ *     6-stage pipeline progress bar so buyers always know where the deal
+ *     stands in the full M&A lifecycle.
+ *
+ *   • Existing features from the previous implementation are preserved:
+ *     - DealReviewPanel (edit connection message while under review)
+ *     - WhileYouWaitChecklist (contextual actions during waiting)
+ *     - PostRejectionPanel (similar deals + re-engagement after rejection)
+ *     These appear inside DealProcessSteps in the Overview tab.
+ *
+ * State management:
+ *   - selectedDeal: which deal card is active (persisted across renders)
+ *   - innerTab: per-deal tab state (tracks which tab is open per deal)
+ *   - URL params: supports ?request=<id>&tab=<tab> for deep linking
+ */
+
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import type { User } from '@/types';
 import { useMarketplace } from '@/hooks/use-marketplace';
-import {
-  AlertCircle,
-  FileText,
-  MessageSquare,
-  FolderOpen,
-  Activity,
-  LayoutGrid,
-} from 'lucide-react';
+import { AlertCircle, FileText, MessageSquare, FolderOpen, Activity } from 'lucide-react';
 import { useUnreadBuyerMessageCounts } from '@/hooks/use-connection-messages';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getProfileCompletionDetails } from '@/lib/buyer-metrics';
@@ -23,6 +73,8 @@ import { DealDocumentsTab } from '@/components/deals/DealDocumentsTab';
 import { DealActivityLog } from '@/components/deals/DealActivityLog';
 import { ActionHub } from '@/components/deals/ActionHub';
 import { DealPipelineCard } from '@/components/deals/DealPipelineCard';
+import { DealDetailHeader } from '@/components/deals/DealDetailHeader';
+import { DealNextSteps } from '@/components/deals/DealNextSteps';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -30,9 +82,14 @@ import {
   useMarkRequestNotificationsAsRead,
   useMarkAllUserNotificationsAsRead,
 } from '@/hooks/use-user-notifications';
+import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Main Page Component
+   ═══════════════════════════════════════════════════════════════════════ */
 
 const MyRequests = () => {
   const { user, isAdmin } = useAuth();
@@ -48,13 +105,20 @@ const MyRequests = () => {
   const markAllNotificationsAsRead = useMarkAllUserNotificationsAsRead();
   const { data: unreadMsgCounts } = useUnreadBuyerMessageCounts();
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
+  const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
 
-  // Get/set inner tab for a specific deal
+  /** Get the active inner tab for a specific deal (defaults to "overview") */
   const getInnerTab = (requestId: string) => innerTab[requestId] || 'overview';
+
+  /** Set the inner tab for a specific deal */
   const setDealInnerTab = (requestId: string, tab: string) =>
     setInnerTab((prev) => ({ ...prev, [requestId]: tab }));
 
-  // Fetch fresh profile data to avoid stale completeness calculations
+  /**
+   * Fetch fresh profile data to avoid stale completeness calculations.
+   * The profile determines whether the "complete your profile" nudges
+   * appear in DealProcessSteps and WhileYouWaitChecklist.
+   */
   const { data: freshProfile } = useQuery({
     queryKey: ['user-profile', user?.id],
     queryFn: async () => {
@@ -83,7 +147,10 @@ const MyRequests = () => {
     };
   }, [freshProfile, user]);
 
-  // Handle deal selection from URL or ActionHub
+  /**
+   * Handle deal selection from URL parameters, ActionHub clicks,
+   * or direct card clicks.  Optionally jumps to a specific tab.
+   */
   const handleSelectDeal = (dealId: string, tab?: string) => {
     setSelectedDeal(dealId);
     if (tab) {
@@ -121,6 +188,7 @@ const MyRequests = () => {
 
   const selectedRequest = requests.find((r) => r.id === selectedDeal);
 
+  /* ── Error state ── */
   if (error) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center px-4">
@@ -132,35 +200,37 @@ const MyRequests = () => {
     );
   }
 
+  /* ── Loading state — skeleton placeholder matching the final layout ── */
   if (isLoading) {
     return (
-      <div className="w-full bg-[#FAFAF8] min-h-screen">
-        <div className="px-4 sm:px-8 pt-8 pb-6 max-w-7xl mx-auto">
+      <div className="w-full bg-[#faf8f4] min-h-screen">
+        <div className="px-4 sm:px-8 pt-8 pb-6 max-w-[1200px] mx-auto">
           <Skeleton className="h-9 w-48" />
           <Skeleton className="h-5 w-72 mt-2" />
         </div>
-        <div className="px-4 sm:px-8 max-w-7xl mx-auto">
+        <div className="px-4 sm:px-8 max-w-[1200px] mx-auto">
           <Skeleton className="h-24 w-full rounded-xl mb-6" />
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5">
             <div className="space-y-3">
-              <Skeleton className="h-32 w-full rounded-xl" />
-              <Skeleton className="h-32 w-full rounded-xl" />
+              <Skeleton className="h-36 w-full rounded-xl" />
+              <Skeleton className="h-36 w-full rounded-xl" />
             </div>
-            <div className="lg:col-span-2">
-              <Skeleton className="h-96 w-full rounded-xl" />
-            </div>
+            <Skeleton className="h-[500px] w-full rounded-xl" />
           </div>
         </div>
       </div>
     );
   }
 
+  /* ── Empty state — no deals yet ── */
   if (!requests || requests.length === 0) {
     return (
-      <div className="w-full bg-[#FAFAF8] min-h-screen">
-        <div className="px-4 sm:px-8 pt-8 pb-6 max-w-7xl mx-auto">
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">My Deals</h1>
-          <p className="text-sm text-slate-500 mt-1">Your deal pipeline at a glance</p>
+      <div className="w-full bg-[#faf8f4] min-h-screen">
+        <div className="px-4 sm:px-8 pt-8 pb-6 max-w-[1200px] mx-auto">
+          <h1 className="text-[28px] font-semibold text-[#0f1f3d] tracking-tight">My Deals</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Track your active opportunities and required actions across your pipeline
+          </p>
         </div>
         <div className="min-h-[50vh] flex items-center justify-center px-4">
           <div className="text-center space-y-4 max-w-sm">
@@ -169,7 +239,7 @@ const MyRequests = () => {
                 <FileText className="h-6 w-6 text-slate-400" />
               </div>
             </div>
-            <h2 className="text-base font-semibold text-slate-900">No deals yet</h2>
+            <h2 className="text-base font-semibold text-[#0f1f3d]">No deals yet</h2>
             <p className="text-sm text-slate-600 leading-6">
               You haven't submitted any connection requests yet. Browse the marketplace to find
               opportunities.
@@ -180,22 +250,19 @@ const MyRequests = () => {
     );
   }
 
+  /* ── Main render ── */
   return (
-    <div className="w-full bg-[#FAFAF8] min-h-screen">
+    <div className="w-full bg-[#faf8f4] min-h-screen">
       {/* ─── Page Header ─── */}
-      <div className="px-4 sm:px-8 pt-8 pb-4 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3 mb-1">
-          <LayoutGrid className="h-5 w-5 text-slate-400" />
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">My Deals</h1>
-          <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-200 px-1.5 text-[10px] font-bold text-slate-600">
-            {requests.length}
-          </span>
-        </div>
-        <p className="text-sm text-slate-500 ml-8">Your deal pipeline at a glance</p>
+      <div className="px-4 sm:px-8 pt-8 pb-5 max-w-[1200px] mx-auto">
+        <h1 className="text-[28px] font-semibold text-[#0f1f3d] tracking-tight">My Deals</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Track your active opportunities and required actions across your pipeline
+        </p>
       </div>
 
-      <div className="px-4 sm:px-8 pb-8 max-w-7xl mx-auto space-y-6">
-        {/* ─── Action Hub (aggregated pending actions) ─── */}
+      <div className="px-4 sm:px-8 pb-8 max-w-[1200px] mx-auto space-y-7">
+        {/* ─── Action Hub (aggregated pending actions across all deals) ─── */}
         <ActionHub
           requests={requests}
           unreadByRequest={unreadByRequest}
@@ -203,38 +270,49 @@ const MyRequests = () => {
           onSelectDeal={handleSelectDeal}
         />
 
-        {/* ─── Main Layout: Deal Cards + Detail Panel ─── */}
+        {/* ─── Main Grid: Deal Cards (left) + Detail Panel (right) ─── */}
         <div
           className={cn(
-            'grid gap-6',
+            'grid gap-5',
             isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[340px_1fr]',
           )}
         >
-          {/* ─── Left: Deal Cards ─── */}
-          <div className="space-y-3">
-            {requests.map((request) => {
-              const unreadForRequest =
-                (unreadByRequest[request.id] || 0) + (unreadMsgCounts?.byRequest[request.id] || 0);
+          {/* ─── Left Column: Deal Cards ─── */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-[0.08em]">
+                Active Deals
+              </h2>
+              <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#0f1f3d] px-2 text-[11px] font-semibold text-white">
+                {requests.length}
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {requests.map((request) => {
+                const unreadForRequest =
+                  (unreadByRequest[request.id] || 0) +
+                  (unreadMsgCounts?.byRequest[request.id] || 0);
 
-              // Determine pending action text
-              let pendingAction: string | undefined;
-              if (request.status === 'pending') pendingAction = 'Under Review';
+                // Show "Under Review" badge on pending deals
+                let pendingAction: string | undefined;
+                if (request.status === 'pending') pendingAction = 'Under Review';
 
-              return (
-                <DealPipelineCard
-                  key={request.id}
-                  request={request}
-                  isSelected={selectedDeal === request.id}
-                  unreadCount={unreadForRequest}
-                  ndaSigned={ndaStatus?.ndaSigned ?? undefined}
-                  onSelect={() => handleSelectDeal(request.id)}
-                  pendingAction={pendingAction}
-                />
-              );
-            })}
+                return (
+                  <DealPipelineCard
+                    key={request.id}
+                    request={request}
+                    isSelected={selectedDeal === request.id}
+                    unreadCount={unreadForRequest}
+                    ndaSigned={ndaStatus?.ndaSigned ?? undefined}
+                    onSelect={() => handleSelectDeal(request.id)}
+                    pendingAction={pendingAction}
+                  />
+                );
+              })}
+            </div>
           </div>
 
-          {/* ─── Right: Deal Detail Panel ─── */}
+          {/* ─── Right Column: Deal Detail Panel ─── */}
           {selectedRequest && (
             <div className="min-w-0">
               <DetailPanel
@@ -245,6 +323,9 @@ const MyRequests = () => {
                 unreadDocsByDeal={unreadDocsByDeal}
                 updateMessage={updateMessage}
                 profileForCalc={profileForCalc}
+                ndaSigned={ndaStatus?.ndaSigned ?? false}
+                feeCovered={coverage?.fee_covered ?? false}
+                feeStatus={coverage?.fee_status}
               />
             </div>
           )}
@@ -254,7 +335,23 @@ const MyRequests = () => {
   );
 };
 
-// ─── Detail Panel Sub-Component ─────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════════
+   Detail Panel — Right-hand side when a deal card is selected
+   ═══════════════════════════════════════════════════════════════════════
+
+   Structure:
+   1. DealDetailHeader  — navy header with company info + pipeline progress
+   2. Tab bar           — Overview | Messages | Documents | Activity Log
+   3. Tab content       — rendered below the tab bar
+
+   The Overview tab combines:
+   - DealNextSteps (new: per-deal action checklist)
+   - DealMetricsCard (existing: financial stats)
+   - DealProcessSteps (existing: request lifecycle + review panel +
+     while-you-wait checklist + post-rejection panel)
+   - DealDetailsCard (existing: about + submission date)
+   ═══════════════════════════════════════════════════════════════════════ */
+
 interface DetailPanelProps {
   request: import('@/types').ConnectionRequest;
   innerTab: string;
@@ -265,6 +362,12 @@ interface DetailPanelProps {
     mutateAsync: (args: { requestId: string; message: string }) => Promise<unknown>;
   };
   profileForCalc: User | null;
+  /** Whether the buyer's firm has signed the NDA */
+  ndaSigned: boolean;
+  /** Whether the buyer's firm has fee agreement coverage */
+  feeCovered: boolean;
+  /** The fee agreement's current status (e.g. 'sent', 'signed') */
+  feeStatus?: string;
 }
 
 function DetailPanel({
@@ -275,59 +378,53 @@ function DetailPanel({
   unreadDocsByDeal,
   updateMessage,
   profileForCalc,
+  ndaSigned,
+  feeCovered,
+  feeStatus,
 }: DetailPanelProps) {
   const requestStatus = request.status as 'pending' | 'approved' | 'rejected' | 'on_hold';
   const msgUnread = unreadMsgCounts?.byRequest[request.id] || 0;
   const docUnread = unreadDocsByDeal[request.listing_id] || 0;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] overflow-hidden">
-      {/* Detail Panel Header */}
-      <div className="px-5 py-4 border-b border-slate-100">
-        <h2 className="text-base font-semibold text-slate-900 truncate">
-          {request.listing?.title || 'Untitled'}
-        </h2>
-      </div>
+    <div className="bg-white rounded-xl border border-slate-200 shadow-[0_4px_16px_rgba(15,31,61,0.08)] overflow-hidden">
+      {/* ─── Navy Header with company info + pipeline progress ─── */}
+      <DealDetailHeader
+        listingId={request.listing_id}
+        title={request.listing?.title || 'Untitled'}
+        category={request.listing?.category}
+        location={request.listing?.location}
+        acquisitionType={request.listing?.acquisition_type}
+        ebitda={request.listing?.ebitda}
+        revenue={request.listing?.revenue}
+        requestStatus={requestStatus as 'pending' | 'approved' | 'rejected'}
+        ndaSigned={ndaSigned}
+      />
 
-      {/* Inner Tabs */}
+      {/* ─── Tab Navigation ──
+           Uses the same tab IDs as before (overview, documents, messages,
+           activity) to preserve URL deep-linking compatibility. */}
       <Tabs value={innerTab} onValueChange={onInnerTabChange} className="w-full">
-        <div className="border-b border-slate-100 px-5">
+        <div className="border-b border-slate-100 px-6 bg-white">
           <TabsList className="inline-flex h-auto items-center bg-transparent p-0 gap-0.5 w-full justify-start rounded-none">
             <TabsTrigger
               value="overview"
               className={cn(
-                'px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors',
+                'px-4 py-3 text-[13px] font-medium rounded-none border-b-2 transition-colors',
                 innerTab === 'overview'
-                  ? 'border-slate-900 text-slate-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-700',
+                  ? 'border-[#0f1f3d] text-[#0f1f3d] font-semibold'
+                  : 'border-transparent text-slate-400 hover:text-[#0f1f3d]',
               )}
             >
               Overview
             </TabsTrigger>
             <TabsTrigger
-              value="documents"
-              className={cn(
-                'px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
-                innerTab === 'documents'
-                  ? 'border-slate-900 text-slate-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-700',
-              )}
-            >
-              <FolderOpen className="h-3.5 w-3.5" />
-              Documents
-              {docUnread > 0 && (
-                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
-                  {docUnread > 99 ? '99+' : docUnread}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger
               value="messages"
               className={cn(
-                'px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
+                'px-4 py-3 text-[13px] font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
                 innerTab === 'messages'
-                  ? 'border-slate-900 text-slate-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-700',
+                  ? 'border-[#0f1f3d] text-[#0f1f3d] font-semibold'
+                  : 'border-transparent text-slate-400 hover:text-[#0f1f3d]',
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
@@ -339,12 +436,29 @@ function DetailPanel({
               )}
             </TabsTrigger>
             <TabsTrigger
+              value="documents"
+              className={cn(
+                'px-4 py-3 text-[13px] font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
+                innerTab === 'documents'
+                  ? 'border-[#0f1f3d] text-[#0f1f3d] font-semibold'
+                  : 'border-transparent text-slate-400 hover:text-[#0f1f3d]',
+              )}
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              Documents
+              {docUnread > 0 && (
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
+                  {docUnread > 99 ? '99+' : docUnread}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
               value="activity"
               className={cn(
-                'px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
+                'px-4 py-3 text-[13px] font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
                 innerTab === 'activity'
-                  ? 'border-slate-900 text-slate-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-700',
+                  ? 'border-[#0f1f3d] text-[#0f1f3d] font-semibold'
+                  : 'border-transparent text-slate-400 hover:text-[#0f1f3d]',
               )}
             >
               <Activity className="h-3.5 w-3.5" />
@@ -353,10 +467,25 @@ function DetailPanel({
           </TabsList>
         </div>
 
-        <div className="p-5">
-          {/* ─── Overview Tab ─── */}
+        <div className="p-6">
+          {/* ─── Overview Tab ───
+               Layers four information sections:
+               1. Next Steps — what the buyer needs to do right now
+               2. Metrics — financial snapshot
+               3. Process — request lifecycle + inline review/wait/rejection panels
+               4. Details — about the opportunity + submission timestamp */}
           <TabsContent value="overview" className="mt-0 space-y-6">
-            {/* Metrics Card */}
+            {/* Per-deal action checklist */}
+            <DealNextSteps
+              requestCreatedAt={request.created_at}
+              ndaSigned={ndaSigned}
+              feeCovered={feeCovered}
+              feeStatus={feeStatus}
+              requestStatus={requestStatus as 'pending' | 'approved' | 'rejected'}
+              onNavigateToDocuments={() => onInnerTabChange('documents')}
+            />
+
+            {/* Financial metrics card */}
             <DealMetricsCard
               listing={{
                 id: request.listing_id,
@@ -373,7 +502,8 @@ function DetailPanel({
               status={request.status}
             />
 
-            {/* Process Steps */}
+            {/* Request lifecycle progress + inline panels
+                (DealReviewPanel, WhileYouWaitChecklist, PostRejectionPanel) */}
             <DealProcessSteps
               requestStatus={request.status as 'pending' | 'approved' | 'rejected'}
               requestId={request.id}
@@ -391,7 +521,7 @@ function DetailPanel({
               requestCreatedAt={request.created_at}
             />
 
-            {/* Deal Details */}
+            {/* About the opportunity + submission date */}
             <DealDetailsCard
               listing={{
                 category: request.listing?.category,
@@ -402,7 +532,12 @@ function DetailPanel({
             />
           </TabsContent>
 
-          {/* ─── Documents Tab ─── */}
+          {/* ─── Messages Tab — Human-only conversation thread ─── */}
+          <TabsContent value="messages" className="mt-0">
+            <DealMessagesTab requestId={request.id} requestStatus={requestStatus} />
+          </TabsContent>
+
+          {/* ─── Documents Tab — Agreements + data room ─── */}
           <TabsContent value="documents" className="mt-0">
             <DealDocumentsTab
               requestId={request.id}
@@ -411,12 +546,7 @@ function DetailPanel({
             />
           </TabsContent>
 
-          {/* ─── Messages Tab (human-only) ─── */}
-          <TabsContent value="messages" className="mt-0">
-            <DealMessagesTab requestId={request.id} requestStatus={requestStatus} />
-          </TabsContent>
-
-          {/* ─── Activity Log Tab (system notifications) ─── */}
+          {/* ─── Activity Log Tab — System notifications timeline ─── */}
           <TabsContent value="activity" className="mt-0">
             <DealActivityLog requestId={request.id} requestStatus={requestStatus} />
           </TabsContent>
