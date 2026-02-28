@@ -14204,6 +14204,14 @@ export type Database = {
         Returns: boolean
       }
       increment: { Args: { x: number }; Returns: number }
+      increment_global_queue_progress: {
+        Args: {
+          p_completed_delta?: number
+          p_failed_delta?: number
+          p_operation_type: string
+        }
+        Returns: undefined
+      }
       increment_journey_sessions: {
         Args: {
           p_page_path?: string
@@ -14410,6 +14418,10 @@ export type Database = {
         Returns: boolean
       }
       soft_delete_listing: { Args: { listing_id: string }; Returns: boolean }
+      try_acquire_queue_processor_lock: {
+        Args: { p_queue_name: string }
+        Returns: boolean
+      }
       update_agreement_via_user: {
         Args: {
           p_action: string
