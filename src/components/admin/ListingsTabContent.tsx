@@ -1,16 +1,16 @@
-import { useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Plus, Building2, Target } from "lucide-react";
-import { AdminListingCard } from "./AdminListingCard";
-import { ResearchDealCard } from "./ResearchDealCard";
-import { ViewSwitcher } from "./ViewSwitcher";
-import { AdminListing } from "@/types/admin";
-import { useListingsByType, ListingType } from "@/hooks/admin/listings/use-listings-by-type";
-import { useAdmin } from "@/hooks/use-admin";
-import { FilterBar, ADMIN_LISTING_FIELDS } from "@/components/filters";
-import { useFilterEngine } from "@/hooks/use-filter-engine";
-import { useTimeframe } from "@/hooks/use-timeframe";
-import { useSavedViews } from "@/hooks/use-saved-views";
+import { useState, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Building2, Target } from 'lucide-react';
+import { AdminListingCard } from './AdminListingCard';
+import { ResearchDealCard } from './ResearchDealCard';
+import { ViewSwitcher } from './ViewSwitcher';
+import { AdminListing } from '@/types/admin';
+import { useListingsByType, ListingType } from '@/hooks/admin/listings/use-listings-by-type';
+import { useAdmin } from '@/hooks/use-admin';
+import { FilterBar, ADMIN_LISTING_FIELDS } from '@/components/filters';
+import { useFilterEngine } from '@/hooks/use-filter-engine';
+import { useTimeframe } from '@/hooks/use-timeframe';
+import { useSavedViews } from '@/hooks/use-saved-views';
 
 interface ListingsTabContentProps {
   type: ListingType;
@@ -18,7 +18,11 @@ interface ListingsTabContentProps {
   onCreateNew: () => void;
 }
 
-export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabContentProps) {
+export function ListingsTabContent({
+  type,
+  onEdit,
+  onCreateNew: _onCreateNew,
+}: ListingsTabContentProps) {
   const { data: listings = [], isLoading } = useListingsByType(type);
   const { useToggleListingStatus, useDeleteListing, useUpdateListing } = useAdmin();
   const { mutate: toggleStatus } = useToggleListingStatus();
@@ -41,32 +45,36 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
 
   // Apply timeframe on top of engine results
   const filteredAndSortedListings = useMemo(() => {
-    return filteredByEngine.filter(listing => isInRange(listing.created_at));
+    return filteredByEngine.filter((listing) => isInRange(listing.created_at));
   }, [filteredByEngine, isInRange]);
 
   const handleBulkAction = (action: string) => {
     if (selectedListings.size === 0) return;
 
     switch (action) {
-      case "activate":
-        selectedListings.forEach(id => {
-          const listing = listings.find(l => l.id === id);
+      case 'activate':
+        selectedListings.forEach((id) => {
+          const listing = listings.find((l) => l.id === id);
           if (listing && listing.status !== 'active') {
             toggleStatus({ id, status: 'active' });
           }
         });
         break;
-      case "deactivate":
-        selectedListings.forEach(id => {
-          const listing = listings.find(l => l.id === id);
+      case 'deactivate':
+        selectedListings.forEach((id) => {
+          const listing = listings.find((l) => l.id === id);
           if (listing && listing.status !== 'inactive') {
             toggleStatus({ id, status: 'inactive' });
           }
         });
         break;
-      case "delete":
-        if (window.confirm(`Are you sure you want to delete ${selectedListings.size} listing(s)? This action cannot be undone.`)) {
-          selectedListings.forEach(id => {
+      case 'delete':
+        if (
+          window.confirm(
+            `Are you sure you want to delete ${selectedListings.size} listing(s)? This action cannot be undone.`,
+          )
+        ) {
+          selectedListings.forEach((id) => {
             deleteListing(id);
           });
         }
@@ -76,27 +84,30 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
   };
 
   const handleStatusTagChange = (listingId: string, statusTag: string | null) => {
-    const listing = listings.find(l => l.id === listingId);
+    const listing = listings.find((l) => l.id === listingId);
     if (listing) {
       updateListing({
         id: listingId,
-        listing: { ...listing, status_tag: statusTag }
+        listing: { ...listing, status_tag: statusTag },
       });
     }
   };
 
   // Tab-specific empty state content
-  const emptyStateContent = type === 'marketplace' ? {
-    icon: Building2,
-    title: 'No Marketplace Listings',
-    description: 'Publish your first listing to start attracting buyers.',
-    actionLabel: 'Create Listing'
-  } : {
-    icon: Target,
-    title: 'No Research Deals',
-    description: 'Import or create research deals to begin your M&A pipeline.',
-    actionLabel: 'Create Research Deal'
-  };
+  const emptyStateContent =
+    type === 'marketplace'
+      ? {
+          icon: Building2,
+          title: 'No Marketplace Listings',
+          description: 'Publish your first listing to start attracting buyers.',
+          actionLabel: 'Create Listing',
+        }
+      : {
+          icon: Target,
+          title: 'No Research Deals',
+          description: 'Import or create research deals to begin your M&A pipeline.',
+          actionLabel: 'Create Research Deal',
+        };
 
   const isFiltered = filterState.rules.length > 0 || filterState.search;
 
@@ -125,13 +136,28 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
             <span className="text-sm font-medium text-primary">
               {selectedListings.size} selected
             </span>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("activate")} className="h-7 px-2 text-xs">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleBulkAction('activate')}
+              className="h-7 px-2 text-xs"
+            >
               Activate
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("deactivate")} className="h-7 px-2 text-xs">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleBulkAction('deactivate')}
+              className="h-7 px-2 text-xs"
+            >
               Deactivate
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleBulkAction("delete")} className="h-7 px-2 text-xs text-destructive hover:text-destructive">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleBulkAction('delete')}
+              className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+            >
               Delete
             </Button>
           </div>
@@ -140,7 +166,13 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
 
       {/* Listings Grid/Table */}
       {isLoading ? (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6'
+              : 'space-y-4'
+          }
+        >
           {[...Array(6)].map((_, i) => (
             <div key={i} className="bg-card rounded-xl border border-border/40 p-6 animate-pulse">
               <div className="h-32 bg-muted rounded-lg mb-4"></div>
@@ -150,8 +182,14 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
           ))}
         </div>
       ) : (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6' : 'space-y-4'}>
-          {filteredAndSortedListings.map((listing) => (
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6'
+              : 'space-y-4'
+          }
+        >
+          {filteredAndSortedListings.map((listing) =>
             type === 'research' ? (
               <ResearchDealCard
                 key={listing.id}
@@ -169,7 +207,7 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
                 }}
                 onEdit={() => onEdit(listing)}
                 onDelete={() => {
-                  if (window.confirm("Are you sure you want to delete this listing?")) {
+                  if (window.confirm('Are you sure you want to delete this listing?')) {
                     deleteListing(listing.id);
                   }
                 }}
@@ -196,14 +234,14 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
                   toggleStatus({ id: listing.id, status: newStatus });
                 }}
                 onDelete={() => {
-                  if (window.confirm("Are you sure you want to delete this listing?")) {
+                  if (window.confirm('Are you sure you want to delete this listing?')) {
                     deleteListing(listing.id);
                   }
                 }}
                 onStatusTagChange={handleStatusTagChange}
               />
-            )
-          ))}
+            ),
+          )}
 
           {filteredAndSortedListings.length === 0 && (
             <div className="col-span-full">
@@ -211,19 +249,15 @@ export function ListingsTabContent({ type, onEdit, onCreateNew }: ListingsTabCon
                 <div className="mx-auto w-14 h-14 bg-muted/50 rounded-xl flex items-center justify-center mb-5">
                   <emptyStateContent.icon className="h-7 w-7 text-muted-foreground/60" />
                 </div>
-                <h3 className="text-lg font-medium mb-2 text-foreground">{emptyStateContent.title}</h3>
+                <h3 className="text-lg font-medium mb-2 text-foreground">
+                  {emptyStateContent.title}
+                </h3>
                 <p className="text-muted-foreground mb-6 max-w-sm mx-auto text-sm">
                   {isFiltered
-                    ? "Try adjusting your search or filter criteria."
-                    : emptyStateContent.description
-                  }
+                    ? 'Try adjusting your search or filter criteria.'
+                    : emptyStateContent.description}
                 </p>
-                {!isFiltered && (
-                  <Button onClick={onCreateNew} className="shadow-sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    {emptyStateContent.actionLabel}
-                  </Button>
-                )}
+                {/* Listings are created from the Marketplace Queue */}
               </div>
             </div>
           )}

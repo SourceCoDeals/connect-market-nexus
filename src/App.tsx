@@ -101,6 +101,7 @@ const TranscriptAnalytics = lazyWithRetry(
 );
 const EnrichmentQueue = lazyWithRetry(() => import('@/pages/admin/EnrichmentQueue'));
 const MarketplaceQueue = lazyWithRetry(() => import('@/pages/admin/MarketplaceQueue'));
+const CreateListingFromDeal = lazyWithRetry(() => import('@/pages/admin/CreateListingFromDeal'));
 const AdminListings = lazyWithRetry(() => import('@/pages/admin/AdminListings'));
 const DataRecoveryPage = lazyWithRetry(() => import('@/pages/admin/DataRecoveryPage'));
 const FormMonitoringPage = lazyWithRetry(() => import('@/pages/admin/FormMonitoringPage'));
@@ -356,6 +357,7 @@ function App() {
               {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
               <Route path="marketplace/listings" element={<AdminListings />} />
               <Route path="marketplace/queue" element={<MarketplaceQueue />} />
+              <Route path="marketplace/create-listing" element={<CreateListingFromDeal />} />
               <Route path="marketplace/requests" element={<AdminRequests />} />
               <Route path="marketplace/messages" element={<MessageCenter />} />
               <Route path="marketplace/users" element={<MarketplaceUsersPage />} />

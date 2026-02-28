@@ -1,11 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { format } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
 import {
   ExternalLink,
   Flag,
@@ -16,14 +16,9 @@ import {
   PhoneCall,
   Sparkles,
   Store,
-} from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { UniverseAssignmentButton } from "@/components/remarketing/deal-detail";
+} from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { UniverseAssignmentButton } from '@/components/remarketing/deal-detail';
 
 interface WebsiteActionsCardProps {
   deal: any;
@@ -55,7 +50,7 @@ export function WebsiteActionsCard({
   const needsContact = deal?.needs_owner_contact;
 
   return (
-    <Card className={needsContact ? "border-red-400 border-2 bg-red-50 dark:bg-red-950/20" : ""}>
+    <Card className={needsContact ? 'border-red-400 border-2 bg-red-50 dark:bg-red-950/20' : ''}>
       {needsContact && (
         <div className="bg-red-500 text-white text-sm font-semibold px-4 py-2 flex items-center gap-2 rounded-t-lg">
           <PhoneCall className="h-4 w-4 animate-pulse" />
@@ -64,7 +59,9 @@ export function WebsiteActionsCard({
       )}
       <CardHeader className="py-3">
         <div className="flex items-center justify-between">
-          <CardTitle className={`text-lg flex items-center gap-2 ${needsContact ? "text-red-700" : ""}`}>
+          <CardTitle
+            className={`text-lg flex items-center gap-2 ${needsContact ? 'text-red-700' : ''}`}
+          >
             <Globe className="h-5 w-5" />
             Website & Actions
           </CardTitle>
@@ -82,7 +79,15 @@ export function WebsiteActionsCard({
         <div className="flex flex-wrap gap-3">
           {effectiveWebsite && (
             <Button variant="outline" className="gap-2" asChild>
-              <a href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`} target="_blank" rel="noopener noreferrer">
+              <a
+                href={
+                  effectiveWebsite.startsWith('http')
+                    ? effectiveWebsite
+                    : `https://${effectiveWebsite}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <ExternalLink className="h-4 w-4" />
                 View Website
               </a>
@@ -106,11 +111,7 @@ export function WebsiteActionsCard({
             dealCategory={deal?.category}
             scoreCount={scoreStats?.count || 0}
           />
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => setBuyerHistoryOpen(true)}
-          >
+          <Button variant="outline" className="gap-2" onClick={() => setBuyerHistoryOpen(true)}>
             <History className="h-4 w-4" />
             Buyer History
           </Button>
@@ -118,10 +119,11 @@ export function WebsiteActionsCard({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant={needsContact ? "default" : "outline"}
-                  className={`gap-2 font-semibold ${needsContact
-                    ? "bg-red-600 hover:bg-red-700 border-red-600 text-white shadow-md shadow-red-200"
-                    : "border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500"
+                  variant={needsContact ? 'default' : 'outline'}
+                  className={`gap-2 font-semibold ${
+                    needsContact
+                      ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white shadow-md shadow-red-200'
+                      : 'border-red-300 text-red-600 hover:bg-red-50 hover:border-red-500'
                   }`}
                   onClick={() => toggleContactOwnerMutation.mutate(!needsContact)}
                   disabled={toggleContactOwnerMutation.isPending}
@@ -129,15 +131,15 @@ export function WebsiteActionsCard({
                   {toggleContactOwnerMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <PhoneCall className={`h-4 w-4 ${needsContact ? "animate-pulse" : ""}`} />
+                    <PhoneCall className={`h-4 w-4 ${needsContact ? 'animate-pulse' : ''}`} />
                   )}
-                  {needsContact ? "\u{1F6A8} Needs Owner Contact" : "Flag: Contact Owner"}
+                  {needsContact ? '\u{1F6A8} Needs Owner Contact' : 'Flag: Contact Owner'}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
                 {needsContact
-                  ? "This deal is flagged \u2014 team must contact the owner, we have a buyer ready! Click to clear."
-                  : "Flag this deal to alert the team that the owner needs to be contacted (buyer is ready)."}
+                  ? 'This deal is flagged \u2014 team must contact the owner, we have a buyer ready! Click to clear.'
+                  : 'Flag this deal to alert the team that the owner needs to be contacted (buyer is ready).'}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -145,23 +147,27 @@ export function WebsiteActionsCard({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant={(deal?.universe_build_flagged) ? "default" : "outline"}
-                  className={`gap-2 ${(deal?.universe_build_flagged) ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white" : "border-amber-400 text-amber-600 hover:bg-amber-50"}`}
-                  onClick={() => toggleUniverseFlagMutation.mutate(!(deal?.universe_build_flagged))}
+                  variant={deal?.universe_build_flagged ? 'default' : 'outline'}
+                  className={`gap-2 ${deal?.universe_build_flagged ? 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-white' : 'border-amber-400 text-amber-600 hover:bg-amber-50'}`}
+                  onClick={() => toggleUniverseFlagMutation.mutate(!deal?.universe_build_flagged)}
                   disabled={toggleUniverseFlagMutation.isPending}
                 >
                   {toggleUniverseFlagMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Flag className={`h-4 w-4 ${(deal?.universe_build_flagged) ? "fill-white" : ""}`} />
+                    <Flag
+                      className={`h-4 w-4 ${deal?.universe_build_flagged ? 'fill-white' : ''}`}
+                    />
                   )}
-                  {(deal?.universe_build_flagged) ? "Flagged: Build Universe" : "Flag for Universe Build"}
+                  {deal?.universe_build_flagged
+                    ? 'Flagged: Build Universe'
+                    : 'Flag for Universe Build'}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {(deal?.universe_build_flagged)
-                  ? "This deal is flagged \u2014 a team member needs to build a buyer universe for it. Click to remove flag."
-                  : "Flag this deal to indicate a buyer universe needs to be built by the team."}
+                {deal?.universe_build_flagged
+                  ? 'This deal is flagged \u2014 a team member needs to build a buyer universe for it. Click to remove flag.'
+                  : 'Flag this deal to indicate a buyer universe needs to be built by the team.'}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -175,7 +181,9 @@ export function WebsiteActionsCard({
                 <Loader2 className="h-3 w-3 animate-spin" />
                 {enrichmentStage}
               </span>
-              <span className="text-muted-foreground font-medium">{Math.round(enrichmentProgress)}%</span>
+              <span className="text-muted-foreground font-medium">
+                {Math.round(enrichmentProgress)}%
+              </span>
             </div>
             <Progress value={enrichmentProgress} className="h-2" />
           </div>
@@ -183,6 +191,21 @@ export function WebsiteActionsCard({
       </CardContent>
     </Card>
   );
+}
+
+/**
+ * Check deal data quality before allowing push to marketplace.
+ * Returns array of missing field names, empty if all good.
+ */
+function getMarketplaceQualityGaps(deal: any): string[] {
+  const missing: string[] = [];
+  if (!deal?.website) missing.push('Website');
+  if (!deal?.revenue && !deal?.ebitda) missing.push('Revenue or EBITDA');
+  if (!deal?.address_state && !deal?.location) missing.push('Location');
+  if (!deal?.category && !deal?.industry) missing.push('Category/Industry');
+  if (!deal?.executive_summary && !deal?.description)
+    missing.push('Executive Summary or Description');
+  return missing;
 }
 
 function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }) {
@@ -214,14 +237,23 @@ function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }
     );
   }
 
+  const qualityGaps = getMarketplaceQualityGaps(deal);
+  const isReady = qualityGaps.length === 0;
+
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
             variant="outline"
-            className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500"
+            className={`gap-2 ${
+              isReady
+                ? 'border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500'
+                : 'border-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+            disabled={!isReady}
             onClick={async () => {
+              if (!isReady) return;
               const {
                 data: { user: authUser },
               } = await supabase.auth.getUser();
@@ -248,7 +280,9 @@ function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          Push this deal to the Marketplace Queue for review and publishing.
+          {isReady
+            ? 'Push this deal to the Marketplace Queue for review and publishing.'
+            : `Missing required data: ${qualityGaps.join(', ')}`}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

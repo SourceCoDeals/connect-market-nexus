@@ -44,6 +44,9 @@ const SmartleadSettingsPage = lazyWithRetry(
   () => import('@/pages/admin/settings/SmartleadSettingsPage'),
 );
 
+// Create listing from deal
+const CreateListingFromDeal = lazyWithRetry(() => import('@/pages/admin/CreateListingFromDeal'));
+
 // ReMarketing pages
 const ReMarketingLayout = lazyWithRetry(() =>
   import('@/components/remarketing').then((m) => ({ default: m.ReMarketingLayout })),
@@ -157,6 +160,7 @@ export function AdminRoutes() {
       <Route path="lists/:id" element={<ContactListDetailPage />} />
 
       {/* MARKETPLACE */}
+      <Route path="marketplace/create-listing" element={<CreateListingFromDeal />} />
       <Route
         path="marketplace/listings"
         element={<Navigate to="/admin/deals?tab=marketplace" replace />}
