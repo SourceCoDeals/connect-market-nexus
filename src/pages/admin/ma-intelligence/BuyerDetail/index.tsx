@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Loader2, ArrowLeft, Sparkles, MoreVertical, Archive, Trash2, CheckCircle, XCircle, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Sparkles, MoreVertical, Archive, Trash2, CheckCircle, XCircle, Info, Eye, FileSignature, Clock, Users, MessageSquare, Activity, Settings } from "lucide-react";
 import { IntelligenceBadge } from "@/components/ma-intelligence";
 import { getIntelligenceCoverage, calculateIntelligencePercentage } from "@/lib/ma-intelligence/types";
 import { BuyerDealHistoryTab } from "@/components/ma-intelligence/BuyerDealHistoryTab";
@@ -13,6 +13,7 @@ import { BuyerContactsTab } from "@/components/ma-intelligence/BuyerContactsTab"
 import { BuyerActivitySection } from "@/components/ma-intelligence/BuyerActivitySection";
 import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
 import { PassReasonDialog } from "@/components/ma-intelligence/PassReasonDialog";
+import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
 import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 
 import { useBuyerDetail } from "./useBuyerDetail";
@@ -93,13 +94,34 @@ export default function BuyerDetail() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="agreements">Agreements</TabsTrigger>
-          <TabsTrigger value="deal-history">Deal History</TabsTrigger>
-          <TabsTrigger value="contacts">Contacts</TabsTrigger>
-          <TabsTrigger value="transcripts">Transcripts</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="overview" className="text-sm">
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="agreements" className="text-sm">
+            <FileSignature className="mr-1.5 h-3.5 w-3.5" />
+            Agreements
+          </TabsTrigger>
+          <TabsTrigger value="deal-history" className="text-sm">
+            <Clock className="mr-1.5 h-3.5 w-3.5" />
+            Deal History
+          </TabsTrigger>
+          <TabsTrigger value="contacts" className="text-sm">
+            <Users className="mr-1.5 h-3.5 w-3.5" />
+            Contacts
+          </TabsTrigger>
+          <TabsTrigger value="transcripts" className="text-sm">
+            <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+            Transcripts
+          </TabsTrigger>
+          <TabsTrigger value="activity" className="text-sm">
+            <Activity className="mr-1.5 h-3.5 w-3.5" />
+            Activity
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="text-sm">
+            <Settings className="mr-1.5 h-3.5 w-3.5" />
+            Settings
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -112,7 +134,25 @@ export default function BuyerDetail() {
 
         <TabsContent value="deal-history"><BuyerDealHistoryTab buyerId={buyer.id} /></TabsContent>
         <TabsContent value="contacts"><BuyerContactsTab buyerId={buyer.id} /></TabsContent>
-        <TabsContent value="transcripts"><Card><CardHeader><CardTitle>Transcripts & Calls</CardTitle><CardDescription>Call recordings and transcript analysis</CardDescription></CardHeader><CardContent><div className="text-center py-12 text-muted-foreground"><p>Transcript management coming soon</p></div></CardContent></Card></TabsContent>
+        <TabsContent value="transcripts">
+          <Card>
+            <CardHeader>
+              <CardTitle>Transcripts & Calls</CardTitle>
+              <CardDescription>
+                Search your Fireflies call history to link relevant conversations with this buyer
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FirefliesTranscriptSearch
+                buyerId={buyer.id}
+                companyName={buyer.platform_company_name || buyer.pe_firm_name || ''}
+                peFirmName={buyer.pe_firm_name}
+                contacts={[]}
+                onTranscriptLinked={() => {}}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
         <TabsContent value="activity"><BuyerActivitySection buyerId={buyer.id} /></TabsContent>
         <TabsContent value="settings">
           <Card><CardHeader><CardTitle>Settings</CardTitle><CardDescription>Buyer settings and data management</CardDescription></CardHeader><CardContent className="space-y-4">

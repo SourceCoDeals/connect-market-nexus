@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Eye, FolderOpen, Phone } from "lucide-react";
+import { Building2, Eye, FolderOpen, Activity, Users, UserPlus, PhoneCall } from "lucide-react";
 import { useDealDetail } from "./useDealDetail";
 import { CapTargetInfoCard } from "./CapTargetInfoCard";
 import { SalesforceInfoCard } from "./SalesforceInfoCard";
@@ -15,6 +15,7 @@ import { DealHeader } from "./DealHeader";
 import { OverviewTab } from "./OverviewTab";
 import { DataRoomTab } from "./DataRoomTab";
 import { DealCallActivityTab } from "./DealCallActivityTab";
+import { DealContactHistoryTab, DealBuyerHistoryTab, BuyerIntroductionTracker } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
   const {
@@ -107,13 +108,25 @@ const ReMarketingDealDetail = () => {
       />
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
           </TabsTrigger>
+          <TabsTrigger value="contact-history" className="text-sm">
+            <Activity className="mr-1.5 h-3.5 w-3.5" />
+            Contact History
+          </TabsTrigger>
+          <TabsTrigger value="buyers" className="text-sm">
+            <Users className="mr-1.5 h-3.5 w-3.5" />
+            Buyers
+          </TabsTrigger>
+          <TabsTrigger value="introductions" className="text-sm">
+            <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+            Introductions
+          </TabsTrigger>
           <TabsTrigger value="call-activity" className="text-sm">
-            <Phone className="mr-1.5 h-3.5 w-3.5" />
+            <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
             Call Activity
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
@@ -145,6 +158,28 @@ const ReMarketingDealDetail = () => {
             toggleContactOwnerMutation={toggleContactOwnerMutation}
             toggleUniverseFlagMutation={toggleUniverseFlagMutation}
             queryClient={queryClient}
+          />
+        </TabsContent>
+
+        <TabsContent value="contact-history" className="space-y-6">
+          <DealContactHistoryTab
+            listingId={dealId!}
+            primaryContactEmail={deal.main_contact_email}
+            primaryContactName={deal.main_contact_name}
+          />
+        </TabsContent>
+
+        <TabsContent value="buyers" className="space-y-6">
+          <DealBuyerHistoryTab
+            listingId={dealId!}
+            listingTitle={displayName}
+          />
+        </TabsContent>
+
+        <TabsContent value="introductions" className="space-y-6">
+          <BuyerIntroductionTracker
+            listingId={dealId!}
+            listingTitle={displayName}
           />
         </TabsContent>
 
