@@ -15,6 +15,7 @@ import {
   Brain,
   MessageSquare,
   FileSignature,
+  ListChecks,
 } from "lucide-react";
 import { usePEFirmData } from "./usePEFirmData";
 import { getFirmTypeLabel } from "./utils";
@@ -25,6 +26,8 @@ import { DealActivityTab } from "./DealActivityTab";
 import { NotesCallsTab } from "./NotesCallsTab";
 import { AddContactDialog } from "./AddContactDialog";
 import { AddPlatformDialog } from "./AddPlatformDialog";
+import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
+import { EntityTasksTab } from "@/components/daily-tasks";
 
 const PEFirmDetail = () => {
   const {
@@ -195,6 +198,14 @@ const PEFirmDetail = () => {
             <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
             Notes & Calls ({transcripts.length})
           </TabsTrigger>
+          <TabsTrigger value="agreements" className="text-sm">
+            <FileSignature className="mr-1.5 h-3.5 w-3.5" />
+            Agreements
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="text-sm">
+            <ListChecks className="mr-1.5 h-3.5 w-3.5" />
+            Tasks
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="platforms">
@@ -241,6 +252,19 @@ const PEFirmDetail = () => {
             transcripts={transcripts}
             queryClient={queryClient}
           />
+        </TabsContent>
+
+        <TabsContent value="agreements">
+          <BuyerAgreementsPanel
+            buyerId={firm.id}
+            marketplaceFirmId={firm.marketplace_firm_id || null}
+            hasFeeAgreement={firm.has_fee_agreement || false}
+            feeAgreementSource={firm.fee_agreement_source || null}
+          />
+        </TabsContent>
+
+        <TabsContent value="tasks">
+          <EntityTasksTab entityType="buyer" entityId={firm.id} entityName={firm.company_name} />
         </TabsContent>
       </Tabs>
 
