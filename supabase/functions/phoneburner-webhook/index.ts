@@ -12,10 +12,10 @@
  *   - email.unsubscribed
  *   - sms.opt_out
  *
- * Authentication: None — accepts all incoming POST requests without
- * signature or authentication to ensure the dialer can always post
- * call activity updates. Signature is still checked and logged for
- * auditing purposes when PHONEBURNER_WEBHOOK_SECRET is configured.
+ * Authentication: Signature-verified when PHONEBURNER_WEBHOOK_SECRET is
+ * configured. Rejects requests with missing or invalid signatures when
+ * the secret is set. Accepts all requests when the secret is not configured
+ * (for initial setup only).
  *
  * IMPORTANT: The push function stores `sourceco_id` in custom_fields.
  * We read both `sourceco_id` and `sourceco_contact_id` for backwards-compat.
@@ -104,17 +104,18 @@ Deno.serve(async (req) => {
 
   const rawBody = await req.text();
 
-  // ── signature check (logged for auditing, NOT enforced) ──
+  // ── signature check (enforced when secret is configured) ──
   const sig =
     req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
-  let signatureValid = false;
-  if (webhookSecret && sig) {
-    signatureValid = await verifySignature(rawBody, sig, webhookSecret);
-  }
-  if (!signatureValid) {
-    console.warn('PhoneBurner webhook signature missing or invalid — proceeding without auth');
-  } else {
+  if (webhookSecret) {
+    const signatureValid = sig ? await verifySignature(rawBody, sig, webhookSecret) : false;
+    if (!signatureValid) {
+      console.warn('PhoneBurner webhook signature missing or invalid — rejecting');
+      return jsonResponse({ error: 'Unauthorized' }, 401, corsHeaders);
+    }
     console.log('PhoneBurner webhook received, signature verified');
+  } else {
+    console.warn('PHONEBURNER_WEBHOOK_SECRET not configured — accepting without auth');
   }
 
   let payload: Record<string, unknown>;

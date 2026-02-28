@@ -70,9 +70,9 @@ export class ErrorBoundary extends Component<Props, State> {
         url: window.location.href,
       };
       
-      console.error('📊 Error logged:', errorData);
+      void errorData; // Logged via error boundary
     } catch (loggingError) {
-      console.error('❌ Failed to log error:', loggingError);
+      console.error('Failed to log error:', loggingError);
     }
   };
 

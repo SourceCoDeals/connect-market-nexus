@@ -85,14 +85,16 @@ serve(async (req: Request) => {
 
     const webhookSecret = Deno.env.get('DOCUSEAL_WEBHOOK_SECRET');
 
-    // If secret is configured, verify the webhook and reject unauthorized requests
+    // Enforce webhook secret verification — reject when secret is configured but invalid
     if (webhookSecret) {
       const valid = verifyDocuSealWebhook(req, webhookSecret);
       if (!valid) {
-        console.warn('⚠️ Webhook secret verification failed — rejecting request');
+        console.warn('Webhook secret verification failed — rejecting request');
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
       }
-      console.log('✅ Webhook secret verified');
+      console.log('Webhook secret verified');
+    } else {
+      console.warn('DOCUSEAL_WEBHOOK_SECRET not configured — accepting without auth');
     }
 
     // Parse and validate payload structure

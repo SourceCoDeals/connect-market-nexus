@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@/test/test-utils';
+import { MemoryRouter } from 'react-router-dom';
 import ListingCardTitle from './ListingCardTitle';
 
 describe('ListingCardTitle', () => {
@@ -16,11 +17,13 @@ describe('ListingCardTitle', () => {
 
   it('shows pending status when connection is pending', () => {
     render(
-      <ListingCardTitle
-        title="Business"
-        connectionExists={true}
-        connectionStatus="pending"
-      />
+      <MemoryRouter>
+        <ListingCardTitle
+          title="Business"
+          connectionExists={true}
+          connectionStatus="pending"
+        />
+      </MemoryRouter>
     );
     expect(screen.getByText('Request Pending')).toBeInTheDocument();
     expect(screen.getByText('View Status')).toBeInTheDocument();
@@ -28,11 +31,13 @@ describe('ListingCardTitle', () => {
 
   it('shows rejected status when connection is rejected', () => {
     render(
-      <ListingCardTitle
-        title="Business"
-        connectionExists={true}
-        connectionStatus="rejected"
-      />
+      <MemoryRouter>
+        <ListingCardTitle
+          title="Business"
+          connectionExists={true}
+          connectionStatus="rejected"
+        />
+      </MemoryRouter>
     );
     expect(screen.getByText('Not Selected')).toBeInTheDocument();
   });

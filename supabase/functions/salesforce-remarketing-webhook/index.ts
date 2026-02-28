@@ -13,11 +13,21 @@ Deno.serve(async (req: Request) => {
     return errorResponse("Method not allowed", 405, corsHeaders);
   }
 
-  try {
-    const raw: any = await req.json();
+  // ─── Verify webhook secret (enforced when configured) ──────────────────
+  const webhookSecret = Deno.env.get("SALESFORCE_WEBHOOK_SECRET");
+  if (webhookSecret) {
+    const providedSecret =
+      req.headers.get("x-webhook-secret") || new URL(req.url).searchParams.get("secret");
+    if (providedSecret !== webhookSecret) {
+      console.warn("[salesforce-webhook] Invalid or missing webhook secret — rejecting");
+      return errorResponse("Unauthorized", 401, corsHeaders);
+    }
+  } else {
+    console.warn("[salesforce-webhook] SALESFORCE_WEBHOOK_SECRET not configured — accepting without auth");
+  }
 
-    // Log the top-level structure for debugging
-    console.log("Received payload keys:", Array.isArray(raw) ? `array[${raw.length}]` : Object.keys(raw || {}));
+  try {
+    const raw: unknown = await req.json();
 
     // Flexibly extract salesforce_data from multiple n8n payload shapes:
     // Shape 1: [{ body: { salesforce_data: {...} } }]        — n8n HTTP node array wrapper
@@ -25,7 +35,8 @@ Deno.serve(async (req: Request) => {
     // Shape 3: { salesforce_data: {...} }                     — direct payload
     // Shape 4: [{ salesforce_data: {...} }]                   — array without body wrapper
     // Shape 5: { "Account Data": {...}, "Contacts Data": ... } — raw SF data directly
-    function extractSalesforceData(payload: any): any {
+    // deno-lint-ignore no-explicit-any
+    function extractSalesforceData(payload: any): Record<string, any> | null {
       if (!payload) return null;
 
       // If it's an array, try the first element
@@ -54,28 +65,31 @@ Deno.serve(async (req: Request) => {
       console.error("Could not extract salesforce_data from payload. Top-level:", JSON.stringify(raw).slice(0, 500));
       return errorResponse("Missing salesforce_data in payload. Accepted shapes: {salesforce_data:{...}}, [{body:{salesforce_data:{...}}}], or {\"Account Data\":{...}}", 400, corsHeaders);
     }
-    console.log("Extracted salesforce_data keys:", Object.keys(salesforceData));
-
-    const account: any = salesforceData["Account Data"];
+    // deno-lint-ignore no-explicit-any
+    const account: Record<string, any> = salesforceData["Account Data"];
     if (!account?.Id || !account?.Name) {
       return errorResponse("Missing required Account.Id or Account.Name", 400, corsHeaders);
     }
 
     // Normalize contacts: single object → array, null → empty array
-    const rawContacts: any = salesforceData["Contacts Data"];
-    let contacts: any[] = [];
+    const rawContacts: unknown = salesforceData["Contacts Data"];
+    // deno-lint-ignore no-explicit-any
+    let contacts: Record<string, any>[] = [];
     if (Array.isArray(rawContacts)) {
       contacts = rawContacts;
-    } else if (rawContacts && typeof rawContacts === "object" && rawContacts.Id) {
-      contacts = [rawContacts];
+    // deno-lint-ignore no-explicit-any
+    } else if (rawContacts && typeof rawContacts === "object" && (rawContacts as any).Id) {
+      // deno-lint-ignore no-explicit-any
+      contacts = [rawContacts as Record<string, any>];
     }
 
     // Find primary contact (first with valid email)
-    const primaryContact = contacts.find((c: any) => c.Email && c.Email.trim());
+    const primaryContact = contacts.find((c) => c.Email && c.Email.trim());
     const accountPhone = account.Phone || null;
 
     // Phone fallback for a contact
-    const resolvePhone = (contact: any): string | null =>
+    // deno-lint-ignore no-explicit-any
+    const resolvePhone = (contact: Record<string, any>): string | null =>
       contact?.Phone || contact?.MobilePhone || accountPhone;
 
     // Normalize website
@@ -85,6 +99,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Build listing payload
+    // deno-lint-ignore no-explicit-any
     const listingPayload: Record<string, any> = {
       salesforce_account_id: account.Id,
       title: account.Name,

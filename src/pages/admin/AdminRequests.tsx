@@ -272,15 +272,11 @@ const AdminRequests = () => {
 
   const handleAction = async (request: AdminConnectionRequest, action: 'approve' | 'reject') => {
     try {
-      // eslint-disable-next-line no-console
-      console.log(`[AdminRequests] handleAction called: ${action} for request ${request.id}`);
-      const result = await updateRequest({
+      await updateRequest({
         requestId: request.id,
         status: action === 'approve' ? 'approved' : 'rejected',
         adminComment: `Request ${action}d by admin`,
       });
-      // eslint-disable-next-line no-console
-      console.log(`[AdminRequests] mutation succeeded:`, result?.status);
 
       // Force refetch to ensure UI updates immediately
       await refetch();
@@ -299,13 +295,12 @@ const AdminRequests = () => {
           description: 'Connection request has been rejected',
         });
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      console.error(`[AdminRequests] handleAction failed:`, error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Could not update connection request status';
       toast({
         variant: 'destructive',
         title: 'Update failed',
-        description: error?.message || 'Could not update connection request status',
+        description: message,
       });
     }
   };
@@ -313,10 +308,6 @@ const AdminRequests = () => {
   const confirmAction = async (comment: string) => {
     if (selectedRequest && actionType) {
       try {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[AdminRequests] confirmAction called: ${actionType} for request ${selectedRequest.id}`,
-        );
         await updateRequest({
           requestId: selectedRequest.id,
           status: actionType === 'approve' ? 'approved' : 'rejected',
@@ -348,13 +339,12 @@ const AdminRequests = () => {
         setIsDialogOpen(false);
         setSelectedRequest(null);
         setActionType(null);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        console.error(`[AdminRequests] confirmAction failed:`, error);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Could not update connection request status';
         toast({
           variant: 'destructive',
           title: 'Update failed',
-          description: error?.message || 'Could not update connection request status',
+          description: message,
         });
       }
     }

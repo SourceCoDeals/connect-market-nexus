@@ -70,12 +70,8 @@ export function ApprovalEmailDialog({
   const defaultMessage = DEFAULT_APPROVAL_EMAIL.message.replace(/{{userName}}/g, userName);
 
   const handleSend = async () => {
-    if (!user) {
-      console.error('[ApprovalDialog] handleSend called but user is null');
-      return;
-    }
+    if (!user) return;
 
-    console.log('[ApprovalDialog] handleSend triggered for user:', user.email);
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -87,9 +83,7 @@ export function ApprovalEmailDialog({
     };
 
     try {
-      console.log('[ApprovalDialog] Calling onSendApprovalEmail for:', user.email);
       await onSendApprovalEmail(user, payload);
-      console.log('[ApprovalDialog] Approval flow completed successfully');
       // Reset form after successful approval - dialog closure is handled by parent (UserActions)
       setCustomSubject('');
       setCustomMessage('');

@@ -21,7 +21,7 @@
   "lint-staged": {
     "*.{ts,tsx}": [
       "prettier --write",
-      "eslint --fix --max-warnings=200"
+      "eslint --fix --max-warnings=50"
     ],
     "*.{json,css,md}": [
       "prettier --write"
@@ -119,6 +119,8 @@
     "zod": "^4.0.9"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
     "@eslint/js": "^9.9.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.9.1",
