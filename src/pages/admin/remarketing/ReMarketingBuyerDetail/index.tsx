@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BuyerDealHistoryPanel } from '@/components/admin/data-room/BuyerDealHistoryPanel';
 import { ExtractionSummaryDialog } from '@/components/remarketing/buyer-detail/ExtractionSummaryDialog';
 import { BuyerNotesSection } from '@/components/remarketing/buyer-detail/BuyerNotesSection';
+import { NotesHistorySection } from '@/components/shared/NotesHistorySection';
 import { FirefliesTranscriptSearch } from '@/components/buyers/FirefliesTranscriptSearch';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -19,9 +20,9 @@ import {
   Phone,
   PhoneCall,
   Users,
-} from "lucide-react";
+} from 'lucide-react';
 import { EntityTasksTab } from '@/components/daily-tasks';
-import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
+import { BuyerAgreementsPanel } from '@/components/ma-intelligence/BuyerAgreementsPanel';
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -37,15 +38,15 @@ import {
   BuyerServicesBusinessModelCard,
 } from '@/components/remarketing/buyer-detail';
 
-import { EditDialogType } from "./types";
-import { useBuyerData } from "./useBuyerData";
-import { useBuyerMutations } from "./useBuyerMutations";
-import { useExtractionHandlers } from "./useExtractionHandlers";
-import { ContactsTab } from "./ContactsTab";
-import { DealHistoryTab } from "./DealHistoryTab";
-import { AddContactDialog } from "./AddContactDialog";
-import { EditDialogs } from "./EditDialogs";
-import { CallActivityTab } from "./CallActivityTab";
+import { EditDialogType } from './types';
+import { useBuyerData } from './useBuyerData';
+import { useBuyerMutations } from './useBuyerMutations';
+import { useExtractionHandlers } from './useExtractionHandlers';
+import { ContactsTab } from './ContactsTab';
+import { DealHistoryTab } from './DealHistoryTab';
+import { AddContactDialog } from './AddContactDialog';
+import { EditDialogs } from './EditDialogs';
+import { CallActivityTab } from './CallActivityTab';
 
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -235,6 +236,10 @@ const ReMarketingBuyerDetail = () => {
               await updateBuyerMutation.mutateAsync({ notes });
             }}
           />
+
+          {/* Notes History */}
+          <NotesHistorySection entityType="buyer" entityId={id!} />
+
           {/* Two-Column Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <BusinessDescriptionCard
