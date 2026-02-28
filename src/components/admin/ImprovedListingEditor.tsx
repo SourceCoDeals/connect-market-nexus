@@ -7,7 +7,8 @@ import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { parseCurrency } from "@/lib/currency-utils";
-import { Loader2, Save, Target } from "lucide-react";
+import { Loader2, Save, Target, Sparkles, ExternalLink } from "lucide-react";
+import { useGenerateListingContent } from "@/hooks/admin/listings/use-generate-listing-content";
 
 // Import section components
 import { EditorTopBar } from "./editor-sections/EditorTopBar";
@@ -175,6 +176,47 @@ export function ImprovedListingEditor({
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
 
+  // GAP 5: AI content generation
+  const { generateContent, isGenerating, generatingField } = useGenerateListingContent();
+  const sourceDealId = listing?.source_deal_id || listing?.id;
+
+  const handleAiGenerate = async (field: string) => {
+    if (!sourceDealId) {
+      toast({ variant: 'destructive', title: 'No deal linked', description: 'This listing must be linked to a deal to generate AI content.' });
+      return;
+    }
+    const content = await generateContent(sourceDealId, field);
+    if (!content) return;
+
+    // Apply generated content to the form
+    if (field === 'description' && content.description) {
+      form.setValue('description', content.description);
+      form.setValue('description_html', `<p>${content.description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`);
+    } else if (field === 'hero_description' && content.hero_description) {
+      form.setValue('hero_description', content.hero_description);
+    } else if (field === 'title' && content.title_options?.length) {
+      form.setValue('title', content.title_options[0]);
+      toast({ title: 'Title options', description: `Generated ${content.title_options.length} options. Using the first one.` });
+    }
+  };
+
+  const handleGenerateAll = async () => {
+    if (!sourceDealId) {
+      toast({ variant: 'destructive', title: 'No deal linked', description: 'This listing must be linked to a deal to generate AI content.' });
+      return;
+    }
+    const content = await generateContent(sourceDealId);
+    if (!content) return;
+
+    // Apply all generated content
+    if (content.title_options?.length) form.setValue('title', content.title_options[0]);
+    if (content.hero_description) form.setValue('hero_description', content.hero_description);
+    if (content.description) {
+      form.setValue('description', content.description);
+      form.setValue('description_html', `<p>${content.description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`);
+    }
+  };
+
   const form = useForm<ListingFormInput, unknown, ListingFormValues>({
      
     resolver: zodResolver(listingFormSchema as unknown as Parameters<typeof zodResolver>[0]),
@@ -332,6 +374,37 @@ export function ImprovedListingEditor({
             </div>
           )}
           
+          {/* GAP 5+8: AI Generate All + Landing Page Preview buttons */}
+          {sourceDealId && (
+            <div className="mb-6 flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateAll}
+                disabled={isGenerating}
+                className="gap-2"
+              >
+                {isGenerating && generatingField === 'all' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {isGenerating && generatingField === 'all' ? 'Generating All...' : 'Generate All with AI'}
+              </Button>
+              {listing?.id && (
+                <a
+                  href={`/deals/${listing.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted/50 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Preview Landing Page
+                </a>
+              )}
+            </div>
+          )}
+
           {/* TOP BAR - Critical fields */}
           <EditorTopBar form={formForSections} />
 
@@ -346,12 +419,12 @@ export function ImprovedListingEditor({
 
             {/* FULL WIDTH - Description */}
             <div className="mb-6">
-              <EditorDescriptionSection form={formForSections} />
+              <EditorDescriptionSection form={formForSections} onAiGenerate={sourceDealId ? handleAiGenerate : undefined} isGenerating={isGenerating} generatingField={generatingField} />
             </div>
 
             {/* FULL WIDTH - Hero Description */}
             <div className="mb-6">
-              <EditorHeroDescriptionSection form={formForSections} />
+              <EditorHeroDescriptionSection form={formForSections} onAiGenerate={sourceDealId ? handleAiGenerate : undefined} isGenerating={isGenerating} generatingField={generatingField} />
             </div>
             
             {/* FULL WIDTH - Image */}

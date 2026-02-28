@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Mail } from 'lucide-react';
+import { Mail, CheckCircle, ArrowRight, ExternalLink } from 'lucide-react';
 import { useDealLandingFormSubmit } from '@/hooks/useDealLandingFormSubmit';
 
 const ROLE_OPTIONS = [
@@ -34,19 +34,63 @@ export default function DealRequestForm({ listingId, dealTitle }: DealRequestFor
     submit({ name, email, company, phone, role, message });
   };
 
+  // GAP 14: Build marketplace signup URL with UTM attribution
+  const signupUrl = new URL('https://marketplace.sourcecodeals.com/signup');
+  signupUrl.searchParams.set('utm_source', 'landing_page');
+  signupUrl.searchParams.set('utm_medium', 'form_success');
+  signupUrl.searchParams.set('utm_content', 'post_submission_nudge');
+  signupUrl.searchParams.set('utm_campaign', listingId);
+
+  // GAP 11: Post-submission signup nudge
   if (isSuccess) {
     return (
       <div
         id="request"
         className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.08)] p-6 sm:p-8"
       >
-        <p className="text-[15px] leading-[1.6] text-[#1A1A1A] font-['Inter',system-ui,sans-serif]">
-          Thank you! We received your message and will be in touch via email as soon as possible.
-          Should you have any further thoughts or inquiries, feel free to contact us at{' '}
-          <a href="mailto:adam.haile@sourcecodeals.com" className="text-[#C9A84C] underline">
-            adam.haile@sourcecodeals.com
-          </a>
+        <div className="flex items-center gap-3 mb-4">
+          <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+          <h3 className="text-[18px] font-bold text-[#1A1A1A] font-['Inter',system-ui,sans-serif]">
+            Request Received
+          </h3>
+        </div>
+
+        <p className="text-[15px] leading-[1.6] text-[#374151] mb-6 font-['Inter',system-ui,sans-serif]">
+          Your request is being reviewed by our team. We'll be in touch shortly with next steps
+          and detailed deal materials.
         </p>
+
+        {/* Signup Nudge */}
+        <div className="bg-[#F7F5F0] rounded-lg p-5 mb-4">
+          <h4 className="text-[15px] font-semibold text-[#1A1A1A] mb-2 font-['Inter',system-ui,sans-serif]">
+            While you wait — explore more deals
+          </h4>
+          <p className="text-[13px] text-[#6B7280] leading-[1.6] mb-3 font-['Inter',system-ui,sans-serif]">
+            Join our marketplace to browse 50+ vetted, founder-led businesses with $2M-50M revenue.
+            Get instant access to new deal flow as soon as it's available.
+          </p>
+          <a
+            href={signupUrl.toString()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full bg-[#C9A84C] text-[#1A1A1A] font-semibold text-[15px] py-3 rounded-md hover:bg-[#b8963e] transition-colors font-['Inter',system-ui,sans-serif]"
+          >
+            <ArrowRight className="w-4 h-4" />
+            Join the Marketplace — Free
+          </a>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <a
+            href="https://tidycal.com/tomosmughan/30-minute-meeting"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 flex-1 bg-white border border-[#D1D5DB] text-[#374151] font-medium text-[13px] py-2.5 rounded-md hover:bg-gray-50 transition-colors font-['Inter',system-ui,sans-serif]"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Schedule a Call
+          </a>
+        </div>
       </div>
     );
   }

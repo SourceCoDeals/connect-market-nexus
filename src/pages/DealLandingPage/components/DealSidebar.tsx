@@ -1,14 +1,60 @@
-import { ExternalLink, Download } from 'lucide-react';
+import { ExternalLink, Download, User } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+/** Default presenter info used as fallback */
+const DEFAULT_PRESENTER = {
+  name: 'Tomos Mughan',
+  title: 'CEO, SourceCo',
+  phone: '+1 (614) 316-2342',
+  email: 'tomos.mughan@sourcecodeals.com',
+  avatarUrl: '/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png',
+  calendarUrl: 'https://tidycal.com/tomosmughan/30-minute-meeting',
+};
 
 interface DealSidebarProps {
   executiveSummaryUrl?: string | null;
+  listingId?: string;
+  presentedByAdminId?: string | null;
 }
 
-export default function DealSidebar({ executiveSummaryUrl }: DealSidebarProps) {
+export default function DealSidebar({ executiveSummaryUrl, listingId, presentedByAdminId }: DealSidebarProps) {
+  // GAP 10: Fetch presenter dynamically from database
+  const { data: presenter } = useQuery({
+    queryKey: ['deal-presenter', presentedByAdminId],
+    enabled: !!presentedByAdminId,
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email, phone_number, avatar_url, company, title')
+        .eq('id', presentedByAdminId!)
+        .single();
+      if (!data) return null;
+      return {
+        name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || DEFAULT_PRESENTER.name,
+        title: data.title ? `${data.title}, ${data.company || 'SourceCo'}` : DEFAULT_PRESENTER.title,
+        phone: data.phone_number || DEFAULT_PRESENTER.phone,
+        email: data.email || DEFAULT_PRESENTER.email,
+        avatarUrl: data.avatar_url || DEFAULT_PRESENTER.avatarUrl,
+        calendarUrl: DEFAULT_PRESENTER.calendarUrl,
+      };
+    },
+  });
+
+  const p = presenter || DEFAULT_PRESENTER;
+
   const scrollToForm = () => {
     const el = document.getElementById('request');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // GAP 14: Build marketplace signup URL with UTM attribution
+  const signupUrl = new URL('https://marketplace.sourcecodeals.com/signup');
+  signupUrl.searchParams.set('utm_source', 'landing_page');
+  signupUrl.searchParams.set('utm_medium', 'sidebar');
+  signupUrl.searchParams.set('utm_content', 'browse_marketplace');
+  if (listingId) signupUrl.searchParams.set('utm_campaign', listingId);
 
   return (
     <aside className="space-y-6">
@@ -30,7 +76,7 @@ export default function DealSidebar({ executiveSummaryUrl }: DealSidebarProps) {
           </button>
 
           <a
-            href="https://tidycal.com/tomosmughan/30-minute-meeting"
+            href={p.calendarUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 w-full bg-white border border-[#1A1A1A] text-[#1A1A1A] font-semibold text-[15px] py-3 rounded-md hover:bg-gray-50 transition-colors font-['Inter',system-ui,sans-serif]"
@@ -63,7 +109,7 @@ export default function DealSidebar({ executiveSummaryUrl }: DealSidebarProps) {
           from our proprietary network.
         </p>
         <a
-          href="https://marketplace.sourcecodeals.com/signup"
+          href={signupUrl.toString()}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center gap-2 w-full bg-white border border-[#1A1A1A] text-[#1A1A1A] font-semibold text-[14px] py-2.5 rounded-md hover:bg-gray-50 transition-colors font-['Inter',system-ui,sans-serif]"
@@ -73,37 +119,37 @@ export default function DealSidebar({ executiveSummaryUrl }: DealSidebarProps) {
         </a>
       </div>
 
-      {/* Deal Presented By */}
+      {/* Deal Presented By — GAP 10+13: Dynamic from database */}
       <div className="pt-4 border-t border-[#E5E7EB]">
         <p className="text-[11px] font-medium text-[#6B7280] uppercase tracking-[0.08em] mb-4 font-['Inter',system-ui,sans-serif]">
           Deal Presented By
         </p>
         <div className="flex items-start gap-3">
           <div className="w-12 h-12 rounded-full bg-[#E5E7EB] flex items-center justify-center flex-shrink-0 overflow-hidden">
-            <img
-              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png"
-              alt="Tomos Mughan"
-              className="w-full h-full object-cover"
-            />
+            {p.avatarUrl ? (
+              <img src={p.avatarUrl} alt={p.name} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-6 h-6 text-[#9CA3AF]" />
+            )}
           </div>
           <div>
             <p className="text-[15px] font-bold text-[#1A1A1A] font-['Inter',system-ui,sans-serif]">
-              Tomos Mughan
+              {p.name}
             </p>
             <p className="text-[13px] text-[#6B7280] font-['Inter',system-ui,sans-serif]">
-              CEO, SourceCo
+              {p.title}
             </p>
             <a
-              href="tel:+16143162342"
+              href={`tel:${p.phone.replace(/[\s()-]/g, '')}`}
               className="block text-[13px] text-[#6B7280] hover:text-[#1A1A1A] transition-colors mt-1 font-['Inter',system-ui,sans-serif]"
             >
-              +1 (614) 316-2342
+              {p.phone}
             </a>
             <a
-              href="mailto:tomos.mughan@sourcecodeals.com"
+              href={`mailto:${p.email}`}
               className="block text-[13px] text-[#6B7280] hover:text-[#1A1A1A] transition-colors font-['Inter',system-ui,sans-serif]"
             >
-              tomos.mughan@sourcecodeals.com
+              {p.email}
             </a>
           </div>
         </div>

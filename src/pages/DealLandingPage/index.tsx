@@ -1,5 +1,7 @@
+import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDealLandingPage, useRelatedDeals } from '@/hooks/useDealLandingPage';
+import { supabase } from '@/integrations/supabase/client';
 import LandingHeader from './components/LandingHeader';
 import DealHero from './components/DealHero';
 import MetricsStrip from './components/MetricsStrip';
@@ -7,11 +9,45 @@ import ContentSections from './components/ContentSections';
 import DealRequestForm from './components/DealRequestForm';
 import DealSidebar from './components/DealSidebar';
 import RelatedDeals from './components/RelatedDeals';
+import EmailCapture from './components/EmailCapture';
 
 export default function DealLandingPage() {
   const { id } = useParams<{ id: string }>();
   const { data: deal, isLoading, error } = useDealLandingPage(id);
   const { data: relatedDeals } = useRelatedDeals(id);
+  const hasTrackedView = useRef(false);
+
+  // GAP 9: Track anonymous landing page views per listing
+  useEffect(() => {
+    if (!id || !deal || hasTrackedView.current) return;
+    hasTrackedView.current = true;
+
+    // GAP 16+18: Store deal context for signup attribution
+    try {
+      if (!localStorage.getItem('sourceco_first_deal_viewed')) {
+        localStorage.setItem('sourceco_first_deal_viewed', id);
+      }
+      localStorage.setItem('sourceco_last_deal_viewed', id);
+      localStorage.setItem('sourceco_last_deal_title', deal.title);
+    } catch { /* localStorage unavailable */ }
+
+    // Record anonymous page view for this specific listing
+    const sessionId = sessionStorage.getItem('sourceco_session_id') || crypto.randomUUID();
+    try { sessionStorage.setItem('sourceco_session_id', sessionId); } catch {}
+
+    supabase.from('page_views').insert({
+      session_id: sessionId,
+      page_path: `/deals/${id}`,
+      page_title: deal.title,
+      event_type: 'landing_page_view',
+      event_data: {
+        listing_id: id,
+        deal_title: deal.title,
+        source: 'deal_landing_page',
+        referrer: document.referrer || null,
+      },
+    }).then(() => {}).catch(() => {});
+  }, [id, deal]);
 
   if (isLoading) {
     return (
@@ -55,7 +91,7 @@ export default function DealLandingPage() {
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Mobile sidebar (above content on mobile) */}
           <div className="lg:hidden">
-            <DealSidebar executiveSummaryUrl={deal.executive_summary} />
+            <DealSidebar executiveSummaryUrl={deal.executive_summary} listingId={deal.id} presentedByAdminId={deal.presented_by_admin_id} />
           </div>
 
           {/* Left column — content + form */}
@@ -69,7 +105,7 @@ export default function DealLandingPage() {
           {/* Right column — sticky sidebar (desktop) */}
           <div className="hidden lg:block lg:w-[32%]">
             <div className="sticky top-20">
-              <DealSidebar executiveSummaryUrl={deal.executive_summary} />
+              <DealSidebar executiveSummaryUrl={deal.executive_summary} listingId={deal.id} presentedByAdminId={deal.presented_by_admin_id} />
             </div>
           </div>
         </div>
@@ -77,6 +113,9 @@ export default function DealLandingPage() {
         {/* Related Deals */}
         {relatedDeals && relatedDeals.length > 0 && <RelatedDeals deals={relatedDeals} />}
       </main>
+
+      {/* GAP 12: Email capture for non-submitters */}
+      <EmailCapture listingId={deal.id} />
     </div>
   );
 }

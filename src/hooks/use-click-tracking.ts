@@ -105,7 +105,26 @@ export function useClickTracking(trackingEnabled: boolean = true) {
     };
 
     document.addEventListener('click', handleClick, { passive: true });
-    return () => document.removeEventListener('click', handleClick);
+
+    // GAP 20: Persist click data on page unload so it isn't lost during quick navigation
+    const handleBeforeUnload = () => {
+      const { clicks } = stateRef.current;
+      if (clicks.length > 0) {
+        try {
+          const existing = sessionStorage.getItem('sourceco_pending_clicks');
+          const pending = existing ? JSON.parse(existing) : [];
+          pending.push(...clicks);
+          // Keep max 200 pending clicks
+          sessionStorage.setItem('sourceco_pending_clicks', JSON.stringify(pending.slice(-200)));
+        } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('click', handleClick);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [trackingEnabled, getElementIdentifier, getElementType, getElementText]);
 
   // Reset tracking for new page/listing

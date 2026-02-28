@@ -67,7 +67,29 @@ export function useSignupSubmit(formData: SignupFormData) {
       target_acquisition_volume: formData.targetAcquisitionVolume || '',
     };
 
+    // GAP 16+18: Include deal attribution context from landing page
+    try {
+      const dealContextStr = localStorage.getItem('sourceco_signup_deal_context');
+      if (dealContextStr) {
+        const dealContext = JSON.parse(dealContextStr);
+        (signupData as any).signup_metadata = {
+          ...(signupData as any).signup_metadata,
+          from_deal_id: dealContext.from_deal_id,
+          first_deal_viewed: dealContext.first_deal_viewed,
+          is_landing_page_referral: dealContext.is_landing_page_referral,
+        };
+      }
+    } catch { /* ignore */ }
+
     await signup(signupData, formData.password);
+
+    // Clean up deal context after successful signup
+    try {
+      localStorage.removeItem('sourceco_signup_deal_context');
+      localStorage.removeItem('sourceco_first_deal_viewed');
+      localStorage.removeItem('sourceco_last_deal_viewed');
+      localStorage.removeItem('sourceco_last_deal_title');
+    } catch { /* ignore */ }
 
     toast({ title: "Account created successfully!", description: "Please check your email to verify your account." });
     navigate(`/signup-success?email=${encodeURIComponent(formData.email)}`);

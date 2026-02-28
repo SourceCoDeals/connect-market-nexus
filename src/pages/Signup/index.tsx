@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import bradDaughertyImage from '@/assets/brad-daugherty.png';
@@ -62,6 +62,23 @@ function clearDraft() {
 
 const Signup = () => {
   const { isLoading } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // GAP 16+18: Capture deal context from URL params or localStorage
+  const dealContext = useMemo(() => {
+    const fromDealParam = searchParams.get('from_deal');
+    const firstDeal = (() => { try { return localStorage.getItem('sourceco_first_deal_viewed'); } catch { return null; } })();
+    const lastDeal = (() => { try { return localStorage.getItem('sourceco_last_deal_viewed'); } catch { return null; } })();
+    const lastDealTitle = (() => { try { return localStorage.getItem('sourceco_last_deal_title'); } catch { return null; } })();
+
+    return {
+      from_deal_id: fromDealParam || lastDeal || null,
+      first_deal_viewed: firstDeal || null,
+      deal_title: lastDealTitle || null,
+      is_landing_page_referral: !!(fromDealParam || lastDeal),
+    };
+  }, [searchParams]);
+
   const [currentStep, setCurrentStep] = useState(() => {
     const saved = localStorage.getItem(DRAFT_STEP_KEY);
     return saved ? Math.min(Number(saved), STEPS.length - 1) : 0;
@@ -70,13 +87,37 @@ const Signup = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<SignupFormData>(() => {
     const draft = loadDraft();
-    return draft ? { ...INITIAL_FORM_DATA, ...draft } : INITIAL_FORM_DATA;
+    const base = draft ? { ...INITIAL_FORM_DATA, ...draft } : INITIAL_FORM_DATA;
+
+    // GAP 17: Auto-populate from URL params (landing page can pass name, email, phone, company)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('name') && !base.firstName) {
+        const nameParts = (params.get('name') || '').split(' ');
+        base.firstName = base.firstName || nameParts[0] || '';
+        base.lastName = base.lastName || nameParts.slice(1).join(' ') || '';
+      }
+      if (params.get('email') && !base.email) base.email = params.get('email') || '';
+      if (params.get('phone') && !base.phoneNumber) base.phoneNumber = params.get('phone') || '';
+      if (params.get('company') && !base.company) base.company = params.get('company') || '';
+    } catch { /* ignore */ }
+
+    return base;
   });
 
   // Persist draft on every change (passwords excluded)
   useEffect(() => {
     saveDraft(formData, currentStep);
   }, [formData, currentStep]);
+
+  // GAP 16: Persist deal context to draft for use during signup submission
+  useEffect(() => {
+    if (dealContext.from_deal_id) {
+      try {
+        localStorage.setItem('sourceco_signup_deal_context', JSON.stringify(dealContext));
+      } catch { /* ignore */ }
+    }
+  }, [dealContext]);
 
   const { handleSubmit: doSubmit } = useSignupSubmit(formData);
 
@@ -255,6 +296,14 @@ const Signup = () => {
           <StepIndicator currentStep={currentStep} totalSteps={STEPS.length} />
         </CardHeader>
         <CardContent className="px-0">
+          {/* GAP 16: Show deal context banner when arriving from a landing page */}
+          {dealContext.is_landing_page_referral && dealContext.deal_title && currentStep === 0 && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-6">
+              <p className="text-xs text-muted-foreground font-['Inter',system-ui,sans-serif]">
+                Sign up to receive full details on <span className="font-semibold text-foreground">{dealContext.deal_title}</span> and access 50+ additional off-market deals.
+              </p>
+            </div>
+          )}
           {validationErrors.length > 0 && (
             <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-lg mb-6">
               <ul className="list-disc pl-4 space-y-1 text-sm">
