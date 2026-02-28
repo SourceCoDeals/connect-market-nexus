@@ -25,7 +25,7 @@ const ConnectionButton = ({
   isAdmin,
   handleRequestConnection,
   listingTitle,
-  listingId: _listingId,
+  listingId,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showFeeGate, setShowFeeGate] = useState(false);
@@ -175,6 +175,7 @@ const ConnectionButton = ({
         onSubmit={handleDialogSubmit}
         isSubmitting={isRequesting}
         listingTitle={listingTitle}
+        listingId={listingId}
       />
 
       {showFeeGate && user && ndaStatus?.firmId && (

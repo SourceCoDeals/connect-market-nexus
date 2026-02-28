@@ -1,21 +1,22 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useSimplePagination } from '@/hooks/use-simple-pagination';
 import { useSimpleListings, useListingMetadata } from '@/hooks/use-simple-listings';
-import { useOnboarding } from "@/hooks/use-onboarding";
-import ListingCard from "@/components/ListingCard";
-import FilterPanel from "@/components/FilterPanel";
-import OnboardingPopup from "@/components/onboarding/OnboardingPopup";
-import { SearchSessionProvider } from "@/contexts/SearchSessionContext";
-import { useSearchSession } from "@/hooks/use-search-session";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { LayoutGrid, LayoutList, UserCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { useAllSavedListingIds } from "@/hooks/marketplace/use-saved-listings";
-import { useAllConnectionStatuses } from "@/hooks/marketplace/use-connections";
-import { PendingSigningBanner } from "@/components/marketplace/PendingSigningBanner";
+import { useOnboarding } from '@/hooks/use-onboarding';
+import ListingCard from '@/components/ListingCard';
+import FilterPanel from '@/components/FilterPanel';
+import OnboardingPopup from '@/components/onboarding/OnboardingPopup';
+import { SearchSessionProvider } from '@/contexts/SearchSessionContext';
+import { useSearchSession } from '@/hooks/use-search-session';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { LayoutGrid, LayoutList, UserCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { useAllSavedListingIds } from '@/hooks/marketplace/use-saved-listings';
+import { useAllConnectionStatuses } from '@/hooks/marketplace/use-connections';
+import { PendingSigningBanner } from '@/components/marketplace/PendingSigningBanner';
+import { MatchedDealsSection } from '@/components/marketplace/MatchedDealsSection';
 
 import {
   Select,
@@ -187,7 +188,7 @@ const MarketplaceContent = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Pending Agreement Signing Banner */}
         <PendingSigningBanner />
-        
+
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-3">
@@ -225,6 +226,8 @@ const MarketplaceContent = () => {
 
             {/* Listings */}
             <div className="col-span-1 lg:col-span-3 flex flex-col gap-4 relative">
+              {/* Matched Deals Feed */}
+              {user && !user.is_admin && <MatchedDealsSection />}
               {/* View type and sorting */}
               <div className="flex flex-wrap justify-between items-center gap-4">
                 <div className="text-sm text-muted-foreground">

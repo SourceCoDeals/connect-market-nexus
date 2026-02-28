@@ -1,11 +1,53 @@
+/**
+ * ActionHub — Consolidated "Action Required" bar across ALL deals.
+ *
+ * Sits at the top of the My Deals page and aggregates every pending action
+ * the buyer needs to take.  Actions are rendered as compact "chips" that
+ * pair the action label with the deal name it belongs to, so buyers can
+ * scan their full pipeline in one glance.
+ *
+ * ┌──────────────────────────────────────────────────────────────────┐
+ * │  ⚡  3 Actions Required Across Your Deals                       │
+ * │     Complete these steps to keep your pipeline moving            │
+ * │                                                                  │
+ * │  [✍️ Sign NDA — Multi Division Collision →]                     │
+ * │  [✍️ Sign Fee Agreement — Texas Fire Sprinkler →]               │
+ * │  [💬 2 unread — Wealth Advisors →]                              │
+ * └──────────────────────────────────────────────────────────────────┘
+ *
+ * Design decisions:
+ *
+ *   • **Navy background** — Matches the institutional tone of an M&A
+ *     portal.  The dark surface makes the gold-accented deal names pop
+ *     and separates this bar from the lighter cream page background.
+ *
+ *   • **Chip layout** — Each action is a self-contained clickable chip
+ *     (not a list row).  This is denser than the previous list layout
+ *     and lets buyers process 3–5 actions without scrolling.
+ *
+ *   • **Priority ordering** — NDA first (blocks all deal access), fee
+ *     agreement second (blocks CIM), unread messages third (important
+ *     but not blocking).
+ *
+ *   • **Signing modal** — The component owns an AgreementSigningModal
+ *     so NDA/fee actions can be completed inline without navigating
+ *     away from the page.
+ *
+ * Action types gathered:
+ *   1. sign_nda   — NDA is ready but unsigned (global, affects all deals)
+ *   2. sign_fee   — Fee Agreement sent but unsigned (global)
+ *   3. unread_messages — Per-deal unread message counts
+ */
+
 import { useState } from 'react';
-import { AlertTriangle, FileSignature, Shield, MessageSquare, ChevronRight } from 'lucide-react';
+import { FileSignature, Shield, MessageSquare, Zap, ArrowRight } from 'lucide-react';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
 import { useAuth } from '@/context/AuthContext';
 import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
-import { cn } from '@/lib/utils';
 import type { ConnectionRequest } from '@/types';
+
+/* ─── Types ────────────────────────────────────────────────────────────── */
 
 interface ActionHubProps {
   requests: ConnectionRequest[];
@@ -18,24 +60,31 @@ interface ActionItem {
   id: string;
   dealId: string;
   dealName: string;
-  type: 'sign_nda' | 'sign_fee' | 'unread_messages' | 'pending_review';
+  type: 'sign_nda' | 'sign_fee' | 'unread_messages';
   label: string;
-  description: string;
   priority: number;
-  icon: typeof AlertTriangle;
-  color: string;
+  icon: typeof Shield;
 }
 
-export function ActionHub({ requests, unreadByRequest: _unreadByRequest, unreadMsgCounts, onSelectDeal }: ActionHubProps) {
+/* ─── Component ────────────────────────────────────────────────────────── */
+
+export function ActionHub({
+  requests,
+  unreadByRequest: _unreadByRequest,
+  unreadMsgCounts,
+  onSelectDeal,
+}: ActionHubProps) {
   const { user, isAdmin } = useAuth();
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
   const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
   const [signingOpen, setSigningOpen] = useState(false);
   const [signingType, setSigningType] = useState<'nda' | 'fee_agreement'>('nda');
 
+  /* ── Gather pending actions ── */
+
   const actions: ActionItem[] = [];
 
-  // NDA signing action (global, not per-deal)
+  // 1. NDA signing — global, not per-deal
   const needsNda = ndaStatus?.hasFirm && !ndaStatus.ndaSigned && ndaStatus.hasSubmission;
   if (needsNda) {
     actions.push({
@@ -44,14 +93,12 @@ export function ActionHub({ requests, unreadByRequest: _unreadByRequest, unreadM
       dealName: 'All Deals',
       type: 'sign_nda',
       label: 'Sign NDA',
-      description: 'A Non-Disclosure Agreement is ready for your signature',
       priority: 1,
       icon: Shield,
-      color: 'text-amber-600',
     });
   }
 
-  // Fee agreement action (global)
+  // 2. Fee Agreement — global
   const needsFee = coverage && !coverage.fee_covered && coverage.fee_status === 'sent';
   if (needsFee) {
     actions.push({
@@ -60,14 +107,12 @@ export function ActionHub({ requests, unreadByRequest: _unreadByRequest, unreadM
       dealName: 'All Deals',
       type: 'sign_fee',
       label: 'Sign Fee Agreement',
-      description: 'A Fee Agreement is ready for your signature',
       priority: 2,
       icon: FileSignature,
-      color: 'text-amber-600',
     });
   }
 
-  // Unread messages per deal
+  // 3. Unread messages — per deal
   for (const request of requests) {
     const msgUnread = unreadMsgCounts?.byRequest[request.id] || 0;
     if (msgUnread > 0) {
@@ -77,18 +122,18 @@ export function ActionHub({ requests, unreadByRequest: _unreadByRequest, unreadM
         dealName: request.listing?.title || 'Untitled',
         type: 'unread_messages',
         label: `${msgUnread} unread message${msgUnread > 1 ? 's' : ''}`,
-        description: request.listing?.title || 'Untitled Deal',
         priority: 3,
         icon: MessageSquare,
-        color: 'text-blue-600',
       });
     }
   }
 
-  // Sort by priority
   actions.sort((a, b) => a.priority - b.priority);
 
+  // Don't render anything when the buyer has no pending actions
   if (actions.length === 0) return null;
+
+  /* ── Action handler ── */
 
   const handleAction = (action: ActionItem) => {
     if (action.type === 'sign_nda') {
@@ -102,45 +147,59 @@ export function ActionHub({ requests, unreadByRequest: _unreadByRequest, unreadM
     }
   };
 
+  /**
+   * Truncate long deal names to keep chips compact.
+   * Shows first 25 chars + ellipsis for names exceeding the limit.
+   */
+  const truncateName = (name: string, max = 25) =>
+    name.length > max ? name.slice(0, max) + '…' : name;
+
+  /* ── Render ── */
+
   return (
     <>
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-amber-200/60 flex items-center gap-2.5">
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100">
-            <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+      <div className="bg-[#0f1f3d] rounded-xl px-6 py-5">
+        {/* Header row: icon + text + count */}
+        <div className="flex items-center gap-3.5 mb-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[rgba(201,168,76,0.15)] border border-[rgba(201,168,76,0.4)]">
+            <Zap className="h-5 w-5 text-[#c9a84c]" />
           </div>
-          <h3 className="text-sm font-semibold text-slate-900">Action Required</h3>
-          <span className="ml-auto inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
-            {actions.length}
-          </span>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-white">
+              {actions.length} Action{actions.length !== 1 ? 's' : ''} Required Across Your Deals
+            </h3>
+            <p className="text-xs text-white/50 mt-0.5">
+              Complete these steps to keep your pipeline moving
+            </p>
+          </div>
         </div>
 
-        <div className="divide-y divide-amber-200/40">
+        {/* Action chips — wrapped flex layout for multiple actions */}
+        <div className="flex flex-wrap gap-2.5">
           {actions.map((action) => {
             const Icon = action.icon;
             return (
               <button
                 key={action.id}
                 onClick={() => handleAction(action)}
-                className="w-full flex items-center gap-3.5 px-5 py-3 hover:bg-amber-50/60 transition-colors text-left group"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white/[0.07] border border-white/[0.15] text-white text-xs font-medium hover:bg-[rgba(201,168,76,0.2)] hover:border-[#c9a84c] transition-all group"
               >
-                <Icon className={cn('h-4 w-4 shrink-0', action.color)} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800">{action.label}</p>
-                  <p className="text-xs text-slate-500 truncate">{action.description}</p>
-                </div>
-                {action.dealName && action.dealId && (
-                  <span className="text-[10px] font-medium text-slate-400 shrink-0 hidden sm:block">
-                    {action.dealName.length > 20 ? action.dealName.slice(0, 20) + '...' : action.dealName}
-                  </span>
+                <Icon className="h-3.5 w-3.5 text-white/70 shrink-0" />
+                <span>{action.label}</span>
+                {action.dealName && (
+                  <>
+                    <span className="text-white/30">—</span>
+                    <span className="text-[#c9a84c]">{truncateName(action.dealName)}</span>
+                  </>
                 )}
-                <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
+                <ArrowRight className="h-3 w-3 text-white/40 group-hover:text-white/70 transition-colors shrink-0" />
               </button>
             );
           })}
         </div>
       </div>
 
+      {/* Signing modal for inline NDA / Fee Agreement signing */}
       <AgreementSigningModal
         open={signingOpen}
         onOpenChange={setSigningOpen}
