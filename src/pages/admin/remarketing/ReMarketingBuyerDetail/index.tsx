@@ -18,9 +18,9 @@ import {
   ListChecks,
   Phone,
   PhoneCall,
-  Users,d
-  
+  Users,
 } from "lucide-react";
+import { EntityTasksTab } from '@/components/daily-tasks';
 import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
 import {
   BuyerDetailHeader,
