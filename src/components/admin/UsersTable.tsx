@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { User } from '@/types';
 import { CheckCircle, ChevronDown, ChevronRight, Zap } from 'lucide-react';
+import { useColumnResize } from '@/hooks/useColumnResize';
+import { ResizeHandle } from '@/components/ui/ResizeHandle';
 import { formatDistanceToNow } from 'date-fns';
 import { UserDataCompleteness } from './UserDataCompleteness';
 import { BuyerTierBadge, BuyerScoreBadge } from './BuyerQualityBadges';
@@ -55,6 +57,21 @@ export function UsersTable({
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
+  const { columnWidths, startResize } = useColumnResize({
+    defaultWidths: {
+      expand: 40,
+      userCompany: 200,
+      type: 80,
+      tier: 96,
+      score: 64,
+      profile: 80,
+      fee: 64,
+      nda: 64,
+      status: 80,
+      joined: 96,
+      actions: 64,
+    },
+  });
   useEnhancedUserExport();
   usePermissions();
   const { allUserRoles, isLoadingRoles } = useRoleManagement();
@@ -87,20 +104,51 @@ export function UsersTable({
   return (
     <>
       <div className="space-y-4">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-10"></TableHead>
-              <TableHead className="min-w-[200px]">User & Company</TableHead>
-              <TableHead className="w-20">Type</TableHead>
-              <TableHead className="w-24">Tier</TableHead>
-              <TableHead className="w-16">Score</TableHead>
-              <TableHead className="w-20">Profile</TableHead>
-              <TableHead className="w-16">Fee</TableHead>
-              <TableHead className="w-16">NDA</TableHead>
-              <TableHead className="w-20">Status</TableHead>
-              <TableHead className="hidden lg:table-cell w-24">Joined</TableHead>
-              <TableHead className="w-16 text-right">Actions</TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.expand }}>
+                <ResizeHandle onMouseDown={(e) => startResize('expand', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.userCompany }}>
+                User & Company
+                <ResizeHandle onMouseDown={(e) => startResize('userCompany', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.type }}>
+                Type
+                <ResizeHandle onMouseDown={(e) => startResize('type', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.tier }}>
+                Tier
+                <ResizeHandle onMouseDown={(e) => startResize('tier', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.score }}>
+                Score
+                <ResizeHandle onMouseDown={(e) => startResize('score', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.profile }}>
+                Profile
+                <ResizeHandle onMouseDown={(e) => startResize('profile', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.fee }}>
+                Fee
+                <ResizeHandle onMouseDown={(e) => startResize('fee', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.nda }}>
+                NDA
+                <ResizeHandle onMouseDown={(e) => startResize('nda', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.status }}>
+                Status
+                <ResizeHandle onMouseDown={(e) => startResize('status', e)} />
+              </TableHead>
+              <TableHead className="hidden lg:table-cell relative" style={{ width: columnWidths.joined }}>
+                Joined
+                <ResizeHandle onMouseDown={(e) => startResize('joined', e)} />
+              </TableHead>
+              <TableHead className="text-right relative" style={{ width: columnWidths.actions }}>
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ import {
   X
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useColumnResize } from "@/hooks/useColumnResize";
 
 interface UniverseDeal {
   id: string;
@@ -100,13 +101,7 @@ const formatCurrency = (value: number | null | undefined) => {
   return `$${value.toFixed(0)}`;
 };
 
-const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
-  <div
-    className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 z-10"
-    onMouseDown={onMouseDown}
-    onClick={(e) => e.stopPropagation()}
-  />
-);
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
 
 const getScoreBg = (score: number) => {
   if (score >= 80) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400';
@@ -174,8 +169,7 @@ export const UniverseDealsTable = ({
 }: UniverseDealsTableProps) => {
   const navigate = useNavigate();
   const [internalSelected, setInternalSelected] = useState<string[]>([]);
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(DEFAULT_WIDTHS);
-  const resizingRef = useRef<{ col: string; startX: number; startWidth: number } | null>(null);
+  const { columnWidths, getWidth: w, startResize: handleResizeStart } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
 
   // Sort state
   const [sortField, setSortField] = useState<SortField | null>(null);
@@ -303,31 +297,6 @@ export const UniverseDealsTable = ({
       : <ArrowDown className="h-3 w-3 ml-1 text-primary" />;
   };
 
-  // Column resize handlers
-  const handleResizeStart = useCallback((col: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resizingRef.current = { col, startX: e.clientX, startWidth: columnWidths[col] };
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!resizingRef.current) return;
-      const delta = moveEvent.clientX - resizingRef.current.startX;
-      const newWidth = Math.max(40, resizingRef.current.startWidth + delta);
-      setColumnWidths(prev => ({ ...prev, [resizingRef.current!.col]: newWidth }));
-    };
-    const handleMouseUp = () => {
-      resizingRef.current = null;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [columnWidths]);
-
-  const w = (col: string) => columnWidths[col];
 
   const hasActiveFilters = stateFilter !== 'all' || employeeFilter !== 'all' || qualityTierFilter !== 'all' || enrichmentFilter !== 'all' || search.length > 0;
 

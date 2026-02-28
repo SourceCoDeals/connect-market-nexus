@@ -11,6 +11,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronRight, Mail, ExternalLink } from 'lucide-react';
+import { useColumnResize } from '@/hooks/useColumnResize';
+import { ResizeHandle } from '@/components/ui/ResizeHandle';
 import { DealSourcingRequest } from '@/hooks/admin/use-deal-sourcing-requests';
 import { DealSourcingDetailPanel } from './DealSourcingDetailPanel';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -40,6 +42,17 @@ const buyerTypeColors: Record<string, string> = {
 export function DealSourcingRequestsTable({ requests }: DealSourcingRequestsTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<DealSourcingRequest | null>(null);
+  const { columnWidths, startResize } = useColumnResize({
+    defaultWidths: {
+      expand: 30,
+      user: 200,
+      buyerType: 140,
+      submitted: 120,
+      status: 120,
+      assignedTo: 140,
+      actions: 80,
+    },
+  });
 
   const toggleRow = (id: string) => {
     setExpandedRow(expandedRow === id ? null : id);
@@ -56,16 +69,33 @@ export function DealSourcingRequestsTable({ requests }: DealSourcingRequestsTabl
   return (
     <>
       <div className="rounded-md border">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[30px]"></TableHead>
-              <TableHead>User</TableHead>
-              <TableHead>Buyer Type</TableHead>
-              <TableHead>Submitted</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Assigned To</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.expand }}>
+                <ResizeHandle onMouseDown={(e) => startResize('expand', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.user }}>
+                User
+                <ResizeHandle onMouseDown={(e) => startResize('user', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.buyerType }}>
+                Buyer Type
+                <ResizeHandle onMouseDown={(e) => startResize('buyerType', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.submitted }}>
+                Submitted
+                <ResizeHandle onMouseDown={(e) => startResize('submitted', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.status }}>
+                Status
+                <ResizeHandle onMouseDown={(e) => startResize('status', e)} />
+              </TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.assignedTo }}>
+                Assigned To
+                <ResizeHandle onMouseDown={(e) => startResize('assignedTo', e)} />
+              </TableHead>
+              <TableHead className="text-right" style={{ width: columnWidths.actions }}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -18,6 +18,20 @@ import {
   STATUS_PRIORITY
 } from "@/hooks/admin/use-owner-leads";
 import { useShiftSelect } from "@/hooks/useShiftSelect";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  checkbox: 40,
+  contacted: 100,
+  contact: 180,
+  company: 160,
+  revenue: 120,
+  timeline: 120,
+  status: 160,
+  date: 110,
+  actions: 80,
+};
 
 const STATUS_OPTIONS = [
   { value: "new", label: "New", color: "bg-blue-100 text-blue-800" },
@@ -190,6 +204,7 @@ interface OwnerLeadsTableContentProps {
 export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, onContactedChange, selectedIds, onSelectionChange }: OwnerLeadsTableContentProps) {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
   // We need a stable setter for useShiftSelect – wrap onSelectionChange
   const setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>> = (action) => {
     if (!onSelectionChange) return;
@@ -256,11 +271,11 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
   const { handleToggle } = useShiftSelect(orderedIds, selectedIds ?? new Set(), setSelectedIds);
 
   return (
-    <Table>
+    <Table className="table-fixed">
       <TableHeader>
         <TableRow>
           {selectedIds && onSelectionChange && (
-            <TableHead className="w-[40px]">
+            <TableHead style={{ width: columnWidths.checkbox }}>
               <Checkbox
                 checked={sortedLeads.length > 0 && sortedLeads.every(l => selectedIds.has(l.id))}
                 onCheckedChange={(checked) => {
@@ -270,7 +285,7 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
               />
             </TableHead>
           )}
-          <TableHead className="w-[100px]">
+          <TableHead className="relative" style={{ width: columnWidths.contacted }}>
             <SortableHeader
               column="contacted"
               label="Contacted"
@@ -278,8 +293,9 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
               direction={sortDirection}
               onSort={handleSort}
             />
+            <ResizeHandle onMouseDown={(e) => startResize('contacted', e)} />
           </TableHead>
-          <TableHead>
+          <TableHead className="relative" style={{ width: columnWidths.contact }}>
             <SortableHeader
               column="contact"
               label="Contact"
@@ -287,8 +303,9 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
               direction={sortDirection}
               onSort={handleSort}
             />
+            <ResizeHandle onMouseDown={(e) => startResize('contact', e)} />
           </TableHead>
-          <TableHead>
+          <TableHead className="relative" style={{ width: columnWidths.company }}>
             <SortableHeader
               column="company"
               label="Company"
@@ -296,8 +313,9 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
               direction={sortDirection}
               onSort={handleSort}
             />
+            <ResizeHandle onMouseDown={(e) => startResize('company', e)} />
           </TableHead>
-          <TableHead>
+          <TableHead className="relative" style={{ width: columnWidths.revenue }}>
             <SortableHeader
               column="revenue"
               label="Revenue"
@@ -305,8 +323,9 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
               direction={sortDirection}
               onSort={handleSort}
             />
+            <ResizeHandle onMouseDown={(e) => startResize('revenue', e)} />
           </TableHead>
-          <TableHead>
+          <TableHead className="relative" style={{ width: columnWidths.timeline }}>
             <SortableHeader
               column="timeline"
               label="Timeline"
@@ -314,8 +333,9 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
               direction={sortDirection}
               onSort={handleSort}
             />
+            <ResizeHandle onMouseDown={(e) => startResize('timeline', e)} />
           </TableHead>
-          <TableHead>
+          <TableHead className="relative" style={{ width: columnWidths.status }}>
             <SortableHeader
               column="status"
               label="Status"
@@ -323,8 +343,9 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
               direction={sortDirection}
               onSort={handleSort}
             />
+            <ResizeHandle onMouseDown={(e) => startResize('status', e)} />
           </TableHead>
-          <TableHead>
+          <TableHead className="relative" style={{ width: columnWidths.date }}>
             <SortableHeader
               column="date"
               label="Date"
@@ -332,8 +353,9 @@ export function OwnerLeadsTableContent({ leads, onStatusChange, onNotesUpdate, o
               direction={sortDirection}
               onSort={handleSort}
             />
+            <ResizeHandle onMouseDown={(e) => startResize('date', e)} />
           </TableHead>
-          <TableHead className="w-[80px]"></TableHead>
+          <TableHead style={{ width: columnWidths.actions }}></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

@@ -19,6 +19,8 @@ import {
 import BuyerTableRow from "./BuyerTableRow";
 import { PAGE_SIZE } from "./constants";
 import type { BuyerTab } from "./constants";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
 
 interface BuyersTableProps {
   activeTab: BuyerTab;
@@ -48,6 +50,22 @@ const SortIcon = ({ column, sortColumn, sortDirection }: { column: string; sortC
     : <ArrowDown className="h-3.5 w-3.5 ml-1" />;
 };
 
+const DEFAULT_WIDTHS: Record<string, number> = {
+  checkbox: 40,
+  rowNum: 48,
+  companyName: 260,
+  peFirm: 180,
+  universe: 140,
+  description: 200,
+  type: 140,
+  platforms: 110,
+  marketplace: 70,
+  feeAgmt: 70,
+  nda: 60,
+  intel: 130,
+  actions: 50,
+};
+
 const BuyersTable = ({
   activeTab,
   buyersLoading,
@@ -68,50 +86,91 @@ const BuyersTable = ({
   handleEnrichBuyer,
   deleteMutation,
 }: BuyersTableProps) => {
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
+
   return (
     <Card>
       <CardContent className="p-0">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px]">
+              <TableHead style={{ width: columnWidths.checkbox }}>
                 <Checkbox
                   checked={filteredBuyers.length > 0 && selectedIds.size === filteredBuyers.length}
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-[48px] text-muted-foreground text-xs font-normal">#</TableHead>
-              <TableHead className="w-[260px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('company_name')}>
+              <TableHead className="text-muted-foreground text-xs font-normal relative" style={{ width: columnWidths.rowNum }}>
+                #
+                <ResizeHandle onMouseDown={(e) => startResize('rowNum', e)} />
+              </TableHead>
+              <TableHead className="cursor-pointer select-none hover:bg-muted/50 relative" style={{ width: columnWidths.companyName }} onClick={() => handleSort('company_name')}>
                 <span className="flex items-center">
                   {activeTab === 'pe_firm' ? 'Firm Name' : 'Platform / Buyer'}
                   <SortIcon column="company_name" sortColumn={sortColumn} sortDirection={sortDirection} />
                 </span>
+                <ResizeHandle onMouseDown={(e) => startResize('companyName', e)} />
               </TableHead>
               {activeTab === 'pe_firm' ? (
                 <>
-                  <TableHead className="w-[140px]">Type</TableHead>
-                  <TableHead className="w-[110px] text-center">Platforms</TableHead>
-                  <TableHead className="w-[70px] text-center">Fee Agmt</TableHead>
-                  <TableHead className="w-[60px] text-center">NDA</TableHead>
-                  <TableHead className="w-[70px] text-center">Mktpl.</TableHead>
-                  <TableHead className="w-[130px]">Intel</TableHead>
+                  <TableHead className="relative" style={{ width: columnWidths.type }}>
+                    Type
+                    <ResizeHandle onMouseDown={(e) => startResize('type', e)} />
+                  </TableHead>
+                  <TableHead className="text-center relative" style={{ width: columnWidths.platforms }}>
+                    Platforms
+                    <ResizeHandle onMouseDown={(e) => startResize('platforms', e)} />
+                  </TableHead>
+                  <TableHead className="text-center relative" style={{ width: columnWidths.feeAgmt }}>
+                    Fee Agmt
+                    <ResizeHandle onMouseDown={(e) => startResize('feeAgmt', e)} />
+                  </TableHead>
+                  <TableHead className="text-center relative" style={{ width: columnWidths.nda }}>
+                    NDA
+                    <ResizeHandle onMouseDown={(e) => startResize('nda', e)} />
+                  </TableHead>
+                  <TableHead className="text-center relative" style={{ width: columnWidths.marketplace }}>
+                    Mktpl.
+                    <ResizeHandle onMouseDown={(e) => startResize('marketplace', e)} />
+                  </TableHead>
+                  <TableHead className="relative" style={{ width: columnWidths.intel }}>
+                    Intel
+                    <ResizeHandle onMouseDown={(e) => startResize('intel', e)} />
+                  </TableHead>
                 </>
               ) : (
                 <>
-                  <TableHead className="w-[180px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('pe_firm_name')}>
+                  <TableHead className="cursor-pointer select-none hover:bg-muted/50 relative" style={{ width: columnWidths.peFirm }} onClick={() => handleSort('pe_firm_name')}>
                     <span className="flex items-center">PE Firm <SortIcon column="pe_firm_name" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+                    <ResizeHandle onMouseDown={(e) => startResize('peFirm', e)} />
                   </TableHead>
-                  <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('universe')}>
+                  <TableHead className="cursor-pointer select-none hover:bg-muted/50 relative" style={{ width: columnWidths.universe }} onClick={() => handleSort('universe')}>
                     <span className="flex items-center">Universe <SortIcon column="universe" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+                    <ResizeHandle onMouseDown={(e) => startResize('universe', e)} />
                   </TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-[70px] text-center">Mktpl.</TableHead>
-                  <TableHead className="w-[70px] text-center">Fee Agmt</TableHead>
-                  <TableHead className="w-[60px] text-center">NDA</TableHead>
-                  <TableHead className="w-[130px]">Intel</TableHead>
+                  <TableHead className="relative" style={{ width: columnWidths.description }}>
+                    Description
+                    <ResizeHandle onMouseDown={(e) => startResize('description', e)} />
+                  </TableHead>
+                  <TableHead className="text-center relative" style={{ width: columnWidths.marketplace }}>
+                    Mktpl.
+                    <ResizeHandle onMouseDown={(e) => startResize('marketplace', e)} />
+                  </TableHead>
+                  <TableHead className="text-center relative" style={{ width: columnWidths.feeAgmt }}>
+                    Fee Agmt
+                    <ResizeHandle onMouseDown={(e) => startResize('feeAgmt', e)} />
+                  </TableHead>
+                  <TableHead className="text-center relative" style={{ width: columnWidths.nda }}>
+                    NDA
+                    <ResizeHandle onMouseDown={(e) => startResize('nda', e)} />
+                  </TableHead>
+                  <TableHead className="relative" style={{ width: columnWidths.intel }}>
+                    Intel
+                    <ResizeHandle onMouseDown={(e) => startResize('intel', e)} />
+                  </TableHead>
                 </>
               )}
-              <TableHead className="w-[50px]"></TableHead>
+              <TableHead style={{ width: columnWidths.actions }}></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

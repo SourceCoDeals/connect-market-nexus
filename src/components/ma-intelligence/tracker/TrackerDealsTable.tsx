@@ -36,6 +36,21 @@ import {
 } from "lucide-react";
 import type { MADeal } from "@/lib/ma-intelligence/types";
 import { formatDistanceToNow } from "date-fns";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  checkbox: 50,
+  rank: 60,
+  name: 220,
+  location: 140,
+  revenue: 100,
+  ebitda: 100,
+  score: 100,
+  engagement: 140,
+  added: 140,
+  actions: 80,
+};
 
 type SortColumn = "name" | "location" | "revenue" | "ebitda" | "score" | "added";
 type SortDirection = "asc" | "desc";
@@ -76,8 +91,10 @@ export function TrackerDealsTable({
     }
   };
 
-  const SortableHeader = ({ column, children }: { column: SortColumn; children: React.ReactNode }) => (
-    <TableHead>
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
+
+  const SortableHeader = ({ column, children, colKey }: { column: SortColumn; children: React.ReactNode; colKey: string }) => (
+    <TableHead className="relative" style={{ width: columnWidths[colKey] }}>
       <button
         onClick={() => toggleSort(column)}
         className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -89,6 +106,7 @@ export function TrackerDealsTable({
           <ArrowUpDown className="w-3 h-3 opacity-30" />
         )}
       </button>
+      <ResizeHandle onMouseDown={(e) => startResize(colKey, e)} />
     </TableHead>
   );
 
@@ -148,25 +166,31 @@ export function TrackerDealsTable({
 
   return (
     <div className="relative">
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="w-[50px]">
+            <TableHead style={{ width: columnWidths.checkbox }}>
               <Checkbox
                 checked={allSelected}
                 onCheckedChange={onSelectAll}
                 aria-label="Select all"
               />
             </TableHead>
-            <TableHead className="w-[60px]">Rank</TableHead>
-            <SortableHeader column="name">Deal Name</SortableHeader>
-            <SortableHeader column="location">Location</SortableHeader>
-            <SortableHeader column="revenue">Revenue</SortableHeader>
-            <SortableHeader column="ebitda">EBITDA</SortableHeader>
-            <SortableHeader column="score">Score</SortableHeader>
-            <TableHead className="w-[140px]">Engagement</TableHead>
-            <SortableHeader column="added">Added</SortableHeader>
-            <TableHead className="w-[80px]"></TableHead>
+            <TableHead className="relative" style={{ width: columnWidths.rank }}>
+              Rank
+              <ResizeHandle onMouseDown={(e) => startResize('rank', e)} />
+            </TableHead>
+            <SortableHeader column="name" colKey="name">Deal Name</SortableHeader>
+            <SortableHeader column="location" colKey="location">Location</SortableHeader>
+            <SortableHeader column="revenue" colKey="revenue">Revenue</SortableHeader>
+            <SortableHeader column="ebitda" colKey="ebitda">EBITDA</SortableHeader>
+            <SortableHeader column="score" colKey="score">Score</SortableHeader>
+            <TableHead className="relative" style={{ width: columnWidths.engagement }}>
+              Engagement
+              <ResizeHandle onMouseDown={(e) => startResize('engagement', e)} />
+            </TableHead>
+            <SortableHeader column="added" colKey="added">Added</SortableHeader>
+            <TableHead style={{ width: columnWidths.actions }}></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

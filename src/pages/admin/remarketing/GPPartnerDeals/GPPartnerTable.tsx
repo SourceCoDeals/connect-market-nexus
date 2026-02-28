@@ -25,6 +25,28 @@ import { toast as sonnerToast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { GPPartnerDeal, SortColumn } from "./types";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  checkbox: 40,
+  rowNum: 50,
+  company: 200,
+  description: 200,
+  industry: 140,
+  owner: 140,
+  revenue: 90,
+  ebitda: 90,
+  liCount: 80,
+  liRange: 80,
+  reviews: 80,
+  rating: 70,
+  quality: 80,
+  added: 100,
+  gpStatus: 100,
+  priority: 80,
+  actions: 50,
+};
 
 interface GPPartnerTableProps {
   paginatedDeals: GPPartnerDeal[];
@@ -55,43 +77,47 @@ export function GPPartnerTable({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
 
-  const SortHeader = ({ column, children }: { column: SortColumn; children: React.ReactNode }) => (
-    <button
-      className="flex items-center gap-1 hover:text-foreground transition-colors"
-      onClick={() => handleSort(column)}
-    >
-      {children}
-      <ArrowUpDown className={cn("h-3 w-3", sortColumn === column ? "text-foreground" : "text-muted-foreground/50")} />
-    </button>
+  const SortHeader = ({ column, children, colKey }: { column: SortColumn; children: React.ReactNode; colKey?: string }) => (
+    <>
+      <button
+        className="flex items-center gap-1 hover:text-foreground transition-colors"
+        onClick={() => handleSort(column)}
+      >
+        {children}
+        <ArrowUpDown className={cn("h-3 w-3", sortColumn === column ? "text-foreground" : "text-muted-foreground/50")} />
+      </button>
+      {colKey && <ResizeHandle onMouseDown={(e) => startResize(colKey, e)} />}
+    </>
   );
 
   return (
     <Card>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[40px]">
+                <TableHead style={{ width: columnWidths.checkbox }}>
                   <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} />
                 </TableHead>
-                <TableHead className="w-[50px] text-center">#</TableHead>
-                <TableHead><SortHeader column="company_name">Company</SortHeader></TableHead>
-                <TableHead className="max-w-[200px]">Description</TableHead>
-                <TableHead><SortHeader column="industry">Industry</SortHeader></TableHead>
-                <TableHead><SortHeader column="owner">Deal Owner</SortHeader></TableHead>
-                <TableHead><SortHeader column="revenue">Revenue</SortHeader></TableHead>
-                <TableHead><SortHeader column="ebitda">EBITDA</SortHeader></TableHead>
-                <TableHead><SortHeader column="linkedin_employee_count">LI Count</SortHeader></TableHead>
-                <TableHead><SortHeader column="linkedin_employee_range">LI Range</SortHeader></TableHead>
-                <TableHead><SortHeader column="google_review_count">Reviews</SortHeader></TableHead>
-                <TableHead><SortHeader column="google_rating">Rating</SortHeader></TableHead>
-                <TableHead><SortHeader column="score">Quality</SortHeader></TableHead>
-                <TableHead><SortHeader column="created_at">Added</SortHeader></TableHead>
-                <TableHead><SortHeader column="pushed">Status</SortHeader></TableHead>
-                <TableHead><SortHeader column="priority">Priority</SortHeader></TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="text-center relative" style={{ width: columnWidths.rowNum }}>#<ResizeHandle onMouseDown={(e) => startResize('rowNum', e)} /></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.company }}><SortHeader column="company_name" colKey="company">Company</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.description }}>Description<ResizeHandle onMouseDown={(e) => startResize('description', e)} /></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.industry }}><SortHeader column="industry" colKey="industry">Industry</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.owner }}><SortHeader column="owner" colKey="owner">Deal Owner</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.revenue }}><SortHeader column="revenue" colKey="revenue">Revenue</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.ebitda }}><SortHeader column="ebitda" colKey="ebitda">EBITDA</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.liCount }}><SortHeader column="linkedin_employee_count" colKey="liCount">LI Count</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.liRange }}><SortHeader column="linkedin_employee_range" colKey="liRange">LI Range</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.reviews }}><SortHeader column="google_review_count" colKey="reviews">Reviews</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.rating }}><SortHeader column="google_rating" colKey="rating">Rating</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.quality }}><SortHeader column="score" colKey="quality">Quality</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.added }}><SortHeader column="created_at" colKey="added">Added</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.gpStatus }}><SortHeader column="pushed" colKey="gpStatus">Status</SortHeader></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.priority }}><SortHeader column="priority" colKey="priority">Priority</SortHeader></TableHead>
+                <TableHead style={{ width: columnWidths.actions }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -16,7 +16,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  GripVertical,
   XCircle,
   Loader2,
   Unlink,
@@ -25,6 +24,8 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { BuyerTableRow } from "./BuyerTableRow";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
 
 interface BuyerRow {
   id: string;
@@ -54,23 +55,13 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-interface ColumnWidths {
-  platform: number;
-  industryFit: number;
-  peFirm: number;
-  description: number;
-  intel: number;
-}
-
-const DEFAULT_WIDTHS: ColumnWidths = {
+const DEFAULT_WIDTHS: Record<string, number> = {
   platform: 280,
   industryFit: 120,
   peFirm: 160,
   description: 400,
   intel: 120,
 };
-
-const MIN_WIDTH = 80;
 
 interface BuyerTableEnhancedProps {
   buyers: BuyerRow[];
@@ -111,8 +102,7 @@ export const BuyerTableEnhanced = ({
     key: 'company_name',
     direction: 'asc'
   });
-  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(DEFAULT_WIDTHS);
-  const resizingRef = useRef<{ column: keyof ColumnWidths; startX: number; startWidth: number } | null>(null);
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS, minWidth: 80 });
 
   const sortedBuyers = useMemo(() => {
     return [...buyers].sort((a, b) => {
@@ -231,39 +221,6 @@ export const BuyerTableEnhanced = ({
     }));
   };
 
-  const handleMouseDown = useCallback((column: keyof ColumnWidths, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resizingRef.current = {
-      column,
-      startX: e.clientX,
-      startWidth: columnWidths[column],
-    };
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!resizingRef.current) return;
-      const delta = moveEvent.clientX - resizingRef.current.startX;
-      const newWidth = Math.max(MIN_WIDTH, resizingRef.current.startWidth + delta);
-      setColumnWidths((prev) => ({
-        ...prev,
-        [resizingRef.current!.column]: newWidth,
-      }));
-    };
-
-    const handleMouseUp = () => {
-      resizingRef.current = null;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }, [columnWidths]);
-
   const SortButton = ({ label, sortKey }: { label: string; sortKey: SortKey }) => {
     const isActive = sortConfig.key === sortKey;
     return (
@@ -286,17 +243,6 @@ export const BuyerTableEnhanced = ({
       </Button>
     );
   };
-
-  const ResizeHandle = ({ column }: { column: keyof ColumnWidths }) => (
-    <div
-      className="absolute right-0 top-0 h-full w-1 cursor-col-resize group/resize hover:bg-primary/50 z-10"
-      onMouseDown={(e) => handleMouseDown(column, e)}
-    >
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover/resize:opacity-100 transition-opacity">
-        <GripVertical className="h-4 w-4 text-muted-foreground" />
-      </div>
-    </div>
-  );
 
   // Calculate colSpan for empty state
   const colSpan = (selectable ? 1 : 0) + 1 + 1 + (showPEColumn ? 1 : 0) + 1 + 1 + 1; // checkbox + platform + industryFit + peFirm? + description + intel + actions
@@ -381,25 +327,25 @@ export const BuyerTableEnhanced = ({
               )}
               <TableHead className="relative" style={{ width: columnWidths.platform }}>
                 <SortButton label="Platform / Buyer" sortKey="company_name" />
-                <ResizeHandle column="platform" />
+                <ResizeHandle onMouseDown={(e) => startResize('platform', e)} />
               </TableHead>
               <TableHead className="relative" style={{ width: columnWidths.industryFit }}>
                 <SortButton label="Industry Fit" sortKey="alignment_score" />
-                <ResizeHandle column="industryFit" />
+                <ResizeHandle onMouseDown={(e) => startResize('industryFit', e)} />
               </TableHead>
               {showPEColumn && (
                 <TableHead className="relative" style={{ width: columnWidths.peFirm }}>
                   <SortButton label="PE Firm" sortKey="pe_firm_name" />
-                  <ResizeHandle column="peFirm" />
+                  <ResizeHandle onMouseDown={(e) => startResize('peFirm', e)} />
                 </TableHead>
               )}
               <TableHead className="relative" style={{ width: columnWidths.description }}>
                 Description
-                <ResizeHandle column="description" />
+                <ResizeHandle onMouseDown={(e) => startResize('description', e)} />
               </TableHead>
               <TableHead className="relative" style={{ width: columnWidths.intel }}>
                 Intel
-                <ResizeHandle column="intel" />
+                <ResizeHandle onMouseDown={(e) => startResize('intel', e)} />
               </TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>

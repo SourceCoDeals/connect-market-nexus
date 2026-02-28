@@ -2,7 +2,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -10,16 +10,32 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
+import {
   MoreVertical,
   ArrowUpDown
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
+import { useColumnResize } from '@/hooks/useColumnResize';
+import { ResizeHandle } from '@/components/ui/ResizeHandle';
 import { formatDistanceToNow } from 'date-fns';
 
 interface PipelineTableViewProps {
   pipeline: ReturnType<typeof usePipelineCore>;
 }
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  checkbox: 48,
+  deal: 180,
+  contact: 140,
+  listing: 160,
+  value: 110,
+  stage: 130,
+  probability: 90,
+  priority: 100,
+  documents: 100,
+  expectedClose: 120,
+  actions: 48,
+};
 
 export function PipelineTableView({ pipeline }: PipelineTableViewProps) {
   const formatCurrency = (value: number) => {
@@ -46,6 +62,8 @@ export function PipelineTableView({ pipeline }: PipelineTableViewProps) {
     return stage?.color || '#6b7280';
   };
   
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
+
   if (pipeline.deals.length === 0) {
     return (
       <div className="flex items-center justify-center h-full bg-muted/10">
@@ -92,11 +110,11 @@ export function PipelineTableView({ pipeline }: PipelineTableViewProps) {
         
         {/* Table */}
         <div className="border rounded-lg">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox 
+                <TableHead style={{ width: columnWidths.checkbox }}>
+                  <Checkbox
                     checked={pipeline.selectedDeals.length === pipeline.deals.length}
                     onCheckedChange={(checked) => {
                       if (checked) {
@@ -107,24 +125,47 @@ export function PipelineTableView({ pipeline }: PipelineTableViewProps) {
                     }}
                   />
                 </TableHead>
-                <TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.deal }}>
                   <Button variant="ghost" size="sm" className="h-auto p-0">
                     Deal <ArrowUpDown className="ml-1 h-3 w-3" />
                   </Button>
+                  <ResizeHandle onMouseDown={(e) => startResize('deal', e)} />
                 </TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Listing</TableHead>
-                <TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.contact }}>
+                  Contact
+                  <ResizeHandle onMouseDown={(e) => startResize('contact', e)} />
+                </TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.listing }}>
+                  Listing
+                  <ResizeHandle onMouseDown={(e) => startResize('listing', e)} />
+                </TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.value }}>
                   <Button variant="ghost" size="sm" className="h-auto p-0">
                     Value <ArrowUpDown className="ml-1 h-3 w-3" />
                   </Button>
+                  <ResizeHandle onMouseDown={(e) => startResize('value', e)} />
                 </TableHead>
-                <TableHead>Stage</TableHead>
-                <TableHead>Probability</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Documents</TableHead>
-                <TableHead>Expected Close</TableHead>
-                <TableHead className="w-12"></TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.stage }}>
+                  Stage
+                  <ResizeHandle onMouseDown={(e) => startResize('stage', e)} />
+                </TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.probability }}>
+                  Probability
+                  <ResizeHandle onMouseDown={(e) => startResize('probability', e)} />
+                </TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.priority }}>
+                  Priority
+                  <ResizeHandle onMouseDown={(e) => startResize('priority', e)} />
+                </TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.documents }}>
+                  Documents
+                  <ResizeHandle onMouseDown={(e) => startResize('documents', e)} />
+                </TableHead>
+                <TableHead className="relative" style={{ width: columnWidths.expectedClose }}>
+                  Expected Close
+                  <ResizeHandle onMouseDown={(e) => startResize('expectedClose', e)} />
+                </TableHead>
+                <TableHead style={{ width: columnWidths.actions }}></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

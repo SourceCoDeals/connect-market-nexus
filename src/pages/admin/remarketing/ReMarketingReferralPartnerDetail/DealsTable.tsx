@@ -21,6 +21,27 @@ import { DealSourceBadge } from "@/components/remarketing/DealSourceBadge";
 import { useShiftSelect } from "@/hooks/useShiftSelect";
 import type { SortField } from "./types";
 import { formatCurrency, normalizeCompanyName, getDomain } from "./helpers";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  checkbox: 40,
+  name: 180,
+  website: 120,
+  industry: 120,
+  location: 120,
+  revenue: 90,
+  ebitda: 90,
+  status: 100,
+  quality: 80,
+  contact: 140,
+  employees: 90,
+  range: 80,
+  rating: 70,
+  reviews: 80,
+  added: 100,
+  actions: 40,
+};
 
 interface DealsTableProps {
   deals: any[];
@@ -46,12 +67,13 @@ export function DealsTable({
   const queryClient = useQueryClient();
   const orderedIds = deals.map((d) => d.id);
   const { handleToggle } = useShiftSelect(orderedIds, selectedDealIds, setSelectedDealIds);
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
 
   return (
-    <Table>
+    <Table className="table-fixed">
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[40px]">
+          <TableHead style={{ width: columnWidths.checkbox }}>
             <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} aria-label="Select all" />
           </TableHead>
           {([
@@ -63,7 +85,8 @@ export function DealsTable({
           ] as [SortField | "contact", string, string][]).map(([field, label, cls]) => (
             <TableHead
               key={field}
-              className={`${cls} ${field !== "contact" ? "cursor-pointer select-none hover:bg-muted/50" : ""}`}
+              className={`relative ${cls} ${field !== "contact" ? "cursor-pointer select-none hover:bg-muted/50" : ""}`}
+              style={{ width: columnWidths[field] }}
               onClick={field !== "contact" ? () => toggleSort(field as SortField) : undefined}
             >
               <div className={`flex items-center gap-1 ${cls}`}>
@@ -74,9 +97,10 @@ export function DealsTable({
                     : <ArrowUpDown className="h-3 w-3 opacity-30" />
                 )}
               </div>
+              <ResizeHandle onMouseDown={(e) => startResize(field, e)} />
             </TableHead>
           ))}
-          <TableHead className="w-[40px]" />
+          <TableHead style={{ width: columnWidths.actions }} />
         </TableRow>
       </TableHeader>
       <TableBody>

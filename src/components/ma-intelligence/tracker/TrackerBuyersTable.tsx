@@ -22,6 +22,19 @@ import { RefreshCw, MoreHorizontal, Sparkles, Archive, Trash2, Users } from "luc
 import type { MABuyer } from "@/lib/ma-intelligence/types";
 import { getIntelligenceCoverage, calculateIntelligencePercentage } from "@/lib/ma-intelligence/types";
 import { formatDistanceToNow } from "date-fns";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  checkbox: 50,
+  name: 250,
+  peFirm: 180,
+  industry: 120,
+  intelligence: 140,
+  contacts: 100,
+  lastUpdated: 140,
+  actions: 80,
+};
 
 interface TrackerBuyersTableProps {
   buyers: MABuyer[];
@@ -45,6 +58,7 @@ export function TrackerBuyersTable({
   onDelete,
 }: TrackerBuyersTableProps) {
   const navigate = useNavigate();
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
 
   if (buyers.length === 0) {
     return (
@@ -61,24 +75,41 @@ export function TrackerBuyersTable({
 
   return (
     <div className="relative">
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow className="bg-muted/50">
-            <TableHead className="w-[50px]">
+            <TableHead style={{ width: columnWidths.checkbox }}>
               <Checkbox
                 checked={allSelected}
                 onCheckedChange={onSelectAll}
                 aria-label="Select all"
               />
             </TableHead>
-            <TableHead className="w-[250px]">Name</TableHead>
-            <TableHead className="w-[180px]">PE Firm</TableHead>
-            <TableHead className="w-[120px]">Industry</TableHead>
-            <TableHead className="w-[140px]">Intelligence</TableHead>
-
-            <TableHead className="w-[100px]">Contacts</TableHead>
-            <TableHead className="w-[140px]">Last Updated</TableHead>
-            <TableHead className="w-[80px]"></TableHead>
+            <TableHead className="relative" style={{ width: columnWidths.name }}>
+              Name
+              <ResizeHandle onMouseDown={(e) => startResize('name', e)} />
+            </TableHead>
+            <TableHead className="relative" style={{ width: columnWidths.peFirm }}>
+              PE Firm
+              <ResizeHandle onMouseDown={(e) => startResize('peFirm', e)} />
+            </TableHead>
+            <TableHead className="relative" style={{ width: columnWidths.industry }}>
+              Industry
+              <ResizeHandle onMouseDown={(e) => startResize('industry', e)} />
+            </TableHead>
+            <TableHead className="relative" style={{ width: columnWidths.intelligence }}>
+              Intelligence
+              <ResizeHandle onMouseDown={(e) => startResize('intelligence', e)} />
+            </TableHead>
+            <TableHead className="relative" style={{ width: columnWidths.contacts }}>
+              Contacts
+              <ResizeHandle onMouseDown={(e) => startResize('contacts', e)} />
+            </TableHead>
+            <TableHead className="relative" style={{ width: columnWidths.lastUpdated }}>
+              Last Updated
+              <ResizeHandle onMouseDown={(e) => startResize('lastUpdated', e)} />
+            </TableHead>
+            <TableHead style={{ width: columnWidths.actions }}></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

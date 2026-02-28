@@ -14,6 +14,21 @@ import {
   ArrowDown,
   Phone,
 } from "lucide-react";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  checkbox: 40,
+  expand: 32,
+  name: 180,
+  email: 200,
+  company: 160,
+  sources: 120,
+  activity: 100,
+  agreements: 120,
+  lastActivity: 120,
+  added: 100,
+};
 import { format, formatDistanceToNow } from "date-fns";
 import type { NonMarketplaceUser, NonMarketplaceUserFilters } from "@/types/non-marketplace-user";
 import { AgreementToggle } from "./non-marketplace/AgreementToggle";
@@ -75,6 +90,7 @@ export const NonMarketplaceUsersTable = ({
   const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
 
   // Filter users
   const filteredUsers = useMemo(() => {
@@ -192,48 +208,62 @@ export const NonMarketplaceUsersTable = ({
 
   return (
     <div>
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="w-10">
+            <TableHead style={{ width: columnWidths.checkbox }}>
               <Checkbox
                 checked={filteredUsers.length > 0 && selectedIds.size === filteredUsers.length}
                 onCheckedChange={onToggleSelectAll}
               />
             </TableHead>
-            <TableHead className="w-8" />
-            <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort("name")}>
+            <TableHead style={{ width: columnWidths.expand }} />
+            <TableHead className="cursor-pointer select-none hover:bg-muted/50 relative" style={{ width: columnWidths.name }} onClick={() => handleSort("name")}>
               <span className="flex items-center">
                 Name
                 <SortIcon column="name" sortColumn={sortColumn} sortDirection={sortDirection} />
               </span>
+              <ResizeHandle onMouseDown={(e) => startResize('name', e)} />
             </TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort("company")}>
+            <TableHead className="relative" style={{ width: columnWidths.email }}>
+              Email
+              <ResizeHandle onMouseDown={(e) => startResize('email', e)} />
+            </TableHead>
+            <TableHead className="cursor-pointer select-none hover:bg-muted/50 relative" style={{ width: columnWidths.company }} onClick={() => handleSort("company")}>
               <span className="flex items-center">
                 Company
                 <SortIcon column="company" sortColumn={sortColumn} sortDirection={sortDirection} />
               </span>
+              <ResizeHandle onMouseDown={(e) => startResize('company', e)} />
             </TableHead>
-            <TableHead>Sources</TableHead>
-            <TableHead className="cursor-pointer select-none hover:bg-muted/50 text-center" onClick={() => handleSort("engagement")}>
+            <TableHead className="relative" style={{ width: columnWidths.sources }}>
+              Sources
+              <ResizeHandle onMouseDown={(e) => startResize('sources', e)} />
+            </TableHead>
+            <TableHead className="cursor-pointer select-none hover:bg-muted/50 text-center relative" style={{ width: columnWidths.activity }} onClick={() => handleSort("engagement")}>
               <span className="flex items-center justify-center">
                 Activity
                 <SortIcon column="engagement" sortColumn={sortColumn} sortDirection={sortDirection} />
               </span>
+              <ResizeHandle onMouseDown={(e) => startResize('activity', e)} />
             </TableHead>
-            <TableHead className="text-center">Agreements</TableHead>
-            <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort("last_activity")}>
+            <TableHead className="text-center relative" style={{ width: columnWidths.agreements }}>
+              Agreements
+              <ResizeHandle onMouseDown={(e) => startResize('agreements', e)} />
+            </TableHead>
+            <TableHead className="cursor-pointer select-none hover:bg-muted/50 relative" style={{ width: columnWidths.lastActivity }} onClick={() => handleSort("last_activity")}>
               <span className="flex items-center">
                 Last Activity
                 <SortIcon column="last_activity" sortColumn={sortColumn} sortDirection={sortDirection} />
               </span>
+              <ResizeHandle onMouseDown={(e) => startResize('lastActivity', e)} />
             </TableHead>
-            <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort("created_at")}>
+            <TableHead className="cursor-pointer select-none hover:bg-muted/50 relative" style={{ width: columnWidths.added }} onClick={() => handleSort("created_at")}>
               <span className="flex items-center">
                 Added
                 <SortIcon column="created_at" sortColumn={sortColumn} sortDirection={sortDirection} />
               </span>
+              <ResizeHandle onMouseDown={(e) => startResize('added', e)} />
             </TableHead>
           </TableRow>
         </TableHeader>

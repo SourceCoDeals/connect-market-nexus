@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatCompactCurrency } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils";
 import type { ValuationLead, SortColumn } from "./types";
 import { extractBusinessName, inferWebsite } from "./helpers";
 import { scorePillClass, exitTimingBadge, qualityBadge, calculatorBadge } from "./BadgeComponents";
+import { useColumnResize } from "@/hooks/useColumnResize";
+import { ResizeHandle } from "@/components/ui/ResizeHandle";
 
 const DEFAULT_COL_WIDTHS: Record<string, number> = {
   company: 160, description: 200, calculator: 110, industry: 130, location: 110,
@@ -86,26 +88,7 @@ export function ValuationLeadsTable({
   const orderedIds = useMemo(() => paginatedLeads.map((l) => l.id), [paginatedLeads]);
   const { handleToggle: handleShiftToggle } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
 
-  const [colWidths, setColWidths] = useState<Record<string, number>>(DEFAULT_COL_WIDTHS);
-
-  const startResize = useCallback(
-    (col: string, e: React.MouseEvent) => {
-      e.preventDefault();
-      const startX = e.clientX;
-      const startW = colWidths[col] ?? DEFAULT_COL_WIDTHS[col] ?? 120;
-      const onMouseMove = (mv: MouseEvent) => {
-        const newW = Math.max(60, startW + mv.clientX - startX);
-        setColWidths((prev) => ({ ...prev, [col]: newW }));
-      };
-      const onMouseUp = () => {
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-      };
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
-    },
-    [colWidths]
-  );
+  const { columnWidths: colWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_COL_WIDTHS, minWidth: 60 });
 
   const SortHeader = ({ column, children }: { column: SortColumn; children: React.ReactNode }) => (
     <button
@@ -153,13 +136,13 @@ export function ValuationLeadsTable({
                 {(["company","description"] as const).map((col) => (
                   <TableHead key={col} className="relative overflow-visible" style={{ width: colWidths[col] }}>
                     {col === "company" ? <SortHeader column="display_name">Company</SortHeader> : "Description"}
-                    <div onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    <ResizeHandle onMouseDown={(e) => startResize(col, e)} />
                   </TableHead>
                 ))}
                 {activeTab === "all" && (
                   <TableHead className="relative overflow-visible" style={{ width: colWidths.calculator }}>
                     Calculator
-                    <div onMouseDown={(e) => startResize("calculator", e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    <ResizeHandle onMouseDown={(e) => startResize("calculator", e)} />
                   </TableHead>
                 )}
                 {(["industry","location","owner","revenue","ebitda","valuation","exit","intros","quality","score","added","status","priority"] as const).map((col) => (
@@ -177,7 +160,7 @@ export function ValuationLeadsTable({
                     {col === "added" && <SortHeader column="created_at">Added</SortHeader>}
                     {col === "status" && <SortHeader column="pushed">Status</SortHeader>}
                     {col === "priority" && <SortHeader column="priority">Priority</SortHeader>}
-                    <div onMouseDown={(e) => startResize(col, e)} className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 select-none z-10" />
+                    <ResizeHandle onMouseDown={(e) => startResize(col, e)} />
                   </TableHead>
                 ))}
                 <TableHead className="w-[50px]"></TableHead>

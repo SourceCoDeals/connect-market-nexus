@@ -5,6 +5,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { UniversePerformance } from '@/hooks/useReMarketingAnalytics';
 import { Link } from 'react-router-dom';
 import { Users, ArrowRight, TrendingUp } from 'lucide-react';
+import { useColumnResize } from '@/hooks/useColumnResize';
+import { ResizeHandle } from '@/components/ui/ResizeHandle';
+
+const DEFAULT_WIDTHS: Record<string, number> = {
+  universe: 200,
+  scores: 80,
+  avgScore: 100,
+  tierAB: 100,
+  conversion: 100,
+  actions: 60,
+};
 
 interface UniversePerformanceTableProps {
   data: UniversePerformance[];
@@ -19,6 +30,8 @@ function getScoreBadgeVariant(score: number): "default" | "secondary" | "outline
 }
 
 export function UniversePerformanceTable({ data, className }: UniversePerformanceTableProps) {
+  const { columnWidths, startResize } = useColumnResize({ defaultWidths: DEFAULT_WIDTHS });
+
   if (data.length === 0) {
     return (
       <Card className={className}>
@@ -48,15 +61,30 @@ export function UniversePerformanceTable({ data, className }: UniversePerformanc
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>Universe</TableHead>
-              <TableHead className="text-center">Scores</TableHead>
-              <TableHead className="text-center">Avg Score</TableHead>
-              <TableHead className="text-center">Tier A/B</TableHead>
-              <TableHead className="text-center">Conversion</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="relative" style={{ width: columnWidths.universe }}>
+                Universe
+                <ResizeHandle onMouseDown={(e) => startResize('universe', e)} />
+              </TableHead>
+              <TableHead className="text-center relative" style={{ width: columnWidths.scores }}>
+                Scores
+                <ResizeHandle onMouseDown={(e) => startResize('scores', e)} />
+              </TableHead>
+              <TableHead className="text-center relative" style={{ width: columnWidths.avgScore }}>
+                Avg Score
+                <ResizeHandle onMouseDown={(e) => startResize('avgScore', e)} />
+              </TableHead>
+              <TableHead className="text-center relative" style={{ width: columnWidths.tierAB }}>
+                Tier A/B
+                <ResizeHandle onMouseDown={(e) => startResize('tierAB', e)} />
+              </TableHead>
+              <TableHead className="text-center relative" style={{ width: columnWidths.conversion }}>
+                Conversion
+                <ResizeHandle onMouseDown={(e) => startResize('conversion', e)} />
+              </TableHead>
+              <TableHead className="text-right" style={{ width: columnWidths.actions }}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
