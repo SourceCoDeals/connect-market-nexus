@@ -42,6 +42,8 @@ import { knowledgeTools, executeKnowledgeTool } from './knowledge-tools.ts';
 import { taskTools, executeTaskTool } from './task-tools.ts';
 import { industryResearchTools, executeIndustryResearchTool } from './industry-research-tools.ts';
 import { recommendedBuyerTools, executeRecommendedBuyerTool } from './recommended-buyer-tools.ts';
+import { firefliesSummaryTools, executeFirefliesSummaryTool } from './fireflies-summary-tools.ts';
+import { alertTools, executeAlertTool } from './alert-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -81,6 +83,8 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...taskTools,
   ...industryResearchTools,
   ...recommendedBuyerTools,
+  ...firefliesSummaryTools,
+  ...alertTools,
 ];
 
 // ---------- Backward-compat: old tool name → executor mapping ----------
@@ -194,6 +198,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_transcripts', // merged: was search_buyer_transcripts + search_transcripts + search_fireflies
     'get_meeting_action_items',
     'semantic_transcript_search',
+    'summarize_transcript_to_notes',
+    'get_unprocessed_transcripts',
   ],
 
   // Analytics
@@ -220,6 +226,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_overdue_tasks',
     'get_buyer_spotlight',
     'get_deal_signals_summary',
+    'get_proactive_alerts',
   ],
 
   // General / context
@@ -423,6 +430,29 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'send_document',
   ],
 
+  // Proactive alerts (Feature 2: Proactive Deal Alerts)
+  ALERTS: [
+    'get_proactive_alerts',
+    'dismiss_alert',
+    'snooze_alert',
+    'get_deal_health',
+    'get_data_quality_report',
+    'get_deal_signals_summary',
+    'get_overdue_tasks',
+    'get_stale_deals',
+    'create_task',
+  ],
+
+  // Transcript summarization (Feature 3: Fireflies Auto-Summary)
+  TRANSCRIPT_SUMMARY: [
+    'summarize_transcript_to_notes',
+    'get_unprocessed_transcripts',
+    'search_transcripts',
+    'get_meeting_action_items',
+    'add_deal_note',
+    'create_task',
+  ],
+
   // Smartlead email outreach
   SMARTLEAD_OUTREACH: [
     'get_smartlead_campaigns',
@@ -463,6 +493,9 @@ const CONFIRMATION_REQUIRED = new Set([
   'create_task',
   'snooze_task',
   'bulk_reassign_tasks',
+  'summarize_transcript_to_notes',
+  'dismiss_alert',
+  'snooze_alert',
 ]);
 
 // ---------- Public API ----------
@@ -610,6 +643,10 @@ async function _executeToolInternal(
     return executeIndustryResearchTool(supabase, toolName, resolvedArgs);
   if (recommendedBuyerTools.some((t) => t.name === toolName))
     return executeRecommendedBuyerTool(supabase, toolName, resolvedArgs);
+  if (firefliesSummaryTools.some((t) => t.name === toolName))
+    return executeFirefliesSummaryTool(supabase, toolName, resolvedArgs, userId);
+  if (alertTools.some((t) => t.name === toolName))
+    return executeAlertTool(supabase, toolName, resolvedArgs, userId);
 
   // Backward compatibility: route old (merged) tool names to their new executors
   const legacyRouter = LEGACY_TOOL_ROUTING[toolName];

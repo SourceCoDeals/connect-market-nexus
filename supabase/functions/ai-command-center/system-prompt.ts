@@ -135,15 +135,25 @@ DATA PROVENANCE: Size criteria may be from PE firm website and may represent new
 
   MEETING_INTEL: `Extract the most relevant quotes and insights from transcripts.
 Note if CEO/owner was present. Highlight action items and commitments.
-Rank interest signals: HIGH = financial questions, deal structure, data room, timeline. MEDIUM = positive sentiment, follow-up requests. LOW = vague, deflecting on timing.`,
+Rank interest signals: HIGH = financial questions, deal structure, data room, timeline. MEDIUM = positive sentiment, follow-up requests. LOW = vague, deflecting on timing.
+For transcript summarization: use summarize_transcript_to_notes to generate structured notes and save to the deal. Use get_unprocessed_transcripts to find recordings that haven't been summarized yet.
+When summarizing: focus on actionable insights, buyer/seller signals, and next steps rather than restating everything said.`,
+
+  TRANSCRIPT_SUMMARY: `Use get_unprocessed_transcripts to find recordings that need summarization.
+Use summarize_transcript_to_notes (REQUIRES CONFIRMATION) to process a transcript and save a structured note.
+The summary includes: executive summary, key signals (positive/negative), action items, and notable quotes.
+After summarizing, offer to create tasks from the action items using auto_create_tasks=true.
+Present: transcript title, duration, participant count, and a preview of the summary before confirming.`,
 
   PIPELINE_ANALYTICS: `Present metrics in scannable format: counts, totals, averages, comparisons.
 Use get_pipeline_summary with group_by for breakdowns (industry, address_state, deal_source, status).
 If query_deals returns exactly 25 results, use get_pipeline_summary for accurate counts.
 Add 1-2 sentences of business interpretation after data.`,
 
-  DAILY_BRIEFING: `Use get_daily_briefing for a comprehensive briefing: overdue tasks, due today, due this week, AI tasks pending review, critical signals.
-Structure: 1) Quick stats 2) Priority items (overdue, deals needing attention) 3) Recent highlights.
+  DAILY_BRIEFING: `Use get_daily_briefing for a comprehensive briefing: overdue tasks, due today, due this week, AI tasks pending review, critical signals, recent leads, and connections.
+Structure: 1) Quick stats line 2) Priority items (overdue, deals needing attention) 3) New activity (leads, connections) 4) AI tasks pending review.
+On Monday: emphasize start-of-week priorities and anything that came in over the weekend.
+On Friday: emphasize wrapping up the week and outstanding items.
 Show linked deal/buyer names for every task. Keep under 200 words unless asked for more.`,
 
   ACTION: `Confirm action taken with specifics: what was created/updated, IDs, context.
@@ -242,8 +252,14 @@ Show what will be created and ask for confirmation.`,
 
   PIPELINE_REPORT: `Use generate_pipeline_report for structured reports. Combine with generate_eod_recap for periodic summaries.`,
 
-  PROACTIVE: `Use get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, get_stale_deals.
-Present findings with actionable recommendations.`,
+  PROACTIVE: `Use get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, get_stale_deals, get_proactive_alerts.
+Present findings with actionable recommendations. For alerts, show severity (critical/warning/info), entity name, and suggested action.`,
+
+  ALERTS: `Use get_proactive_alerts to surface issues needing attention: stale deals, cold buyers, overdue tasks, unprocessed transcripts, unsigned agreements, critical signals.
+Present alerts grouped by severity. For each alert, show the entity name, what's wrong, and what to do about it.
+Use dismiss_alert (REQUIRES CONFIRMATION) when the user has handled an alert.
+Use snooze_alert (REQUIRES CONFIRMATION) to defer an alert for a few days.
+Always offer next steps: "Want me to draft outreach to this buyer?" or "Should I create a task for this?"`,
 
   INDUSTRY: `You are preparing industry intelligence for a PE deal team. Use research_industry as your PRIMARY tool — it searches M&A guides, Google, internal transcripts, buyers, and deals in parallel.
 
