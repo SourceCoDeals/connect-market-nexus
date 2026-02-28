@@ -63,7 +63,7 @@ function MessageBody({ body, variant }: { body: string; variant: 'buyer' | 'admi
               href={part}
               target="_blank"
               rel="noopener noreferrer"
-              className={`${linkColor} hover:opacity-80 break-all text-xs`}
+              className={`${linkColor} hover:opacity-80 break-all text-sm`}
             >
               {displayUrl}
             </a>
@@ -171,8 +171,8 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
                 return (
                   <div key={msg.id} className="flex justify-center">
                     <div
-                      className="italic text-xs px-3 py-1.5 rounded-full max-w-[80%]"
-                      style={{ backgroundColor: '#F7F4DD', color: '#5A5A5A' }}
+                      className="italic text-sm px-3 py-1.5 rounded-full max-w-[80%]"
+                      style={{ backgroundColor: '#F7F4DD', color: '#3a3a3a' }}
                     >
                       <MessageBody body={msg.body} variant="system" />
                       <span className="opacity-50 text-[10px] ml-2">
@@ -215,7 +215,7 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
                         {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                       </span>
                     </div>
-                    <div className="text-sm leading-relaxed">
+                    <div className="text-base leading-relaxed">
                       <MessageBody body={msg.body} variant={isBuyer ? 'buyer' : 'admin'} />
                     </div>
                   </div>
@@ -310,7 +310,7 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
         });
         if (error) throw error;
       } else {
-        const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
+        const { OZ_ADMIN_ID } = await import('@/constants');
         await supabase.functions.invoke('notify-admin-document-question', {
           body: {
             admin_id: OZ_ADMIN_ID,
@@ -429,7 +429,7 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
                       {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                     </span>
                   </div>
-                  <div className="text-sm leading-relaxed">
+                  <div className="text-base leading-relaxed">
                     <MessageBody
                       body={msg.body}
                       variant={msg.sender_role === 'buyer' || !msg.sender_role ? 'buyer' : 'admin'}

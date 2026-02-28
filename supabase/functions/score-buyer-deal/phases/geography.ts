@@ -73,15 +73,23 @@ export async function calculateGeographyScore(
     if (footprint.length > 0) {
       buyerStates = footprint;
     }
-    // 2.5. operating_locations — extract state codes from "City, ST" entries
+    // 2.5. operating_locations — extract state codes from "City, ST" or "City, ST ZIP" entries
     if (buyerStates.length === 0 && buyer.operating_locations?.length) {
       const locStates: string[] = [];
       for (const loc of buyer.operating_locations) {
         if (typeof loc !== 'string') continue;
-        const stateMatch = loc.match(/,\s*([A-Z]{2})\s*$/i);
+        // Match "City, ST", "City, ST ZIP", "City, State Name", "City, State Name ZIP"
+        const stateMatch = loc.match(/,\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?\s*$/i);
         if (stateMatch) {
           const code = stateMatch[1].toUpperCase();
           if (/^[A-Z]{2}$/.test(code)) locStates.push(code);
+        } else {
+          // Fallback: try normalizing full state name from "City, State Name" format
+          const fullNameMatch = loc.match(/,\s*([A-Za-z\s]+?)(?:\s+\d{5}(?:-\d{4})?)?\s*$/);
+          if (fullNameMatch) {
+            const normalized = normalizeStateCode(fullNameMatch[1].trim());
+            if (normalized) locStates.push(normalized);
+          }
         }
       }
       const unique = [...new Set(locStates)];
@@ -122,7 +130,10 @@ export async function calculateGeographyScore(
 
   // Check hard disqualifiers FIRST
   // 1. Deal state in buyer's explicit geographic_exclusions
-  const geoExclusions = (buyer.geographic_exclusions || []).map((s: string) => s?.toUpperCase().trim()).filter(Boolean);
+  // Normalize exclusions to 2-letter codes (handles both "GA" and "Georgia")
+  const geoExclusions = (buyer.geographic_exclusions || [])
+    .map((s: string) => normalizeEntry(s))
+    .filter((s: string | null): s is string => s !== null);
   if (dealState && geoExclusions.includes(dealState)) {
     return {
       score: 0,

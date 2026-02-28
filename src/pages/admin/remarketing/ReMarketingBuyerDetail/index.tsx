@@ -17,10 +17,11 @@ import {
   FolderOpen,
   ListChecks,
   Phone,
-  Users,
-} from 'lucide-react';
-import { EntityTasksTab } from '@/components/daily-tasks';
-import { BuyerAgreementsPanel } from '@/components/ma-intelligence/BuyerAgreementsPanel';
+  PhoneCall,
+  Users,d
+  
+} from "lucide-react";
+import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -36,14 +37,15 @@ import {
   BuyerServicesBusinessModelCard,
 } from '@/components/remarketing/buyer-detail';
 
-import { EditDialogType } from './types';
-import { useBuyerData } from './useBuyerData';
-import { useBuyerMutations } from './useBuyerMutations';
-import { useExtractionHandlers } from './useExtractionHandlers';
-import { ContactsTab } from './ContactsTab';
-import { DealHistoryTab } from './DealHistoryTab';
-import { AddContactDialog } from './AddContactDialog';
-import { EditDialogs } from './EditDialogs';
+import { EditDialogType } from "./types";
+import { useBuyerData } from "./useBuyerData";
+import { useBuyerMutations } from "./useBuyerMutations";
+import { useExtractionHandlers } from "./useExtractionHandlers";
+import { ContactsTab } from "./ContactsTab";
+import { DealHistoryTab } from "./DealHistoryTab";
+import { AddContactDialog } from "./AddContactDialog";
+import { EditDialogs } from "./EditDialogs";
+import { CallActivityTab } from "./CallActivityTab";
 
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -198,6 +200,10 @@ const ReMarketingBuyerDetail = () => {
             <Phone className="mr-1.5 h-3.5 w-3.5" />
             Call History
           </TabsTrigger>
+          <TabsTrigger value="call-activity" className="text-sm">
+            <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
+            Call Activity
+          </TabsTrigger>
           <TabsTrigger value="history" className="text-sm">
             <Clock className="mr-1.5 h-3.5 w-3.5" />
             Deal History ({recentScores?.length || 0})
@@ -332,6 +338,11 @@ const ReMarketingBuyerDetail = () => {
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Call Activity Tab (PhoneBurner) */}
+        <TabsContent value="call-activity" className="space-y-4">
+          <CallActivityTab buyerId={buyer?.id || ''} />
         </TabsContent>
 
         {/* Deal History Tab */}

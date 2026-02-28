@@ -38,12 +38,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'DAILY_BRIEFING',
       tier: 'STANDARD',
-      tools: [
-        'get_follow_up_queue',
-        'get_analytics',
-        'get_cross_deal_analytics',
-        'get_daily_briefing',
-      ],
+      tools: ['get_follow_up_queue', 'get_analytics'],
       confidence: 0.9,
     },
   },
@@ -229,7 +224,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'BUYER_SEARCH',
       tier: 'STANDARD',
-      tools: ['search_buyers'],
+      tools: ['search_buyers', 'search_buyer_universes'],
       confidence: 0.85,
     },
   },
@@ -271,7 +266,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'MEETING_INTEL',
       tier: 'STANDARD',
-      tools: ['semantic_transcript_search', 'search_transcripts', 'search_fireflies'],
+      tools: ['semantic_transcript_search', 'search_transcripts'],
       confidence: 0.8,
     },
   },
@@ -451,12 +446,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'FOLLOW_UP',
       tier: 'STANDARD',
-      tools: [
-        'get_outreach_records',
-        'get_remarketing_outreach',
-        'get_deal_tasks',
-        'get_outreach_status',
-      ],
+      tools: ['get_outreach_records', 'get_deal_tasks', 'get_outreach_status'],
       confidence: 0.85,
     },
   },
@@ -499,7 +489,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
-      tools: ['get_call_history', 'get_engagement_signals'],
+      tools: ['get_call_history', 'get_buyer_signals'],
       confidence: 0.88,
     },
   },
@@ -515,7 +505,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
-      tools: ['get_engagement_signals', 'get_buyer_decisions', 'get_score_history'],
+      tools: ['get_buyer_signals', 'get_buyer_history'],
       confidence: 0.87,
     },
   },
@@ -528,7 +518,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
-      tools: ['get_buyer_decisions', 'get_engagement_signals'],
+      tools: ['get_buyer_signals'],
       confidence: 0.85,
     },
   },
@@ -564,7 +554,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
-      tools: ['enrich_linkedin_contact', 'search_contacts', 'save_contacts_to_crm'],
+      tools: ['enrich_contact', 'search_contacts', 'save_contacts_to_crm'],
       confidence: 0.95,
     },
   },
@@ -592,11 +582,10 @@ const BYPASS_RULES: Array<{
       category: 'CONTACTS',
       tier: 'STANDARD',
       tools: [
-        'find_and_enrich_person',
+        'find_contact',
         'search_contacts',
         'search_pe_contacts',
-        'enrich_buyer_contacts',
-        'enrich_linkedin_contact',
+        'enrich_contact',
         'get_buyer_profile',
       ],
       confidence: 0.87,
@@ -624,7 +613,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
-      tools: ['get_score_history', 'explain_buyer_score'],
+      tools: ['get_buyer_history', 'explain_buyer_score'],
       confidence: 0.87,
     },
   },
@@ -650,7 +639,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CROSS_DEAL',
       tier: 'STANDARD',
-      tools: ['get_cross_deal_analytics'],
+      tools: ['get_analytics'],
       confidence: 0.9,
     },
   },
@@ -698,7 +687,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONNECTION',
       tier: 'STANDARD',
-      tools: ['get_connection_messages', 'get_deal_conversations', 'get_connection_requests'],
+      tools: ['get_connection_messages', 'get_deal_communication', 'get_connection_requests'],
       confidence: 0.82,
     },
   },
@@ -737,7 +726,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
-      tools: ['get_buyer_learning_history', 'get_buyer_decisions'],
+      tools: ['get_buyer_history', 'get_buyer_signals'],
       confidence: 0.85,
     },
   },
@@ -763,7 +752,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'DEAL_STATUS',
       tier: 'QUICK',
-      tools: ['get_deal_comments', 'get_deal_details'],
+      tools: ['get_deal_communication', 'get_deal_details'],
       confidence: 0.85,
     },
   },
@@ -791,7 +780,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACTS',
       tier: 'STANDARD',
-      tools: ['search_contacts', 'enrich_buyer_contacts'],
+      tools: ['search_contacts', 'enrich_contact'],
       confidence: 0.92,
     },
   },
@@ -808,12 +797,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
-      tools: [
-        'search_pe_contacts',
-        'search_contacts',
-        'enrich_buyer_contacts',
-        'get_buyer_profile',
-      ],
+      tools: ['search_pe_contacts', 'search_contacts', 'enrich_contact', 'get_buyer_profile'],
       confidence: 0.92,
     },
   },
@@ -826,12 +810,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
-      tools: [
-        'find_contact_linkedin',
-        'search_contacts',
-        'enrich_linkedin_contact',
-        'save_contacts_to_crm',
-      ],
+      tools: ['find_contact', 'search_contacts', 'enrich_contact', 'save_contacts_to_crm'],
       confidence: 0.92,
     },
   },
@@ -844,12 +823,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'CONTACT_ENRICHMENT',
       tier: 'STANDARD',
-      tools: [
-        'enrich_buyer_contacts',
-        'search_contacts',
-        'search_pe_contacts',
-        'find_contact_linkedin',
-      ],
+      tools: ['enrich_contact', 'search_contacts', 'search_pe_contacts', 'find_contact'],
       confidence: 0.9,
     },
   },
@@ -901,7 +875,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'ENGAGEMENT',
       tier: 'STANDARD',
-      tools: ['get_document_engagement', 'get_engagement_signals'],
+      tools: ['get_document_engagement', 'get_buyer_signals'],
       confidence: 0.9,
     },
   },
@@ -1074,7 +1048,7 @@ const BYPASS_RULES: Array<{
         'search_valuation_leads',
         'query_deals',
         'search_contacts',
-        'enrich_buyer_contacts',
+        'enrich_contact',
         'google_search_companies',
         'save_contacts_to_crm',
         'push_to_phoneburner',
@@ -1120,7 +1094,7 @@ Categories:
 - PLATFORM_GUIDE: Questions about how to use the platform, what features do, how workflows work, what the chatbot can do
 - GENERAL: Other / unclear intent
 
-Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_comments, get_deal_scoring_adjustments, get_deal_referrals, get_deal_conversations, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_decisions, get_score_history, get_buyer_learning_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, get_remarketing_outreach, get_engagement_signals, get_interest_signals, search_transcripts, search_buyer_transcripts, search_fireflies, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, get_cross_deal_analytics, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_buyer_contacts, push_to_phoneburner, push_to_smartlead, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap, get_smartlead_campaigns, get_smartlead_campaign_stats, get_smartlead_email_history, get_task_inbox, get_daily_briefing, get_overdue_tasks, get_buyer_spotlight, get_deal_signals_summary, create_task, snooze_task, confirm_ai_task, dismiss_ai_task, add_task_comment, bulk_reassign_tasks
+Available tools: query_deals, get_deal_details, get_deal_activities, get_deal_tasks, get_deal_documents, get_deal_memos, get_deal_communication, get_deal_scoring_adjustments, get_deal_referrals, get_pipeline_summary, search_buyers, get_buyer_profile, get_score_breakdown, get_top_buyers_for_deal, get_buyer_signals, get_buyer_history, search_lead_sources, search_valuation_leads, search_inbound_leads, get_referral_data, search_pe_contacts, get_firm_agreements, get_nda_logs, get_connection_requests, get_connection_messages, search_buyer_universes, get_universe_details, get_outreach_records, search_transcripts, get_meeting_action_items, get_outreach_status, get_analytics, get_enrichment_status, get_industry_trackers, get_current_user_context, create_deal_task, complete_deal_task, add_deal_note, log_deal_activity, update_deal_stage, grant_data_room_access, select_table_rows, apply_table_filter, sort_table_column, navigate_to_page, explain_buyer_score, semantic_transcript_search, get_follow_up_queue, get_call_history, search_contacts, get_stale_deals, get_document_engagement, enrich_contact, find_contact, push_to_phoneburner, push_to_smartlead, send_document, google_search_companies, save_contacts_to_crm, reassign_deal_task, convert_to_pipeline_deal, get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, generate_eod_recap, get_smartlead_campaigns, get_smartlead_campaign_stats, get_smartlead_email_history, retrieve_knowledge
 
 Respond with JSON only:
 {"category":"CATEGORY","tier":"QUICK|STANDARD|DEEP","tools":["tool1","tool2"],"confidence":0.0-1.0}

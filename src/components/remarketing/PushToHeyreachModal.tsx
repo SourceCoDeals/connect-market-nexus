@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { HeyReachEntityType } from '@/types/heyreach';
+import type { HeyReachCampaign, HeyReachEntityType } from '@/types/heyreach';
 import { usePushToHeyReach } from '@/hooks/heyreach/use-heyreach-leads';
 import { useHeyReachCampaigns } from '@/hooks/heyreach/use-heyreach-campaigns';
 import { Button } from '@/components/ui/button';
@@ -47,7 +47,12 @@ export function PushToHeyreachModal({
   const { data: campaignsData, isLoading: campaignsLoading } = useHeyReachCampaigns();
   const pushMutation = usePushToHeyReach();
 
-  const campaigns = campaignsData?.campaigns ?? [];
+  const campaignsPayload = campaignsData?.campaigns as unknown;
+  const campaigns: HeyReachCampaign[] = Array.isArray(campaignsPayload)
+    ? (campaignsPayload as HeyReachCampaign[])
+    : Array.isArray((campaignsPayload as { items?: unknown[] } | null | undefined)?.items)
+      ? ((campaignsPayload as { items: HeyReachCampaign[] }).items)
+      : [];
   const activeCampaigns = campaigns.filter((c) => c.status === 'ACTIVE' || c.status === 'DRAFT');
 
   const handlePush = () => {

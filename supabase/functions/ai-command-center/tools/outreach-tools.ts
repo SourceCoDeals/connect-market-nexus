@@ -43,15 +43,20 @@ export const outreachTools: ClaudeTool[] = [
   {
     name: 'get_call_history',
     description:
-      'Get PhoneBurner call history from the contact_activities table. Shows call attempts, completed calls, dispositions, talk time, recordings, and callbacks. Use to answer "has this contact been called?", "how many calls to this buyer?", "what was the outcome of the last call?", or "show rep calling activity".',
+      'Get PhoneBurner call history from the contact_activities table. Shows call attempts, completed calls, dispositions, talk time, recordings, and callbacks. Use to answer "has this contact been called?", "how many calls to this buyer?", "what was the outcome of the last call?", "show rep calling activity", or "show all calls for this deal".',
     input_schema: {
       type: 'object',
       properties: {
         contact_id: { type: 'string', description: 'Filter by unified contact UUID' },
-        remarketing_buyer_id: {
+        buyer_id: {
           type: 'string',
           description:
-            'Filter by buyer UUID — returns all call activity for contacts at this buyer firm',
+            'Filter by buyer UUID (remarketing_buyer_id) — returns all call activity for contacts at this buyer firm',
+        },
+        deal_id: {
+          type: 'string',
+          description:
+            'Filter by deal/listing UUID — returns call activity for all buyers scored against this deal (resolved via remarketing_scores)',
         },
         user_email: {
           type: 'string',
@@ -68,8 +73,20 @@ export const outreachTools: ClaudeTool[] = [
           ],
           description: 'Filter by activity type (default "all")',
         },
-        disposition_code: { type: 'string', description: 'Filter by specific disposition code' },
-        days: { type: 'number', description: 'Lookback period in days (default 90)' },
+        disposition: {
+          type: 'string',
+          description:
+            'Filter by disposition — matches against disposition_label (e.g. "Interested", "Left Voicemail", "No Answer") or disposition_code',
+        },
+        start_date: {
+          type: 'string',
+          description: 'Start of date range filter (ISO 8601, e.g. "2026-01-01"). Overrides days if provided.',
+        },
+        end_date: {
+          type: 'string',
+          description: 'End of date range filter (ISO 8601, e.g. "2026-02-28"). Defaults to now.',
+        },
+        days: { type: 'number', description: 'Lookback period in days (default 90). Ignored if start_date is provided.' },
         limit: { type: 'number', description: 'Max results (default 50)' },
       },
       required: [],
@@ -310,32 +327,85 @@ async function getDocumentEngagement(
 /**
  * Get PhoneBurner call history from the contact_activities table.
  * Surfaces call attempts, completed calls, dispositions, recordings, and callbacks.
- * This fills the gap identified in the audit: no AI tool previously queried call data.
+ * Supports filtering by buyer_id, contact_id, deal_id (via remarketing_scores),
+ * date range (start_date/end_date or days lookback), and disposition (label or code).
  */
 async function getCallHistory(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   const limit = Math.min(Number(args.limit) || 50, 500);
-  const days = Number(args.days) || 90;
   const activityType = (args.activity_type as string) || 'all';
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString();
 
+  // Date range: explicit start_date/end_date takes precedence over days lookback
+  let dateFrom: string;
+  let dateTo: string | null = null;
+  if (args.start_date) {
+    dateFrom = new Date(args.start_date as string).toISOString();
+    if (args.end_date) {
+      dateTo = new Date(args.end_date as string).toISOString();
+    }
+  } else {
+    const days = Number(args.days) || 90;
+    dateFrom = new Date(Date.now() - days * 86400000).toISOString();
+  }
+
+  // Resolve buyer_id alias (the column is remarketing_buyer_id)
+  const buyerId = (args.buyer_id as string) || (args.remarketing_buyer_id as string) || null;
+
+  // If deal_id is provided, resolve to buyer IDs via remarketing_scores
+  let dealBuyerIds: string[] | null = null;
+  if (args.deal_id) {
+    const { data: scoredBuyers, error: scErr } = await supabase
+      .from('remarketing_scores')
+      .select('buyer_id')
+      .eq('listing_id', args.deal_id as string);
+
+    if (scErr) return { error: `Failed to resolve deal buyers: ${scErr.message}` };
+    dealBuyerIds = (scoredBuyers || []).map((s: { buyer_id: string }) => s.buyer_id);
+    if (!dealBuyerIds || dealBuyerIds.length === 0) {
+      return {
+        data: {
+          activities: [],
+          total: 0,
+          summary: {
+            by_type: {},
+            by_disposition: {},
+            by_rep: {},
+            total_talk_time_seconds: 0,
+            total_duration_seconds: 0,
+            connected_calls: 0,
+            avg_talk_time_seconds: 0,
+          },
+          deal_id: args.deal_id,
+          note: 'No buyers scored against this deal — no call activity to show.',
+        },
+      };
+    }
+  }
+
+  // Build the query
   let query = supabase
     .from('contact_activities')
     .select(
       'id, activity_type, source_system, contact_id, remarketing_buyer_id, user_email, user_name, call_started_at, call_ended_at, call_duration_seconds, talk_time_seconds, call_outcome, disposition_code, disposition_label, disposition_notes, recording_url, recording_duration_seconds, callback_scheduled_date, callback_outcome, phoneburner_call_id, phoneburner_session_id, created_at',
     )
-    .gte('created_at', cutoff)
+    .gte('created_at', dateFrom)
     .order('created_at', { ascending: false })
     .limit(limit);
 
+  if (dateTo) query = query.lte('created_at', dateTo);
   if (args.contact_id) query = query.eq('contact_id', args.contact_id as string);
-  if (args.remarketing_buyer_id)
-    query = query.eq('remarketing_buyer_id', args.remarketing_buyer_id as string);
+  if (buyerId) query = query.eq('remarketing_buyer_id', buyerId);
+  if (dealBuyerIds && !buyerId) query = query.in('remarketing_buyer_id', dealBuyerIds);
   if (args.user_email) query = query.eq('user_email', args.user_email as string);
   if (activityType !== 'all') query = query.eq('activity_type', activityType);
-  if (args.disposition_code) query = query.eq('disposition_code', args.disposition_code as string);
+
+  // Disposition filter: match against label (case-insensitive via ilike) or exact code
+  if (args.disposition) {
+    const disp = args.disposition as string;
+    query = query.or(`disposition_label.ilike.%${disp}%,disposition_code.eq.${disp}`);
+  }
 
   const { data, error } = await query;
   if (error) return { error: error.message };
@@ -380,7 +450,8 @@ async function getCallHistory(
         connected_calls: connectedCalls,
         avg_talk_time_seconds: connectedCalls > 0 ? Math.round(totalTalkTime / connectedCalls) : 0,
       },
-      lookback_days: days,
+      ...(args.deal_id ? { deal_id: args.deal_id, deal_buyer_count: dealBuyerIds?.length } : {}),
+      date_range: { from: dateFrom, ...(dateTo ? { to: dateTo } : {}) },
     },
   };
 }

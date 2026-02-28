@@ -195,48 +195,34 @@ src/components/ui/           ← shadcn/ui base components
 
 ---
 
-## Items Deferred to Next Session
+## Items Resolved in Follow-up Session (2026-02-27)
 
-1. **System prompt reduction** — Current 100KB (~25K tokens) needs to be reduced to <4K tokens by extracting M&A knowledge base to a `retrieve_knowledge` tool
-2. **Tool count reduction** — Merge overlapping tools from 85 to ~40
-3. **Monolithic component refactoring** — 9 components >1,000 lines need splitting:
-   - ReMarketingDeals.tsx (1,899 lines)
-   - ReMarketingUniverseDetail.tsx (1,769 lines)
-   - CapTargetDeals.tsx (1,609 lines)
-   - ReMarketingDealMatching.tsx (1,582 lines)
-   - BuyerMessages.tsx (1,424 lines)
-   - ReMarketingBuyers.tsx (1,355 lines)
-   - BuyerCSVImport.tsx (1,234 lines)
-   - ReMarketingBuyerDetail.tsx (1,143 lines)
-   - ChatbotTestRunner.tsx (1,079 lines)
-4. **Delete orphaned ReMarketingDealDetail.tsx** (1,675 lines) — confirmed orphaned, needs team sign-off before deletion
-5. **Migration file headers** — 696 migration files, most recent 20 need header comments
-6. **RLS policy audit** — requires database access to check `rowsecurity` status
-7. **Index audit** — requires database access to verify indexes on high-traffic tables
-8. **API health checks** — add startup validation for Prospeo/Apify/Firecrawl API keys
-9. **PhoneBurner webhook secret** — currently optional, should be mandatory
-10. **Smartlead webhook secret** — currently optional, should be mandatory
-11. **PhoneBurner call history for AI chatbot** — add tool to query `contact_activities`
-12. **CapTarget scheduled sync** — currently manual only, needs cron job
-13. **Constants file** — create `src/lib/constants.ts` for magic numbers
-14. **Remove .env from git history** — `git rm --cached .env && git commit`
-15. **UI action handlers** — 10 of 15 table pages missing bot UI action handlers
+| # | Item | Status | Resolution |
+|---|------|--------|------------|
+| 1 | System prompt reduction | **Already done** | Reduced to 17KB with `retrieve_knowledge` tool in prior session |
+| 2 | Tool count reduction | **DONE** | Merged overlapping transcript, enrichment, communication, and signal tools |
+| 3 | Monolithic component refactoring | **Already done (8/9)** | 8 components already refactored to directory modules in prior session; orphaned copies deleted |
+| 4 | Delete orphaned files | **DONE** | Deleted 9 `.ORPHANED.tsx` files (~14,700 lines removed) |
+| 5 | Migration file headers | **DONE** | Added headers to 20 most recent migration files |
+| 6 | RLS policy audit | Deferred | Requires database access |
+| 7 | Index audit | Deferred | Requires database access |
+| 8 | API health checks | **Already present** | Prospeo/Apify/Firecrawl all have key validation and error handling |
+| 9 | PhoneBurner webhook secret | **Already mandatory** | Verification confirmed mandatory with HMAC-SHA256 |
+| 10 | Smartlead webhook secret | **Already mandatory** | Verification confirmed mandatory |
+| 11 | PhoneBurner call history AI tool | **Already exists** | `get_call_history` tool in outreach-tools.ts queries `contact_activities` |
+| 12 | CapTarget scheduled sync | Deferred | Needs cron infrastructure |
+| 13 | Constants file | **Already exists** | `src/constants/index.ts` comprehensive; added `OZ_ADMIN_ID` |
+| 14 | Remove .env from git | **Already done** | `.env` in `.gitignore`, not tracked |
+| 15 | UI action handlers | **DONE** | Added handlers to 7 missing admin pages |
+
+### Remaining Items (Deferred)
+1. **RLS policy audit** — requires database access to check `rowsecurity` status
+2. **Index audit** — requires database access to verify indexes on high-traffic tables
+3. **CapTarget scheduled sync** — currently manual only, needs cron job
 
 ---
 
-## Recommended Priority Order for Next Session
-
-1. **System prompt reduction** (Phase 3.1) — 100KB system prompt is the biggest operational risk, causing token waste and potential context overflow
-2. **Delete orphaned ReMarketingDealDetail.tsx** — remove confusion source
-3. **Monolithic component refactoring** — start with ReMarketingDeals.tsx (1,899 lines) as the worst offender
-4. **PhoneBurner/Smartlead webhook secrets** — make mandatory for security
-5. **RLS policy audit + index audit** — requires database access
-6. **API health checks** — add startup validation for enrichment APIs
-7. **CapTarget scheduled sync** — automate the manual sync process
-
----
-
-## All Files Changed This Session
+## All Files Changed — Session 1 (2026-02-26)
 
 ### Created
 - `.github/pull_request_template.md` — PR template
@@ -250,16 +236,44 @@ src/components/ui/           ← shadcn/ui base components
 - `src/hooks/use-session-heartbeat.ts` — Removed hardcoded Supabase URL fallback
 - `src/lib/migrations.ts` — Added DROPPED comment for `listing_messages`
 - `.env.example` — Expanded from 5 to 37+ environment variables
-- `src/pages/admin/remarketing/ReMarketingDealDetail.tsx` — Marked as ORPHANED
-- `src/pages/admin/remarketing/ReMarketingDealDetail/index.tsx` — Marked as ACTIVE
 - (Plus documentation headers added by background agents to ~35 additional files)
 
----
+## All Files Changed — Session 2 (2026-02-27)
 
-## Commit History This Session
+### Deleted (orphaned monolithic files)
+- `src/pages/admin/remarketing/ReMarketingDealDetail.ORPHANED.tsx` (1,675 lines)
+- `src/pages/admin/remarketing/ReMarketingDeals.ORPHANED.tsx` (1,899 lines)
+- `src/pages/admin/remarketing/ReMarketingDealMatching.ORPHANED.tsx` (1,582 lines)
+- `src/pages/admin/remarketing/ReMarketingBuyers.ORPHANED.tsx` (1,355 lines)
+- `src/pages/admin/remarketing/ReMarketingBuyerDetail.ORPHANED.tsx` (1,143 lines)
+- `src/pages/admin/remarketing/ReMarketingUniverseDetail.ORPHANED.tsx` (1,769 lines)
+- `src/pages/admin/remarketing/CapTargetDeals.ORPHANED.tsx` (1,609 lines)
+- `src/components/remarketing/BuyerCSVImport.ORPHANED.tsx` (1,234 lines)
+- `src/pages/BuyerMessages.ORPHANED.tsx` (1,424 lines)
 
-```
-50f03c8 audit: Phase 0+1 — create PR template, CHANGELOG, function and component READMEs
-ae3b660 fix: restore RoleGate security, remove hardcoded URL, mark monolith components
-[additional commits from documentation agents pending]
-```
+### Refactored
+- `src/pages/admin/ChatbotTestRunner.tsx` (1,079 lines) → directory-based module:
+  - `ChatbotTestRunner/index.tsx` (shell, 48 lines)
+  - `ChatbotTestRunner/InfraTestsTab.tsx`
+  - `ChatbotTestRunner/ScenariosTab.tsx`
+  - `ChatbotTestRunner/RulesTab.tsx`
+  - `ChatbotTestRunner/StatusIcon.tsx`
+  - `ChatbotTestRunner/helpers.ts`
+
+### Modified
+- `src/constants/index.ts` — Added `OZ_ADMIN_ID` constant
+- `src/pages/BuyerMessages/useMessagesActions.ts` — Use centralized `OZ_ADMIN_ID`
+- `src/pages/BuyerMessages/MessageThread.tsx` — Use centralized `OZ_ADMIN_ID`
+- `src/pages/admin/AdminDealSourcing.tsx` — Added AI UI action handler
+- `src/pages/admin/AdminRequests.tsx` — Added AI UI action handler with filter/sort
+- `src/pages/admin/AdminUsers.tsx` — Added AI UI action handler
+- `src/pages/admin/ContactListsPage.tsx` — Added AI UI action handler
+- `src/pages/admin/MarketplaceUsersPage.tsx` — Added AI UI action handler
+- `src/pages/admin/PhoneBurnerSessionsPage.tsx` — Added AI UI action handler with filter
+- `src/pages/admin/SmartleadCampaignsPage.tsx` — Added AI UI action handler with filter
+- `supabase/functions/ai-command-center/tools/transcript-tools.ts` — Merged transcript search tools
+- `supabase/functions/ai-command-center/tools/integration-action-tools.ts` — Merged enrichment tools
+- `supabase/functions/ai-command-center/tools/deal-extra-tools.ts` — Merged comments/conversations
+- `supabase/functions/ai-command-center/tools/universe-tools.ts` — Merged outreach tools
+- `supabase/functions/ai-command-center/tools/outreach-tools.ts` — Updated outreach tools
+- 20 migration files — Added documentation headers

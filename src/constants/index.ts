@@ -186,6 +186,11 @@ export const AI_SETTINGS = {
   MAX_POLLING_DURATION_MS: 4 * 60 * 60 * 1_000,
 } as const;
 
+// ── Platform identifiers ─────────────────────────────────────────────
+
+/** SourceCo platform admin user ID (for admin notifications and messaging). */
+export const OZ_ADMIN_ID = 'ea1f0064-52ef-43fb-bec4-22391b720328';
+
 // ── Miscellaneous ────────────────────────────────────────────────────
 
 /** Maximum error queue size in the ErrorManager. */

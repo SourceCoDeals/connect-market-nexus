@@ -14,7 +14,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
-import { googleSearch } from '../_shared/apify-google-client.ts';
+import { googleSearch } from '../_shared/serper-client.ts';
 import { callClaude, CLAUDE_MODELS } from '../_shared/claude-client.ts';
 
 interface DiscoverCompaniesRequest {

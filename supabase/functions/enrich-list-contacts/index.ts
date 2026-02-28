@@ -179,7 +179,7 @@ Deno.serve(async (req: Request) => {
             }
           }
 
-          await supabase.from('enriched_contacts').upsert(
+          const { error: enrichedUpsertErr } = await supabase.from('enriched_contacts').upsert(
             {
               workspace_id: auth.userId,
               company_name: companyName || 'Unknown',
@@ -195,8 +195,11 @@ Deno.serve(async (req: Request) => {
               enriched_at: new Date().toISOString(),
               search_query: `list:${contact.first_name} ${contact.last_name}`,
             },
-            { onConflict: 'workspace_id,linkedin_url', ignoreDuplicates: true },
+            { onConflict: 'workspace_id,linkedin_url', ignoreDuplicates: false },
           );
+          if (enrichedUpsertErr) {
+            console.error(`[enrich-list] enriched_contacts upsert failed for ${contact.id}:`, enrichedUpsertErr.message);
+          }
 
           results.push({
             contact_id: contact.id,
@@ -250,7 +253,7 @@ Deno.serve(async (req: Request) => {
         });
 
         if (enriched && (enriched.email || enriched.phone)) {
-          await supabase.from('enriched_contacts').upsert(
+          const { error: rawUpsertErr } = await supabase.from('enriched_contacts').upsert(
             {
               workspace_id: auth.userId,
               company_name: raw.company || 'Unknown',
@@ -266,8 +269,11 @@ Deno.serve(async (req: Request) => {
               enriched_at: new Date().toISOString(),
               search_query: `list_deal:${raw.first_name} ${raw.last_name}`,
             },
-            { onConflict: 'workspace_id,linkedin_url', ignoreDuplicates: true },
+            { onConflict: 'workspace_id,linkedin_url', ignoreDuplicates: false },
           );
+          if (rawUpsertErr) {
+            console.error(`[enrich-list] enriched_contacts upsert failed for raw ${raw.key}:`, rawUpsertErr.message);
+          }
 
           results.push({
             contact_id: raw.key,

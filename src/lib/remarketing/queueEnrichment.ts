@@ -45,10 +45,25 @@ export async function queueDealEnrichment(dealIds: string[], force = true): Prom
     throw error;
   }
 
-  // Trigger the worker
-  supabase.functions.invoke("process-enrichment-queue", {
-    body: { trigger: "deal-enrichment" },
-  }).catch(err => console.warn("Worker trigger failed:", err));
+  // Trigger the worker — retry once on failure
+  const triggerWorker = async () => {
+    try {
+      await supabase.functions.invoke("process-enrichment-queue", {
+        body: { trigger: "deal-enrichment" },
+      });
+    } catch (err) {
+      console.warn("Worker trigger failed, retrying once:", err);
+      try {
+        await new Promise(r => setTimeout(r, 1000));
+        await supabase.functions.invoke("process-enrichment-queue", {
+          body: { trigger: "deal-enrichment", retry: true },
+        });
+      } catch (retryErr) {
+        console.warn("Worker trigger retry also failed:", retryErr);
+      }
+    }
+  };
+  triggerWorker();
 
   if (newIds.length === 1) {
     toast.info("Deal queued for background enrichment");

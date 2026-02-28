@@ -611,7 +611,7 @@ serve(async (req) => {
             const parsed = parseInt(retryAfterHeader, 10);
             if (!isNaN(parsed)) retryAfterSeconds = parsed;
           }
-          await reportRateLimit(supabase, 'gemini', retryAfterSeconds).catch(() => {});
+          await reportRateLimit(supabase, 'gemini', retryAfterSeconds).catch((err: unknown) => { console.warn('[enrich-deal] Rate limit report failed:', err); });
 
           const waitMs = retryAfterSeconds ? retryAfterSeconds * 1000 : AI_RETRY_DELAYS[attempt];
           const jitter = Math.random() * 1000;
@@ -669,7 +669,7 @@ serve(async (req) => {
       logAICallCost(supabase, 'enrich-deal', 'gemini', DEFAULT_GEMINI_MODEL,
         { inputTokens: geminiUsage.prompt_tokens || 0, outputTokens: geminiUsage.completion_tokens || 0 },
         undefined, { dealId }
-      ).catch(() => {});
+      ).catch((err: unknown) => { console.warn('[enrich-deal] Cost tracking failed:', err); });
     }
 
     // Parse tool call results

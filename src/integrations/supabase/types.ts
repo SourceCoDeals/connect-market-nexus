@@ -2508,28 +2508,36 @@ export type Database = {
         Row: {
           activity_type: string
           answered_by: string | null
+          call_connected: boolean | null
           call_connected_at: string | null
+          call_direction: string | null
           call_duration_seconds: number | null
           call_ended_at: string | null
           call_outcome: string | null
           call_started_at: string | null
+          call_transcript: string | null
           callback_completed_at: string | null
           callback_outcome: string | null
           callback_scheduled_date: string | null
           contact_email: string | null
           contact_id: string | null
+          contact_notes: string | null
           created_at: string
           disposition_code: string | null
           disposition_label: string | null
           disposition_notes: string | null
           disposition_set_at: string | null
           id: string
+          listing_id: string | null
           phoneburner_call_id: string | null
           phoneburner_contact_id: string | null
           phoneburner_event_id: string | null
+          phoneburner_lead_id: string | null
           phoneburner_session_id: string | null
+          phoneburner_status: string | null
           recording_duration_seconds: number | null
           recording_url: string | null
+          recording_url_public: string | null
           remarketing_buyer_id: string | null
           source_system: string
           talk_time_seconds: number | null
@@ -2541,28 +2549,36 @@ export type Database = {
         Insert: {
           activity_type: string
           answered_by?: string | null
+          call_connected?: boolean | null
           call_connected_at?: string | null
+          call_direction?: string | null
           call_duration_seconds?: number | null
           call_ended_at?: string | null
           call_outcome?: string | null
           call_started_at?: string | null
+          call_transcript?: string | null
           callback_completed_at?: string | null
           callback_outcome?: string | null
           callback_scheduled_date?: string | null
           contact_email?: string | null
           contact_id?: string | null
+          contact_notes?: string | null
           created_at?: string
           disposition_code?: string | null
           disposition_label?: string | null
           disposition_notes?: string | null
           disposition_set_at?: string | null
           id?: string
+          listing_id?: string | null
           phoneburner_call_id?: string | null
           phoneburner_contact_id?: string | null
           phoneburner_event_id?: string | null
+          phoneburner_lead_id?: string | null
           phoneburner_session_id?: string | null
+          phoneburner_status?: string | null
           recording_duration_seconds?: number | null
           recording_url?: string | null
+          recording_url_public?: string | null
           remarketing_buyer_id?: string | null
           source_system?: string
           talk_time_seconds?: number | null
@@ -2574,28 +2590,36 @@ export type Database = {
         Update: {
           activity_type?: string
           answered_by?: string | null
+          call_connected?: boolean | null
           call_connected_at?: string | null
+          call_direction?: string | null
           call_duration_seconds?: number | null
           call_ended_at?: string | null
           call_outcome?: string | null
           call_started_at?: string | null
+          call_transcript?: string | null
           callback_completed_at?: string | null
           callback_outcome?: string | null
           callback_scheduled_date?: string | null
           contact_email?: string | null
           contact_id?: string | null
+          contact_notes?: string | null
           created_at?: string
           disposition_code?: string | null
           disposition_label?: string | null
           disposition_notes?: string | null
           disposition_set_at?: string | null
           id?: string
+          listing_id?: string | null
           phoneburner_call_id?: string | null
           phoneburner_contact_id?: string | null
           phoneburner_event_id?: string | null
+          phoneburner_lead_id?: string | null
           phoneburner_session_id?: string | null
+          phoneburner_status?: string | null
           recording_duration_seconds?: number | null
           recording_url?: string | null
+          recording_url_public?: string | null
           remarketing_buyer_id?: string | null
           source_system?: string
           talk_time_seconds?: number | null
@@ -8214,6 +8238,7 @@ export type Database = {
           revenue_model_breakdown: Json | null
           revenue_score: number | null
           revenue_source_quote: string | null
+          salesforce_account_id: string | null
           scoring_notes: string | null
           seller_interest_analyzed_at: string | null
           seller_interest_notes: Json | null
@@ -8222,6 +8247,25 @@ export type Database = {
           seller_motivation: string | null
           service_mix: string | null
           services: string[] | null
+          sf_created_date: string | null
+          sf_historic_note_summary: string | null
+          sf_interest_in_selling: string | null
+          sf_last_modified_date: string | null
+          sf_marketplace_sub_stage: string | null
+          sf_note_summary: string | null
+          sf_owner_id: string | null
+          sf_previous_search_opportunity_id: string | null
+          sf_primary_client_account_id: string | null
+          sf_primary_opportunity_id: string | null
+          sf_record_type_id: string | null
+          sf_remarketing: boolean | null
+          sf_remarketing_cb_create_date: string | null
+          sf_remarketing_reason: string | null
+          sf_remarketing_target_stages: string | null
+          sf_remarks_internal: string | null
+          sf_target_stage: string | null
+          sf_target_sub_stage: string | null
+          sf_tier: string | null
           special_requirements: string | null
           status: string
           status_label: string | null
@@ -8387,6 +8431,7 @@ export type Database = {
           revenue_model_breakdown?: Json | null
           revenue_score?: number | null
           revenue_source_quote?: string | null
+          salesforce_account_id?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
           seller_interest_notes?: Json | null
@@ -8395,6 +8440,25 @@ export type Database = {
           seller_motivation?: string | null
           service_mix?: string | null
           services?: string[] | null
+          sf_created_date?: string | null
+          sf_historic_note_summary?: string | null
+          sf_interest_in_selling?: string | null
+          sf_last_modified_date?: string | null
+          sf_marketplace_sub_stage?: string | null
+          sf_note_summary?: string | null
+          sf_owner_id?: string | null
+          sf_previous_search_opportunity_id?: string | null
+          sf_primary_client_account_id?: string | null
+          sf_primary_opportunity_id?: string | null
+          sf_record_type_id?: string | null
+          sf_remarketing?: boolean | null
+          sf_remarketing_cb_create_date?: string | null
+          sf_remarketing_reason?: string | null
+          sf_remarketing_target_stages?: string | null
+          sf_remarks_internal?: string | null
+          sf_target_stage?: string | null
+          sf_target_sub_stage?: string | null
+          sf_tier?: string | null
           special_requirements?: string | null
           status?: string
           status_label?: string | null
@@ -8560,6 +8624,7 @@ export type Database = {
           revenue_model_breakdown?: Json | null
           revenue_score?: number | null
           revenue_source_quote?: string | null
+          salesforce_account_id?: string | null
           scoring_notes?: string | null
           seller_interest_analyzed_at?: string | null
           seller_interest_notes?: Json | null
@@ -8568,6 +8633,25 @@ export type Database = {
           seller_motivation?: string | null
           service_mix?: string | null
           services?: string[] | null
+          sf_created_date?: string | null
+          sf_historic_note_summary?: string | null
+          sf_interest_in_selling?: string | null
+          sf_last_modified_date?: string | null
+          sf_marketplace_sub_stage?: string | null
+          sf_note_summary?: string | null
+          sf_owner_id?: string | null
+          sf_previous_search_opportunity_id?: string | null
+          sf_primary_client_account_id?: string | null
+          sf_primary_opportunity_id?: string | null
+          sf_record_type_id?: string | null
+          sf_remarketing?: boolean | null
+          sf_remarketing_cb_create_date?: string | null
+          sf_remarketing_reason?: string | null
+          sf_remarketing_target_stages?: string | null
+          sf_remarks_internal?: string | null
+          sf_target_stage?: string | null
+          sf_target_sub_stage?: string | null
+          sf_tier?: string | null
           special_requirements?: string | null
           status?: string
           status_label?: string | null
@@ -13763,6 +13847,7 @@ export type Database = {
           revenue_model_breakdown: Json | null
           revenue_score: number | null
           revenue_source_quote: string | null
+          salesforce_account_id: string | null
           scoring_notes: string | null
           seller_interest_analyzed_at: string | null
           seller_interest_notes: Json | null
@@ -13771,6 +13856,25 @@ export type Database = {
           seller_motivation: string | null
           service_mix: string | null
           services: string[] | null
+          sf_created_date: string | null
+          sf_historic_note_summary: string | null
+          sf_interest_in_selling: string | null
+          sf_last_modified_date: string | null
+          sf_marketplace_sub_stage: string | null
+          sf_note_summary: string | null
+          sf_owner_id: string | null
+          sf_previous_search_opportunity_id: string | null
+          sf_primary_client_account_id: string | null
+          sf_primary_opportunity_id: string | null
+          sf_record_type_id: string | null
+          sf_remarketing: boolean | null
+          sf_remarketing_cb_create_date: string | null
+          sf_remarketing_reason: string | null
+          sf_remarketing_target_stages: string | null
+          sf_remarks_internal: string | null
+          sf_target_stage: string | null
+          sf_target_sub_stage: string | null
+          sf_tier: string | null
           special_requirements: string | null
           status: string
           status_label: string | null

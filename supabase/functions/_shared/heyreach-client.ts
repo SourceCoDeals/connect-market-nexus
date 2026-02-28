@@ -96,12 +96,15 @@ export async function heyreachRequest<T = unknown>(
 
       // Don't retry client errors (4xx)
       if (response.status >= 400 && response.status < 500) {
-        console.error(`[heyreach] Client error ${response.status} for ${method} ${path}:`, data);
+        const errorMsg = typeof data === 'string' && data.trim()
+          ? data
+          : (data ? JSON.stringify(data) : `HeyReach API returned ${response.status} for ${method} ${path}`);
+        console.error(`[heyreach] Client error ${response.status} for ${method} ${path}:`, errorMsg);
         return {
           ok: false,
           status: response.status,
           data: null,
-          error: typeof data === 'string' ? data : JSON.stringify(data),
+          error: errorMsg,
         };
       }
 
@@ -144,90 +147,102 @@ export function checkApiKey() {
 
 /** List all campaigns (paginated) */
 export function listCampaigns(offset = 0, limit = 50) {
-  return heyreachRequest<unknown[]>({
+  return heyreachRequest<unknown>({
     method: 'POST',
-    path: '/campaign/GetAllCampaigns',
+    path: '/campaign/GetAll',
     body: { offset, limit },
   });
 }
 
-/** Get campaign details */
+/** Get campaign details by ID */
 export function getCampaign(campaignId: number) {
   return heyreachRequest({
-    method: 'POST',
-    path: '/campaign/GetCampaignDetails',
-    body: { campaignId },
+    method: 'GET',
+    path: '/campaign/GetById',
+    queryParams: { campaignId },
   });
 }
 
-/** Toggle campaign status (pause/resume) */
-export function toggleCampaignStatus(campaignId: number) {
+/** Pause a campaign */
+export function pauseCampaign(campaignId: number) {
   return heyreachRequest({
     method: 'POST',
-    path: '/campaign/ToggleCampaignStatus',
-    body: { campaignId },
+    path: '/campaign/Pause',
+    queryParams: { campaignId },
   });
 }
 
-/** Add leads to a campaign */
+/** Resume a campaign */
+export function resumeCampaign(campaignId: number) {
+  return heyreachRequest({
+    method: 'POST',
+    path: '/campaign/Resume',
+    queryParams: { campaignId },
+  });
+}
+
+/** Add leads to a campaign (V2 — returns counts) */
 export function addLeadsToCampaign(
   campaignId: number,
-  listId: number,
-  leadList: Array<{
-    linkedInUrl: string;
-    firstName?: string;
-    lastName?: string;
-    companyName?: string;
-    email?: string;
+  accountLeadPairs: Array<{
+    linkedInAccountId?: number;
+    lead: {
+      profileUrl: string;
+      firstName?: string;
+      lastName?: string;
+      companyName?: string;
+      emailAddress?: string;
+    };
   }>,
 ) {
   return heyreachRequest({
     method: 'POST',
-    path: '/campaign/AddLeadsToCampaign',
+    path: '/campaign/AddLeadsToCampaignV2',
     body: {
       campaignId,
-      listId,
-      leads: leadList,
+      accountLeadPairs,
+      resumeFinishedCampaign: false,
+      resumePausedCampaign: true,
     },
   });
 }
 
-/** Get lead details by LinkedIn URL */
-export function getLeadDetails(linkedInUrl: string) {
+/** Get lead details by LinkedIn profile URL */
+export function getLeadDetails(profileUrl: string) {
   return heyreachRequest({
     method: 'POST',
-    path: '/lead/GetLeadDetails',
-    body: { linkedInUrl },
+    path: '/lead/GetLead',
+    body: { profileUrl },
   });
 }
 
 /** Get all lists (paginated) */
 export function getAllLists(offset = 0, limit = 50) {
-  return heyreachRequest<unknown[]>({
+  return heyreachRequest<unknown>({
     method: 'POST',
-    path: '/list/GetAllLists',
+    path: '/list/GetAll',
     body: { offset, limit },
   });
 }
 
 /** Create an empty list */
-export function createEmptyList(name: string, listType = 'LEAD') {
+export function createEmptyList(name: string, listType = 'USER_LIST') {
   return heyreachRequest({
     method: 'POST',
     path: '/list/CreateEmptyList',
-    body: { name, listType },
+    body: { name, type: listType },
   });
 }
 
-/** Add leads to a list */
+/** Add leads to a list (V2 — returns counts) */
 export function addLeadsToList(
   listId: number,
   leads: Array<{
-    linkedInUrl: string;
+    profileUrl: string;
     firstName?: string;
     lastName?: string;
     companyName?: string;
-    email?: string;
+    emailAddress?: string;
   }>,
 ) {
   return heyreachRequest({
@@ -250,28 +265,27 @@ export function getLeadsFromList(listId: number, offset = 0, limit = 100) {
 export function getConversations(filters: Record<string, unknown> = {}) {
   return heyreachRequest({
     method: 'POST',
-    path: '/conversation/GetConversations',
+    path: '/inbox/GetConversationsV2',
     body: filters,
   });
 }
 
 /** Get overall stats */
-export function getOverallStats() {
-  return heyreachRequest({ path: '/stats/GetOverallStats' });
-}
-
-/** Get campaign analytics */
-export function getCampaignAnalytics(campaignId: number) {
+export function getOverallStats(campaignIds: number[] = [], accountIds: number[] = []) {
   return heyreachRequest({
     method: 'POST',
-    path: '/campaign/GetCampaignAnalytics',
-    body: { campaignId },
+    path: '/stats/GetOverallStats',
+    body: { campaignIds, accountIds },
   });
 }
 
-/** Get all LinkedIn accounts */
-export function getLinkedInAccounts() {
-  return heyreachRequest({ path: '/linkedin/GetLinkedInAccounts' });
+/** Get all LinkedIn accounts (paginated) */
+export function getLinkedInAccounts(offset = 0, limit = 100) {
+  return heyreachRequest({
+    method: 'POST',
+    path: '/li_account/GetAll',
+    body: { offset, limit },
+  });
 }
 
 /** Get network for a sender (paginated) */

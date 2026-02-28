@@ -5,6 +5,8 @@ import { DealSourcingRequestsTable } from '@/components/admin/DealSourcingReques
 import { useDealSourcingRequests, DealSourcingFilters } from '@/hooks/admin/use-deal-sourcing-requests';
 import { useMarkDealSourcingAsViewed } from '@/hooks/admin/use-mark-deal-sourcing-viewed';
 import { Loader2, Sparkles } from 'lucide-react';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 export default function AdminDealSourcing() {
   const [filters] = useState<DealSourcingFilters>({});
@@ -19,6 +21,17 @@ export default function AdminDealSourcing() {
   useEffect(() => {
     markAsViewed.mutate();
   }, []);
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'deal_sourcing', entity_type: 'deals' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'deals',
+  });
 
   return (
     <div className="space-y-6">

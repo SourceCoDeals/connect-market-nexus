@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { ApprovalEmailDialog } from "@/components/admin/ApprovalEmailDialog";
 import { ApprovalSuccessDialog } from "@/components/admin/ApprovalSuccessDialog";
 import { UserConfirmationDialog } from "@/components/admin/UserConfirmationDialog";
+import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
+import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
 
 type PrimaryView = 'buyers' | 'owners';
 type SecondaryView = 'marketplace' | 'non-marketplace';
@@ -48,6 +50,17 @@ const AdminUsers = () => {
   const [secondaryView, setSecondaryView] = useState<SecondaryView>('marketplace');
   const { markAsViewed: markUsersAsViewed } = useMarkUsersViewed();
   const { markAsViewed: markOwnerLeadsAsViewed } = useMarkOwnerLeadsViewed();
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'admin_users', entity_type: 'buyers' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'buyers',
+  });
 
   useEffect(() => {
     markUsersAsViewed();

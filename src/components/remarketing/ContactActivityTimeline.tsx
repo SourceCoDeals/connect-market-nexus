@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Mail,
   MailOpen,
@@ -22,6 +24,9 @@ import {
   Eye,
   Heart,
   Send,
+  ChevronDown,
+  FileText,
+  CalendarClock,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
@@ -137,8 +142,10 @@ function computeStats(entries: UnifiedActivityEntry[]): ActivityStats {
 // ── Individual timeline entry ──
 
 function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
+  const [expanded, setExpanded] = useState(false);
   const isEmail = entry.channel === 'email';
   const isLinkedIn = entry.channel === 'linkedin';
+  const isCall = entry.channel === 'call';
 
   const iconConfig = isLinkedIn
     ? LINKEDIN_ICON_MAP[entry.event_type] || { icon: Linkedin, color: 'text-blue-700 bg-blue-50' }
@@ -147,6 +154,8 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
       : getCallIcon(entry.event_type, entry.details.call_outcome || null);
 
   const Icon = iconConfig.icon;
+
+  const hasExpandableContent = isCall && (entry.details.call_transcript || entry.details.contact_notes);
 
   return (
     <div className="flex items-start gap-3 py-2.5 px-2 rounded-md hover:bg-muted/50 transition-colors">
@@ -163,7 +172,7 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
             {isLinkedIn ? 'LinkedIn' : isEmail ? 'Email' : 'Call'}
           </Badge>
           {/* Call disposition */}
-          {!isEmail && entry.details.disposition_label && (
+          {isCall && (entry.details.disposition_label || entry.details.phoneburner_status) && (
             <Badge
               variant={
                 entry.details.disposition_code?.includes('INTERESTED')
@@ -174,20 +183,27 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
               }
               className="text-[10px]"
             >
-              {entry.details.disposition_label}
+              {entry.details.disposition_label || entry.details.phoneburner_status}
             </Badge>
           )}
-          {/* Call duration */}
-          {!isEmail && entry.details.call_duration_seconds ? (
+          {/* Connected badge */}
+          {isCall && entry.details.call_connected && (
+            <Badge variant="outline" className="text-[10px] border-emerald-200 text-emerald-700">
+              Connected
+            </Badge>
+          )}
+          {/* Call duration + talk time */}
+          {isCall && entry.details.call_duration_seconds ? (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {formatDuration(entry.details.call_duration_seconds)}
+              {entry.details.talk_time_seconds ? ` (talk: ${formatDuration(entry.details.talk_time_seconds)})` : ''}
             </span>
           ) : null}
           {/* Recording */}
-          {!isEmail && entry.details.recording_url ? (
+          {isCall && (entry.details.recording_url || entry.details.recording_url_public) ? (
             <a
-              href={entry.details.recording_url}
+              href={entry.details.recording_url_public || entry.details.recording_url || ''}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-primary hover:underline flex items-center gap-1"
@@ -196,6 +212,20 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
               Recording
             </a>
           ) : null}
+          {/* Transcript indicator */}
+          {isCall && entry.details.call_transcript && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <FileText className="h-3 w-3" />
+              Transcript
+            </span>
+          )}
+          {/* Callback date */}
+          {isCall && entry.details.callback_scheduled_date && (
+            <span className="text-xs text-amber-600 flex items-center gap-1">
+              <CalendarClock className="h-3 w-3" />
+              Callback: {format(new Date(entry.details.callback_scheduled_date), 'MMM d, h:mm a')}
+            </span>
+          )}
         </div>
         {/* Context (campaign name, caller) */}
         {entry.context && (
@@ -206,6 +236,29 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
           <p className="text-xs text-muted-foreground line-clamp-2 italic">
             {entry.details.disposition_notes}
           </p>
+        )}
+        {/* Expandable transcript/notes */}
+        {hasExpandableContent && (
+          <Collapsible open={expanded} onOpenChange={setExpanded}>
+            <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1 mt-1">
+              <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+              {expanded ? 'Hide details' : 'Show transcript & notes'}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-2">
+              {entry.details.call_transcript && (
+                <div className="rounded-md bg-muted/50 p-3 text-xs text-foreground whitespace-pre-wrap max-h-48 overflow-y-auto">
+                  <p className="font-medium text-muted-foreground mb-1">Transcript</p>
+                  {entry.details.call_transcript}
+                </div>
+              )}
+              {entry.details.contact_notes && (
+                <div className="rounded-md bg-muted/50 p-3 text-xs text-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">
+                  <p className="font-medium text-muted-foreground mb-1">Contact Notes</p>
+                  {entry.details.contact_notes}
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         )}
         {/* Timestamp */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

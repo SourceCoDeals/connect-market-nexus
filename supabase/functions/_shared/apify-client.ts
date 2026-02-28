@@ -35,8 +35,8 @@ export async function scrapeCompanyEmployees(
   companyLinkedInUrl: string,
   maxResults: number = 50,
 ): Promise<ApifyEmployee[]> {
-  const apiKey = Deno.env.get('APIFY_API_KEY');
-  if (!apiKey) throw new Error('APIFY_API_KEY not configured');
+  const apiKey = Deno.env.get('APIFY_API_TOKEN');
+  if (!apiKey) throw new Error('APIFY_API_TOKEN not configured');
 
   const runUrl = `${APIFY_API_BASE}/acts/${LINKEDIN_SCRAPER_ACTOR}/runs?token=${apiKey}`;
 

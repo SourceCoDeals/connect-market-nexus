@@ -3,25 +3,46 @@
  * Inbound leads, referral partners, referral submissions.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- Tool definitions ----------
 
 export const leadTools: ClaudeTool[] = [
   {
     name: 'search_inbound_leads',
-    description: 'Search inbound leads — contacts who reached out about deals, mapped or unmapped to listings. Filter by status, source, or whether they\'ve been converted to connection requests.',
+    description: `Search inbound leads — contacts who reached out about deals, mapped or unmapped to listings.
+DATA SOURCE: inbound_leads table.
+USE WHEN: "show inbound leads", "who contacted us about HVAC", "pending inbound leads".
+SEARCHABLE FIELDS: search param checks name, email, company_name, role, message, source_form_name, mapped_to_listing_title, phone_number.
+Filter by status, source, or whether they've been converted to connection requests.`,
     input_schema: {
       type: 'object',
       properties: {
-        search: { type: 'string', description: 'Free-text search across name, email, company' },
-        source: { type: 'string', description: 'Filter by lead source (e.g. "website", "referral", "manual")' },
-        status: { type: 'string', description: 'Filter by status: pending, contacted, qualified, converted, rejected' },
-        deal_id: { type: 'string', description: 'Filter leads mapped to a specific deal/listing UUID' },
-        converted: { type: 'boolean', description: 'Filter by whether lead was converted to a connection request' },
+        search: {
+          type: 'string',
+          description:
+            'Free-text search across name, email, company_name, role, message, source_form_name, mapped_to_listing_title, phone_number',
+        },
+        source: {
+          type: 'string',
+          description: 'Filter by lead source (e.g. "website", "referral", "manual")',
+        },
+        status: {
+          type: 'string',
+          description: 'Filter by status: pending, contacted, qualified, converted, rejected',
+        },
+        deal_id: {
+          type: 'string',
+          description: 'Filter leads mapped to a specific deal/listing UUID',
+        },
+        converted: {
+          type: 'boolean',
+          description: 'Filter by whether lead was converted to a connection request',
+        },
         days: { type: 'number', description: 'Lookback period in days (default 30)' },
         limit: { type: 'number', description: 'Max results (default 50)' },
       },
@@ -30,14 +51,24 @@ export const leadTools: ClaudeTool[] = [
   },
   {
     name: 'get_referral_data',
-    description: 'Get referral partner data and their submissions — broker/advisor partners who submit deals to SourceCo, their deal volume, and submitted opportunities with financial details.',
+    description:
+      'Get referral partner data and their submissions — broker/advisor partners who submit deals to SourceCo, their deal volume, and submitted opportunities with financial details.',
     input_schema: {
       type: 'object',
       properties: {
-        partner_id: { type: 'string', description: 'Get data for a specific referral partner UUID' },
+        partner_id: {
+          type: 'string',
+          description: 'Get data for a specific referral partner UUID',
+        },
         search: { type: 'string', description: 'Search across partner name, company, email' },
-        submission_status: { type: 'string', description: 'Filter submissions by status: pending, reviewed, accepted, rejected' },
-        include_submissions: { type: 'boolean', description: 'Include submission details (default true)' },
+        submission_status: {
+          type: 'string',
+          description: 'Filter submissions by status: pending, reviewed, accepted, rejected',
+        },
+        include_submissions: {
+          type: 'boolean',
+          description: 'Include submission details (default true)',
+        },
         active_only: { type: 'boolean', description: 'Only show active partners (default true)' },
         limit: { type: 'number', description: 'Max results (default 50)' },
       },
@@ -54,9 +85,12 @@ export async function executeLeadTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'search_inbound_leads': return searchInboundLeads(supabase, args);
-    case 'get_referral_data': return getReferralData(supabase, args);
-    default: return { error: `Unknown lead tool: ${toolName}` };
+    case 'search_inbound_leads':
+      return searchInboundLeads(supabase, args);
+    case 'get_referral_data':
+      return getReferralData(supabase, args);
+    default:
+      return { error: `Unknown lead tool: ${toolName}` };
   }
 }
 
@@ -72,7 +106,9 @@ async function searchInboundLeads(
 
   let query = supabase
     .from('inbound_leads')
-    .select('id, name, email, company_name, phone_number, role, message, source, source_form_name, mapped_to_listing_id, mapped_to_listing_title, mapped_at, converted_to_request_id, converted_at, status, priority_score, created_at, updated_at')
+    .select(
+      'id, name, email, company_name, phone_number, role, message, source, source_form_name, mapped_to_listing_id, mapped_to_listing_title, mapped_at, converted_to_request_id, converted_at, status, priority_score, created_at, updated_at',
+    )
     .gte('created_at', cutoff)
     .order('priority_score', { ascending: false, nullsFirst: false })
     .limit(limit);
@@ -87,13 +123,20 @@ async function searchInboundLeads(
   if (error) return { error: error.message };
 
   let results = data || [];
+  const totalFromDb = results.length;
 
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    results = results.filter((l: any) =>
-      l.name?.toLowerCase().includes(term) ||
-      l.email?.toLowerCase().includes(term) ||
-      l.company_name?.toLowerCase().includes(term)
+    results = results.filter(
+      (l: any) =>
+        l.name?.toLowerCase().includes(term) ||
+        l.email?.toLowerCase().includes(term) ||
+        l.company_name?.toLowerCase().includes(term) ||
+        l.role?.toLowerCase().includes(term) ||
+        l.message?.toLowerCase().includes(term) ||
+        l.source_form_name?.toLowerCase().includes(term) ||
+        l.mapped_to_listing_title?.toLowerCase().includes(term) ||
+        l.phone_number?.toLowerCase().includes(term),
     );
   }
 
@@ -104,13 +147,30 @@ async function searchInboundLeads(
     if (l.source) bySource[l.source] = (bySource[l.source] || 0) + 1;
   }
 
+  const filtersApplied: Record<string, unknown> = { lookback_days: days };
+  if (args.search) filtersApplied.search = args.search;
+  if (args.status) filtersApplied.status = args.status;
+  if (args.source) filtersApplied.source = args.source;
+  if (args.deal_id) filtersApplied.deal_id = args.deal_id;
+  if (args.converted !== undefined) filtersApplied.converted = args.converted;
+
   return {
     data: {
       leads: results,
       total: results.length,
+      total_before_filtering: totalFromDb,
       by_status: byStatus,
       by_source: bySource,
       converted: results.filter((l: any) => l.converted_to_request_id).length,
+      filters_applied: filtersApplied,
+      ...(results.length === 0
+        ? {
+            suggestion:
+              totalFromDb > 0
+                ? `${totalFromDb} inbound leads found in the last ${days} days but none matched your search "${args.search}". Try broader keywords or increase the lookback days.`
+                : `No inbound leads found in the last ${days} days. Try increasing the days parameter (e.g. days=90) or removing status/source filters.`,
+          }
+        : {}),
     },
   };
 }
@@ -137,10 +197,11 @@ async function getReferralData(
   let filteredPartners = partners || [];
   if (args.search) {
     const term = (args.search as string).toLowerCase();
-    filteredPartners = filteredPartners.filter((p: any) =>
-      p.name?.toLowerCase().includes(term) ||
-      p.company?.toLowerCase().includes(term) ||
-      p.email?.toLowerCase().includes(term)
+    filteredPartners = filteredPartners.filter(
+      (p: any) =>
+        p.name?.toLowerCase().includes(term) ||
+        p.company?.toLowerCase().includes(term) ||
+        p.email?.toLowerCase().includes(term),
     );
   }
 
@@ -149,7 +210,9 @@ async function getReferralData(
     const partnerIds = filteredPartners.map((p: any) => p.id);
     let subQuery = supabase
       .from('referral_submissions')
-      .select('id, referral_partner_id, company_name, website, industry, revenue, ebitda, location, contact_name, contact_email, notes, status, listing_id, reviewed_at, created_at')
+      .select(
+        'id, referral_partner_id, company_name, website, industry, revenue, ebitda, location, contact_name, contact_email, notes, status, listing_id, reviewed_at, created_at',
+      )
       .in('referral_partner_id', partnerIds)
       .order('created_at', { ascending: false })
       .limit(500);

@@ -26,6 +26,10 @@ const SOURCE_CONFIG: Record<string, { label: string; className: string }> = {
     label: "Remarketing",
     className: "bg-indigo-50 text-indigo-700 border-indigo-200",
   },
+  salesforce_remarketing: {
+    label: "Salesforce",
+    className: "bg-teal-50 text-teal-700 border-teal-200",
+  },
   manual: {
     label: "Manual",
     className: "bg-gray-50 text-gray-600 border-gray-200",

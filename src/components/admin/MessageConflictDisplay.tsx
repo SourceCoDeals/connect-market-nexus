@@ -78,13 +78,13 @@ export const MessageConflictDisplay = ({
                   <span className="text-xs font-medium text-muted-foreground">Previous Message</span>
                 </div>
                 <div className="border border-border/40 rounded-md p-3 bg-background/30">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <p className="text-sm leading-relaxed" style={{ color: '#3a3a3a' }}>
                     {previousMessage}
                   </p>
                 </div>
               </div>
             )}
-            
+
             {currentMessage && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -93,7 +93,7 @@ export const MessageConflictDisplay = ({
                   <Badge variant="outline" className="text-xs">Current</Badge>
                 </div>
                 <div className="border border-border/40 rounded-md p-3 bg-background/50">
-                  <p className="text-xs text-foreground leading-relaxed">
+                  <p className="text-sm leading-relaxed" style={{ color: '#0E101A' }}>
                     {currentMessage}
                   </p>
                 </div>
@@ -119,13 +119,13 @@ export const MessageConflictDisplay = ({
                   <span className="text-xs font-medium text-muted-foreground">Original Website Message</span>
                 </div>
                 <div className="border border-border/40 rounded-md p-3 bg-background/30">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <p className="text-sm leading-relaxed" style={{ color: '#3a3a3a' }}>
                     {previousMessage}
                   </p>
                 </div>
               </div>
             )}
-            
+
             {(marketplaceMessage || currentMessage) && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -134,7 +134,7 @@ export const MessageConflictDisplay = ({
                   <Badge variant="outline" className="text-xs">Latest</Badge>
                 </div>
                 <div className="border border-border/40 rounded-md p-3 bg-background/50">
-                  <p className="text-xs text-foreground leading-relaxed">
+                  <p className="text-sm leading-relaxed" style={{ color: '#0E101A' }}>
                     {marketplaceMessage || currentMessage}
                   </p>
                 </div>

@@ -3,13 +3,13 @@
  *
  * Sends 35 pre-built questions to the AI Command Center one-by-one,
  * compares actual responses to predicted behavior, and shows summary stats
- * including route accuracy tracking.
+ * including route accuracy tracking and per-question quality scoring.
  *
  * Q1-30: Core coverage across all categories
  * Q31-35: LinkedIn profile identification & contact enrichment
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,8 +25,16 @@ import {
   Loader2,
   RotateCcw,
   Target,
+  Award,
 } from 'lucide-react';
-import { THIRTY_Q_SUITE, type ThirtyQQuestion } from './chatbot-test-runner/thirtyQuestionSuite';
+import {
+  THIRTY_Q_SUITE,
+  scoreThirtyQResponse,
+  PE_GRADE_LABELS,
+  type ThirtyQQuestion,
+  type ThirtyQScore,
+  type ThirtyQCheckResult,
+} from './chatbot-test-runner/thirtyQuestionSuite';
 import { sendAIQuery } from './chatbot-test-runner/chatbotInfraTests';
 import { exportToCSV } from '@/lib/exportUtils';
 
@@ -42,6 +50,25 @@ interface QuestionResult {
   tools: string[];
   durationMs: number;
   error?: string;
+  score?: ThirtyQScore;
+}
+
+// ---------- Helpers ----------
+
+const GRADE_COLORS: Record<string, string> = {
+  A: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
+  B: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+  C: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300',
+  D: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300',
+  F: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+};
+
+function scoreColor(total: number): string {
+  if (total >= 90) return 'text-green-600';
+  if (total >= 75) return 'text-blue-600';
+  if (total >= 60) return 'text-yellow-600';
+  if (total >= 40) return 'text-orange-600';
+  return 'text-red-600';
 }
 
 // ---------- Component ----------
@@ -99,22 +126,44 @@ export default function ThirtyQuestionTest() {
         const hasError = !!res.error;
         const hasResponse = !!res.text?.trim();
 
+        const routeCategory = res.routeInfo?.category || 'unknown';
+        const toolNames = res.toolCalls.map((t) => t.name);
+
+        // Score the response from a PE partner's perspective
+        const score = scoreThirtyQResponse(q, {
+          text: res.text || '',
+          tools: toolNames,
+          routeCategory,
+          error: res.error || undefined,
+          durationMs,
+        });
+
         setResults((prev) => {
           const next = [...prev];
           next[i] = {
             ...next[i],
             status: hasError ? 'fail' : hasResponse ? 'pass' : 'fail',
             actualResponse: res.text || res.error || '(empty)',
-            routeCategory: res.routeInfo?.category || 'unknown',
-            tools: res.toolCalls.map((t) => t.name),
+            routeCategory,
+            tools: toolNames,
             durationMs,
             error: res.error || undefined,
+            score,
           };
           return next;
         });
       } catch (err) {
         if (controller.signal.aborted) break;
         const durationMs = Math.round(performance.now() - start);
+
+        const score = scoreThirtyQResponse(q, {
+          text: '',
+          tools: [],
+          routeCategory: 'unknown',
+          error: err instanceof Error ? err.message : String(err),
+          durationMs,
+        });
+
         setResults((prev) => {
           const next = [...prev];
           next[i] = {
@@ -123,6 +172,7 @@ export default function ThirtyQuestionTest() {
             actualResponse: '',
             durationMs,
             error: err instanceof Error ? err.message : String(err),
+            score,
           };
           return next;
         });
@@ -170,6 +220,31 @@ export default function ThirtyQuestionTest() {
   );
   const routeAccuracy = completed.length > 0 ? Math.round((routeMatches.length / completed.length) * 100) : 0;
 
+  // Quality score (average of all scored results)
+  const scoredResults = completed.filter((r) => r.score);
+  const avgScore = useMemo(() => {
+    if (scoredResults.length === 0) return 0;
+    return Math.round(scoredResults.reduce((s, r) => s + (r.score?.total ?? 0), 0) / scoredResults.length);
+  }, [scoredResults]);
+
+  const overallGrade = avgScore >= 90 ? 'A' : avgScore >= 75 ? 'B' : avgScore >= 60 ? 'C' : avgScore >= 40 ? 'D' : 'F';
+  const overallLabel = PE_GRADE_LABELS[overallGrade];
+
+  // Per-category scores
+  const categoryScores = useMemo(() => {
+    const map = new Map<string, { total: number; count: number }>();
+    for (const r of scoredResults) {
+      const cat = r.question.category;
+      const entry = map.get(cat) || { total: 0, count: 0 };
+      entry.total += r.score?.total ?? 0;
+      entry.count += 1;
+      map.set(cat, entry);
+    }
+    return Array.from(map.entries())
+      .map(([cat, { total, count }]) => ({ category: cat, avg: Math.round(total / count), count }))
+      .sort((a, b) => a.avg - b.avg);
+  }, [scoredResults]);
+
   // ---------- Export ----------
 
   const handleExport = useCallback(() => {
@@ -182,12 +257,18 @@ export default function ThirtyQuestionTest() {
       route_match: r.routeCategory === r.question.expectedRoute ? 'YES' : 'NO',
       expected: r.question.expectedBehavior,
       status: r.status,
+      partner_score: r.score?.total ?? '',
+      grade: r.score?.grade ?? '',
+      grade_label: r.score?.gradeLabel ?? '',
+      checks_passed: r.score ? r.score.checks.filter((c) => c.passed).length : '',
+      checks_total: r.score ? r.score.checks.length : '',
+      check_details: r.score ? r.score.checks.map((c) => `${c.passed ? 'PASS' : 'FAIL'}: ${c.name} — ${c.detail || ''}`).join(' | ') : '',
       tools_used: r.tools.join(', '),
       duration_ms: r.durationMs,
       actual_response: r.actualResponse.substring(0, 500),
       error: r.error || '',
     }));
-    exportToCSV(rows, `30q-test-${new Date().toISOString().slice(0, 10)}`);
+    exportToCSV(rows, `30q-scored-${new Date().toISOString().slice(0, 10)}`);
   }, [results]);
 
   // ---------- Render ----------
@@ -195,7 +276,7 @@ export default function ThirtyQuestionTest() {
   return (
     <div className="space-y-6">
       {/* Summary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{completed.length}/{THIRTY_Q_SUITE.length}</div>
@@ -217,6 +298,17 @@ export default function ThirtyQuestionTest() {
             </div>
             <p className="text-xs text-muted-foreground">Route Accuracy</p>
             <p className="text-xs text-muted-foreground mt-1">{routeMatches.length}/{completed.length} correct</p>
+          </CardContent>
+        </Card>
+        {/* PE Partner Score card */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-baseline gap-2">
+              <span className={`text-2xl font-bold ${scoreColor(avgScore)}`}>{avgScore}</span>
+              <Badge className={`text-xs ${GRADE_COLORS[overallGrade] || ''}`}>{overallGrade}</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">Partner Score</p>
+            <p className="text-xs text-muted-foreground mt-1">{overallLabel} — {scoredResults.length} scored</p>
           </CardContent>
         </Card>
         <Card>
@@ -252,6 +344,28 @@ export default function ThirtyQuestionTest() {
         </Card>
       </div>
 
+      {/* Category breakdown (shown after scoring) */}
+      {categoryScores.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Partner Score by Category</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {categoryScores.map(({ category, avg, count }) => {
+                const g = avg >= 90 ? 'A' : avg >= 75 ? 'B' : avg >= 60 ? 'C' : avg >= 40 ? 'D' : 'F';
+                return (
+                  <Badge key={category} variant="secondary" className={`text-xs gap-1 ${GRADE_COLORS[g]}`}>
+                    {category}: {avg}
+                    <span className="opacity-60">({count}q)</span>
+                  </Badge>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Results list */}
       <Card>
         <CardHeader>
@@ -274,7 +388,7 @@ export default function ThirtyQuestionTest() {
 // ---------- Result row ----------
 
 function ResultRow({ result }: { result: QuestionResult }) {
-  const { question: q, status, actualResponse, routeCategory, tools, durationMs, error } = result;
+  const { question: q, status, actualResponse, routeCategory, tools, durationMs, error, score } = result;
   const routeMatch = routeCategory && q.expectedRoute && routeCategory === q.expectedRoute;
 
   const statusIcon = {
@@ -305,6 +419,12 @@ function ResultRow({ result }: { result: QuestionResult }) {
                     <span className="ml-1 opacity-60">(exp: {q.expectedRoute})</span>
                   )}
                 </Badge>
+                {score && (
+                  <Badge variant="secondary" className={`text-xs gap-1 ${GRADE_COLORS[score.grade]}`}>
+                    <Award className="h-3 w-3" />
+                    {score.total}/100 {score.grade} — {score.gradeLabel}
+                  </Badge>
+                )}
                 <span className="text-xs text-muted-foreground">{durationMs.toLocaleString()}ms</span>
               </>
             )}
@@ -335,8 +455,45 @@ function ResultRow({ result }: { result: QuestionResult }) {
               </div>
             </div>
           )}
+
+          {/* Auto-Check Scoring Details */}
+          {score && score.checks.length > 0 && (
+            <div className="mt-2 rounded-md border bg-muted/20 p-2">
+              <p className="text-xs font-semibold text-muted-foreground mb-1">
+                Scoring Checks ({score.checks.filter((c) => c.passed).length}/{score.checks.length} passed):
+              </p>
+              <div className="space-y-0.5">
+                {score.checks.map((check, i) => (
+                  <CheckRow key={i} check={check} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------- Check row ----------
+
+function CheckRow({ check }: { check: ThirtyQCheckResult }) {
+  return (
+    <div className="flex items-start gap-2 text-xs">
+      {check.passed ? (
+        <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0 mt-0.5" />
+      ) : (
+        <XCircle className="h-3 w-3 text-destructive flex-shrink-0 mt-0.5" />
+      )}
+      <span className={check.passed ? '' : 'text-destructive'}>
+        {check.name}
+        <span className="text-muted-foreground ml-1">({check.weight}pts)</span>
+      </span>
+      {check.detail && (
+        <span className="text-muted-foreground truncate">
+          — {check.detail}
+        </span>
+      )}
     </div>
   );
 }

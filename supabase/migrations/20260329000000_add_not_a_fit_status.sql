@@ -1,3 +1,11 @@
+-- ═══════════════════════════════════════════════════════════════
+-- Migration: add_not_a_fit_status
+-- Date: 2026-03-29
+-- Purpose: Expands the remarketing_status CHECK constraint on listings to
+--          include 'not_a_fit', allowing deals to be hidden from lead tracker views.
+-- Tables affected: listings
+-- ═══════════════════════════════════════════════════════════════
+
 -- Add 'not_a_fit' to the remarketing_status CHECK constraint on listings
 -- The remarketing_status column uses TEXT + CHECK (not an enum type)
 -- This allows deals to be marked as "Not a Fit" and hidden from lead tracker views

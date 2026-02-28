@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,8 @@ import {
   useSmartleadCampaignStats,
 } from '@/hooks/smartlead';
 import type { SmartleadCampaign, LocalSmartleadCampaign } from '@/types/smartlead';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
@@ -83,6 +85,40 @@ export default function SmartleadCampaignsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [newCampaignName, setNewCampaignName] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'smartlead_campaigns', entity_type: 'leads' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'leads',
+    onApplyFilter: (filters, clearExisting) => {
+      if (clearExisting) {
+        setSearch('');
+        setStatusFilter('all');
+      }
+      filters.forEach((f) => {
+        switch (f.field) {
+          case 'status':
+          case 'campaign_status':
+            setStatusFilter(f.value as string);
+            break;
+          case 'search':
+          case 'query':
+          case 'name':
+            setSearch(f.value as string);
+            break;
+        }
+      });
+    },
+    onClearSelection: () => {
+      setSearch('');
+      setStatusFilter('all');
+    },
+  });
 
   const remoteCampaigns = (campaignsData?.campaigns || []) as SmartleadCampaign[];
   const localCampaigns = (campaignsData?.local_campaigns || []) as LocalSmartleadCampaign[];

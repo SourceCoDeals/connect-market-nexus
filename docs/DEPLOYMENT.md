@@ -76,7 +76,7 @@ supabase secrets set --project-ref <project-id> \
   BREVO_API_KEY="<brevo-api-key>" \
   MAPBOX_TOKEN="<mapbox-token>" \
   FIRECRAWL_API_KEY="<firecrawl-key>" \
-  APIFY_API_KEY="<apify-key>" \
+  APIFY_API_TOKEN="<apify-token>" \
   DOCUSEAL_API_KEY="<docuseal-key>" \
   FIREFLIES_API_KEY="<fireflies-key>"
 ```
@@ -88,7 +88,7 @@ supabase secrets set --project-ref <project-id> \
 | `BREVO_API_KEY` | Yes | All email-sending functions |
 | `MAPBOX_TOKEN` | No | `get-mapbox-token` (maps feature) |
 | `FIRECRAWL_API_KEY` | No | `firecrawl-scrape` (web scraping for enrichment) |
-| `APIFY_API_KEY` | No | `apify-linkedin-scrape`, `apify-google-reviews` |
+| `APIFY_API_TOKEN` | No | `apify-linkedin-scrape`, `apify-google-reviews` |
 | `DOCUSEAL_API_KEY` | No | `create-docuseal-submission` (e-signatures) |
 | `FIREFLIES_API_KEY` | No | `fetch-fireflies-content` (transcriptions) |
 

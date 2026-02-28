@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 interface ApifyLinkedInResult {
   name?: string;
@@ -9,8 +9,8 @@ interface ApifyLinkedInResult {
   description?: string;
   website?: string;
   industry?: string;
-  companySize?: string;       // e.g., "11-50 employees"
-  employeeCount?: number;     // e.g., 25
+  companySize?: string; // e.g., "11-50 employees"
+  employeeCount?: number; // e.g., 25
   headquarters?: string;
   foundedYear?: number;
   specialties?: string[];
@@ -30,13 +30,13 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
     const APIFY_API_TOKEN = Deno.env.get('APIFY_API_TOKEN');
-    const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+    const SERPER_API_KEY = Deno.env.get('SERPER_API_KEY');
 
     if (!APIFY_API_TOKEN) {
       console.error('APIFY_API_TOKEN not configured');
       return new Response(
         JSON.stringify({ success: false, error: 'Apify API token not configured' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -45,11 +45,13 @@ serve(async (req) => {
     if (!linkedinUrl && !companyName) {
       return new Response(
         JSON.stringify({ success: false, error: 'Either linkedinUrl or companyName is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
-    
-    console.log(`LinkedIn scrape request: companyName="${companyName}", website="${companyWebsite}", linkedinUrl="${linkedinUrl}"`)
+
+    console.log(
+      `LinkedIn scrape request: companyName="${companyName}", website="${companyWebsite}", linkedinUrl="${linkedinUrl}"`,
+    );
 
     let targetUrl = linkedinUrl;
     let foundViaSearch = false;
@@ -61,25 +63,27 @@ serve(async (req) => {
       companyData = await scrapeWithApify(APIFY_API_TOKEN, targetUrl);
     }
 
-    // If we don't have a direct LinkedIn URL (or it failed), search using Firecrawl
-    if (!companyData && !targetUrl && companyName && FIRECRAWL_API_KEY) {
+    // If we don't have a direct LinkedIn URL (or it failed), search using Serper
+    if (!companyData && !targetUrl && companyName && SERPER_API_KEY) {
       console.log(`No LinkedIn URL provided, searching for: ${companyName}`);
 
-      const locationPart = city && state ? ` ${city} ${state}` : (state ? ` ${state}` : '');
+      const locationPart = city && state ? ` ${city} ${state}` : state ? ` ${state}` : '';
       const searchQuery = `site:linkedin.com/company "${companyName}"${locationPart}`;
 
       let candidateUrls: string[] = [];
       try {
-        candidateUrls = await searchForLinkedInCandidates(FIRECRAWL_API_KEY, searchQuery, companyName, 5);
+        candidateUrls = await searchForLinkedInCandidates(searchQuery, companyName, 5);
         console.log(`Found ${candidateUrls.length} LinkedIn candidate URLs`);
       } catch (searchError) {
-        console.warn('Firecrawl search for LinkedIn failed:', searchError);
+        console.warn('Serper search for LinkedIn failed:', searchError);
       }
 
       // Add URL guesses as fallback candidates
       if (candidateUrls.length === 0) {
         const guessedUrls = generateLinkedInUrlVariations(companyName);
-        console.log(`Search found 0 results, adding ${guessedUrls.length} URL guesses as candidates`);
+        console.log(
+          `Search found 0 results, adding ${guessedUrls.length} URL guesses as candidates`,
+        );
         candidateUrls = guessedUrls;
       }
 
@@ -90,9 +94,9 @@ serve(async (req) => {
             success: false,
             error: 'Could not find LinkedIn company page. Try adding the LinkedIn URL manually.',
             scraped: false,
-            needsManualUrl: true
+            needsManualUrl: true,
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -100,7 +104,9 @@ serve(async (req) => {
       // Scrape up to 3 candidates IN PARALLEL and pick the best match by score.
       // This prevents picking the wrong "NES" or "Johnson" company.
       const MAX_CANDIDATES_TO_SCRAPE = Math.min(candidateUrls.length, 3);
-      console.log(`Scraping ${MAX_CANDIDATES_TO_SCRAPE} of ${candidateUrls.length} candidates in parallel for ranking`);
+      console.log(
+        `Scraping ${MAX_CANDIDATES_TO_SCRAPE} of ${candidateUrls.length} candidates in parallel for ranking`,
+      );
 
       type ScoredCandidate = {
         url: string;
@@ -115,7 +121,7 @@ serve(async (req) => {
           console.log(`Scraping candidate: ${url}`);
           const data = await scrapeWithApify(APIFY_API_TOKEN, url);
           return { url, data };
-        })
+        }),
       );
 
       const scoredCandidates: ScoredCandidate[] = [];
@@ -124,9 +130,15 @@ serve(async (req) => {
         const { url, data: candidateData } = result.value;
 
         const { score, signals } = scoreLinkedInCandidate(
-          candidateData, companyName, companyWebsite, city, state
+          candidateData,
+          companyName,
+          companyWebsite,
+          city,
+          state,
         );
-        console.log(`Candidate "${candidateData.name}" (${url}): score=${score}, signals=${JSON.stringify(signals)}`);
+        console.log(
+          `Candidate "${candidateData.name}" (${url}): score=${score}, signals=${JSON.stringify(signals)}`,
+        );
 
         scoredCandidates.push({ url, data: candidateData, score, signals });
       }
@@ -138,9 +150,9 @@ serve(async (req) => {
             error: 'Found LinkedIn candidate URLs but none returned valid data via Apify.',
             scraped: false,
             needsManualUrl: true,
-            candidatesAttempted: MAX_CANDIDATES_TO_SCRAPE
+            candidatesAttempted: MAX_CANDIDATES_TO_SCRAPE,
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -148,7 +160,9 @@ serve(async (req) => {
       scoredCandidates.sort((a, b) => b.score - a.score);
       const best = scoredCandidates[0];
 
-      console.log(`Best candidate: "${best.data.name}" (score ${best.score}), runner-up: ${scoredCandidates[1] ? `"${scoredCandidates[1].data.name}" (score ${scoredCandidates[1].score})` : 'none'}`);
+      console.log(
+        `Best candidate: "${best.data.name}" (score ${best.score}), runner-up: ${scoredCandidates[1] ? `"${scoredCandidates[1].data.name}" (score ${scoredCandidates[1].score})` : 'none'}`,
+      );
 
       // Reject if best score is too low — ask for manual URL
       if (best.score < 25) {
@@ -164,9 +178,9 @@ serve(async (req) => {
               url: best.url,
               score: best.score,
               headquarters: best.data.headquarters,
-            }
+            },
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -182,9 +196,9 @@ serve(async (req) => {
           JSON.stringify({
             success: false,
             error: 'Failed to scrape LinkedIn company data via Apify',
-            scraped: false
+            scraped: false,
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
       return new Response(
@@ -192,9 +206,9 @@ serve(async (req) => {
           success: false,
           error: 'Could not find LinkedIn company page. Try adding the LinkedIn URL manually.',
           scraped: false,
-          needsManualUrl: true
+          needsManualUrl: true,
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
@@ -206,10 +220,14 @@ serve(async (req) => {
       if (companyWebsite && companyData.website) {
         const websiteMatch = doWebsitesMatch(companyWebsite, companyData.website);
         if (!websiteMatch) {
-          console.warn(`WEBSITE MISMATCH on direct URL: "${companyWebsite}" vs LinkedIn "${companyData.website}"`);
+          console.warn(
+            `WEBSITE MISMATCH on direct URL: "${companyWebsite}" vs LinkedIn "${companyData.website}"`,
+          );
           // Log but don't reject for direct URLs — user explicitly provided it
         } else {
-          console.log(`Website verification PASSED: "${companyWebsite}" matches LinkedIn "${companyData.website}"`);
+          console.log(
+            `Website verification PASSED: "${companyWebsite}" matches LinkedIn "${companyData.website}"`,
+          );
         }
       }
     } else {
@@ -217,7 +235,9 @@ serve(async (req) => {
       if (companyWebsite && companyData.website) {
         const websiteMatch = doWebsitesMatch(companyWebsite, companyData.website);
         if (!websiteMatch) {
-          console.warn(`WEBSITE MISMATCH: Company website "${companyWebsite}" does not match LinkedIn website "${companyData.website}". Rejecting.`);
+          console.warn(
+            `WEBSITE MISMATCH: Company website "${companyWebsite}" does not match LinkedIn website "${companyData.website}". Rejecting.`,
+          );
           return new Response(
             JSON.stringify({
               success: false,
@@ -226,14 +246,18 @@ serve(async (req) => {
               websiteMismatch: true,
               linkedinWebsite: companyData.website,
               expectedWebsite: companyWebsite,
-              needsManualUrl: true
+              needsManualUrl: true,
             }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           );
         }
-        console.log(`Website verification PASSED: "${companyWebsite}" matches LinkedIn "${companyData.website}"`);
+        console.log(
+          `Website verification PASSED: "${companyWebsite}" matches LinkedIn "${companyData.website}"`,
+        );
       } else if (!companyData.website && companyWebsite) {
-        console.warn(`VERIFICATION FAILED: LinkedIn profile has no website, but we have "${companyWebsite}" to verify. REJECTING.`);
+        console.warn(
+          `VERIFICATION FAILED: LinkedIn profile has no website, but we have "${companyWebsite}" to verify. REJECTING.`,
+        );
         return new Response(
           JSON.stringify({
             success: false,
@@ -242,19 +266,27 @@ serve(async (req) => {
             noWebsiteToVerify: true,
             needsManualUrl: true,
             linkedinProfileName: companyData.name,
-            linkedinHeadquarters: companyData.headquarters
+            linkedinHeadquarters: companyData.headquarters,
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       } else if (!companyData.website && !companyWebsite) {
-        console.warn('Neither LinkedIn profile nor company has website — cannot verify match quality');
+        console.warn(
+          'Neither LinkedIn profile nor company has website — cannot verify match quality',
+        );
       }
 
       // Location verification for search results
-      if ((city || state) && companyData.headquarters && typeof companyData.headquarters === 'string') {
+      if (
+        (city || state) &&
+        companyData.headquarters &&
+        typeof companyData.headquarters === 'string'
+      ) {
         const locationMatch = verifyLocation(companyData.headquarters, city, state);
         if (!locationMatch.match && locationMatch.confidence === 'high') {
-          console.warn(`LOCATION MISMATCH: HQ "${companyData.headquarters}" vs expected "${city}, ${state}". Rejecting.`);
+          console.warn(
+            `LOCATION MISMATCH: HQ "${companyData.headquarters}" vs expected "${city}, ${state}". Rejecting.`,
+          );
           return new Response(
             JSON.stringify({
               success: false,
@@ -263,14 +295,18 @@ serve(async (req) => {
               locationMismatch: true,
               linkedinHeadquarters: companyData.headquarters,
               expectedLocation: `${city}, ${state}`,
-              needsManualUrl: true
+              needsManualUrl: true,
             }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
           );
         } else if (locationMatch.match) {
-          console.log(`Location verification PASSED: "${companyData.headquarters}" (${locationMatch.confidence} confidence)`);
+          console.log(
+            `Location verification PASSED: "${companyData.headquarters}" (${locationMatch.confidence} confidence)`,
+          );
         } else {
-          console.warn(`Location mismatch with ${locationMatch.confidence} confidence: ${locationMatch.reason}. Allowing.`);
+          console.warn(
+            `Location mismatch with ${locationMatch.confidence} confidence: ${locationMatch.reason}. Allowing.`,
+          );
         }
       }
     }
@@ -282,9 +318,17 @@ serve(async (req) => {
     const normalizedLinkedinUrl = normalizeLinkedInUrl(targetUrl || companyData.linkedinUrl || '');
 
     // Calculate match confidence and signals
-    const websiteMatch = !!(companyWebsite && companyData.website && doWebsitesMatch(companyWebsite, companyData.website));
+    const websiteMatch = !!(
+      companyWebsite &&
+      companyData.website &&
+      doWebsitesMatch(companyWebsite, companyData.website)
+    );
     let locationMatchResult = null;
-    if ((city || state) && companyData.headquarters && typeof companyData.headquarters === 'string') {
+    if (
+      (city || state) &&
+      companyData.headquarters &&
+      typeof companyData.headquarters === 'string'
+    ) {
       locationMatchResult = verifyLocation(companyData.headquarters, city, state);
     }
 
@@ -293,7 +337,10 @@ serve(async (req) => {
     if (foundViaSearch) {
       if (websiteMatch && locationMatchResult?.match && locationMatchResult.confidence === 'high') {
         matchConfidence = 'high'; // Both website and location verified
-      } else if (websiteMatch || (locationMatchResult?.match && locationMatchResult.confidence === 'high')) {
+      } else if (
+        websiteMatch ||
+        (locationMatchResult?.match && locationMatchResult.confidence === 'high')
+      ) {
         matchConfidence = 'medium'; // Either website OR location verified
       } else if (locationMatchResult?.match && locationMatchResult.confidence === 'medium') {
         matchConfidence = 'medium'; // Location matches with medium confidence
@@ -306,15 +353,17 @@ serve(async (req) => {
     const matchSignals = {
       foundViaSearch,
       websiteMatch,
-      locationMatch: locationMatchResult ? {
-        match: locationMatchResult.match,
-        confidence: locationMatchResult.confidence,
-        reason: locationMatchResult.reason
-      } : null,
+      locationMatch: locationMatchResult
+        ? {
+            match: locationMatchResult.match,
+            confidence: locationMatchResult.confidence,
+            reason: locationMatchResult.reason,
+          }
+        : null,
       companyName: companyData.name,
       linkedinHeadquarters: companyData.headquarters,
-      expectedLocation: city && state ? `${city}, ${state}` : (state || city || null),
-      verifiedAt: new Date().toISOString()
+      expectedLocation: city && state ? `${city}, ${state}` : state || city || null,
+      verifiedAt: new Date().toISOString(),
     };
 
     const result = {
@@ -329,7 +378,9 @@ serve(async (req) => {
       linkedin_description: companyData.description?.substring(0, 1000) || null,
     };
 
-    console.log(`Apify scrape result: employeeCount=${employeeCount}, employeeRange=${employeeRange}, matchConfidence=${matchConfidence}`);
+    console.log(
+      `Apify scrape result: employeeCount=${employeeCount}, employeeRange=${employeeRange}, matchConfidence=${matchConfidence}`,
+    );
 
     // If dealId is provided, update the listing directly
     if (dealId) {
@@ -357,33 +408,40 @@ serve(async (req) => {
       if (updateError) {
         console.error('Error updating listing with LinkedIn data:', updateError);
         return new Response(
-          JSON.stringify({ ...result, success: false, error: `DB update failed: ${updateError.message}` }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({
+            ...result,
+            success: false,
+            error: `DB update failed: ${updateError.message}`,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       } else {
-        console.log(`Updated deal ${dealId} with LinkedIn data (employee count: ${result.linkedin_employee_count}, range: ${result.linkedin_employee_range}, confidence: ${matchConfidence})`);
+        console.log(
+          `Updated deal ${dealId} with LinkedIn data (employee count: ${result.linkedin_employee_count}, range: ${result.linkedin_employee_range}, confidence: ${matchConfidence})`,
+        );
       }
     }
 
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error('Error in apify-linkedin-scrape:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
 /**
  * Scrape LinkedIn company page using Apify's logical_scrapers/linkedin-company-scraper
  */
-async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<ApifyLinkedInResult | null> {
+async function scrapeWithApify(
+  apiToken: string,
+  linkedinUrl: string,
+): Promise<ApifyLinkedInResult | null> {
   const ACTOR_ID = 'logical_scrapers~linkedin-company-scraper';
   const API_BASE = 'https://api.apify.com/v2';
 
@@ -398,31 +456,31 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiToken}`,
+        Authorization: `Bearer ${apiToken}`,
       },
       body: JSON.stringify({
-        urls: [linkedinUrl],  // Apify actor documented field name (array)
-        url: [linkedinUrl],   // Fallback — some actor versions use singular "url"
+        urls: [linkedinUrl], // Apify actor documented field name (array)
+        url: [linkedinUrl], // Fallback — some actor versions use singular "url"
       }),
-      signal: AbortSignal.timeout(120000) // 2 minute timeout for actor run
+      signal: AbortSignal.timeout(120000), // 2 minute timeout for actor run
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Apify actor error [${response.status}]:`, errorText.substring(0, 500));
-      
+
       if (response.status === 402) {
         throw new Error('Apify credits depleted - please add credits to your Apify account');
       }
       if (response.status === 403) {
         throw new Error('Apify actor access denied - check your API token and actor subscription');
       }
-      
+
       return null;
     }
 
     const results = await response.json();
-    
+
     if (!results || results.length === 0) {
       console.log('Apify actor returned no results');
       return null;
@@ -431,7 +489,7 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
     // The actor returns an array of company profiles
     const companyProfile = results[0];
     console.log('Apify raw result keys:', Object.keys(companyProfile || {}));
-    
+
     // The actor uses different field names than expected:
     // - numberOfEmployees (number or string like "37 on LinkedIn")
     // - "Company size" (note the space!) for the range like "11-50 employees"
@@ -460,7 +518,7 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
       description: companyProfile.description,
       website: companyProfile.website,
       industry: companyProfile.Industry,
-      companySize: companyProfile['Company size'],  // Note: key has space
+      companySize: companyProfile['Company size'], // Note: key has space
       employeeCount: rawEmployeeCount,
       headquarters: companyProfile.Headquarters || companyProfile.mainAddress,
       foundedYear: companyProfile.Founded ? parseInt(companyProfile.Founded, 10) : undefined,
@@ -470,7 +528,6 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
       logoUrl: companyProfile.logo,
       linkedinUrl: companyProfile.url || linkedinUrl,
     };
-
   } catch (error) {
     console.error('Apify actor execution error:', error);
     return null;
@@ -480,7 +537,10 @@ async function scrapeWithApify(apiToken: string, linkedinUrl: string): Promise<A
 /**
  * Parse employee count and range from Apify result
  */
-function parseEmployeeData(data: ApifyLinkedInResult): { employeeCount: number | null; employeeRange: string | null } {
+function parseEmployeeData(data: ApifyLinkedInResult): {
+  employeeCount: number | null;
+  employeeRange: string | null;
+} {
   let employeeCount: number | null = null;
   let employeeRange: string | null = null;
 
@@ -492,10 +552,12 @@ function parseEmployeeData(data: ApifyLinkedInResult): { employeeCount: number |
   // Company size string (e.g., "11-50 employees" or "1,001-5,000 employees")
   if (data.companySize) {
     employeeRange = data.companySize;
-    
+
     // Try to extract midpoint if we don't have exact count
     if (!employeeCount) {
-      const rangeMatch = data.companySize.match(/(\d{1,3}(?:,\d{3})*)\s*[-–]\s*(\d{1,3}(?:,\d{3})*)/);
+      const rangeMatch = data.companySize.match(
+        /(\d{1,3}(?:,\d{3})*)\s*[-–]\s*(\d{1,3}(?:,\d{3})*)/,
+      );
       if (rangeMatch) {
         const low = parseInt(rangeMatch[1].replace(/,/g, ''), 10);
         const high = parseInt(rangeMatch[2].replace(/,/g, ''), 10);
@@ -514,14 +576,13 @@ function parseEmployeeData(data: ApifyLinkedInResult): { employeeCount: number |
 }
 
 /**
- * Search for LinkedIn company pages using Firecrawl.
+ * Search for LinkedIn company pages using Serper (Google Search API).
  * Returns multiple candidate URLs (deduplicated, up to maxResults) for ranking.
  */
 async function searchForLinkedInCandidates(
-  apiKey: string,
   searchQuery: string,
   companyName: string,
-  maxResults = 5
+  maxResults = 5,
 ): Promise<string[]> {
   const candidates: string[] = [];
   const seen = new Set<string>();
@@ -534,60 +595,62 @@ async function searchForLinkedInCandidates(
     }
   };
 
+  const apiKey = Deno.env.get('SERPER_API_KEY');
+  if (!apiKey) throw new Error('SERPER_API_KEY not configured');
+
   try {
-    const response = await fetch('https://api.firecrawl.dev/v1/search', {
+    const response = await fetch('https://google.serper.dev/search', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'X-API-KEY': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        query: searchQuery,
-        limit: 10,
-      }),
-      signal: AbortSignal.timeout(30000)
+      body: JSON.stringify({ q: searchQuery, num: 10, gl: 'us', hl: 'en' }),
+      signal: AbortSignal.timeout(15000),
     });
 
     if (response.ok) {
       const data = await response.json();
-      const results = data.data || data || [];
+      const results = data.organic || [];
       for (const result of results) {
-        if (result.url && isLinkedInCompanyUrl(result.url)) {
-          addCandidate(result.url);
+        if (result.link && isLinkedInCompanyUrl(result.link)) {
+          addCandidate(result.link);
         }
       }
     } else {
-      console.error('Firecrawl search API error:', response.status);
+      console.error('Serper search API error:', response.status);
     }
 
     // Broader search fallback if we didn't find enough
     if (candidates.length < 2) {
       console.log('Few results from first search, trying broader search...');
-      const broaderResponse = await fetch('https://api.firecrawl.dev/v1/search', {
+      const broaderResponse = await fetch('https://google.serper.dev/search', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'X-API-KEY': apiKey,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          query: `"${companyName}" linkedin company`,
-          limit: 10,
+          q: `"${companyName}" linkedin company`,
+          num: 10,
+          gl: 'us',
+          hl: 'en',
         }),
-        signal: AbortSignal.timeout(30000)
+        signal: AbortSignal.timeout(15000),
       });
 
       if (broaderResponse.ok) {
         const broaderData = await broaderResponse.json();
-        const broaderResults = broaderData.data || broaderData || [];
+        const broaderResults = broaderData.organic || [];
         for (const result of broaderResults) {
-          if (result.url && isLinkedInCompanyUrl(result.url)) {
-            addCandidate(result.url);
+          if (result.link && isLinkedInCompanyUrl(result.link)) {
+            addCandidate(result.link);
           }
         }
       }
     }
   } catch (error) {
-    console.error('Error searching with Firecrawl:', error);
+    console.error('Error searching with Serper:', error);
   }
 
   return candidates.slice(0, maxResults);
@@ -624,10 +687,11 @@ function scoreLinkedInCandidate(
   if ((city || state) && companyData.headquarters) {
     const locationResult = verifyLocation(companyData.headquarters, city, state);
     if (locationResult.match) {
-      score += locationResult.confidence === 'high' ? 25 : (locationResult.confidence === 'medium' ? 15 : 5);
+      score +=
+        locationResult.confidence === 'high' ? 25 : locationResult.confidence === 'medium' ? 15 : 5;
       signals.locationMatch = locationResult;
     } else {
-      score -= (locationResult.confidence === 'high' ? 15 : 5);
+      score -= locationResult.confidence === 'high' ? 15 : 5;
       signals.locationMatch = locationResult;
     }
   }
@@ -659,13 +723,30 @@ function scoreLinkedInCandidate(
  * Simple name similarity: returns 0-1 based on overlap of significant words.
  */
 function computeNameSimilarity(name1: string, name2: string): number {
-  const STOP_WORDS = new Set(['the', 'and', 'of', 'for', 'a', 'an', 'inc', 'llc', 'ltd', 'corp', 'co', 'company', 'group', 'services', 'solutions']);
+  const STOP_WORDS = new Set([
+    'the',
+    'and',
+    'of',
+    'for',
+    'a',
+    'an',
+    'inc',
+    'llc',
+    'ltd',
+    'corp',
+    'co',
+    'company',
+    'group',
+    'services',
+    'solutions',
+  ]);
 
   const tokenize = (s: string) => {
-    return s.toLowerCase()
+    return s
+      .toLowerCase()
       .replace(/[^a-z0-9\s]/g, '')
       .split(/\s+/)
-      .filter(w => w.length > 1 && !STOP_WORDS.has(w));
+      .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
   };
 
   const tokens1 = tokenize(name1);
@@ -674,19 +755,20 @@ function computeNameSimilarity(name1: string, name2: string): number {
   if (tokens1.length === 0 || tokens2.length === 0) return 0;
 
   const set2 = new Set(tokens2);
-  const matches = tokens1.filter(t => set2.has(t)).length;
+  const matches = tokens1.filter((t) => set2.has(t)).length;
 
   // Jaccard-like: matches / union
   const union = new Set([...tokens1, ...tokens2]).size;
   return union > 0 ? matches / union : 0;
 }
 
-
 function isLinkedInCompanyUrl(url: string): boolean {
-  return url.includes('linkedin.com/company/') &&
-         !url.includes('/jobs') &&
-         !url.includes('/posts') &&
-         !url.includes('/people');
+  return (
+    url.includes('linkedin.com/company/') &&
+    !url.includes('/jobs') &&
+    !url.includes('/posts') &&
+    !url.includes('/people')
+  );
 }
 
 function normalizeLinkedInUrl(url: string): string {
@@ -701,7 +783,8 @@ function generateLinkedInUrlVariations(companyName: string): string[] {
   const variations: string[] = [];
   const baseUrl = 'https://www.linkedin.com/company/';
 
-  const cleanName = companyName.toLowerCase()
+  const cleanName = companyName
+    .toLowerCase()
     .trim()
     .replace(/\s*(inc\.?|llc\.?|ltd\.?|corp\.?|corporation|company|co\.?|limited|plc|group)$/gi, '')
     .trim();
@@ -729,7 +812,7 @@ function generateLinkedInUrlVariations(companyName: string): string[] {
 
   // First word only
   const firstWord = cleanName.split(/\s+/)[0].replace(/[^a-z0-9]/g, '');
-  if (firstWord.length > 3 && !variations.some(v => v.endsWith('/' + firstWord))) {
+  if (firstWord.length > 3 && !variations.some((v) => v.endsWith('/' + firstWord))) {
     variations.push(baseUrl + firstWord);
   }
 
@@ -753,7 +836,8 @@ function doWebsitesMatch(website1: string, website2: string): boolean {
       return parsed.hostname.replace(/^www\./, '');
     } catch {
       // Fallback: just clean up the string
-      return url.toLowerCase()
+      return url
+        .toLowerCase()
         .replace(/^https?:\/\//, '')
         .replace(/^www\./, '')
         .replace(/\/.*$/, '')
@@ -763,20 +847,20 @@ function doWebsitesMatch(website1: string, website2: string): boolean {
 
   const domain1 = extractDomain(website1);
   const domain2 = extractDomain(website2);
-  
+
   console.log(`Comparing domains: "${domain1}" vs "${domain2}"`);
-  
+
   // Exact match
   if (domain1 === domain2) {
     return true;
   }
-  
+
   // Check if one is a subdomain of the other (e.g., "jobs.company.com" vs "company.com")
   // Allow the LinkedIn website to be a parent domain of the company website
   if (domain1.endsWith('.' + domain2) || domain2.endsWith('.' + domain1)) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -787,7 +871,7 @@ function doWebsitesMatch(website1: string, website2: string): boolean {
 function verifyLocation(
   linkedinHeadquarters: string | undefined | null,
   expectedCity?: string,
-  expectedState?: string
+  expectedState?: string,
 ): { match: boolean; confidence: 'high' | 'medium' | 'low'; reason: string } {
   if (!expectedCity && !expectedState) {
     return { match: true, confidence: 'low', reason: 'No expected location provided' };
@@ -795,7 +879,11 @@ function verifyLocation(
 
   // Guard against non-string values (Apify sometimes returns objects or undefined)
   if (!linkedinHeadquarters || typeof linkedinHeadquarters !== 'string') {
-    return { match: false, confidence: 'low', reason: 'No headquarters data available from LinkedIn' };
+    return {
+      match: false,
+      confidence: 'low',
+      reason: 'No headquarters data available from LinkedIn',
+    };
   }
 
   const hqLower = linkedinHeadquarters.toLowerCase().trim();
@@ -804,28 +892,72 @@ function verifyLocation(
 
   // Build state name map for matching (e.g., "TX" <-> "Texas")
   const stateMap: Record<string, string> = {
-    'al': 'alabama', 'ak': 'alaska', 'az': 'arizona', 'ar': 'arkansas',
-    'ca': 'california', 'co': 'colorado', 'ct': 'connecticut', 'de': 'delaware',
-    'fl': 'florida', 'ga': 'georgia', 'hi': 'hawaii', 'id': 'idaho',
-    'il': 'illinois', 'in': 'indiana', 'ia': 'iowa', 'ks': 'kansas',
-    'ky': 'kentucky', 'la': 'louisiana', 'me': 'maine', 'md': 'maryland',
-    'ma': 'massachusetts', 'mi': 'michigan', 'mn': 'minnesota', 'ms': 'mississippi',
-    'mo': 'missouri', 'mt': 'montana', 'ne': 'nebraska', 'nv': 'nevada',
-    'nh': 'new hampshire', 'nj': 'new jersey', 'nm': 'new mexico', 'ny': 'new york',
-    'nc': 'north carolina', 'nd': 'north dakota', 'oh': 'ohio', 'ok': 'oklahoma',
-    'or': 'oregon', 'pa': 'pennsylvania', 'ri': 'rhode island', 'sc': 'south carolina',
-    'sd': 'south dakota', 'tn': 'tennessee', 'tx': 'texas', 'ut': 'utah',
-    'vt': 'vermont', 'va': 'virginia', 'wa': 'washington', 'wv': 'west virginia',
-    'wi': 'wisconsin', 'wy': 'wyoming', 'dc': 'district of columbia'
+    al: 'alabama',
+    ak: 'alaska',
+    az: 'arizona',
+    ar: 'arkansas',
+    ca: 'california',
+    co: 'colorado',
+    ct: 'connecticut',
+    de: 'delaware',
+    fl: 'florida',
+    ga: 'georgia',
+    hi: 'hawaii',
+    id: 'idaho',
+    il: 'illinois',
+    in: 'indiana',
+    ia: 'iowa',
+    ks: 'kansas',
+    ky: 'kentucky',
+    la: 'louisiana',
+    me: 'maine',
+    md: 'maryland',
+    ma: 'massachusetts',
+    mi: 'michigan',
+    mn: 'minnesota',
+    ms: 'mississippi',
+    mo: 'missouri',
+    mt: 'montana',
+    ne: 'nebraska',
+    nv: 'nevada',
+    nh: 'new hampshire',
+    nj: 'new jersey',
+    nm: 'new mexico',
+    ny: 'new york',
+    nc: 'north carolina',
+    nd: 'north dakota',
+    oh: 'ohio',
+    ok: 'oklahoma',
+    or: 'oregon',
+    pa: 'pennsylvania',
+    ri: 'rhode island',
+    sc: 'south carolina',
+    sd: 'south dakota',
+    tn: 'tennessee',
+    tx: 'texas',
+    ut: 'utah',
+    vt: 'vermont',
+    va: 'virginia',
+    wa: 'washington',
+    wv: 'west virginia',
+    wi: 'wisconsin',
+    wy: 'wyoming',
+    dc: 'district of columbia',
   };
 
   const stateFullName = stateMap[stateLower] || stateLower;
 
   // HIGH CONFIDENCE MATCH: City and state both present in headquarters
   if (cityLower && stateLower) {
-    const hasBothCityAndState = hqLower.includes(cityLower) && (hqLower.includes(stateLower) || hqLower.includes(stateFullName));
+    const hasBothCityAndState =
+      hqLower.includes(cityLower) &&
+      (hqLower.includes(stateLower) || hqLower.includes(stateFullName));
     if (hasBothCityAndState) {
-      return { match: true, confidence: 'high', reason: `HQ "${linkedinHeadquarters}" matches ${cityLower}, ${stateLower}` };
+      return {
+        match: true,
+        confidence: 'high',
+        reason: `HQ "${linkedinHeadquarters}" matches ${cityLower}, ${stateLower}`,
+      };
     }
   }
 
@@ -833,21 +965,39 @@ function verifyLocation(
   if (stateLower && (hqLower.includes(stateLower) || hqLower.includes(stateFullName))) {
     if (cityLower && !hqLower.includes(cityLower)) {
       // State matches but city doesn't - might be multi-location company
-      return { match: true, confidence: 'medium', reason: `State matches but city differs - may have multiple offices in ${stateLower}` };
+      return {
+        match: true,
+        confidence: 'medium',
+        reason: `State matches but city differs - may have multiple offices in ${stateLower}`,
+      };
     }
     return { match: true, confidence: 'high', reason: `HQ in ${stateLower}` };
   }
 
   // LOW CONFIDENCE MATCH: City matches but state unknown/missing
   if (cityLower && hqLower.includes(cityLower)) {
-    return { match: true, confidence: 'low', reason: `City "${cityLower}" mentioned but state unclear` };
+    return {
+      match: true,
+      confidence: 'low',
+      reason: `City "${cityLower}" mentioned but state unclear`,
+    };
   }
 
   // Check for nationwide/multi-location indicators
-  const multiLocationIndicators = ['nationwide', 'multiple locations', 'various locations', 'across the us', 'national'];
-  const isMultiLocation = multiLocationIndicators.some(indicator => hqLower.includes(indicator));
+  const multiLocationIndicators = [
+    'nationwide',
+    'multiple locations',
+    'various locations',
+    'across the us',
+    'national',
+  ];
+  const isMultiLocation = multiLocationIndicators.some((indicator) => hqLower.includes(indicator));
   if (isMultiLocation) {
-    return { match: true, confidence: 'low', reason: 'Company operates nationwide/multiple locations' };
+    return {
+      match: true,
+      confidence: 'low',
+      reason: 'Company operates nationwide/multiple locations',
+    };
   }
 
   // HIGH CONFIDENCE MISMATCH: HQ clearly in different state
@@ -855,13 +1005,23 @@ function verifyLocation(
     // Skip if it's the expected state
     if (code === stateLower || name === stateFullName) return false;
     // Check if HQ mentions a different state
-    return hqLower.includes(`, ${code}`) || hqLower.includes(`, ${name}`) || hqLower.includes(` ${name}`);
+    return (
+      hqLower.includes(`, ${code}`) || hqLower.includes(`, ${name}`) || hqLower.includes(` ${name}`)
+    );
   });
 
   if (hqHasDifferentState && stateLower) {
-    return { match: false, confidence: 'high', reason: `Headquarters "${linkedinHeadquarters}" is in a different state than expected (${expectedState})` };
+    return {
+      match: false,
+      confidence: 'high',
+      reason: `Headquarters "${linkedinHeadquarters}" is in a different state than expected (${expectedState})`,
+    };
   }
 
   // MEDIUM CONFIDENCE MISMATCH: Expected location not mentioned at all
-  return { match: false, confidence: 'medium', reason: `Expected location "${expectedCity}, ${expectedState}" not found in HQ "${linkedinHeadquarters}"` };
+  return {
+    match: false,
+    confidence: 'medium',
+    reason: `Expected location "${expectedCity}, ${expectedState}" not found in HQ "${linkedinHeadquarters}"`,
+  };
 }

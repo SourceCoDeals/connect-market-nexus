@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +63,7 @@ import {
   GripVertical,
   Sparkles,
   Loader2,
+  ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -84,6 +85,7 @@ import { IntelligenceCoverageBar, ReMarketingChat } from '@/components/remarketi
 import { deleteUniverseWithRelated } from '@/lib/ma-intelligence/cascadeDelete';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { useGlobalGateCheck, useGlobalActivityQueue } from '@/hooks/remarketing/useGlobalActivityQueue';
 
 type SortField = 'name' | 'buyers' | 'deals' | 'coverage';
 type SortOrder = 'asc' | 'desc';
@@ -136,23 +138,23 @@ interface FlaggedDeal {
   buyer_universe_label: string | null;
   buyer_universe_description: string | null;
   buyer_universe_generated_at: string | null;
+  enriched_at: string | null;
+  created_at: string | null;
 }
 
 /** Sortable row for the "To Be Created" drag-and-drop list */
 function SortableFlaggedRow({
   deal,
   index,
-  isGenerating,
-  onGenerateClick,
   onCreateClick,
   onNavigate,
+  onRemoveClick,
 }: {
   deal: FlaggedDeal;
   index: number;
-  isGenerating: boolean;
-  onGenerateClick: (e: React.MouseEvent) => void;
   onCreateClick: (e: React.MouseEvent) => void;
   onNavigate: () => void;
+  onRemoveClick: (e: React.MouseEvent) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: deal.id,
@@ -185,24 +187,14 @@ function SortableFlaggedRow({
         {index + 1}
       </TableCell>
       <TableCell>
-        {isGenerating ? (
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="text-xs">Generating…</span>
-          </div>
-        ) : hasAIData ? (
+        {hasAIData ? (
           <span className="text-sm font-medium">{deal.buyer_universe_label}</span>
         ) : (
           <span className="text-muted-foreground text-sm">—</span>
         )}
       </TableCell>
       <TableCell className="max-w-[320px]">
-        {isGenerating ? (
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="text-xs">Generating…</span>
-          </div>
-        ) : hasAIData && deal.buyer_universe_description ? (
+        {hasAIData && deal.buyer_universe_description ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -241,25 +233,12 @@ function SortableFlaggedRow({
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-          {!hasAIData && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1 text-xs h-7 px-2"
-              disabled={isGenerating}
-              onClick={onGenerateClick}
-            >
-              {isGenerating ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Sparkles className="h-3 w-3" />
-              )}
-              {isGenerating ? 'AI…' : 'AI'}
-            </Button>
-          )}
           <Button size="sm" variant="outline" className="gap-1.5" onClick={onCreateClick}>
             <Plus className="h-3.5 w-3.5" />
             Create
+          </Button>
+          <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground hover:text-destructive" onClick={onRemoveClick}>
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </TableCell>
@@ -371,6 +350,11 @@ const ReMarketingUniverses = () => {
     }
   }, [newName]);
 
+  // Global activity queue — needed early for refetchInterval on flagged deals query
+  const { startOrQueueMajorOp } = useGlobalGateCheck();
+  const { runningOp } = useGlobalActivityQueue();
+  const isBulkEnriching = runningOp?.operation_type === 'buyer_universe_generation';
+
   // Fetch universes with buyer counts
   const { data: universes, isLoading } = useQuery({
     queryKey: ['remarketing', 'universes-with-stats', showArchived],
@@ -480,13 +464,15 @@ const ReMarketingUniverses = () => {
       const { data, error } = await supabase
         .from('listings')
         .select(
-          'id, title, internal_company_name, industry, address_state, universe_build_flagged_at, buyer_universe_label, buyer_universe_description, buyer_universe_generated_at, created_at',
+          'id, title, internal_company_name, industry, address_state, universe_build_flagged_at, buyer_universe_label, buyer_universe_description, buyer_universe_generated_at, enriched_at, created_at',
         )
         .eq('universe_build_flagged', true)
         .order('universe_build_flagged_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
+    // Auto-refetch while enrichment is running so labels populate in real-time
+    refetchInterval: runningOp?.operation_type === 'buyer_universe_generation' ? 5000 : false,
   });
 
   // Local ordering state for drag-and-drop
@@ -535,49 +521,113 @@ const ReMarketingUniverses = () => {
     },
     [orderedFlagged, queryClient],
   );
-  // AI buyer universe generation
-  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+  // Bulk enrich via global activity queue (hooks moved above for refetchInterval)
 
-  const generateBuyerUniverse = useCallback(
-    async (listingId: string) => {
-      setGeneratingIds((prev) => new Set(prev).add(listingId));
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-buyer-universe`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ listing_id: listingId }),
-        });
+  const enrichAllFlaggedDeals = useCallback(async () => {
+    const unenriched = orderedFlagged.filter((d) => !d.buyer_universe_generated_at);
+    if (unenriched.length === 0) {
+      toast.info('All deals already have buyer universe data');
+      return;
+    }
 
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(err.error || `HTTP ${response.status}`);
-        }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-        const result = await response.json();
-        queryClient.invalidateQueries({
-          queryKey: ['remarketing', 'universe-build-flagged-deals'],
-        });
-        if (!result.cached) {
-          toast.success('Buyer universe generated');
-        }
-      } catch (err) {
-        console.error('Failed to generate buyer universe:', err);
-        toast.error(err instanceof Error ? err.message : 'Failed to generate buyer universe');
-      } finally {
-        setGeneratingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(listingId);
-          return next;
-        });
+    const { queued } = await startOrQueueMajorOp({
+      operationType: 'buyer_universe_generation',
+      totalItems: unenriched.length,
+      contextJson: { listing_ids: unenriched.map((d) => d.id) },
+      description: `Generate buyer universes for ${unenriched.length} deal${unenriched.length > 1 ? 's' : ''}`,
+      userId: user?.id || 'unknown',
+    });
+
+    if (queued) {
+      return; // Toast already shown by startOrQueueMajorOp
+    }
+
+    // Trigger the processor edge function
+    supabase.functions
+      .invoke('process-buyer-universe-queue', {
+        body: { trigger: 'buyer-universe-generation' },
+      })
+      .catch((err) => console.warn('Worker trigger failed:', err));
+
+    toast.info(`Queued ${unenriched.length} deal${unenriched.length > 1 ? 's' : ''} for buyer universe generation`);
+  }, [orderedFlagged, startOrQueueMajorOp]);
+
+  // Deal-level enrichment (website/LinkedIn data) — same pattern as GP Partners
+  const [isDealEnriching, setIsDealEnriching] = useState(false);
+
+  const handleBulkDealEnrich = useCallback(
+    async (mode: 'unenriched' | 'all') => {
+      if (!orderedFlagged?.length) return;
+      const targets =
+        mode === 'unenriched'
+          ? orderedFlagged.filter((d) => !d.enriched_at)
+          : orderedFlagged;
+      if (!targets.length) {
+        toast.info('No deals to enrich');
+        return;
       }
+      setIsDealEnriching(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      try {
+        await startOrQueueMajorOp({
+          operationType: 'deal_enrichment',
+          totalItems: targets.length,
+          description: `Enriching ${targets.length} flagged deals`,
+          userId: user?.id || '',
+          contextJson: { source: 'universe_flagged' },
+        });
+      } catch {
+        /* Non-blocking */
+      }
+
+      const now = new Date().toISOString();
+      const seen = new Set<string>();
+      const rows = targets
+        .filter((d) => {
+          if (seen.has(d.id)) return false;
+          seen.add(d.id);
+          return true;
+        })
+        .map((d) => ({
+          listing_id: d.id,
+          status: 'pending' as const,
+          attempts: 0,
+          queued_at: now,
+        }));
+
+      const CHUNK = 500;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from('enrichment_queue')
+          .upsert(chunk, { onConflict: 'listing_id' });
+        if (error) {
+          toast.error('Failed to queue enrichment');
+          setIsDealEnriching(false);
+          return;
+        }
+      }
+
+      toast.success(`Queued ${targets.length} deals for enrichment`);
+
+      supabase.functions
+        .invoke('process-enrichment-queue', {
+          body: { source: 'universe_flagged_bulk' },
+        })
+        .catch(() => {});
+
+      setIsDealEnriching(false);
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe-build-flagged-deals'] });
     },
-    [queryClient],
+    [orderedFlagged, startOrQueueMajorOp, queryClient],
   );
 
   // Create universe mutation
@@ -1135,6 +1185,65 @@ const ReMarketingUniverses = () => {
         /* To Be Created Tab – drag-and-drop ranking */
         <Card>
           <CardContent className="p-0">
+            {/* Enrich toolbar */}
+            {orderedFlagged.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-b">
+                <p className="text-sm text-muted-foreground">
+                  {orderedFlagged.filter((d) => !d.enriched_at).length} of{' '}
+                  {orderedFlagged.length} deals need data enrichment &middot;{' '}
+                  {orderedFlagged.filter((d) => !d.buyer_universe_generated_at).length} need universe generation
+                </p>
+                <div className="flex items-center gap-2">
+                  {/* Deal-level enrichment dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={isDealEnriching}
+                      >
+                        {isDealEnriching ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3.5 w-3.5" />
+                        )}
+                        Enrich Deals
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => handleBulkDealEnrich('unenriched')}>
+                        Enrich Unenriched
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkDealEnrich('all')}>
+                        Re-enrich All
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Universe generation button */}
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={isBulkEnriching || orderedFlagged.every((d) => !!d.buyer_universe_generated_at)}
+                    onClick={enrichAllFlaggedDeals}
+                  >
+                    {isBulkEnriching ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Generating {runningOp?.completed_items || 0}/{runningOp?.total_items || 0}...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Generate Universes
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
             <DndContext
               sensors={flaggedSensors}
               collisionDetection={closestCenter}
@@ -1174,11 +1283,6 @@ const ReMarketingUniverses = () => {
                           key={deal.id}
                           deal={deal}
                           index={idx}
-                          isGenerating={generatingIds.has(deal.id)}
-                          onGenerateClick={(e) => {
-                            e.stopPropagation();
-                            generateBuyerUniverse(deal.id);
-                          }}
                           onNavigate={() => navigate(`/admin/deals/${deal.id}`)}
                           onCreateClick={(e) => {
                             e.stopPropagation();
@@ -1187,6 +1291,19 @@ const ReMarketingUniverses = () => {
                               n.set('new', 'true');
                               return n;
                             });
+                          }}
+                          onRemoveClick={async (e) => {
+                            e.stopPropagation();
+                            const { error } = await supabase
+                              .from('listings')
+                              .update({ universe_build_flagged: false, universe_build_flagged_at: null })
+                              .eq('id', deal.id);
+                            if (error) {
+                              toast.error('Failed to remove deal from list');
+                            } else {
+                              toast.success('Deal removed from To Be Created list');
+                              queryClient.invalidateQueries({ queryKey: ['remarketing', 'universe-build-flagged-deals'] });
+                            }
                           }}
                         />
                       ))}

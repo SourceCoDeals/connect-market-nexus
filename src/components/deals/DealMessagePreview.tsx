@@ -76,11 +76,12 @@ export function DealMessagePreview({ requestId, requestStatus, onViewAll }: Deal
               }`}
             >
               <div
-                className={`max-w-[85%] rounded-lg px-3 py-1.5 text-xs ${
+                className={`max-w-[85%] rounded-lg px-3 py-1.5 text-sm ${
                   msg.sender_role === "buyer"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted/60 text-foreground border border-border/40"
+                    : "border border-border/40"
                 }`}
+                style={msg.sender_role !== "buyer" ? { backgroundColor: 'rgba(0,0,0,0.04)', color: '#0E101A' } : undefined}
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className="font-medium opacity-80">

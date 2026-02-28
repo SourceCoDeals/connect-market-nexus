@@ -70,7 +70,7 @@ All tasks created by AI (via create_task, create_deal_task, or standup extractio
    - Entity lists: "**Acme Corp** — $4.2M rev, TX, PE firm, score: 87"
    - Max 3 paragraphs. Write like Slack, not a wiki.
 
-9. DATA BOUNDARIES: You have access to deals, buyers, contacts, transcripts, scores, outreach, signals, tasks, documents, connection requests, agreements, leads, enrichment status. You do NOT have real-time market data, competitor intel, or external news. You CAN search Google (google_search_companies) and LinkedIn (enrich_buyer_contacts).
+9. DATA BOUNDARIES: You have access to deals, buyers, contacts, transcripts, scores, outreach, signals, tasks, documents, connection requests, agreements, leads, enrichment status. You do NOT have real-time market data, competitor intel, or external news. You CAN search Google (google_search_companies) and LinkedIn (enrich_contact).
 
 10. MULTI-SOURCE TRANSPARENCY: When returning data from multiple sources, separate and label each source with counts.
 
@@ -96,7 +96,7 @@ Include: revenue, EBITDA, location, owner goals, deal score.
 If the deal has tasks, mention overdue ones. Keep it concise.
 IMPORTANT: When the user asks about a company by name, use query_deals with a search term to find it, then use get_deal_details to get full information. Never say you can't look up individual deals — you CAN.`,
 
-  CROSS_DEAL: `Use get_cross_deal_analytics with the appropriate analysis_type.
+  CROSS_DEAL: `Use get_analytics with a cross-deal analysis_type (universe_comparison, deal_comparison, buyer_type_analysis, source_analysis, conversion_funnel, geography_heatmap).
 Present comparisons as labeled bullet groups (never markdown tables).
 Highlight top and bottom performers. Include conversion rates, avg scores, and actionable insights.
 After presenting data, add 1-2 sentences of actionable interpretation.
@@ -110,10 +110,22 @@ Group by buyer if multiple transcripts match. Highlight the most insightful pass
 Use get_follow_up_queue FIRST for a unified view. Prioritize: overdue > due today > stale outreach > unread messages > upcoming.
 Also use get_task_inbox for the user's personal task queue. Every follow-up item must reference its linked deal or buyer.`,
 
-  BUYER_SEARCH: `Return buyer matches as: name, type, HQ, revenue range, key services, alignment score.
-Use search_buyers with state filter for geographic searches (checks both hq_state and geographic_footprint).
-Use industry parameter for industry-specific searches. Use search_lead_sources for lead source questions.
-Use get_top_buyers_for_deal with state filter for universe + geography questions.`,
+  BUYER_SEARCH: `TOOL SELECTION — pick the right data source:
+- search_buyers → remarketing_buyers table (acquirers, PE firms, platforms). Use for "find HVAC buyers", "buyers in TX".
+- search_lead_sources → listings table filtered by deal_source. Use for "captarget HVAC leads", "GO Partner leads in TX".
+- search_valuation_leads → valuation_leads table (calculator leads). Use for "HVAC calculator leads", "valuation leads in TX".
+- search_inbound_leads → inbound_leads table. Use for "who contacted us about HVAC".
+- query_deals → listings table (pipeline deals). Use for "HVAC deals", "deals in TX over $5M".
+- search_buyer_universes → buyer universes. Use for "find the HVAC universe".
+- get_top_buyers_for_deal → scored buyers for a specific deal. Use for "buyers in the [deal] universe in OK".
+
+KEY BEHAVIORS:
+- search_buyers industry param auto-matches universe names (e.g. "HVAC" finds buyers in "Residential HVAC, Plumbing and Electrical" universe even if buyer record itself doesn't mention HVAC).
+- search_buyers state filter checks BOTH hq_state and geographic_footprint — returns ALL matching buyers.
+- search_lead_sources industry param checks industry, category, categories, services, title, captarget_sheet_tab fields.
+- query_deals industry param checks 12+ fields including executive_summary, investment_thesis, business_model.
+
+FORMAT: Return buyer matches as: name, type, HQ, revenue range, key services, alignment score.`,
 
   BUYER_ANALYSIS: `Present scores with context: composite, geography, service, size, owner goals, portfolio, business_model, acquisition.
 Explain score drivers and flags. Use get_score_breakdown for per-dimension breakdown.
@@ -158,19 +170,20 @@ Always show universe name, total count, and filtered count.`,
   LEAD_INTEL: `Use search_inbound_leads for inbound, get_referral_data for referral partners.
 Present: total count, breakdown by status, key details.`,
 
-  ENGAGEMENT: `Use get_engagement_signals filtered by deal_id or buyer_id.
-Use get_buyer_decisions for approve/pass with pass_by_category breakdown.
+  ENGAGEMENT: `Use get_buyer_signals filtered by deal_id or buyer_id (signal_source: "engagement" for site visits/NDA/IOI, "decisions" for approve/pass, "interest" for marketplace interest, or omit for all).
+Use get_buyer_history for score snapshots and learning history.
 Present as timeline or summary with signal counts.`,
 
-  CONTACTS: `For LINKEDIN URLs: immediately use enrich_linkedin_contact. Present results.
-For NAME + COMPANY: search_contacts(company_name, search) first → if missing email, auto find_and_enrich_person → present results. Never stop at "email not on file" — exhaust all options automatically.
-For NAME only: immediately use find_and_enrich_person (handles full pipeline).
+  CONTACTS: `For LINKEDIN URLs: immediately use enrich_contact(mode: "linkedin", linkedin_url: ...) with the EXACT URL the user provided. CRITICAL: If the user pastes a LinkedIn URL, ALWAYS use that URL directly — even if an existing CRM contact has a different LinkedIn URL stored. The user's provided URL takes priority over stored data. Do NOT substitute a stored URL for the user's URL. Present results.
+For NAME + COMPANY: search_contacts(company_name, search) first → if missing email, auto find_contact(mode: "person", person_name: ...) → present results. Never stop at "email not on file" — exhaust all options automatically. The enrichment pipeline will automatically verify stored LinkedIn URLs against Google search.
+For NAME only: immediately use find_contact(mode: "person", person_name: ...) (handles full pipeline with LinkedIn verification).
+For COMPANY CONTACTS / "who runs X" / "find contacts at X": use find_contact(mode: "decision_makers", company_name: ...) to discover all key decision makers (CEO, founders, VPs, etc.) at a company via Google search. This is faster and more reliable than enrich_contact(mode: "company"). Provide company_domain if known for better accuracy.
 For BULK MISSING EMAIL: search_contacts(has_email=false), then auto-enrich each.
-For LINKEDIN PROFILE DISCOVERY: use find_contact_linkedin with contact_ids.
+For LINKEDIN PROFILE DISCOVERY: use find_contact(mode: "linkedin_search", contact_ids: ...).
 For FIRM searches: use search_pe_contacts with firm_name. If none found, auto-enrich.
 Use retrieve_knowledge(topic="contact_discovery_flow") for the full workflow reference.`,
 
-  CONTACT_ENRICHMENT: `1. Check existing contacts with search_contacts(company_name). 2. If not enough, auto enrich_buyer_contacts. 3. Present results with email/LinkedIn counts. 4. Suggest PhoneBurner or Smartlead next steps.
+  CONTACT_ENRICHMENT: `1. Check existing contacts with search_contacts(company_name). 2. If not enough, auto enrich_contact(mode: "company", company_name: ...). 3. Present results with email/LinkedIn counts. 4. Suggest PhoneBurner or Smartlead next steps.
 For calling lists: search ALL lead sources simultaneously, compile unique companies, check contacts, auto-enrich missing, present final list.`,
 
   DOCUMENT_ACTION: `Verify firm exists, get signer email/name, confirm before send_document.
@@ -214,7 +227,7 @@ For domain knowledge questions, use retrieve_knowledge to get detailed context b
   EOD_RECAP: `Use generate_eod_recap for end-of-day or end-of-week summaries.
 Combine with get_follow_up_queue and get_deal_health for comprehensive recap.`,
 
-  GOOGLE_SEARCH: `Use google_search_companies for web search. For LinkedIn discovery, use enrich_buyer_contacts after.
+  GOOGLE_SEARCH: `Use google_search_companies for web search. For LinkedIn discovery, use enrich_contact(mode: "company") after.
 Present search results with actionable next steps.`,
 
   DEAL_CONVERSION: `Use convert_to_pipeline_deal (REQUIRES CONFIRMATION). Gather deal details and buyer info first.

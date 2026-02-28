@@ -396,7 +396,8 @@ export type GlobalActivityOperationType =
   | 'buyer_enrichment'
   | 'guide_generation'
   | 'buyer_scoring'
-  | 'criteria_extraction';
+  | 'criteria_extraction'
+  | 'buyer_universe_generation';
 
 export type GlobalActivityClassification = 'major' | 'minor';
 
@@ -440,4 +441,5 @@ export const OPERATION_TYPE_LABELS: Record<GlobalActivityOperationType, string> 
   guide_generation: 'Industry Guide Generation',
   buyer_scoring: 'Buyer-Deal Scoring',
   criteria_extraction: 'Criteria Extraction',
+  buyer_universe_generation: 'Buyer Universe Generation',
 };

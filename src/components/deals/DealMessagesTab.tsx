@@ -15,7 +15,12 @@ interface DealMessagesTabProps {
 }
 
 export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabProps) {
-  const { data: messages = [], isLoading: messagesLoading } = useConnectionMessages(requestId);
+  const { data: allMessages = [], isLoading: messagesLoading } = useConnectionMessages(requestId);
+
+  // Filter out system/decision messages — those now live in the Activity Log tab
+  const messages = allMessages.filter(
+    (m) => m.message_type !== 'system' && m.message_type !== 'decision'
+  );
   const sendMsg = useSendMessage();
   const markRead = useMarkMessagesReadByBuyer();
   const [newMessage, setNewMessage] = useState("");
@@ -61,9 +66,9 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
       <div className="px-5 py-3.5 border-b border-border/50 flex items-center gap-2">
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold text-foreground">Messages</h3>
-        {messages.filter(m => m.message_type === "message").length > 0 && (
+        {messages.length > 0 && (
           <span className="text-xs text-muted-foreground">
-            {messages.filter(m => m.message_type === "message").length}
+            {messages.length}
           </span>
         )}
       </div>
@@ -98,40 +103,32 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
             <div
               key={msg.id}
               className={`flex ${
-                msg.message_type === "decision" || msg.message_type === "system"
-                  ? "justify-center"
-                  : msg.sender_role === "buyer"
-                    ? "justify-end"
-                    : "justify-start"
+                msg.sender_role === "buyer" ? "justify-end" : "justify-start"
               }`}
             >
               <div
-                className={`max-w-[80%] rounded-xl px-3.5 py-2 text-sm ${
-                  msg.message_type === "decision" || msg.message_type === "system"
-                    ? "bg-muted text-muted-foreground italic text-xs"
-                    : msg.sender_role === "buyer"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/60 text-foreground border border-border/40"
+                className={`max-w-[80%] rounded-xl px-3.5 py-2 text-base ${
+                  msg.sender_role === "buyer"
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border/40"
                 }`}
+                style={
+                  msg.sender_role !== "buyer"
+                    ? { backgroundColor: 'rgba(0,0,0,0.04)', color: '#0E101A' }
+                    : undefined
+                }
               >
-                {msg.message_type !== "system" && msg.message_type !== "decision" && (
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-medium text-xs opacity-80">
-                      {msg.sender_role === "buyer"
-                        ? "You"
-                        : msg.sender?.first_name || "SourceCo"}
-                    </span>
-                    <span className="opacity-40 text-[10px]">
-                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                    </span>
-                  </div>
-                )}
-                <p className="leading-relaxed whitespace-pre-wrap">{msg.body}</p>
-                {(msg.message_type === "system" || msg.message_type === "decision") && (
-                  <span className="opacity-50 text-[10px] block mt-0.5">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="font-medium text-xs">
+                    {msg.sender_role === "buyer"
+                      ? "You"
+                      : msg.sender?.first_name || "SourceCo"}
+                  </span>
+                  <span className="opacity-40 text-[10px]">
                     {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                   </span>
-                )}
+                </div>
+                <p className="leading-relaxed whitespace-pre-wrap" style={{ color: msg.sender_role === "buyer" ? undefined : '#0E101A' }}>{msg.body}</p>
               </div>
             </div>
           ))

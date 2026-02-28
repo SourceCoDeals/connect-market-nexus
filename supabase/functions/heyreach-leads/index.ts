@@ -15,7 +15,7 @@
  *     — Resolve contacts and add them to a HeyReach list
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import {
   addLeadsToCampaign,
@@ -41,7 +41,7 @@ interface ResolvedLead {
 // ─── Contact resolvers ──────────────────────────────────────────────────────
 
 async function resolveFromBuyerContacts(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, any, any>,
   ids: string[],
 ): Promise<ResolvedLead[]> {
   const { data: contacts } = await supabase
@@ -77,7 +77,7 @@ async function resolveFromBuyerContacts(
 }
 
 async function resolveFromBuyers(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, any, any>,
   buyerIds: string[],
 ): Promise<ResolvedLead[]> {
   const { data: contacts } = await supabase
@@ -140,7 +140,7 @@ async function resolveFromBuyers(
 }
 
 async function resolveFromListings(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, any, any>,
   listingIds: string[],
 ): Promise<ResolvedLead[]> {
   const { data: listings } = await supabase
@@ -169,7 +169,7 @@ async function resolveFromListings(
 }
 
 async function resolveFromLeads(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, any, any>,
   leadIds: string[],
 ): Promise<ResolvedLead[]> {
   const { data: leads } = await supabase
@@ -303,9 +303,17 @@ Deno.serve(async (req) => {
           );
         }
 
-        // HeyReach API call — add leads to campaign
-        const apiLeads = linkedInLeads.map(({ _source_id: _, _source_type: __, ...rest }) => rest);
-        const result = await addLeadsToCampaign(campaign_id, list_id, apiLeads);
+        // HeyReach API call — add leads to campaign using V2 format
+        const accountLeadPairs = linkedInLeads.map((l) => ({
+          lead: {
+            profileUrl: l.linkedInUrl,
+            firstName: l.firstName,
+            lastName: l.lastName,
+            companyName: l.companyName,
+            emailAddress: l.email,
+          },
+        }));
+        const result = await addLeadsToCampaign(campaign_id, accountLeadPairs);
 
         const totalAdded = result.ok ? linkedInLeads.length : 0;
         const errors: string[] = [];
@@ -448,7 +456,13 @@ Deno.serve(async (req) => {
           );
         }
 
-        const apiLeads = linkedInLeads.map(({ _source_id: _, _source_type: __, ...rest }) => rest);
+        const apiLeads = linkedInLeads.map((l) => ({
+          profileUrl: l.linkedInUrl,
+          firstName: l.firstName,
+          lastName: l.lastName,
+          companyName: l.companyName,
+          emailAddress: l.email,
+        }));
         const result = await addLeadsToList(list_id, apiLeads);
 
         if (!result.ok) {

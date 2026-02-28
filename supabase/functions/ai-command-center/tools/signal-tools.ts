@@ -1,6 +1,10 @@
 /**
  * Signal & Intelligence Tools
  * Engagement signals, buyer decisions, score history, interest signals.
+ *
+ * MERGED Feb 2026:
+ *   get_engagement_signals + get_buyer_decisions + get_interest_signals → get_buyer_signals (with signal_source param)
+ *   get_score_history + get_buyer_learning_history → get_buyer_history (with history_type param)
  */
 
 // deno-lint-ignore no-explicit-any
@@ -12,78 +16,48 @@ import type { ToolResult } from "./index.ts";
 
 export const signalTools: ClaudeTool[] = [
   {
-    name: 'get_engagement_signals',
-    description: 'Get buyer engagement signals for a deal or buyer — site visits, financial requests, NDA signed, CEO involvement, IOI/LOI submitted, meeting activity, email engagement. Use to gauge buyer interest level.',
+    name: 'get_buyer_signals',
+    description: 'Get buyer signals and activity for a deal or buyer. Covers engagement signals (site visits, financial requests, NDA signed, CEO involvement, IOI/LOI, meetings), buyer approve/pass decisions, and marketplace interest signals. Use `signal_source` to target a specific data type, or omit for all.',
     input_schema: {
       type: 'object',
       properties: {
+        signal_source: {
+          type: 'string',
+          enum: ['engagement', 'decisions', 'interest', 'all'],
+          description: '"engagement" for engagement signals (site visits, NDA, IOI/LOI, etc), "decisions" for approve/pass decisions, "interest" for marketplace interest signals, "all" for everything (default "all")',
+        },
         deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
         buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
         signal_type: {
           type: 'string',
-          description: 'Filter by type: site_visit, financial_request, ceo_involvement, nda_signed, ioi_submitted, loi_submitted, call_scheduled, management_presentation, data_room_access, email_engagement',
+          description: 'Filter engagement signals by type: site_visit, financial_request, ceo_involvement, nda_signed, ioi_submitted, loi_submitted, call_scheduled, management_presentation, data_room_access, email_engagement',
         },
-        days: { type: 'number', description: 'Lookback period in days (default 30)' },
-        limit: { type: 'number', description: 'Max results (default 100)' },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'get_buyer_decisions',
-    description: 'Get history of approve/pass decisions for buyers on deals, including pass reasons and categories. Also includes the buyer learning history with score context at time of decision.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
-        buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
-        decision_type: { type: 'string', enum: ['approved', 'passed', 'all'], description: 'Filter by decision type (default "all")' },
+        decision_type: { type: 'string', enum: ['approved', 'passed', 'all'], description: 'Filter decisions by type (default "all")' },
         pass_category: { type: 'string', description: 'Filter by pass category: geographic_mismatch, size_mismatch, service_mismatch, acquisition_timing, competition, other' },
-        limit: { type: 'number', description: 'Max results (default 50)' },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'get_score_history',
-    description: 'Get historical score snapshots for a buyer-deal pair. Shows how composite and dimension scores changed over time. Use to answer "how has this buyer\'s score changed?" questions.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
-        buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
-        universe_id: { type: 'string', description: 'Filter by universe UUID' },
-        limit: { type: 'number', description: 'Max results (default 20)' },
-      },
-      required: [],
-    },
-  },
-  {
-    name: 'get_interest_signals',
-    description: 'Get interest signals from marketplace users — seller/owner interest in deals, conversion to connection requests. Shows which sellers are engaging with the platform.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
-        converted_only: { type: 'boolean', description: 'Only show signals that converted to connection requests' },
+        converted_only: { type: 'boolean', description: 'Only show interest signals that converted to connection requests' },
         days: { type: 'number', description: 'Lookback period in days (default 30)' },
-        limit: { type: 'number', description: 'Max results (default 50)' },
+        limit: { type: 'number', description: 'Max results per source (default 50)' },
       },
       required: [],
     },
   },
   {
-    name: 'get_buyer_learning_history',
-    description: 'Get the learning history of buyer approve/pass decisions with scores at the time of each decision — shows what score a buyer had when approved or passed, which dimension scores (geography, size, service, owner_goals) drove the decision, and the pass reason/category. Use to understand patterns in buyer decisions and score-to-decision correlations.',
+    name: 'get_buyer_history',
+    description: 'Get historical buyer scoring and decision data. Covers score snapshots (how composite/dimension scores changed over time) and buyer learning history (approve/pass decisions with scores at time of decision). Use `history_type` to target specific data.',
     input_schema: {
       type: 'object',
       properties: {
-        buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
+        history_type: {
+          type: 'string',
+          enum: ['scores', 'learning', 'all'],
+          description: '"scores" for score snapshots over time, "learning" for decision history with score context, "all" for both (default "all")',
+        },
         deal_id: { type: 'string', description: 'Filter by deal/listing UUID' },
+        buyer_id: { type: 'string', description: 'Filter by buyer UUID' },
         universe_id: { type: 'string', description: 'Filter by buyer universe UUID' },
-        action: { type: 'string', enum: ['approved', 'passed', 'hidden', 'all'], description: 'Filter by decision action (default "all")' },
+        action: { type: 'string', enum: ['approved', 'passed', 'hidden', 'all'], description: 'Filter learning history by decision action (default "all")' },
         pass_category: { type: 'string', description: 'Filter by pass category: geographic_mismatch, size_mismatch, service_mismatch, acquisition_timing, competition, other' },
-        limit: { type: 'number', description: 'Max results (default 50)' },
+        limit: { type: 'number', description: 'Max results per source (default 20 for scores, 50 for learning)' },
       },
       required: [],
     },
@@ -98,16 +72,78 @@ export async function executeSignalTool(
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'get_engagement_signals': return getEngagementSignals(supabase, args);
-    case 'get_buyer_decisions': return getBuyerDecisions(supabase, args);
-    case 'get_score_history': return getScoreHistory(supabase, args);
-    case 'get_interest_signals': return getInterestSignals(supabase, args);
-    case 'get_buyer_learning_history': return getBuyerLearningHistory(supabase, args);
+    // Merged tools
+    case 'get_buyer_signals': return getBuyerSignals(supabase, args);
+    case 'get_buyer_history': return getBuyerHistory(supabase, args);
+    // Backward compatibility aliases
+    case 'get_engagement_signals': return getBuyerSignals(supabase, { ...args, signal_source: 'engagement' });
+    case 'get_buyer_decisions': return getBuyerSignals(supabase, { ...args, signal_source: 'decisions' });
+    case 'get_interest_signals': return getBuyerSignals(supabase, { ...args, signal_source: 'interest' });
+    case 'get_score_history': return getBuyerHistory(supabase, { ...args, history_type: 'scores' });
+    case 'get_buyer_learning_history': return getBuyerHistory(supabase, { ...args, history_type: 'learning' });
     default: return { error: `Unknown signal tool: ${toolName}` };
   }
 }
 
-// ---------- Implementations ----------
+// ---------- Unified get_buyer_signals ----------
+
+async function getBuyerSignals(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const signalSource = (args.signal_source as string) || 'all';
+  const results: Record<string, unknown> = { signal_source_filter: signalSource };
+  const errors: string[] = [];
+
+  if (signalSource === 'all' || signalSource === 'engagement') {
+    const res = await getEngagementSignals(supabase, args);
+    if (res.error) errors.push(`engagement: ${res.error}`);
+    else results.engagement = res.data;
+  }
+
+  if (signalSource === 'all' || signalSource === 'decisions') {
+    const res = await getBuyerDecisions(supabase, args);
+    if (res.error) errors.push(`decisions: ${res.error}`);
+    else results.decisions = res.data;
+  }
+
+  if (signalSource === 'all' || signalSource === 'interest') {
+    const res = await getInterestSignals(supabase, args);
+    if (res.error) errors.push(`interest: ${res.error}`);
+    else results.interest = res.data;
+  }
+
+  if (errors.length > 0) results.errors = errors;
+  return { data: results };
+}
+
+// ---------- Unified get_buyer_history ----------
+
+async function getBuyerHistory(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+): Promise<ToolResult> {
+  const historyType = (args.history_type as string) || 'all';
+  const results: Record<string, unknown> = { history_type_filter: historyType };
+  const errors: string[] = [];
+
+  if (historyType === 'all' || historyType === 'scores') {
+    const res = await getScoreHistory(supabase, args);
+    if (res.error) errors.push(`scores: ${res.error}`);
+    else results.score_history = res.data;
+  }
+
+  if (historyType === 'all' || historyType === 'learning') {
+    const res = await getBuyerLearningHistory(supabase, args);
+    if (res.error) errors.push(`learning: ${res.error}`);
+    else results.learning_history = res.data;
+  }
+
+  if (errors.length > 0) results.errors = errors;
+  return { data: results };
+}
+
+// ---------- Original implementations (preserved) ----------
 
 async function getEngagementSignals(
   supabase: SupabaseClient,

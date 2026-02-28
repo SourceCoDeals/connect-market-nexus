@@ -3,17 +3,18 @@
 // The monolithic sibling file ReMarketingDealDetail.tsx (1,675 lines) is ORPHANED.
 // AUDIT REF: CTO Audit February 2026
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, Eye, FolderOpen, ListChecks, Zap } from 'lucide-react';
-import { useDealDetail } from './useDealDetail';
-import { CapTargetInfoCard } from './CapTargetInfoCard';
-import { DealHeader } from './DealHeader';
-import { OverviewTab } from './OverviewTab';
-import { DataRoomTab } from './DataRoomTab';
-import { EntityTasksTab, DealTeamPanel, DealSignalsPanel } from '@/components/daily-tasks';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Building2, Eye, FolderOpen, Phone } from "lucide-react";
+import { useDealDetail } from "./useDealDetail";
+import { CapTargetInfoCard } from "./CapTargetInfoCard";
+import { SalesforceInfoCard } from "./SalesforceInfoCard";
+import { DealHeader } from "./DealHeader";
+import { OverviewTab } from "./OverviewTab";
+import { DataRoomTab } from "./DataRoomTab";
+import { DealCallActivityTab } from "./DealCallActivityTab";
 
 const ReMarketingDealDetail = () => {
   const {
@@ -86,6 +87,7 @@ const ReMarketingDealDetail = () => {
   return (
     <div className="p-6 space-y-6">
       <CapTargetInfoCard deal={deal} dealId={dealId!} />
+      <SalesforceInfoCard deal={deal} />
 
       <DealHeader
         deal={deal}
@@ -105,18 +107,14 @@ const ReMarketingDealDetail = () => {
       />
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="tasks" className="text-sm">
-            <ListChecks className="mr-1.5 h-3.5 w-3.5" />
-            Tasks
-          </TabsTrigger>
-          <TabsTrigger value="signals" className="text-sm">
-            <Zap className="mr-1.5 h-3.5 w-3.5" />
-            Signals
+          <TabsTrigger value="call-activity" className="text-sm">
+            <Phone className="mr-1.5 h-3.5 w-3.5" />
+            Call Activity
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -150,23 +148,8 @@ const ReMarketingDealDetail = () => {
           />
         </TabsContent>
 
-        <TabsContent value="tasks" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <EntityTasksTab
-                entityType="listing"
-                entityId={deal.id}
-                entityName={deal.internal_company_name || deal.title}
-              />
-            </div>
-            <div className="space-y-6">
-              <DealTeamPanel listingId={deal.id} teamMembers={[]} />
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="signals" className="space-y-6">
-          <DealSignalsPanel listingId={deal.id} />
+        <TabsContent value="call-activity" className="space-y-6">
+          <DealCallActivityTab listingId={dealId!} />
         </TabsContent>
 
         <TabsContent value="data-room" className="space-y-6">

@@ -11,7 +11,7 @@ import { ConnectionRequestDialog } from '@/components/admin/ConnectionRequestDia
 import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
 import { PipelineMetricsCard } from '@/components/admin/PipelineMetricsCard';
 import { PipelineFilters } from '@/components/admin/PipelineFilters';
-import { usePipelineFilters } from '@/hooks/admin/use-pipeline-filters';
+import { usePipelineFilters, type StatusFilter, type BuyerTypeFilter, type NdaFilter, type FeeAgreementFilter, type SortOption } from '@/hooks/admin/use-pipeline-filters';
 import { toast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileConnectionRequests } from '@/components/admin/MobileConnectionRequests';
@@ -30,6 +30,8 @@ import {
 } from '@/hooks/admin/use-inbound-leads';
 import { supabase } from '@/integrations/supabase/client';
 import { useMarkConnectionRequestsViewed } from '@/hooks/admin/use-mark-connection-requests-viewed';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 const AdminRequests = () => {
   const queryClient = useQueryClient();
@@ -126,6 +128,65 @@ const AdminRequests = () => {
     markAsViewed();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'admin_requests', entity_type: 'leads' });
+  }, [setPageContext]);
+
+  // Wire AI UI actions
+  useAIUIActionHandler({
+    table: 'leads',
+    onApplyFilter: (filters, clearExisting) => {
+      if (clearExisting) {
+        setStatusFilter('all');
+        setBuyerTypeFilter('all');
+        setNdaFilter('all');
+        setFeeAgreementFilter('all');
+        setSearchQuery('');
+      }
+      filters.forEach((f) => {
+        switch (f.field) {
+          case 'status':
+            setStatusFilter(f.value as StatusFilter);
+            break;
+          case 'buyer_type':
+            setBuyerTypeFilter(f.value as BuyerTypeFilter);
+            break;
+          case 'nda':
+          case 'nda_status':
+            setNdaFilter(f.value as NdaFilter);
+            break;
+          case 'fee_agreement':
+          case 'fee_agreement_status':
+            setFeeAgreementFilter(f.value as FeeAgreementFilter);
+            break;
+          case 'search':
+          case 'query':
+            setSearchQuery(f.value as string);
+            break;
+        }
+      });
+    },
+    onSortColumn: (field) => {
+      const sortMap: Record<string, string> = {
+        created_at: 'newest',
+        date: 'newest',
+        name: 'name_asc',
+        company: 'company',
+        status: 'status',
+      };
+      setSortOption((sortMap[field] || field) as SortOption);
+    },
+    onClearSelection: () => {
+      setStatusFilter('all');
+      setBuyerTypeFilter('all');
+      setNdaFilter('all');
+      setFeeAgreementFilter('all');
+      setSearchQuery('');
+    },
+  });
 
   // Realtime subscriptions for instant updates
   useEffect(() => {

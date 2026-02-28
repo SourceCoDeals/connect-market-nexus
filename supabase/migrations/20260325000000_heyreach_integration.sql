@@ -1,3 +1,11 @@
+-- ═══════════════════════════════════════════════════════════════
+-- Migration: heyreach_integration
+-- Date: 2026-03-25
+-- Purpose: Creates the HeyReach LinkedIn outreach integration schema, including
+--          campaign tracking, lead sync, statistics snapshots, and webhook event logging.
+-- Tables affected: heyreach_campaigns, heyreach_campaign_leads, heyreach_campaign_stats, heyreach_webhook_events
+-- ═══════════════════════════════════════════════════════════════
+
 -- HeyReach integration tables
 -- Tracks LinkedIn outreach campaigns synced with HeyReach and maps leads to platform contacts
 -- Mirrors the Smartlead integration pattern for consistency

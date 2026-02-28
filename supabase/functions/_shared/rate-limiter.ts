@@ -11,15 +11,19 @@
  * - INTERNAL-OPTIMIZED: tuned for internal tool with 5-10 concurrent users
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-export type AIProviderName = 'gemini' | 'firecrawl' | 'apify';
+export type AIProviderName = 'gemini' | 'firecrawl' | 'apify' | 'serper';
 
 // Per-provider concurrency limits (requests per minute we target staying under)
-const PROVIDER_LIMITS: Record<AIProviderName, { maxConcurrent: number; cooldownMs: number; softLimitRpm: number }> = {
-  gemini:    { maxConcurrent: 10, cooldownMs: 10000, softLimitRpm: 30 },
-  firecrawl: { maxConcurrent: 5,  cooldownMs: 10000, softLimitRpm: 20 },
-  apify:     { maxConcurrent: 3,  cooldownMs: 30000, softLimitRpm: 10 },
+const PROVIDER_LIMITS: Record<
+  AIProviderName,
+  { maxConcurrent: number; cooldownMs: number; softLimitRpm: number }
+> = {
+  gemini: { maxConcurrent: 10, cooldownMs: 10000, softLimitRpm: 30 },
+  firecrawl: { maxConcurrent: 5, cooldownMs: 10000, softLimitRpm: 20 },
+  apify: { maxConcurrent: 3, cooldownMs: 30000, softLimitRpm: 10 },
+  serper: { maxConcurrent: 10, cooldownMs: 5000, softLimitRpm: 50 },
 };
 
 /**
@@ -37,7 +41,7 @@ const localState: Record<string, { lastRateLimited: number; backoffUntil: number
  */
 export async function checkProviderAvailability(
   supabase: SupabaseClient,
-  provider: AIProviderName
+  provider: AIProviderName,
 ): Promise<{ ok: boolean; retryAfterMs?: number; waitRecommended?: boolean }> {
   try {
     // 1. Check local in-memory state first (fastest)
@@ -88,7 +92,7 @@ export async function checkProviderAvailability(
 export async function reportRateLimit(
   supabase: SupabaseClient,
   provider: AIProviderName,
-  retryAfterSeconds?: number
+  retryAfterSeconds?: number,
 ): Promise<void> {
   const baseCooldownMs = retryAfterSeconds
     ? retryAfterSeconds * 1000
@@ -107,14 +111,15 @@ export async function reportRateLimit(
   };
 
   try {
-    await supabase
-      .from('enrichment_rate_limits')
-      .upsert({
+    await supabase.from('enrichment_rate_limits').upsert(
+      {
         provider,
         backoff_until: backoffUntil,
         last_429_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'provider' });
+      },
+      { onConflict: 'provider' },
+    );
 
     console.log(`[rate-limiter] ${provider} rate limited — cooldown until ${backoffUntil}`);
   } catch (err) {
@@ -128,14 +133,16 @@ export async function reportRateLimit(
  */
 export async function incrementConcurrent(
   supabase: SupabaseClient,
-  provider: AIProviderName
+  provider: AIProviderName,
 ): Promise<void> {
   try {
     await supabase.rpc('increment_provider_concurrent', { p_provider: provider });
   } catch {
     // RPC not available — log warning but do NOT attempt racy read-then-write fallback.
     // The read-then-write pattern has a race condition under concurrent load.
-    console.warn(`[rate-limiter] increment_provider_concurrent RPC not available for ${provider} — skipping concurrency tracking`);
+    console.warn(
+      `[rate-limiter] increment_provider_concurrent RPC not available for ${provider} — skipping concurrency tracking`,
+    );
   }
 }
 
@@ -145,13 +152,15 @@ export async function incrementConcurrent(
  */
 export async function decrementConcurrent(
   supabase: SupabaseClient,
-  provider: AIProviderName
+  provider: AIProviderName,
 ): Promise<void> {
   try {
     await supabase.rpc('decrement_provider_concurrent', { p_provider: provider });
   } catch {
     // RPC not available — log warning but do NOT attempt racy read-then-write fallback.
-    console.warn(`[rate-limiter] decrement_provider_concurrent RPC not available for ${provider} — skipping concurrency tracking`);
+    console.warn(
+      `[rate-limiter] decrement_provider_concurrent RPC not available for ${provider} — skipping concurrency tracking`,
+    );
   }
 }
 
@@ -162,7 +171,7 @@ export async function decrementConcurrent(
 export async function withConcurrencyTracking<T>(
   supabase: SupabaseClient,
   provider: AIProviderName,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
 ): Promise<T> {
   await incrementConcurrent(supabase, provider);
   try {
@@ -177,10 +186,7 @@ export async function withConcurrencyTracking<T>(
  * Returns a recommended delay (ms) before the next API call.
  * Returns 0 if no delay needed.
  */
-export function getAdaptiveDelay(
-  provider: AIProviderName,
-  recentErrors: number = 0
-): number {
+export function getAdaptiveDelay(provider: AIProviderName, recentErrors: number = 0): number {
   if (recentErrors === 0) return 0;
 
   const limits = PROVIDER_LIMITS[provider];
@@ -199,7 +205,7 @@ export function getAdaptiveDelay(
 export async function waitForProviderSlot(
   supabase: SupabaseClient,
   provider: AIProviderName,
-  maxWaitMs: number = 30000
+  maxWaitMs: number = 30000,
 ): Promise<{ proceeded: boolean; waitedMs: number; rateLimited: boolean }> {
   const start = Date.now();
 
@@ -209,7 +215,7 @@ export async function waitForProviderSlot(
     // If concurrent limit is close, add a small jitter delay to spread requests
     if (availability.waitRecommended) {
       const jitter = Math.random() * 2000;
-      await new Promise(r => setTimeout(r, jitter));
+      await new Promise((r) => setTimeout(r, jitter));
       return { proceeded: true, waitedMs: jitter, rateLimited: false };
     }
     return { proceeded: true, waitedMs: 0, rateLimited: false };
@@ -221,7 +227,9 @@ export async function waitForProviderSlot(
   if (retryAfter > maxWaitMs) {
     // Signal that we're rate limited and couldn't wait long enough.
     // Callers should NOT proceed — they should schedule delayed retry instead.
-    console.log(`[rate-limiter] ${provider} cooldown (${retryAfter}ms) exceeds max wait (${maxWaitMs}ms) — signaling rate limited`);
+    console.log(
+      `[rate-limiter] ${provider} cooldown (${retryAfter}ms) exceeds max wait (${maxWaitMs}ms) — signaling rate limited`,
+    );
     return { proceeded: false, waitedMs: 0, rateLimited: true };
   }
 
@@ -229,8 +237,10 @@ export async function waitForProviderSlot(
   // wake up simultaneously after the same cooldown period
   const jitter = Math.random() * 2000;
   const totalWait = retryAfter + jitter;
-  console.log(`[rate-limiter] Waiting ${Math.round(totalWait)}ms for ${provider} cooldown (${retryAfter}ms + ${Math.round(jitter)}ms jitter)...`);
-  await new Promise(r => setTimeout(r, totalWait));
+  console.log(
+    `[rate-limiter] Waiting ${Math.round(totalWait)}ms for ${provider} cooldown (${retryAfter}ms + ${Math.round(jitter)}ms jitter)...`,
+  );
+  await new Promise((r) => setTimeout(r, totalWait));
 
   return { proceeded: true, waitedMs: Date.now() - start, rateLimited: false };
 }

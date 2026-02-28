@@ -114,14 +114,17 @@ serve(async (req) => {
     }
 
     // Use RPC to atomically claim items (prevents race conditions)
+    // BUG-1 FIX: Both RPC and fallback now return items with post-increment `attempts`
+    // values, so the result handler can use `item.attempts` uniformly without branching.
     const { data: claimedItems, error: claimError } = await supabase.rpc(
       'claim_enrichment_queue_items',
       { batch_size: BATCH_SIZE, max_attempts: MAX_ATTEMPTS }
     );
 
     // Define type for queue items
+    // `attempts` is always the POST-INCREMENT value (after claiming), regardless of RPC vs fallback.
     type QueueItem = { id: string; listing_id: string; status: string; attempts: number; queued_at: string; force?: boolean };
-    
+
     // Fallback to regular query if RPC doesn't exist yet
     let queueItems: QueueItem[] = claimedItems as QueueItem[] || [];
     if (claimError?.code === 'PGRST202') {
@@ -143,6 +146,7 @@ serve(async (req) => {
       // Atomically claim these items to prevent race conditions with concurrent workers.
       // Mark them as 'processing' immediately; items that were already claimed by another
       // worker will fail the status='pending' check and be filtered out.
+      // The .select() returns the row AFTER the update, so `attempts` is post-increment.
       if (pendingItems && pendingItems.length > 0) {
         const claimed: QueueItem[] = [];
         await Promise.all(pendingItems.map(async (item) => {
@@ -199,12 +203,14 @@ serve(async (req) => {
       console.warn('[enrichment-jobs] Failed to create job (non-blocking):', err);
     }
 
-    // PRE-CHECK: Mark batch items as completed if their listings are already enriched
-    // (enriched_at set — LinkedIn/Google data is optional)
-    // Items with force=true bypass this check (explicit re-enrichment request)
+    // PRE-CHECK: Mark batch items as completed if their listings are already well-enriched.
+    // BUG-8 FIX: Previously only checked `enriched_at IS NOT NULL`, but enriched_at can be
+    // set even after partial failures (e.g., website scrape failed but timestamp was set).
+    // Now requires enriched_at + at least one quality indicator (executive_summary or industry).
+    // Items with force=true bypass this check (explicit re-enrichment request).
     const forceItems = queueItems.filter((item: any) => item.force === true);
     const nonForceItems = queueItems.filter((item: any) => item.force !== true);
-    
+
     if (forceItems.length > 0) {
       console.log(`${forceItems.length} item(s) have force=true — will re-enrich regardless of enriched_at`);
     }
@@ -213,17 +219,26 @@ serve(async (req) => {
       const nonForceListingIds = nonForceItems.map((item: { listing_id: string }) => item.listing_id);
       const { data: enrichedListings } = await supabase
         .from('listings')
-        .select('id, enriched_at')
+        .select('id, enriched_at, executive_summary, industry')
         .in('id', nonForceListingIds)
         .not('enriched_at', 'is', null);
 
+      // Only consider a listing "already enriched" if it has enriched_at AND
+      // meaningful data (executive_summary or industry populated).
       const alreadyEnrichedIds = new Set(
-        (enrichedListings || []).map(l => l.id)
+        (enrichedListings || [])
+          .filter(l => l.executive_summary || l.industry)
+          .map(l => l.id)
       );
-      
+
+      const partiallyEnrichedCount = (enrichedListings || []).length - alreadyEnrichedIds.size;
+      if (partiallyEnrichedCount > 0) {
+        console.log(`${partiallyEnrichedCount} listings have enriched_at but lack quality data — will re-enrich`);
+      }
+
       if (alreadyEnrichedIds.size > 0) {
-        console.log(`Found ${alreadyEnrichedIds.size} listings already enriched — marking non-force queue items as completed`);
-        
+        console.log(`Found ${alreadyEnrichedIds.size} listings with quality enrichment data — marking non-force queue items as completed`);
+
         const itemsToComplete = nonForceItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
         const completionResults = await Promise.allSettled(itemsToComplete.map((item: { id: string; listing_id: string }) =>
           supabase
@@ -241,24 +256,24 @@ serve(async (req) => {
             console.error('Failed to mark enriched item as completed:', cr.reason);
           }
         }
-        
+
         // Remove completed non-force items, keep force items
         const nonForceRemaining = nonForceItems.filter((item: { listing_id: string }) => !alreadyEnrichedIds.has(item.listing_id));
         queueItems = [...forceItems, ...nonForceRemaining];
-        
+
         if (queueItems.length === 0) {
           console.log('All items were already enriched — nothing to process');
           return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: `Synced ${alreadyEnrichedIds.size} already-enriched items to completed`, 
+            JSON.stringify({
+              success: true,
+              message: `Synced ${alreadyEnrichedIds.size} already-enriched items to completed`,
               processed: 0,
-              synced: alreadyEnrichedIds.size 
+              synced: alreadyEnrichedIds.size
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        
+
         console.log(`${queueItems.length} items still need enrichment — proceeding with pipeline`);
       }
     }
@@ -373,7 +388,9 @@ serve(async (req) => {
 
         if (result.status === 'fulfilled') {
           const { item, pipeline } = result.value;
-          const currentAttempts = claimedItems ? item.attempts : item.attempts + 1;
+          // BUG-1 FIX: `item.attempts` is always the post-increment value (set during claim).
+          // Both RPC and fallback paths return the row after the UPDATE, so no branching needed.
+          const currentAttempts = item.attempts;
 
           if (pipeline.ok) {
             // Success
@@ -397,7 +414,7 @@ serve(async (req) => {
             if (enrichmentJobId) {
               Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
                 p_job_id: enrichmentJobId, p_succeeded_delta: 1, p_last_processed_id: item.listing_id,
-              })).catch(() => {});
+              })).catch((err: unknown) => { console.warn('[enrichment-jobs] Progress update failed:', err); });
             }
             // Enrichment event (non-blocking)
             logEnrichmentEvent(supabase, {
@@ -431,7 +448,7 @@ serve(async (req) => {
               Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
                 p_job_id: enrichmentJobId, p_failed_delta: 1,
                 p_last_processed_id: item.listing_id, p_error_message: pipeline.error,
-              })).catch(() => {});
+              })).catch((err: unknown) => { console.warn('[enrichment-jobs] Progress update failed:', err); });
             }
             // Enrichment event (non-blocking)
             logEnrichmentEvent(supabase, {
@@ -457,7 +474,8 @@ serve(async (req) => {
            console.error('Processing error:', result.reason);
 
            if (item?.id) {
-             const currentAttempts = claimedItems ? item.attempts : item.attempts + 1;
+             // BUG-1 FIX: item.attempts is always post-increment from the claim step
+             const currentAttempts = item.attempts;
              const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
              await supabase
                .from('enrichment_queue')
@@ -490,23 +508,35 @@ serve(async (req) => {
     // Complete enrichment job (non-blocking)
     if (enrichmentJobId) {
       const jobStatus = circuitBroken ? 'paused' : results.failed > 0 ? 'failed' : 'completed';
-      Promise.resolve(supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus })).catch(() => {});
+      Promise.resolve(supabase.rpc('complete_enrichment_job', { p_job_id: enrichmentJobId, p_status: jobStatus })).catch((err: unknown) => { console.warn('[enrichment-jobs] Progress update failed:', err); });
       if (circuitBroken) {
         Promise.resolve(supabase.rpc('update_enrichment_job_progress', {
           p_job_id: enrichmentJobId, p_circuit_breaker: true,
-        })).catch(() => {});
+        })).catch((err: unknown) => { console.warn('[enrichment-jobs] Progress update failed:', err); });
       }
     }
 
     // Check if all items in the enrichment_queue are done (no more pending)
-    const { count: remainingPending } = await supabase
+    const { count: remainingPendingCount } = await supabase
       .from('enrichment_queue')
       .select('*', { count: 'exact', head: true })
-      .in('status', ['pending', 'processing']);
+      .eq('status', 'pending');
+
+    const { count: remainingProcessingCount } = await supabase
+      .from('enrichment_queue')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'processing');
+
+    const remainingPending = (remainingPendingCount ?? 0) + (remainingProcessingCount ?? 0);
 
     if (remainingPending === 0) {
       await completeGlobalQueueOperation(supabase, 'deal_enrichment');
-    } else if ((remainingPending ?? 0) > 0) {
+    } else if (remainingPendingCount === 0 && (remainingProcessingCount ?? 0) > 0) {
+      // No pending items, but some still in 'processing' — likely stuck from a crashed invocation.
+      // Mark complete; stale recovery at the start of the next run will reset them if needed.
+      console.warn(`No pending items but ${remainingProcessingCount} items stuck in 'processing' — marking queue complete. Stale recovery will handle them on next invocation.`);
+      await completeGlobalQueueOperation(supabase, 'deal_enrichment');
+    } else if (remainingPending > 0) {
       // N06 FIX: Track continuation count to prevent infinite loops
       const continuationCount = (typeof body.continuationCount === 'number') ? body.continuationCount : 0;
 
@@ -548,7 +578,7 @@ serve(async (req) => {
           }
           console.error('Self-continuation failed after 3 attempts — queue may stall until next manual trigger.');
         };
-        triggerContinuation().catch(() => {});
+        triggerContinuation().catch((err: unknown) => { console.warn('[process-enrichment-queue] Continuation trigger failed:', err); });
       }
     }
 

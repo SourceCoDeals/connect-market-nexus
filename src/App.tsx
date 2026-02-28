@@ -67,6 +67,7 @@ const ReferralTrackerPage = lazyWithRetry(() => import('@/pages/ReferralTrackerP
 const DataRoomPortal = lazyWithRetry(() => import('@/pages/DataRoomPortal'));
 const TrackedDocumentViewer = lazyWithRetry(() => import('@/pages/TrackedDocumentViewer'));
 const AdminLogin = lazyWithRetry(() => import('@/pages/AdminLogin'));
+const DealLandingPage = lazyWithRetry(() => import('@/pages/DealLandingPage'));
 
 // Main app (buyer-facing)
 const Marketplace = lazyWithRetry(() => import('@/pages/Marketplace'));
@@ -100,6 +101,7 @@ const TranscriptAnalytics = lazyWithRetry(
 );
 const EnrichmentQueue = lazyWithRetry(() => import('@/pages/admin/EnrichmentQueue'));
 const MarketplaceQueue = lazyWithRetry(() => import('@/pages/admin/MarketplaceQueue'));
+const AdminListings = lazyWithRetry(() => import('@/pages/admin/AdminListings'));
 const DataRecoveryPage = lazyWithRetry(() => import('@/pages/admin/DataRecoveryPage'));
 const FormMonitoringPage = lazyWithRetry(() => import('@/pages/admin/FormMonitoringPage'));
 const SecuritySettings = lazyWithRetry(() => import('@/pages/admin/settings/SecuritySettings'));
@@ -172,7 +174,9 @@ const ReMarketingReferralPartners = lazyWithRetry(
 const ReMarketingReferralPartnerDetail = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingReferralPartnerDetail'),
 );
-const CapTargetDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/CapTargetDeals/index'));
+const CapTargetDeals = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/CapTargetDeals/index'),
+);
 const GPPartnerDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/GPPartnerDeals'));
 const ValuationLeads = lazyWithRetry(() => import('@/pages/admin/remarketing/ValuationLeads'));
 const DailyTaskDashboard = lazyWithRetry(
@@ -264,6 +268,7 @@ function App() {
             <Route path="/referrals/:shareToken" element={<ReferralTrackerPage />} />
             <Route path="/dataroom/:accessToken" element={<DataRoomPortal />} />
             <Route path="/view/:linkToken" element={<TrackedDocumentViewer />} />
+            <Route path="/deals/:id" element={<DealLandingPage />} />
 
             {/* ─── BUYER-FACING (unchanged) ─── */}
             <Route
@@ -349,10 +354,7 @@ function App() {
               <Route path="lists/:id" element={<ContactListDetailPage />} />
 
               {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
-              <Route
-                path="marketplace/listings"
-                element={<Navigate to="/admin/deals?tab=marketplace" replace />}
-              />
+              <Route path="marketplace/listings" element={<AdminListings />} />
               <Route path="marketplace/queue" element={<MarketplaceQueue />} />
               <Route path="marketplace/requests" element={<AdminRequests />} />
               <Route path="marketplace/messages" element={<MessageCenter />} />

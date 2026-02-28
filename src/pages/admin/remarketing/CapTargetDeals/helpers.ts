@@ -88,7 +88,7 @@ export function preFilterDeals(
     hidePushed: boolean;
     hideNotFit: boolean;
     sourceTabFilter: string;
-    dateRange: { from?: Date; to?: Date };
+    dateRange: { from?: Date | null; to?: Date | null };
   },
 ): CapTargetDeal[] {
   return deals.filter((deal) => {
