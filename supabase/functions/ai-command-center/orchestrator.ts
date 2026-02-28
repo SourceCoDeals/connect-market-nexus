@@ -287,7 +287,9 @@ export async function orchestrate(
         toolResults.push({
           type: 'tool_result',
           tool_use_id: toolId,
-          content: JSON.stringify({ error: `Tool ${toolName} is temporarily disabled due to repeated failures. Please try again in a few minutes.` }),
+          content: JSON.stringify({
+            error: `Tool ${toolName} is temporarily disabled due to repeated failures. Please try again in a few minutes.`,
+          }),
           is_error: true,
         });
         continue;
@@ -374,6 +376,14 @@ function describeAction(toolName: string, args: Record<string, unknown>): string
       return `Reassign task to ${args.new_assignee_email || args.new_assignee_id || 'team member'}`;
     case 'convert_to_pipeline_deal':
       return `Convert remarketing match to pipeline deal (listing: ${args.listing_id}, buyer: ${args.buyer_id})`;
+    case 'create_deal_task':
+      return `Create task "${args.title}" for deal ${args.deal_id}${args.priority ? ` (priority: ${args.priority})` : ''} — will require human approval`;
+    case 'create_task':
+      return `Create task "${args.title}" linked to ${args.entity_type} ${args.entity_id}${args.priority ? ` (priority: ${args.priority})` : ''} — will require human approval`;
+    case 'snooze_task':
+      return `Snooze task for ${args.days} day(s) (task: ${args.task_id})`;
+    case 'bulk_reassign_tasks':
+      return `Reassign all open tasks from user ${args.from_user_id} to ${args.to_user_id}`;
     default:
       return `Execute ${toolName} with provided arguments`;
   }

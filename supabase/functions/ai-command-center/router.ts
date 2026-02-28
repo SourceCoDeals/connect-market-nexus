@@ -147,7 +147,56 @@ const BYPASS_RULES: Array<{
       confidence: 0.95,
     },
   },
-  // Tasks / follow-ups
+  // Task inbox — "what's on my plate", "my tasks", "task inbox", "what do I need to do"
+  {
+    test: (q) =>
+      /\b(my tasks|task inbox|what.?s on my plate|what do I need|what should I|show me my|my to.?do)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'TASK_INBOX',
+      tier: 'STANDARD',
+      tools: ['get_task_inbox', 'get_daily_briefing', 'get_overdue_tasks'],
+      confidence: 0.92,
+    },
+  },
+  // Buyer spotlight / overdue contacts
+  {
+    test: (q) =>
+      /\b(buyer spotlight|which buyers need|buyers? overdue|who haven.?t we contacted|buyer follow.?up)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'TASK_INBOX',
+      tier: 'STANDARD',
+      tools: ['get_buyer_spotlight', 'get_task_inbox'],
+      confidence: 0.9,
+    },
+  },
+  // Deal signals / risks
+  {
+    test: (q) =>
+      /\b(deal signals?|deal risks?|what should I be worried|critical signals?|warning signals?)\b/i.test(
+        q,
+      ),
+    result: {
+      category: 'TASK_INBOX',
+      tier: 'STANDARD',
+      tools: ['get_deal_signals_summary', 'get_task_inbox'],
+      confidence: 0.9,
+    },
+  },
+  // Snooze task
+  {
+    test: (q) => /\b(snooze|snooze task|snooze this)\b/i.test(q),
+    result: {
+      category: 'TASK_INBOX',
+      tier: 'QUICK',
+      tools: ['snooze_task'],
+      confidence: 0.95,
+    },
+  },
+  // Tasks / follow-ups (general)
   {
     test: (q) =>
       // Skip calling/contact list queries — those route to CONTACT_ENRICHMENT
@@ -156,7 +205,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'FOLLOW_UP',
       tier: 'QUICK',
-      tools: ['get_deal_tasks', 'get_current_user_context'],
+      tools: ['get_deal_tasks', 'get_current_user_context', 'get_task_inbox'],
       confidence: 0.85,
     },
   },
@@ -290,7 +339,7 @@ const BYPASS_RULES: Array<{
     result: {
       category: 'ACTION',
       tier: 'STANDARD',
-      tools: ['create_deal_task', 'add_deal_note'],
+      tools: ['create_task', 'create_deal_task', 'add_deal_note'],
       confidence: 0.9,
     },
   },
@@ -1041,6 +1090,7 @@ Categories:
 - DEAL_CONVERSION: Convert remarketing match to pipeline deal
 - SMARTLEAD_OUTREACH: Smartlead cold email campaigns, email outreach history, push contacts to email campaigns, campaign stats
 - INDUSTRY: Industry trackers, vertical scoring configs
+- TASK_INBOX: Task inbox, "what's on my plate", create tasks, snooze tasks, confirm/dismiss AI tasks, buyer spotlight, deal signals, bulk reassign
 - PLATFORM_GUIDE: Questions about how to use the platform, what features do, how workflows work, what the chatbot can do
 - GENERAL: Other / unclear intent
 

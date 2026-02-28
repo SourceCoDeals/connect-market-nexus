@@ -18,14 +18,41 @@ import { DealCallActivityTab } from "./DealCallActivityTab";
 
 const ReMarketingDealDetail = () => {
   const {
-    dealId, navigate, backTo, queryClient,
-    deal, dealLoading, scoreStats, pipelineStats, transcripts, transcriptsLoading,
-    updateDealMutation, toggleUniverseFlagMutation, toggleContactOwnerMutation, updateNameMutation,
-    isEnriching, enrichmentProgress, enrichmentStage, isAnalyzingNotes,
-    buyerHistoryOpen, setBuyerHistoryOpen, editFinancialsOpen, setEditFinancialsOpen,
-    isEditingName, setIsEditingName, editedName, setEditedName,
-    handleEnrichFromWebsite, handleSaveName, handleCancelEdit, handleAnalyzeNotes,
-    effectiveWebsite, dataCompleteness, tier, displayName, listedName,
+    dealId,
+    navigate,
+    backTo,
+    queryClient,
+    deal,
+    dealLoading,
+    scoreStats,
+    pipelineStats,
+    transcripts,
+    transcriptsLoading,
+    updateDealMutation,
+    toggleUniverseFlagMutation,
+    toggleContactOwnerMutation,
+    updateNameMutation,
+    isEnriching,
+    enrichmentProgress,
+    enrichmentStage,
+    isAnalyzingNotes,
+    buyerHistoryOpen,
+    setBuyerHistoryOpen,
+    editFinancialsOpen,
+    setEditFinancialsOpen,
+    isEditingName,
+    setIsEditingName,
+    editedName,
+    setEditedName,
+    handleEnrichFromWebsite,
+    handleSaveName,
+    handleCancelEdit,
+    handleAnalyzeNotes,
+    effectiveWebsite,
+    dataCompleteness,
+    tier,
+    displayName,
+    listedName,
   } = useDealDetail();
 
   if (dealLoading) {
@@ -59,7 +86,6 @@ const ReMarketingDealDetail = () => {
 
   return (
     <div className="p-6 space-y-6">
-
       <CapTargetInfoCard deal={deal} dealId={dealId!} />
       <SalesforceInfoCard deal={deal} />
 
@@ -127,11 +153,7 @@ const ReMarketingDealDetail = () => {
         </TabsContent>
 
         <TabsContent value="data-room" className="space-y-6">
-          <DataRoomTab
-            deal={deal}
-            dealId={dealId!}
-            scoreStats={scoreStats}
-          />
+          <DataRoomTab deal={deal} dealId={dealId!} scoreStats={scoreStats} />
         </TabsContent>
       </Tabs>
     </div>

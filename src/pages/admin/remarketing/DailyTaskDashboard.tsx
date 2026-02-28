@@ -8,6 +8,7 @@ import {
   useApproveTask,
   useApproveAllTasks,
 } from '@/hooks/useDailyTasks';
+import { useCancelTask } from '@/hooks/useTaskActions';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ import {
   BarChart3,
   UserRound,
   ShieldCheck,
+  XCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, getLocalDateString } from '@/lib/utils';
@@ -82,6 +84,7 @@ function PersonTaskGroup({
   onPin,
   onDelete,
   onApprove,
+  onDismiss,
 }: {
   group: TaskGroup;
   isLeadership: boolean;
@@ -91,6 +94,7 @@ function PersonTaskGroup({
   onPin: (task: DailyStandupTaskWithRelations) => void;
   onDelete: (task: DailyStandupTaskWithRelations) => void;
   onApprove?: (taskId: string) => void;
+  onDismiss?: (taskId: string) => void;
 }) {
   return (
     <Card>
@@ -120,16 +124,31 @@ function PersonTaskGroup({
                 onDelete={onDelete}
               />
             </div>
-            {isPendingApproval && isLeadership && onApprove && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="shrink-0 mt-2 gap-1 text-green-700 border-green-300 hover:bg-green-50"
-                onClick={() => onApprove(task.id)}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Approve
-              </Button>
+            {isPendingApproval && isLeadership && (
+              <div className="flex gap-1 shrink-0 mt-2">
+                {onApprove && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-green-700 border-green-300 hover:bg-green-50"
+                    onClick={() => onApprove(task.id)}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Approve
+                  </Button>
+                )}
+                {onDismiss && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={() => onDismiss(task.id)}
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Dismiss
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         ))}
@@ -154,6 +173,7 @@ const DailyTaskDashboard = () => {
   const deleteTaskMutation = useDeleteTask();
   const approveTask = useApproveTask();
   const approveAll = useApproveAllTasks();
+  const dismissTask = useCancelTask();
 
   const today = getLocalDateString();
 
@@ -175,8 +195,7 @@ const DailyTaskDashboard = () => {
         // Use user_id directly from user_roles (matches auth.uid()) to ensure
         // consistent IDs with what useDailyTasks uses for the "My Tasks" filter.
         id: r.user_id,
-        name:
-          `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim() || r.user_id,
+        name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim() || r.user_id,
       }));
     },
     staleTime: 300_000,
@@ -264,6 +283,19 @@ const DailyTaskDashboard = () => {
     } catch (err) {
       toast({
         title: 'Failed to approve tasks',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDismissTask = async (taskId: string) => {
+    try {
+      await dismissTask.mutateAsync(taskId);
+      toast({ title: 'Task dismissed' });
+    } catch (err) {
+      toast({
+        title: 'Failed to dismiss task',
         description: err instanceof Error ? err.message : 'Unknown error',
         variant: 'destructive',
       });
@@ -392,6 +424,7 @@ const DailyTaskDashboard = () => {
                 isLeadership={isLeadership}
                 isPendingApproval
                 onApprove={handleApproveTask}
+                onDismiss={handleDismissTask}
                 {...taskHandlers}
               />
             ))}

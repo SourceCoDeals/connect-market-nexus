@@ -1,23 +1,24 @@
-import { useState } from "react";
-import { BuyerDealHistoryPanel } from "@/components/admin/data-room/BuyerDealHistoryPanel";
-import { ExtractionSummaryDialog } from "@/components/remarketing/buyer-detail/ExtractionSummaryDialog";
-import { BuyerNotesSection } from "@/components/remarketing/buyer-detail/BuyerNotesSection";
-import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
-import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useState } from 'react';
+import { BuyerDealHistoryPanel } from '@/components/admin/data-room/BuyerDealHistoryPanel';
+import { ExtractionSummaryDialog } from '@/components/remarketing/buyer-detail/ExtractionSummaryDialog';
+import { BuyerNotesSection } from '@/components/remarketing/buyer-detail/BuyerNotesSection';
+import { FirefliesTranscriptSearch } from '@/components/buyers/FirefliesTranscriptSearch';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowLeft,
   BarChart2,
   Clock,
   FileSignature,
   FolderOpen,
+  ListChecks,
   Phone,
   PhoneCall,
-  Users,
+  Users,d
   
 } from "lucide-react";
 import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
@@ -34,7 +35,7 @@ import {
   TranscriptsListCard,
   BuyerCompanyOverviewCard,
   BuyerServicesBusinessModelCard,
-} from "@/components/remarketing/buyer-detail";
+} from '@/components/remarketing/buyer-detail';
 
 import { EditDialogType } from "./types";
 import { useBuyerData } from "./useBuyerData";
@@ -51,7 +52,7 @@ const ReMarketingBuyerDetail = () => {
   useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const backTo = (location.state as { from?: string } | null)?.from || "/admin/buyers";
+  const backTo = (location.state as { from?: string } | null)?.from || '/admin/buyers';
   const isNew = id === 'new';
 
   const [activeEditDialog, setActiveEditDialog] = useState<EditDialogType>(null);
@@ -131,7 +132,7 @@ const ReMarketingBuyerDetail = () => {
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <BuyerDetailHeader
-        companyName={buyer?.company_name || ""}
+        companyName={buyer?.company_name || ''}
         peFirmName={buyer?.pe_firm_name}
         peFirmId={peFirmRecord?.id || null}
         platformWebsite={buyer?.platform_website || buyer?.company_website}
@@ -170,7 +171,17 @@ const ReMarketingBuyerDetail = () => {
           onEdit={() => setActiveEditDialog('companyOverview')}
         />
         <MainContactCard
-          contacts={contacts as unknown as { id: string; name: string; email?: string | null; phone?: string | null; role?: string | null; linkedin_url?: string | null; is_primary?: boolean }[]}
+          contacts={
+            contacts as unknown as {
+              id: string;
+              name: string;
+              email?: string | null;
+              phone?: string | null;
+              role?: string | null;
+              linkedin_url?: string | null;
+              is_primary?: boolean;
+            }[]
+          }
           onAddContact={() => setIsContactDialogOpen(true)}
           hasFeeAgreement={buyer?.has_fee_agreement || false}
           onFeeAgreementChange={(value) => updateFeeAgreementMutation.mutate(value)}
@@ -204,6 +215,10 @@ const ReMarketingBuyerDetail = () => {
           <TabsTrigger value="agreements" className="text-sm">
             <FileSignature className="mr-1.5 h-3.5 w-3.5" />
             Agreements
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="text-sm">
+            <ListChecks className="mr-1.5 h-3.5 w-3.5" />
+            Tasks
           </TabsTrigger>
           <TabsTrigger value="materials" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -354,6 +369,10 @@ const ReMarketingBuyerDetail = () => {
           />
         </TabsContent>
 
+        <TabsContent value="tasks">
+          <EntityTasksTab entityType="buyer" entityId={id!} entityName={buyer?.company_name} />
+        </TabsContent>
+
         <TabsContent value="materials">
           <BuyerDealHistoryPanel buyerId={id!} />
         </TabsContent>
@@ -380,7 +399,7 @@ const ReMarketingBuyerDetail = () => {
 
       <ExtractionSummaryDialog
         open={extractionSummary.open}
-        onOpenChange={(open) => setExtractionSummary(prev => ({ ...prev, open }))}
+        onOpenChange={(open) => setExtractionSummary((prev) => ({ ...prev, open }))}
         results={extractionSummary.results}
         totalCount={extractionSummary.totalCount}
         successCount={extractionSummary.successCount}

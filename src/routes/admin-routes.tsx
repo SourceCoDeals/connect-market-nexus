@@ -8,6 +8,12 @@ const AdminLayout = lazyWithRetry(() => import('@/components/admin/AdminLayout')
 
 // Admin pages
 const AdminDashboard = lazyWithRetry(() => import('@/pages/admin/AdminDashboard'));
+const DailyTaskDashboard = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/DailyTaskDashboard'),
+);
+const DailyTaskAnalytics = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/DailyTaskAnalytics'),
+);
 const MarketplaceUsersPage = lazyWithRetry(() => import('@/pages/admin/MarketplaceUsersPage'));
 const InternalTeamPage = lazyWithRetry(() => import('@/pages/admin/InternalTeamPage'));
 const BuyerContactsPage = lazyWithRetry(() => import('@/pages/admin/BuyerContactsPage'));
@@ -246,6 +252,10 @@ export function AdminRoutes() {
           </RoleGate>
         }
       />
+
+      {/* DAILY TASKS */}
+      <Route path="daily-tasks" element={<DailyTaskDashboard />} />
+      <Route path="daily-tasks/analytics" element={<DailyTaskAnalytics />} />
 
       {/* ANALYTICS */}
       <Route path="analytics" element={<ReMarketingAnalytics />} />
