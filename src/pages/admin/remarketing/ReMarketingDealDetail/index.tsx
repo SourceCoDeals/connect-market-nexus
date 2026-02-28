@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Eye, FolderOpen, Activity, Users, UserPlus, PhoneCall } from "lucide-react";
+import { Building2, Eye, Activity, UserPlus, FolderOpen } from "lucide-react";
 import { useDealDetail } from "./useDealDetail";
 import { CapTargetInfoCard } from "./CapTargetInfoCard";
 import { SalesforceInfoCard } from "./SalesforceInfoCard";
@@ -108,7 +108,7 @@ const ReMarketingDealDetail = () => {
       />
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
@@ -117,17 +117,9 @@ const ReMarketingDealDetail = () => {
             <Activity className="mr-1.5 h-3.5 w-3.5" />
             Contact History
           </TabsTrigger>
-          <TabsTrigger value="buyers" className="text-sm">
-            <Users className="mr-1.5 h-3.5 w-3.5" />
-            Buyers
-          </TabsTrigger>
-          <TabsTrigger value="introductions" className="text-sm">
+          <TabsTrigger value="buyer-introductions" className="text-sm">
             <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-            Introductions
-          </TabsTrigger>
-          <TabsTrigger value="call-activity" className="text-sm">
-            <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
-            Call Activity
+            Buyer Introduction History
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -167,24 +159,18 @@ const ReMarketingDealDetail = () => {
             primaryContactEmail={deal.main_contact_email}
             primaryContactName={deal.main_contact_name}
           />
+          <DealCallActivityTab listingId={dealId!} />
         </TabsContent>
 
-        <TabsContent value="buyers" className="space-y-6">
+        <TabsContent value="buyer-introductions" className="space-y-6">
           <DealBuyerHistoryTab
             listingId={dealId!}
             listingTitle={displayName}
           />
-        </TabsContent>
-
-        <TabsContent value="introductions" className="space-y-6">
           <BuyerIntroductionTracker
             listingId={dealId!}
             listingTitle={displayName}
           />
-        </TabsContent>
-
-        <TabsContent value="call-activity" className="space-y-6">
-          <DealCallActivityTab listingId={dealId!} />
         </TabsContent>
 
         <TabsContent value="data-room" className="space-y-6">
