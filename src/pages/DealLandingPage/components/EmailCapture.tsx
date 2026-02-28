@@ -14,6 +14,7 @@ interface EmailCaptureProps {
 export default function EmailCapture({ listingId }: EmailCaptureProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,7 +56,7 @@ export default function EmailCapture({ listingId }: EmailCaptureProps) {
         listing_id: listingId,
         status: 'pending',
         lead_email: email,
-        lead_name: '',
+        lead_name: name || email.split('@')[0] || '',
         lead_role: 'Email Capture',
         user_message: 'Signed up for deal alerts via landing page email capture',
         source: 'landing_page_email_capture',
@@ -89,12 +90,19 @@ export default function EmailCapture({ listingId }: EmailCaptureProps) {
               </div>
               <form onSubmit={handleSubmit} className="flex gap-2 w-full sm:w-auto flex-1">
                 <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Name"
+                  className="w-[120px] sm:w-[140px] bg-white/10 border border-white/20 rounded px-3 py-2 text-[14px] text-white placeholder:text-white/50 focus:outline-none focus:border-[#C9A84C] font-['Inter',system-ui,sans-serif]"
+                />
+                <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Your email"
                   required
-                  className="flex-1 sm:min-w-[240px] bg-white/10 border border-white/20 rounded px-3 py-2 text-[14px] text-white placeholder:text-white/50 focus:outline-none focus:border-[#C9A84C] font-['Inter',system-ui,sans-serif]"
+                  className="flex-1 sm:min-w-[200px] bg-white/10 border border-white/20 rounded px-3 py-2 text-[14px] text-white placeholder:text-white/50 focus:outline-none focus:border-[#C9A84C] font-['Inter',system-ui,sans-serif]"
                 />
                 <button
                   type="submit"

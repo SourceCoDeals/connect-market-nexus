@@ -35,7 +35,7 @@ export default function LandingHeader() {
           </nav>
 
           <a
-            href="https://marketplace.sourcecodeals.com/signup?utm_source=landing_page&utm_medium=header&utm_content=join_marketplace"
+            href="/signup?utm_source=landing_page&utm_medium=header&utm_content=join_marketplace"
             className="hidden sm:inline-flex items-center px-4 py-2 border border-[#C9A84C] text-sm font-semibold text-[#C9A84C] rounded-md hover:bg-[#C9A84C] hover:text-white transition-colors font-['Inter',system-ui,sans-serif]"
           >
             Join the Marketplace

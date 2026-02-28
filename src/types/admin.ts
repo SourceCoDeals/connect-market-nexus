@@ -87,6 +87,16 @@ export interface AdminListing {
   // Source deal linkage (marketplace listing created from a deal)
   source_deal_id?: string | null;
 
+  // Landing page content fields
+  custom_sections?: Array<{ title: string; description: string }> | null;
+  services?: string[] | null;
+  competitive_position?: string | null;
+  business_model?: string | null;
+  customer_geography?: string | null;
+  customer_types?: string | null;
+  revenue_model?: string | null;
+  end_market_description?: string | null;
+
   created_at: string;
   updated_at: string;
 }

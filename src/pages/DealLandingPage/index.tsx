@@ -35,17 +35,22 @@ export default function DealLandingPage() {
     const sessionId = sessionStorage.getItem('sourceco_session_id') || crypto.randomUUID();
     try { sessionStorage.setItem('sourceco_session_id', sessionId); } catch {}
 
+    // GAP J fix: Deduplicate views per session+page
+    const viewKey = `sourceco_viewed_${id}`;
+    try {
+      if (sessionStorage.getItem(viewKey)) return; // Already tracked this page in this session
+      sessionStorage.setItem(viewKey, '1');
+    } catch {}
+
+    // GAP B fix: only insert columns that exist on page_views table
+    // Use utm_source/utm_content to store listing context since event_type/event_data don't exist
     supabase.from('page_views').insert({
       session_id: sessionId,
       page_path: `/deals/${id}`,
       page_title: deal.title,
-      event_type: 'landing_page_view',
-      event_data: {
-        listing_id: id,
-        deal_title: deal.title,
-        source: 'deal_landing_page',
-        referrer: document.referrer || null,
-      },
+      referrer: document.referrer || null,
+      utm_source: 'deal_landing_page',
+      utm_content: id,
     }).then(() => {}).catch(() => {});
   }, [id, deal]);
 

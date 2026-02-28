@@ -245,10 +245,10 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
           />
         </div>
         
-        {/* Visibility - Hide From */}
+        {/* GAP M fix: Label now says "Visible To" since the field stores which types CAN see it */}
         <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider)}>
-          <div className={cn(EDITOR_DESIGN.microLabel, "mb-1")}>Hide From</div>
-          <p className="text-[10px] text-muted-foreground/60 mb-2">Visible to all by default. Select buyer types to hide this listing from.</p>
+          <div className={cn(EDITOR_DESIGN.microLabel, "mb-1")}>Visible To</div>
+          <p className="text-[10px] text-muted-foreground/60 mb-2">Visible to all by default. Select specific buyer types to restrict visibility.</p>
           <div className="flex flex-wrap gap-1.5">
             {BUYER_TYPES.map((type) => (
               <label
@@ -256,7 +256,7 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
                 className={cn(
                   "inline-flex items-center gap-1.5 px-2 py-1 rounded border text-xs cursor-pointer transition-colors",
                   visibleToBuyerTypes.includes(type.value)
-                    ? "border-red-300 bg-red-50 text-red-700"
+                    ? "border-primary/50 bg-primary/10 text-primary"
                     : "border-border/40 bg-white/50 hover:border-primary/20"
                 )}
               >

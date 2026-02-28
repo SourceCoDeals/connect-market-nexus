@@ -34,12 +34,8 @@ export default function DealRequestForm({ listingId, dealTitle }: DealRequestFor
     submit({ name, email, company, phone, role, message });
   };
 
-  // GAP 14: Build marketplace signup URL with UTM attribution
-  const signupUrl = new URL('https://marketplace.sourcecodeals.com/signup');
-  signupUrl.searchParams.set('utm_source', 'landing_page');
-  signupUrl.searchParams.set('utm_medium', 'form_success');
-  signupUrl.searchParams.set('utm_content', 'post_submission_nudge');
-  signupUrl.searchParams.set('utm_campaign', listingId);
+  // GAP L fix: Use relative signup URLs
+  const signupUrl = `/signup?from_deal=${listingId}&utm_source=landing_page&utm_medium=form_success&utm_content=post_submission_nudge`;
 
   // GAP 11: Post-submission signup nudge
   if (isSuccess) {
@@ -70,9 +66,7 @@ export default function DealRequestForm({ listingId, dealTitle }: DealRequestFor
             Get instant access to new deal flow as soon as it's available.
           </p>
           <a
-            href={signupUrl.toString()}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={signupUrl}
             className="flex items-center justify-center gap-2 w-full bg-[#C9A84C] text-[#1A1A1A] font-semibold text-[15px] py-3 rounded-md hover:bg-[#b8963e] transition-colors font-['Inter',system-ui,sans-serif]"
           >
             <ArrowRight className="w-4 h-4" />
@@ -82,7 +76,7 @@ export default function DealRequestForm({ listingId, dealTitle }: DealRequestFor
 
         <div className="flex items-center gap-2">
           <a
-            href="https://tidycal.com/tomosmughan/30-minute-meeting"
+            href={`/signup?from_deal=${listingId}&utm_source=landing_page&utm_medium=form_success&utm_content=schedule_call`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 flex-1 bg-white border border-[#D1D5DB] text-[#374151] font-medium text-[13px] py-2.5 rounded-md hover:bg-gray-50 transition-colors font-['Inter',system-ui,sans-serif]"

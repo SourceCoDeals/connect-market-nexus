@@ -27,7 +27,7 @@ export default function DealSidebar({ executiveSummaryUrl, listingId, presentedB
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('first_name, last_name, email, phone_number, avatar_url, company, title')
+        .select('first_name, last_name, email, phone_number, avatar_url, company, title, calendar_url')
         .eq('id', presentedByAdminId!)
         .single();
       if (!data) return null;
@@ -37,7 +37,7 @@ export default function DealSidebar({ executiveSummaryUrl, listingId, presentedB
         phone: data.phone_number || DEFAULT_PRESENTER.phone,
         email: data.email || DEFAULT_PRESENTER.email,
         avatarUrl: data.avatar_url || DEFAULT_PRESENTER.avatarUrl,
-        calendarUrl: DEFAULT_PRESENTER.calendarUrl,
+        calendarUrl: (data as any).calendar_url || DEFAULT_PRESENTER.calendarUrl,
       };
     },
   });
@@ -49,12 +49,14 @@ export default function DealSidebar({ executiveSummaryUrl, listingId, presentedB
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // GAP 14: Build marketplace signup URL with UTM attribution
-  const signupUrl = new URL('https://marketplace.sourcecodeals.com/signup');
-  signupUrl.searchParams.set('utm_source', 'landing_page');
-  signupUrl.searchParams.set('utm_medium', 'sidebar');
-  signupUrl.searchParams.set('utm_content', 'browse_marketplace');
-  if (listingId) signupUrl.searchParams.set('utm_campaign', listingId);
+  // GAP L fix: Use relative signup URLs to keep users on the same domain
+  const signupParams = new URLSearchParams({
+    utm_source: 'landing_page',
+    utm_medium: 'sidebar',
+    utm_content: 'browse_marketplace',
+    ...(listingId ? { from_deal: listingId } : {}),
+  });
+  const signupUrl = `/signup?${signupParams.toString()}`;
 
   return (
     <aside className="space-y-6">
@@ -109,9 +111,7 @@ export default function DealSidebar({ executiveSummaryUrl, listingId, presentedB
           from our proprietary network.
         </p>
         <a
-          href={signupUrl.toString()}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={signupUrl}
           className="flex items-center justify-center gap-2 w-full bg-white border border-[#1A1A1A] text-[#1A1A1A] font-semibold text-[14px] py-2.5 rounded-md hover:bg-gray-50 transition-colors font-['Inter',system-ui,sans-serif]"
         >
           <ExternalLink className="w-4 h-4" />

@@ -35,9 +35,7 @@ export default function RelatedDeals({ deals }: RelatedDealsProps) {
       {/* Marketplace CTA below related deals */}
       <div className="mt-8 text-center">
         <a
-          href="https://marketplace.sourcecodeals.com/signup?utm_source=landing_page&utm_medium=related_deals&utm_content=browse_all"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/signup?utm_source=landing_page&utm_medium=related_deals&utm_content=browse_all"
           className="inline-flex items-center gap-2 bg-[#1A1A1A] text-white font-semibold text-[15px] px-8 py-3.5 rounded-md hover:bg-[#333333] transition-colors font-['Inter',system-ui,sans-serif]"
         >
           <ExternalLink className="w-4 h-4" />
