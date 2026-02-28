@@ -206,6 +206,8 @@ export function OverviewTab({
         }}
       />
 
+      <NotesHistorySection entityType="deal" entityId={dealId} />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <ServicesBusinessModelCard
           serviceMix={deal.service_mix}
@@ -337,8 +339,6 @@ export function OverviewTab({
         isAnalyzing={isAnalyzingNotes}
         onAnalyze={handleAnalyzeNotes as any}
       />
-
-      <NotesHistorySection entityType="deal" entityId={dealId} />
 
       <div className="flex justify-end gap-6 text-xs text-muted-foreground pt-4">
         <span className="flex items-center gap-1">
