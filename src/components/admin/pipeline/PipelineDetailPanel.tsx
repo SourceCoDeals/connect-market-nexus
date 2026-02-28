@@ -16,6 +16,7 @@ import { PipelineDetailNotes } from './tabs/PipelineDetailNotes';
 import { PipelineDetailDataRoom } from './tabs/PipelineDetailDataRoom';
 import { PipelineDetailDealInfo } from './tabs/PipelineDetailDealInfo';
 import { PipelineDetailOtherBuyers } from './tabs/PipelineDetailOtherBuyers';
+import { PipelineDetailRecommendedBuyers } from './tabs/PipelineDetailRecommendedBuyers';
 import { DeleteDealDialog } from '@/components/admin/deals/DeleteDealDialog';
 
 interface PipelineDetailPanelProps {
@@ -37,7 +38,9 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           </div>
           <div className="space-y-1">
             <p className="text-sm font-medium text-foreground">Select a deal</p>
-            <p className="text-xs text-muted-foreground">Choose from the pipeline to view details</p>
+            <p className="text-xs text-muted-foreground">
+              Choose from the pipeline to view details
+            </p>
           </div>
         </div>
       </div>
@@ -53,8 +56,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             <h1 className="text-xl font-medium text-foreground tracking-tight truncate">
               {selectedDeal.listing_real_company_name?.trim()
                 ? `${selectedDeal.listing_real_company_name} / ${selectedDeal.listing_title || selectedDeal.title}`
-                : (selectedDeal.listing_title || selectedDeal.title)
-              }
+                : selectedDeal.listing_title || selectedDeal.title}
             </h1>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{selectedDeal.contact_name}</span>
@@ -70,75 +72,146 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           <div className="flex items-center gap-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full"
+                >
                   <MoreVertical className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {selectedDeal.listing_id && (
                   <>
-                    <DropdownMenuItem onClick={() => navigate(`/admin/remarketing/matching/${selectedDeal.listing_id}`)}>
-                      <Sparkles className="h-4 w-4 mr-2" />Match Buyers
+                    <DropdownMenuItem
+                      onClick={() =>
+                        navigate(`/admin/remarketing/matching/${selectedDeal.listing_id}`)
+                      }
+                    >
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Match Buyers
                     </DropdownMenuItem>
                     {selectedDeal.remarketing_buyer_id && (
-                      <DropdownMenuItem onClick={() => navigate(`/admin/buyers/${selectedDeal.remarketing_buyer_id}`)}>
-                        <Target className="h-4 w-4 mr-2" />View Remarketing Buyer
+                      <DropdownMenuItem
+                        onClick={() =>
+                          navigate(`/admin/buyers/${selectedDeal.remarketing_buyer_id}`)
+                        }
+                      >
+                        <Target className="h-4 w-4 mr-2" />
+                        View Remarketing Buyer
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteDialogOpen(true)}>
-                  <Trash2 className="h-4 w-4 mr-2" />Delete Deal
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Deal
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="ghost" size="sm" onClick={() => pipeline.setSelectedDeal(null)} className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => pipeline.setSelectedDeal(null)}
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-full"
+            >
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       </div>
 
-      <DeleteDealDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} deal={selectedDeal} onDeleted={() => pipeline.setSelectedDeal(null)} />
+      <DeleteDealDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        deal={selectedDeal}
+        onDeleted={() => pipeline.setSelectedDeal(null)}
+      />
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-8 mb-6">
-          <TabsList className="grid w-full grid-cols-5 bg-muted/30 h-10 rounded-lg p-1">
-            <TabsTrigger value="overview" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+          <TabsList className="grid w-full grid-cols-6 bg-muted/30 h-10 rounded-lg p-1">
+            <TabsTrigger
+              value="overview"
+              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+            >
               Overview
             </TabsTrigger>
-            <TabsTrigger value="dealinfo" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger
+              value="dealinfo"
+              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+            >
               Deal Overview
             </TabsTrigger>
-            <TabsTrigger value="notes" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger
+              value="notes"
+              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+            >
               Notes
             </TabsTrigger>
-            <TabsTrigger value="dataroom" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger
+              value="dataroom"
+              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+            >
               Data Room
             </TabsTrigger>
-            <TabsTrigger value="otherbuyers" className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md">
+            <TabsTrigger
+              value="otherbuyers"
+              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+            >
               Other Buyers
+            </TabsTrigger>
+            <TabsTrigger
+              value="recommended"
+              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md flex items-center gap-1"
+            >
+              <Sparkles className="h-3 w-3" />
+              AI Buyers
             </TabsTrigger>
           </TabsList>
         </div>
 
         <div className="flex-1 overflow-hidden">
-          <TabsContent value="overview" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <TabsContent
+            value="overview"
+            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+          >
             <PipelineDetailOverview deal={selectedDeal} onSwitchTab={setActiveTab} />
           </TabsContent>
-          <TabsContent value="dealinfo" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <TabsContent
+            value="dealinfo"
+            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+          >
             <PipelineDetailDealInfo deal={selectedDeal} />
           </TabsContent>
-          <TabsContent value="notes" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <TabsContent
+            value="notes"
+            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+          >
             <PipelineDetailNotes deal={selectedDeal} />
           </TabsContent>
-          <TabsContent value="dataroom" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <TabsContent
+            value="dataroom"
+            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+          >
             <PipelineDetailDataRoom deal={selectedDeal} />
           </TabsContent>
-          <TabsContent value="otherbuyers" className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
+          <TabsContent
+            value="otherbuyers"
+            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+          >
             <PipelineDetailOtherBuyers deal={selectedDeal} />
+          </TabsContent>
+          <TabsContent
+            value="recommended"
+            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+          >
+            <PipelineDetailRecommendedBuyers deal={selectedDeal} />
           </TabsContent>
         </div>
       </Tabs>

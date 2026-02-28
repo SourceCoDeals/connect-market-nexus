@@ -28,8 +28,8 @@ import { followupTools, executeFollowupTool } from './followup-tools.ts';
 import { scoringExplainTools, executeScoringExplainTool } from './scoring-explain-tools.ts';
 // cross-deal-analytics-tools is now accessed via analytics-tools.ts (merged into get_analytics)
 import {
-  crossDealAnalyticsTools,
-  executeCrossDealAnalyticsTool,
+  crossDealAnalyticsTools as _crossDealAnalyticsTools,
+  executeCrossDealAnalyticsTool as _executeCrossDealAnalyticsTool,
 } from './cross-deal-analytics-tools.ts';
 import { semanticSearchTools, executeSemanticSearchTool } from './semantic-search-tools.ts';
 import {
@@ -41,6 +41,9 @@ import { smartleadTools, executeSmartleadTool } from './smartlead-tools.ts';
 import { knowledgeTools, executeKnowledgeTool } from './knowledge-tools.ts';
 import { taskTools, executeTaskTool } from './task-tools.ts';
 import { industryResearchTools, executeIndustryResearchTool } from './industry-research-tools.ts';
+import { recommendedBuyerTools, executeRecommendedBuyerTool } from './recommended-buyer-tools.ts';
+import { firefliesSummaryTools, executeFirefliesSummaryTool } from './fireflies-summary-tools.ts';
+import { alertTools, executeAlertTool } from './alert-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -79,33 +82,46 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...knowledgeTools,
   ...taskTools,
   ...industryResearchTools,
+  ...recommendedBuyerTools,
+  ...firefliesSummaryTools,
+  ...alertTools,
 ];
 
 // ---------- Backward-compat: old tool name → executor mapping ----------
 // Maps old (removed) tool names to the executor that handles them via aliases.
 // Each module's switch statement handles the old name internally.
-const LEGACY_TOOL_ROUTING: Record<string, (supabase: SupabaseClient, name: string, args: Record<string, unknown>, userId: string) => Promise<ToolResult>> = {
+const LEGACY_TOOL_ROUTING: Record<
+  string,
+  (
+    supabase: SupabaseClient,
+    name: string,
+    args: Record<string, unknown>,
+    userId: string,
+  ) => Promise<ToolResult>
+> = {
   // Transcript merges
-  'search_buyer_transcripts': (sb, name, args) => executeTranscriptTool(sb, name, args),
-  'search_fireflies': (sb, name, args) => executeTranscriptTool(sb, name, args),
+  search_buyer_transcripts: (sb, name, args) => executeTranscriptTool(sb, name, args),
+  search_fireflies: (sb, name, args) => executeTranscriptTool(sb, name, args),
   // Outreach merge
-  'get_remarketing_outreach': (sb, name, args) => executeUniverseTool(sb, name, args),
+  get_remarketing_outreach: (sb, name, args) => executeUniverseTool(sb, name, args),
   // Contact enrichment merges
-  'enrich_buyer_contacts': (sb, name, args, uid) => executeIntegrationActionTool(sb, name, args, uid),
-  'enrich_linkedin_contact': (sb, name, args, uid) => executeIntegrationActionTool(sb, name, args, uid),
-  'find_contact_linkedin': (sb, name, args, uid) => executeIntegrationActionTool(sb, name, args, uid),
-  'find_and_enrich_person': (sb, name, args, uid) => executeIntegrationActionTool(sb, name, args, uid),
+  enrich_buyer_contacts: (sb, name, args, uid) => executeIntegrationActionTool(sb, name, args, uid),
+  enrich_linkedin_contact: (sb, name, args, uid) =>
+    executeIntegrationActionTool(sb, name, args, uid),
+  find_contact_linkedin: (sb, name, args, uid) => executeIntegrationActionTool(sb, name, args, uid),
+  find_and_enrich_person: (sb, name, args, uid) =>
+    executeIntegrationActionTool(sb, name, args, uid),
   // Deal communication merge
-  'get_deal_comments': (sb, name, args) => executeDealExtraTool(sb, name, args),
-  'get_deal_conversations': (sb, name, args) => executeDealExtraTool(sb, name, args),
+  get_deal_comments: (sb, name, args) => executeDealExtraTool(sb, name, args),
+  get_deal_conversations: (sb, name, args) => executeDealExtraTool(sb, name, args),
   // Signal merges
-  'get_engagement_signals': (sb, name, args) => executeSignalTool(sb, name, args),
-  'get_buyer_decisions': (sb, name, args) => executeSignalTool(sb, name, args),
-  'get_interest_signals': (sb, name, args) => executeSignalTool(sb, name, args),
-  'get_score_history': (sb, name, args) => executeSignalTool(sb, name, args),
-  'get_buyer_learning_history': (sb, name, args) => executeSignalTool(sb, name, args),
+  get_engagement_signals: (sb, name, args) => executeSignalTool(sb, name, args),
+  get_buyer_decisions: (sb, name, args) => executeSignalTool(sb, name, args),
+  get_interest_signals: (sb, name, args) => executeSignalTool(sb, name, args),
+  get_score_history: (sb, name, args) => executeSignalTool(sb, name, args),
+  get_buyer_learning_history: (sb, name, args) => executeSignalTool(sb, name, args),
   // Analytics merge
-  'get_cross_deal_analytics': (sb, name, args) => executeAnalyticsTool(sb, name, args),
+  get_cross_deal_analytics: (sb, name, args) => executeAnalyticsTool(sb, name, args),
 };
 
 const TOOL_CATEGORIES: Record<string, string[]> = {
@@ -117,7 +133,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_pipeline_summary',
     'get_deal_memos',
     'get_deal_documents',
-    'get_deal_communication',    // merged: was get_deal_comments
+    'get_deal_communication', // merged: was get_deal_comments
     'get_deal_scoring_adjustments',
     'search_contacts',
     'get_connection_requests',
@@ -125,7 +141,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   FOLLOW_UP: [
     'get_deal_tasks',
     'get_outreach_status',
-    'get_outreach_records',      // merged: now includes remarketing_outreach
+    'get_outreach_records', // merged: now includes remarketing_outreach
     'get_meeting_action_items',
     'get_current_user_context',
     'get_connection_requests',
@@ -154,8 +170,10 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_score_breakdown',
     'explain_buyer_score',
     'get_top_buyers_for_deal',
-    'get_buyer_signals',         // merged: was get_buyer_decisions
-    'get_buyer_history',         // merged: was get_score_history + get_buyer_learning_history
+    'get_recommended_buyers',
+    'generate_buyer_narrative',
+    'get_buyer_signals', // merged: was get_buyer_decisions
+    'get_buyer_history', // merged: was get_score_history + get_buyer_learning_history
     'search_pe_contacts',
     'search_contacts',
     'select_table_rows',
@@ -166,7 +184,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_buyer_universes',
     'get_universe_details',
     'get_universe_buyer_fits',
-    'get_outreach_records',      // merged: includes remarketing_outreach
+    'get_outreach_records', // merged: includes remarketing_outreach
     'get_top_buyers_for_deal',
     'search_buyers',
     'select_table_rows',
@@ -177,16 +195,18 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Meeting intelligence
   MEETING_INTEL: [
-    'search_transcripts',        // merged: was search_buyer_transcripts + search_transcripts + search_fireflies
+    'search_transcripts', // merged: was search_buyer_transcripts + search_transcripts + search_fireflies
     'get_meeting_action_items',
     'semantic_transcript_search',
+    'summarize_transcript_to_notes',
+    'get_unprocessed_transcripts',
   ],
 
   // Analytics
   PIPELINE_ANALYTICS: [
     'get_pipeline_summary',
     'query_deals',
-    'get_analytics',             // merged: now includes cross-deal analysis types
+    'get_analytics', // merged: now includes cross-deal analysis types
     'get_enrichment_status',
     'get_industry_trackers',
     'get_connection_requests',
@@ -194,7 +214,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   DAILY_BRIEFING: [
     'get_current_user_context',
     'get_follow_up_queue',
-    'get_analytics',             // merged: was get_cross_deal_analytics + get_analytics
+    'get_analytics', // merged: was get_cross_deal_analytics + get_analytics
     'get_deal_tasks',
     'get_outreach_status',
     'get_connection_requests',
@@ -206,6 +226,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_overdue_tasks',
     'get_buyer_spotlight',
     'get_deal_signals_summary',
+    'get_proactive_alerts',
   ],
 
   // General / context
@@ -256,15 +277,15 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'apply_table_filter',
     'sort_table_column',
     'trigger_page_action',
-    'get_buyer_signals',         // merged: was get_engagement_signals + get_buyer_decisions
+    'get_buyer_signals', // merged: was get_engagement_signals + get_buyer_decisions
   ],
 
   // Content generation
   MEETING_PREP: [
     'generate_meeting_prep',
-    'search_transcripts',        // merged: covers all transcript sources
+    'search_transcripts', // merged: covers all transcript sources
     'semantic_transcript_search',
-    'get_outreach_records',      // merged: covers both outreach tables
+    'get_outreach_records', // merged: covers both outreach tables
     'get_connection_messages',
     'generate_eod_recap',
   ],
@@ -289,15 +310,15 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Signals & engagement
   ENGAGEMENT: [
-    'get_buyer_signals',         // merged: was get_engagement_signals + get_interest_signals + get_buyer_decisions
-    'get_buyer_history',         // merged: was get_score_history + get_buyer_learning_history
+    'get_buyer_signals', // merged: was get_engagement_signals + get_interest_signals + get_buyer_decisions
+    'get_buyer_history', // merged: was get_score_history + get_buyer_learning_history
     'get_call_history',
     'get_document_engagement',
     'get_smartlead_email_history',
   ],
 
   // Connection requests & conversations
-  CONNECTION: ['get_connection_requests', 'get_connection_messages', 'get_deal_communication'],  // merged: was get_deal_conversations
+  CONNECTION: ['get_connection_requests', 'get_connection_messages', 'get_deal_communication'], // merged: was get_deal_conversations
 
   // Contacts & agreements
   CONTACTS: [
@@ -308,8 +329,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_firm_agreements',
     'get_nda_logs',
     'get_call_history',
-    'enrich_contact',            // merged: was enrich_buyer_contacts + enrich_linkedin_contact
-    'find_contact',              // merged: was find_contact_linkedin + find_and_enrich_person
+    'enrich_contact', // merged: was enrich_buyer_contacts + enrich_linkedin_contact
+    'find_contact', // merged: was find_contact_linkedin + find_and_enrich_person
     'send_document',
   ],
 
@@ -333,13 +354,13 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   CROSS_DEAL: ['get_analytics', 'get_pipeline_summary'],
 
   // Semantic search
-  SEMANTIC_SEARCH: ['semantic_transcript_search', 'search_transcripts'],  // merged: covers all transcript sources
+  SEMANTIC_SEARCH: ['semantic_transcript_search', 'search_transcripts'], // merged: covers all transcript sources
 
   // Contact enrichment (external API-based)
   CONTACT_ENRICHMENT: [
     'google_search_companies',
-    'enrich_contact',            // merged: was enrich_buyer_contacts + enrich_linkedin_contact
-    'find_contact',              // merged: was find_contact_linkedin + find_and_enrich_person
+    'enrich_contact', // merged: was enrich_buyer_contacts + enrich_linkedin_contact
+    'find_contact', // merged: was find_contact_linkedin + find_and_enrich_person
     'save_contacts_to_crm',
     'search_contacts',
     'search_pe_contacts',
@@ -374,13 +395,13 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'generate_eod_recap',
     'get_follow_up_queue',
     'get_deal_health',
-    'get_analytics',             // merged: was get_cross_deal_analytics
+    'get_analytics', // merged: was get_cross_deal_analytics
   ],
 
   // Google search / company discovery
   GOOGLE_SEARCH: [
     'google_search_companies',
-    'enrich_contact',            // merged: was enrich_buyer_contacts
+    'enrich_contact', // merged: was enrich_buyer_contacts
     'search_buyers',
     'search_lead_sources',
   ],
@@ -392,6 +413,44 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_buyers',
     'get_score_breakdown',
     'get_firm_agreements',
+  ],
+
+  // Recommended buyers & strategy narrative (Feature 1)
+  RECOMMENDED_BUYERS: [
+    'get_recommended_buyers',
+    'generate_buyer_narrative',
+    'get_deal_details',
+    'get_buyer_profile',
+    'get_score_breakdown',
+    'explain_buyer_score',
+    'get_buyer_signals',
+    'add_deal_note',
+    'draft_outreach_email',
+    'push_to_smartlead',
+    'send_document',
+  ],
+
+  // Proactive alerts (Feature 2: Proactive Deal Alerts)
+  ALERTS: [
+    'get_proactive_alerts',
+    'dismiss_alert',
+    'snooze_alert',
+    'get_deal_health',
+    'get_data_quality_report',
+    'get_deal_signals_summary',
+    'get_overdue_tasks',
+    'get_stale_deals',
+    'create_task',
+  ],
+
+  // Transcript summarization (Feature 3: Fireflies Auto-Summary)
+  TRANSCRIPT_SUMMARY: [
+    'summarize_transcript_to_notes',
+    'get_unprocessed_transcripts',
+    'search_transcripts',
+    'get_meeting_action_items',
+    'add_deal_note',
+    'create_task',
   ],
 
   // Smartlead email outreach
@@ -434,6 +493,9 @@ const CONFIRMATION_REQUIRED = new Set([
   'create_task',
   'snooze_task',
   'bulk_reassign_tasks',
+  'summarize_transcript_to_notes',
+  'dismiss_alert',
+  'snooze_alert',
 ]);
 
 // ---------- Public API ----------
@@ -480,9 +542,12 @@ export async function executeTool(
 
   // Enrichment tools get 90s (Apify LinkedIn scraper polls up to 120s internally)
   const ENRICHMENT_TOOLS = new Set([
-    'enrich_contact', 'find_contact',
+    'enrich_contact',
+    'find_contact',
     // Legacy names (backward compat)
-    'enrich_buyer_contacts', 'enrich_linkedin_contact', 'find_and_enrich_person',
+    'enrich_buyer_contacts',
+    'enrich_linkedin_contact',
+    'find_and_enrich_person',
     'find_contact_linkedin',
   ]);
   // Other external API tools get 45s (Google search, Fireflies, etc.)
@@ -576,6 +641,12 @@ async function _executeToolInternal(
     return executeTaskTool(supabase, toolName, resolvedArgs, userId);
   if (industryResearchTools.some((t) => t.name === toolName))
     return executeIndustryResearchTool(supabase, toolName, resolvedArgs);
+  if (recommendedBuyerTools.some((t) => t.name === toolName))
+    return executeRecommendedBuyerTool(supabase, toolName, resolvedArgs);
+  if (firefliesSummaryTools.some((t) => t.name === toolName))
+    return executeFirefliesSummaryTool(supabase, toolName, resolvedArgs, userId);
+  if (alertTools.some((t) => t.name === toolName))
+    return executeAlertTool(supabase, toolName, resolvedArgs, userId);
 
   // Backward compatibility: route old (merged) tool names to their new executors
   const legacyRouter = LEGACY_TOOL_ROUTING[toolName];

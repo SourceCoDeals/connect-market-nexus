@@ -58,7 +58,9 @@ Use when the user asks "what's on my plate?", "show my tasks", "task inbox", or 
 - AI tasks pending review
 - Buyer spotlight (overdue contacts)
 - Unacknowledged critical signals
-Use when the user asks for "daily briefing", "morning briefing", "what should I focus on today?"`,
+- Recent new leads and connections
+- Day-of-week context (Monday = start of week, Friday = end of week)
+Use when the user asks for "daily briefing", "morning briefing", "what should I focus on today?", "Monday briefing", "start my day"`,
     input_schema: {
       type: 'object',
       properties: {
@@ -340,8 +342,27 @@ async function getDailyBriefing(
   const today = new Date().toISOString().split('T')[0];
   const weekFromNow = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
+  // Day-of-week awareness
+  const dayOfWeek = new Date().getDay(); // 0=Sunday, 1=Monday, ...
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const isMonday = dayOfWeek === 1;
+  const isFriday = dayOfWeek === 5;
+
+  // For Monday briefing, look back at weekend; otherwise look back 24h
+  const lookbackDate = isMonday
+    ? new Date(Date.now() - 3 * 86400000).toISOString()
+    : new Date(Date.now() - 86400000).toISOString();
+
   // Parallel queries
-  const [overdueRes, todayRes, weekRes, aiPendingRes, signalsRes] = await Promise.all([
+  const [
+    overdueRes,
+    todayRes,
+    weekRes,
+    aiPendingRes,
+    signalsRes,
+    recentLeadsRes,
+    recentConnectionsRes,
+  ] = await Promise.all([
     // Overdue
     supabase
       .from('daily_standup_tasks')
@@ -388,21 +409,42 @@ async function getDailyBriefing(
       .is('acknowledged_at', null)
       .order('created_at', { ascending: false })
       .limit(5),
+    // Recent new leads (since last briefing lookback)
+    supabase
+      .from('inbound_leads')
+      .select('id, company_name, contact_name, industry, created_at')
+      .gte('created_at', lookbackDate)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    // Recent connection requests (since last briefing lookback)
+    supabase
+      .from('connection_requests')
+      .select('id, buyer_profile_id, listing_id, status, created_at')
+      .gte('created_at', lookbackDate)
+      .order('created_at', { ascending: false })
+      .limit(5),
   ]);
 
   return {
     data: {
+      day_of_week: dayNames[dayOfWeek],
+      is_monday: isMonday,
+      is_friday: isFriday,
       overdue: overdueRes.data || [],
       due_today: todayRes.data || [],
       due_this_week: weekRes.data || [],
       ai_pending_review: aiPendingRes.data || [],
       unacknowledged_signals: signalsRes.data || [],
+      recent_leads: recentLeadsRes.data || [],
+      recent_connections: recentConnectionsRes.data || [],
       summary: {
         overdue_count: (overdueRes.data || []).length,
         due_today_count: (todayRes.data || []).length,
         due_this_week_count: (weekRes.data || []).length,
         ai_pending_count: (aiPendingRes.data || []).length,
         critical_signals_count: (signalsRes.data || []).length,
+        recent_leads_count: (recentLeadsRes.data || []).length,
+        recent_connections_count: (recentConnectionsRes.data || []).length,
       },
     },
   };

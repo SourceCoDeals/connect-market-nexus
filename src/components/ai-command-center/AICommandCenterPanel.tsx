@@ -44,6 +44,7 @@ import {
 } from '@/hooks/useAICommandCenter';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useProactiveAlerts } from '@/hooks/useProactiveAlerts';
 
 // ---------- Props ----------
 
@@ -125,6 +126,9 @@ export function AICommandCenterPanel({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Feature 2: Proactive alert badge count
+  const { data: alertCounts } = useProactiveAlerts();
 
   const {
     messages,
@@ -233,17 +237,47 @@ export function AICommandCenterPanel({
     setShowHistory(false);
   }, [startNewConversation]);
 
+  // Listen for external open events (daily briefing auto-launch, draft outreach, etc.)
+  useEffect(() => {
+    const handleExternalOpen = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setIsOpen(true);
+      setIsMinimized(false);
+      if (detail?.query) {
+        // Small delay to ensure panel is rendered before sending message
+        setTimeout(() => {
+          sendMessage(detail.query);
+        }, 300);
+      }
+    };
+
+    window.addEventListener('ai-command-center:open', handleExternalOpen);
+    return () => window.removeEventListener('ai-command-center:open', handleExternalOpen);
+  }, [sendMessage]);
+
   // ---------- Floating bubble (closed) ----------
   if (!isOpen) {
     return (
       <div className={cn('fixed bottom-8 right-8 z-50', className)}>
-        <Button
-          onClick={() => setIsOpen(true)}
-          size="lg"
-          className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
-        >
-          <Sparkles className="h-6 w-6" />
-        </Button>
+        <div className="relative">
+          <Button
+            onClick={() => setIsOpen(true)}
+            size="lg"
+            className="rounded-full h-14 w-14 shadow-lg hover:scale-105 transition-transform bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
+          >
+            <Sparkles className="h-6 w-6" />
+          </Button>
+          {alertCounts && alertCounts.total > 0 && (
+            <span
+              className={cn(
+                'absolute -top-1 -right-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white min-w-[20px] h-5 px-1',
+                alertCounts.critical > 0 ? 'bg-red-500 animate-pulse' : 'bg-amber-500',
+              )}
+            >
+              {alertCounts.total > 9 ? '9+' : alertCounts.total}
+            </span>
+          )}
+        </div>
       </div>
     );
   }
@@ -932,7 +966,7 @@ function FollowUpSuggestions({
       'Compare buyer alignment scores',
     ],
     BUYER_ANALYSIS: [
-      'Explain this buyer\'s score breakdown',
+      "Explain this buyer's score breakdown",
       'Show acquisition history',
       'Find similar buyers',
     ],

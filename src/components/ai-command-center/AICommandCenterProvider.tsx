@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { AICommandCenterPanel } from './AICommandCenterPanel';
 import type { PageContext, UIActionPayload } from '@/hooks/useAICommandCenter';
+import { useDailyBriefingAutoLaunch } from '@/hooks/useDailyBriefingAutoLaunch';
 
 // ---------- Context ----------
 
@@ -27,6 +28,9 @@ export function AICommandCenterProvider({ children }: { children: React.ReactNod
   const [pageContext, setPageContext] = useState<PageContext>({});
   const uiActionHandlerRef = useRef<((action: UIActionPayload) => void) | null>(null);
 
+  // Feature 4: Auto-launch daily briefing on first visit of the day
+  useDailyBriefingAutoLaunch();
+
   const registerUIActionHandler = useCallback((handler: (action: UIActionPayload) => void) => {
     uiActionHandlerRef.current = handler;
   }, []);
@@ -41,12 +45,11 @@ export function AICommandCenterProvider({ children }: { children: React.ReactNod
   }, []);
 
   return (
-    <AICommandCenterContext.Provider value={{ setPageContext, registerUIActionHandler, unregisterUIActionHandler }}>
+    <AICommandCenterContext.Provider
+      value={{ setPageContext, registerUIActionHandler, unregisterUIActionHandler }}
+    >
       {children}
-      <AICommandCenterPanel
-        pageContext={pageContext}
-        onUIAction={handleUIAction}
-      />
+      <AICommandCenterPanel pageContext={pageContext} onUIAction={handleUIAction} />
     </AICommandCenterContext.Provider>
   );
 }
