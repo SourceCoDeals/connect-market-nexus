@@ -43,6 +43,8 @@ export interface RecommendedBuyer {
   owner_goals_score: number;
   fit_reasoning: string | null;
   score_status: string | null;
+  // AI-generated explanation of why this buyer fits the deal
+  ai_fit_explanation: string;
   // Effective score (after engagement boosts)
   effective_score: number;
   engagement_boost: number;
@@ -258,6 +260,106 @@ function computeFitSignals(
   return signals.slice(0, 6);
 }
 
+/**
+ * Generate a human-readable explanation of why the AI thinks this buyer
+ * fits this deal. Synthesises score dimensions, buyer profile data,
+ * and engagement activity into 1-2 sentences.
+ */
+function generateFitExplanation(
+  buyer: Record<string, unknown>,
+  score: Record<string, unknown>,
+  transcript: TranscriptInsight,
+  outreach: OutreachInfo,
+  engagement: EngagementSignals,
+  compositeScore: number,
+  tier: string,
+): string {
+  // If the database already has a fit_reasoning populated by the scoring model, prefer it
+  if (score.fit_reasoning && typeof score.fit_reasoning === 'string' && score.fit_reasoning.trim().length > 20) {
+    return score.fit_reasoning as string;
+  }
+
+  const parts: string[] = [];
+  const buyerName = (buyer.company_name as string) || 'This buyer';
+  const buyerType = (buyer.buyer_type as string)?.replace(/_/g, ' ') || 'buyer';
+
+  // Lead with the strongest score dimension
+  const geoScore = Number(score.geography_score || 0);
+  const sizeScore = Number(score.size_score || 0);
+  const svcScore = Number(score.service_score || 0);
+  const goalsScore = Number(score.owner_goals_score || 0);
+
+  const dimensions: Array<{ name: string; score: number; strong: string; moderate: string }> = [
+    { name: 'geography', score: geoScore, strong: 'operates in the same geographic footprint as the deal', moderate: 'has regional overlap with the deal geography' },
+    { name: 'size', score: sizeScore, strong: 'targets deals in this exact size range', moderate: 'has acquisition criteria that overlap with this deal size' },
+    { name: 'service', score: svcScore, strong: 'is closely aligned in sector and service lines', moderate: 'operates in a related sector' },
+    { name: 'goals', score: goalsScore, strong: 'has a strong track record matching seller\'s goals for legacy and culture', moderate: 'shows reasonable alignment with the seller\'s objectives' },
+  ];
+
+  // Sort by score to lead with strongest
+  dimensions.sort((a, b) => b.score - a.score);
+
+  const topDim = dimensions[0];
+  const secondDim = dimensions[1];
+
+  if (topDim.score >= 80) {
+    parts.push(`${buyerName} ${topDim.strong}`);
+  } else if (topDim.score >= 60) {
+    parts.push(`${buyerName} ${topDim.moderate}`);
+  } else {
+    parts.push(`${buyerName} is a ${buyerType} with moderate alignment across scoring dimensions`);
+  }
+
+  // Add second strongest if also strong
+  if (secondDim.score >= 70 && topDim.score >= 70) {
+    parts[0] += ` and ${secondDim.score >= 80 ? secondDim.strong : secondDim.moderate}`;
+  }
+
+  // Add engagement context
+  const engagementParts: string[] = [];
+  if (transcript.ceo_detected) {
+    engagementParts.push('CEO participated in a recent call');
+  }
+  if (engagement.has_high_intent_message) {
+    engagementParts.push('sent a high-intent message');
+  }
+  if (engagement.recent_page_visits >= 3) {
+    engagementParts.push('visited the deal page multiple times recently');
+  }
+  if (outreach.meeting_scheduled) {
+    engagementParts.push('has a meeting scheduled');
+  } else if (outreach.nda_signed) {
+    engagementParts.push('has signed an NDA');
+  }
+  if (buyer.has_fee_agreement) {
+    engagementParts.push('has a fee agreement in place');
+  }
+
+  if (engagementParts.length > 0) {
+    const engStr = engagementParts.slice(0, 2).join(' and ');
+    parts.push(engStr.charAt(0).toUpperCase() + engStr.slice(1));
+  }
+
+  // Add tier context
+  if (tier === 'move_now') {
+    parts.push('Ready to move forward given their active mandate and alignment');
+  }
+
+  // Add acquisition history context
+  const totalAcqs = Number(buyer.total_acquisitions || 0);
+  if (totalAcqs >= 5) {
+    parts.push(`Track record of ${totalAcqs} completed acquisitions`);
+  }
+
+  // Combine into explanation
+  let explanation = parts[0] + '.';
+  if (parts.length > 1) {
+    explanation += ' ' + parts.slice(1).join('. ') + '.';
+  }
+
+  return explanation;
+}
+
 const EMPTY_TRANSCRIPT: TranscriptInsight = {
   call_count: 0,
   ceo_detected: false,
@@ -357,7 +459,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
         // Connection requests (engagement)
         supabase
           .from('connection_requests')
-          .select('id, buyer_profile_id, status, updated_at, created_at')
+          .select('id, buyer_profile_id, user_id, status, updated_at, created_at')
           .eq('listing_id', listingId)
           .in('buyer_profile_id', buyerIds)
           .order('updated_at', { ascending: false }),
@@ -534,14 +636,18 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       const userToBuyerMap = new Map<string, string>();
       if (connectionsResult.data) {
         for (const conn of connectionsResult.data) {
-          // The buyer_profile_id in connection_requests maps users to buyer profiles
-          // We don't have direct user_id->buyer_id here but this is a reasonable proxy
+          // connection_requests has user_id (platform user) and buyer_profile_id (remarketing buyer)
+          // Map user_id -> buyer_profile_id so we can link page visits to buyers
+          const userId = conn.user_id as string | undefined;
+          const buyerProfileId = conn.buyer_profile_id as string;
+          if (userId && buyerProfileId) {
+            userToBuyerMap.set(userId, buyerProfileId);
+          }
         }
       }
 
-      // For page visits, aggregate by user_id and attempt matching
+      // For page visits, aggregate by user_id and map to buyer IDs
       if (pageVisitsResult.data) {
-        // Group by user_id
         const visitsByUser = new Map<string, { total: number; recent: number }>();
         for (const visit of pageVisitsResult.data) {
           if (!visit.user_id) continue;
@@ -553,13 +659,18 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
           visitsByUser.set(visit.user_id, existing);
         }
 
-        // Map to buyer IDs through connection requests (buyer_profile_id)
-        // Connection requests link listing_id + buyer_profile_id
-        // In many cases the buyer_profile_id IS the user_id
         for (const [userId, visits] of visitsByUser.entries()) {
-          // Check if this user_id is one of our buyer IDs
-          if (buyerIds.includes(userId)) {
-            pageVisitMap.set(userId, { total: visits.total, recentCount: visits.recent });
+          // First try direct match (user_id === buyer_id), then reverse map
+          const buyerId = buyerIds.includes(userId) ? userId : userToBuyerMap.get(userId);
+          if (buyerId) {
+            const existing = pageVisitMap.get(buyerId);
+            if (existing) {
+              // Merge visits from multiple user accounts for the same buyer
+              existing.total += visits.total;
+              existing.recentCount += visits.recent;
+            } else {
+              pageVisitMap.set(buyerId, { total: visits.total, recentCount: visits.recent });
+            }
           }
         }
       }
@@ -616,9 +727,6 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
         let lastEngDate = engagement?.last_date || null;
         let lastEngType = engagement?.type || null;
 
-        if (outreach.contacted && outreach.outcome) {
-          // Outreach data may have more recent info
-        }
         if (
           transcript.latest_call_date &&
           (!lastEngDate || transcript.latest_call_date > lastEngDate)
@@ -652,6 +760,17 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
         );
         const effectiveScore = Math.min(100, compositeScore + engagementBoost);
 
+        // Generate AI fit explanation
+        const aiFitExplanation = generateFitExplanation(
+          buyer as Record<string, unknown>,
+          score as Record<string, unknown>,
+          transcript,
+          outreach,
+          engagementSignals,
+          compositeScore,
+          tier,
+        );
+
         ranked.push({
           buyer_id: score.buyer_id,
           company_name: buyer.company_name,
@@ -670,6 +789,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
           owner_goals_score: Number(score.owner_goals_score || 0),
           fit_reasoning: score.fit_reasoning || null,
           score_status: score.status || null,
+          ai_fit_explanation: aiFitExplanation,
           effective_score: effectiveScore,
           engagement_boost: engagementBoost,
           tier,

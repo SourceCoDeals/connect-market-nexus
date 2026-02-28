@@ -118,7 +118,7 @@ export function useTop5Management(listingId: string | undefined) {
       // (will be computed in the component when the Top 5 re-renders)
       return { previous };
     },
-    onSuccess: (_, { buyerId }) => {
+    onSuccess: () => {
       toast({
         title: 'Buyer rejected',
         description: 'A replacement has been added to the Top 5.',
@@ -126,15 +126,12 @@ export function useTop5Management(listingId: string | undefined) {
 
       // Invalidate to refresh with correct buyer names and any new replacement
       queryClient.invalidateQueries({ queryKey: ['top5-rejections', listingId] });
-      // Also invalidate the recommended buyers to ensure the disqualified filter works on refetch
-      queryClient.invalidateQueries({ queryKey: ['recommended-buyers', listingId] });
-
-      // Mark the next buyer as newly added for visual feedback
-      // The component will compute this based on the new Top 5 vs old Top 5
-      setNewlyAddedIds((prev) => {
-        const next = new Set(prev);
-        // We don't know the replacement ID here, but the component will compute it
-        return next;
+      // Partial match on recommended-buyers — invalidates all limit variants
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] === 'recommended-buyers' &&
+          query.queryKey[1] === listingId,
       });
     },
     onError: (err, _, context) => {
@@ -189,7 +186,12 @@ export function useTop5Management(listingId: string | undefined) {
         description: 'The buyer has been restored to the recommendation pool.',
       });
       queryClient.invalidateQueries({ queryKey: ['top5-rejections', listingId] });
-      queryClient.invalidateQueries({ queryKey: ['recommended-buyers', listingId] });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          Array.isArray(query.queryKey) &&
+          query.queryKey[0] === 'recommended-buyers' &&
+          query.queryKey[1] === listingId,
+      });
     },
     onError: (err, _, context) => {
       if (context?.previous) {

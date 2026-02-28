@@ -401,7 +401,6 @@ export function useSmartAlerts() {
 
               // Count activity per buyer per listing
               const activityMap = new Map<string, number>();
-              const buyerNameCache = new Map<string, string>();
 
               for (const conn of (recentConns.data || [])) {
                 const key = `${conn.listing_id}:${conn.buyer_profile_id}`;

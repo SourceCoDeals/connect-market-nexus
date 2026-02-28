@@ -33,6 +33,8 @@ export function RejectionHistory({
   return (
     <div className="border border-border/30 rounded-lg overflow-hidden">
       <button
+        type="button"
+        aria-expanded={expanded}
         className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/10 hover:bg-muted/20 transition-colors text-left"
         onClick={() => setExpanded(!expanded)}
       >

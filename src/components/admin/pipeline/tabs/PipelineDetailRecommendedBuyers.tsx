@@ -54,15 +54,20 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
     markNewlyAdded,
   } = useTop5Management(deal.listing_id);
 
-  // Track Top 5 changes to mark newly added buyers
+  // Track Top 5 changes to mark newly added buyers.
+  // This mirrors the Top5Panel's internal computation — intentionally duplicated
+  // here so the parent can detect when new buyers enter the Top 5.
   const prevTop5Ref = useRef<Set<string>>(new Set());
-  const top5Buyers = useMemo(() => {
-    if (!data?.buyers) return [];
-    return data.buyers.filter((b) => !rejectedBuyerIds.has(b.buyer_id)).slice(0, 5);
+  const top5BuyerIds = useMemo(() => {
+    if (!data?.buyers) return [] as string[];
+    return data.buyers
+      .filter((b) => !rejectedBuyerIds.has(b.buyer_id))
+      .slice(0, 5)
+      .map((b) => b.buyer_id);
   }, [data?.buyers, rejectedBuyerIds]);
 
   useEffect(() => {
-    const currentIds = new Set(top5Buyers.map((b) => b.buyer_id));
+    const currentIds = new Set(top5BuyerIds);
     const prevIds = prevTop5Ref.current;
     if (prevIds.size > 0) {
       const added = [...currentIds].filter((id) => !prevIds.has(id));
@@ -71,7 +76,7 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
       }
     }
     prevTop5Ref.current = currentIds;
-  }, [top5Buyers, markNewlyAdded]);
+  }, [top5BuyerIds, markNewlyAdded]);
 
   const filteredAndSorted = useMemo(() => {
     if (!data?.buyers) return [];
@@ -177,9 +182,12 @@ Use this context to create a highly personalized email. Reference their specific
     [data?.buyers, deal],
   );
 
-  const handleViewProfile = (buyerId: string) => {
-    navigate(`/admin/buyers/${buyerId}`);
-  };
+  const handleViewProfile = useCallback(
+    (buyerId: string) => {
+      navigate(`/admin/buyers/${buyerId}`);
+    },
+    [navigate],
+  );
 
   if (!deal.listing_id) {
     return (

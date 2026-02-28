@@ -21,9 +21,10 @@ import {
   Minus,
   AlertTriangle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import type { RecommendedBuyer } from '@/hooks/admin/use-recommended-buyers';
+import { computeIntentTrend } from '@/lib/remarketing/computeIntentTrend';
 
 interface BuyerRecommendationCardProps {
   buyer: RecommendedBuyer;
@@ -78,38 +79,20 @@ function TierBadge({ tier, label }: { tier: string; label: string }) {
   );
 }
 
+const TREND_CONFIG = {
+  increasing: { icon: TrendingUp, color: 'text-emerald-500', label: 'Increasing' },
+  stable: { icon: Minus, color: 'text-amber-500', label: 'Stable' },
+  cooling: { icon: TrendingDown, color: 'text-muted-foreground/60', label: 'Cooling' },
+} as const;
+
 function IntentTrendDot({ buyer }: { buyer: RecommendedBuyer }) {
-  const now = Date.now();
-  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-  const sixtyDaysAgo = now - 60 * 24 * 60 * 60 * 1000;
-
-  let recentSignals = 0;
-  let priorSignals = 0;
-
-  if (buyer.last_engagement) {
-    const engDate = new Date(buyer.last_engagement).getTime();
-    if (engDate > thirtyDaysAgo) recentSignals += 2;
-    else if (engDate > sixtyDaysAgo) priorSignals += 2;
-  }
-  if (buyer.transcript_insights.latest_call_date) {
-    const callDate = new Date(buyer.transcript_insights.latest_call_date).getTime();
-    if (callDate > thirtyDaysAgo) recentSignals += 1;
-    else if (callDate > sixtyDaysAgo) priorSignals += 1;
-  }
-  if (buyer.outreach_info.meeting_scheduled) recentSignals += 1;
-  if (buyer.engagement_signals?.message_count > 0) recentSignals += 1;
-
-  let trend: 'increasing' | 'stable' | 'cooling';
-  if (recentSignals > priorSignals) trend = 'increasing';
-  else if (recentSignals < priorSignals) trend = 'cooling';
-  else trend = 'stable';
-
-  const config = {
-    increasing: { icon: TrendingUp, color: 'text-emerald-500', label: 'Increasing' },
-    stable: { icon: Minus, color: 'text-amber-500', label: 'Stable' },
-    cooling: { icon: TrendingDown, color: 'text-muted-foreground/60', label: 'Cooling' },
-  };
-  const { icon: Icon, color, label } = config[trend];
+  const trend = useMemo(() => computeIntentTrend(buyer), [
+    buyer.last_engagement,
+    buyer.transcript_insights.latest_call_date,
+    buyer.outreach_info.meeting_scheduled,
+    buyer.engagement_signals.message_count,
+  ]);
+  const { icon: Icon, color, label } = TREND_CONFIG[trend];
 
   return (
     <Tooltip>
@@ -487,9 +470,14 @@ export function BuyerRecommendationCard({
             </div>
           )}
 
-          {buyer.fit_reasoning && (
-            <p className="text-xs text-muted-foreground leading-relaxed">{buyer.fit_reasoning}</p>
-          )}
+          {/* AI Fit Explanation */}
+          <div className="rounded-md bg-primary/[0.03] border border-primary/10 px-3 py-2">
+            <p className="text-[11px] font-medium text-primary/80 mb-0.5">Why this buyer fits</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {buyer.ai_fit_explanation}
+            </p>
+          </div>
+
           {buyer.thesis_summary && (
             <p className="text-xs text-muted-foreground/70 leading-relaxed italic">
               Thesis: {buyer.thesis_summary}
