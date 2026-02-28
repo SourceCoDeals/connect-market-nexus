@@ -190,10 +190,13 @@ async function createDealTask(
   args: Record<string, unknown>,
   userId: string,
 ): Promise<ToolResult> {
+  const dealId = args.deal_id as string;
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
   const { data, error } = await supabase
     .from('deal_tasks')
     .insert({
-      deal_id: args.deal_id as string,
+      deal_id: dealId,
       title: args.title as string,
       description: (args.description as string) || null,
       priority: (args.priority as string) || 'medium',
@@ -207,9 +210,29 @@ async function createDealTask(
 
   if (error) return { error: error.message };
 
+  // Mirror into daily_standup_tasks with pending_approval so it goes through human approval
+  await supabase.from('daily_standup_tasks').insert({
+    title: args.title as string,
+    description: (args.description as string) || null,
+    task_type: 'follow_up',
+    entity_type: 'deal',
+    entity_id: dealId,
+    deal_reference: (args.title as string) || null,
+    due_date: (args.due_date as string) || tomorrow,
+    priority: (args.priority as string) || 'medium',
+    assignee_id: (args.assigned_to as string) || userId,
+    source: 'chatbot',
+    status: 'pending_approval',
+    is_manual: false,
+    priority_score: 50,
+    extraction_confidence: 'high',
+    needs_review: true,
+    created_by: userId,
+  });
+
   // Log the activity
   await supabase.from('deal_activities').insert({
-    deal_id: args.deal_id as string,
+    deal_id: dealId,
     activity_type: 'task_created',
     title: `Task created: ${args.title}`,
     description: `AI Command Center created task "${args.title}" with priority ${args.priority || 'medium'}`,
@@ -220,7 +243,8 @@ async function createDealTask(
   return {
     data: {
       task: data,
-      message: `Task "${data.title}" created successfully`,
+      message: `Task "${data.title}" created and sent for approval. A team member must review it in the task dashboard.`,
+      requires_approval: true,
     },
   };
 }

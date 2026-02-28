@@ -92,6 +92,7 @@ export function TaskCard({
   const isOverdue = task.status === 'overdue';
   const isCompleted = task.status === 'completed';
   const isPendingApproval = task.status === 'pending_approval';
+  const isAISource = task.source === 'ai' || task.source === 'chatbot';
 
   const dueDateLabel = (() => {
     const d = parseISO(task.due_date);
@@ -201,7 +202,7 @@ export function TaskCard({
           </div>
         )}
 
-        {/* Title */}
+        {/* Title + AI badge */}
         <span
           className={cn(
             'flex-1 text-sm font-medium leading-tight truncate',
@@ -210,6 +211,16 @@ export function TaskCard({
         >
           {task.title}
         </span>
+
+        {/* AI source indicator */}
+        {isAISource && isPendingApproval && (
+          <Badge
+            variant="outline"
+            className="shrink-0 text-[9px] px-1.5 py-0 h-4 border-purple-300 text-purple-700 bg-purple-50"
+          >
+            AI Suggested
+          </Badge>
+        )}
 
         {/* Due date */}
         <span
@@ -446,6 +457,23 @@ export function TaskCard({
                 From: {task.source_meeting.meeting_title}
                 {task.source_timestamp && ` (at ${task.source_timestamp})`}
               </p>
+            )}
+
+            {/* AI source + confidence indicator */}
+            {isAISource && (
+              <div className="rounded-md bg-purple-50 border border-purple-200 px-3 py-2">
+                <p className="text-xs text-purple-800">
+                  <span className="font-medium">AI-generated task</span>
+                  {task.ai_confidence && (
+                    <span className="ml-1.5">(confidence: {task.ai_confidence})</span>
+                  )}
+                  {isPendingApproval && (
+                    <span className="ml-1.5 text-amber-700 font-medium">
+                      — Requires human approval
+                    </span>
+                  )}
+                </p>
+              </div>
             )}
 
             {/* AI evidence quote */}

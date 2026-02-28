@@ -197,6 +197,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   // Actions
   ACTION: [
     'create_deal_task',
+    'create_task',
     'complete_deal_task',
     'add_deal_note',
     'log_deal_activity',
@@ -382,6 +383,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_overdue_tasks',
     'get_buyer_spotlight',
     'get_deal_signals_summary',
+    'create_task',
     'snooze_task',
     'confirm_ai_task',
     'dismiss_ai_task',
@@ -400,6 +402,8 @@ const CONFIRMATION_REQUIRED = new Set([
   'save_contacts_to_crm',
   'reassign_deal_task',
   'convert_to_pipeline_deal',
+  'create_deal_task',
+  'create_task',
   'snooze_task',
   'bulk_reassign_tasks',
 ]);

@@ -155,6 +155,71 @@ Use when user asks "which buyers need follow-up?", "buyer spotlight", "who haven
     },
   },
   {
+    name: 'create_task',
+    description: `Create a new task linked to a deal, listing, buyer, or contact. The task will be created as PENDING APPROVAL — a human must review and approve it before it becomes active. REQUIRES CONFIRMATION.
+Use when the user says "create a task", "add a follow-up", "remind me to", "schedule a task".
+CRITICAL: Every task MUST be linked to an entity (deal, listing, buyer, or contact). If the user doesn't specify which entity, ask them.`,
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Task title — clear, actionable description' },
+        description: { type: 'string', description: 'Optional task details' },
+        task_type: {
+          type: 'string',
+          enum: [
+            'follow_up',
+            'call',
+            'email',
+            'document',
+            'meeting',
+            'review',
+            'data_room',
+            'due_diligence',
+            'outreach',
+            'internal',
+          ],
+          description: 'Task type (default "follow_up")',
+        },
+        entity_type: {
+          type: 'string',
+          enum: ['listing', 'deal', 'buyer', 'contact'],
+          description: 'REQUIRED — type of entity this task is linked to',
+        },
+        entity_id: {
+          type: 'string',
+          description: 'REQUIRED — UUID of the entity this task is linked to',
+        },
+        deal_reference: {
+          type: 'string',
+          description: 'Human-readable deal/entity name for display',
+        },
+        due_date: {
+          type: 'string',
+          description: 'Due date in YYYY-MM-DD format (default: tomorrow)',
+        },
+        priority: {
+          type: 'string',
+          enum: ['low', 'medium', 'high', 'urgent'],
+          description: 'Task priority (default "medium")',
+        },
+        assignee_id: {
+          type: 'string',
+          description: 'User ID to assign to. Use "CURRENT_USER" for the logged-in user.',
+        },
+        secondary_entity_type: {
+          type: 'string',
+          enum: ['listing', 'deal', 'buyer', 'contact'],
+          description: 'Optional secondary entity type (e.g., buyer on a deal task)',
+        },
+        secondary_entity_id: {
+          type: 'string',
+          description: 'Optional secondary entity UUID',
+        },
+      },
+      required: ['title', 'entity_type', 'entity_id'],
+    },
+  },
+  {
     name: 'add_task_comment',
     description: 'Add a comment to a task for team discussion.',
     input_schema: {
@@ -202,6 +267,8 @@ export async function executeTaskTool(
       return getDealSignalsSummary(supabase, args);
     case 'snooze_task':
       return snoozeTask(supabase, args, userId);
+    case 'create_task':
+      return createTask(supabase, args, userId);
     case 'confirm_ai_task':
       return confirmAITask(supabase, args, userId);
     case 'dismiss_ai_task':
@@ -489,6 +556,69 @@ async function snoozeTask(
   });
 
   return { data: { success: true, snoozed_until: snoozedUntil } };
+}
+
+async function createTask(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+  userId: string,
+): Promise<ToolResult> {
+  const entityType = args.entity_type as string;
+  const entityId = args.entity_id as string;
+
+  if (!entityType || !entityId) {
+    return {
+      error:
+        'entity_type and entity_id are required. Every task must be linked to a deal, listing, buyer, or contact.',
+    };
+  }
+
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+  const insertData: Record<string, unknown> = {
+    title: args.title as string,
+    description: (args.description as string) || null,
+    task_type: (args.task_type as string) || 'follow_up',
+    entity_type: entityType,
+    entity_id: entityId,
+    deal_reference: (args.deal_reference as string) || null,
+    due_date: (args.due_date as string) || tomorrow,
+    priority: (args.priority as string) || 'medium',
+    assignee_id: (args.assignee_id as string) || userId,
+    secondary_entity_type: (args.secondary_entity_type as string) || null,
+    secondary_entity_id: (args.secondary_entity_id as string) || null,
+    source: 'chatbot',
+    status: 'pending_approval', // AI-created tasks ALWAYS need human approval
+    is_manual: false,
+    priority_score: 50,
+    extraction_confidence: 'high',
+    needs_review: true,
+    created_by: userId,
+  };
+
+  const { data, error } = await supabase
+    .from('daily_standup_tasks')
+    .insert(insertData)
+    .select('id, title, status, entity_type, entity_id, due_date, assignee_id')
+    .single();
+
+  if (error) return { error: error.message };
+
+  // Log activity
+  await supabase.from('rm_task_activity_log').insert({
+    task_id: data.id,
+    user_id: userId,
+    action: 'created',
+    new_value: { source: 'chatbot', entity_type: entityType, entity_id: entityId },
+  });
+
+  return {
+    data: {
+      task: data,
+      message: `Task "${data.title}" created and sent for approval. A team member must approve it before it becomes active.`,
+      requires_approval: true,
+    },
+  };
 }
 
 async function confirmAITask(
