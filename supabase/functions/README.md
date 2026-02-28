@@ -14,10 +14,7 @@
 ## AI & Chat
 | Function | Purpose |
 |----------|---------|
-| `ai-command-center/` | AI Command Center — 83 tools across 17 modules, Claude API integration |
-| `chat-buyer-query/` | Buyer-facing chat queries |
-| `chat-remarketing/` | ReMarketing chat interface |
-| `update-fit-criteria-chat/` | Chat-based fit criteria updates |
+| `ai-command-center/` | AI Command Center — unified AI assistant with 40+ tools, Claude API integration |
 
 ## Deal Management
 | Function | Purpose |
@@ -43,7 +40,6 @@
 | `extract-buyer-transcript/` | Extract data from buyer transcripts |
 | `find-buyer-contacts/` | Find contacts for a buyer |
 | `generate-buyer-intro/` | Generate buyer introduction emails |
-| `query-buyer-universe/` | Query buyer universe for deal matching |
 | `suggest-universe/` | AI-suggested buyer universe |
 
 ## Contact & Enrichment

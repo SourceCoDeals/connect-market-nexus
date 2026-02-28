@@ -457,37 +457,6 @@ export function buildChatbotTests(): ChatbotTestDef[] {
     if (!response) throw new Error('No response from ai-command-center');
   });
 
-  add(C4, 'chat-remarketing edge function reachable', async () => {
-    const { error } = await supabase.functions.invoke('chat-remarketing', {
-      body: { message: 'ping', context_type: 'deals' },
-    });
-    if (error) {
-      const msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
-      if (
-        msg.includes('Failed to fetch') ||
-        msg.includes('NetworkError') ||
-        msg.includes('net::ERR')
-      ) {
-        throw new Error(`Edge function 'chat-remarketing' network failure: ${msg}`);
-      }
-    }
-  });
-
-  add(C4, 'query-buyer-universe edge function reachable', async () => {
-    const { error } = await supabase.functions.invoke('query-buyer-universe', {
-      body: { query: 'test', universe_id: '00000000-0000-0000-0000-000000000000' },
-    });
-    if (error) {
-      const msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
-      if (
-        msg.includes('Failed to fetch') ||
-        msg.includes('NetworkError') ||
-        msg.includes('net::ERR')
-      ) {
-        throw new Error(`Edge function 'query-buyer-universe' network failure: ${msg}`);
-      }
-    }
-  });
 
   add(C4, 'query-tracker-universe edge function reachable', async () => {
     const { error } = await supabase.functions.invoke('query-tracker-universe', {

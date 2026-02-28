@@ -1218,20 +1218,6 @@ export function buildTests(): TestDef[] {
   });
 
   // --- Chat AI functions ---
-  add(C15, 'chat-remarketing edge function reachable', async () => {
-    await invokeEdgeFunction('chat-remarketing', {
-      message: 'ping',
-      context_type: 'deals',
-    });
-  });
-
-  add(C15, 'query-buyer-universe edge function reachable', async () => {
-    await invokeEdgeFunction('query-buyer-universe', {
-      query: 'test',
-      universe_id: '00000000-0000-0000-0000-000000000000',
-    });
-  });
-
   add(C15, 'query-tracker-universe edge function reachable', async () => {
     await invokeEdgeFunction('query-tracker-universe', {
       query: 'test',

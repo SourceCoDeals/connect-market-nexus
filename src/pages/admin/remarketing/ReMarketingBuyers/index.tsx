@@ -18,7 +18,7 @@ import {
 import { toast } from "sonner";
 import { useBuyerEnrichmentProgress } from "@/hooks/useBuyerEnrichmentProgress";
 import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
-import { BuyerCSVImport, ReMarketingChat } from "@/components/remarketing";
+import { BuyerCSVImport } from "@/components/remarketing";
 import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
 import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 import { useBuyersData } from "./useBuyersData";
@@ -273,10 +273,6 @@ const ReMarketingBuyers = () => {
         deleteMutation={deleteMutation}
       />
 
-      {/* AI Chat */}
-      <ReMarketingChat
-        context={{ type: "buyers", totalBuyers: filteredBuyers.length }}
-      />
     </div>
   );
 };

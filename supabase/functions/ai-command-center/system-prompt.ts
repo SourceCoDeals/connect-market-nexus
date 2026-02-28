@@ -128,9 +128,10 @@ KEY BEHAVIORS:
 FORMAT: Return buyer matches as: name, type, HQ, revenue range, key services, alignment score.`,
 
   BUYER_ANALYSIS: `Present scores with context: composite, geography, service, size, owner goals, portfolio, business_model, acquisition.
-Explain score drivers and flags. Use get_score_breakdown for per-dimension breakdown.
+Explain score drivers and flags. Use get_score_breakdown for per-dimension breakdown. Use explain_buyer_score for human-readable explanations with data source citations.
 Pair search_buyers with get_buyer_profile for deep-dives (note: top 10 scored deals only).
-For "competitors": clarify if they mean competing acquirers or industry competitors.`,
+For "competitors": clarify if they mean competing acquirers or industry competitors.
+DATA PROVENANCE: Size criteria may be from PE firm website and may represent new-platform criteria, not add-on criteria. HQ location may be the PE firm's headquarters, not the platform's operating base. When transcript data is unavailable, note it explicitly — never hallucinate transcript quotes.`,
 
   MEETING_INTEL: `Extract the most relevant quotes and insights from transcripts.
 Note if CEO/owner was present. Highlight action items and commitments.
@@ -155,7 +156,11 @@ TASK CREATION — CRITICAL:
 - A human must approve it in the task dashboard before it becomes actionable.`,
 
   REMARKETING: `1. SEARCH to find matching entities and IDs, 2. Call select_table_rows or apply_table_filter, 3. Confirm what was selected.
-Always combine data query with UI action.`,
+Always combine data query with UI action.
+When recommending buyers, reference specific names in **bold**, explain fit reasoning using thesis, geography, size, and services.
+Use explain_buyer_score or get_score_breakdown for per-dimension justification (geography, size, service, composite).
+Prioritize PENDING status buyers unless asked otherwise.
+DATA PROVENANCE: Never attribute PE firm data to platform companies. Distinguish data from call transcripts vs website enrichment. If transcript data is unavailable, say so — never infer.`,
 
   UI_ACTION: `Execute the navigation or filter action and confirm what happened.`,
 
@@ -165,7 +170,9 @@ Always combine data query with UI action.`,
 Use actual buyer/deal details — never generic templates.`,
 
   BUYER_UNIVERSE: `Use search_buyer_universes to find, get_universe_details for criteria, get_top_buyers_for_deal with state filter for geographic counts, get_universe_buyer_fits for fit/not-fit analysis.
-Always show universe name, total count, and filtered count.`,
+Always show universe name, total count, and filtered count.
+Compare buyers against fit criteria (size, geography, services, scoring behavior). Reference the industry research guide (ma_guide_content) when explaining market dynamics and buyer positioning.
+Suggest universe improvements when alignment is low. Use select_table_rows to highlight recommended buyers in the UI.`,
 
   LEAD_INTEL: `Use search_inbound_leads for inbound, get_referral_data for referral partners.
 Present: total count, breakdown by status, key details.`,

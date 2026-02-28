@@ -53,8 +53,6 @@ export const FEATURE_FLAGS = {
   /** Enable MFA enrollment prompt */
   mfaPrompt: true,
 
-  /** Enable chat persistence */
-  chatPersistence: true,
 } as const;
 
 // ─── Pagination ──────────────────────────────────────────────────────────────
