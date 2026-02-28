@@ -12,13 +12,13 @@
  * - First visit of the day → auto-opens AI panel with daily briefing prompt
  * - Monday → enhanced "start of week" briefing prompt
  * - Subsequent visits same day → no-op
- * - Opt-out via `briefingAutoLaunchEnabled` localStorage flag
+ * - Opt-out: set `sourceco_briefing_auto_launch_enabled` to 'false' in localStorage
  */
 
 import { useEffect, useRef } from 'react';
 
 const STORAGE_KEY = 'sourceco_briefing_last_seen';
-const OPT_OUT_KEY = 'sourceco_briefing_auto_launch_enabled';
+const ENABLED_KEY = 'sourceco_briefing_auto_launch_enabled';
 
 function getTodayDateString(): string {
   return new Date().toISOString().split('T')[0];
@@ -51,9 +51,9 @@ export function useDailyBriefingAutoLaunch(enabled = true) {
   useEffect(() => {
     if (!enabled || hasTriggered.current) return undefined;
 
-    // Check opt-out setting
-    const optOutValue = localStorage.getItem(OPT_OUT_KEY);
-    if (optOutValue === 'false') return undefined;
+    // Check if user has disabled auto-launch
+    const enabledValue = localStorage.getItem(ENABLED_KEY);
+    if (enabledValue === 'false') return undefined;
 
     const today = getTodayDateString();
     const lastSeen = localStorage.getItem(STORAGE_KEY);
@@ -63,12 +63,15 @@ export function useDailyBriefingAutoLaunch(enabled = true) {
       return undefined;
     }
 
-    // Mark as seen immediately to prevent duplicate triggers
+    // Mark as triggered in ref to prevent duplicate triggers on re-render
     hasTriggered.current = true;
-    localStorage.setItem(STORAGE_KEY, today);
 
-    // Delay auto-launch slightly to let the page render
+    // Delay auto-launch slightly to let the page render.
+    // localStorage is updated only AFTER the event fires successfully,
+    // so if the timer is cancelled (e.g. quick navigation), the briefing
+    // will retry on next mount.
     const timer = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, today);
       window.dispatchEvent(
         new CustomEvent('ai-command-center:open', {
           detail: {
@@ -87,9 +90,9 @@ export function useDailyBriefingAutoLaunch(enabled = true) {
  * Utility to check/set the auto-launch preference.
  */
 export function isDailyBriefingAutoLaunchEnabled(): boolean {
-  return localStorage.getItem(OPT_OUT_KEY) !== 'false';
+  return localStorage.getItem(ENABLED_KEY) !== 'false';
 }
 
-export function setDailyBriefingAutoLaunchEnabled(enabled: boolean): void {
-  localStorage.setItem(OPT_OUT_KEY, enabled ? 'true' : 'false');
+export function setDailyBriefingAutoLaunchEnabled(value: boolean): void {
+  localStorage.setItem(ENABLED_KEY, value ? 'true' : 'false');
 }

@@ -244,7 +244,7 @@ async function getRecommendedBuyers(
     `,
     )
     .eq('listing_id', dealId)
-    .eq('is_disqualified', false)
+    .or('is_disqualified.eq.false,is_disqualified.is.null')
     .order('composite_score', { ascending: false })
     .limit(limit * 2); // Fetch extra to account for filtering
 

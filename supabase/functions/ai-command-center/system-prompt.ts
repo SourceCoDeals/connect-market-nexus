@@ -255,6 +255,15 @@ Show what will be created and ask for confirmation.`,
   PROACTIVE: `Use get_data_quality_report, detect_buyer_conflicts, get_deal_health, match_leads_to_deals, get_stale_deals, get_proactive_alerts.
 Present findings with actionable recommendations. For alerts, show severity (critical/warning/info), entity name, and suggested action.`,
 
+  RECOMMENDED_BUYERS: `Use get_recommended_buyers to return a ranked buyer list with composite fit scores, tier classification (Move Now / Strong Candidate / Speculative), fit signals, engagement data, and fee agreement status.
+Use generate_buyer_narrative (produces a structured strategy document) when the user asks for a written buyer strategy or briefing.
+Present buyers with: rank, company name, score/100, tier label, top 3 fit signals, fee agreement status, last engagement date.
+Group by tier when showing 10+ buyers. Highlight "Move Now" buyers first — these have score 80+ AND either a fee agreement or active acquisition mandate.
+For each top buyer, suggest a specific action: send CIM, initiate fee agreement, re-engage, or draft outreach.
+Use get_deal_details first if you need deal context (revenue, EBITDA, location, services) to explain fit reasoning.
+Use explain_buyer_score or get_score_breakdown for per-dimension justification when the user asks "why is this buyer ranked high/low?"
+Use draft_outreach_email when the user wants to draft outreach to a recommended buyer.`,
+
   ALERTS: `Use get_proactive_alerts to surface issues needing attention: stale deals, cold buyers, overdue tasks, unprocessed transcripts, unsigned agreements, critical signals.
 Present alerts grouped by severity. For each alert, show the entity name, what's wrong, and what to do about it.
 Use dismiss_alert (REQUIRES CONFIRMATION) when the user has handled an alert.

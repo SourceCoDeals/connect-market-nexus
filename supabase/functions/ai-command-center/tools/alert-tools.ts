@@ -31,8 +31,7 @@ Alert types:
 - overdue_tasks: Tasks past their due date
 - unprocessed_transcript: Fireflies recordings not yet summarized
 - unsigned_agreement: High-scoring buyers without fee agreements
-- score_change: Significant buyer score changes (10+ points)
-- engagement_gap: Active deals with no buyer engagement in 30+ days
+- critical_signal: Unacknowledged critical/warning deal signals
 
 USE WHEN: "any alerts?", "what needs attention?", "proactive alerts", "what's at risk?", "deal health check"
 Returns prioritized alert list with severity (critical/warning/info), context, and suggested actions.`,
@@ -180,27 +179,115 @@ async function getProactiveAlerts(
     return false;
   };
 
-  // 2. Compute alerts in parallel
+  // 2. Build queries for each alert type — run in parallel
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString();
+
+  // Build conditional queries based on filter
+  const shouldFetch = (type: string) => !alertTypeFilter || alertTypeFilter === type;
+
+  const staleQueryPromise = shouldFetch('stale_deal')
+    ? (() => {
+        let q = supabase
+          .from('listings')
+          .select('id, title, internal_company_name, updated_at, status')
+          .in('status', ['active', 'new', 'under_review'])
+          .lt('updated_at', fourteenDaysAgo)
+          .order('updated_at', { ascending: true })
+          .limit(10);
+        if (dealIdFilter) q = q.eq('id', dealIdFilter);
+        return q;
+      })()
+    : Promise.resolve({ data: null });
+
+  const overdueQueryPromise = shouldFetch('overdue_tasks')
+    ? supabase
+        .from('daily_standup_tasks')
+        .select('id, title, due_date, entity_type, entity_id, deal_reference')
+        .eq('assignee_id', userId)
+        .eq('status', 'overdue')
+        .order('due_date', { ascending: true })
+        .limit(10)
+    : Promise.resolve({ data: null });
+
+  const coldBuyerQueryPromise = shouldFetch('cold_buyer')
+    ? (() => {
+        let q = supabase
+          .from('remarketing_scores')
+          .select(
+            `buyer_id, listing_id, composite_score,
+             remarketing_buyers!inner(company_name, buyer_type, has_fee_agreement)`,
+          )
+          .gte('composite_score', 70)
+          .or('is_disqualified.eq.false,is_disqualified.is.null')
+          .order('composite_score', { ascending: false })
+          .limit(20);
+        if (dealIdFilter) q = q.eq('listing_id', dealIdFilter);
+        return q;
+      })()
+    : Promise.resolve({ data: null });
+
+  const transcriptQueryPromise = shouldFetch('unprocessed_transcript')
+    ? (() => {
+        let q = supabase
+          .from('deal_transcripts')
+          .select('id, title, listing_id, created_at, duration_minutes, extracted_data')
+          .eq('has_content', true)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        if (dealIdFilter) q = q.eq('listing_id', dealIdFilter);
+        return q;
+      })()
+    : Promise.resolve({ data: null });
+
+  const unsignedQueryPromise = shouldFetch('unsigned_agreement')
+    ? (() => {
+        let q = supabase
+          .from('remarketing_scores')
+          .select(
+            `buyer_id, listing_id, composite_score,
+             remarketing_buyers!inner(company_name, has_fee_agreement)`,
+          )
+          .gte('composite_score', 75)
+          .or('is_disqualified.eq.false,is_disqualified.is.null')
+          .order('composite_score', { ascending: false })
+          .limit(15);
+        if (dealIdFilter) q = q.eq('listing_id', dealIdFilter);
+        return q;
+      })()
+    : Promise.resolve({ data: null });
+
+  const signalQueryPromise = shouldFetch('critical_signal')
+    ? supabase
+        .from('rm_deal_signals')
+        .select('id, signal_type, signal_category, summary, listing_id, created_at')
+        .in('signal_type', ['critical', 'warning'])
+        .is('acknowledged_at', null)
+        .order('created_at', { ascending: false })
+        .limit(10)
+    : Promise.resolve({ data: null });
+
+  // Execute all queries in parallel
+  const [
+    { data: staleDeals },
+    { data: overdueTasks },
+    { data: highScorers },
+    { data: transcripts },
+    { data: unsignedScorers },
+    { data: signals },
+  ] = await Promise.all([
+    staleQueryPromise,
+    overdueQueryPromise,
+    coldBuyerQueryPromise,
+    transcriptQueryPromise,
+    unsignedQueryPromise,
+    signalQueryPromise,
+  ]);
+
   const alerts: ProactiveAlert[] = [];
 
-  // Stale deals — deals with no recent activity
-  const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
-
-  let staleQuery = supabase
-    .from('listings')
-    .select('id, title, internal_company_name, updated_at, status')
-    .in('status', ['active', 'new', 'under_review'])
-    .lt('updated_at', fourteenDaysAgo)
-    .order('updated_at', { ascending: true })
-    .limit(10);
-
-  if (dealIdFilter) {
-    staleQuery = staleQuery.eq('id', dealIdFilter);
-  }
-
-  const { data: staleDeals } = await staleQuery;
-
-  if (staleDeals && (!alertTypeFilter || alertTypeFilter === 'stale_deal')) {
+  // Stale deals
+  if (staleDeals) {
     for (const deal of staleDeals) {
       const key = `stale_deal:${deal.id}`;
       if (isFilteredOut(key)) continue;
@@ -225,230 +312,155 @@ async function getProactiveAlerts(
   }
 
   // Overdue tasks
-  if (!alertTypeFilter || alertTypeFilter === 'overdue_tasks') {
-    const { data: overdueTasks } = await supabase
-      .from('daily_standup_tasks')
-      .select('id, title, due_date, entity_type, entity_id, deal_reference')
-      .eq('assignee_id', userId)
-      .eq('status', 'overdue')
-      .order('due_date', { ascending: true })
-      .limit(10);
+  if (overdueTasks) {
+    for (const task of overdueTasks) {
+      const key = `overdue_task:${task.id}`;
+      if (isFilteredOut(key)) continue;
 
-    if (overdueTasks) {
-      for (const task of overdueTasks) {
-        const key = `overdue_task:${task.id}`;
-        if (isFilteredOut(key)) continue;
+      const daysOverdue = Math.floor(
+        (Date.now() - new Date(task.due_date + 'T23:59:59').getTime()) / 86400000,
+      );
 
-        const daysOverdue = Math.floor(
-          (Date.now() - new Date(task.due_date + 'T23:59:59').getTime()) / 86400000,
-        );
-
-        alerts.push({
-          key,
-          type: 'overdue_tasks',
-          severity: daysOverdue >= 7 ? 'critical' : 'warning',
-          title: `Overdue: ${task.title}`,
-          description: `${daysOverdue} days overdue. ${task.deal_reference ? `Related to ${task.deal_reference}.` : ''}`,
-          entity_type: task.entity_type || 'task',
-          entity_id: task.entity_id || task.id,
-          entity_name: task.deal_reference || task.title,
-          suggested_action: 'Complete, reschedule, or reassign this task',
-          data: { task_id: task.id, days_overdue: daysOverdue },
-        });
-      }
+      alerts.push({
+        key,
+        type: 'overdue_tasks',
+        severity: daysOverdue >= 7 ? 'critical' : 'warning',
+        title: `Overdue: ${task.title}`,
+        description: `${daysOverdue} days overdue. ${task.deal_reference ? `Related to ${task.deal_reference}.` : ''}`,
+        entity_type: task.entity_type || 'task',
+        entity_id: task.entity_id || task.id,
+        entity_name: task.deal_reference || task.title,
+        suggested_action: 'Complete, reschedule, or reassign this task',
+        data: { task_id: task.id, days_overdue: daysOverdue },
+      });
     }
   }
 
-  // Cold high-scoring buyers
-  if (!alertTypeFilter || alertTypeFilter === 'cold_buyer') {
-    let coldQuery = supabase
-      .from('remarketing_scores')
-      .select(
-        `buyer_id, listing_id, composite_score,
-         remarketing_buyers!inner(company_name, buyer_type, has_fee_agreement)`,
-      )
-      .gte('composite_score', 70)
-      .eq('is_disqualified', false)
-      .order('composite_score', { ascending: false })
-      .limit(20);
+  // Cold high-scoring buyers — need secondary query for engagement check
+  if (highScorers && highScorers.length > 0) {
+    const buyerIds = highScorers.map((s: Record<string, unknown>) => s.buyer_id as string);
 
-    if (dealIdFilter) {
-      coldQuery = coldQuery.eq('listing_id', dealIdFilter);
-    }
+    const { data: recentEngagements } = await supabase
+      .from('connection_requests')
+      .select('buyer_profile_id')
+      .in('buyer_profile_id', buyerIds)
+      .gte('updated_at', ninetyDaysAgo);
 
-    const { data: highScorers } = await coldQuery;
+    const engagedBuyers = new Set(
+      (recentEngagements || []).map((e: Record<string, unknown>) => e.buyer_profile_id as string),
+    );
 
-    if (highScorers) {
-      // Check engagement for these buyers
-      const buyerIds = highScorers.map((s: Record<string, unknown>) => s.buyer_id as string);
-      const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString();
+    for (const scorer of highScorers) {
+      if (engagedBuyers.has(scorer.buyer_id as string)) continue;
 
-      const { data: recentEngagements } = await supabase
-        .from('connection_requests')
-        .select('buyer_profile_id')
-        .in('buyer_profile_id', buyerIds)
-        .gte('updated_at', ninetyDaysAgo);
+      const key = `cold_buyer:${scorer.buyer_id}:${scorer.listing_id}`;
+      if (isFilteredOut(key)) continue;
 
-      const engagedBuyers = new Set(
-        (recentEngagements || []).map((e: Record<string, unknown>) => e.buyer_profile_id as string),
-      );
-
-      for (const scorer of highScorers) {
-        if (engagedBuyers.has(scorer.buyer_id as string)) continue;
-
-        const key = `cold_buyer:${scorer.buyer_id}:${scorer.listing_id}`;
-        if (isFilteredOut(key)) continue;
-
-        const buyer = scorer.remarketing_buyers as Record<string, unknown>;
-        alerts.push({
-          key,
-          type: 'cold_buyer',
-          severity: scorer.composite_score >= 85 ? 'critical' : 'warning',
-          title: `Cold buyer: ${buyer.company_name} (score ${scorer.composite_score})`,
-          description: `High-scoring buyer with no engagement in 90+ days. ${buyer.has_fee_agreement ? 'Fee agreement signed.' : 'No fee agreement.'}`,
-          entity_type: 'buyer',
-          entity_id: scorer.buyer_id as string,
-          entity_name: buyer.company_name as string,
-          suggested_action: buyer.has_fee_agreement
-            ? 'Send CIM or schedule introduction call'
-            : 'Initiate fee agreement and introductory outreach',
-          data: {
-            buyer_id: scorer.buyer_id,
-            listing_id: scorer.listing_id,
-            composite_score: scorer.composite_score,
-            has_fee_agreement: buyer.has_fee_agreement,
-          },
-        });
-      }
+      const buyer = scorer.remarketing_buyers as Record<string, unknown>;
+      alerts.push({
+        key,
+        type: 'cold_buyer',
+        severity: scorer.composite_score >= 85 ? 'critical' : 'warning',
+        title: `Cold buyer: ${buyer.company_name} (score ${scorer.composite_score})`,
+        description: `High-scoring buyer with no engagement in 90+ days. ${buyer.has_fee_agreement ? 'Fee agreement signed.' : 'No fee agreement.'}`,
+        entity_type: 'buyer',
+        entity_id: scorer.buyer_id as string,
+        entity_name: buyer.company_name as string,
+        suggested_action: buyer.has_fee_agreement
+          ? 'Send CIM or schedule introduction call'
+          : 'Initiate fee agreement and introductory outreach',
+        data: {
+          buyer_id: scorer.buyer_id,
+          listing_id: scorer.listing_id,
+          composite_score: scorer.composite_score,
+          has_fee_agreement: buyer.has_fee_agreement,
+        },
+      });
     }
   }
 
   // Unprocessed transcripts
-  if (!alertTypeFilter || alertTypeFilter === 'unprocessed_transcript') {
-    let txQuery = supabase
-      .from('deal_transcripts')
-      .select('id, title, listing_id, created_at, duration_minutes, extracted_data')
-      .eq('has_content', true)
-      .order('created_at', { ascending: false })
-      .limit(10);
+  if (transcripts) {
+    const unprocessed = (transcripts as Array<Record<string, unknown>>).filter((t) => {
+      const extracted = t.extracted_data as Record<string, unknown> | null;
+      return !extracted?.ai_summarized_at;
+    });
 
-    if (dealIdFilter) {
-      txQuery = txQuery.eq('listing_id', dealIdFilter);
-    }
+    for (const tx of unprocessed) {
+      const key = `unprocessed_transcript:${tx.id}`;
+      if (isFilteredOut(key)) continue;
 
-    const { data: transcripts } = await txQuery;
+      const daysSince = Math.floor(
+        (Date.now() - new Date(tx.created_at as string).getTime()) / 86400000,
+      );
 
-    if (transcripts) {
-      const unprocessed = (transcripts as Array<Record<string, unknown>>).filter((t) => {
-        const extracted = t.extracted_data as Record<string, unknown> | null;
-        return !extracted?.ai_summarized_at;
+      alerts.push({
+        key,
+        type: 'unprocessed_transcript',
+        severity: 'info',
+        title: `Unsummarized: ${tx.title || 'Meeting recording'}`,
+        description: `${tx.duration_minutes ? `${tx.duration_minutes} min recording` : 'Recording'} from ${daysSince} days ago hasn't been summarized.`,
+        entity_type: 'transcript',
+        entity_id: tx.id as string,
+        entity_name: (tx.title as string) || 'Meeting recording',
+        suggested_action:
+          'Use summarize_transcript_to_notes to create a deal note from this recording',
+        data: {
+          transcript_id: tx.id,
+          listing_id: tx.listing_id,
+          duration_minutes: tx.duration_minutes,
+        },
       });
-
-      for (const tx of unprocessed) {
-        const key = `unprocessed_transcript:${tx.id}`;
-        if (isFilteredOut(key)) continue;
-
-        const daysSince = Math.floor(
-          (Date.now() - new Date(tx.created_at as string).getTime()) / 86400000,
-        );
-
-        alerts.push({
-          key,
-          type: 'unprocessed_transcript',
-          severity: 'info',
-          title: `Unsummarized: ${tx.title || 'Meeting recording'}`,
-          description: `${tx.duration_minutes ? `${tx.duration_minutes} min recording` : 'Recording'} from ${daysSince} days ago hasn't been summarized.`,
-          entity_type: 'transcript',
-          entity_id: tx.id as string,
-          entity_name: (tx.title as string) || 'Meeting recording',
-          suggested_action:
-            'Use summarize_transcript_to_notes to create a deal note from this recording',
-          data: {
-            transcript_id: tx.id,
-            listing_id: tx.listing_id,
-            duration_minutes: tx.duration_minutes,
-          },
-        });
-      }
     }
   }
 
   // Unsigned agreements for high-scoring buyers
-  if (!alertTypeFilter || alertTypeFilter === 'unsigned_agreement') {
-    let unsignedQuery = supabase
-      .from('remarketing_scores')
-      .select(
-        `buyer_id, listing_id, composite_score,
-         remarketing_buyers!inner(company_name, has_fee_agreement)`,
-      )
-      .gte('composite_score', 75)
-      .eq('is_disqualified', false)
-      .order('composite_score', { ascending: false })
-      .limit(15);
+  if (unsignedScorers) {
+    for (const scorer of unsignedScorers) {
+      const buyer = scorer.remarketing_buyers as Record<string, unknown>;
+      if (buyer.has_fee_agreement) continue;
 
-    if (dealIdFilter) {
-      unsignedQuery = unsignedQuery.eq('listing_id', dealIdFilter);
-    }
+      const key = `unsigned_agreement:${scorer.buyer_id}`;
+      if (isFilteredOut(key)) continue;
 
-    const { data: unsignedScorers } = await unsignedQuery;
-
-    if (unsignedScorers) {
-      for (const scorer of unsignedScorers) {
-        const buyer = scorer.remarketing_buyers as Record<string, unknown>;
-        if (buyer.has_fee_agreement) continue;
-
-        const key = `unsigned_agreement:${scorer.buyer_id}`;
-        if (isFilteredOut(key)) continue;
-
-        alerts.push({
-          key,
-          type: 'unsigned_agreement',
-          severity: scorer.composite_score >= 85 ? 'warning' : 'info',
-          title: `No fee agreement: ${buyer.company_name} (score ${scorer.composite_score})`,
-          description: `High-scoring buyer without a signed fee agreement.`,
-          entity_type: 'buyer',
-          entity_id: scorer.buyer_id as string,
-          entity_name: buyer.company_name as string,
-          suggested_action: 'Initiate fee agreement to unlock CIM access',
-          data: {
-            buyer_id: scorer.buyer_id,
-            listing_id: scorer.listing_id,
-            composite_score: scorer.composite_score,
-          },
-        });
-      }
+      alerts.push({
+        key,
+        type: 'unsigned_agreement',
+        severity: scorer.composite_score >= 85 ? 'warning' : 'info',
+        title: `No fee agreement: ${buyer.company_name} (score ${scorer.composite_score})`,
+        description: `High-scoring buyer without a signed fee agreement.`,
+        entity_type: 'buyer',
+        entity_id: scorer.buyer_id as string,
+        entity_name: buyer.company_name as string,
+        suggested_action: 'Initiate fee agreement to unlock CIM access',
+        data: {
+          buyer_id: scorer.buyer_id,
+          listing_id: scorer.listing_id,
+          composite_score: scorer.composite_score,
+        },
+      });
     }
   }
 
   // Unacknowledged critical signals
-  if (!alertTypeFilter || alertTypeFilter === 'critical_signal') {
-    const { data: signals } = await supabase
-      .from('rm_deal_signals')
-      .select('id, signal_type, signal_category, summary, listing_id, created_at')
-      .in('signal_type', ['critical', 'warning'])
-      .is('acknowledged_at', null)
-      .order('created_at', { ascending: false })
-      .limit(10);
+  if (signals) {
+    for (const signal of signals) {
+      if (dealIdFilter && signal.listing_id !== dealIdFilter) continue;
+      const key = `critical_signal:${signal.id}`;
+      if (isFilteredOut(key)) continue;
 
-    if (signals) {
-      for (const signal of signals) {
-        if (dealIdFilter && signal.listing_id !== dealIdFilter) continue;
-        const key = `critical_signal:${signal.id}`;
-        if (isFilteredOut(key)) continue;
-
-        alerts.push({
-          key,
-          type: 'critical_signal',
-          severity: signal.signal_type === 'critical' ? 'critical' : 'warning',
-          title: `${signal.signal_type === 'critical' ? 'Critical' : 'Warning'} signal: ${signal.signal_category || 'Deal issue'}`,
-          description: signal.summary || 'Unacknowledged deal signal requires attention.',
-          entity_type: 'listing',
-          entity_id: signal.listing_id,
-          entity_name: signal.signal_category || 'Deal',
-          suggested_action: 'Review and acknowledge this signal',
-          data: { signal_id: signal.id, signal_type: signal.signal_type },
-        });
-      }
+      alerts.push({
+        key,
+        type: 'critical_signal',
+        severity: signal.signal_type === 'critical' ? 'critical' : 'warning',
+        title: `${signal.signal_type === 'critical' ? 'Critical' : 'Warning'} signal: ${signal.signal_category || 'Deal issue'}`,
+        description: signal.summary || 'Unacknowledged deal signal requires attention.',
+        entity_type: 'listing',
+        entity_id: signal.listing_id,
+        entity_name: signal.signal_category || 'Deal',
+        suggested_action: 'Review and acknowledge this signal',
+        data: { signal_id: signal.id, signal_type: signal.signal_type },
+      });
     }
   }
 
