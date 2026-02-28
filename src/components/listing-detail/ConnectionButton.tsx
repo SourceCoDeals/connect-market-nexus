@@ -175,6 +175,7 @@ const ConnectionButton = ({
         onSubmit={handleDialogSubmit}
         isSubmitting={isRequesting}
         listingTitle={listingTitle}
+        listingId={_listingId}
       />
 
       {showFeeGate && user && ndaStatus?.firmId && (

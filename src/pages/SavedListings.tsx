@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useMarketplace } from '@/hooks/use-marketplace';
 import { FilterOptions, PaginationState } from '@/types';
 import ListingCard from '@/components/ListingCard';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, LayoutList, ChevronLeft, ChevronRight, Lightbulb } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -16,10 +16,26 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useAllSavedListingIds } from '@/hooks/marketplace/use-saved-listings';
 import { useAllConnectionStatuses } from '@/hooks/marketplace/use-connections';
+import { SavedListingAnnotation } from '@/components/marketplace/SavedListingAnnotation';
+
+const ANNOTATION_STORAGE_KEY = 'sourceco_saved_listing_notes';
+
+function loadAnnotations(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(ANNOTATION_STORAGE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function saveAnnotations(notes: Record<string, string>) {
+  localStorage.setItem(ANNOTATION_STORAGE_KEY, JSON.stringify(notes));
+}
 
 const SavedListings = () => {
   // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
+  const [annotations, setAnnotations] = useState<Record<string, string>>(loadAnnotations);
   const filters: FilterOptions = useMemo(
     () => ({
       page: Number(searchParams.get('page')) || 1,
@@ -80,6 +96,43 @@ const SavedListings = () => {
 
   const listings = listingsData?.listings || [];
   const totalItems = listingsData?.totalCount || 0;
+
+  const handleSaveAnnotation = useCallback((listingId: string, note: string) => {
+    setAnnotations((prev) => {
+      const next = { ...prev };
+      if (note) {
+        next[listingId] = note;
+      } else {
+        delete next[listingId];
+      }
+      saveAnnotations(next);
+      return next;
+    });
+  }, []);
+
+  const handleDeleteAnnotation = useCallback((listingId: string) => {
+    setAnnotations((prev) => {
+      const next = { ...prev };
+      delete next[listingId];
+      saveAnnotations(next);
+      return next;
+    });
+  }, []);
+
+  // "More like this" — detect common categories among saved listings
+  const moreLikeThisSuggestion = useMemo(() => {
+    if (listings.length < 3) return null;
+    const categoryCounts: Record<string, number> = {};
+    for (const l of listings) {
+      const cat = l.category;
+      if (cat) categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    }
+    const topCategory = Object.entries(categoryCounts)
+      .filter(([, count]) => count >= 3)
+      .sort((a, b) => b[1] - a[1])[0];
+    if (!topCategory) return null;
+    return { category: topCategory[0], count: topCategory[1] };
+  }, [listings]);
 
   // Update pagination whenever total count or filters change
   useEffect(() => {
@@ -245,6 +298,23 @@ const SavedListings = () => {
               </div>
             </div>
 
+            {/* "More like this" suggestion */}
+            {moreLikeThisSuggestion && !isLoading && (
+              <div className="p-3 bg-purple-50 border border-purple-100 rounded-lg flex items-center gap-3">
+                <Lightbulb className="h-4 w-4 text-purple-600 shrink-0" />
+                <p className="text-sm text-purple-800 flex-1">
+                  You've saved {moreLikeThisSuggestion.count} {moreLikeThisSuggestion.category}{' '}
+                  deals.{' '}
+                  <Link
+                    to={`/marketplace?category=${encodeURIComponent(moreLikeThisSuggestion.category)}`}
+                    className="font-medium underline hover:text-purple-900"
+                  >
+                    See more like these →
+                  </Link>
+                </p>
+              </div>
+            )}
+
             {/* Listings grid/list */}
             {isLoading ? (
               <div
@@ -287,13 +357,20 @@ const SavedListings = () => {
                   }
                 >
                   {listings.map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      listing={listing}
-                      viewType={viewType}
-                      savedIds={savedIds}
-                      connectionMap={connectionMap}
-                    />
+                    <div key={listing.id}>
+                      <ListingCard
+                        listing={listing}
+                        viewType={viewType}
+                        savedIds={savedIds}
+                        connectionMap={connectionMap}
+                      />
+                      <SavedListingAnnotation
+                        listingId={listing.id}
+                        note={annotations[listing.id] || ''}
+                        onSave={handleSaveAnnotation}
+                        onDelete={handleDeleteAnnotation}
+                      />
+                    </div>
                   ))}
                 </div>
 

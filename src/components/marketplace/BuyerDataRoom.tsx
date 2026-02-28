@@ -10,13 +10,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  FileText, File, FileSpreadsheet, FileImage, Download, Eye,
-  Loader2, FolderOpen, Lock,
+  FileText,
+  File,
+  FileSpreadsheet,
+  FileImage,
+  Download,
+  Eye,
+  Loader2,
+  FolderOpen,
+  Lock,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { DataRoomOrientation } from './DataRoomOrientation';
 
 interface BuyerDataRoomProps {
   dealId: string;
@@ -61,7 +69,9 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('data_room_documents')
-        .select('id, folder_name, file_name, file_type, file_size_bytes, document_category, allow_download, created_at')
+        .select(
+          'id, folder_name, file_name, file_type, file_size_bytes, document_category, allow_download, created_at',
+        )
         .eq('deal_id', dealId)
         .order('folder_name')
         .order('created_at', { ascending: false });
@@ -89,20 +99,26 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
     enabled: !!dealId && !!access,
   });
 
-  if (!access || (!access.can_view_teaser && !access.can_view_full_memo && !access.can_view_data_room)) {
+  if (
+    !access ||
+    (!access.can_view_teaser && !access.can_view_full_memo && !access.can_view_data_room)
+  ) {
     return null; // No access — don't show anything
   }
 
   const handleViewDocument = async (docId: string) => {
     setLoadingDoc(docId);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) return;
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-room-download?document_id=${docId}&action=view`,
-        { headers: { Authorization: `Bearer ${session.access_token}` } }
+        { headers: { Authorization: `Bearer ${session.access_token}` } },
       );
 
       if (response.ok) {
@@ -117,13 +133,16 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
   const handleDownloadDocument = async (docId: string) => {
     setLoadingDoc(docId);
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) return;
 
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-room-download?document_id=${docId}&action=download`,
-        { headers: { Authorization: `Bearer ${session.access_token}` } }
+        { headers: { Authorization: `Bearer ${session.access_token}` } },
       );
 
       if (response.ok) {
@@ -138,7 +157,8 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
   const getFileIcon = (fileType: string | null) => {
     if (!fileType) return <File className="h-5 w-5 text-gray-400" />;
     if (fileType.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
-    if (fileType.includes('spreadsheet') || fileType.includes('csv')) return <FileSpreadsheet className="h-5 w-5 text-green-500" />;
+    if (fileType.includes('spreadsheet') || fileType.includes('csv'))
+      return <FileSpreadsheet className="h-5 w-5 text-green-500" />;
     if (fileType.includes('image')) return <FileImage className="h-5 w-5 text-blue-500" />;
     return <File className="h-5 w-5 text-gray-400" />;
   };
@@ -151,11 +171,14 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
   };
 
   // Group documents by folder
-  const documentsByFolder = documents.reduce((acc, doc) => {
-    if (!acc[doc.folder_name]) acc[doc.folder_name] = [];
-    acc[doc.folder_name].push(doc);
-    return acc;
-  }, {} as Record<string, BuyerDocument[]>);
+  const documentsByFolder = documents.reduce(
+    (acc, doc) => {
+      if (!acc[doc.folder_name]) acc[doc.folder_name] = [];
+      acc[doc.folder_name].push(doc);
+      return acc;
+    },
+    {} as Record<string, BuyerDocument[]>,
+  );
 
   return (
     <div className="space-y-4">
@@ -163,6 +186,11 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
         <Lock className="h-5 w-5" />
         Data Room
       </h3>
+
+      {/* Data Room Orientation */}
+      {(documents.length > 0 || memos.length > 0) && (
+        <DataRoomOrientation documents={documents} memoCount={memos.length} />
+      )}
 
       {/* Published Memos */}
       {memos.length > 0 && (
@@ -172,7 +200,7 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {memos.map(memo => (
+              {memos.map((memo) => (
                 <div key={memo.id} className="p-4 rounded-lg border bg-card">
                   <div className="flex items-center justify-between mb-2">
                     <Badge variant="secondary">
@@ -189,7 +217,13 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
                     />
                   ) : (
                     <div className="space-y-3">
-                      {((memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || []).map((section: { title: string; content: string }) => (
+                      {(
+                        (
+                          memo.content as {
+                            sections?: Array<{ title: string; content: string }>;
+                          } | null
+                        )?.sections || []
+                      ).map((section: { title: string; content: string }) => (
                         <div key={section.title}>
                           <h4 className="font-medium text-sm mb-1">{section.title}</h4>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
@@ -207,7 +241,7 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
       )}
 
       {/* Documents by Folder */}
-      {Object.keys(documentsByFolder).length > 0 && (
+      {Object.keys(documentsByFolder).length > 0 &&
         Object.entries(documentsByFolder)
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([folder, docs]) => (
@@ -220,11 +254,22 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
               </CardHeader>
               <CardContent>
                 <div className="divide-y">
-                  {docs.map(doc => (
+                  {docs.map((doc) => (
                     <div key={doc.id} className="flex items-center gap-3 py-2">
                       {getFileIcon(doc.file_type)}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{doc.file_name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium truncate">{doc.file_name}</p>
+                          {Date.now() - new Date(doc.created_at).getTime() <
+                            7 * 24 * 60 * 60 * 1000 && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] bg-green-50 text-green-700 border-green-200 shrink-0"
+                            >
+                              New
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {formatFileSize(doc.file_size_bytes)}
                           {' · '}
@@ -262,8 +307,7 @@ export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
                 </div>
               </CardContent>
             </Card>
-          ))
-      )}
+          ))}
 
       {documents.length === 0 && memos.length === 0 && (
         <Card>

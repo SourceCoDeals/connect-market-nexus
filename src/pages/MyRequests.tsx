@@ -1,29 +1,38 @@
-import { useState, useEffect, useMemo } from "react";
-import { useAuth } from "@/context/AuthContext";
-import type { User } from "@/types";
-import { useMarketplace } from "@/hooks/use-marketplace";
-import { AlertCircle, FileText, MessageSquare, FolderOpen, Activity, LayoutGrid } from "lucide-react";
+import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import type { User } from '@/types';
+import { useMarketplace } from '@/hooks/use-marketplace';
 import {
-  useUnreadBuyerMessageCounts,
-} from "@/hooks/use-connection-messages";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { getProfileCompletionDetails } from "@/lib/buyer-metrics";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DealProcessSteps } from "@/components/deals/DealProcessSteps";
-import { DealDetailsCard } from "@/components/deals/DealDetailsCard";
-import { DealMetricsCard } from "@/components/deals/DealMetricsCard";
-import { DealMessagesTab } from "@/components/deals/DealMessagesTab";
-import { DealDocumentsTab } from "@/components/deals/DealDocumentsTab";
-import { DealActivityLog } from "@/components/deals/DealActivityLog";
-import { ActionHub } from "@/components/deals/ActionHub";
-import { DealPipelineCard } from "@/components/deals/DealPipelineCard";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useUserNotifications, useMarkRequestNotificationsAsRead, useMarkAllUserNotificationsAsRead } from "@/hooks/use-user-notifications";
-import { useSearchParams } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { useBuyerNdaStatus } from "@/hooks/admin/use-docuseal";
+  AlertCircle,
+  FileText,
+  MessageSquare,
+  FolderOpen,
+  Activity,
+  LayoutGrid,
+} from 'lucide-react';
+import { useUnreadBuyerMessageCounts } from '@/hooks/use-connection-messages';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { getProfileCompletionDetails } from '@/lib/buyer-metrics';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DealProcessSteps } from '@/components/deals/DealProcessSteps';
+import { DealDetailsCard } from '@/components/deals/DealDetailsCard';
+import { DealMetricsCard } from '@/components/deals/DealMetricsCard';
+import { DealMessagesTab } from '@/components/deals/DealMessagesTab';
+import { DealDocumentsTab } from '@/components/deals/DealDocumentsTab';
+import { DealActivityLog } from '@/components/deals/DealActivityLog';
+import { ActionHub } from '@/components/deals/ActionHub';
+import { DealPipelineCard } from '@/components/deals/DealPipelineCard';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  useUserNotifications,
+  useMarkRequestNotificationsAsRead,
+  useMarkAllUserNotificationsAsRead,
+} from '@/hooks/use-user-notifications';
+import { useSearchParams } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
 
 const MyRequests = () => {
   const { user, isAdmin } = useAuth();
@@ -41,9 +50,9 @@ const MyRequests = () => {
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
 
   // Get/set inner tab for a specific deal
-  const getInnerTab = (requestId: string) => innerTab[requestId] || "overview";
+  const getInnerTab = (requestId: string) => innerTab[requestId] || 'overview';
   const setDealInnerTab = (requestId: string, tab: string) =>
-    setInnerTab(prev => ({ ...prev, [requestId]: tab }));
+    setInnerTab((prev) => ({ ...prev, [requestId]: tab }));
 
   // Fetch fresh profile data to avoid stale completeness calculations
   const { data: freshProfile } = useQuery({
@@ -66,7 +75,7 @@ const MyRequests = () => {
   });
 
   const profileForCalc = useMemo((): User | null => {
-    const src = (freshProfile ?? user) as (User | null);
+    const src = (freshProfile ?? user) as User | null;
     if (!src) return null;
     return {
       ...src,
@@ -86,7 +95,7 @@ const MyRequests = () => {
   useEffect(() => {
     if (requests && requests.length > 0) {
       const requestIdFromUrl = searchParams.get('request') || searchParams.get('deal');
-      if (requestIdFromUrl && requests.find(r => r.id === requestIdFromUrl)) {
+      if (requestIdFromUrl && requests.find((r) => r.id === requestIdFromUrl)) {
         setSelectedDeal(requestIdFromUrl);
         const tabParam = searchParams.get('tab');
         if (tabParam && ['overview', 'documents', 'messages', 'activity'].includes(tabParam)) {
@@ -110,7 +119,7 @@ const MyRequests = () => {
     }
   }, [selectedDeal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectedRequest = requests.find(r => r.id === selectedDeal);
+  const selectedRequest = requests.find((r) => r.id === selectedDeal);
 
   if (error) {
     return (
@@ -162,7 +171,8 @@ const MyRequests = () => {
             </div>
             <h2 className="text-base font-semibold text-slate-900">No deals yet</h2>
             <p className="text-sm text-slate-600 leading-6">
-              You haven't submitted any connection requests yet. Browse the marketplace to find opportunities.
+              You haven't submitted any connection requests yet. Browse the marketplace to find
+              opportunities.
             </p>
           </div>
         </div>
@@ -181,9 +191,7 @@ const MyRequests = () => {
             {requests.length}
           </span>
         </div>
-        <p className="text-sm text-slate-500 ml-8">
-          Your deal pipeline at a glance
-        </p>
+        <p className="text-sm text-slate-500 ml-8">Your deal pipeline at a glance</p>
       </div>
 
       <div className="px-4 sm:px-8 pb-8 max-w-7xl mx-auto space-y-6">
@@ -196,14 +204,17 @@ const MyRequests = () => {
         />
 
         {/* ─── Main Layout: Deal Cards + Detail Panel ─── */}
-        <div className={cn(
-          "grid gap-6",
-          isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-[340px_1fr]"
-        )}>
+        <div
+          className={cn(
+            'grid gap-6',
+            isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-[340px_1fr]',
+          )}
+        >
           {/* ─── Left: Deal Cards ─── */}
           <div className="space-y-3">
             {requests.map((request) => {
-              const unreadForRequest = (unreadByRequest[request.id] || 0) + (unreadMsgCounts?.byRequest[request.id] || 0);
+              const unreadForRequest =
+                (unreadByRequest[request.id] || 0) + (unreadMsgCounts?.byRequest[request.id] || 0);
 
               // Determine pending action text
               let pendingAction: string | undefined;
@@ -245,12 +256,14 @@ const MyRequests = () => {
 
 // ─── Detail Panel Sub-Component ─────────────────────────────────────────
 interface DetailPanelProps {
-  request: import("@/types").ConnectionRequest;
+  request: import('@/types').ConnectionRequest;
   innerTab: string;
   onInnerTabChange: (tab: string) => void;
   unreadMsgCounts?: { byRequest: Record<string, number> };
   unreadDocsByDeal: Record<string, number>;
-  updateMessage: { mutateAsync: (args: { requestId: string; message: string }) => Promise<unknown> };
+  updateMessage: {
+    mutateAsync: (args: { requestId: string; message: string }) => Promise<unknown>;
+  };
   profileForCalc: User | null;
 }
 
@@ -263,7 +276,7 @@ function DetailPanel({
   updateMessage,
   profileForCalc,
 }: DetailPanelProps) {
-  const requestStatus = request.status as "pending" | "approved" | "rejected" | "on_hold";
+  const requestStatus = request.status as 'pending' | 'approved' | 'rejected' | 'on_hold';
   const msgUnread = unreadMsgCounts?.byRequest[request.id] || 0;
   const docUnread = unreadDocsByDeal[request.listing_id] || 0;
 
@@ -283,10 +296,10 @@ function DetailPanel({
             <TabsTrigger
               value="overview"
               className={cn(
-                "px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors",
-                innerTab === "overview"
-                  ? "border-slate-900 text-slate-900"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                'px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors',
+                innerTab === 'overview'
+                  ? 'border-slate-900 text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-700',
               )}
             >
               Overview
@@ -294,44 +307,44 @@ function DetailPanel({
             <TabsTrigger
               value="documents"
               className={cn(
-                "px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
-                innerTab === "documents"
-                  ? "border-slate-900 text-slate-900"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                'px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
+                innerTab === 'documents'
+                  ? 'border-slate-900 text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-700',
               )}
             >
               <FolderOpen className="h-3.5 w-3.5" />
               Documents
               {docUnread > 0 && (
                 <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
-                  {docUnread > 99 ? "99+" : docUnread}
+                  {docUnread > 99 ? '99+' : docUnread}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger
               value="messages"
               className={cn(
-                "px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
-                innerTab === "messages"
-                  ? "border-slate-900 text-slate-900"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                'px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
+                innerTab === 'messages'
+                  ? 'border-slate-900 text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-700',
               )}
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Messages
               {msgUnread > 0 && (
                 <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
-                  {msgUnread > 99 ? "99+" : msgUnread}
+                  {msgUnread > 99 ? '99+' : msgUnread}
                 </span>
               )}
             </TabsTrigger>
             <TabsTrigger
               value="activity"
               className={cn(
-                "px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5",
-                innerTab === "activity"
-                  ? "border-slate-900 text-slate-900"
-                  : "border-transparent text-slate-500 hover:text-slate-700"
+                'px-3.5 py-2.5 text-sm font-medium rounded-none border-b-2 transition-colors flex items-center gap-1.5',
+                innerTab === 'activity'
+                  ? 'border-slate-900 text-slate-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-700',
               )}
             >
               <Activity className="h-3.5 w-3.5" />
@@ -347,7 +360,7 @@ function DetailPanel({
             <DealMetricsCard
               listing={{
                 id: request.listing_id,
-                title: request.listing?.title || "Untitled",
+                title: request.listing?.title || 'Untitled',
                 category: request.listing?.category,
                 location: request.listing?.location,
                 image_url: request.listing?.image_url,
@@ -362,7 +375,7 @@ function DetailPanel({
 
             {/* Process Steps */}
             <DealProcessSteps
-              requestStatus={request.status as "pending" | "approved" | "rejected"}
+              requestStatus={request.status as 'pending' | 'approved' | 'rejected'}
               requestId={request.id}
               userMessage={request.user_message}
               onMessageUpdate={async (newMessage) => {
@@ -373,6 +386,9 @@ function DetailPanel({
               }}
               isProfileComplete={getProfileCompletionDetails(profileForCalc).isComplete}
               profileCompletionPercentage={getProfileCompletionDetails(profileForCalc).percentage}
+              listingCategory={request.listing?.category}
+              listingLocation={request.listing?.location}
+              requestCreatedAt={request.created_at}
             />
 
             {/* Deal Details */}
@@ -397,18 +413,12 @@ function DetailPanel({
 
           {/* ─── Messages Tab (human-only) ─── */}
           <TabsContent value="messages" className="mt-0">
-            <DealMessagesTab
-              requestId={request.id}
-              requestStatus={requestStatus}
-            />
+            <DealMessagesTab requestId={request.id} requestStatus={requestStatus} />
           </TabsContent>
 
           {/* ─── Activity Log Tab (system notifications) ─── */}
           <TabsContent value="activity" className="mt-0">
-            <DealActivityLog
-              requestId={request.id}
-              requestStatus={requestStatus}
-            />
+            <DealActivityLog requestId={request.id} requestStatus={requestStatus} />
           </TabsContent>
         </div>
       </Tabs>
