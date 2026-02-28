@@ -8266,6 +8266,7 @@ export type Database = {
           sf_target_stage: string | null
           sf_target_sub_stage: string | null
           sf_tier: string | null
+          source_deal_id: string | null
           special_requirements: string | null
           status: string
           status_label: string | null
@@ -8459,6 +8460,7 @@ export type Database = {
           sf_target_stage?: string | null
           sf_target_sub_stage?: string | null
           sf_tier?: string | null
+          source_deal_id?: string | null
           special_requirements?: string | null
           status?: string
           status_label?: string | null
@@ -8652,6 +8654,7 @@ export type Database = {
           sf_target_stage?: string | null
           sf_target_sub_stage?: string | null
           sf_tier?: string | null
+          source_deal_id?: string | null
           special_requirements?: string | null
           status?: string
           status_label?: string | null
@@ -8706,6 +8709,62 @@ export type Database = {
             columns: ["referral_partner_id"]
             isOneToOne: false
             referencedRelation: "referral_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_introduction_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "listings_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "listings_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
             referencedColumns: ["id"]
           },
         ]
@@ -13875,6 +13934,7 @@ export type Database = {
           sf_target_stage: string | null
           sf_target_sub_stage: string | null
           sf_tier: string | null
+          source_deal_id: string | null
           special_requirements: string | null
           status: string
           status_label: string | null

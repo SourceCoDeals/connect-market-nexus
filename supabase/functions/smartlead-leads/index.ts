@@ -45,7 +45,7 @@ interface ResolvedLead {
 // ─── Contact resolvers ──────────────────────────────────────────────────────
 
 async function resolveFromBuyerContacts(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   ids: string[],
 ): Promise<ResolvedLead[]> {
   const { data: contacts } = await supabase
@@ -86,7 +86,7 @@ async function resolveFromBuyerContacts(
 }
 
 async function resolveFromBuyers(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   buyerIds: string[],
 ): Promise<ResolvedLead[]> {
   // Get contacts linked to these buyers
@@ -158,7 +158,7 @@ async function resolveFromBuyers(
 }
 
 async function resolveFromListings(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   listingIds: string[],
 ): Promise<ResolvedLead[]> {
   const { data: listings } = await supabase
@@ -191,7 +191,7 @@ async function resolveFromListings(
 }
 
 async function resolveFromLeads(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   leadIds: string[],
 ): Promise<ResolvedLead[]> {
   const { data: leads } = await supabase
