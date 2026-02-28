@@ -40,6 +40,7 @@ import { proactiveTools, executeProactiveTool } from './proactive-tools.ts';
 import { smartleadTools, executeSmartleadTool } from './smartlead-tools.ts';
 import { knowledgeTools, executeKnowledgeTool } from './knowledge-tools.ts';
 import { taskTools, executeTaskTool } from './task-tools.ts';
+import { industryResearchTools, executeIndustryResearchTool } from './industry-research-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -77,6 +78,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...smartleadTools,
   ...knowledgeTools,
   ...taskTools,
+  ...industryResearchTools,
 ];
 
 // ---------- Backward-compat: old tool name → executor mapping ----------
@@ -314,8 +316,18 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   // Platform guide / help — knowledge-based response
   PLATFORM_GUIDE: ['get_current_user_context', 'retrieve_knowledge'],
 
-  // Industry trackers
-  INDUSTRY: ['get_industry_trackers', 'search_buyer_universes'],
+  // Industry research & trackers
+  INDUSTRY: [
+    'research_industry',
+    'google_search_companies',
+    'semantic_transcript_search',
+    'search_buyers',
+    'search_buyer_universes',
+    'get_universe_details',
+    'query_deals',
+    'get_industry_trackers',
+    'retrieve_knowledge',
+  ],
 
   // Cross-deal analytics (now served by merged get_analytics)
   CROSS_DEAL: ['get_analytics', 'get_pipeline_summary'],
@@ -480,6 +492,7 @@ export async function executeTool(
     'push_to_smartlead',
     'search_fireflies',
     'semantic_transcript_search',
+    'research_industry',
   ]);
   const timeoutMs = ENRICHMENT_TOOLS.has(toolName)
     ? 90000
@@ -561,6 +574,8 @@ async function _executeToolInternal(
     return executeKnowledgeTool(supabase, toolName, resolvedArgs);
   if (taskTools.some((t) => t.name === toolName))
     return executeTaskTool(supabase, toolName, resolvedArgs, userId);
+  if (industryResearchTools.some((t) => t.name === toolName))
+    return executeIndustryResearchTool(supabase, toolName, resolvedArgs);
 
   // Backward compatibility: route old (merged) tool names to their new executors
   const legacyRouter = LEGACY_TOOL_ROUTING[toolName];

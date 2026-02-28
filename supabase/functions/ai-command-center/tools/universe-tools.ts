@@ -21,7 +21,8 @@ export const universeTools: ClaudeTool[] = [
 DATA SOURCE: remarketing_buyer_universes table.
 USE WHEN: "find the HVAC universe", "which universes exist", "universes for plumbing buyers".
 SEARCHABLE FIELDS: search param checks name, description, fit_criteria, service_criteria, geography_criteria, size_criteria, buyer_types_criteria.
-Each universe defines fit criteria, scoring weights, and which deals it applies to.`,
+Each universe defines fit criteria, scoring weights, and which deals it applies to.
+Returns has_ma_guide flag indicating if a detailed M&A industry research guide has been generated for this universe — use get_universe_details to read the full guide content.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -39,7 +40,7 @@ Each universe defines fit criteria, scoring weights, and which deals it applies 
   {
     name: 'get_universe_details',
     description:
-      'Get full details for a specific buyer universe — criteria, scoring weights, associated deals, and buyer count.',
+      'Get full details for a specific buyer universe — criteria, scoring weights, associated deals, buyer count, and M&A industry guide (if generated). The ma_guide_content field contains a detailed, multi-section industry research document covering PE diligence frameworks, KPIs, competitive dynamics, and deal structure guidance.',
     input_schema: {
       type: 'object',
       properties: {
@@ -158,7 +159,7 @@ async function searchBuyerUniverses(
   let query = supabase
     .from('remarketing_buyer_universes')
     .select(
-      'id, name, description, fit_criteria, size_criteria, geography_criteria, service_criteria, buyer_types_criteria, geography_weight, size_weight, service_weight, owner_goals_weight, archived, created_at, updated_at',
+      'id, name, description, fit_criteria, size_criteria, geography_criteria, service_criteria, buyer_types_criteria, geography_weight, size_weight, service_weight, owner_goals_weight, archived, created_at, updated_at, ma_guide_content, ma_guide_generated_at',
     )
     .order('updated_at', { ascending: false })
     .limit(limit);
@@ -168,7 +169,11 @@ async function searchBuyerUniverses(
   const { data, error } = await query;
   if (error) return { error: error.message };
 
-  let results = data || [];
+  // Add has_ma_guide flag and strip full guide content to save tokens
+  let results = (data || []).map((u: any) => {
+    const { ma_guide_content, ...rest } = u;
+    return { ...rest, has_ma_guide: !!ma_guide_content };
+  });
   const totalFromDb = results.length;
 
   if (args.search) {
@@ -229,9 +234,15 @@ async function getUniverseDetails(
 
   if (universeResult.error) return { error: universeResult.error.message };
 
+  // Truncate ma_guide_content to save tokens (full guides can be 20K+)
+  const universe = { ...universeResult.data };
+  if (universe.ma_guide_content && universe.ma_guide_content.length > 6000) {
+    universe.ma_guide_content = universe.ma_guide_content.substring(0, 6000) + '\n\n[... guide truncated — full guide is ' + universeResult.data.ma_guide_content.length + ' chars]';
+  }
+
   return {
     data: {
-      universe: universeResult.data,
+      universe,
       associated_deals: dealsResult.data || [],
       buyer_count: buyerCountResult.count || 0,
     },
