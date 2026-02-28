@@ -6,7 +6,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -102,7 +102,7 @@ export function AICommandCenterPanel({
   const [showHistory, setShowHistory] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     messages,
@@ -124,6 +124,7 @@ export function AICommandCenterPanel({
     switchConversation,
     startNewConversation,
     deleteConversation,
+    loadConversationHistory,
   } = useAICommandCenter(pageContext);
 
   // Register UI action handler
@@ -140,12 +141,16 @@ export function AICommandCenterPanel({
     }
   }, [messages, streamingContent, activeTools]);
 
-  // Focus input when opened
+  // Focus input when opened and refresh conversation history
   useEffect(() => {
-    if (isOpen && !isMinimized && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (isOpen && !isMinimized) {
+      if (inputRef.current) {
+        setTimeout(() => inputRef.current?.focus(), 100);
+      }
+      // Refresh conversation history whenever the panel is opened
+      loadConversationHistory();
     }
-  }, [isOpen, isMinimized]);
+  }, [isOpen, isMinimized, loadConversationHistory]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -153,6 +158,34 @@ export function AICommandCenterPanel({
       if (!input.trim() || isLoading) return;
       sendMessage(input);
       setInput('');
+      // Reset textarea height after send
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+      }
+    },
+    [input, isLoading, sendMessage],
+  );
+
+  // Auto-resize textarea as content changes
+  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+  }, []);
+
+  // Enter to send, Shift+Enter for newline
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+        sendMessage(input);
+        setInput('');
+        if (inputRef.current) {
+          inputRef.current.style.height = 'auto';
+        }
+      }
     },
     [input, isLoading, sendMessage],
   );
@@ -250,7 +283,13 @@ export function AICommandCenterPanel({
                   'h-7 w-7 hover:bg-white/10',
                   showHistory ? 'text-[#DEC76B]' : 'text-white/80 hover:text-white',
                 )}
-                onClick={() => setShowHistory(!showHistory)}
+                onClick={() => {
+                  const opening = !showHistory;
+                  setShowHistory(opening);
+                  if (opening) {
+                    loadConversationHistory();
+                  }
+                }}
                 title="Conversation history"
               >
                 <History className="h-4 w-4" />
@@ -365,17 +404,25 @@ export function AICommandCenterPanel({
               className="p-3 border-t border-[#DEC76B]/20"
               style={{ backgroundColor: '#FCF9F0' }}
             >
-              <form onSubmit={handleSubmit} className="flex gap-2">
-                <Input
+              <form onSubmit={handleSubmit} className="flex items-end gap-2">
+                <Textarea
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
                   placeholder="Ask anything about deals, buyers, pipeline..."
                   disabled={isLoading}
-                  className="flex-1"
+                  rows={1}
+                  className="flex-1 min-h-[40px] max-h-[160px] resize-none overflow-y-auto py-2.5"
                 />
                 {isLoading ? (
-                  <Button type="button" variant="outline" size="icon" onClick={stopStreaming}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="flex-shrink-0"
+                    onClick={stopStreaming}
+                  >
                     <Square className="h-4 w-4" />
                   </Button>
                 ) : (
@@ -383,12 +430,15 @@ export function AICommandCenterPanel({
                     type="submit"
                     disabled={!input.trim()}
                     size="icon"
-                    className="bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
+                    className="flex-shrink-0 bg-[#0E101A] hover:bg-[#000000] text-[#DEC76B]"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
                 )}
               </form>
+              <p className="text-[10px] text-muted-foreground mt-1 text-center">
+                Press Enter to send, Shift+Enter for new line
+              </p>
             </div>
           </>
         )}
