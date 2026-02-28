@@ -342,6 +342,109 @@ export function useSmartAlerts() {
         }
       });
 
+      // 5. Deal-level buyer activity spike alerts (Top 5 buyer engagement)
+      // When a buyer in the Top 5 for a deal shows a spike in engagement
+      // (3+ new connections, messages, or calls within 48 hours), generate an alert
+      const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+      // Get active deals with scored buyers
+      const { data: activePipelineDeals, error: apdError } = await supabase
+        .from('deals')
+        .select('id, listing_id, title')
+        .is('deleted_at', null)
+        .not('listing_id', 'is', null)
+        .limit(50);
+      if (!apdError && activePipelineDeals && activePipelineDeals.length > 0) {
+        const dealListingIds = activePipelineDeals
+          .map(d => d.listing_id)
+          .filter((id): id is string => !!id);
+
+        if (dealListingIds.length > 0) {
+          // Get top-scored buyers per deal (non-disqualified, top 5 by score)
+          const { data: topScores, error: tsError } = await supabase
+            .from('remarketing_scores')
+            .select('listing_id, buyer_id, composite_score')
+            .in('listing_id', dealListingIds)
+            .or('is_disqualified.eq.false,is_disqualified.is.null')
+            .order('composite_score', { ascending: false })
+            .limit(250); // Up to 5 per deal × 50 deals
+
+          if (!tsError && topScores && topScores.length > 0) {
+            // Group by listing and take top 5
+            const top5ByListing = new Map<string, string[]>();
+            for (const ts of topScores) {
+              const existing = top5ByListing.get(ts.listing_id) || [];
+              if (existing.length < 5) {
+                existing.push(ts.buyer_id);
+                top5ByListing.set(ts.listing_id, existing);
+              }
+            }
+
+            const allTop5BuyerIds = [...new Set([...top5ByListing.values()].flat())];
+
+            if (allTop5BuyerIds.length > 0) {
+              // Check recent engagement spikes for these buyers
+              const [recentConns, recentCalls] = await Promise.all([
+                supabase
+                  .from('connection_requests')
+                  .select('buyer_profile_id, listing_id, created_at')
+                  .in('buyer_profile_id', allTop5BuyerIds)
+                  .in('listing_id', dealListingIds)
+                  .gte('created_at', fortyEightHoursAgo.toISOString()),
+                supabase
+                  .from('call_transcripts')
+                  .select('buyer_id, listing_id, call_date')
+                  .in('buyer_id', allTop5BuyerIds)
+                  .in('listing_id', dealListingIds)
+                  .gte('call_date', fortyEightHoursAgo.toISOString()),
+              ]);
+
+              // Count activity per buyer per listing
+              const activityMap = new Map<string, number>();
+              const buyerNameCache = new Map<string, string>();
+
+              for (const conn of (recentConns.data || [])) {
+                const key = `${conn.listing_id}:${conn.buyer_profile_id}`;
+                activityMap.set(key, (activityMap.get(key) || 0) + 1);
+              }
+              for (const call of (recentCalls.data || [])) {
+                const key = `${call.listing_id}:${call.buyer_id}`;
+                activityMap.set(key, (activityMap.get(key) || 0) + 1);
+              }
+
+              // Generate alerts for spikes (3+ activities in 48h)
+              for (const [key, count] of activityMap.entries()) {
+                if (count >= 3) {
+                  const [listingId, buyerId] = key.split(':');
+                  const deal = activePipelineDeals.find(d => d.listing_id === listingId);
+
+                  // Check this buyer is in Top 5 for this listing
+                  const top5ForListing = top5ByListing.get(listingId) || [];
+                  if (!top5ForListing.includes(buyerId)) continue;
+
+                  alerts.push({
+                    id: `buyer-spike-${listingId}-${buyerId}`,
+                    type: 'opportunity',
+                    priority: 'high',
+                    title: `Buyer activity spike on "${deal?.title || 'Deal'}"`,
+                    description: `A Top 5 buyer has ${count} new engagement signals in the last 48 hours — consider following up today.`,
+                    action_required: 'Review buyer engagement and schedule outreach',
+                    created_at: now.toISOString(),
+                    metadata: {
+                      listing_id: listingId,
+                      user_id: buyerId,
+                      category: 'buyer_intent_spike',
+                      metrics: { activity_count: count },
+                    },
+                    auto_dismiss_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
       return alerts
         .sort((a, b) => {
           // Sort by priority (high -> medium -> low) then by creation time

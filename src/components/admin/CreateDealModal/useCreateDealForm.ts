@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { logDealActivity } from '@/lib/deal-activity-logger';
 import { useToast } from '@/hooks/use-toast';
 import { createDealSchema, CreateDealFormData, DuplicateDeal } from './schema';
+import { triggerAutoScoring } from '@/lib/remarketing/autoScoreOnDealCreate';
 
 export function useCreateDealForm(
   open: boolean,
@@ -247,6 +248,13 @@ export function useCreateDealForm(
           title: 'Deal Created',
           description: `Deal "${data.title}" was created manually`,
         });
+      }
+
+      // Auto-populate Top 5: trigger background buyer scoring for the new deal
+      if (data.listing_id) {
+        triggerAutoScoring(data.listing_id).catch((err) =>
+          console.warn('[CreateDealModal] Auto-scoring trigger failed:', err),
+        );
       }
 
       // Invalidate queries

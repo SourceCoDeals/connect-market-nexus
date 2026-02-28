@@ -14,6 +14,12 @@ import {
   Shield,
   FileText,
   CalendarCheck,
+  MessageSquare,
+  Eye,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertTriangle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -72,6 +78,51 @@ function TierBadge({ tier, label }: { tier: string; label: string }) {
   );
 }
 
+function IntentTrendDot({ buyer }: { buyer: RecommendedBuyer }) {
+  const now = Date.now();
+  const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const sixtyDaysAgo = now - 60 * 24 * 60 * 60 * 1000;
+
+  let recentSignals = 0;
+  let priorSignals = 0;
+
+  if (buyer.last_engagement) {
+    const engDate = new Date(buyer.last_engagement).getTime();
+    if (engDate > thirtyDaysAgo) recentSignals += 2;
+    else if (engDate > sixtyDaysAgo) priorSignals += 2;
+  }
+  if (buyer.transcript_insights.latest_call_date) {
+    const callDate = new Date(buyer.transcript_insights.latest_call_date).getTime();
+    if (callDate > thirtyDaysAgo) recentSignals += 1;
+    else if (callDate > sixtyDaysAgo) priorSignals += 1;
+  }
+  if (buyer.outreach_info.meeting_scheduled) recentSignals += 1;
+  if (buyer.engagement_signals?.message_count > 0) recentSignals += 1;
+
+  let trend: 'increasing' | 'stable' | 'cooling';
+  if (recentSignals > priorSignals) trend = 'increasing';
+  else if (recentSignals < priorSignals) trend = 'cooling';
+  else trend = 'stable';
+
+  const config = {
+    increasing: { icon: TrendingUp, color: 'text-emerald-500', label: 'Increasing' },
+    stable: { icon: Minus, color: 'text-amber-500', label: 'Stable' },
+    cooling: { icon: TrendingDown, color: 'text-muted-foreground/60', label: 'Cooling' },
+  };
+  const { icon: Icon, color, label } = config[trend];
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={cn('flex items-center gap-0.5', color)}>
+          <Icon className="h-3 w-3" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>Intent: {label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function BuyerRecommendationCard({
   buyer,
   rank,
@@ -95,13 +146,35 @@ export function BuyerRecommendationCard({
           {rank}
         </span>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium text-foreground truncate max-w-[300px]">
-              {displayName}
-            </p>
-            <ScoreBadge score={buyer.composite_fit_score} />
-            <TierBadge tier={buyer.tier} label={buyer.tier_label} />
-          </div>
+          <TooltipProvider>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-medium text-foreground truncate max-w-[300px]">
+                {displayName}
+              </p>
+              <ScoreBadge score={buyer.composite_fit_score} />
+              {buyer.engagement_boost > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[10px] text-emerald-600 font-medium">+{buyer.engagement_boost}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>Engagement boost applied to effective score</TooltipContent>
+                </Tooltip>
+              )}
+              <TierBadge tier={buyer.tier} label={buyer.tier_label} />
+              <IntentTrendDot buyer={buyer} />
+              {buyer.profile_completeness < 60 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="flex items-center gap-0.5 text-[10px] text-amber-500">
+                      <AlertTriangle className="h-2.5 w-2.5" />
+                      {buyer.profile_completeness}%
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>Profile {buyer.profile_completeness}% complete — score may be imprecise</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
+          </TooltipProvider>
           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
             <span>{typeLabel}</span>
             {hqDisplay && (
@@ -215,6 +288,45 @@ export function BuyerRecommendationCard({
               <TooltipContent>Meeting scheduled</TooltipContent>
             </Tooltip>
           )}
+
+          {/* Message activity */}
+          {buyer.engagement_signals?.message_count > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className={cn(
+                  'flex items-center gap-1',
+                  buyer.engagement_signals.has_high_intent_message ? 'text-emerald-600' : 'text-blue-500'
+                )}>
+                  <MessageSquare className="h-3 w-3" />
+                  {buyer.engagement_signals.message_count} msg{buyer.engagement_signals.message_count !== 1 ? 's' : ''}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {buyer.engagement_signals.message_count} message{buyer.engagement_signals.message_count !== 1 ? 's' : ''}
+                {buyer.engagement_signals.has_high_intent_message && ' · High-intent detected'}
+                {buyer.engagement_signals.message_stale && ' · Conversation stale'}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Page visits */}
+          {buyer.engagement_signals?.page_visits > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className={cn(
+                  'flex items-center gap-1',
+                  buyer.engagement_signals.recent_page_visits >= 3 ? 'text-emerald-600' : 'text-muted-foreground'
+                )}>
+                  <Eye className="h-3 w-3" />
+                  {buyer.engagement_signals.page_visits}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {buyer.engagement_signals.page_visits} deal page visit{buyer.engagement_signals.page_visits !== 1 ? 's' : ''}
+                {buyer.engagement_signals.recent_page_visits >= 3 && ` · ${buyer.engagement_signals.recent_page_visits} in last 7 days`}
+              </TooltipContent>
+            </Tooltip>
+          )}
         </TooltipProvider>
 
         <span className="text-muted-foreground/30">|</span>
@@ -284,7 +396,7 @@ export function BuyerRecommendationCard({
       {expanded && (
         <div className="pl-8 pt-2 border-t border-border/30 space-y-3">
           {/* Score breakdown */}
-          <div className="grid grid-cols-4 gap-2 text-xs">
+          <div className="grid grid-cols-5 gap-2 text-xs">
             <div>
               <span className="text-muted-foreground">Geography</span>
               <div className="font-medium mt-0.5">{buyer.geography_score}/100</div>
@@ -301,7 +413,27 @@ export function BuyerRecommendationCard({
               <span className="text-muted-foreground">Owner Goals</span>
               <div className="font-medium mt-0.5">{buyer.owner_goals_score}/100</div>
             </div>
+            <div>
+              <span className="text-muted-foreground">Eng. Boost</span>
+              <div className={cn('font-medium mt-0.5', buyer.engagement_boost > 0 ? 'text-emerald-600' : '')}>
+                +{buyer.engagement_boost}
+              </div>
+            </div>
           </div>
+
+          {/* Profile completeness */}
+          {buyer.profile_completeness < 80 && (
+            <div className="text-xs flex items-center gap-1.5">
+              <AlertTriangle className={cn(
+                'h-3 w-3',
+                buyer.profile_completeness < 60 ? 'text-amber-500' : 'text-muted-foreground/60'
+              )} />
+              <span className="text-muted-foreground">
+                Profile {buyer.profile_completeness}% complete
+                {buyer.profile_completeness < 60 && ' — scoring accuracy may be reduced'}
+              </span>
+            </div>
+          )}
 
           {/* Outreach funnel progress */}
           {buyer.outreach_info.contacted && (

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -21,9 +21,12 @@ import {
 } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useRecommendedBuyers } from '@/hooks/admin/use-recommended-buyers';
+import { useTop5Management } from '@/hooks/admin/use-top5-management';
 import { useQueryClient } from '@tanstack/react-query';
 import { BuyerRecommendationCard } from './recommended-buyers/BuyerRecommendationCard';
 import { BuyerNarrativePanel } from './recommended-buyers/BuyerNarrativePanel';
+import { Top5Panel } from './recommended-buyers/Top5Panel';
+import { RejectionHistory } from './recommended-buyers/RejectionHistory';
 
 interface PipelineDetailRecommendedBuyersProps {
   deal: Deal;
@@ -40,6 +43,35 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
 
   const limit = showAll ? 100 : 25;
   const { data, isLoading, isFetching } = useRecommendedBuyers(deal.listing_id, limit);
+
+  const {
+    rejections,
+    rejectedBuyerIds,
+    isReversing,
+    newlyAddedIds,
+    handleReject,
+    handleReverse,
+    markNewlyAdded,
+  } = useTop5Management(deal.listing_id);
+
+  // Track Top 5 changes to mark newly added buyers
+  const prevTop5Ref = useRef<Set<string>>(new Set());
+  const top5Buyers = useMemo(() => {
+    if (!data?.buyers) return [];
+    return data.buyers.filter((b) => !rejectedBuyerIds.has(b.buyer_id)).slice(0, 5);
+  }, [data?.buyers, rejectedBuyerIds]);
+
+  useEffect(() => {
+    const currentIds = new Set(top5Buyers.map((b) => b.buyer_id));
+    const prevIds = prevTop5Ref.current;
+    if (prevIds.size > 0) {
+      const added = [...currentIds].filter((id) => !prevIds.has(id));
+      if (added.length > 0) {
+        markNewlyAdded(added);
+      }
+    }
+    prevTop5Ref.current = currentIds;
+  }, [top5Buyers, markNewlyAdded]);
 
   const filteredAndSorted = useMemo(() => {
     if (!data?.buyers) return [];
@@ -78,7 +110,6 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
         break;
       case 'score':
       default:
-        // Already sorted by score from the hook
         break;
     }
 
@@ -89,23 +120,62 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
     queryClient.invalidateQueries({ queryKey: ['recommended-buyers', deal.listing_id] });
   };
 
-  const handleDraftEmail = (buyerId: string) => {
-    // Open AI command center with context for drafting outreach email
-    // This triggers a custom event that the AI panel listens to
-    window.dispatchEvent(
-      new CustomEvent('ai-command-center:open', {
-        detail: {
-          query: `Draft an outreach email for this deal to buyer ${buyerId}. Use the deal context and buyer profile to personalize the email.`,
-          context: {
-            page: 'deal_detail',
-            entity_id: deal.listing_id,
-            entity_type: 'deal',
-            tab: 'recommended_buyers',
+  // Enriched draft email handler — populates AI Command Center with deal & buyer context
+  const handleDraftEmail = useCallback(
+    (buyerId: string) => {
+      const buyer = data?.buyers.find((b) => b.buyer_id === buyerId);
+      const dealTitle = deal.listing_real_company_name || deal.listing_title || deal.title;
+
+      const buyerName = buyer
+        ? buyer.pe_firm_name
+          ? `${buyer.company_name} (${buyer.pe_firm_name})`
+          : buyer.company_name
+        : buyerId;
+
+      const fitSignals = buyer?.fit_signals?.join(', ') || 'General alignment';
+      const callInfo =
+        buyer && buyer.transcript_insights.call_count > 0
+          ? `${buyer.transcript_insights.call_count} call(s) on record${buyer.transcript_insights.ceo_detected ? ', CEO participated' : ''}`
+          : 'No calls recorded';
+      const outreachStage = buyer
+        ? [
+            buyer.outreach_info.meeting_scheduled && 'Meeting scheduled',
+            buyer.outreach_info.cim_sent && 'CIM sent',
+            buyer.outreach_info.nda_signed && 'NDA signed',
+            buyer.outreach_info.contacted && 'Contacted',
+          ]
+            .filter(Boolean)
+            .join(', ') || 'Not yet contacted'
+        : 'Unknown';
+
+      window.dispatchEvent(
+        new CustomEvent('ai-command-center:open', {
+          detail: {
+            query: `Draft a personalized outreach email for the deal "${dealTitle}" to buyer "${buyerName}".
+
+Context:
+- Deal: ${dealTitle}
+- Buyer: ${buyerName}
+- Fit Score: ${buyer?.composite_fit_score ?? 'N/A'}/100 (${buyer?.tier_label ?? 'Unknown tier'})
+- Top Fit Signals: ${fitSignals}
+- Call Activity: ${callInfo}
+- Outreach Stage: ${outreachStage}
+- Fee Agreement: ${buyer?.has_fee_agreement ? 'Signed' : 'Not signed'}
+
+Use this context to create a highly personalized email. Reference their specific fit signals and engagement history.`,
+            context: {
+              page: 'deal_detail',
+              entity_id: deal.listing_id,
+              entity_type: 'deal',
+              tab: 'recommended_buyers',
+              buyer_id: buyerId,
+            },
           },
-        },
-      }),
-    );
-  };
+        }),
+      );
+    },
+    [data?.buyers, deal],
+  );
 
   const handleViewProfile = (buyerId: string) => {
     navigate(`/admin/buyers/${buyerId}`);
@@ -198,6 +268,23 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
             </Button>
           </div>
         </div>
+
+        {/* Top 5 Pinned Panel */}
+        <Top5Panel
+          buyers={data.buyers}
+          rejectedBuyerIds={rejectedBuyerIds}
+          onReject={handleReject}
+          onDraftEmail={handleDraftEmail}
+          onViewProfile={handleViewProfile}
+          newlyAddedIds={newlyAddedIds}
+        />
+
+        {/* Rejection History */}
+        <RejectionHistory
+          rejections={rejections}
+          onReverse={handleReverse}
+          isReversing={isReversing}
+        />
 
         {/* Data enrichment stats */}
         {(data.dataStats.buyers_with_transcripts > 0 ||
