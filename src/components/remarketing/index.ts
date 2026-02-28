@@ -67,11 +67,6 @@ export type { DealIdMapping } from './DealMergePanel';
 // Transcript Components
 export { TranscriptSection } from './TranscriptSection';
 
-// AI Chat Components
-export { BuyerQueryChat } from './BuyerQueryChat';
-export { DealBuyerChat } from './DealBuyerChat';
-export { ReMarketingChat } from './ReMarketingChat';
-export type { ChatContext } from './ReMarketingChat';
 
 // Outreach/Introduction Components
 export { OutreachTimeline } from './OutreachTimeline';

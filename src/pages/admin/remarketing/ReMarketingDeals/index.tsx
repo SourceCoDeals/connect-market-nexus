@@ -79,7 +79,7 @@ const ReMarketingDeals = () => {
 
   // Register page context for AI Command Center
   React.useEffect(() => {
-    setPageContext({ page: 'remarketing', entity_type: 'deals' });
+    setPageContext({ page: 'remarketing_deals', entity_type: 'deals' });
   }, [setPageContext]);
 
   // Wire AI UI actions to this page's state
@@ -761,7 +761,6 @@ const ReMarketingDeals = () => {
         unenrichedCount={h.listings?.filter((l) => !l.enriched_at).length || 0}
         showAddDealDialog={h.showAddDealDialog}
         setShowAddDealDialog={h.setShowAddDealDialog}
-        totalDeals={h.listings?.length || 0}
         showEnrichmentSummary={h.showEnrichmentSummary}
         dismissSummary={h.dismissSummary}
         enrichmentSummary={h.enrichmentSummary}

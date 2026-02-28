@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Calculator, Zap } from "lucide-react";
-import { DealImportDialog, AddDealDialog, ReMarketingChat, DealEnrichmentSummaryDialog } from "@/components/remarketing";
+import { DealImportDialog, AddDealDialog, DealEnrichmentSummaryDialog } from "@/components/remarketing";
 import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
 
 interface DealsActionDialogsProps {
@@ -62,8 +62,6 @@ interface DealsActionDialogsProps {
   // Add deal dialog
   showAddDealDialog: boolean;
   setShowAddDealDialog: (v: boolean) => void;
-  // Chat context
-  totalDeals: number;
   // Enrichment summary
   showEnrichmentSummary: boolean;
   dismissSummary: () => void;
@@ -104,7 +102,6 @@ export const DealsActionDialogs = ({
   unenrichedCount,
   showAddDealDialog,
   setShowAddDealDialog,
-  totalDeals,
   showEnrichmentSummary,
   dismissSummary,
   enrichmentSummary,
@@ -296,11 +293,6 @@ export const DealsActionDialogs = ({
       open={showAddDealDialog}
       onOpenChange={setShowAddDealDialog}
       onDealCreated={() => refetchListings()}
-    />
-
-    {/* AI Chat */}
-    <ReMarketingChat
-      context={{ type: "deals", totalDeals }}
     />
 
     {/* Deal Enrichment Summary Dialog */}

@@ -65,12 +65,34 @@ function getSuggestions(page?: string): string[] {
         'Prep me for my next meeting',
       ];
     case 'buyers_list':
-    case 'remarketing':
+    case 'remarketing_buyers':
       return [
         'Select all buyers in Texas',
         'Filter to PE firms with fee agreements',
         'Who are the most active acquirers?',
         'Show buyers targeting $5M+ revenue',
+      ];
+    case 'remarketing_deals':
+    case 'remarketing':
+      return [
+        'Which deals should I prioritize this week?',
+        'Show deals that need enrichment',
+        'Compare our top scoring deals',
+        'What happened this week?',
+      ];
+    case 'universe_detail':
+      return [
+        'How well do the buyers fit this universe?',
+        'Which buyers should I add to this universe?',
+        'Show the score breakdown for top buyers',
+        'What does the industry guide say?',
+      ];
+    case 'universes':
+      return [
+        'Which universes have the most buyers?',
+        'Show universes with pending scores',
+        'Compare universe criteria',
+        'Find universes for HVAC deals',
       ];
     case 'pipeline':
       return [
@@ -899,6 +921,21 @@ function FollowUpSuggestions({
     ],
     OUTREACH_DRAFT: ['Refine the tone', 'Make it shorter', 'Add deal metrics to the draft'],
     FOLLOW_UP: ['Show stale deals', 'Create follow-up tasks', 'Who needs a call this week?'],
+    REMARKETING: [
+      'Show score breakdown for these buyers',
+      'Draft outreach to the top match',
+      'Which buyers are still pending?',
+    ],
+    BUYER_UNIVERSE: [
+      'Which buyers fit best in this universe?',
+      'Show deals linked to this universe',
+      'Compare buyer alignment scores',
+    ],
+    BUYER_ANALYSIS: [
+      'Explain this buyer\'s score breakdown',
+      'Show acquisition history',
+      'Find similar buyers',
+    ],
   };
 
   const items = suggestions[category || ''] || [

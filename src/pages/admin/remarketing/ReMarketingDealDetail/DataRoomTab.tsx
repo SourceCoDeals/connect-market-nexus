@@ -11,7 +11,6 @@ import {
   DealPipelinePanel,
   DealMarketplacePanel,
 } from "@/components/remarketing/deal-detail";
-import { DealBuyerChat } from "@/components/remarketing";
 import {
   BookOpen,
   ClipboardList,
@@ -122,15 +121,6 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
 
         <DistributionLogPanel dealId={dealId} />
 
-        <DealBuyerChat
-          listingId={dealId}
-          dealName={deal.internal_company_name || deal.title}
-          dealGeography={deal.address_state ? [deal.address_state] : []}
-          dealRevenue={deal.revenue ?? undefined}
-          approvedCount={scoreStats?.approved || 0}
-          passedCount={scoreStats?.passed || 0}
-          pendingCount={(scoreStats?.count || 0) - (scoreStats?.approved || 0) - (scoreStats?.passed || 0)}
-        />
       </TabsContent>
 
       <TabsContent value="activity" className="space-y-6">

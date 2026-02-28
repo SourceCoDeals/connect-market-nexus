@@ -81,7 +81,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { IntelligenceCoverageBar, ReMarketingChat } from '@/components/remarketing';
+import { IntelligenceCoverageBar } from '@/components/remarketing';
 import { deleteUniverseWithRelated } from '@/lib/ma-intelligence/cascadeDelete';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
@@ -1424,8 +1424,6 @@ const ReMarketingUniverses = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* AI Chat */}
-      <ReMarketingChat context={{ type: 'deals', totalDeals: universes?.length }} />
     </div>
   );
 };

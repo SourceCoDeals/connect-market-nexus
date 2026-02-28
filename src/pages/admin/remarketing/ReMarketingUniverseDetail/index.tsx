@@ -32,7 +32,6 @@ import {
   BuyerFitCriteriaAccordion,
   StructuredCriteriaPanel,
   EnrichmentSummaryDialog,
-  ReMarketingChat,
 } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
@@ -745,12 +744,6 @@ const ReMarketingUniverseDetail = () => {
         </div>
       )}
 
-      {/* AI Chat - only show when not creating new */}
-      {!isNew && id && (
-        <ReMarketingChat
-          context={{ type: 'universe', universeId: id, universeName: universe?.name }}
-        />
-      )}
 
       {/* Buyer Enrichment Selection Dialog */}
       <Dialog open={showBuyerEnrichDialog} onOpenChange={setShowBuyerEnrichDialog}>

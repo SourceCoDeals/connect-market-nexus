@@ -95,8 +95,6 @@ export { useSessionEvents } from './use-session-events';
 export type { SessionEvent, SessionMetadata } from './use-session-events';
 export { useInitialSessionTracking } from './use-initial-session-tracking';
 
-// ─── Chat ───
-export { useChatPersistence } from './use-chat-persistence';
 
 // ─── Error Handling ───
 export { useProductionErrorHandler } from './use-production-error-handler';
