@@ -468,7 +468,7 @@ export async function executeTool(
 
   // Enrichment tools get 90s (Apify LinkedIn scraper polls up to 120s internally)
   const ENRICHMENT_TOOLS = new Set([
-d    'enrich_contact', 'find_contact',
+    'enrich_contact', 'find_contact',
     // Legacy names (backward compat)
     'enrich_buyer_contacts', 'enrich_linkedin_contact', 'find_and_enrich_person',
     'find_contact_linkedin',
