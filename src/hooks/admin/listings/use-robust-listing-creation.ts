@@ -8,7 +8,7 @@ import { uploadListingImage } from '@/lib/storage-utils';
 const sanitizeArrayField = (field: any): string[] => {
   if (!field) return [];
   if (Array.isArray(field)) {
-    return field.filter(item => item && typeof item === 'string' && item.trim().length > 0);
+    return field.filter((item) => item && typeof item === 'string' && item.trim().length > 0);
   }
   return [];
 };
@@ -39,50 +39,53 @@ interface DatabaseListingInsert {
   owner_notes: string | null;
   status: 'active' | 'inactive';
   image_url: string | null;
-  
+
   // CRITICAL: Marketplace visibility control
   is_internal_deal: boolean;
-  
+
   // Employee metrics
   full_time_employees?: number | null;
   part_time_employees?: number | null;
-  
+
   // Hero & Status
   hero_description?: string | null;
   status_tag?: string | null;
   visible_to_buyer_types?: string[] | null;
-  
+
   // Internal company info
   internal_company_name?: string | null;
   internal_salesforce_link?: string | null;
   internal_deal_memo_link?: string | null;
   internal_contact_info?: string | null;
   internal_notes?: string | null;
-  
+
   // Ownership
   primary_owner_id?: string | null;
   presented_by_admin_id?: string | null;
-  
+
   // Custom metrics (metric 2)
   custom_metric_label?: string | null;
   custom_metric_value?: string | null;
   custom_metric_subtitle?: string | null;
-  
+
   // Metric 3
   metric_3_type?: string | null;
   metric_3_custom_label?: string | null;
   metric_3_custom_value?: string | null;
   metric_3_custom_subtitle?: string | null;
-  
+
   // Metric 4
   metric_4_type?: string | null;
   metric_4_custom_label?: string | null;
   metric_4_custom_value?: string | null;
   metric_4_custom_subtitle?: string | null;
-  
+
   // Revenue/EBITDA subtitles
   revenue_metric_subtitle?: string | null;
   ebitda_metric_subtitle?: string | null;
+
+  // Source deal linkage
+  source_deal_id?: string | null;
 }
 
 /**
@@ -108,7 +111,7 @@ export function useRobustListingCreation() {
         // Step 1: Validate and sanitize all input data
         const sanitizedCategories = sanitizeArrayField(listing.categories);
         const sanitizedTags = sanitizeArrayField(listing.tags);
-        
+
         if (sanitizedCategories.length === 0) {
           throw new Error('At least one category is required');
         }
@@ -120,9 +123,10 @@ export function useRobustListingCreation() {
           title: sanitizeStringField(listing.title),
           categories: sanitizedCategories,
           category: sanitizedCategories[0], // First category for backward compatibility
-          acquisition_type: (listing.acquisition_type === 'add_on' || listing.acquisition_type === 'platform') 
-            ? listing.acquisition_type 
-            : null,
+          acquisition_type:
+            listing.acquisition_type === 'add_on' || listing.acquisition_type === 'platform'
+              ? listing.acquisition_type
+              : null,
           description: sanitizeStringField(listing.description),
           description_html: listing.description_html || null,
           description_json: listing.description_json || null,
@@ -135,47 +139,50 @@ export function useRobustListingCreation() {
           image_url: null,
           // IMPORTANT: Create as internal draft - must use publish-listing to go public
           is_internal_deal: true,
-          
+
           // Employee metrics
           full_time_employees: listing.full_time_employees || null,
           part_time_employees: listing.part_time_employees || null,
-          
+
           // Hero & Status
           hero_description: listing.hero_description || null,
           status_tag: listing.status_tag || null,
           visible_to_buyer_types: listing.visible_to_buyer_types || null,
-          
+
           // Internal company info
           internal_company_name: listing.internal_company_name || null,
           internal_salesforce_link: listing.internal_salesforce_link || null,
           internal_deal_memo_link: listing.internal_deal_memo_link || null,
           internal_contact_info: listing.internal_contact_info || null,
           internal_notes: listing.internal_notes || null,
-          
+
           // Ownership
           primary_owner_id: listing.primary_owner_id || null,
           presented_by_admin_id: listing.presented_by_admin_id || null,
-          
+
           // Custom metrics (metric 2)
           custom_metric_label: listing.custom_metric_label || null,
           custom_metric_value: listing.custom_metric_value || null,
           custom_metric_subtitle: listing.custom_metric_subtitle || null,
-          
+
           // Metric 3
           metric_3_type: listing.metric_3_type || null,
           metric_3_custom_label: listing.metric_3_custom_label || null,
           metric_3_custom_value: listing.metric_3_custom_value || null,
           metric_3_custom_subtitle: listing.metric_3_custom_subtitle || null,
-          
+
           // Metric 4
           metric_4_type: listing.metric_4_type || null,
           metric_4_custom_label: listing.metric_4_custom_label || null,
           metric_4_custom_value: listing.metric_4_custom_value || null,
           metric_4_custom_subtitle: listing.metric_4_custom_subtitle || null,
-          
+
           // Revenue/EBITDA subtitles
           revenue_metric_subtitle: listing.revenue_metric_subtitle || null,
           ebitda_metric_subtitle: listing.ebitda_metric_subtitle || null,
+
+          // Source deal linkage
+          source_deal_id: listing.source_deal_id || null,
         };
 
         // Step 3: Insert listing with isolated transaction
@@ -195,17 +202,17 @@ export function useRobustListingCreation() {
 
         // Step 4: Handle image upload separately (isolated from main transaction)
         let finalListing = insertedListing;
-        
+
         if (image) {
           try {
             const publicUrl = await uploadListingImage(image, insertedListing.id);
-            
+
             // Update listing with image URL
             const { data: updatedListing, error: updateError } = await supabase
               .from('listings')
-              .update({ 
+              .update({
                 image_url: publicUrl,
-                files: [publicUrl]
+                files: [publicUrl],
               })
               .eq('id', insertedListing.id)
               .select()
@@ -215,7 +222,8 @@ export function useRobustListingCreation() {
               toast({
                 variant: 'destructive',
                 title: 'Partial Success',
-                description: 'Listing created but image attachment failed. You can edit the listing to add an image.',
+                description:
+                  'Listing created but image attachment failed. You can edit the listing to add an image.',
               });
             } else {
               finalListing = updatedListing;
@@ -224,7 +232,8 @@ export function useRobustListingCreation() {
             toast({
               variant: 'destructive',
               title: 'Image Upload Failed',
-              description: 'Listing created successfully, but image upload failed. You can edit the listing to add an image.',
+              description:
+                'Listing created successfully, but image upload failed. You can edit the listing to add an image.',
             });
           }
         }
@@ -244,7 +253,6 @@ export function useRobustListingCreation() {
         }
 
         return finalListing as unknown as AdminListing;
-
       } catch (error: any) {
         throw new Error(error.message || 'Failed to create listing');
       }
@@ -255,10 +263,10 @@ export function useRobustListingCreation() {
         ['admin-listings'],
         ['listings'],
         ['listing-metadata'],
-        ['listing', data.id]
+        ['listing', data.id],
       ];
 
-      queriesToInvalidate.forEach(queryKey => {
+      queriesToInvalidate.forEach((queryKey) => {
         queryClient.invalidateQueries({ queryKey });
       });
 
@@ -283,10 +291,9 @@ export function useRobustListingCreation() {
 async function triggerDealAlertsForListing(listing: any): Promise<void> {
   try {
     // Query deal alerts that match this listing
-    const { data: matchingAlerts, error } = await supabase
-      .rpc('match_deal_alerts_with_listing', {
-        listing_data: listing
-      });
+    const { data: matchingAlerts, error } = await supabase.rpc('match_deal_alerts_with_listing', {
+      listing_data: listing,
+    });
 
     if (error) {
       return;
@@ -297,14 +304,12 @@ async function triggerDealAlertsForListing(listing: any): Promise<void> {
       for (const alert of matchingAlerts) {
         if (alert.alert_frequency === 'instant') {
           // Log delivery attempt
-          await supabase
-            .from('alert_delivery_logs')
-            .insert({
-              alert_id: alert.alert_id,
-              listing_id: listing.id,
-              user_id: alert.user_id,
-              delivery_status: 'pending'
-            });
+          await supabase.from('alert_delivery_logs').insert({
+            alert_id: alert.alert_id,
+            listing_id: listing.id,
+            user_id: alert.user_id,
+            delivery_status: 'pending',
+          });
 
           // Trigger edge function
           try {
@@ -315,14 +320,13 @@ async function triggerDealAlertsForListing(listing: any): Promise<void> {
                 user_id: alert.user_id,
                 listing_id: listing.id,
                 alert_name: alert.alert_name,
-                listing_data: listing
-              }
+                listing_data: listing,
+              },
             });
 
             if (functionError) {
               throw functionError;
             }
-            
           } catch (emailError) {
             // Deal alert email failed for this user
           }
