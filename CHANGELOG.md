@@ -1,5 +1,61 @@
 ## CHANGELOG
 
+### 2026-02-28 — CTO Deep-Dive Audit
+
+- **What:** Comprehensive CTO-level audit covering architecture, security, database, code quality, CI/CD, testing, and documentation. Generated `CTO_DEEP_DIVE_AUDIT_2026-02-28.md` with full findings.
+- **Why:** Periodic deep audit to assess platform health, identify risks, and ensure documentation is best-in-class
+- **Key findings:** Platform graded B+ overall. 0 critical issues, 5 high, 8 medium, 6 low. 22 npm audit vulnerabilities identified (xlsx has no fix). CORS shared module adoption at ~20% of edge functions.
+- **Files changed:** CTO_DEEP_DIVE_AUDIT_2026-02-28.md (new), CHANGELOG.md, docs/EDGE_FUNCTIONS.md, docs/DATABASE.md
+- **DB changes:** None
+- **Link:** Branch `claude/coding-task-Tr8LE`
+
+---
+
+### 2026-02-27 — PR #310: Standup Meeting Detection Fix
+
+- **What:** Fixed `<ds>` standup meeting detection with Fireflies API fallback and polling sync safety net
+- **Why:** Webhook handler was silently skipping standup meetings when Fireflies payload lacked meeting titles
+- **Files changed:** `fireflies-webhook-handler`, new `sync-standup-meetings` edge function, cron migration
+- **DB changes:** New cron job for 30-minute Fireflies polling sync
+- **Link:** https://github.com/SourceCoDeals/connect-market-nexus/pull/310
+
+---
+
+### 2026-02-27 — Fix 7 Data-Loss and Observability Bugs
+
+- **What:** Critical quality fixes across enrichment pipelines — fixed `ignoreDuplicates` in buyer contact enrichment, replaced 8 silent `.catch(() => {})` handlers with logged versions, fixed process-enrichment-queue pending vs processing counts, consolidated duplicate `normalizeState()` to shared `geography.ts`, adjusted EBITDA detection threshold from <100 to <20
+- **Why:** Deep audit revealed data-loss risks and silent failure patterns in enrichment pipeline
+- **Files changed:** 13 files (+61/-73 lines)
+- **DB changes:** None
+
+---
+
+### 2026-02-27 — Fix 4 Extraction/Scoring Pipeline Bugs
+
+- **What:** Fixed extraction and scoring pipeline bugs found in deep audit including footprint scraping wired to geography extraction, score across all linked universes
+- **Why:** Deep audit revealed edge cases in deal extraction and cross-universe scoring
+- **Files changed:** ReMarketingDealMatching components, scoring functions, geography extraction
+
+---
+
+### 2026-02-27 — PR #308: Decision Maker Finder
+
+- **What:** Added standalone Python script for decision maker discovery, replaced Apify LinkedIn scraping with Serper-based approach, improved LinkedIn discovery with domain-based search and noise filtering, added LinkedIn URL verification to contact enrichment
+- **Why:** Apify LinkedIn scraping was unreliable; Serper provides more consistent results with lower cost
+- **Files changed:** `scripts/decision_makers_finder.py`, contact enrichment functions
+- **DB changes:** None
+
+---
+
+### 2026-02-27 — PR #307: My Deals Tab & Salesforce Integration
+
+- **What:** Added My Deals tab to Active Deals page, included Salesforce in deal source filter, removed Salesforce tab from Active Deals, added Salesforce webhook support
+- **Why:** Consolidate deal views and integrate Salesforce pipeline
+- **Files changed:** Active Deals page, Salesforce webhook handler, deal source components
+- **DB changes:** None
+
+---
+
 ### 2026-02-26 — CTO Audit & Remediation Session
 - **What:** Comprehensive platform audit covering database, AI Command Center, enrichment pipeline, integrations, navigation, code documentation, code organisation, and security
 - **Why:** CTO-level audit to identify and fix broken references, missing documentation, security gaps, and code organisation issues

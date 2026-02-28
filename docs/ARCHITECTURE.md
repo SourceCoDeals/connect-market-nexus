@@ -40,7 +40,7 @@ Connect Market Nexus is a B2B M&A deal marketplace platform built on React + Typ
                     |                         |                         |
            +--------v--------+     +---------v--------+     +---------v--------+
            | Supabase Storage|     | Edge Functions    |     | Supabase Realtime|
-           | (Data Room docs)|     | (113+ Deno fns)   |     | (Live updates)   |
+           | (Data Room docs)|     | (160 Deno fns)    |     | (Live updates)   |
            +-----------------+     +--------+----------+     +------------------+
                                             |
                               +-------------+-------------+

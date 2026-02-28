@@ -2,7 +2,9 @@
 
 ## Overview
 
-113 Deno-based edge functions deployed to Supabase. All functions share common patterns via 24 modules in `_shared/`.
+160 Deno-based edge functions deployed to Supabase. All functions share common patterns via 24+ modules in `_shared/`.
+
+> **Last updated:** 2026-02-28 (CTO Deep-Dive Audit)
 
 ## Shared Modules (`supabase/functions/_shared/`)
 
@@ -23,6 +25,21 @@
 | **geography.ts** | State normalization, geographic utilities |
 | **geography-utils.ts** | Proximity scoring, state-to-tier mappings |
 | **edge-timeout.ts** | Deno timeout signal helpers |
+| **error-response.ts** | Standardized error responses with CORS |
+| **claude-client.ts** | Claude/Anthropic API wrapper |
+| **serper-client.ts** | Google Search/Maps via Serper |
+| **prospeo-client.ts** | Email enrichment via Prospeo |
+| **apify-client.ts** | LinkedIn/web scraping via Apify |
+| **smartlead-client.ts** | Smartlead email campaign client |
+| **heyreach-client.ts** | HeyReach LinkedIn outreach client |
+| **contact-intelligence.ts** | Contact analysis utilities |
+| **criteria-validation.ts** | Buyer criteria validation |
+| **source-priority.ts** | Data source prioritization |
+| **global-activity-queue.ts** | Activity queue management |
+| **email-logger.ts** | Email delivery logging |
+| **chat-tools.ts** | AI chat tool definitions |
+| **chat-persistence.ts** | Chat conversation storage |
+| **admin-profiles.ts** | Admin profile utilities |
 
 ## Key Functions
 
@@ -96,6 +113,82 @@ return new Response(
 );
 ```
 
+### Integrations
+| Function | Auth | Purpose |
+|----------|------|---------|
+| `apify-linkedin-scrape` | Admin | LinkedIn employee scraping via Apify |
+| `apify-google-reviews` | Admin | Google reviews collection via Apify |
+| `firecrawl-scrape` | Admin | Website content extraction via Firecrawl |
+| `discover-companies` | Admin | Company discovery via Serper |
+| `fetch-fireflies-content` | Admin | Fireflies.ai transcript retrieval |
+| `auto-pair-all-fireflies` | Admin | Auto-pair Fireflies transcripts to deals |
+| `bulk-sync-all-fireflies` | Admin/Cron | Bulk sync all Fireflies transcripts |
+| `sync-standup-meetings` | Cron | Poll Fireflies for standup meeting transcripts |
+| `docuseal-webhook-handler` | None (webhook) | DocuSeal e-signature webhook receiver |
+| `create-docuseal-submission` | Admin | Create DocuSeal signing request |
+| `smartlead-webhook-handler` | None (webhook) | Smartlead campaign webhook receiver |
+| `phoneburner-webhook` | None (webhook) | PhoneBurner call activity webhook |
+| `heyreach-webhook` | None (webhook) | HeyReach LinkedIn outreach webhook |
+| `salesforce-remarketing-webhook` | None (webhook) | Salesforce deal sync webhook |
+
+### Admin / User Management
+| Function | Auth | Purpose |
+|----------|------|---------|
+| `approve-marketplace-buyer` | Admin | Approve buyer marketplace access |
+| `auto-create-firm-on-approval` | Service | Auto-create firm record on approval |
+| `admin-notification` | Admin | Send admin notifications |
+| `admin-digest` | Cron | Daily admin digest email |
+| `admin-reset-password` | Admin | Admin-initiated password reset |
+| `session-heartbeat` | Auth | Session keepalive heartbeat |
+| `error-logger` | Service | Persistent error logging |
+
+### AI / Intelligence
+| Function | Auth | Purpose |
+|----------|------|---------|
+| `ai-command-center` | Auth | AI assistant backend (Claude) |
+| `analyze-buyer-notes` | Admin | AI analysis of buyer notes |
+| `analyze-deal-notes` | Admin | AI analysis of deal notes |
+| `analyze-tracker-notes` | Admin | AI analysis of tracker notes |
+| `analyze-seller-interest` | Admin | AI seller interest analysis |
+| `clarify-industry` | Admin | AI industry classification |
+| `generate-ma-guide` | Admin | AI-generate M&A guide content |
+| `extract-deal-transcript` | Admin | Extract deal data from transcripts |
+| `extract-transcript` | Admin | General transcript extraction |
+| `extract-standup-tasks` | Admin | Extract tasks from standup transcripts |
+
+### Bulk Operations
+| Function | Auth | Purpose |
+|----------|------|---------|
+| `bulk-import-remarketing` | Admin | Bulk import buyers/deals from CSV |
+| `map-csv-columns` | Admin | AI-assisted CSV column mapping |
+| `sync-captarget-sheet` | Admin | Sync deals from CapTarget Google Sheet |
+| `process-enrichment-queue` | Service | Process async enrichment queue |
+| `dedupe-buyers` | Admin | Deduplicate buyer records |
+
+### Scoring
+| Function | Auth | Purpose |
+|----------|------|---------|
+| `calculate-buyer-quality-score` | None | Compute buyer quality score |
+| `calculate-deal-quality` | Admin | Compute deal quality score |
+| `calculate-valuation-lead-score` | Admin | Score valuation leads |
+| `recalculate-deal-weights` | Admin | Recalculate deal priority weights |
+| `analyze-scoring-patterns` | Admin | Analyze scoring patterns |
+
 ## JWT Configuration
 
-Per-function JWT verification is configured in `supabase/config.toml`. Functions that accept internal service-to-service calls (e.g., `score-buyer-deal`) have `verify_jwt = false`.
+Per-function JWT verification is configured in `supabase/config.toml`. Functions that accept internal service-to-service calls (e.g., `score-buyer-deal`) or webhooks have `verify_jwt = false`.
+
+**Security note (from Feb 28 audit):** Approximately 20% of edge functions use the shared CORS module from `_shared/cors.ts`. Remaining functions should be migrated to use the shared module to ensure consistent origin restriction. See `CTO_DEEP_DIVE_AUDIT_2026-02-28.md` for details.
+
+## Function Size Guide
+
+Functions exceeding 700 lines are candidates for refactoring into sub-modules:
+
+| Function | Lines | Recommendation |
+|----------|-------|----------------|
+| `generate-ma-guide` | 1,500 | Extract prompt templates |
+| `apify-linkedin-scrape` | 1,027 | Split parsing/API logic |
+| `extract-deal-transcript` | 920 | Consolidate with `extract-transcript` |
+| `enrich-deal` | 857 | Extract enrichment phases |
+| `bulk-sync-all-fireflies` | 839 | Extract sync logic |
+| `score-buyer-deal` | 733 | Good progress (was 2,158) |

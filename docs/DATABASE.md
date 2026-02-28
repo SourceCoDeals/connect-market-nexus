@@ -2,7 +2,9 @@
 
 ## Overview
 
-The database is PostgreSQL 15 running on Supabase. All tables use Row Level Security (RLS). The schema is managed through 590+ SQL migrations in `supabase/migrations/`.
+The database is PostgreSQL 15 running on Supabase. All tables use Row Level Security (RLS). The schema is managed through 709 SQL migrations in `supabase/migrations/`.
+
+> **Last updated:** 2026-02-28 (CTO Deep-Dive Audit) — Migration count: 709, Tables: 117+, Functions/Triggers: 227+, Indexes: 1,162+
 
 ---
 

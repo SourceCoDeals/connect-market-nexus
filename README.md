@@ -45,7 +45,7 @@ Connect Market Nexus is a B2B M&A (Mergers & Acquisitions) deal marketplace plat
 | State Management | TanStack React Query 5, React Context |
 | Routing | React Router DOM 6 |
 | Backend / Database | Supabase (PostgreSQL 15, Auth, Storage, Edge Functions) |
-| Edge Functions | Deno (TypeScript), 113+ functions with 24 shared modules |
+| Edge Functions | Deno (TypeScript), 160 functions with 24+ shared modules |
 | AI | Gemini 2.0 Flash (via shared `ai-providers.ts` module) |
 | Email | Brevo (Sendinblue) transactional email |
 | Rich Text | TipTap editor |
@@ -172,14 +172,14 @@ connect-market-nexus/
 │   ├── features/              # Feature modules
 │   └── utils/                 # Utility functions
 ├── supabase/
-│   ├── functions/             # 113+ Deno edge functions
-│   │   ├── _shared/           # 24 shared modules (auth, CORS, AI, etc.)
+│   ├── functions/             # 160 Deno edge functions
+│   │   ├── _shared/           # 24+ shared modules (auth, CORS, AI, etc.)
 │   │   ├── data-room-*/       # Data room operations
 │   │   ├── enrich-*/          # AI enrichment functions
 │   │   ├── score-*/           # Scoring functions
 │   │   ├── send-*/            # Email sending functions
 │   │   └── ...
-│   ├── migrations/            # 590+ SQL migrations
+│   ├── migrations/            # 709 SQL migrations
 │   └── config.toml            # Supabase project configuration
 ├── docs/                      # Project documentation
 ├── scripts/                   # Build and maintenance scripts
@@ -319,18 +319,36 @@ For detailed deployment instructions, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.m
 
 ## Documentation
 
+### Core Documentation
+
 | Document | Description |
 |---|---|
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines, workflow, and code style |
+| [CHANGELOG.md](CHANGELOG.md) | Release history and change log |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture and design decisions |
 | [docs/DATABASE.md](docs/DATABASE.md) | Database schema, tables, RLS policies, and migration workflow |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Deployment guide and production checklist |
 | [docs/API.md](docs/API.md) | API reference (RPCs, edge functions, query patterns) |
 | [docs/EDGE_FUNCTIONS.md](docs/EDGE_FUNCTIONS.md) | Edge functions reference and shared modules |
+
+### Feature & Architecture Docs
+
+| Document | Description |
+|---|---|
 | [docs/architecture/](docs/architecture/) | Detailed architecture specs (permissions, deal pages) |
-| [docs/security/](docs/security/) | Security audits and reports |
-| [docs/features/](docs/features/) | Feature-specific documentation |
+| [docs/features/](docs/features/) | Feature-specific documentation (enrichment, chatbot, LinkedIn) |
+| [docs/phoneburner/](docs/phoneburner/) | PhoneBurner integration specs |
+| [docs/ai-command-center/](docs/ai-command-center/) | AI Command Center requirements, architecture, testing |
+
+### Security & Audit Reports
+
+| Document | Description |
+|---|---|
+| [CTO_DEEP_DIVE_AUDIT_2026-02-28.md](CTO_DEEP_DIVE_AUDIT_2026-02-28.md) | Latest CTO audit — architecture, security, code quality, CI/CD |
+| [docs/security/](docs/security/) | Security audits, reconciliation reports, verification |
 | [docs/guides/](docs/guides/) | Testing and smoke test guides |
+| [docs/testing/](docs/testing/) | Platform and AI chatbot testing guides |
+| [docs/deployment/](docs/deployment/) | Deployment prompts, readiness assessments |
 
 ---
 
