@@ -12,19 +12,14 @@
  * Used on:
  *   ReMarketing deal matching page (/admin/remarketing/deals/:id/matching)
  */
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Check,
   X,
@@ -46,10 +41,11 @@ import {
   ArrowRightCircle,
   Phone,
   Linkedin,
-} from "lucide-react";
-import { IntelligenceBadge } from "./IntelligenceBadge";
-import { OutreachStatusDialog, type OutreachStatus } from "./OutreachStatusDialog";
-import type { ScoreTier, ReMarketingBuyer } from "@/types/remarketing";
+} from 'lucide-react';
+import { IntelligenceBadge } from './IntelligenceBadge';
+import { OutreachStatusDialog, type OutreachStatus } from './OutreachStatusDialog';
+import { FlagForBuyerButton } from '@/components/daily-tasks/FlagForBuyerButton';
+import type { ScoreTier, ReMarketingBuyer } from '@/types/remarketing';
 
 interface OutreachData {
   status: OutreachStatus;
@@ -100,9 +96,9 @@ interface BuyerMatchCardProps {
 }
 
 const getScoreColorClass = (score: number) => {
-  if (score >= 80) return "text-emerald-600";
-  if (score >= 50) return "text-amber-600";
-  return "text-red-500";
+  if (score >= 80) return 'text-emerald-600';
+  if (score >= 50) return 'text-amber-600';
+  return 'text-red-500';
 };
 
 const getScoreDot = (score: number) => {
@@ -111,7 +107,11 @@ const getScoreDot = (score: number) => {
 };
 
 // Determine if buyer is disqualified (prefer backend field, fallback to heuristic)
-const isDisqualified = (scoreData: { composite_score: number; is_disqualified?: boolean | null; fit_reasoning?: string | null }) => {
+const isDisqualified = (scoreData: {
+  composite_score: number;
+  is_disqualified?: boolean | null;
+  fit_reasoning?: string | null;
+}) => {
   if (scoreData.is_disqualified != null) return scoreData.is_disqualified;
   if (scoreData.composite_score < 35) return true;
   if (scoreData.fit_reasoning?.toLowerCase().includes('disqualified')) return true;
@@ -130,7 +130,11 @@ const getDisqualificationReason = (reasoning: string | null, score?: any): strin
   }
 
   // Check for explicit disqualification patterns (specific language from enforceHardRules)
-  if (lower.includes('disqualified: deal revenue') || lower.includes('below buyer minimum') || lower.includes('below minimum')) {
+  if (
+    lower.includes('disqualified: deal revenue') ||
+    lower.includes('below buyer minimum') ||
+    lower.includes('below minimum')
+  ) {
     return 'size mismatch';
   }
   if (lower.includes('dealbreaker: deal includes excluded')) {
@@ -148,20 +152,32 @@ const getDisqualificationReason = (reasoning: string | null, score?: any): strin
       { name: 'service mismatch', score: score.service_score ?? 100 },
       { name: 'owner goals mismatch', score: score.owner_goals_score ?? 100 },
     ];
-    const weakest = dimensions.reduce((min, d) => d.score < min.score ? d : min, dimensions[0]);
+    const weakest = dimensions.reduce((min, d) => (d.score < min.score ? d : min), dimensions[0]);
     if (weakest.score < 40) {
       return weakest.name;
     }
   }
 
   // Fallback to keyword matching with more specific patterns
-  if (lower.includes('no nearby presence') || lower.includes('no presence in') || lower.includes('distant')) {
+  if (
+    lower.includes('no nearby presence') ||
+    lower.includes('no presence in') ||
+    lower.includes('distant')
+  ) {
     return 'no nearby presence';
   }
-  if (lower.includes('too small') || lower.includes('too large') || lower.includes('size multiplier: ')) {
+  if (
+    lower.includes('too small') ||
+    lower.includes('too large') ||
+    lower.includes('size multiplier: ')
+  ) {
     return 'size mismatch';
   }
-  if (lower.includes('no service overlap') || lower.includes('0% overlap') || lower.includes('weak service')) {
+  if (
+    lower.includes('no service overlap') ||
+    lower.includes('0% overlap') ||
+    lower.includes('weak service')
+  ) {
     return 'service mismatch';
   }
   return 'criteria mismatch';
@@ -171,7 +187,7 @@ const getDisqualificationReason = (reasoning: string | null, score?: any): strin
 const getMissingDataFields = (buyer?: ReMarketingBuyer): string[] => {
   const missing: string[] = [];
   if (!buyer) return ['All buyer data'];
-  
+
   // Location data
   if ((!buyer.geographic_footprint || buyer.geographic_footprint.length === 0) && !buyer.hq_state) {
     missing.push('HQ location');
@@ -179,12 +195,12 @@ const getMissingDataFields = (buyer?: ReMarketingBuyer): string[] => {
   if (!buyer.target_geographies || buyer.target_geographies.length === 0) {
     missing.push('Target geographies');
   }
-  
+
   // Financial data
   if (!buyer.target_revenue_min && !buyer.target_revenue_max) {
     missing.push('Target revenue range');
   }
-  
+
   // Thesis data
   if (!buyer.thesis_summary) {
     missing.push('Investment thesis');
@@ -192,39 +208,39 @@ const getMissingDataFields = (buyer?: ReMarketingBuyer): string[] => {
   if (!buyer.target_services || buyer.target_services.length === 0) {
     missing.push('Target services');
   }
-  
+
   // Owner goals / preferences
   if (!buyer.acquisition_appetite) {
     missing.push('Acquisition appetite');
   }
-  
+
   // Activity data
   if (!buyer.recent_acquisitions || buyer.recent_acquisitions.length === 0) {
     missing.push('Recent acquisitions');
   }
-  
+
   // Transcript/call data
-  if (!buyer.extraction_sources?.some(s => s.type === 'transcript')) {
+  if (!buyer.extraction_sources?.some((s) => s.type === 'transcript')) {
     missing.push('Call quotes');
   }
-  
+
   return missing;
 };
 
 // Get buyer location display (prefer HQ city/state)
 const getBuyerLocationDisplay = (buyer?: ReMarketingBuyer): string => {
   if (!buyer) return 'Unknown';
-  
+
   // Prefer HQ location if available (Whispers format: "City, ST")
   if (buyer.hq_city && buyer.hq_state) {
     return `${buyer.hq_city}, ${buyer.hq_state}`;
   }
-  
+
   // Fall back to footprint
   if (buyer.geographic_footprint && buyer.geographic_footprint.length > 0) {
     return buyer.geographic_footprint.slice(0, 2).join(', ');
   }
-  
+
   return 'Unknown';
 };
 
@@ -260,11 +276,18 @@ const getFitLabel = (score: number, disqualified: boolean): string => {
 
 // Outreach status colors and labels
 const getOutreachBadge = (status: OutreachStatus) => {
-  const config: Record<OutreachStatus, { label: string; className: string; icon: React.ElementType }> = {
+  const config: Record<
+    OutreachStatus,
+    { label: string; className: string; icon: React.ElementType }
+  > = {
     pending: { label: 'Pending', className: 'bg-slate-100 text-slate-700', icon: Mail },
     contacted: { label: 'Contacted', className: 'bg-blue-100 text-blue-700', icon: Mail },
     responded: { label: 'Responded', className: 'bg-cyan-100 text-cyan-700', icon: Mail },
-    meeting_scheduled: { label: 'Meeting', className: 'bg-purple-100 text-purple-700', icon: Calendar },
+    meeting_scheduled: {
+      label: 'Meeting',
+      className: 'bg-purple-100 text-purple-700',
+      icon: Calendar,
+    },
     loi_sent: { label: 'LOI Sent', className: 'bg-indigo-100 text-indigo-700', icon: FileText },
     closed_won: { label: 'Won', className: 'bg-emerald-100 text-emerald-700', icon: Check },
     closed_lost: { label: 'Lost', className: 'bg-red-100 text-red-700', icon: X },
@@ -294,7 +317,7 @@ export const BuyerMatchCard = ({
 }: BuyerMatchCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [outreachDialogOpen, setOutreachDialogOpen] = useState(false);
-  
+
   // Track when card is expanded for the first time
   const handleExpand = (expanded: boolean) => {
     if (expanded && !isExpanded && onViewed) {
@@ -302,29 +325,30 @@ export const BuyerMatchCard = ({
     }
     setIsExpanded(expanded);
   };
-  
+
   const buyer = score.buyer;
   const disqualified = isDisqualified(score);
   const missingData = getMissingDataFields(buyer);
-  
+
   // Format financial range
-  const financialRange = buyer?.target_revenue_min || buyer?.target_revenue_max
-    ? `${formatCurrency(buyer?.target_revenue_min) || '?'}-${formatCurrency(buyer?.target_revenue_max) || '?'}`
-    : null;
-  
+  const financialRange =
+    buyer?.target_revenue_min || buyer?.target_revenue_max
+      ? `${formatCurrency(buyer?.target_revenue_min) || '?'}-${formatCurrency(buyer?.target_revenue_max) || '?'}`
+      : null;
+
   // Buyer footprint summary
   const buyerFootprint = buyer?.geographic_footprint?.slice(0, 3).join(', ') || 'Unknown';
-  
+
   // Handle outreach save
   const handleOutreachSave = async (status: OutreachStatus, notes: string) => {
     if (onOutreachUpdate) {
       await onOutreachUpdate(score.id, status, notes);
     }
   };
-  
+
   // Get outreach badge info
   const outreachBadge = outreach ? getOutreachBadge(outreach.status) : null;
-  
+
   // Determine reasoning panel background - aligned with spec tier bands
   const getReasoningBackground = () => {
     if (disqualified) return 'bg-red-50 border-red-200';
@@ -336,30 +360,30 @@ export const BuyerMatchCard = ({
 
   // Score ring color
   const getScoreRingColor = () => {
-    if (disqualified) return "border-red-300 bg-red-50 text-red-600";
-    if (score.composite_score >= 80) return "border-emerald-400 bg-emerald-50 text-emerald-700";
-    if (score.composite_score >= 65) return "border-blue-400 bg-blue-50 text-blue-700";
-    if (score.composite_score >= 50) return "border-amber-400 bg-amber-50 text-amber-700";
-    if (score.composite_score >= 35) return "border-orange-400 bg-orange-50 text-orange-600";
-    return "border-red-300 bg-red-50 text-red-600";
+    if (disqualified) return 'border-red-300 bg-red-50 text-red-600';
+    if (score.composite_score >= 80) return 'border-emerald-400 bg-emerald-50 text-emerald-700';
+    if (score.composite_score >= 65) return 'border-blue-400 bg-blue-50 text-blue-700';
+    if (score.composite_score >= 50) return 'border-amber-400 bg-amber-50 text-amber-700';
+    if (score.composite_score >= 35) return 'border-orange-400 bg-orange-50 text-orange-600';
+    return 'border-red-300 bg-red-50 text-red-600';
   };
 
   const getTierLabel = () => {
-    if (disqualified) return "DQ";
-    if (score.composite_score >= 80) return "A";
-    if (score.composite_score >= 65) return "B";
-    if (score.composite_score >= 50) return "C";
-    if (score.composite_score >= 35) return "D";
-    return "F";
+    if (disqualified) return 'DQ';
+    if (score.composite_score >= 80) return 'A';
+    if (score.composite_score >= 65) return 'B';
+    if (score.composite_score >= 50) return 'C';
+    if (score.composite_score >= 35) return 'D';
+    return 'F';
   };
 
   return (
     <div
       id={`buyer-card-${score.buyer?.id}`}
       className={cn(
-        "border rounded-lg transition-all bg-background",
-        score.status === 'passed' && "opacity-60",
-        isHighlighted && "ring-2 ring-primary border-primary shadow-lg shadow-primary/10"
+        'border rounded-lg transition-all bg-background',
+        score.status === 'passed' && 'opacity-60',
+        isHighlighted && 'ring-2 ring-primary border-primary shadow-lg shadow-primary/10',
       )}
     >
       {/* Main Header Row - White background */}
@@ -378,10 +402,12 @@ export const BuyerMatchCard = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className={cn(
-                  "flex-shrink-0 w-14 h-14 rounded-full border-2 flex flex-col items-center justify-center cursor-help",
-                  getScoreRingColor()
-                )}>
+                <div
+                  className={cn(
+                    'flex-shrink-0 w-14 h-14 rounded-full border-2 flex flex-col items-center justify-center cursor-help',
+                    getScoreRingColor(),
+                  )}
+                >
                   <span className="text-xl font-bold leading-none">
                     {disqualified ? '—' : Math.round(score.composite_score)}
                   </span>
@@ -391,28 +417,32 @@ export const BuyerMatchCard = ({
                 </div>
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-xs">
-                <p className="font-medium">{getScoreDescription(score.composite_score, disqualified)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Score: {score.composite_score}/100</p>
+                <p className="font-medium">
+                  {getScoreDescription(score.composite_score, disqualified)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Score: {score.composite_score}/100
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          
+
           {/* Buyer Info */}
           <div className="flex-1 min-w-0">
             {/* Row 1: Name + Links + Status Badges */}
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <Link 
+              <Link
                 to={`/admin/buyers/${buyer?.id}`}
                 className="font-semibold text-lg hover:underline leading-tight"
               >
                 {buyer?.company_name || 'Unknown Buyer'}
               </Link>
-              
+
               {/* Eye icon for preview */}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Link 
+                    <Link
                       to={`/admin/buyers/${buyer?.id}`}
                       className="text-muted-foreground hover:text-foreground"
                     >
@@ -422,40 +452,53 @@ export const BuyerMatchCard = ({
                   <TooltipContent>View buyer profile</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              
+
               {buyer?.company_website && (
-                <a 
-                  href={buyer.company_website.startsWith('http') ? buyer.company_website : `https://${buyer.company_website}`}
-                  target="_blank" 
+                <a
+                  href={
+                    buyer.company_website.startsWith('http')
+                      ? buyer.company_website
+                      : `https://${buyer.company_website}`
+                  }
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
-              
+
               {/* Disqualified Badge - inline with name */}
               {disqualified && (
-                <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 text-xs">
+                <Badge
+                  variant="outline"
+                  className="bg-orange-100 text-orange-700 border-orange-300 text-xs"
+                >
                   <AlertTriangle className="h-3 w-3 mr-1" />
                   Disqualified
                 </Badge>
               )}
-              
+
               {/* Universe Badge - when viewing all universes */}
               {(universeName || score.universe?.name) && (
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+                <Badge
+                  variant="outline"
+                  className="bg-blue-50 text-blue-700 border-blue-200 text-xs"
+                >
                   <Target className="h-3 w-3 mr-1" />
                   {universeName || score.universe?.name}
                 </Badge>
               )}
-              
+
               {/* Fee Status Badge - cross-referenced with marketplace firm_agreements */}
-              {(firmFeeAgreement?.signed || buyer?.has_fee_agreement) ? (
+              {firmFeeAgreement?.signed || buyer?.has_fee_agreement ? (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs">
+                      <Badge
+                        variant="outline"
+                        className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs"
+                      >
                         <FileText className="h-3 w-3 mr-1" />
                         Fee Signed
                       </Badge>
@@ -474,34 +517,39 @@ export const BuyerMatchCard = ({
                 </Badge>
               )}
             </div>
-            
+
             {/* Row 2: Location + Website + PE Firm (compact single row) */}
             <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap mb-1">
               <span className="flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
                 {getBuyerLocationDisplay(buyer)}
               </span>
-              
-              {buyer?.company_website && (() => {
-                const siteUrl = buyer.company_website;
-                return (
-                  <a 
-                    href={siteUrl.startsWith('http') ? siteUrl : `https://${siteUrl}`}
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-primary hover:underline"
-                  >
-                    <Globe className="h-3.5 w-3.5" />
-                    <span className="truncate max-w-[180px]">
-                      {siteUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
-                    </span>
-                  </a>
-                );
-              })()}
-              
+
+              {buyer?.company_website &&
+                (() => {
+                  const siteUrl = buyer.company_website;
+                  return (
+                    <a
+                      href={siteUrl.startsWith('http') ? siteUrl : `https://${siteUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-primary hover:underline"
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                      <span className="truncate max-w-[180px]">
+                        {siteUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}
+                      </span>
+                    </a>
+                  );
+                })()}
+
               {buyer?.pe_firm_website && (
                 <a
-                  href={buyer.pe_firm_website.startsWith('http') ? buyer.pe_firm_website : `https://${buyer.pe_firm_website}`}
+                  href={
+                    buyer.pe_firm_website.startsWith('http')
+                      ? buyer.pe_firm_website
+                      : `https://${buyer.pe_firm_website}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:underline"
@@ -520,14 +568,14 @@ export const BuyerMatchCard = ({
                 </span>
               )}
             </div>
-            
+
             {/* Row 5: Thesis Summary (truncated) */}
             {buyer?.thesis_summary && (
               <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                 {buyer.thesis_summary}
               </p>
             )}
-            
+
             {/* Row 6: Financial Range + Contacts */}
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               {financialRange && (
@@ -544,7 +592,7 @@ export const BuyerMatchCard = ({
               )}
             </div>
           </div>
-          
+
           {/* Right Side: Intel + Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Intelligence Badge with missing fields */}
@@ -553,21 +601,20 @@ export const BuyerMatchCard = ({
               missingFields={missingData}
               size="sm"
             />
-            
+
             {/* Expand Chevron - Circular Button Style */}
             <Collapsible open={isExpanded} onOpenChange={handleExpand}>
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                  <ChevronDown className={cn(
-                    "h-4 w-4 transition-transform",
-                    isExpanded && "rotate-180"
-                  )} />
+                  <ChevronDown
+                    className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-180')}
+                  />
                 </Button>
               </CollapsibleTrigger>
             </Collapsible>
           </div>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex items-center justify-between mt-2">
           {/* Left: Status */}
@@ -591,7 +638,7 @@ export const BuyerMatchCard = ({
                 </Badge>
                 {/* Outreach Status Badge */}
                 {outreachBadge && outreach?.status !== 'pending' && (
-                  <Badge className={cn("border", outreachBadge.className)}>
+                  <Badge className={cn('border', outreachBadge.className)}>
                     <outreachBadge.icon className="h-3 w-3 mr-1" />
                     {outreachBadge.label}
                   </Badge>
@@ -649,10 +696,20 @@ export const BuyerMatchCard = ({
               </>
             )}
 
+            {/* Flag for Follow-up */}
+            {buyer?.id && (
+              <FlagForBuyerButton
+                buyerId={buyer.id}
+                buyerName={buyer.company_name || 'Unknown'}
+                dealId={pipelineDealId || undefined}
+                listingId={listingId}
+                listingName={undefined}
+              />
+            )}
           </div>
         </div>
       </div>
-      
+
       {/* Outreach Status Dialog */}
       <OutreachStatusDialog
         open={outreachDialogOpen}
@@ -661,54 +718,57 @@ export const BuyerMatchCard = ({
         currentStatus={outreach?.status}
         onSave={handleOutreachSave}
       />
-      
+
       {/* Score Breakdown Panel - Colored background based on tier */}
-      <div className={cn(
-        "border-t p-4",
-        getReasoningBackground()
-      )}>
+      <div className={cn('border-t p-4', getReasoningBackground())}>
         {/* AI Reasoning with Fit Label */}
-        <p className={cn(
-          "text-sm mb-4",
-          disqualified ? "text-red-700" : "text-foreground"
-        )}>
-          {getFitLabel(score.composite_score, disqualified)} {score.fit_reasoning || 'No reasoning available'}
+        <p className={cn('text-sm mb-4', disqualified ? 'text-red-700' : 'text-foreground')}>
+          {getFitLabel(score.composite_score, disqualified)}{' '}
+          {score.fit_reasoning || 'No reasoning available'}
         </p>
-        
+
         {/* Inline Score Breakdown - Services (45%), Size (30%), Geography (20%), Owner Goals (5%) */}
         <div className="grid grid-cols-4 gap-4 mb-3">
           <div>
             <p className="text-xs text-muted-foreground mb-1">
               Services
               {score.service_multiplier != null && score.service_multiplier < 1.0 && (
-                <span className="ml-1 text-orange-600">({(score.service_multiplier * 100).toFixed(0)}% gate)</span>
+                <span className="ml-1 text-orange-600">
+                  ({(score.service_multiplier * 100).toFixed(0)}% gate)
+                </span>
               )}
             </p>
-            <p className={cn("text-lg font-bold", getScoreColorClass(score.service_score))}>
-              {getScoreDot(score.service_score)}{Math.round(score.service_score)}%
+            <p className={cn('text-lg font-bold', getScoreColorClass(score.service_score))}>
+              {getScoreDot(score.service_score)}
+              {Math.round(score.service_score)}%
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">
               Size
               {score.size_multiplier != null && score.size_multiplier < 1.0 && (
-                <span className="ml-1 text-orange-600">({(score.size_multiplier * 100).toFixed(0)}% gate)</span>
+                <span className="ml-1 text-orange-600">
+                  ({(score.size_multiplier * 100).toFixed(0)}% gate)
+                </span>
               )}
             </p>
-            <p className={cn("text-lg font-bold", getScoreColorClass(score.size_score))}>
-              {getScoreDot(score.size_score)}{Math.round(score.size_score)}%
+            <p className={cn('text-lg font-bold', getScoreColorClass(score.size_score))}>
+              {getScoreDot(score.size_score)}
+              {Math.round(score.size_score)}%
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Geography</p>
-            <p className={cn("text-lg font-bold", getScoreColorClass(score.geography_score))}>
-              {getScoreDot(score.geography_score)}{Math.round(score.geography_score)}%
+            <p className={cn('text-lg font-bold', getScoreColorClass(score.geography_score))}>
+              {getScoreDot(score.geography_score)}
+              {Math.round(score.geography_score)}%
             </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Owner Goals</p>
-            <p className={cn("text-lg font-bold", getScoreColorClass(score.owner_goals_score))}>
-              {getScoreDot(score.owner_goals_score)}{Math.round(score.owner_goals_score)}%
+            <p className={cn('text-lg font-bold', getScoreColorClass(score.owner_goals_score))}>
+              {getScoreDot(score.owner_goals_score)}
+              {Math.round(score.owner_goals_score)}%
             </p>
           </div>
         </div>
@@ -727,55 +787,80 @@ export const BuyerMatchCard = ({
             <span>Needs review — borderline score</span>
           </div>
         )}
-        
+
         {/* Buyer Footprint Context */}
         <p className="text-xs text-muted-foreground">
           Buyer footprint: {buyerFootprint} → Deal: {dealLocation || 'Unknown'}
         </p>
-        
+
         {/* Disqualification Warning (repeated at bottom) */}
-        {disqualified && (() => {
-          const reason = getDisqualificationReason(score.fit_reasoning, score);
-          const isDataIssue = reason === 'insufficient data';
-          return (
-            <div className={`mt-3 flex items-center gap-2 text-xs ${isDataIssue ? 'text-amber-600' : 'text-red-600'}`}>
-              <AlertCircle className="h-4 w-4" />
-              <span>{isDataIssue ? 'Low confidence — insufficient data for scoring' : `Reason: ${reason}`}</span>
-            </div>
-          );
-        })()}
-        
+        {disqualified &&
+          (() => {
+            const reason = getDisqualificationReason(score.fit_reasoning, score);
+            const isDataIssue = reason === 'insufficient data';
+            return (
+              <div
+                className={`mt-3 flex items-center gap-2 text-xs ${isDataIssue ? 'text-amber-600' : 'text-red-600'}`}
+              >
+                <AlertCircle className="h-4 w-4" />
+                <span>
+                  {isDataIssue
+                    ? 'Low confidence — insufficient data for scoring'
+                    : `Reason: ${reason}`}
+                </span>
+              </div>
+            );
+          })()}
+
         {/* Expandable Thesis */}
         <Collapsible open={isExpanded} onOpenChange={handleExpand}>
           <CollapsibleContent className="pt-4">
             {(() => {
-              const primaryContact = buyer?.contacts?.find((c: any) => c.is_primary_contact || c.is_primary) || buyer?.contacts?.[0];
+              const primaryContact =
+                buyer?.contacts?.find((c: any) => c.is_primary_contact || c.is_primary) ||
+                buyer?.contacts?.[0];
               if (!primaryContact) return null;
               return (
                 <div className="border-t pt-3 pb-1">
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Primary Contact</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    Primary Contact
+                  </p>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">
                       {primaryContact.name}
                       {primaryContact.role && (
-                        <span className="text-muted-foreground font-normal"> · {primaryContact.role}</span>
+                        <span className="text-muted-foreground font-normal">
+                          {' '}
+                          · {primaryContact.role}
+                        </span>
                       )}
                     </p>
                     <div className="flex flex-wrap items-center gap-3">
                       {primaryContact.email && (
-                        <a href={`mailto:${primaryContact.email}`} className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                        <a
+                          href={`mailto:${primaryContact.email}`}
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
                           <Mail className="h-3 w-3" />
                           {primaryContact.email}
                         </a>
                       )}
                       {primaryContact.phone && (
-                        <a href={`tel:${primaryContact.phone}`} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline">
+                        <a
+                          href={`tel:${primaryContact.phone}`}
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+                        >
                           <Phone className="h-3 w-3" />
                           {primaryContact.phone}
                         </a>
                       )}
                       {primaryContact.linkedin_url && (
-                        <a href={primaryContact.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                        <a
+                          href={primaryContact.linkedin_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
                           <Linkedin className="h-3 w-3" />
                           LinkedIn
                         </a>
@@ -788,9 +873,7 @@ export const BuyerMatchCard = ({
             {buyer?.thesis_summary && (
               <div className="border-t pt-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Investment Thesis</p>
-                <p className="text-sm italic text-muted-foreground">
-                  "{buyer.thesis_summary}"
-                </p>
+                <p className="text-sm italic text-muted-foreground">"{buyer.thesis_summary}"</p>
               </div>
             )}
           </CollapsibleContent>

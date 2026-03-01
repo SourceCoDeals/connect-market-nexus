@@ -20,8 +20,10 @@ import {
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { useAddManualTask } from '@/hooks/useDailyTasks';
+import { useExistingTags } from '@/hooks/useTaskTags';
 import { getLocalDateString } from '@/lib/utils';
 import { TASK_TYPE_OPTIONS } from '@/types/daily-tasks';
+import { TagInput } from './TagInput';
 import type { TaskType } from '@/types/daily-tasks';
 
 interface AddTaskDialogProps {
@@ -33,12 +35,14 @@ interface AddTaskDialogProps {
 export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialogProps) {
   const addTask = useAddManualTask();
   const { toast } = useToast();
+  const { data: existingTags } = useExistingTags();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [taskType, setTaskType] = useState<TaskType>('other');
   const [dueDate, setDueDate] = useState(getLocalDateString());
   const [dealReference, setDealReference] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
@@ -52,6 +56,7 @@ export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialog
         due_date: dueDate,
         deal_reference: dealReference.trim() || null,
         deal_id: null,
+        tags,
       });
 
       // Reset form
@@ -61,6 +66,7 @@ export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialog
       setTaskType('other');
       setDueDate(getLocalDateString());
       setDealReference('');
+      setTags([]);
       onOpenChange(false);
     } catch (err) {
       toast({
@@ -154,6 +160,16 @@ export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialog
                 placeholder="Company name"
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <TagInput
+              value={tags}
+              onChange={setTags}
+              suggestions={existingTags || []}
+              placeholder="e.g., Q1 push, board meeting prep"
+            />
           </div>
         </div>
 

@@ -478,6 +478,18 @@ serve(async (req) => {
 
     if (meetingError) throw meetingError;
 
+    // 7b. Check auto-approve setting
+    let autoApproveEnabled = true; // default: on
+    const { data: autoApproveSetting } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'task_auto_approve_high_confidence')
+      .single();
+
+    if (autoApproveSetting?.value !== undefined) {
+      autoApproveEnabled = autoApproveSetting.value === 'true' || autoApproveSetting.value === true;
+    }
+
     // 8. Create task records with priority scoring
     const taskRecords = [];
     for (const task of extractedTasks) {
@@ -495,12 +507,18 @@ serve(async (req) => {
         today,
       );
 
+      const needsReview = !assigneeId || task.confidence === 'low';
+
+      // Auto-approve high-confidence tasks with a known assignee
+      const shouldAutoApprove =
+        autoApproveEnabled && task.confidence === 'high' && assigneeId !== null && !needsReview;
+
       taskRecords.push({
         title: task.title,
         description: task.description || null,
         assignee_id: assigneeId,
         task_type: task.task_type,
-        status: 'pending',
+        status: shouldAutoApprove ? 'pending' : 'pending_approval',
         due_date: task.due_date || today,
         source_meeting_id: meeting.id,
         source_timestamp: task.source_timestamp || null,
@@ -508,8 +526,10 @@ serve(async (req) => {
         deal_id: dealMatch?.id || null,
         priority_score: Math.round(priorityScore * 100) / 100,
         extraction_confidence: task.confidence,
-        needs_review: !assigneeId || task.confidence === 'low',
+        needs_review: needsReview,
         is_manual: false,
+        approved_by: shouldAutoApprove ? 'system' : null,
+        approved_at: shouldAutoApprove ? new Date().toISOString() : null,
       });
     }
 

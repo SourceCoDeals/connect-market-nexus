@@ -19,9 +19,9 @@ import {
   Phone,
   PhoneCall,
   Users,
-} from "lucide-react";
-import { EntityTasksTab } from '@/components/daily-tasks';
-import { BuyerAgreementsPanel } from "@/components/remarketing/BuyerAgreementsPanel";
+} from 'lucide-react';
+import { EntityTasksTab, MissedCallButton } from '@/components/daily-tasks';
+import { BuyerAgreementsPanel } from '@/components/remarketing/BuyerAgreementsPanel';
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -37,15 +37,15 @@ import {
   BuyerServicesBusinessModelCard,
 } from '@/components/remarketing/buyer-detail';
 
-import { EditDialogType } from "./types";
-import { useBuyerData } from "./useBuyerData";
-import { useBuyerMutations } from "./useBuyerMutations";
-import { useExtractionHandlers } from "./useExtractionHandlers";
-import { ContactsTab } from "./ContactsTab";
-import { DealHistoryTab } from "./DealHistoryTab";
-import { AddContactDialog } from "./AddContactDialog";
-import { EditDialogs } from "./EditDialogs";
-import { CallActivityTab } from "./CallActivityTab";
+import { EditDialogType } from './types';
+import { useBuyerData } from './useBuyerData';
+import { useBuyerMutations } from './useBuyerMutations';
+import { useExtractionHandlers } from './useExtractionHandlers';
+import { ContactsTab } from './ContactsTab';
+import { DealHistoryTab } from './DealHistoryTab';
+import { AddContactDialog } from './AddContactDialog';
+import { EditDialogs } from './EditDialogs';
+import { CallActivityTab } from './CallActivityTab';
 
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -131,22 +131,27 @@ const ReMarketingBuyerDetail = () => {
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
-      <BuyerDetailHeader
-        companyName={buyer?.company_name || ''}
-        peFirmName={buyer?.pe_firm_name}
-        peFirmId={peFirmRecord?.id || null}
-        platformWebsite={buyer?.platform_website || buyer?.company_website}
-        hqCity={buyer?.hq_city}
-        hqState={buyer?.hq_state}
-        hqCountry={buyer?.hq_country}
-        investmentDate={buyer?.investment_date}
-        dataCompleteness={dataCompleteness}
-        onEdit={() => setActiveEditDialog('business')}
-        onEnrich={() => enrichMutation.mutate()}
-        isEnriching={enrichMutation.isPending}
-        backTo={backTo}
-        marketplaceFirmId={buyer?.marketplace_firm_id}
-      />
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <BuyerDetailHeader
+            companyName={buyer?.company_name || ''}
+            peFirmName={buyer?.pe_firm_name}
+            peFirmId={peFirmRecord?.id || null}
+            platformWebsite={buyer?.platform_website || buyer?.company_website}
+            hqCity={buyer?.hq_city}
+            hqState={buyer?.hq_state}
+            hqCountry={buyer?.hq_country}
+            investmentDate={buyer?.investment_date}
+            dataCompleteness={dataCompleteness}
+            onEdit={() => setActiveEditDialog('business')}
+            onEnrich={() => enrichMutation.mutate()}
+            isEnriching={enrichMutation.isPending}
+            backTo={backTo}
+            marketplaceFirmId={buyer?.marketplace_firm_id}
+          />
+        </div>
+        <MissedCallButton entityType="buyer" entityId={id!} entityName={buyer?.company_name} />
+      </div>
 
       {/* Criteria Completeness Banner */}
       <CriteriaCompletenessBanner

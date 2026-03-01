@@ -29,6 +29,9 @@ import {
   Building2,
   Calendar,
   AlarmClock,
+  Phone,
+  Mail,
+  User,
 } from 'lucide-react';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 import { TASK_TYPE_LABELS, TASK_TYPE_COLORS } from '@/types/daily-tasks';
@@ -88,6 +91,35 @@ export function TaskCard({
 
   const [justCompleted, setJustCompleted] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // For 'contact_owner' tasks: resolve the listing_id to fetch seller contact
+  const isContactOwner = task.task_type === 'contact_owner';
+  const resolvedListingId =
+    task.entity_type === 'listing' ? task.entity_id : (task.deal?.listing_id ?? null);
+
+  const { data: sellerContact } = useQuery({
+    queryKey: ['seller-contact-for-task', resolvedListingId],
+    enabled: detailOpen && isContactOwner && !!resolvedListingId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contacts' as 'profiles')
+        .select('first_name, last_name, title, phone, email')
+        .eq('listing_id', resolvedListingId!)
+        .eq('contact_type', 'seller')
+        .order('is_primary_seller_contact', { ascending: false })
+        .limit(1)
+        .single();
+      if (error && error.code !== 'PGRST116') throw error;
+      return data as {
+        first_name: string;
+        last_name: string;
+        title: string | null;
+        phone: string | null;
+        email: string | null;
+      } | null;
+    },
+    staleTime: 60_000,
+  });
   const undoTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const isOverdue = task.status === 'overdue';
   const isCompleted = task.status === 'completed';
@@ -246,6 +278,20 @@ export function TaskCard({
 
         {/* Pin indicator */}
         {task.is_pinned && !isCompleted && <Pin className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+
+        {/* Tag pills */}
+        {task.tags && task.tags.length > 0 && (
+          <div className="flex items-center gap-1 shrink-0">
+            {task.tags.slice(0, 2).map((tag) => (
+              <Badge key={tag} variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-slate-50">
+                {tag}
+              </Badge>
+            ))}
+            {task.tags.length > 2 && (
+              <span className="text-[9px] text-muted-foreground">+{task.tags.length - 2}</span>
+            )}
+          </div>
+        )}
 
         {/* Undo inline */}
         {justCompleted && (
@@ -428,6 +474,46 @@ export function TaskCard({
                 </div>
               )}
             </div>
+
+            {/* Seller contact inline — for Contact Owner tasks */}
+            {isContactOwner && sellerContact && (
+              <div className="rounded-lg border bg-green-50/50 border-green-200 px-3 py-2.5 space-y-1.5">
+                <p className="text-xs font-medium text-green-800">Primary Seller Contact</p>
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-3.5 w-3.5 text-green-700 shrink-0" />
+                  <span className="font-medium">
+                    {sellerContact.first_name} {sellerContact.last_name}
+                  </span>
+                  {sellerContact.title && (
+                    <span className="text-muted-foreground text-xs">({sellerContact.title})</span>
+                  )}
+                </div>
+                {sellerContact.phone && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-3.5 w-3.5 text-green-700 shrink-0" />
+                    <a
+                      href={`tel:${sellerContact.phone}`}
+                      className="text-blue-600 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {sellerContact.phone}
+                    </a>
+                  </div>
+                )}
+                {sellerContact.email && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-3.5 w-3.5 text-green-700 shrink-0" />
+                    <a
+                      href={`mailto:${sellerContact.email}`}
+                      className="text-blue-600 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {sellerContact.email}
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Pin reason */}
             {task.is_pinned && task.pin_reason && (
