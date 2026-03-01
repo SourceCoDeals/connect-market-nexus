@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail, ListChecks } from 'lucide-react';
+import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail, ListChecks, Store } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 const EnrichmentTest = lazy(() => import('@/pages/admin/EnrichmentTest'));
@@ -9,6 +9,7 @@ const DocuSealHealthCheck = lazy(() => import('@/pages/admin/DocuSealHealthCheck
 const ChatbotTestRunner = lazy(() => import('@/pages/admin/ChatbotTestRunner'));
 const SmartleadTestPage = lazy(() => import('@/pages/admin/SmartleadTestPage'));
 const ThirtyQuestionTest = lazy(() => import('@/pages/admin/ThirtyQuestionTest'));
+const ListingPipelineTest = lazy(() => import('@/pages/admin/ListingPipelineTest'));
 
 const Loading = () => (
   <div className="flex items-center justify-center py-20">
@@ -64,6 +65,10 @@ export default function TestingHub() {
               <ListChecks className="h-4 w-4" />
               30-Question QA
             </TabsTrigger>
+            <TabsTrigger value="listing-pipeline" className="gap-2">
+              <Store className="h-4 w-4" />
+              Listing Pipeline
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="enrichment">
@@ -99,6 +104,12 @@ export default function TestingHub() {
           <TabsContent value="30q">
             <Suspense fallback={<Loading />}>
               <ThirtyQuestionTest />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="listing-pipeline">
+            <Suspense fallback={<Loading />}>
+              <ListingPipelineTest />
             </Suspense>
           </TabsContent>
         </Tabs>
