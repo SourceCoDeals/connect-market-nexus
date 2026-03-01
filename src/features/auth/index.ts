@@ -3,7 +3,7 @@
 // DO NOT MODIFY without proper review and testing
 
 export { ProtectedSignupForm } from './components/ProtectedSignupForm';
-export { AuthErrorBoundary } from './components/AuthErrorBoundary';
+export { ErrorBoundary as AuthErrorBoundary } from '@/components/ErrorBoundary';
 export { useProtectedAuth } from './hooks/useProtectedAuth';
 
 export {
@@ -13,7 +13,7 @@ export {
   SIGNUP_FLOW_STATES,
   signupFormSchema,
   validateSignupStateTransition,
-  SignupStateTransitionError
+  SignupStateTransitionError,
 } from './types/auth.types';
 
 export {
@@ -24,5 +24,5 @@ export {
   preventDuplicateSignup,
   checkRateLimit,
   cleanupAuthGuards,
-  AuthGuardError
+  AuthGuardError,
 } from './guards/AuthGuards';
