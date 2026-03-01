@@ -21,7 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import { EntityTasksTab } from '@/components/daily-tasks';
-import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
+import { BuyerAgreementsPanel } from "@/components/remarketing/BuyerAgreementsPanel";
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,

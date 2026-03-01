@@ -45,7 +45,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Webhook,
-  Brain,
   Wrench,
   FlaskConical,
   ExternalLink,
@@ -588,35 +587,6 @@ export function UnifiedAdminSidebar({
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">New Buyer Universe</TooltipContent>
-            </Tooltip>
-          </div>
-        )}
-
-        {/* Bottom links */}
-        {!collapsed && (
-          <div className="px-3 py-2 border-t border-border/50 space-y-0.5">
-            <SidebarLink
-              href="/admin/ma-intelligence"
-              icon={<Brain className="h-4 w-4" />}
-              label="MA Intelligence"
-              isActive={location.pathname.startsWith('/admin/ma-intelligence')}
-              collapsed={false}
-              external
-            />
-          </div>
-        )}
-        {collapsed && (
-          <div className="px-3 py-2 border-t border-border/50">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  to="/admin/ma-intelligence"
-                  className="flex items-center justify-center h-9 w-full rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                >
-                  <Brain className="h-4 w-4" />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right">MA Intelligence</TooltipContent>
             </Tooltip>
           </div>
         )}

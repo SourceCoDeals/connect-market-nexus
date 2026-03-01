@@ -35,7 +35,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { normalizeDomain } from '@/lib/ma-intelligence/normalizeDomain';
+import { normalizeDomain } from '@/lib/remarketing/normalizeDomain';
 
 interface AddDealDialogProps {
   open: boolean;

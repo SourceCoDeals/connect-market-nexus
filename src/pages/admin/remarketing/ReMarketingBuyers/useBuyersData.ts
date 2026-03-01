@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
+import { normalizeDomain } from "@/lib/remarketing/normalizeDomain";
 import type { BuyerType } from "@/types/remarketing";
 import { isSponsorType, PAGE_SIZE } from "./constants";
 import type { BuyerTab } from "./constants";

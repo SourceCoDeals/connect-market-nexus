@@ -32,9 +32,6 @@ export const APP_CONFIG = {
 // ─── Feature Flags ───────────────────────────────────────────────────────────
 
 export const FEATURE_FLAGS = {
-  /** Show the M&A Intelligence module */
-  maIntelligence: true,
-
   /** Enable the ReMarketing module */
   remarketing: true,
 

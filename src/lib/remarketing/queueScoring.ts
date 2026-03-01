@@ -136,7 +136,7 @@ export async function queueAlignmentScoring({ universeId, buyerIds }: QueueAlign
 
 /**
  * Queue deal scoring across ALL active universes for a given listing.
- * Use this when universe context is unknown (e.g. MA Intelligence module).
+ * Use this when universe context is unknown.
  */
 export async function queueDealScoringAllUniverses(listingId: string): Promise<number> {
   // Find universes the deal is already assigned to

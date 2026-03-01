@@ -18,7 +18,7 @@ import {
 import { AdminListing } from "@/types/admin";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency-utils";
-import { DealScoreBadge } from "@/components/ma-intelligence/DealScoreBadge";
+import { DealScoreBadge } from "@/components/admin/DealScoreBadge";
 
 interface ResearchDealCardProps {
   listing: AdminListing;

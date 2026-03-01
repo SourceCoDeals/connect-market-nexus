@@ -120,14 +120,6 @@ export const ROUTES = {
 
     systemTest: '/admin/system-test',
 
-    maIntelligence: {
-      root: '/admin/ma-intelligence',
-      trackers: '/admin/ma-intelligence/trackers',
-      trackerNew: '/admin/ma-intelligence/trackers/new',
-      trackerDetail: '/admin/ma-intelligence/trackers/:id',
-      buyers: '/admin/ma-intelligence/buyers',
-      buyerDetail: '/admin/ma-intelligence/buyers/:id',
-    },
   },
 } as const;
 
@@ -161,8 +153,6 @@ export const routeBuilders = {
   referralTracker: (shareToken: string) => buildRoute(ROUTES.referralTracker, { shareToken }),
   dataRoomPortal: (accessToken: string) => buildRoute(ROUTES.dataRoomPortal, { accessToken }),
   trackedDocument: (linkToken: string) => buildRoute(ROUTES.trackedDocumentViewer, { linkToken }),
-  trackerDetail: (id: string) => buildRoute(ROUTES.admin.maIntelligence.trackerDetail, { id }),
-  maBuyerDetail: (id: string) => buildRoute(ROUTES.admin.maIntelligence.buyerDetail, { id }),
   captargetDetail: (dealId: string) =>
     buildRoute(ROUTES.admin.remarketing.captargetDetail, { dealId }),
   gpPartnerDetail: (dealId: string) =>
