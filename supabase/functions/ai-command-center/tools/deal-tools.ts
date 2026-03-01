@@ -86,7 +86,7 @@ function fuzzyContains(target: string, query: string): boolean {
 
 const DEAL_FIELDS_QUICK = `
   id, title, status, status_label, deal_source, industry, category, categories, revenue, ebitda,
-  location, address_state, geographic_states, services,
+  location, address_state, geographic_states, services, service_mix, tags,
   deal_total_score, is_priority_target, remarketing_status,
   deal_owner_id, primary_owner_id, updated_at
 `
@@ -107,6 +107,10 @@ const DEAL_FIELDS_FULL = `
   internal_company_name, project_name, deal_identifier,
   deal_owner_id, primary_owner_id, presented_by_admin_id,
   need_buyer_universe, universe_build_flagged,
+  description, hero_description, tags, website,
+  acquisition_type, revenue_model, customer_types, customer_geography,
+  end_market_description, growth_trajectory, ownership_structure,
+  captarget_call_notes, notes,
   created_at, updated_at, enriched_at, published_at
 `
   .replace(/\s+/g, ' ')
@@ -412,10 +416,23 @@ async function queryDeals(
       const investmentThesis = (d.investment_thesis as string)?.toLowerCase() || '';
       const businessModel = (d.business_model as string)?.toLowerCase() || '';
       const ownerGoals = (d.owner_goals as string)?.toLowerCase() || '';
+      const description = (d.description as string)?.toLowerCase() || '';
+      const heroDescription = (d.hero_description as string)?.toLowerCase() || '';
+      const customerTypes = (d.customer_types as string)?.toLowerCase() || '';
+      const customerGeography = (d.customer_geography as string)?.toLowerCase() || '';
+      const endMarket = (d.end_market_description as string)?.toLowerCase() || '';
+      const acquisitionType = (d.acquisition_type as string)?.toLowerCase() || '';
+      const revenueModel = (d.revenue_model as string)?.toLowerCase() || '';
+      const growthTrajectory = (d.growth_trajectory as string)?.toLowerCase() || '';
+      const ownershipStructure = (d.ownership_structure as string)?.toLowerCase() || '';
+      const captargetNotes = (d.captarget_call_notes as string)?.toLowerCase() || '';
+      const notes = (d.notes as string)?.toLowerCase() || '';
+      const website = (d.website as string)?.toLowerCase() || '';
+      const serviceMix = (d.service_mix as string)?.toLowerCase() || '';
       const services = (d.services as string[]) || [];
       const categories = (d.categories as string[]) || [];
       const geographicStates = (d.geographic_states as string[]) || [];
-      const serviceMix = (d.service_mix as string[]) || [];
+      const tags = (d.tags as string[]) || [];
 
       // Exact substring match across ALL text fields
       if (
@@ -432,15 +449,28 @@ async function queryDeals(
         investmentThesis.includes(term) ||
         businessModel.includes(term) ||
         ownerGoals.includes(term) ||
+        description.includes(term) ||
+        heroDescription.includes(term) ||
+        customerTypes.includes(term) ||
+        customerGeography.includes(term) ||
+        endMarket.includes(term) ||
+        acquisitionType.includes(term) ||
+        revenueModel.includes(term) ||
+        growthTrajectory.includes(term) ||
+        ownershipStructure.includes(term) ||
+        captargetNotes.includes(term) ||
+        notes.includes(term) ||
+        website.includes(term) ||
+        serviceMix.includes(term) ||
         services.some((s: string) => s.toLowerCase().includes(term)) ||
         categories.some((c: string) => c.toLowerCase().includes(term)) ||
         geographicStates.some((s: string) => s.toLowerCase().includes(term)) ||
-        serviceMix.some((s: string) => s.toLowerCase().includes(term))
+        tags.some((t: string) => t.toLowerCase().includes(term))
       )
         return true;
 
       // Fuzzy match: check if all words in the search appear in the combined text
-      const combined = `${title} ${internalName} ${projectName} ${dealIdentifier} ${industry} ${category} ${location} ${addressCity} ${addressState} ${businessModel} ${services.join(' ')} ${categories.join(' ')} ${geographicStates.join(' ')}`;
+      const combined = `${title} ${internalName} ${projectName} ${dealIdentifier} ${industry} ${category} ${location} ${addressCity} ${addressState} ${businessModel} ${description} ${heroDescription} ${services.join(' ')} ${categories.join(' ')} ${geographicStates.join(' ')} ${tags.join(' ')}`;
       const words = term.split(/\s+/).filter((w) => w.length > 2);
       if (words.length > 1 && words.every((w) => fuzzyContains(combined, w))) return true;
 
@@ -450,7 +480,8 @@ async function queryDeals(
         (fuzzyContains(title, term) ||
           fuzzyContains(internalName, term) ||
           fuzzyContains(projectName, term) ||
-          fuzzyContains(dealIdentifier, term))
+          fuzzyContains(dealIdentifier, term) ||
+          fuzzyContains(website, term))
       )
         return true;
 
@@ -467,7 +498,8 @@ async function queryDeals(
       const category = (d.category as string)?.toLowerCase() || '';
       const categories = (d.categories as string[]) || [];
       const services = (d.services as string[]) || [];
-      const serviceMix = (d.service_mix as string[]) || [];
+      const serviceMix = (d.service_mix as string)?.toLowerCase() || '';
+      const tags = (d.tags as string[]) || [];
       const title = (d.title as string)?.toLowerCase() || '';
       const internalName = (d.internal_company_name as string)?.toLowerCase() || '';
       const projectName = (d.project_name as string)?.toLowerCase() || '';
@@ -475,19 +507,34 @@ async function queryDeals(
       const investmentThesis = (d.investment_thesis as string)?.toLowerCase() || '';
       const businessModel = (d.business_model as string)?.toLowerCase() || '';
       const industryTier = (d.industry_tier_name as string)?.toLowerCase() || '';
+      const description = (d.description as string)?.toLowerCase() || '';
+      const heroDescription = (d.hero_description as string)?.toLowerCase() || '';
+      const customerTypes = (d.customer_types as string)?.toLowerCase() || '';
+      const endMarket = (d.end_market_description as string)?.toLowerCase() || '';
+      const revenueModel = (d.revenue_model as string)?.toLowerCase() || '';
+      const acquisitionType = (d.acquisition_type as string)?.toLowerCase() || '';
+      const captargetNotes = (d.captarget_call_notes as string)?.toLowerCase() || '';
       return (
         industry.includes(term) ||
         category.includes(term) ||
         categories.some((c: string) => c.toLowerCase().includes(term)) ||
         services.some((s: string) => s.toLowerCase().includes(term)) ||
-        serviceMix.some((s: string) => s.toLowerCase().includes(term)) ||
+        serviceMix.includes(term) ||
+        tags.some((t: string) => t.toLowerCase().includes(term)) ||
         title.includes(term) ||
         internalName.includes(term) ||
         projectName.includes(term) ||
         executiveSummary.includes(term) ||
         investmentThesis.includes(term) ||
         businessModel.includes(term) ||
-        industryTier.includes(term)
+        industryTier.includes(term) ||
+        description.includes(term) ||
+        heroDescription.includes(term) ||
+        customerTypes.includes(term) ||
+        endMarket.includes(term) ||
+        revenueModel.includes(term) ||
+        acquisitionType.includes(term) ||
+        captargetNotes.includes(term)
       );
     });
   }
