@@ -26,8 +26,8 @@
  *     and lets buyers process 3–5 actions without scrolling.
  *
  *   • **Priority ordering** — NDA first (blocks all deal access), fee
- *     agreement second (blocks CIM), unread messages third (important
- *     but not blocking).
+ *     agreement second (blocks deal materials), unread messages third
+ *     (important but not blocking).
  *
  *   • **Signing modal** — The component owns an AgreementSigningModal
  *     so NDA/fee actions can be completed inline without navigating

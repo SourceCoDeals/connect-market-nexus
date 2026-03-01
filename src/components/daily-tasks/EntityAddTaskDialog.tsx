@@ -110,7 +110,7 @@ export function EntityAddTaskDialog({
               id="entity-task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Follow up with buyer on CIM review"
+              placeholder="e.g., Follow up with buyer on deal memo review"
             />
           </div>
 

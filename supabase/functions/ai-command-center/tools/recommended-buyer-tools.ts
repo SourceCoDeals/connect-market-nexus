@@ -30,7 +30,7 @@ export const recommendedBuyerTools: ClaudeTool[] = [
     name: 'get_recommended_buyers',
     description: `Get AI-ranked recommended buyers for a specific deal. Synthesizes data across ALL sources: remarketing scores, buyer profiles, buyer universes, Fireflies transcripts, call recordings, outreach funnel status, deal signals, and marketplace listing details.
 USE WHEN: "who should we target for this deal?", "recommended buyers for [deal]", "show me the best buyers for [deal]", "buyer shortlist".
-Returns ranked buyer cards with: fit score (0-100), top fit signals, fee agreement status, last engagement, tier classification (Move Now / Strong Candidates / Speculative), transcript insights (CEO detected, key quotes, call count), outreach funnel status (NDA/CIM/meeting), and universe context.`,
+Returns ranked buyer cards with: fit score (0-100), top fit signals, fee agreement status, last engagement, tier classification (Move Now / Strong Candidates / Speculative), transcript insights (CEO detected, key quotes, call count), outreach funnel status (NDA/memo/meeting), and universe context.`,
     input_schema: {
       type: 'object',
       properties: {
@@ -939,7 +939,7 @@ async function generateBuyerNarrative(
       const stages: string[] = [];
       if (b.outreach_status.nda_signed) stages.push('NDA signed');
       else if (b.outreach_status.nda_sent) stages.push('NDA sent');
-      if (b.outreach_status.cim_sent) stages.push('CIM sent');
+      if (b.outreach_status.cim_sent) stages.push('Memo sent');
       if (b.outreach_status.meeting_scheduled) stages.push('Meeting scheduled');
       if (b.outreach_status.outcome) stages.push(`Outcome: ${b.outreach_status.outcome}`);
       if (stages.length > 0) {
@@ -1027,7 +1027,7 @@ async function generateBuyerNarrative(
 
     if (b.outreach_status.nda_signed && !b.outreach_status.cim_sent) {
       actions.push(
-        `Send CIM to ${name} — NDA signed, score ${b.composite_fit_score}, ready for materials`,
+        `Send deal memo to ${name} — NDA signed, score ${b.composite_fit_score}, ready for materials`,
       );
     } else if (b.has_fee_agreement && b.composite_fit_score >= 80 && !b.outreach_status.contacted) {
       actions.push(

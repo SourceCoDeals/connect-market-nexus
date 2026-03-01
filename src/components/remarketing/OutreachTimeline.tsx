@@ -30,7 +30,7 @@ const timelineSteps = [
   { key: 'contacted_at', label: 'Contacted', icon: Phone, color: 'text-blue-500' },
   { key: 'nda_sent_at', label: 'NDA Sent', icon: FileText, color: 'text-purple-500' },
   { key: 'nda_signed_at', label: 'NDA Signed', icon: FileCheck, color: 'text-indigo-500' },
-  { key: 'cim_sent_at', label: 'CIM Sent', icon: FileText, color: 'text-teal-500' },
+  { key: 'cim_sent_at', label: 'Memo Sent', icon: FileText, color: 'text-teal-500' },
   { key: 'meeting_scheduled_at', label: 'Meeting', icon: Calendar, color: 'text-amber-500' },
 ] as const;
 

@@ -89,13 +89,13 @@ async function extractCriteriaFromDocument(
 ): Promise<any> {
   console.log('[EXTRACTION_START] Processing document');
 
-  const systemPrompt = `You are an expert M&A advisor analyzing a document to extract buyer fit criteria and deal information. These documents may be shorter and more focused than comprehensive M&A guides — they could be deal memos, CIMs, broker packages, internal research notes, or one-pagers.
+  const systemPrompt = `You are an expert M&A advisor analyzing a document to extract buyer fit criteria and deal information. These documents may be shorter and more focused than comprehensive M&A guides — they could be deal memos, broker packages, internal research notes, or one-pagers.
 
 RULES:
-1. ADAPT TO DOCUMENT TYPE: A CIM will have detailed financials. A broker teaser will have limited info. A research note may have industry data but no specific deal data. Extract what's available and flag what's missing.
+1. ADAPT TO DOCUMENT TYPE: A deal memo or CIM will have detailed financials. A broker teaser will have limited info. A research note may have industry data but no specific deal data. Extract what's available and flag what's missing.
 
 2. CONFIDENCE SCORING:
-   - 90-100: Explicit criteria with specific numbers from a primary source (CIM financials, audited statements).
+   - 90-100: Explicit criteria with specific numbers from a primary source (deal memo financials, audited statements).
    - 70-89: Clear patterns or stated preferences from a reliable secondary source.
    - 50-69: General patterns, inferred criteria, or data from an unverified source.
    - Below 50: Vague statements, unreliable context, or high uncertainty.

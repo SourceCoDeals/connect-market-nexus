@@ -112,7 +112,7 @@ const BYPASS_RULES: Array<{
       // Skip contact queries ("who is the contact for", "main contact for")
       !/\bcontacts?\s+(at|for)\b/i.test(q) &&
       !/\b(who.?s the|main contact|find contacts?|list.*contacts?)\b/i.test(q) &&
-      // Skip content creation ("create a CIM", "write a teaser", "generate a list")
+      // Skip content creation ("create a memo", "write a teaser", "generate a list")
       !/\b(create|write|draft|compose|generate)\s+(a|an|the|my)\b/i.test(q) &&
       // Skip engagement queries
       !/\b(interest|engaged|engagement|most interest)\b/i.test(q) &&
@@ -592,7 +592,7 @@ const BYPASS_RULES: Array<{
     },
   },
   // Deal documents and memos — looking up existing docs
-  // NOTE: excludes content creation ("create a CIM", "write a teaser") → OUTREACH_DRAFT
+  // NOTE: excludes content creation ("create a memo", "write a teaser") → OUTREACH_DRAFT
   {
     test: (q) =>
       !/\b(create|write|draft|compose|generate|build)\s+(a|an|the|my)\b/i.test(q) &&
@@ -1143,7 +1143,7 @@ Rules:
 - Prefer fewer tools when intent is clear
 - DEAL_STATUS is ONLY for questions about a specific deal's details, stage, or financials — NOT for contact lookups, content creation, platform guidance, or engagement queries
 - "How do I" / "what does X do" / "explain X" = PLATFORM_GUIDE, even if the topic mentions deals, buyers, scoring, etc.
-- "Create a CIM" / "write a teaser" / "draft an email" = OUTREACH_DRAFT, not DEAL_STATUS
+- "Create a memo" / "write a teaser" / "draft an email" = OUTREACH_DRAFT, not DEAL_STATUS
 - "Who is the contact for" / "find contacts at" = CONTACTS, not DEAL_STATUS
 - "Find [person]'s email" / "find [person] from [company] email" / "[person] email at [company]" = CONTACTS — always use search_contacts with search and company_name params
 - "Which buyers showed interest" / "most engaged" = ENGAGEMENT, not BUYER_SEARCH`;

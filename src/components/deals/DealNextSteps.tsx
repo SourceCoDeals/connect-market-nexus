@@ -19,8 +19,8 @@
  *     has been sent, shows a "Sign Now" CTA.  The description reassures
  *     buyers that the fee is success-based only (no upfront cost).
  *
- *  4. **Access CIM** — locked until the NDA is signed.  Once available,
- *     clicking navigates the buyer to the Documents tab.
+ *  4. **Review Deal Memo** — locked until the NDA is signed.  Once
+ *     available, clicking navigates the buyer to the Documents tab.
  *
  * Each item renders with a colored left accent:
  *   - green for completed items
@@ -54,7 +54,7 @@ interface DealNextStepsProps {
    * when the agreement has actually been sent to the buyer (status === 'sent').
    */
   feeStatus?: string;
-  /** Whether the deal has been approved (unlocks CIM) */
+  /** Whether the deal has been approved (unlocks deal memo) */
   requestStatus: 'pending' | 'approved' | 'rejected';
   /** Callback to switch the detail panel to the Documents tab */
   onNavigateToDocuments?: () => void;
@@ -140,18 +140,18 @@ export function DealNextSteps({
     });
   }
 
-  // CIM access step — locked until NDA signed AND request approved
-  const cimUnlocked = ndaSigned && requestStatus === 'approved';
+  // Deal memo access step — locked until NDA signed AND request approved
+  const memoUnlocked = ndaSigned && requestStatus === 'approved';
   steps.push({
-    id: 'cim',
+    id: 'deal_memo',
     icon: FileText,
-    title: 'Access CIM',
-    description: cimUnlocked
-      ? 'Confidential Information Memorandum is available'
+    title: 'Review Deal Memo',
+    description: memoUnlocked
+      ? 'Deal memo and materials are available for review'
       : 'Available after NDA is signed and request is approved',
-    state: cimUnlocked ? 'done' : 'locked',
-    cta: cimUnlocked ? 'View Documents' : undefined,
-    onAction: cimUnlocked ? onNavigateToDocuments : undefined,
+    state: memoUnlocked ? 'done' : 'locked',
+    cta: memoUnlocked ? 'View Documents' : undefined,
+    onAction: memoUnlocked ? onNavigateToDocuments : undefined,
   });
 
   /* ── State-dependent styling maps ── */

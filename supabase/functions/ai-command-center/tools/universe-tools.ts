@@ -52,7 +52,7 @@ Returns has_ma_guide flag indicating if a detailed M&A industry research guide h
   {
     name: 'get_outreach_records',
     description:
-      'Get outreach tracking records — who was contacted for a deal/buyer, NDA status, meeting history, outcomes, and next actions. Queries both outreach_records (detailed tracking with NDA/CIM/meeting dates) and remarketing_outreach (campaign status tracking) tables. Use `source` to target a specific table, or omit to search both.',
+      'Get outreach tracking records — who was contacted for a deal/buyer, NDA status, meeting history, outcomes, and next actions. Queries both outreach_records (detailed tracking with NDA/memo/meeting dates) and remarketing_outreach (campaign status tracking) tables. Use `source` to target a specific table, or omit to search both.',
     input_schema: {
       type: 'object',
       properties: {

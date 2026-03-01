@@ -275,7 +275,7 @@ function generateLocalNarrative(
     const outreachSteps: string[] = [];
     if (b.outreach_info.contacted) outreachSteps.push('contacted');
     if (b.outreach_info.nda_signed) outreachSteps.push('NDA signed');
-    if (b.outreach_info.cim_sent) outreachSteps.push('CIM sent');
+    if (b.outreach_info.cim_sent) outreachSteps.push('memo sent');
     if (b.outreach_info.meeting_scheduled) outreachSteps.push('meeting scheduled');
     if (outreachSteps.length > 0) {
       text += ` Outreach: ${outreachSteps.join(' \u2192 ')}.`;

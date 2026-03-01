@@ -68,7 +68,7 @@ export const IntroductionStatusCard = ({
     { key: 'contacted_at', label: 'Contacted', icon: Phone },
     { key: 'nda_sent_at', label: 'NDA Sent', icon: FileText },
     { key: 'nda_signed_at', label: 'NDA Signed', icon: FileCheck },
-    { key: 'cim_sent_at', label: 'CIM Sent', icon: FileText },
+    { key: 'cim_sent_at', label: 'Memo Sent', icon: FileText },
     { key: 'meeting_scheduled_at', label: 'Meeting', icon: Calendar },
   ];
 
