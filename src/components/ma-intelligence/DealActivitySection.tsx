@@ -160,10 +160,10 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
       );
 
       setActivities(activityEvents);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading activity",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

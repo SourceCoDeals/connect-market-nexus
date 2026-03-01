@@ -159,10 +159,10 @@ export function BuyerDealHistoryTab({ buyerId }: BuyerDealHistoryTabProps) {
       });
 
       loadDealScores();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error updating deal",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }

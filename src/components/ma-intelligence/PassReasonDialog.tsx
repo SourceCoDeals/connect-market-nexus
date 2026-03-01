@@ -113,10 +113,10 @@ export function PassReasonDialog({
       setNotes("");
       onPass();
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error passing on deal",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

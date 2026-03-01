@@ -96,8 +96,8 @@ export function BuyerAgreementsRebuild({
     queryKey: ["docuseal-webhook-log", marketplaceFirmId],
     queryFn: async () => {
       if (!marketplaceFirmId) return [];
-      const { data, error } = await (supabase
-        .from("docuseal_webhook_log") as any)
+      const { data, error } = await supabase
+        .from("docuseal_webhook_log")
         .select("id, event_type, created_at, processed_at, document_type")
         .eq("external_id", marketplaceFirmId)
         .order("created_at", { ascending: false })

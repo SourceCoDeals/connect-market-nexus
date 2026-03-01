@@ -26,6 +26,19 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // ── Auth guard: require admin ──
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const auth = await requireAdmin(req, supabaseAdmin);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || "Admin access required" }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // ── End auth guard ──
+
     const {
       dealId,
       dealTitle,

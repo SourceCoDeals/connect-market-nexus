@@ -132,7 +132,7 @@ export function useConnectionRequestsMutation() {
       invalidateConnectionRequests(queryClient);
       
       const status = data.status;
-      const action = status === 'approved' ? 'approved' : 'rejected';
+      const action = status === CONNECTION_STATUSES.APPROVED ? 'approved' : 'rejected';
       
       toast({
         title: `Connection request ${action}`,

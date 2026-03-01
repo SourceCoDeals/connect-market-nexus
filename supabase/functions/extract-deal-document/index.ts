@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { callGeminiWithTool, callGeminiWithRetry, DEFAULT_GEMINI_MODEL, GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdminOrServiceRole } from "../_shared/auth.ts";
 
 interface DocumentExtractionRequest {
   universe_id: string;
@@ -387,6 +388,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // ── Auth guard: require admin or service role ──
+    const auth = await requireAdminOrServiceRole(req, supabase);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || "Admin access required" }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // ── End auth guard ──
 
     const {
       universe_id,

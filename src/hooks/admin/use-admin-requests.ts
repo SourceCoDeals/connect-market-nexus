@@ -1,6 +1,7 @@
 
 import { useConnectionRequestsQuery } from './requests/use-connection-requests-query';
 import { useConnectionRequestsMutation as useRequestsMutation } from './requests/use-connection-requests-mutation';
+import { CONNECTION_STATUSES } from '@/constants';
 
 /**
  * Hook for managing connection requests in admin dashboard
@@ -15,7 +16,7 @@ export function useAdminRequests() {
     const approveRequest = (requestId: string, comment?: string) => {
       return mutation.mutate({
         requestId,
-        status: 'approved',
+        status: CONNECTION_STATUSES.APPROVED,
         adminComment: comment
       });
     };
@@ -23,7 +24,7 @@ export function useAdminRequests() {
     const rejectRequest = (requestId: string, comment?: string) => {
       return mutation.mutate({
         requestId,
-        status: 'rejected',
+        status: CONNECTION_STATUSES.REJECTED,
         adminComment: comment
       });
     };

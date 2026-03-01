@@ -101,10 +101,10 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
 
       if (error) throw error;
       setBuyerScores((data as unknown as BuyerScore[]) || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading buyer matches",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {
@@ -132,10 +132,10 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
       setTimeout(() => {
         loadBuyerScores();
       }, 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error recalculating scores",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }
@@ -162,10 +162,10 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
       });
 
       loadBuyerScores();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error updating buyer status",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }
@@ -198,10 +198,10 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
       });
 
       loadBuyerScores();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error updating buyer visibility",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }

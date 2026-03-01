@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -12,6 +13,16 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // ── Auth guard: require admin ──
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || "Admin access required" }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // ── End auth guard ──
 
     // Find auth users without a corresponding profile
     const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers({

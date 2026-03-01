@@ -8,6 +8,7 @@ import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { Send, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -43,7 +44,7 @@ const ConnectionButton = ({
   };
 
   const handleButtonClick = () => {
-    if (!connectionExists || connectionStatus === 'rejected') {
+    if (!connectionExists || connectionStatus === CONNECTION_STATUSES.REJECTED) {
       // Check fee agreement coverage before opening dialog
       if (!isAdmin && coverage && !coverage.fee_covered) {
         setShowFeeGate(true);
@@ -56,21 +57,21 @@ const ConnectionButton = ({
   const getButtonContent = () => {
     if (connectionExists) {
       switch (connectionStatus) {
-        case 'pending':
+        case CONNECTION_STATUSES.PENDING:
           return {
             text: 'Request pending',
             className:
               'bg-slate-100 text-slate-700 border border-slate-200 cursor-default hover:bg-slate-100',
             disabled: true,
           };
-        case 'approved':
+        case CONNECTION_STATUSES.APPROVED:
           return {
             text: 'Connected',
             className:
               'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-default hover:bg-emerald-50',
             disabled: true,
           };
-        case 'rejected':
+        case CONNECTION_STATUSES.REJECTED:
           return {
             text: 'Request again',
             className: 'bg-slate-900 hover:bg-slate-800 text-white border-none',
@@ -140,7 +141,7 @@ const ConnectionButton = ({
   }
 
   // Special layout for approved connections
-  if (connectionExists && connectionStatus === 'approved') {
+  if (connectionExists && connectionStatus === CONNECTION_STATUSES.APPROVED) {
     return (
       <div className="w-full px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg text-center">
         <p className="text-sm font-medium text-emerald-900">Connected</p>
@@ -150,7 +151,7 @@ const ConnectionButton = ({
   }
 
   // Special layout for rejected connections
-  if (connectionExists && connectionStatus === 'rejected') {
+  if (connectionExists && connectionStatus === CONNECTION_STATUSES.REJECTED) {
     return (
       <div className="space-y-3">
         <div className="w-full px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-center">

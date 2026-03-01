@@ -108,10 +108,10 @@ export function DealCSVImport({ open, onOpenChange, trackerId, onDealsImported }
         onOpenChange(false);
         resetState();
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Import failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

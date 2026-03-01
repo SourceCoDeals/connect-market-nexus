@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
 import { LockIcon } from "@/components/icons/MetricIcons";
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface BlurredFinancialTeaserProps {
   onRequestConnection: (message?: string) => void;

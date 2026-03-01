@@ -98,10 +98,10 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
       setTimeout(() => {
         onImportComplete();
       }, 1500);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Import failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

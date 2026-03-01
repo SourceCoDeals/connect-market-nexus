@@ -6,6 +6,7 @@ import { DealOwnerChangeEmail } from './_templates/deal-owner-change-email.tsx';
 import { sendViaBervo } from "../_shared/brevo-sender.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 
 interface DealOwnerChangeRequest {
   dealId: string;
@@ -28,6 +29,19 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // ── Auth guard: require admin ──
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || "Admin access required" }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // ── End auth guard ──
+
     const {
       dealId,
       dealTitle,
@@ -40,10 +54,6 @@ const handler = async (req: Request): Promise<Response> => {
       listingTitle,
       companyName
     }: DealOwnerChangeRequest = await req.json();
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get previous owner's email
     const { data: previousOwner, error: ownerError } = await supabase
