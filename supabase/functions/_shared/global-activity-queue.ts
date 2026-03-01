@@ -9,7 +9,6 @@ export type OperationType =
   | 'deal_enrichment'
   | 'buyer_enrichment'
   | 'guide_generation'
-  | 'buyer_scoring'
   | 'criteria_extraction'
   | 'buyer_universe_generation';
 
@@ -249,7 +248,6 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
       deal_enrichment: 'process-enrichment-queue',
       buyer_enrichment: 'process-buyer-enrichment-queue',
       guide_generation: 'process-ma-guide-queue',
-      buyer_scoring: 'process-scoring-queue',
       buyer_universe_generation: 'process-buyer-universe-queue',
     };
     const functionName = processorMap[nextOp.operation_type];

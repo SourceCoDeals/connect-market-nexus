@@ -22,4 +22,4 @@ export { BuyerIntroductionTracker } from './BuyerIntroductionTracker';
 export { AddBuyerIntroductionDialog } from './AddBuyerIntroductionDialog';
 export { UpdateIntroductionStatusDialog } from './UpdateIntroductionStatusDialog';
 export { ContactHistoryTracker } from './ContactHistoryTracker';
-export { RecommendedBuyersSection } from './RecommendedBuyersSection';
+export { RecommendedBuyersPanel } from './RecommendedBuyersPanel';

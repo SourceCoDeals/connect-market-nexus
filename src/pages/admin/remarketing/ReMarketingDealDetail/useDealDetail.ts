@@ -46,23 +46,8 @@ export function useDealDetail() {
     enabled: !!dealId
   });
 
-  // Fetch score stats
-  const { data: scoreStats } = useQuery({
-    queryKey: ['remarketing', 'deal-scores', dealId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('remarketing_scores')
-        .select('composite_score, status, tier')
-        .eq('listing_id', dealId!);
-      if (error) throw error;
-      if (!data || data.length === 0) return { count: 0, approved: 0, passed: 0, avgScore: 0 };
-      const approved = data.filter(s => s.status === 'approved').length;
-      const passed = data.filter(s => s.status === 'passed').length;
-      const avgScore = data.reduce((sum, s) => sum + (s.composite_score || 0), 0) / data.length;
-      return { count: data.length, approved, passed, avgScore };
-    },
-    enabled: !!dealId
-  });
+  // Score stats removed — old scoring engine decommissioned
+  const scoreStats = undefined;
 
   // Fetch pipeline stats
   const { data: pipelineStats } = useQuery({

@@ -254,18 +254,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 8. Optionally update the remarketing score to indicate pipeline conversion
-    if (score_id) {
-      await supabase
-        .from('remarketing_scores')
-        .update({
-          status: 'approved',
-          interested: true,
-          interested_at: new Date().toISOString(),
-        })
-        .eq('id', score_id);
-    }
-
     return new Response(
       JSON.stringify({
         success: true,

@@ -25,7 +25,6 @@ import { contactTools, executeContactTool } from './contact-tools.ts';
 import { connectionTools, executeConnectionTool } from './connection-tools.ts';
 import { dealExtraTools, executeDealExtraTool } from './deal-extra-tools.ts';
 import { followupTools, executeFollowupTool } from './followup-tools.ts';
-import { scoringExplainTools, executeScoringExplainTool } from './scoring-explain-tools.ts';
 // cross-deal-analytics-tools is now accessed via analytics-tools.ts (merged into get_analytics)
 import {
   crossDealAnalyticsTools as _crossDealAnalyticsTools,
@@ -41,7 +40,6 @@ import { smartleadTools, executeSmartleadTool } from './smartlead-tools.ts';
 import { knowledgeTools, executeKnowledgeTool } from './knowledge-tools.ts';
 import { taskTools, executeTaskTool } from './task-tools.ts';
 import { industryResearchTools, executeIndustryResearchTool } from './industry-research-tools.ts';
-import { recommendedBuyerTools, executeRecommendedBuyerTool } from './recommended-buyer-tools.ts';
 import { firefliesSummaryTools, executeFirefliesSummaryTool } from './fireflies-summary-tools.ts';
 import { alertTools, executeAlertTool } from './alert-tools.ts';
 
@@ -73,7 +71,6 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...connectionTools,
   ...dealExtraTools,
   ...followupTools,
-  ...scoringExplainTools,
   // crossDealAnalyticsTools removed — merged into analyticsTools
   ...semanticSearchTools,
   ...integrationActionTools,
@@ -82,7 +79,6 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...knowledgeTools,
   ...taskTools,
   ...industryResearchTools,
-  ...recommendedBuyerTools,
   ...firefliesSummaryTools,
   ...alertTools,
 ];
@@ -167,10 +163,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_buyers',
     'query_deals',
     'get_buyer_profile',
-    'get_score_breakdown',
-    'explain_buyer_score',
     'get_top_buyers_for_deal',
-    'get_recommended_buyers',
     'generate_buyer_narrative',
     'get_buyer_signals', // merged: was get_buyer_decisions
     'get_buyer_history', // merged: was get_score_history + get_buyer_learning_history
@@ -270,8 +263,6 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   REMARKETING: [
     'search_buyers',
     'get_top_buyers_for_deal',
-    'get_score_breakdown',
-    'explain_buyer_score',
     'get_universe_buyer_fits',
     'select_table_rows',
     'apply_table_filter',
@@ -411,18 +402,15 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'convert_to_pipeline_deal',
     'get_deal_details',
     'search_buyers',
-    'get_score_breakdown',
     'get_firm_agreements',
   ],
 
   // Recommended buyers & strategy narrative (Feature 1)
   RECOMMENDED_BUYERS: [
-    'get_recommended_buyers',
     'generate_buyer_narrative',
     'get_deal_details',
     'get_buyer_profile',
-    'get_score_breakdown',
-    'explain_buyer_score',
+    'get_top_buyers_for_deal',
     'get_buyer_signals',
     'add_deal_note',
     'draft_outreach_email',
@@ -625,8 +613,6 @@ async function _executeToolInternal(
     return executeDealExtraTool(supabase, toolName, resolvedArgs);
   if (followupTools.some((t) => t.name === toolName))
     return executeFollowupTool(supabase, toolName, resolvedArgs, userId);
-  if (scoringExplainTools.some((t) => t.name === toolName))
-    return executeScoringExplainTool(supabase, toolName, resolvedArgs);
   if (semanticSearchTools.some((t) => t.name === toolName))
     return executeSemanticSearchTool(supabase, toolName, resolvedArgs);
   if (integrationActionTools.some((t) => t.name === toolName))
@@ -641,8 +627,6 @@ async function _executeToolInternal(
     return executeTaskTool(supabase, toolName, resolvedArgs, userId);
   if (industryResearchTools.some((t) => t.name === toolName))
     return executeIndustryResearchTool(supabase, toolName, resolvedArgs);
-  if (recommendedBuyerTools.some((t) => t.name === toolName))
-    return executeRecommendedBuyerTool(supabase, toolName, resolvedArgs);
   if (firefliesSummaryTools.some((t) => t.name === toolName))
     return executeFirefliesSummaryTool(supabase, toolName, resolvedArgs, userId);
   if (alertTools.some((t) => t.name === toolName))
