@@ -51,7 +51,7 @@ export default function DealLandingPage() {
       referrer: document.referrer || null,
       utm_source: 'deal_landing_page',
       utm_content: id,
-    }).then(() => {}).catch(() => {});
+    }).then(() => {}, () => {});
   }, [id, deal]);
 
   if (isLoading) {

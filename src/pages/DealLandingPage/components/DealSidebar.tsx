@@ -27,17 +27,18 @@ export default function DealSidebar({ executiveSummaryUrl, listingId, presentedB
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('first_name, last_name, email, phone_number, avatar_url, company, title, calendar_url')
+        .select('first_name, last_name, email, phone_number, company, title')
         .eq('id', presentedByAdminId!)
         .single();
       if (!data) return null;
+      const d = data as any;
       return {
-        name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || DEFAULT_PRESENTER.name,
-        title: data.title ? `${data.title}, ${data.company || 'SourceCo'}` : DEFAULT_PRESENTER.title,
-        phone: data.phone_number || DEFAULT_PRESENTER.phone,
-        email: data.email || DEFAULT_PRESENTER.email,
-        avatarUrl: data.avatar_url || DEFAULT_PRESENTER.avatarUrl,
-        calendarUrl: (data as any).calendar_url || DEFAULT_PRESENTER.calendarUrl,
+        name: `${d.first_name || ''} ${d.last_name || ''}`.trim() || DEFAULT_PRESENTER.name,
+        title: d.title ? `${d.title}, ${d.company || 'SourceCo'}` : DEFAULT_PRESENTER.title,
+        phone: d.phone_number || DEFAULT_PRESENTER.phone,
+        email: d.email || DEFAULT_PRESENTER.email,
+        avatarUrl: d.avatar_url || DEFAULT_PRESENTER.avatarUrl,
+        calendarUrl: d.calendar_url || DEFAULT_PRESENTER.calendarUrl,
       };
     },
   });

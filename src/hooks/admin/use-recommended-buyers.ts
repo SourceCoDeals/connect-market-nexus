@@ -227,7 +227,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
 
           // Call transcripts (buyer-specific calls)
           supabase
-            .from('call_transcripts')
+            .from('call_transcripts' as any)
             .select('buyer_id, call_date, ceo_detected')
             .eq('listing_id', listingId)
             .in('buyer_id', buyerIds)
@@ -251,7 +251,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       // Build engagement map
       const engagementMap = new Map<string, { last_date: string; type: string }>();
       if (connectionsResult.data) {
-        for (const conn of connectionsResult.data) {
+        for (const conn of connectionsResult.data as any[]) {
           const buyerId = conn.buyer_profile_id as string;
           if (!engagementMap.has(buyerId)) {
             engagementMap.set(buyerId, {
@@ -265,7 +265,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       // Build transcript insights map
       const transcriptMap = new Map<string, TranscriptInsight>();
       if (callTranscriptsResult.data) {
-        for (const ct of callTranscriptsResult.data) {
+        for (const ct of callTranscriptsResult.data as any[]) {
           const buyerId = ct.buyer_id as string;
           const existing = transcriptMap.get(buyerId) || { ...EMPTY_TRANSCRIPT };
           existing.call_count++;
