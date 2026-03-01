@@ -157,6 +157,37 @@ const EMPTY_OUTREACH: OutreachInfo = {
 };
 
 /**
+ * Supabase PostgREST has URL length limits (~8KB). Large .in() arrays can exceed this.
+ * This helper chunks .in() queries and merges results.
+ */
+const IN_QUERY_CHUNK_SIZE = 300;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseFilterBuilder = any;
+
+async function chunkedIn<T>(
+  baseQuery: () => SupabaseFilterBuilder,
+  column: string,
+  ids: string[],
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  if (ids.length <= IN_QUERY_CHUNK_SIZE) {
+    const { data, error } = await baseQuery().in(column, ids);
+    if (error) throw error;
+    return (data || []) as T[];
+  }
+
+  const results: T[] = [];
+  for (let i = 0; i < ids.length; i += IN_QUERY_CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + IN_QUERY_CHUNK_SIZE);
+    const { data, error } = await baseQuery().in(column, chunk);
+    if (error) throw error;
+    if (data) results.push(...(data as T[]));
+  }
+  return results;
+}
+
+/**
  * Fetch marketplace buyers who submitted connection requests for this listing.
  * Returns remarketing_buyer_ids for buyers that have a linked profile.
  */
@@ -318,50 +349,60 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
       const totalScored = (scores || []).length;
 
       // 3. Fetch all enrichment data in parallel
-      const [buyersResult, connectionsResult, callTranscriptsResult, outreachResult] =
-        await Promise.all([
-          // Buyer profiles
-          supabase
-            .from('remarketing_buyers')
-            .select(
-              `id, company_name, pe_firm_name, buyer_type, hq_state, hq_city,
-               acquisition_appetite, has_fee_agreement, thesis_summary, total_acquisitions, archived`,
-            )
-            .in('id', allBuyerIds)
-            .eq('archived', false),
+      // Use chunked .in() queries to prevent PostgREST URL overflow on large buyer lists
+      const [buyersData, connectionsResult, callTranscriptsData, outreachData] = await Promise.all([
+        // Buyer profiles — chunked to avoid URL overflow
+        chunkedIn<Record<string, unknown>>(
+          () =>
+            supabase
+              .from('remarketing_buyers')
+              .select(
+                `id, company_name, pe_firm_name, buyer_type, hq_state, hq_city,
+                   acquisition_appetite, has_fee_agreement, thesis_summary, total_acquisitions, archived`,
+              )
+              .eq('archived', false),
+          'id',
+          allBuyerIds,
+        ),
 
-          // Connection requests (engagement)
-          supabase
-            .from('connection_requests')
-            .select('user_id, status, updated_at, created_at')
-            .eq('listing_id', listingId)
-            .order('updated_at', { ascending: false }),
+        // Connection requests (engagement) — no .in() needed, filtered by listing_id
+        supabase
+          .from('connection_requests')
+          .select('user_id, status, updated_at, created_at')
+          .eq('listing_id', listingId)
+          .order('updated_at', { ascending: false }),
 
-          // Buyer transcripts
-          supabase
-            .from('buyer_transcripts')
-            .select('buyer_id, call_date, extracted_insights')
-            .in('buyer_id', allBuyerIds)
-            .order('call_date', { ascending: false }),
+        // Buyer transcripts — chunked
+        chunkedIn<Record<string, unknown>>(
+          () =>
+            supabase
+              .from('buyer_transcripts')
+              .select('buyer_id, call_date, extracted_insights')
+              .order('call_date', { ascending: false }),
+          'buyer_id',
+          allBuyerIds,
+        ),
 
-          // Outreach records (NDA/memo/meeting funnel)
-          supabase
-            .from('outreach_records')
-            .select(
-              'buyer_id, contacted_at, nda_sent_at, nda_signed_at, cim_sent_at, meeting_scheduled_at, outcome',
-            )
-            .eq('listing_id', listingId)
-            .in('buyer_id', allBuyerIds)
-            .order('updated_at', { ascending: false }),
-        ]);
+        // Outreach records — chunked
+        chunkedIn<Record<string, unknown>>(
+          () =>
+            supabase
+              .from('outreach_records')
+              .select(
+                'buyer_id, contacted_at, nda_sent_at, nda_signed_at, cim_sent_at, meeting_scheduled_at, outcome',
+              )
+              .eq('listing_id', listingId)
+              .order('updated_at', { ascending: false }),
+          'buyer_id',
+          allBuyerIds,
+        ),
+      ]);
 
-      if (buyersResult.error) throw buyersResult.error;
-
-      const buyerMap = new Map((buyersResult.data || []).map((b) => [b.id, b]));
+      const buyerMap = new Map(buyersData.map((b) => [b.id as string, b]));
 
       // Build engagement map from connection requests
       const engagementMap = new Map<string, { last_date: string; type: string }>();
-      if (connectionsResult.data) {
+      if (connectionsResult?.data) {
         for (const conn of connectionsResult.data) {
           if (conn.user_id && !engagementMap.has(conn.user_id)) {
             engagementMap.set(conn.user_id, {
@@ -374,8 +415,8 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
 
       // Build transcript insights map
       const transcriptMap = new Map<string, TranscriptInsight>();
-      if (callTranscriptsResult.data) {
-        for (const ct of callTranscriptsResult.data) {
+      if (callTranscriptsData) {
+        for (const ct of callTranscriptsData) {
           const buyerId = ct.buyer_id as string;
           const existing = transcriptMap.get(buyerId) || { ...EMPTY_TRANSCRIPT };
           existing.call_count++;
@@ -396,8 +437,8 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
 
       // Build outreach map
       const outreachMap = new Map<string, OutreachInfo>();
-      if (outreachResult.data) {
-        for (const or_ of outreachResult.data) {
+      if (outreachData) {
+        for (const or_ of outreachData) {
           const buyerId = or_.buyer_id as string;
           if (!outreachMap.has(buyerId)) {
             outreachMap.set(buyerId, {

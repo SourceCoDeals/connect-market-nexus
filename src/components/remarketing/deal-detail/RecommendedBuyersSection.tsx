@@ -197,14 +197,25 @@ export function RecommendedBuyersSection({
         <CardContent className="py-10 text-center space-y-3">
           <AlertCircle className="h-6 w-6 text-destructive/60 mx-auto" />
           <p className="text-sm text-muted-foreground">Auto-scoring failed: {autoScore.message}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate(`/admin/remarketing/matching/${listingId}`)}
-          >
-            <Sparkles className="h-3.5 w-3.5 mr-1" />
-            Score Manually
-          </Button>
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => autoScore.triggerAutoScore()}
+              disabled={autoScore.isAutoScoring}
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              Retry
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/admin/remarketing/matching/${listingId}`)}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              Score Manually
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
