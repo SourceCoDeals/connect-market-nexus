@@ -94,11 +94,12 @@ export function useToggleTaskComplete() {
   return useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: string; completed: boolean }) => {
       // Fetch task to check entity_type for deal activity logging
-      const { data: task } = await supabase
+      const { data: taskRaw } = await supabase
         .from('daily_standup_tasks' as any)
         .select('id, title, entity_type, entity_id, created_by')
         .eq('id', taskId)
         .single();
+      const task = taskRaw as any;
 
       const updates: Record<string, unknown> = completed
         ? {
@@ -231,11 +232,12 @@ export function useReassignTask() {
   return useMutation({
     mutationFn: async ({ taskId, newAssigneeId }: { taskId: string; newAssigneeId: string }) => {
       // Fetch task for deal activity logging and notifications
-      const { data: task } = await supabase
+      const { data: taskRaw } = await supabase
         .from('daily_standup_tasks' as any)
         .select('id, title, description, priority, due_date, entity_type, entity_id, assignee_id')
         .eq('id', taskId)
         .single();
+      const task = taskRaw as any;
 
       const { error } = await supabase
         .from('daily_standup_tasks' as any)
@@ -268,7 +270,7 @@ export function useReassignTask() {
                 .select('id, email, first_name, last_name')
                 .eq('id', newAssigneeId)
                 .single(),
-              supabase.from('profiles').select('first_name, last_name').eq('id', user?.id).single(),
+              supabase.from('profiles').select('first_name, last_name').eq('id', user?.id!).single(),
               task.entity_type === 'deal'
                 ? supabase.from('deals').select('title').eq('id', task.entity_id).single()
                 : Promise.resolve({ data: null }),

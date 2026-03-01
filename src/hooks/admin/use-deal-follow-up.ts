@@ -136,11 +136,11 @@ export function useCreateStageTask() {
           : null,
       };
 
-      const { data, error } = await supabase
-        .from('daily_standup_tasks')
-        .insert(taskData)
+      const { data, error } = await (supabase
+        .from('daily_standup_tasks' as any)
+        .insert(taskData as any)
         .select()
-        .single();
+        .single());
 
       if (error) throw error;
       return data;

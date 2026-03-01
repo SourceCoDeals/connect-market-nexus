@@ -335,7 +335,7 @@ export function useAddEntityTask() {
                 .select('id, email, first_name, last_name')
                 .eq('id', task.assignee_id)
                 .single(),
-              supabase.from('profiles').select('first_name, last_name').eq('id', user?.id).single(),
+              supabase.from('profiles').select('first_name, last_name').eq('id', user?.id!).single(),
               task.entity_type === 'deal'
                 ? supabase.from('deals').select('title').eq('id', task.entity_id).single()
                 : Promise.resolve({ data: null }),
