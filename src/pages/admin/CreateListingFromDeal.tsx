@@ -97,7 +97,7 @@ export default function CreateListingFromDeal() {
         full_time_employees: anonymized.full_time_employees,
         internal_company_name: anonymized.internal_company_name,
         internal_notes: anonymized.internal_notes,
-        internal_deal_memo_link: (deal as any).website || '',
+        internal_deal_memo_link: (deal as any).internal_deal_memo_link || '',
         // Landing page content fields (GAPs 4+7)
         investment_thesis: anonymized.investment_thesis,
         custom_sections: anonymized.custom_sections,
