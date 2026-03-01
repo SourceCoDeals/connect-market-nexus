@@ -97,8 +97,9 @@ serve(async (req: Request) => {
         .limit(1);
 
       const member = members?.[0];
-      const recipientEmail = (member?.user as any)?.email;
-      const recipientName = [(member?.user as any)?.first_name, (member?.user as any)?.last_name]
+      const userProfile = member?.user as { email?: string; first_name?: string; last_name?: string } | null;
+      const recipientEmail = userProfile?.email;
+      const recipientName = [userProfile?.first_name, userProfile?.last_name]
         .filter(Boolean)
         .join(" ") || "there";
 
@@ -195,8 +196,9 @@ serve(async (req: Request) => {
             errorMessage: errorText,
           });
         }
-      } catch (emailError: any) {
-        if (emailError.name === "AbortError") {
+      } catch (emailError: unknown) {
+        const isAbort = emailError instanceof Error && emailError.name === "AbortError";
+        if (isAbort) {
           console.error(`❌ Brevo timeout for firm ${firm.id}`);
         } else {
           console.error(`❌ Email error for firm ${firm.id}:`, emailError);
@@ -206,7 +208,7 @@ serve(async (req: Request) => {
           emailType: 'nda_reminder',
           status: 'failed',
           correlationId: crypto.randomUUID(),
-          errorMessage: emailError.name === "AbortError" ? "Brevo API timeout" : emailError.message,
+          errorMessage: isAbort ? "Brevo API timeout" : (emailError instanceof Error ? emailError.message : String(emailError)),
         });
       }
     }
