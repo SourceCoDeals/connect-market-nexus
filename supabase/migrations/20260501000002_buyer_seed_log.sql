@@ -16,4 +16,4 @@ CREATE TABLE IF NOT EXISTS public.buyer_seed_log (
 
 ALTER TABLE public.buyer_seed_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "admin_all" ON public.buyer_seed_log
-  FOR ALL USING (public.is_admin_or_moderator());
+  FOR ALL USING (public.is_admin(auth.uid()));
