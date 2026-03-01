@@ -1323,6 +1323,104 @@ export type Database = {
           },
         ]
       }
+      buyer_recommendation_cache: {
+        Row: {
+          buyer_count: number | null
+          expires_at: string | null
+          id: string
+          listing_id: string
+          results: Json
+          score_version: string | null
+          scored_at: string | null
+        }
+        Insert: {
+          buyer_count?: number | null
+          expires_at?: string | null
+          id?: string
+          listing_id: string
+          results?: Json
+          score_version?: string | null
+          scored_at?: string | null
+        }
+        Update: {
+          buyer_count?: number | null
+          expires_at?: string | null
+          id?: string
+          listing_id?: string
+          results?: Json
+          score_version?: string | null
+          scored_at?: string | null
+        }
+        Relationships: []
+      }
+      buyer_seed_cache: {
+        Row: {
+          buyer_ids: string[] | null
+          cache_key: string
+          expires_at: string | null
+          seeded_at: string | null
+        }
+        Insert: {
+          buyer_ids?: string[] | null
+          cache_key: string
+          expires_at?: string | null
+          seeded_at?: string | null
+        }
+        Update: {
+          buyer_ids?: string[] | null
+          cache_key?: string
+          expires_at?: string | null
+          seeded_at?: string | null
+        }
+        Relationships: []
+      }
+      buyer_seed_log: {
+        Row: {
+          action: string | null
+          category_cache_key: string | null
+          id: string
+          known_acquisitions: string[] | null
+          remarketing_buyer_id: string
+          seed_model: string | null
+          seeded_at: string | null
+          source_deal_id: string | null
+          was_new_record: boolean | null
+          why_relevant: string | null
+        }
+        Insert: {
+          action?: string | null
+          category_cache_key?: string | null
+          id?: string
+          known_acquisitions?: string[] | null
+          remarketing_buyer_id: string
+          seed_model?: string | null
+          seeded_at?: string | null
+          source_deal_id?: string | null
+          was_new_record?: boolean | null
+          why_relevant?: string | null
+        }
+        Update: {
+          action?: string | null
+          category_cache_key?: string | null
+          id?: string
+          known_acquisitions?: string[] | null
+          remarketing_buyer_id?: string
+          seed_model?: string | null
+          seeded_at?: string | null
+          source_deal_id?: string | null
+          was_new_record?: boolean | null
+          why_relevant?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_seed_log_remarketing_buyer_id_fkey"
+            columns: ["remarketing_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyer_transcripts: {
         Row: {
           action_items: string[] | null
@@ -10580,6 +10678,9 @@ export type Database = {
           acquisition_appetite: string | null
           acquisition_frequency: string | null
           acquisition_timeline: string | null
+          ai_seeded: boolean | null
+          ai_seeded_at: string | null
+          ai_seeded_from_deal_id: string | null
           alignment_checked_at: string | null
           alignment_reasoning: string | null
           alignment_score: number | null
@@ -10641,11 +10742,17 @@ export type Database = {
           total_acquisitions: number | null
           universe_id: string | null
           updated_at: string
+          verification_status: string | null
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           acquisition_appetite?: string | null
           acquisition_frequency?: string | null
           acquisition_timeline?: string | null
+          ai_seeded?: boolean | null
+          ai_seeded_at?: string | null
+          ai_seeded_from_deal_id?: string | null
           alignment_checked_at?: string | null
           alignment_reasoning?: string | null
           alignment_score?: number | null
@@ -10707,11 +10814,17 @@ export type Database = {
           total_acquisitions?: number | null
           universe_id?: string | null
           updated_at?: string
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           acquisition_appetite?: string | null
           acquisition_frequency?: string | null
           acquisition_timeline?: string | null
+          ai_seeded?: boolean | null
+          ai_seeded_at?: string | null
+          ai_seeded_from_deal_id?: string | null
           alignment_checked_at?: string | null
           alignment_reasoning?: string | null
           alignment_score?: number | null
@@ -10773,6 +10886,9 @@ export type Database = {
           total_acquisitions?: number | null
           universe_id?: string | null
           updated_at?: string
+          verification_status?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {
