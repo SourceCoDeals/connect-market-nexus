@@ -10,14 +10,14 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 interface ValidationRequest {
   action: 'validate_profile' | 'validate_listing' | 'validate_connection_request';
-  data: any;
+  data: Record<string, unknown>;
   user_id?: string;
 }
 
 interface ValidationResult {
   valid: boolean;
   errors: string[];
-  sanitized_data?: any;
+  sanitized_data?: Record<string, unknown>;
   risk_score?: number;
 }
 
@@ -58,13 +58,13 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in security-validation function:", error);
     return new Response(
-      JSON.stringify({ 
-        valid: false, 
-        errors: [error.message || 'Validation failed'],
-        risk_score: 10 
+      JSON.stringify({
+        valid: false,
+        errors: [error instanceof Error ? error.message : 'Validation failed'],
+        risk_score: 10
       }),
       {
         status: 500,
@@ -74,22 +74,22 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function validateProfile(data: any, userId?: string): Promise<ValidationResult> {
+async function validateProfile(data: Record<string, unknown>, userId?: string): Promise<ValidationResult> {
   const errors: string[] = [];
   let riskScore = 0;
   
   // Sanitize and validate profile data
   const sanitized = {
-    first_name: sanitizeText(data.first_name, 50),
-    last_name: sanitizeText(data.last_name, 50),
-    company: sanitizeText(data.company, 100),
-    website: sanitizeUrl(data.website),
-    phone_number: sanitizePhoneNumber(data.phone_number),
-    bio: sanitizeText(data.bio, 500),
-    buyer_type: validateEnum(data.buyer_type, ['corporate', 'private_equity', 'individual']),
-    fund_size: sanitizeText(data.fund_size, 50),
-    investment_size: sanitizeText(data.investment_size, 50),
-    estimated_revenue: sanitizeText(data.estimated_revenue, 50),
+    first_name: sanitizeText(data.first_name as string, 50),
+    last_name: sanitizeText(data.last_name as string, 50),
+    company: sanitizeText(data.company as string, 100),
+    website: sanitizeUrl(data.website as string),
+    phone_number: sanitizePhoneNumber(data.phone_number as string),
+    bio: sanitizeText(data.bio as string, 500),
+    buyer_type: validateEnum(data.buyer_type as string, ['corporate', 'private_equity', 'individual']),
+    fund_size: sanitizeText(data.fund_size as string, 50),
+    investment_size: sanitizeText(data.investment_size as string, 50),
+    estimated_revenue: sanitizeText(data.estimated_revenue as string, 50),
   };
   
   // Validation rules
@@ -127,19 +127,19 @@ async function validateProfile(data: any, userId?: string): Promise<ValidationRe
   };
 }
 
-async function validateListing(data: any, userId?: string): Promise<ValidationResult> {
+async function validateListing(data: Record<string, unknown>, userId?: string): Promise<ValidationResult> {
   const errors: string[] = [];
   let riskScore = 0;
   
   // Sanitize and validate listing data
   const sanitized = {
-    title: sanitizeText(data.title, 200),
-    description: sanitizeText(data.description, 2000),
-    category: sanitizeText(data.category, 50),
-    location: sanitizeText(data.location, 100),
+    title: sanitizeText(data.title as string, 200),
+    description: sanitizeText(data.description as string, 2000),
+    category: sanitizeText(data.category as string, 50),
+    location: sanitizeText(data.location as string, 100),
     revenue: sanitizeNumber(data.revenue),
     ebitda: sanitizeNumber(data.ebitda),
-    owner_notes: sanitizeText(data.owner_notes, 1000),
+    owner_notes: sanitizeText(data.owner_notes as string, 1000),
     tags: Array.isArray(data.tags) ? data.tags.map((tag: string) => sanitizeText(tag, 30)).filter(Boolean) : []
   };
   
@@ -183,14 +183,14 @@ async function validateListing(data: any, userId?: string): Promise<ValidationRe
   };
 }
 
-async function validateConnectionRequest(data: any, userId?: string): Promise<ValidationResult> {
+async function validateConnectionRequest(data: Record<string, unknown>, userId?: string): Promise<ValidationResult> {
   const errors: string[] = [];
   let riskScore = 0;
   
   // Sanitize and validate connection request data
   const sanitized = {
-    listing_id: sanitizeText(data.listing_id, 36),
-    user_message: sanitizeText(data.user_message, 1000),
+    listing_id: sanitizeText(data.listing_id as string, 36),
+    user_message: sanitizeText(data.user_message as string, 1000),
   };
   
   // Validation rules
@@ -254,10 +254,10 @@ function sanitizePhoneNumber(phone: string): string {
   return phone.replace(/[^\d\s\-()+]/g, '').trim();
 }
 
-function sanitizeNumber(value: any): number | undefined {
+function sanitizeNumber(value: unknown): number | undefined {
   if (value === null || value === undefined || value === '') return undefined;
-  const num = parseFloat(value);
-  return isNaN(num) ? undefined : Math.abs(num); // Ensure positive
+  const num = parseFloat(String(value));
+  return isNaN(num) ? undefined : Math.abs(num);
 }
 
 function validateEnum(value: string, allowedValues: string[]): string {
@@ -309,7 +309,7 @@ async function checkRecentConnectionRequests(userId: string): Promise<number> {
   return data?.length || 0;
 }
 
-async function logSuspiciousActivity(userId?: string, action?: string, riskScore?: number, data?: any) {
+async function logSuspiciousActivity(userId?: string, action?: string, riskScore?: number, data?: Record<string, unknown>) {
   try {
     await supabase
       .from('user_activity')

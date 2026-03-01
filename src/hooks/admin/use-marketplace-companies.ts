@@ -57,7 +57,7 @@ export function useMarketplaceCompanies() {
       // Group by company name and aggregate data
       const companyMap = new Map<string, {
         company: string;
-        users: Array<any>;
+        users: Array<unknown>;
       }>();
 
       data?.forEach((profile) => {

@@ -38,7 +38,7 @@ export function useBuyerMutations(
   });
 
   const updateBuyerMutation = useMutation({
-    mutationFn: async (data: Record<string, any>) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const { error } = await supabase
         .from('remarketing_buyers')
         .update(data)

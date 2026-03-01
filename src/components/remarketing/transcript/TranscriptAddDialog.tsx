@@ -59,7 +59,7 @@ interface TranscriptAddDialogProps {
   onFirefliesEmailChange: (val: string) => void;
   firefliesSearching: boolean;
   onFirefliesSearch: () => void;
-  firefliesResults: any[];
+  firefliesResults: unknown[];
   selectedFirefliesIds: Set<string>;
   onToggleFirefliesId: (id: string) => void;
   onToggleAllFireflies: () => void;

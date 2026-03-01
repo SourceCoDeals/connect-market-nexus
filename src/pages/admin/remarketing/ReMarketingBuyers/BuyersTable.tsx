@@ -23,13 +23,13 @@ import type { BuyerTab } from "./constants";
 interface BuyersTableProps {
   activeTab: BuyerTab;
   buyersLoading: boolean;
-  filteredBuyers: any[];
-  pagedBuyers: any[];
+  filteredBuyers: unknown[];
+  pagedBuyers: unknown[];
   currentPage: number;
   setCurrentPage: (page: number | ((p: number) => number)) => void;
   totalPages: number;
   selectedIds: Set<string>;
-  buyers: any[] | undefined;
+  buyers: unknown[] | undefined;
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
   sortColumn: string;

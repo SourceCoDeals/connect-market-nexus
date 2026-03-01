@@ -10,13 +10,13 @@ function getErrorMessage(e: unknown): string {
 }
 
 interface ImportData {
-  universes: any[];
-  buyers: any[];
-  contacts: any[];
-  transcripts: any[];
-  scores: any[];
-  learningHistory: any[];
-  companies: any[];
+  universes: unknown[];
+  buyers: unknown[];
+  contacts: unknown[];
+  transcripts: unknown[];
+  scores: unknown[];
+  learningHistory: unknown[];
+  companies: unknown[];
 }
 
 // ============= INPUT VALIDATION =============

@@ -201,7 +201,7 @@ Deno.serve(async (req: Request) => {
 
 // ─── Data Context Builder ───
 
-function buildDataContext(deal: any, transcripts: any[], valuationData: any): DataContext {
+function buildDataContext(deal: any, transcripts: unknown[], valuationData: any): DataContext {
   const sources: string[] = [];
 
   // Transcript excerpts (highest priority)

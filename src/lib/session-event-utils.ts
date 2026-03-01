@@ -19,7 +19,7 @@ export function getEventIcon(
   return 'Circle';
 }
 
-export function formatEventDescription(source: string, data: Record<string, any>): string {
+export function formatEventDescription(source: string, data: Record<string, unknown>): string {
   if (source === 'page_view') {
     let title = (data.page_title || data.page_path || 'Unknown Page') as string;
     

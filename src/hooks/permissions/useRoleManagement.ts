@@ -60,10 +60,10 @@ export const useRoleManagement = () => {
       queryClient.invalidateQueries({ queryKey: ['all-user-roles'] });
       queryClient.invalidateQueries({ queryKey: ['permission-audit-log'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Failed to update role',
-        description: error.message || 'An error occurred while updating the user role.',
+        description: error instanceof Error ? error.message : 'An error occurred while updating the user role.',
         variant: 'destructive',
       });
     },

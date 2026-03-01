@@ -5,7 +5,7 @@ interface GuideProgress {
   industryName: string;
   batchIndex: number;
   content: string;
-  clarificationContext?: Record<string, any>;
+  clarificationContext?: Record<string, unknown>;
   lastPhaseId?: string;
   lastPhase?: number;
   wordCount?: number;

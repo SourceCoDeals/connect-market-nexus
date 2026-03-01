@@ -6,7 +6,7 @@ export interface FilterPreset {
   id: string;
   user_id: string;
   name: string;
-  filters: Record<string, any>;
+  filters: Record<string, unknown>;
   is_default: boolean;
   created_at: string;
   updated_at: string;
@@ -32,7 +32,7 @@ export function useCreateFilterPreset() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (preset: { name: string; filters: Record<string, any>; is_default?: boolean }) => {
+    mutationFn: async (preset: { name: string; filters: Record<string, unknown>; is_default?: boolean }) => {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');

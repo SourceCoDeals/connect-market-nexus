@@ -4,7 +4,7 @@ interface SignupStep {
   stepName: string;
   stepOrder: number;
   timeSpent?: number;
-  formData?: Record<string, any>;
+  formData?: Record<string, unknown>;
   dropOffReason?: string;
 }
 

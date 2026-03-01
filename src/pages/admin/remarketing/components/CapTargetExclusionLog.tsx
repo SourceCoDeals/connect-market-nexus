@@ -35,7 +35,7 @@ import {
 import { format } from "date-fns";
 
 interface CapTargetExclusionLogProps {
-  exclusionLog: any[];
+  exclusionLog: unknown[];
   showExclusionLog: boolean;
   setShowExclusionLog: (v: boolean) => void;
   isCleaningUp: boolean;

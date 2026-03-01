@@ -15,7 +15,7 @@ interface GroupedUserActivity {
   first_name?: string;
   last_name?: string;
   user_name: string;
-  activities: any[];
+  activities: unknown[];
   lastActivityTime: string;
   totalActivities: number;
   actionCounts: {

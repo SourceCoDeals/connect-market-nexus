@@ -308,7 +308,7 @@ serve(async (req: Request) => {
       JSON.stringify({ ndaSigned: false, embedSrc }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error in get-buyer-nda-embed:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),

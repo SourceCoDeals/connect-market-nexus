@@ -215,7 +215,7 @@ Questions? Reply to this email.
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in send-templated-approval-email:", error);
     return new Response(
       JSON.stringify({

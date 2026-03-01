@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchGeoData(ip: string): Promise<any> {
+async function fetchGeoData(ip: string): Promise<unknown> {
   try {
     // Skip private/local IPs
     if (isPrivateIP(ip)) {

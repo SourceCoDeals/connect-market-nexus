@@ -204,7 +204,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in enhanced-admin-notification function:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Internal server error" }),

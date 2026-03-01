@@ -12,7 +12,7 @@ import {
 import { BarChart3 } from "lucide-react";
 
 interface DealHistoryTabProps {
-  recentScores: any[];
+  recentScores: unknown[];
 }
 
 export const DealHistoryTab = ({ recentScores }: DealHistoryTabProps) => {

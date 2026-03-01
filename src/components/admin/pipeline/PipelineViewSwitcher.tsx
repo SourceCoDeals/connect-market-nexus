@@ -43,7 +43,7 @@ interface PipelineViewSwitcherProps {
   onViewChange: (viewId: string) => void;
   onSaveCurrentView?: () => void;
   getCurrentFilterConfig?: () => any;
-  stages?: any[];
+  stages?: unknown[];
 }
 
 export function PipelineViewSwitcher({

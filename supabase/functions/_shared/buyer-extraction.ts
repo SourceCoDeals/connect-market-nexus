@@ -530,7 +530,7 @@ export function shouldOverwrite(
   existingValue: any,
   newValue: any,
   hasTranscriptSource: boolean,
-  existingSources: any[],
+  existingSources: unknown[],
   newSourceType: SourceType = 'platform_website'
 ): boolean {
   // Existing value is empty/null → always overwrite (fill gaps from any source)
@@ -578,12 +578,12 @@ export function shouldOverwrite(
  */
 export function buildBuyerUpdateObject(
   buyer: any,
-  extractedData: Record<string, any>,
+  extractedData: Record<string, unknown>,
   hasTranscriptSource: boolean,
-  existingSources: any[],
-  evidenceRecords: any[],
+  existingSources: unknown[],
+  evidenceRecords: unknown[],
   fieldSourceMap: Record<string, SourceType> = {},
-): Record<string, any> {
+): Record<string, unknown> {
   const timestamp = new Date().toISOString();
 
   // Build per-field source tracking: merge existing field_sources with new ones
@@ -591,7 +591,7 @@ export function buildBuyerUpdateObject(
     existingSources.find((s: any) => s.type === 'field_sources')?.fields || {};
   const fieldSources = { ...existingFieldSources };
 
-  const updateData: Record<string, any> = {
+  const updateData: Record<string, unknown> = {
     data_last_updated: timestamp,
     // extraction_sources is finalized at the end after field_sources are computed
   };

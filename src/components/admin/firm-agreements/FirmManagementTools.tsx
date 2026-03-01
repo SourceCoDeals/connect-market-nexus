@@ -118,7 +118,7 @@ export function FirmManagementTools() {
       setIsMergeDialogOpen(false);
       setSourceFirmId('');
       setTargetFirmId('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
         description: error.message || 'Failed to merge firms',
@@ -214,7 +214,7 @@ export function FirmManagementTools() {
       setIsLinkDialogOpen(false);
       setUserEmail('');
       setSelectedFirmId('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
         description: error.message || 'Failed to link user to firm',

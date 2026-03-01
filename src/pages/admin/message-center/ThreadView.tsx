@@ -80,7 +80,7 @@ function useClaimThread() {
 export interface ThreadViewProps {
   thread: InboxThread;
   onBack: () => void;
-  adminProfiles?: Record<string, any> | null;
+  adminProfiles?: Record<string, unknown> | null;
 }
 
 // ─── Component ───

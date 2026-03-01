@@ -236,7 +236,7 @@ async function searchWeb(
 async function searchTranscripts(
   supabase: SupabaseClient,
   term: string,
-): Promise<{ matches: any[]; count: number }> {
+): Promise<{ matches: unknown[]; count: number }> {
   const [buyerResult, dealResult] = await Promise.allSettled([
     // Search buyer transcripts by title and summary
     supabase
@@ -254,7 +254,7 @@ async function searchTranscripts(
       .limit(5),
   ]);
 
-  const matches: any[] = [];
+  const matches: unknown[] = [];
 
   if (buyerResult.status === 'fulfilled' && buyerResult.value.data) {
     for (const t of buyerResult.value.data) {
@@ -290,7 +290,7 @@ async function searchTranscripts(
 async function searchBuyers(
   supabase: SupabaseClient,
   term: string,
-): Promise<{ matches: any[]; count: number }> {
+): Promise<{ matches: unknown[]; count: number }> {
   // Search across multiple buyer fields
   const { data, error } = await supabase
     .from('remarketing_buyers')
@@ -326,7 +326,7 @@ async function searchBuyers(
 async function searchDeals(
   supabase: SupabaseClient,
   term: string,
-): Promise<{ matches: any[]; count: number }> {
+): Promise<{ matches: unknown[]; count: number }> {
   const { data, error } = await supabase
     .from('listings')
     .select(

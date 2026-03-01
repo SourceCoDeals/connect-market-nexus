@@ -83,7 +83,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     try {
       const text = await readSpreadsheetAsText(file);
       setCsvText(text);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error('Failed to read file', { description: err.message });
       event.target.value = '';
     }
@@ -224,7 +224,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           setParseErrors([`CSV parsing error: ${error.message}`]);
         },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setParseErrors([`Error: ${error.message}`]);
     }
   };
@@ -426,7 +426,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           break;
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Failed to process duplicate', {
         description: error.message,
       });

@@ -23,7 +23,7 @@ interface BuyerTranscriptLinkPanelProps {
   buyerId: string;
   companyName?: string;
   onTranscriptLinked?: () => void;
-  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<any> | void;
+  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<unknown> | void;
 }
 
 interface SearchResult {
@@ -31,11 +31,11 @@ interface SearchResult {
   title: string;
   date: string;
   duration_minutes: number | null;
-  participants: any[];
+  participants: unknown[];
   summary: string;
   meeting_url: string;
   keywords: string[];
-  external_participants?: any[];
+  external_participants?: unknown[];
   has_content?: boolean;
   match_type?: string;
 }

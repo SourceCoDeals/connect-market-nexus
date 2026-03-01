@@ -420,7 +420,7 @@ export function ImprovedListingEditor({
         setImagePreview(null);
         setIsImageChanged(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Error",

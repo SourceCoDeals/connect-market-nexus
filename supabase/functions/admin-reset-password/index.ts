@@ -78,7 +78,7 @@ serve(async (req: Request) => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in admin-reset-password:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,

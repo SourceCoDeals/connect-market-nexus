@@ -60,7 +60,7 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all', enabled
           }));
           
           return mappedData as AdminListing[];
-        } catch (error: any) {
+        } catch (error: unknown) {
           toast({
             variant: 'destructive',
             title: 'Error fetching listings',

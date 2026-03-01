@@ -231,7 +231,7 @@ function parseServiceAccountKey(raw: string): any {
 
 // ── Build a record from a sheet row ─────────────────────────────────
 
-async function rowToRecord(row: string[], captargetStatus: string, tabName: string): Promise<Record<string, any>> {
+async function rowToRecord(row: string[], captargetStatus: string, tabName: string): Promise<Record<string, unknown>> {
   const clientName = (row[COL.client_folder_name] || "").trim();
   const companyName = (row[COL.company_name] || "").trim();
   const dateRaw = (row[COL.date] || "").trim();
@@ -323,7 +323,7 @@ serve(async (req) => {
   // which uses nextval('deal_identifier_seq') — no application-side generation needed.
 
   const startTime = Date.now();
-  const syncErrors: any[] = [];
+  const syncErrors: unknown[] = [];
   let rowsRead = 0;
   let rowsInserted = 0;
   let rowsUpdated = 0;
@@ -332,7 +332,7 @@ serve(async (req) => {
   const filteredByData = 0;
   let rowsExcluded = 0;
   const exclusionReasons: Array<{ company: string; reason: string; category: string }> = [];
-  let exclusionsToLog: any[] = [];
+  let exclusionsToLog: unknown[] = [];
   let syncStatus = "success";
   const tabsProcessed: string[] = [];
 
@@ -450,7 +450,7 @@ serve(async (req) => {
           batch.map((row) => rowToRecord(row, tab.captarget_status, tab.name))
         );
 
-        const batchRecords: any[] = [];
+        const batchRecords: unknown[] = [];
         const batchHashes: string[] = [];
 
         for (let j = 0; j < recordResults.length; j++) {
@@ -493,8 +493,8 @@ serve(async (req) => {
         }
         if (lookupFailed) continue;
 
-        const toInsert: any[] = [];
-        const toUpdate: any[] = [];
+        const toInsert: unknown[] = [];
+        const toUpdate: unknown[] = [];
 
         for (const record of batchRecords) {
           const existingId = existingMap.get(record.captarget_row_hash);
@@ -643,7 +643,7 @@ serve(async (req) => {
       if (hasMore) break;
       tabsProcessed.push(tab.name);
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Sync failed:", err.message);
     syncStatus = "failed";
     syncErrors.push({ fatal: true, error: err.message });

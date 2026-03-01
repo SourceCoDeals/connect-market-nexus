@@ -56,7 +56,7 @@ export function ProfileSecurity({
 
       setDeactivateDialogOpen(false);
       setDeactivateReason('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Deactivation request error:', error);
       toast({
         variant: 'destructive',

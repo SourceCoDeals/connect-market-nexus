@@ -47,7 +47,7 @@ const Login = () => {
         title: "Welcome back",
         description: "You have successfully logged in.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Error logged by error handler
       setError(err.message || "Failed to sign in");
       toast({

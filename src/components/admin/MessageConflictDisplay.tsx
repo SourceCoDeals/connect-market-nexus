@@ -11,7 +11,7 @@ import {
 import { format } from "date-fns";
 
 interface MessageConflictDisplayProps {
-  sourceMetadata?: Record<string, any>;
+  sourceMetadata?: Record<string, unknown>;
   currentMessage?: string;
   className?: string;
 }

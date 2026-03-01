@@ -84,7 +84,7 @@ serve(async (req) => {
     }
 
     // Fetch in batches to avoid the 1000-row limit
-    const allDeals: any[] = [];
+    const allDeals: unknown[] = [];
     let offset = 0;
     const fetchBatch = 1000;
     let hasMore = true;

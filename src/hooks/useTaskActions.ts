@@ -8,7 +8,6 @@
  * - Activity logging on mutations
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -30,7 +29,7 @@ export function useSnoozeTask() {
       const snoozedUntil = format(addDays(new Date(), days), 'yyyy-MM-dd');
 
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks' as never)
         .update({
           status: 'snoozed',
           snoozed_until: snoozedUntil,
@@ -40,7 +39,7 @@ export function useSnoozeTask() {
       if (error) throw error;
 
       // Log activity
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await supabase.from('rm_task_activity_log' as never).insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'snoozed',
@@ -63,7 +62,7 @@ export function useUnsnoozeTask() {
   return useMutation({
     mutationFn: async (taskId: string) => {
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks' as never)
         .update({
           status: 'pending',
           snoozed_until: null,
@@ -72,7 +71,7 @@ export function useUnsnoozeTask() {
 
       if (error) throw error;
 
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await supabase.from('rm_task_activity_log' as never).insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'status_changed',
@@ -102,13 +101,13 @@ export function useConfirmAITask() {
       if (dueDate) updates.due_date = dueDate;
 
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks' as never)
         .update(updates)
         .eq('id', taskId);
 
       if (error) throw error;
 
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await supabase.from('rm_task_activity_log' as never).insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'confirmed',
@@ -131,7 +130,7 @@ export function useDismissAITask() {
   return useMutation({
     mutationFn: async (taskId: string) => {
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks' as never)
         .update({
           dismissed_at: new Date().toISOString(),
           status: 'cancelled',
@@ -140,7 +139,7 @@ export function useDismissAITask() {
 
       if (error) throw error;
 
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await supabase.from('rm_task_activity_log' as never).insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'dismissed',
@@ -162,13 +161,13 @@ export function useCancelTask() {
   return useMutation({
     mutationFn: async (taskId: string) => {
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks' as never)
         .update({ status: 'cancelled' })
         .eq('id', taskId);
 
       if (error) throw error;
 
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await supabase.from('rm_task_activity_log' as never).insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'cancelled',
@@ -226,17 +225,17 @@ export function useApplyTaskTemplate() {
         }
 
         const { data, error } = await supabase
-          .from('daily_standup_tasks' as any)
+          .from('daily_standup_tasks' as never)
           .insert(insertData)
           .select('id')
           .single();
 
         if (error) throw error;
-        createdTaskIds.push((data as any).id);
+        createdTaskIds.push((data as Record<string, unknown>).id as string);
 
         // Log activity
-        await supabase.from('rm_task_activity_log' as any).insert({
-          task_id: (data as any).id,
+        await supabase.from('rm_task_activity_log' as never).insert({
+          task_id: (data as Record<string, unknown>).id as string,
           user_id: user?.id,
           action: 'created',
           new_value: { source: 'template', template_stage: template.name },
@@ -274,7 +273,7 @@ export function useAddEntityTask() {
       deal_id?: string | null;
     }) => {
       const { data, error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks' as never)
         .insert({
           title: task.title,
           description: task.description || null,
@@ -302,8 +301,8 @@ export function useAddEntityTask() {
       if (error) throw error;
 
       // Log activity
-      await supabase.from('rm_task_activity_log' as any).insert({
-        task_id: (data as any).id,
+      await supabase.from('rm_task_activity_log' as never).insert({
+        task_id: (data as Record<string, unknown>).id as string,
         user_id: user?.id,
         action: 'created',
         new_value: { entity_type: task.entity_type, entity_id: task.entity_id },
@@ -317,7 +316,7 @@ export function useAddEntityTask() {
           title: 'Task Created',
           description: `Task "${task.title}" was created`,
           metadata: {
-            task_id: (data as any).id,
+            task_id: (data as Record<string, unknown>).id as string,
             task_title: task.title,
             priority: task.priority,
             assigned_to: task.assignee_id,
@@ -349,7 +348,7 @@ export function useAddEntityTask() {
               title: 'New Task Assigned',
               message: `You have been assigned a new task: ${task.title}`,
               deal_id: task.entity_type === 'deal' ? task.entity_id : null,
-              task_id: (data as any).id,
+              task_id: (data as Record<string, unknown>).id as string,
               action_url:
                 task.entity_type === 'deal'
                   ? `/admin/deals/pipeline?deal=${task.entity_id}&tab=tasks`

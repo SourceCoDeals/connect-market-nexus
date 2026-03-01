@@ -83,10 +83,10 @@ export function useCreateDealAlert() {
         description: "You'll be notified when new opportunities match your criteria.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error creating alert",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     },
@@ -117,10 +117,10 @@ export function useUpdateDealAlert() {
         description: "Your alert preferences have been saved.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error updating alert",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     },
@@ -149,10 +149,10 @@ export function useDeleteDealAlert() {
         description: "You will no longer receive notifications for this alert.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error deleting alert",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     },
@@ -185,10 +185,10 @@ export function useToggleDealAlert() {
           : "Notifications for this alert are paused.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error updating alert",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     },

@@ -194,7 +194,7 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       { headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[notify-buyer-rejection] Error:', error);
 
     return new Response(JSON.stringify({ success: false, error: error.message }), {

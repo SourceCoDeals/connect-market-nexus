@@ -245,7 +245,7 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in send-deal-alert function:", error);
 
     // Use already-parsed body to update delivery log — avoids double-consuming req.json()

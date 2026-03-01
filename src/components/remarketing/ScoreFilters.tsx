@@ -209,9 +209,9 @@ export const ScoreFilters = ({
 // Helper to filter scores based on filter state
 // eslint-disable-next-line react-refresh/only-export-components
 export const filterScores = (
-  scores: any[],
+  scores: unknown[],
   filters: ScoreFiltersState
-): any[] => {
+): unknown[] => {
   return scores.filter(score => {
     // Status filter
     if (filters.status !== 'all' && score.status !== filters.status) {

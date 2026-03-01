@@ -419,7 +419,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
           title: "Stage deleted",
           description: "The stage has been successfully deleted and removed from all views.",
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         toast({
           title: "Failed to delete stage",
           description: error?.message || "An error occurred while deleting the stage.",

@@ -45,7 +45,7 @@ interface ResolvedLead {
 // ─── Contact resolvers ──────────────────────────────────────────────────────
 
 async function resolveFromBuyerContacts(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   ids: string[],
 ): Promise<ResolvedLead[]> {
   const { data: contacts } = await supabase
@@ -55,16 +55,16 @@ async function resolveFromBuyerContacts(
 
   if (!contacts?.length) return [];
 
-  const buyerIds = [...new Set(contacts.map((c: any) => c.buyer_id))];
+  const buyerIds = [...new Set(contacts.map((c: { buyer_id: string }) => c.buyer_id))];
   const { data: buyers } = await supabase
     .from('remarketing_buyers')
     .select('id, company_name')
     .in('id', buyerIds);
-  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
+  const buyerMap = new Map((buyers || []).map((b: { id: string; company_name?: string }) => [b.id, b]));
 
   return contacts
-    .filter((c: any) => c.email)
-    .map((c: any) => {
+    .filter((c: { email?: string }) => c.email)
+    .map((c: { id: string; name?: string; email?: string; phone?: string; title?: string; company_type?: string; buyer_id: string; linkedin_url?: string }) => {
       const parts = (c.name || '').split(' ');
       const buyer = buyerMap.get(c.buyer_id);
       return {
@@ -86,7 +86,7 @@ async function resolveFromBuyerContacts(
 }
 
 async function resolveFromBuyers(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   buyerIds: string[],
 ): Promise<ResolvedLead[]> {
   // Get contacts linked to these buyers
@@ -99,7 +99,7 @@ async function resolveFromBuyers(
     .from('remarketing_buyers')
     .select('id, company_name, contact_name, contact_email, contact_phone')
     .in('id', buyerIds);
-  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
+  const buyerMap = new Map((buyers || []).map((b: { id: string; company_name?: string; contact_name?: string; contact_email?: string; contact_phone?: string }) => [b.id, b]));
 
   const seen = new Set<string>();
   const result: ResolvedLead[] = [];
@@ -130,7 +130,7 @@ async function resolveFromBuyers(
   }
 
   // Fallback: buyer-level contact info for buyers with no sub-contacts
-  const buyersWithContacts = new Set((contacts || []).map((c: any) => c.buyer_id));
+  const buyersWithContacts = new Set((contacts || []).map((c: { buyer_id: string }) => c.buyer_id));
   for (const buyerId of buyerIds) {
     if (buyersWithContacts.has(buyerId)) continue;
     const buyer = buyerMap.get(buyerId);
@@ -158,7 +158,7 @@ async function resolveFromBuyers(
 }
 
 async function resolveFromListings(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   listingIds: string[],
 ): Promise<ResolvedLead[]> {
   const { data: listings } = await supabase
@@ -171,8 +171,8 @@ async function resolveFromListings(
   if (!listings?.length) return [];
 
   return listings
-    .filter((l: any) => l.main_contact_email)
-    .map((l: any) => {
+    .filter((l: { main_contact_email?: string }) => l.main_contact_email)
+    .map((l: { id: string; title?: string; internal_company_name?: string; main_contact_name?: string; main_contact_email?: string; main_contact_phone?: string }) => {
       const parts = (l.main_contact_name || '').split(' ');
       return {
         email: l.main_contact_email!,
@@ -191,7 +191,7 @@ async function resolveFromListings(
 }
 
 async function resolveFromLeads(
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   leadIds: string[],
 ): Promise<ResolvedLead[]> {
   const { data: leads } = await supabase
@@ -202,8 +202,8 @@ async function resolveFromLeads(
   if (!leads?.length) return [];
 
   return leads
-    .filter((l: any) => l.email)
-    .map((l: any) => {
+    .filter((l: { email?: string }) => l.email)
+    .map((l: { id: string; name?: string; email?: string; phone_number?: string; company_name?: string; role?: string }) => {
       const parts = (l.name || '').split(' ');
       return {
         email: l.email!,

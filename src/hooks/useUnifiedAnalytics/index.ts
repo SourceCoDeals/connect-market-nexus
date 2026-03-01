@@ -165,7 +165,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
 
       // Filter sessions
       const { sessionMap: currentSessionMap } = filterAndDeduplicateSessions(rawSessions);
-      const { sessions: prevFilteredSessions } = filterAndDeduplicateSessions(rawPrevSessions as any);
+      const { sessions: prevFilteredSessions } = filterAndDeduplicateSessions(rawPrevSessions as AnalyticsSession[]);
       let { uniqueSessions } = filterAndDeduplicateSessions(rawSessions);
       uniqueSessions = applySessionFilters(uniqueSessions, filters, pageViews);
 

@@ -232,7 +232,7 @@ serve(async (req: Request) => {
         status: 200,
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error sending referral:", error);
     return new Response(
       JSON.stringify({ error: error.message }),

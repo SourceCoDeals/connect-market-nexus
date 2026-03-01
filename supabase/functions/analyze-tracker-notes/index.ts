@@ -274,7 +274,7 @@ function cleanExtractedData(data: any): any {
       return val.map(cleanValue).filter(v => v !== undefined);
     }
     if (typeof val === 'object' && val !== null) {
-      const result: Record<string, any> = {};
+      const result: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(val)) {
         const cleaned = cleanValue(v);
         if (cleaned !== undefined && cleaned !== null) {

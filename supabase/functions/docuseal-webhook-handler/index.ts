@@ -241,7 +241,7 @@ serve(async (req: Request) => {
     );
 
     return new Response(JSON.stringify({ success: true }), { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Webhook handler error:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 });
   }
@@ -315,7 +315,7 @@ async function processEvent(
   }
 
   // Build update payload — update BOTH docuseal status AND expanded status
-  const updates: Record<string, any> = {
+  const updates: Record<string, unknown> = {
     updated_at: now,
   };
 

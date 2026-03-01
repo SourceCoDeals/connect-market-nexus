@@ -99,7 +99,7 @@ const TOTAL_PHASES = 14;
         const searchTerms = [universe.name];
 
         // Add segment terms from clarification context if available
-        const qaContext = universe.ma_guide_qa_context as Record<string, any> || {};
+        const qaContext = universe.ma_guide_qa_context as Record<string, unknown> || {};
         if (qaContext.segments && Array.isArray(qaContext.segments)) {
           searchTerms.push(...qaContext.segments);
         }
@@ -107,7 +107,7 @@ const TOTAL_PHASES = 14;
           searchTerms.push(qaContext.example_companies);
         }
 
-        const allTranscripts: any[] = [];
+        const allTranscripts: unknown[] = [];
 
         // Helper to search Fireflies for a single term
         const searchFireflies = async (query: string, limit: number): Promise<any[]> => {

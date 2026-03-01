@@ -23,7 +23,7 @@ import type { SortField } from "./types";
 import { formatCurrency, normalizeCompanyName, getDomain } from "./helpers";
 
 interface DealsTableProps {
-  deals: any[];
+  deals: unknown[];
   sortField: SortField;
   sortDir: "asc" | "desc";
   toggleSort: (field: SortField) => void;

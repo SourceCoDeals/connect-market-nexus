@@ -344,8 +344,8 @@ export function buildBuyerFromRow(
   row: CSVRow,
   mappings: ColumnMapping[],
   universeId?: string,
-): Record<string, any> {
-  const buyer: Record<string, any> = {
+): Record<string, unknown> {
+  const buyer: Record<string, unknown> = {
     universe_id: universeId || null,
   };
 

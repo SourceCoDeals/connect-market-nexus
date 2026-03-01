@@ -166,7 +166,7 @@ export const InboundLeadsTable = ({
   const selectedLeads = filteredLeads.filter(lead => selectedLeadIds.has(lead.id));
 
   const handleBulkCreate = async (
-    leadsData: any[], 
+    leadsData: unknown[], 
     listingId?: string, 
     listingTitle?: string, 
     shouldConvert?: boolean
@@ -214,7 +214,7 @@ export const InboundLeadsTable = ({
           description: `Successfully mapped ${successCount} of ${pendingLeads.length} leads`,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Mapping failed",

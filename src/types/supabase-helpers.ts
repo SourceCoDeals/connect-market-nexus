@@ -167,8 +167,8 @@ export type DealId = Brand<string, 'DealId'>;
 export type ConnectionRequestId = Brand<string, 'ConnectionRequestId'>;
 
 /** Async function return type unwrapper */
-export type AsyncReturnType<T extends (...args: any[]) => Promise<any>> =
-  T extends (...args: any[]) => Promise<infer R> ? R : never;
+export type AsyncReturnType<T extends (...args: unknown[]) => Promise<unknown>> =
+  T extends (...args: unknown[]) => Promise<infer R> ? R : never;
 
 /** Record with string keys and values of type T */
 export type StringRecord<T = string> = Record<string, T>;

@@ -98,7 +98,7 @@ export function ProfileTeamMembers() {
         description: 'Our team will add them within 1 business day.',
       });
       setInviteEmail('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: 'destructive',
         title: 'Failed to send invite',

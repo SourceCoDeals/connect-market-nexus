@@ -55,7 +55,7 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in password-security function:", error);
     return new Response(
       JSON.stringify({ error: error.message || 'Password security check failed' }),

@@ -316,7 +316,7 @@ describe('PART 3: Conversation Context', () => {
     interface ConversationMessage {
       role: 'user' | 'assistant';
       content: string;
-      metadata?: { entity_id?: string; entity_type?: string; results?: any[] };
+      metadata?: { entity_id?: string; entity_type?: string; results?: unknown[] };
     }
 
     function getLastEntityFromHistory(

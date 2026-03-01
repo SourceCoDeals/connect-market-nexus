@@ -187,7 +187,7 @@ function transcriptHasContent(t: any): boolean {
 /**
  * Extract external participants — filters out internal domains.
  */
-function extractExternalParticipants(attendees: any[]): { name: string; email: string }[] {
+function extractExternalParticipants(attendees: unknown[]): { name: string; email: string }[] {
   if (!Array.isArray(attendees)) return [];
 
   return attendees
@@ -206,7 +206,7 @@ function extractExternalParticipants(attendees: any[]): { name: string; email: s
  * Paginated participant email search helper.
  */
 async function paginatedSearchEmails(emails: string[], batchSize: number, maxPages: number): Promise<any[]> {
-  const results: any[] = [];
+  const results: unknown[] = [];
   let skip = 0;
   for (let page = 0; page < maxPages; page++) {
     const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {
@@ -282,7 +282,7 @@ serve(async (req) => {
     console.log(`Syncing Fireflies transcripts for [${validEmails.join(', ')}] on deal ${listingId}`);
 
     // === Phase 1: Email-based participant search ===
-    const matchingTranscripts: any[] = [];
+    const matchingTranscripts: unknown[] = [];
     const transcriptMatchType = new Map<string, 'email' | 'keyword'>();
     const seenIds = new Set<string>();
 

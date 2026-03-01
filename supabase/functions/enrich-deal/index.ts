@@ -79,7 +79,7 @@ const getErrorMessage = (error: unknown): string => {
  * Lightweight AI call to infer industry from deal metadata when website scraping is unavailable.
  */
 async function inferIndustryFromContext(
-  deal: Record<string, any>,
+  deal: Record<string, unknown>,
   geminiApiKey: string,
   supabase: any,
   dealId: string,

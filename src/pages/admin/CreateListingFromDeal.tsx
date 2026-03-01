@@ -186,7 +186,7 @@ export default function CreateListingFromDeal() {
 
       toast.success('Marketplace listing created — review and publish from the Listings tab.');
       navigate('/admin/marketplace/queue');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.message || 'Failed to create listing');
     }
   };

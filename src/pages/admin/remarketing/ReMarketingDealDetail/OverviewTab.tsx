@@ -33,7 +33,7 @@ interface OverviewTabProps {
     closedWon: number;
     closedLost: number;
   } | undefined;
-  transcripts: any[] | undefined;
+  transcripts: unknown[] | undefined;
   transcriptsLoading: boolean;
   effectiveWebsite: string | null;
   isEnriching: boolean;
@@ -171,12 +171,12 @@ export function OverviewTab({
         }}
         onSave={async (data) => {
           const { _manualEdit, ...financialData } = data;
-          const updates: Record<string, any> = { ...financialData };
+          const updates: Record<string, unknown> = { ...financialData };
 
           if (_manualEdit) {
-            const existingSources = (deal.extraction_sources as Record<string, any>) || {};
+            const existingSources = (deal.extraction_sources as Record<string, unknown>) || {};
             const manualSource = { source: 'manual', timestamp: new Date().toISOString() };
-            const sourceUpdates: Record<string, any> = { ...existingSources };
+            const sourceUpdates: Record<string, unknown> = { ...existingSources };
             if (data.revenue !== undefined) {
               sourceUpdates.revenue = manualSource;
               sourceUpdates.revenue_source_quote = manualSource;

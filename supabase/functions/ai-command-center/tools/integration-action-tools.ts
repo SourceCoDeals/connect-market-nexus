@@ -1121,7 +1121,7 @@ async function enrichBuyerContacts(
   const primaryDomain = domainCandidates[0] || inferDomain(companyName);
 
   // deno-lint-ignore no-explicit-any
-  let enriched: any[] = [];
+  let enriched: unknown[] = [];
   try {
     enriched = await batchEnrich(
       toEnrich.map((d) => ({
@@ -2124,7 +2124,7 @@ async function findDecisionMakers(
 
   // 3. Optionally enrich with Prospeo
   // deno-lint-ignore no-explicit-any
-  let enrichedContacts: any[] = [];
+  let enrichedContacts: unknown[] = [];
 
   if (autoEnrich && toProcess.length > 0) {
     const domainCandidates = companyDomain

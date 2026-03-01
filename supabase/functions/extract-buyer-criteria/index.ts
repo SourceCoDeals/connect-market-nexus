@@ -29,7 +29,7 @@ interface ExtractionRequest {
 async function extractCriteriaFromGuide(
   guideContent: string,
   industryName: string,
-): Promise<any> {
+): Promise<unknown> {
   console.log('[EXTRACTION_START] Beginning criteria extraction');
   console.log(`[GUIDE_LENGTH] ${guideContent.length} characters, ~${Math.round(guideContent.split(/\s+/).length)} words`);
 
@@ -394,7 +394,7 @@ serve(async (req) => {
       throw extractionError;
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[ERROR]', error);
     return new Response(
       JSON.stringify({
@@ -409,7 +409,7 @@ serve(async (req) => {
   }
 });
 
-async function applyToUniverse(supabase: any, universeId: string, buyers: any[]) {
+async function applyToUniverse(supabase: any, universeId: string, buyers: unknown[]) {
   if (!buyers || buyers.length === 0) return;
 
   // Source priority enforcement: check if transcript-sourced criteria already exist

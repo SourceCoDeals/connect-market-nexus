@@ -1,16 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
+interface ImportOptions {
+  clearExisting?: boolean;
+  universeIdMapping?: Record<string, string>;
+  buyerIdMapping?: Record<string, string>;
+}
+
 interface ImportRequest {
   dataType: 'universes' | 'buyers' | 'contacts' | 'scores' | 'transcripts' | 'learning_history';
-  data: Record<string, any>[];
-  options?: {
-    clearExisting?: boolean;
-    universeIdMapping?: Record<string, string>;
-    buyerIdMapping?: Record<string, string>;
-  };
+  data: Record<string, unknown>[];
+  options?: ImportOptions;
 }
 
 serve(async (req) => {
@@ -72,7 +74,7 @@ serve(async (req) => {
   }
 });
 
-async function importUniverses(supabase: any, data: any[], options: any) {
+async function importUniverses(supabase: SupabaseClient, data: Record<string, unknown>[], options: ImportOptions) {
   const idMapping: Record<string, string> = {};
   const errors: string[] = [];
   let imported = 0;
@@ -124,7 +126,7 @@ async function importUniverses(supabase: any, data: any[], options: any) {
   return { imported, errors, idMapping };
 }
 
-async function importBuyers(supabase: any, data: any[], options: any) {
+async function importBuyers(supabase: SupabaseClient, data: Record<string, unknown>[], options: ImportOptions) {
   const idMapping: Record<string, string> = {};
   const errors: string[] = [];
   let imported = 0;
@@ -204,7 +206,7 @@ async function importBuyers(supabase: any, data: any[], options: any) {
   return { imported, errors, idMapping };
 }
 
-async function importContacts(supabase: any, data: any[], options: any) {
+async function importContacts(supabase: SupabaseClient, data: Record<string, unknown>[], options: ImportOptions) {
   const errors: string[] = [];
   let imported = 0;
   const buyerMapping = options.buyerIdMapping || {};
@@ -258,7 +260,7 @@ async function importContacts(supabase: any, data: any[], options: any) {
   return { imported, errors };
 }
 
-async function importScores(supabase: any, data: any[], options: any) {
+async function importScores(supabase: SupabaseClient, data: Record<string, unknown>[], options: ImportOptions) {
   const errors: string[] = [];
   let imported = 0;
   const buyerMapping = options.buyerIdMapping || {};
@@ -338,7 +340,7 @@ async function importScores(supabase: any, data: any[], options: any) {
   return { imported, errors };
 }
 
-async function importTranscripts(supabase: any, data: any[], options: any) {
+async function importTranscripts(supabase: SupabaseClient, data: Record<string, unknown>[], options: ImportOptions) {
   const errors: string[] = [];
   let imported = 0;
   const buyerMapping = options.buyerIdMapping || {};
@@ -378,7 +380,7 @@ async function importTranscripts(supabase: any, data: any[], options: any) {
   return { imported, errors };
 }
 
-async function importLearningHistory(supabase: any, data: any[], options: any) {
+async function importLearningHistory(supabase: SupabaseClient, data: Record<string, unknown>[], options: ImportOptions) {
   const errors: string[] = [];
   let imported = 0;
   const buyerMapping = options.buyerIdMapping || {};
@@ -424,7 +426,7 @@ async function importLearningHistory(supabase: any, data: any[], options: any) {
 }
 
 // Helper functions
-function parseJsonField(value: string | object | null | undefined): any {
+function parseJsonField(value: string | object | null | undefined): unknown {
   if (!value) return null;
   if (typeof value === 'object') return value;
   try {
@@ -455,7 +457,7 @@ function parseNumber(value: string | number | null | undefined): number | null {
   return isNaN(num) ? null : num;
 }
 
-function determineBuyerType(row: any): string {
+function determineBuyerType(row: Record<string, unknown>): string {
   if (row.pe_firm_name && row.platform_company_name) return 'platform';
   if (row.pe_firm_name) return 'pe_firm';
   if (row.platform_company_name) return 'strategic';

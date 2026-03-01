@@ -20,7 +20,7 @@ interface GoogleSearchItem {
  * Mirrors the mapping logic in serper-client.ts googleSearch():
  * Serper returns { organic: [{ title, link, snippet, position }] }
  */
-function extractSerperResults(serperResponse: { organic?: any[] }): GoogleSearchItem[] {
+function extractSerperResults(serperResponse: { organic?: unknown[] }): GoogleSearchItem[] {
   const organic = serperResponse.organic || [];
   return organic.map((r: any) => ({
     title: r.title || '',

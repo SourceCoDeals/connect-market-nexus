@@ -12,7 +12,7 @@ export function useUpdateDeal() {
       updates,
     }: {
       dealId: string;
-      updates: Record<string, any>;
+      updates: Record<string, unknown>;
     }) => {
       const { data, error } = await supabase
         .from('deals')

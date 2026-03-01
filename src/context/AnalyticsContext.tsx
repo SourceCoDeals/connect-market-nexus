@@ -39,7 +39,7 @@ const MAX_RETRIES = 3;
 
 // Retry with exponential backoff
 const retryWithBackoff = async (
-  fn: () => Promise<any>, 
+  fn: () => Promise<unknown>, 
   maxRetries = MAX_RETRIES,
   delay = 1000
 ): Promise<{ success: boolean; error?: any }> => {

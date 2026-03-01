@@ -31,7 +31,7 @@ import { CreateDealFormData } from './schema';
 
 interface AdditionalDetailsSectionProps {
   form: UseFormReturn<CreateDealFormData>;
-  adminUsers: any[];
+  adminUsers: unknown[];
 }
 
 export function AdditionalDetailsSection({ form, adminUsers }: AdditionalDetailsSectionProps) {

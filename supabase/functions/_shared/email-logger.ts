@@ -52,7 +52,7 @@ export async function logEmailDelivery(
     if (error) {
       console.warn("[email-logger] Failed to insert delivery log:", error.message);
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Never throw — logging must not break the caller
     console.warn("[email-logger] Unexpected error:", err.message);
   }

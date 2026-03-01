@@ -17,7 +17,7 @@ export interface ThreadListItemProps {
   thread: InboxThread;
   isSelected: boolean;
   onClick: () => void;
-  adminProfiles?: Record<string, any> | null;
+  adminProfiles?: Record<string, unknown> | null;
   nested?: boolean;
 }
 

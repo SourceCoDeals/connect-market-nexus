@@ -183,7 +183,7 @@ serve(async (req: Request) => {
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error in send-fee-agreement-reminder:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
   }

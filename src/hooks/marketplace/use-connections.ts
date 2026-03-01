@@ -207,7 +207,7 @@ export const useAllConnectionStatuses = () => {
           map.set(row.listing_id, { exists: true, status: row.status, id: row.id });
         }
         return map;
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching all connection statuses:', error);
         return new Map<string, { exists: boolean; status: string; id: string }>();
       }
@@ -247,7 +247,7 @@ export const useConnectionStatus = (
           status: data?.status || '',
           id: data?.id || '',
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error checking connection status:', error);
         return { exists: false, status: '', id: '' };
       }
@@ -300,7 +300,7 @@ export const useUserConnectionRequests = () => {
         if (error) throw error;
 
         return data as ConnectionRequest[];
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching user connection requests:', error);
         return [];
       }

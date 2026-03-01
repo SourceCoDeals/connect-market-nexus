@@ -168,7 +168,7 @@ export default function ReferralTrackerPage() {
       }
 
       setDeals(dealRows);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(err.message || "Failed to load data");
     } finally {
       setIsLoading(false);
@@ -210,7 +210,7 @@ export default function ReferralTrackerPage() {
         setLoginError(msg);
         toast.error(msg);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const msg = err.message || "Authentication failed";
       setLoginError(msg);
       toast.error(msg);

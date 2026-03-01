@@ -56,7 +56,7 @@ export async function applyExistingTranscriptData(
   supabase: any,
   deal: any,
   dealId: string,
-  transcriptsWithExtracted: any[],
+  transcriptsWithExtracted: unknown[],
   forceReExtract: boolean,
 ): Promise<{ appliedFieldCount: number; appliedTranscriptCount: number; fieldNames: string[]; updatedSources: any }> {
   const listingKeys = new Set(Object.keys(deal as Record<string, unknown>));
@@ -149,7 +149,7 @@ export async function applyExistingTranscriptData(
 export async function processNewTranscripts(
   supabase: any,
   deal: any,
-  needsExtraction: any[],
+  needsExtraction: unknown[],
   supabaseUrl: string,
   supabaseServiceKey: string,
   supabaseAnonKey: string,

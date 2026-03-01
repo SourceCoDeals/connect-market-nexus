@@ -433,7 +433,7 @@ serve(async (req) => {
       scoredSoFar = 0,
     } = body;
 
-    let listingsToScore: any[] = [];
+    let listingsToScore: unknown[] = [];
     let enrichmentQueued = 0;
     const BATCH_SIZE = 200;
 
@@ -566,7 +566,7 @@ serve(async (req) => {
     console.log(`Scoring ${listingsToScore.length} listings...`);
     let scored = 0;
     let errors = 0;
-    const results: any[] = [];
+    const results: unknown[] = [];
 
     for (const listing of listingsToScore) {
       try {

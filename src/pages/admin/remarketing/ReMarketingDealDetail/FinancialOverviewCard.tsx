@@ -74,10 +74,10 @@ function FinancialMetric({
   value: number | null;
   sourceQuote: string | null;
   isInferred: boolean | null;
-  extractionSources: Record<string, any> | null;
+  extractionSources: Record<string, unknown> | null;
   sourceKey: string;
 }) {
-  const sources = extractionSources as Record<string, any> | null;
+  const sources = extractionSources as Record<string, unknown> | null;
   const source = sources?.[sourceKey];
   const sourceType = source?.source as string | undefined;
   const transcriptTitle = source?.transcriptTitle as string | undefined;

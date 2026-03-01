@@ -486,7 +486,7 @@ async function getRecommendedBuyers(
   }
 
   // deno-lint-ignore no-explicit-any
-  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b as Record<string, any>]));
+  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b as Record<string, unknown>]));
 
   // ──────────────────────────────────────────────
   // Phase 3: Build enrichment maps

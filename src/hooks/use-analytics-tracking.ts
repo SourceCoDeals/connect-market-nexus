@@ -18,7 +18,7 @@ interface TrackEventParams {
   eventAction: string;
   eventLabel?: string;
   eventValue?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface TrackPageViewParams {
@@ -125,7 +125,7 @@ export function useAnalyticsTracking() {
   const trackListingInteraction = useCallback(async (
     listingId: string, 
     actionType: 'view' | 'save' | 'unsave' | 'request_connection' | 'share',
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ) => {
     try {
       // Track in GA4 with appropriate event
@@ -171,7 +171,7 @@ export function useAnalyticsTracking() {
   // Track search (Supabase + GA4)
   const trackSearch = useCallback(async (
     searchQuery: string,
-    filters: Record<string, any>,
+    filters: Record<string, unknown>,
     resultsCount: number,
     noResults = false,
     searchSessionId?: string
@@ -235,7 +235,7 @@ export function useAnalyticsTracking() {
     stepName: string,
     stepOrder: number,
     timeSpent?: number,
-    formData?: Record<string, any>,
+    formData?: Record<string, unknown>,
     droppedOff: boolean = false,
     dropOffReason?: string
   ) => {

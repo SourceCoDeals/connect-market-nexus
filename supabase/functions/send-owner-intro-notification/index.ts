@@ -351,7 +351,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in send-owner-intro-notification:", error);
     
     return new Response(

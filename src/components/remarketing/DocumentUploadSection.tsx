@@ -204,7 +204,7 @@ export const DocumentUploadSection = ({
             } catch { /* ignored */ }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         failures++;
         const errMsg = err?.message || 'Unknown error';
         // Enrichment error tracked via queue error entry

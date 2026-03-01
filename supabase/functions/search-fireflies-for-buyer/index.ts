@@ -36,7 +36,7 @@ interface SearchResult {
   title: string;
   date: string;
   duration_minutes: number | null;
-  participants: any[];
+  participants: unknown[];
   external_participants: ExternalParticipant[];
   summary: string;
   meeting_url: string;
@@ -193,7 +193,7 @@ function transcriptHasContent(t: any): boolean {
  * Extract external participants from meeting attendees.
  * Filters out internal @sourcecodeals.com and @captarget.com addresses.
  */
-function extractExternalParticipants(attendees: any[]): ExternalParticipant[] {
+function extractExternalParticipants(attendees: unknown[]): ExternalParticipant[] {
   if (!Array.isArray(attendees)) return [];
 
   return attendees
@@ -217,7 +217,7 @@ async function paginatedFetch(
   maxPages = 4,
   batchSize = 50,
 ): Promise<any[]> {
-  const results: any[] = [];
+  const results: unknown[] = [];
   let skip = 0;
 
   for (let page = 0; page < maxPages; page++) {
@@ -318,7 +318,7 @@ serve(async (req) => {
     }
 
     // === Phase 1: Primary search — emails + keyword in parallel ===
-    const searches: Promise<{ results: any[]; type: 'email' | 'keyword' }>[] = [];
+    const searches: Promise<{ results: unknown[]; type: 'email' | 'keyword' }>[] = [];
 
     // Search each email individually AND as a group to maximize results.
     // Fireflies' participants filter may use AND logic with arrays,
@@ -413,7 +413,7 @@ serve(async (req) => {
 
     // Merge and deduplicate by transcript ID, tracking match_type per result
     const seen = new Map<string, 'email' | 'keyword'>();
-    const matchingResults: any[] = [];
+    const matchingResults: unknown[] = [];
 
     for (const { results, type } of searchResults) {
       for (const t of results) {
@@ -436,7 +436,7 @@ serve(async (req) => {
       (t) => seen.get(t.id) === 'email' && transcriptHasContent(t),
     );
 
-    const fallbackResults: any[] = [];
+    const fallbackResults: unknown[] = [];
     if (emailResultsWithContent.length === 0 && companyName && companyName.trim().length >= 3) {
       console.log(
         `No email results with content, running fallback keyword search for "${companyName}"`,

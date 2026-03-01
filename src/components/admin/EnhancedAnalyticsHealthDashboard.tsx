@@ -71,7 +71,7 @@ export function EnhancedAnalyticsHealthDashboard() {
             recordCount,
             lastInsert,
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           return {
             table,
             status: 'error' as const,
@@ -98,7 +98,7 @@ export function EnhancedAnalyticsHealthDashboard() {
       
       setLiveStats(stats);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Health Check Failed",
         description: error.message,
@@ -158,7 +158,7 @@ export function EnhancedAnalyticsHealthDashboard() {
         title: "Comprehensive Test Completed",
         description: "Check results below",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logTestResult('Test Suite Execution', false, error.message);
     } finally {
       setIsTestingRunning(false);
@@ -185,7 +185,7 @@ export function EnhancedAnalyticsHealthDashboard() {
       });
 
       checkAnalyticsHealth();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Clear Failed",
         description: error.message,

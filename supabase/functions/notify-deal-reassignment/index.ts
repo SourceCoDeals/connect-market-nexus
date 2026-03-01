@@ -135,7 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in notify-deal-reassignment:", error);
 
     return new Response(

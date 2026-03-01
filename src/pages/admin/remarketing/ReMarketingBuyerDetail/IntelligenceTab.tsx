@@ -15,9 +15,9 @@ interface IntelligenceTabProps {
   buyer: BuyerData;
   transcripts: Transcript[];
   setActiveEditDialog: (dialog: EditDialogType) => void;
-  updateBuyerMutation: { mutateAsync: (data: Record<string, any>) => Promise<any> };
+  updateBuyerMutation: { mutateAsync: (data: Record<string, unknown>) => Promise<unknown> };
   addTranscriptMutation: {
-    mutateAsync: (params: { text: string; source: string; fileName?: string; fileUrl?: string; triggerExtract?: boolean }) => Promise<any>;
+    mutateAsync: (params: { text: string; source: string; fileName?: string; fileUrl?: string; triggerExtract?: boolean }) => Promise<unknown>;
     isPending: boolean;
   };
   extractTranscriptMutation: { isPending: boolean };

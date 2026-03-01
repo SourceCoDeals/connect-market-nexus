@@ -275,7 +275,7 @@ ${adminSignature}
 </div>`;
 
     // Process attachments once for all recipients
-    const processedAttachments: any[] = [];
+    const processedAttachments: unknown[] = [];
     
     if (attachments && attachments.length > 0) {
       console.log(`📎 Starting attachment processing for ${attachments.length} attachment(s)`);
@@ -447,7 +447,7 @@ ${adminSignature}
         } catch (dbError) {
           console.error(`⚠️ Database update failed for ${recipient.email}:`, dbError);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`❌ Error sending to ${recipient.email}:`, error);
         failCount++;
         emailResults.push({ email: recipient.email, success: false, error: error.message });
@@ -469,7 +469,7 @@ ${adminSignature}
         ...corsHeaders,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error in send-fee-agreement-email function:", error);
     return new Response(
       JSON.stringify({ 

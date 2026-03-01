@@ -33,7 +33,7 @@ export function FormMonitoringTab() {
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-  const processMetrics = (profiles: any[]): FormMetrics => {
+  const processMetrics = (profiles: unknown[]): FormMetrics => {
     const totalSignups = profiles.length;
     const completedSignups = profiles.filter(p => p.onboarding_completed).length;
     const completionRate = totalSignups > 0 ? (completedSignups / totalSignups) * 100 : 0;

@@ -442,9 +442,9 @@ Deno.serve(async (req) => {
     // RUN EXTRACTION PROMPTS (ALL IN PARALLEL via Gemini Flash)
     // ========================================================================
 
-    const allExtracted: Record<string, any> = {};
+    const allExtracted: Record<string, unknown> = {};
     const fieldSourceMap: Record<string, SourceType> = {};
-    const evidenceRecords: any[] = [];
+    const evidenceRecords: unknown[] = [];
     const timestamp = new Date().toISOString();
     let promptsRun = 0;
     let promptsSuccessful = 0;

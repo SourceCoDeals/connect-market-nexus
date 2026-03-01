@@ -200,7 +200,7 @@ The SourceCodeALS Team
         ...corsHeaders,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in send-verification-success-email function:", error);
 
     try {

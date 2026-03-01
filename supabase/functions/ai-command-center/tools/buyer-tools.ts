@@ -3,12 +3,65 @@
  * Search, profile, and analyze remarketing buyers.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 import { checkCompanyExclusion } from '../../_shared/captarget-exclusion-filter.ts';
+
+interface BuyerRecord {
+  id: string;
+  company_name?: string;
+  pe_firm_name?: string;
+  buyer_type?: string;
+  business_type?: string;
+  hq_state?: string;
+  hq_city?: string;
+  hq_region?: string;
+  hq_country?: string;
+  geographic_footprint?: string[];
+  operating_locations?: string[];
+  service_regions?: string[];
+  target_services?: string[];
+  services_offered?: string;
+  target_industries?: string[];
+  industry_vertical?: string;
+  target_revenue_min?: number;
+  target_revenue_max?: number;
+  target_ebitda_min?: number;
+  target_ebitda_max?: number;
+  target_geographies?: string[];
+  target_customer_profile?: string;
+  acquisition_appetite?: string;
+  acquisition_frequency?: string;
+  acquisition_timeline?: string;
+  alignment_score?: number;
+  alignment_reasoning?: string;
+  alignment_checked_at?: string;
+  thesis_summary?: string;
+  business_summary?: string;
+  notes?: string;
+  has_fee_agreement?: boolean;
+  fee_agreement_status?: string;
+  fee_agreement_source?: string;
+  num_employees?: number;
+  num_platforms?: number;
+  number_of_locations?: number;
+  total_acquisitions?: number;
+  recent_acquisitions?: unknown;
+  platform_acquisitions?: unknown;
+  pe_firm_acquisitions?: unknown;
+  revenue_model?: string;
+  customer_geographic_reach?: string;
+  company_website?: string;
+  platform_website?: string;
+  pe_firm_website?: string;
+  buyer_linkedin?: string;
+  pe_firm_linkedin?: string;
+  universe_id?: string;
+  archived?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
 
 // ---------- Fuzzy matching ----------
 
@@ -395,7 +448,7 @@ async function searchBuyers(
 
     // Fetch additional buyers from matching universes that may not be in the initial results
     if (matchingUniverseIds.size > 0) {
-      const existingIds = new Set(results.map((b: any) => b.id));
+      const existingIds = new Set(results.map((b: BuyerRecord) => b.id));
       const universeIds = Array.from(matchingUniverseIds);
 
       let universeQuery = supabase
@@ -433,7 +486,7 @@ async function searchBuyers(
   // Client-side service filter
   if (args.services && (args.services as string[]).length > 0) {
     const svcTerms = (args.services as string[]).map((s) => s.toLowerCase());
-    results = results.filter((b: any) =>
+    results = results.filter((b: BuyerRecord) =>
       svcTerms.some(
         (term) => fieldContains(b.target_services, term) || fieldContains(b.services_offered, term),
       ),
@@ -443,11 +496,11 @@ async function searchBuyers(
   // Client-side revenue range filter
   if (args.min_revenue) {
     const min = args.min_revenue as number;
-    results = results.filter((b: any) => !b.target_revenue_max || b.target_revenue_max >= min);
+    results = results.filter((b: BuyerRecord) => !b.target_revenue_max || b.target_revenue_max >= min);
   }
   if (args.max_revenue) {
     const max = args.max_revenue as number;
-    results = results.filter((b: any) => !b.target_revenue_min || b.target_revenue_min <= max);
+    results = results.filter((b: BuyerRecord) => !b.target_revenue_min || b.target_revenue_min <= max);
   }
 
   // Client-side industry keyword filter — searches ALL relevant buyer fields
@@ -456,7 +509,7 @@ async function searchBuyers(
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     results = results.filter(
-      (b: any) =>
+      (b: BuyerRecord) =>
         (matchingUniverseIds.size > 0 && matchingUniverseIds.has(b.universe_id)) ||
         fieldContains(b.target_industries, term) ||
         fieldContains(b.target_services, term) ||

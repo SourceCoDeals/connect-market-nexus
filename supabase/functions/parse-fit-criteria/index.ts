@@ -27,7 +27,7 @@ function cleanPlaceholders(value: any): any {
     return value.map(cleanPlaceholders).filter(Boolean);
   }
   if (typeof value === 'object' && value !== null) {
-    const result: Record<string, any> = {};
+    const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(value)) {
       const cleaned = cleanPlaceholders(val);
       if (cleaned !== null && cleaned !== undefined && cleaned !== '') {
@@ -323,8 +323,8 @@ function parseLocally(text: string) {
   const lowerText = text.toLowerCase();
   
   const result = {
-    size_criteria: {} as Record<string, any>,
-    geography_criteria: {} as Record<string, any>,
+    size_criteria: {} as Record<string, unknown>,
+    geography_criteria: {} as Record<string, unknown>,
     service_criteria: {
       primary_focus: [] as string[],
       required_services: [] as string[],
@@ -337,7 +337,7 @@ function parseLocally(text: string) {
       include_strategic: true,
       include_family_office: true
     },
-    scoring_behavior: {} as Record<string, any>,
+    scoring_behavior: {} as Record<string, unknown>,
     extracted_keywords: [] as string[],
   };
 

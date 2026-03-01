@@ -119,7 +119,7 @@ function transcriptHasContent(t: any): boolean {
 }
 
 function extractExternalParticipants(
-  attendees: any[],
+  attendees: unknown[],
 ): { name: string; email: string }[] {
   if (!Array.isArray(attendees)) return [];
   return attendees
@@ -289,7 +289,7 @@ serve(async (req) => {
     // ------------------------------------------------------------------
     // 2. Fetch all recent Fireflies transcripts
     // ------------------------------------------------------------------
-    const allTranscripts: any[] = [];
+    const allTranscripts: unknown[] = [];
     const batchSize = 50;
     const maxPages = Math.ceil(maxTranscripts / batchSize);
 

@@ -294,7 +294,7 @@ export function detectArrayConflicts(
  * Merge size criteria from multiple sources
  * Strategy: Take min of minimums, max of maximums, weighted average for sweet spots
  */
-export function synthesizeSizeCriteria(sources: any[]): any {
+export function synthesizeSizeCriteria(sources: unknown[]): any {
   if (!sources || sources.length === 0) return {};
 
   const merged: any = {
@@ -379,7 +379,7 @@ export function synthesizeSizeCriteria(sources: any[]): any {
  * Merge array-based criteria (services, geographies)
  * Strategy: Union of all values, normalized
  */
-export function synthesizeArrayCriteria(sources: any[], fieldName: string): string[] {
+export function synthesizeArrayCriteria(sources: unknown[], fieldName: string): string[] {
   if (!sources || sources.length === 0) return [];
 
   const allValues = sources

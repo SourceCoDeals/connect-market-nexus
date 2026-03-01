@@ -141,7 +141,7 @@ serve(async (req) => {
 
     return response;
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[extract-buyer-criteria-background] Error:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
@@ -269,7 +269,7 @@ async function processExtractionInBackground(
 
     console.log(`[processExtractionInBackground] Extraction ${extractionId} completed successfully`);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[processExtractionInBackground] Error in extraction ${extractionId}:`, error);
 
     // Update status to failed

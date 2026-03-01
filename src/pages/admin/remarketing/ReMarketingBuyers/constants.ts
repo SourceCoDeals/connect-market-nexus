@@ -19,7 +19,7 @@ export const isSponsorType = (buyerType: string | null | undefined): boolean =>
 export type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements';
 
 // Helper to find a PE firm record by name in the buyers list
-export const findPeFirmByName = (buyers: any[], firmName: string): any | null => {
+export const findPeFirmByName = (buyers: unknown[], firmName: string): any | null => {
   return buyers?.find(
     (b: any) => b.buyer_type === 'pe_firm' && b.company_name === firmName
   ) || null;

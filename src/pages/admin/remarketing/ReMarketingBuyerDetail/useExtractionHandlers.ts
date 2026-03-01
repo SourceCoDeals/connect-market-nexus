@@ -4,7 +4,7 @@ import { Transcript } from "./types";
 export function useExtractionHandlers(
   transcripts: Transcript[],
   extractTranscriptMutation: {
-    mutateAsync: (params: { transcriptId: string }) => Promise<any>;
+    mutateAsync: (params: { transcriptId: string }) => Promise<unknown>;
     isPending: boolean;
   },
 ) {
@@ -30,7 +30,7 @@ export function useExtractionHandlers(
         const data = await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id });
         successCount++;
         results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, insights: data?.insights?.buyer });
-      } catch (e: any) {
+      } catch (e: unknown) {
         // Extraction failed — tracked in results
         errorCount++;
         results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, error: e?.message || 'Failed' });
@@ -53,7 +53,7 @@ export function useExtractionHandlers(
         successCount: 1,
         errorCount: 0,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       const transcript = transcripts.find(t => t.id === transcriptId);
       setExtractionSummary({
         open: true,

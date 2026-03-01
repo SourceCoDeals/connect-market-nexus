@@ -241,7 +241,7 @@ serve(async (req) => {
   }
 });
 
-function calculateAvg(items: any[], field: string): number {
+function calculateAvg(items: unknown[], field: string): number {
   if (items.length === 0) return 0;
   const sum = items.reduce((acc, item) => acc + (item[field] || 0), 0);
   return sum / items.length;

@@ -9,7 +9,7 @@ export interface UserEvent {
   title: string;
   description?: string;
   path?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface UserActivityDay {
@@ -115,7 +115,7 @@ function getDiscoverySource(session: {
 // Find the first session with meaningful attribution data
 // Priority: original_external_referrer > utm_source > referrer > any session
 // This handles race conditions where the chronologically first session may have no referrer
-function getFirstMeaningfulSession(sessions: any[]): any | null {
+function getFirstMeaningfulSession(sessions: unknown[]): any | null {
   if (!sessions || sessions.length === 0) return null;
   
   // Sessions come sorted DESC (most recent first), reverse for chronological
@@ -202,7 +202,7 @@ export function useUserDetail(visitorId: string | null) {
       const sessions = sessionsResult.data || [];
       
       // Fetch page views - for anonymous users, query by session_id
-      let pageViews: any[] = [];
+      let pageViews: unknown[] = [];
       if (isUserId) {
         const { data, error: pageViewsError } = await supabase
           .from('page_views')
@@ -228,7 +228,7 @@ export function useUserDetail(visitorId: string | null) {
       }
       
       // Only fetch connections for registered users
-      let connections: any[] = [];
+      let connections: unknown[] = [];
       if (isUserId) {
         const { data, error: connectionsError } = await supabase
           .from('connection_requests')

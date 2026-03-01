@@ -98,7 +98,7 @@ export default function BuyerEnrichSection({ addLog, buyerId, onBuyerIdChange }:
         `enrich-buyer for ${buyerId.slice(0, 8)}… (enrichment ${enrichmentDone ? 'completed' : 'queued'})`,
         Date.now() - t0,
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
       setError(e.message);
       addLog(`enrich-buyer for ${buyerId.slice(0, 8)}… — ${e.message}`, dur, false);

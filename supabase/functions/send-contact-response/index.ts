@@ -196,7 +196,7 @@ This is an automated response. Please do not reply to this email.`;
       },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('💥 Critical error in send-contact-response function:', error);
     console.error('🔍 Error stack:', error.stack);
     

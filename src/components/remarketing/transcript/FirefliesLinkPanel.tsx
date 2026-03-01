@@ -41,7 +41,7 @@ interface FirefliesLinkPanelProps {
   onFfQueryChange: (val: string) => void;
   ffSearchLoading: boolean;
   onFfQuickSearch: () => void;
-  ffResults: any[];
+  ffResults: unknown[];
   ffLinking: string | null;
   onLinkSearchResult: (transcript: any) => void;
 }

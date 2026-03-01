@@ -66,7 +66,7 @@ serve(async (req) => {
       });
     }
 
-    const allContacts: any[] = [];
+    const allContacts: unknown[] = [];
 
     for (const website of websites) {
       try {
@@ -215,7 +215,7 @@ serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[find-buyer-contacts] Error:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
       status: 500,
@@ -343,7 +343,7 @@ async function searchLinkedInProfile(
   }
 }
 
-function dedupeContacts(contacts: any[]): any[] {
+function dedupeContacts(contacts: unknown[]): unknown[] {
   const seen = new Map<string, any>();
 
   for (const contact of contacts) {

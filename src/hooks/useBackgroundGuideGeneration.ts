@@ -112,7 +112,7 @@ export function useBackgroundGuideGeneration({
       // Start polling for progress
       startPolling(data!.generation_id);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.message || 'Failed to start guide generation');
       setIsGenerating(false);
       if (onError) {
@@ -180,7 +180,7 @@ export function useBackgroundGuideGeneration({
         setIsGenerating(false);
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error checking generation status:', error);
 
       // Don't show errors on every poll, just log them

@@ -108,7 +108,7 @@ export default function SystemTestRunner() {
             durationMs: Math.round(performance.now() - start),
             error: undefined,
           };
-        } catch (err: any) {
+        } catch (err: unknown) {
           const msg = err?.message || String(err);
           // Treat missing test data preconditions and some errors as warnings
           const isWarning = (msg.includes("does not exist") && !msg.includes("table"))

@@ -175,7 +175,7 @@ serve(async (req: Request) => {
     const firmName = firm.firm_name || 'Unknown Firm';
 
     // 1. Update firm_agreements
-    const updates: Record<string, any> = { updated_at: now };
+    const updates: Record<string, unknown> = { updated_at: now };
     if (isNda) {
       updates.nda_signed = true;
       updates.nda_signed_at = now;

@@ -29,7 +29,7 @@ interface BuyerTableRowProps {
   globalIdx: number;
   activeTab: BuyerTab;
   selectedIds: Set<string>;
-  buyers: any[] | undefined;
+  buyers: unknown[] | undefined;
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
   toggleSelect: (

@@ -179,7 +179,7 @@ serve(async (req: Request) => {
       JSON.stringify({ url: docUrl }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     const corsHeaders = getCorsHeaders(req);
     console.error("❌ Unexpected error:", err);
     return new Response(

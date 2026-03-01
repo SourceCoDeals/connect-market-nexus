@@ -149,7 +149,7 @@ const Signup = () => {
     try {
       await doSubmit();
       clearDraft();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup error:', error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
       if (error.message?.includes('User already registered'))

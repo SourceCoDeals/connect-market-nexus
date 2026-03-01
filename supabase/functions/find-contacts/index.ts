@@ -191,7 +191,7 @@ Deno.serve(async (req: Request) => {
 
     // 3. Scrape LinkedIn employees via Apify
     console.log(`[find-contacts] Scraping employees at ${linkedInUrl}`);
-    let employees: any[] = [];
+    let employees: unknown[] = [];
     try {
       employees = await scrapeCompanyEmployees(linkedInUrl!, Math.max(targetCount * 3, 50));
     } catch (err) {
@@ -216,7 +216,7 @@ Deno.serve(async (req: Request) => {
     const domain = body.company_domain || inferDomain(companyName);
     console.log(`[find-contacts] Enriching ${toEnrich.length} contacts via Prospeo`);
 
-    let enriched: any[] = [];
+    let enriched: unknown[] = [];
     try {
       enriched = await batchEnrich(
         toEnrich.map((e) => ({

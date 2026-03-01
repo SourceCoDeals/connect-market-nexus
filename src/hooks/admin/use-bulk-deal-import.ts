@@ -229,7 +229,7 @@ export function useBulkDealImport() {
             userCompany: profile?.company || undefined,
           });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
           result.errors++;
           result.details.errors.push({
             deal,

@@ -39,7 +39,7 @@ export default function EnrichmentTest() {
       if (provenanceRunRef.current) await provenanceRunRef.current();
       if (scoringRunRef.current) await scoringRunRef.current();
       addLog(`Full deal test suite complete for ${dealId.slice(0, 8)}…`);
-    } catch (e: any) {
+    } catch (e: unknown) {
       addLog(`Full deal test suite failed: ${e.message}`, undefined, false);
     } finally {
       setRunningAll(false);

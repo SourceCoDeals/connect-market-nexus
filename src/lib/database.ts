@@ -142,7 +142,7 @@ export async function fetchRows<T extends TableName>(
   table: T,
   options: QueryOptions<T> = {},
 ): Promise<DatabaseResult<Row<T>[]>> {
-  return safeQuery(async (): Promise<any> => {
+  return safeQuery(async (): Promise<unknown> => {
     const { filters, order, pagination, select } = options;
 
     let query = supabase

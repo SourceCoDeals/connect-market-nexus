@@ -274,7 +274,7 @@ async function getUniverseBuyerFits(
 
   // 2. Fetch all scores for these buyers (across all deals in the universe)
   // Batch in chunks of 100 to avoid query limits
-  const allScores: any[] = [];
+  const allScores: unknown[] = [];
   for (let i = 0; i < buyerIds.length; i += 100) {
     const chunk = buyerIds.slice(i, i + 100);
     const { data: scores } = await supabase

@@ -192,7 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[invite-team-member] Error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),

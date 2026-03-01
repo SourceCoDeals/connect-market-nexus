@@ -26,7 +26,7 @@ interface TranscriptsListCardProps {
   transcripts: Transcript[];
   buyerId: string;
   companyName?: string;
-  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<any> | void;
+  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<unknown> | void;
   onExtract: (transcriptId: string) => void;
   onExtractAll: () => void;
   onDelete: (transcriptId: string) => void;

@@ -56,7 +56,7 @@ export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
       if (verifyError) throw verifyError;
 
       onVerified();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || "Invalid verification code. Please try again.");
       setCode("");
     } finally {

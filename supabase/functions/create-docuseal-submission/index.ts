@@ -336,7 +336,7 @@ serve(async (req: Request) => {
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error in create-docuseal-submission:', error);
     // H2: Don't leak internal error details
     return new Response(JSON.stringify({ error: 'Internal server error' }), {

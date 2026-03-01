@@ -118,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Enhanced email delivery error:', error);
 
     return new Response(

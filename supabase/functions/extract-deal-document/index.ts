@@ -86,7 +86,7 @@ async function extractCriteriaFromDocument(
   content: DocumentContent,
   documentName: string,
   industryName: string
-): Promise<any> {
+): Promise<unknown> {
   console.log('[EXTRACTION_START] Processing document');
 
   const systemPrompt = `You are an expert M&A advisor analyzing a document to extract buyer fit criteria and deal information. These documents may be shorter and more focused than comprehensive M&A guides — they could be deal memos, broker packages, internal research notes, or one-pagers.

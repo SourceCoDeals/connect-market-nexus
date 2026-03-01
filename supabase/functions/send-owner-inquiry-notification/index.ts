@@ -182,7 +182,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in send-owner-inquiry-notification:", error);
     return new Response(
       JSON.stringify({ error: error.message || "Failed to send notification" }),

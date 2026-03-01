@@ -21,9 +21,9 @@ import type { SortOption, FilterTab } from "./types";
 interface MatchListProps {
   listing: any;
   listingId: string | undefined;
-  scores: any[] | undefined;
-  allScores: any[] | undefined;
-  filteredScores: any[];
+  scores: unknown[] | undefined;
+  allScores: unknown[] | undefined;
+  filteredScores: unknown[];
   scoresLoading: boolean;
   linkedUniverses: Array<{ id: string; name: string }> | undefined;
   selectedUniverse: string;
@@ -33,7 +33,7 @@ interface MatchListProps {
     passed: number;
   };
   outreachCount: number;
-  outreachRecords: any[] | undefined;
+  outreachRecords: unknown[] | undefined;
   feeAgreementLookup: Map<string, { signed: boolean; signedAt: string | null }>;
   pipelineDealByBuyer: Map<string, string>;
   activeTab: FilterTab;

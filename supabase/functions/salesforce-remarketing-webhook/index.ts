@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
 
     // Normalize contacts: single object → array, null → empty array
     const rawContacts: any = salesforceData["Contacts Data"];
-    let contacts: any[] = [];
+    let contacts: unknown[] = [];
     if (Array.isArray(rawContacts)) {
       contacts = rawContacts;
     } else if (rawContacts && typeof rawContacts === "object" && rawContacts.Id) {
@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Build listing payload
-    const listingPayload: Record<string, any> = {
+    const listingPayload: Record<string, unknown> = {
       salesforce_account_id: account.Id,
       title: account.Name,
       internal_company_name: account.Name,
@@ -245,7 +245,7 @@ Deno.serve(async (req: Request) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("salesforce-remarketing-webhook error:", err);
     return errorResponse(err.message || "Internal server error", 500, corsHeaders);
   }

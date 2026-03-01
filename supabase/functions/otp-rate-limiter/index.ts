@@ -125,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in OTP rate limiter:", error);
     return new Response(
       JSON.stringify({ 
