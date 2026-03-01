@@ -9,6 +9,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FilterBar, TimeframeSelector, VALUATION_LEAD_FIELDS } from '@/components/filters';
+import type { Operator } from '@/components/filters/filter-definitions/types';
+import type { SortColumn } from './types';
 import { EnrichmentProgressIndicator, DealEnrichmentSummaryDialog, DealBulkActionBar } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToOutreachModal } from '@/components/remarketing/PushToOutreachModal';
@@ -128,7 +130,7 @@ export default function ValuationLeads() {
       const rules = filters.map((f, idx) => ({
         id: `ai-filter-${idx}`,
         field: f.field,
-        operator: f.operator as any,
+        operator: f.operator as Operator,
         value: f.value,
       }));
       if (clearExisting) setFilterState({ rules, conjunction: 'and', search: '' });
@@ -142,7 +144,7 @@ export default function ValuationLeads() {
         created_at: 'created_at',
         calculator_type: 'calculator_type',
       };
-      handleSort((fieldMap[field] || field) as any);
+      handleSort((fieldMap[field] || field) as SortColumn);
     },
     onTriggerAction: (action) => {
       if (action === 'push_to_dialer') setDialerOpen(true);
@@ -379,7 +381,7 @@ export default function ValuationLeads() {
       {/* Bulk Actions */}
       <DealBulkActionBar
         selectedIds={selectedIds}
-        deals={filteredLeads as any}
+        deals={filteredLeads as Array<{ id: string; is_priority_target?: boolean | null }>}
         onClearSelection={() => setSelectedIds(new Set())}
         onRefetch={refetch}
         onApproveToActiveDeals={(ids) => handlePushToAllDeals(ids)}

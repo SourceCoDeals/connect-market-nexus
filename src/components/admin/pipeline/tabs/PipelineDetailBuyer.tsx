@@ -383,7 +383,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   {connectionRequests.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No direct connection history</p>
                   ) : (
-                    connectionRequests.map((req: any) => (
+                    connectionRequests.map((req: ConnectionRequestRow) => (
                       <div key={req.id} className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
@@ -412,7 +412,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   {associatedRequests.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No colleague activity</p>
                   ) : (
-                    associatedRequests.map((req: any) => {
+                    associatedRequests.map((req: AssociatedRequest) => {
                       const displayName = req.user 
                         ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.lead_name || req.lead_email
                         : req.lead_name || req.lead_email;
@@ -456,7 +456,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                   {savedListings.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-4 text-center">No saved listings</p>
                   ) : (
-                    savedListings.map((saved: any) => (
+                    savedListings.map((saved: SavedListingRow) => (
                       <div key={saved.id} className="p-3 border border-border/40 rounded-lg">
                         <p className="text-sm font-medium text-foreground">
                           {saved.listings?.internal_company_name || saved.listings?.title || 'Unknown'}

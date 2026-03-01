@@ -21,7 +21,7 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Building2,
-    accessor: (item: any) => item.internal_company_name || item.title || "",
+    accessor: (item: Record<string, unknown>) => (item.internal_company_name as string) || (item.title as string) || "",
   },
   {
     key: "captarget_client_name",
@@ -100,7 +100,7 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
     group: "Business",
     icon: Briefcase,
     dynamicOptions: true,
-    accessor: (item: any) => item.industry || item.category || "",
+    accessor: (item: Record<string, unknown>) => (item.industry as string) || (item.category as string) || "",
   },
   {
     key: "linkedin_employee_count",
@@ -151,8 +151,8 @@ export const CAPTARGET_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Globe,
-    accessor: (item: any) => {
-      const raw = item.website;
+    accessor: (item: Record<string, unknown>) => {
+      const raw = item.website as string | undefined;
       if (!raw || !raw.trim() || raw.includes("@")) return null;
       const v = raw.trim().replace(/^[a-z]{3,6}:\/\//i, "").replace(/^www\./i, "").split("/")[0].split("?")[0].split("#")[0];
       return (v && v.includes(".") && !v.includes(" ") && !/^(test|no|example)\./i.test(v)) ? v : null;

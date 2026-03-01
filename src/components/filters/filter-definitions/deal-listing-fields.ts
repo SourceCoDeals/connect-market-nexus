@@ -46,7 +46,7 @@ export const DEAL_LISTING_FIELDS: FilterFieldDef[] = [
     group: "Core",
     icon: Users,
     dynamicOptions: true,
-    accessor: (item: any) => item.referral_partners?.name || null,
+    accessor: (item: Record<string, unknown>) => (item.referral_partners as { name?: string } | null)?.name || null,
   },
 
   // Status

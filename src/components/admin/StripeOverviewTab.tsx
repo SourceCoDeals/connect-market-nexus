@@ -1,7 +1,7 @@
 import { Users, Store, MessageSquare, Activity, UserPlus, Link as LinkIcon, Eye } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { useAdmin } from "@/hooks/use-admin";
-import { useRecentUserActivity } from "@/hooks/use-recent-user-activity";
+import { useRecentUserActivity, type RecentActivity } from "@/hooks/use-recent-user-activity";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +15,7 @@ interface GroupedUserActivity {
   first_name?: string;
   last_name?: string;
   user_name: string;
-  activities: any[];
+  activities: RecentActivity[];
   lastActivityTime: string;
   totalActivities: number;
   actionCounts: {
@@ -78,7 +78,7 @@ export function StripeOverviewTab() {
 
   // Helper function to parse referrer into a friendly source name
   const parseReferrerSource = (
-    activity: any,
+    activity: RecentActivity | null,
     preferCurrent: boolean = false
   ): string => {
     // Use current session data if preferCurrent is true and available
@@ -138,8 +138,8 @@ export function StripeOverviewTab() {
   const groupedByUser = useMemo(() => {
     if (!activities || activities.length === 0) return [];
 
-    const userMap = new Map<string, GroupedUserActivity & { 
-      mostRecentSession: any;
+    const userMap = new Map<string, GroupedUserActivity & {
+      mostRecentSession: RecentActivity | null;
       dateFirstSeen: string;
       sessionReferrer: string;
     }>();

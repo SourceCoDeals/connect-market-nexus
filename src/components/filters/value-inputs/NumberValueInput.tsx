@@ -1,8 +1,8 @@
 import { Input } from "@/components/ui/input";
 
 interface NumberValueInputProps {
-  value: any; // number | { min: number; max: number }
-  onChange: (value: any) => void;
+  value: number | { min: number; max: number } | null;
+  onChange: (value: number | { min: number; max: number } | null) => void;
   dual?: boolean;
   isCurrency?: boolean;
   placeholder?: string;

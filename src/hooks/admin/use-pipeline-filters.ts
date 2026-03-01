@@ -211,13 +211,13 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
         }
 
         case 'approval_date':
-          if (a.status === 'approved' && b.status === 'approved') {
+          if (a.status === CONNECTION_STATUSES.APPROVED && b.status === CONNECTION_STATUSES.APPROVED) {
             const approvalA = a.approved_at ? new Date(a.approved_at).getTime() : 0;
             const approvalB = b.approved_at ? new Date(b.approved_at).getTime() : 0;
             return approvalB - approvalA;
           }
-          if (a.status === 'approved' && b.status !== 'approved') return -1;
-          if (b.status === 'approved' && a.status !== 'approved') return 1;
+          if (a.status === CONNECTION_STATUSES.APPROVED && b.status !== CONNECTION_STATUSES.APPROVED) return -1;
+          if (b.status === CONNECTION_STATUSES.APPROVED && a.status !== CONNECTION_STATUSES.APPROVED) return 1;
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
         case 'score_highest': {

@@ -15,12 +15,13 @@ import {
 } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 import { ScoreTierBadge, DealSourceBadge } from "@/components/remarketing";
+import type { DealListing } from "../types";
 import type { ScoreTier } from "@/types/remarketing";
 
 interface DealHeaderProps {
-  deal: any;
+  deal: DealListing;
   backTo: string | null;
-  navigate: (to: any) => void;
+  navigate: (to: string | number) => void;
   displayName: string;
   listedName: string | null;
   dataCompleteness: number;

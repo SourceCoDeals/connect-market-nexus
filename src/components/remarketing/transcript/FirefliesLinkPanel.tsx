@@ -20,6 +20,18 @@ import {
   Info,
 } from "lucide-react";
 
+interface FirefliesSearchResult {
+  id: string;
+  title?: string;
+  date?: string;
+  meeting_url?: string;
+  external_participants?: { name: string; email: string }[];
+  duration_minutes?: number;
+  has_content?: boolean;
+  match_type?: string;
+  summary?: string | { short_summary?: string };
+}
+
 interface FirefliesLinkPanelProps {
   contactEmail?: string | null;
   contactEmails?: string[];
@@ -41,9 +53,9 @@ interface FirefliesLinkPanelProps {
   onFfQueryChange: (val: string) => void;
   ffSearchLoading: boolean;
   onFfQuickSearch: () => void;
-  ffResults: any[];
+  ffResults: FirefliesSearchResult[];
   ffLinking: string | null;
-  onLinkSearchResult: (transcript: any) => void;
+  onLinkSearchResult: (transcript: FirefliesSearchResult) => void;
 }
 
 export function FirefliesLinkPanel({
@@ -182,7 +194,7 @@ export function FirefliesLinkPanel({
                       {r.external_participants && r.external_participants.length > 0 && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          With: {r.external_participants.map((p: any) => p.name).join(', ')}
+                          With: {r.external_participants.map((p: { name: string; email: string }) => p.name).join(', ')}
                         </span>
                       )}
                     </div>

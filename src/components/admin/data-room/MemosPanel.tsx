@@ -161,7 +161,7 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
           <div className="flex items-end gap-3">
             <div className="flex-1">
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Memo Type</label>
-              <Select value={generateType} onValueChange={(v: string) => setGenerateType(v)}>
+              <Select value={generateType} onValueChange={(v: string) => setGenerateType(v as 'anonymous_teaser' | 'full_memo' | 'both')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

@@ -153,14 +153,14 @@ export function BuyerAgreementsRebuild({
 
   // Merge audit + webhook logs into unified timeline
   const timelineEntries = [
-    ...auditLog.map((e: any) => ({
+    ...auditLog.map((e: { id: string; created_at: string; agreement_type?: string; old_status?: string; new_status: string; notes?: string }) => ({
       id: e.id,
       date: e.created_at,
       type: 'status_change' as const,
       label: `${e.agreement_type?.replace(/_/g, ' ')} — ${e.old_status ? `${e.old_status} → ` : ''}${e.new_status}`,
       notes: e.notes,
     })),
-    ...webhookLog.map((e: any) => ({
+    ...webhookLog.map((e: { id: string; created_at: string; processed_at?: string; event_type?: string; document_type?: string }) => ({
       id: e.id,
       date: e.processed_at || e.created_at,
       type: 'webhook' as const,
@@ -374,7 +374,7 @@ export function BuyerAgreementsRebuild({
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {firmMembers.map((member: any) => (
+              {firmMembers.map((member: { id: string; role?: string; profile?: { first_name?: string; last_name?: string; email?: string } }) => (
                 <div key={member.id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div>
                     <p className="text-sm font-medium">

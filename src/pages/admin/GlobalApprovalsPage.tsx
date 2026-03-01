@@ -44,6 +44,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface ApprovalEntry {
   id: string;
@@ -167,7 +168,7 @@ export default function GlobalApprovalsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const pendingCount = entries?.filter(e => e.status === 'pending').length || 0;
+  const pendingCount = entries?.filter(e => e.status === APPROVAL_STATUSES.PENDING).length || 0;
 
   const getMatchBadge = (confidence: string | null) => {
     if (confidence === 'email_exact') {
@@ -180,7 +181,7 @@ export default function GlobalApprovalsPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'approved') {
+    if (status === APPROVAL_STATUSES.APPROVED) {
       return <Badge className="bg-green-100 text-green-700 border-green-200"><CheckCircle2 className="h-3 w-3 mr-1" />Approved</Badge>;
     }
     if (status === 'declined') {

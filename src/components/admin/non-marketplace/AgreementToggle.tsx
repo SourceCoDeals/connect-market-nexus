@@ -22,7 +22,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
   const [selectedSignerId, setSelectedSignerId] = useState<string>("");
-  const [firmMembers, setFirmMembers] = useState<any[]>([]);
+  const [firmMembers, setFirmMembers] = useState<{ user_id: string; lead_name: string | null; user: { first_name: string | null; last_name: string | null } | null }[]>([]);
   const [signerName, setSignerName] = useState<string | null>(null);
   const [signedAt, setSignedAt] = useState<string | null>(null);
 
@@ -88,7 +88,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
         if (error) throw error;
       } else {
         // Update individual records
-        const updates: any = {};
+        const updates: Record<string, boolean | string | null> = {};
         
         if (type === 'nda') {
           updates.lead_nda_signed = isSigned;
@@ -135,7 +135,7 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
       setShowDialog(false);
       setSelectedSignerId("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Update failed",
         description: error.message,

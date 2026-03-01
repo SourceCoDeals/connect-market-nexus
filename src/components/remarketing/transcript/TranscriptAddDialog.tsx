@@ -24,6 +24,18 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
+interface FirefliesSearchResult {
+  id: string;
+  title?: string;
+  date?: string;
+  meeting_url?: string;
+  external_participants?: { name: string; email: string }[];
+  duration_minutes?: number;
+  has_content?: boolean;
+  match_type?: string;
+  summary?: string | { short_summary?: string };
+}
+
 interface SelectedFile {
   file: File;
   title: string;
@@ -59,7 +71,7 @@ interface TranscriptAddDialogProps {
   onFirefliesEmailChange: (val: string) => void;
   firefliesSearching: boolean;
   onFirefliesSearch: () => void;
-  firefliesResults: any[];
+  firefliesResults: FirefliesSearchResult[];
   selectedFirefliesIds: Set<string>;
   onToggleFirefliesId: (id: string) => void;
   onToggleAllFireflies: () => void;
@@ -176,7 +188,7 @@ export function TranscriptAddDialog({
                 </Button>
               </div>
               <div className="max-h-80 overflow-y-auto space-y-2">
-                {firefliesResults.map((result: any) => (
+                {firefliesResults.map((result: FirefliesSearchResult) => (
                   <Card
                     key={result.id}
                     className={`p-3 cursor-pointer transition-colors ${
@@ -218,7 +230,7 @@ export function TranscriptAddDialog({
                         {result.external_participants && result.external_participants.length > 0 && (
                           <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                             <Users className="h-3 w-3" />
-                            With: {result.external_participants.map((p: any) => p.name).join(', ')}
+                            With: {result.external_participants.map((p: { name: string; email: string }) => p.name).join(', ')}
                           </p>
                         )}
                         {result.summary && (

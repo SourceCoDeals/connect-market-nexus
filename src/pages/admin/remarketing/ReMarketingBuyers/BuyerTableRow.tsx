@@ -22,13 +22,14 @@ import {
 import { IntelligenceBadge } from "@/components/remarketing";
 import { isSponsorType, findPeFirmByName, getBuyerTypeLabel } from "./constants";
 import type { BuyerTab } from "./constants";
+import type { ReMarketingBuyer } from "@/types/remarketing";
 
 interface BuyerTableRowProps {
-  buyer: any;
+  buyer: ReMarketingBuyer & { firm_agreement?: { nda_signed?: boolean } | null; marketplace_firm_id?: string | null; has_fee_agreement?: boolean; business_summary?: string | null };
   globalIdx: number;
   activeTab: BuyerTab;
   selectedIds: Set<string>;
-  buyers: any[] | undefined;
+  buyers: ReMarketingBuyer[] | undefined;
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
   toggleSelect: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;

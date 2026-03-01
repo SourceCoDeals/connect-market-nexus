@@ -69,7 +69,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .order("scored_at", { ascending: false });
       if (approvalsError) throw approvalsError;
 
-      approvals?.forEach((approval: any) => {
+      approvals?.forEach((approval: { id: string; scored_at: string; buyer?: { platform_company_name?: string; pe_firm_name?: string } | null; [key: string]: unknown }) => {
         activityEvents.push({
           id: `approval-${approval.id}`,
           type: "buyer_action",
@@ -94,7 +94,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .order("passed_at", { ascending: false });
       if (passesError) throw passesError;
 
-      passes?.forEach((pass: any) => {
+      passes?.forEach((pass: { id: string; scored_at: string; passed_at?: string; pass_category?: string; buyer?: { platform_company_name?: string; pe_firm_name?: string } | null; [key: string]: unknown }) => {
         activityEvents.push({
           id: `pass-${pass.id}`,
           type: "buyer_action",
@@ -120,7 +120,7 @@ export function DealActivitySection({ dealId }: DealActivitySectionProps) {
         .limit(20);
       if (scoringsError) throw scoringsError;
 
-      scorings?.forEach((scoring: any) => {
+      scorings?.forEach((scoring: { id: string; scored_at: string; composite_score: number; buyer?: { platform_company_name?: string; pe_firm_name?: string } | null; [key: string]: unknown }) => {
         activityEvents.push({
           id: `score-${scoring.id}`,
           type: "scoring",

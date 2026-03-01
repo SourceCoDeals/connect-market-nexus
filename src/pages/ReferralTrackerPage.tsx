@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner";
 import { ReferralSubmissionForm } from "@/components/remarketing/ReferralSubmissionForm";
 import { ReferralCSVUpload } from "@/components/remarketing/ReferralCSVUpload";
+import { APPROVAL_STATUSES } from '@/constants';
 const sourcecoLogo = "/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png";
 
 interface PartnerData {
@@ -147,7 +148,7 @@ export default function ReferralTrackerPage() {
 
       if (data.submissions) {
         for (const s of data.submissions) {
-          if (s.status === "approved" && s.listing_id) continue;
+          if (s.status === APPROVAL_STATUSES.APPROVED && s.listing_id) continue;
 
           dealRows.push({
             id: s.id,

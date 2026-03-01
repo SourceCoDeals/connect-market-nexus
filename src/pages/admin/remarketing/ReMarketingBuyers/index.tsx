@@ -104,7 +104,7 @@ const ReMarketingBuyers = () => {
     },
     onTriggerAction: (action) => {
       if (action === 'enrich_selected') {
-        const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b: any) => b.id);
+        const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b) => b.id);
         if (ids.length > 0) {
           setEnrichingIds(new Set(ids));
           import("@/lib/remarketing/queueEnrichment").then(({ queueBuyerEnrichment }) =>
@@ -136,7 +136,7 @@ const ReMarketingBuyers = () => {
             className="gap-1.5"
             disabled={enrichingIds.size > 0 || filteredBuyers.length === 0}
             onClick={async () => {
-              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b: any) => b.id);
+              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b) => b.id);
               if (ids.length === 0) return;
               setEnrichingIds(new Set(ids));
               try {

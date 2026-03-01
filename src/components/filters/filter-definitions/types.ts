@@ -69,7 +69,7 @@ export interface FilterFieldDef {
    */
   dynamicOptions?: boolean;
   /** Custom accessor – if the DB column name differs or needs nested access */
-  accessor?: (item: any) => any;
+  accessor?: (item: Record<string, unknown>) => unknown;
 }
 
 // ─── Filter Rule ────────────────────────────────────────────────
@@ -77,7 +77,7 @@ export interface FilterRule {
   id: string;
   field: string;
   operator: Operator;
-  value: any; // string | number | string[] | { min: number; max: number } | Date | null
+  value: string | number | string[] | { min: number; max: number } | Date | null;
 }
 
 export interface FilterState {

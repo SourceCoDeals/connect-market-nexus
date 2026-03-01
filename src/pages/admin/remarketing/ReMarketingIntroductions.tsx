@@ -131,7 +131,7 @@ const ReMarketingIntroductions = () => {
     }: {
       buyerId: string;
       field: string;
-      value: any;
+      value: string | null;
     }) => {
       // Check if record exists
       const { data: existing, error: existingError } = await supabase
@@ -355,7 +355,7 @@ const ReMarketingIntroductions = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredIntroductions?.map((intro: any) => {
+                {filteredIntroductions?.map((intro) => {
                   const tier = (intro.tier || 'D') as ScoreTier;
                   const outreach = intro.outreach;
                   void (outreach?.outcome ? outcomeConfig[outreach.outcome]?.icon : null); // OutcomeIcon reserved

@@ -23,7 +23,7 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     icon: Building2,
-    accessor: (item: any) => item.business_name || item.display_name || item.full_name || "",
+    accessor: (item: Record<string, unknown>) => (item.business_name as string) || (item.display_name as string) || (item.full_name as string) || "",
   },
   {
     key: "website",
@@ -31,7 +31,7 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     type: "text",
     group: "Core",
     // Mirrors inferWebsite logic: validates the website is a real domain (no spaces, contains dot)
-    accessor: (item: any) => {
+    accessor: (item: Record<string, unknown>) => {
       // Helper: check if a string is a valid-looking domain
       const isValidDomain = (s: string): boolean => {
         const v = s.trim().toLowerCase()

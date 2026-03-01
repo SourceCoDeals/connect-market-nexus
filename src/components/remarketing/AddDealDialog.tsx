@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { normalizeDomain } from '@/lib/ma-intelligence/normalizeDomain';
+import { LISTING_STATUSES } from '@/constants';
 
 interface AddDealDialogProps {
   open: boolean;
@@ -114,7 +115,7 @@ export const AddDealDialog = ({
         )
         .is('deleted_at', null)
         .eq('is_internal_deal', false)
-        .eq('status', 'active')
+        .eq('status', LISTING_STATUSES.ACTIVE)
         .order('created_at', { ascending: false })
         .range(pageParam, pageParam + PAGE_SIZE - 1);
 

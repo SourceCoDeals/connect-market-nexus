@@ -183,7 +183,7 @@ export function FirmManagementTools() {
 
       // Sync firm's agreement status to the newly linked user
       if (selectedFirm) {
-        const updates: any = {};
+        const updates: Record<string, boolean | string | null> = {};
         if (selectedFirm.fee_agreement_signed) {
           updates.fee_agreement_signed = true;
           updates.fee_agreement_signed_at = selectedFirm.fee_agreement_signed_at;

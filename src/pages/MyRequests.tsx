@@ -104,6 +104,7 @@ import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
+import { CONNECTION_STATUSES } from '@/constants';
 
 /* ═══════════════════════════════════════════════════════════════════════
    Main Page Component
@@ -193,7 +194,7 @@ const MyRequests = () => {
           const unread = (unreadByRequest[r.id] || 0) + (unreadMsgCounts?.byRequest[r.id] || 0);
           if (unread > 0) score += 1;
           // Pending status means review needed
-          if (r.status === 'pending') score += 1;
+          if (r.status === CONNECTION_STATUSES.PENDING) score += 1;
           return score;
         };
         sorted.sort((a, b) => {
@@ -396,7 +397,7 @@ const MyRequests = () => {
 
                 // Show "Under Review" badge on pending deals
                 let pendingAction: string | undefined;
-                if (request.status === 'pending') pendingAction = 'Under Review';
+                if (request.status === CONNECTION_STATUSES.PENDING) pendingAction = 'Under Review';
 
                 return (
                   <DealPipelineCard
@@ -449,11 +450,11 @@ function WhatsNewSection({ requests, unreadMsgCounts }: WhatsNewSectionProps) {
   const totalUnreadMessages = unreadMsgCounts?.total || 0;
 
   // Count deals with "pending" status as deals with recent status updates
-  const pendingDeals = requests.filter((r) => r.status === 'pending').length;
+  const pendingDeals = requests.filter((r) => r.status === CONNECTION_STATUSES.PENDING).length;
 
   // Count deals updated in the last 7 days (excluding pending, which we already counted)
   const recentlyUpdated = requests.filter((r) => {
-    if (r.status === 'pending') return false;
+    if (r.status === CONNECTION_STATUSES.PENDING) return false;
     const updated = new Date(r.updated_at || r.created_at);
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);

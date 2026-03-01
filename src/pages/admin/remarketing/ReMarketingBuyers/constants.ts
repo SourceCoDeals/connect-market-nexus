@@ -1,4 +1,4 @@
-import type { BuyerType } from "@/types/remarketing";
+import type { BuyerType, ReMarketingBuyer } from "@/types/remarketing";
 
 export const BUYER_TYPES: { value: BuyerType; label: string }[] = [
   { value: 'pe_firm', label: 'PE Firm' },
@@ -19,9 +19,9 @@ export const isSponsorType = (buyerType: string | null | undefined): boolean =>
 export type BuyerTab = 'all' | 'pe_firm' | 'platform' | 'needs_agreements';
 
 // Helper to find a PE firm record by name in the buyers list
-export const findPeFirmByName = (buyers: any[], firmName: string): any | null => {
+export const findPeFirmByName = (buyers: ReMarketingBuyer[], firmName: string): ReMarketingBuyer | null => {
   return buyers?.find(
-    (b: any) => b.buyer_type === 'pe_firm' && b.company_name === firmName
+    (b) => b.buyer_type === 'pe_firm' && b.company_name === firmName
   ) || null;
 };
 

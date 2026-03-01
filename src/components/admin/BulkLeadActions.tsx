@@ -8,6 +8,7 @@ import { MapPin, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 import { InboundLead } from "@/hooks/admin/use-inbound-leads";
+import { LISTING_STATUSES } from '@/constants';
 
 interface BulkLeadActionsProps {
   selectedLeads: InboundLead[];
@@ -48,7 +49,7 @@ const BulkMappingDialog = ({
       const { data, error } = await supabase
         .from('listings')
         .select('id, title, deal_identifier')
-        .eq('status', 'active')
+        .eq('status', LISTING_STATUSES.ACTIVE)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
