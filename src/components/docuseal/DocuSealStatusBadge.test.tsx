@@ -133,4 +133,41 @@ describe('DocuSealStatusBadge', () => {
     const declinedBadge = screen.getByText('Declined');
     expect(declinedBadge.className).toContain('border-red');
   });
+
+  // --------------------------------------------------------------------------
+  // Per-status badge variant and label tests
+  // --------------------------------------------------------------------------
+  describe('per-status badge variant and label', () => {
+    it('pending (not_sent) renders with muted/border class and label "Not Sent"', () => {
+      render(<DocuSealStatusBadge status="not_sent" />);
+      const badge = screen.getByText('Not Sent');
+      expect(badge).toBeInTheDocument();
+      expect(badge.className).toContain('bg-muted');
+      expect(badge.className).toContain('text-muted-foreground');
+    });
+
+    it('sent renders with blue class and label "Sent"', () => {
+      render(<DocuSealStatusBadge status="sent" />);
+      const badge = screen.getByText('Sent');
+      expect(badge).toBeInTheDocument();
+      expect(badge.className).toContain('border-blue');
+      expect(badge.className).toContain('text-blue');
+    });
+
+    it('signed renders with emerald class and label "Signed"', () => {
+      render(<DocuSealStatusBadge status="signed" />);
+      const badge = screen.getByText('Signed');
+      expect(badge).toBeInTheDocument();
+      expect(badge.className).toContain('border-emerald');
+      expect(badge.className).toContain('text-emerald');
+    });
+
+    it('declined renders with red class and label "Declined"', () => {
+      render(<DocuSealStatusBadge status="declined" />);
+      const badge = screen.getByText('Declined');
+      expect(badge).toBeInTheDocument();
+      expect(badge.className).toContain('border-red');
+      expect(badge.className).toContain('text-red');
+    });
+  });
 });

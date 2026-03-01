@@ -1251,5 +1251,72 @@ export function buildTests(): TestDef[] {
     });
   });
 
+  // ═══════════════════════════════════════════
+  // CATEGORY 16: Scoring
+  // ═══════════════════════════════════════════
+  const C16 = '16. Scoring';
+
+  add(C16, 'remarketing_scores table readable', async () => {
+    await tableReadable('remarketing_scores');
+  });
+
+  add(C16, 'score-buyer-deal edge function reachable', async () => {
+    await invokeEdgeFunction('score-buyer-deal', {
+      buyer_id: '00000000-0000-0000-0000-000000000000',
+      listing_id: '00000000-0000-0000-0000-000000000000',
+    });
+  });
+
+  add(C16, 'process-scoring-queue edge function reachable', async () => {
+    await invokeEdgeFunction('process-scoring-queue', {});
+  });
+
+  add(C16, 'recalculate-deal-weights edge function reachable', async () => {
+    await invokeEdgeFunction('recalculate-deal-weights', {});
+  });
+
+  // ═══════════════════════════════════════════
+  // CATEGORY 17: Recommended Buyers
+  // ═══════════════════════════════════════════
+  const C17 = '17. Recommended Buyers';
+
+  add(C17, 'remarketing_scores has is_disqualified column', async () => {
+    await columnExists('remarketing_scores', 'is_disqualified');
+  });
+
+  add(C17, 'remarketing_scores has rejected_at column', async () => {
+    await columnExists('remarketing_scores', 'rejected_at');
+  });
+
+  add(C17, 'remarketing_scores has rejection_reason column', async () => {
+    await columnExists('remarketing_scores', 'rejection_reason');
+  });
+
+  // ═══════════════════════════════════════════
+  // CATEGORY 18: Pipeline
+  // ═══════════════════════════════════════════
+  const C18 = '18. Pipeline';
+
+  add(C18, 'deals table readable', async () => {
+    await tableReadable('deals');
+  });
+
+  add(C18, 'deal stage update mutation works', async () => {
+    // Fetch a deal and its current stage, then update it back to the same stage
+    const { data: deals, error: dealsError } = await supabase
+      .from('deals')
+      .select('id, stage_id')
+      .limit(1);
+    if (dealsError) throw new Error(dealsError.message);
+    if (!deals?.length) throw new Error('No deals found to test stage update');
+
+    const deal = deals[0];
+    const { error: updateError } = await supabase
+      .from('deals')
+      .update({ stage_id: deal.stage_id })
+      .eq('id', deal.id);
+    if (updateError) throw new Error(`Stage update failed: ${updateError.message}`);
+  });
+
   return tests;
 }
