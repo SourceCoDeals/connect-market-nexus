@@ -3,12 +3,15 @@
  *
  * Every deal should have recommended buyers. This hook:
  * 1. Detects when a deal has no scores in remarketing_scores
- * 2. Auto-assigns the deal to ALL active buyer universes
- * 3. Assigns orphan buyers (no universe) to the primary universe so they get scored
- * 4. Imports marketplace buyers (connection_requests) into remarketing_buyers
- * 5. Queues scoring FIRST (most important step — don't block on discovery)
- * 6. Discovers new potential buyers via Google search (non-blocking, with timeout)
- * 7. Polls for progress and refreshes the recommended buyers list when done
+ * 2. Queues scoring for each universe the deal is ALREADY assigned to
+ *    (does NOT auto-assign deals to universes — that's a manual admin action)
+ * 3. Imports marketplace buyers (connection_requests) into remarketing_buyers
+ * 4. Polls for progress and refreshes the recommended buyers list when done
+ *
+ * IMPORTANT: This hook must NEVER modify universe-deal assignments.
+ * Universe assignments are a deliberate admin decision. The recommendation
+ * panel only recommends buyers for accept/reject — it does not control
+ * which universes a deal belongs to.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,9 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 export type AutoScoreStatus =
   | 'idle'
   | 'checking'
-  | 'assigning_universes'
   | 'importing_buyers'
-  | 'discovering'
   | 'queuing'
   | 'scoring'
   | 'done'
@@ -31,23 +32,6 @@ interface AutoScoreState {
   message: string;
   progress: number;
   error?: string;
-}
-
-/** Wrap a promise with a timeout. Rejects with TimeoutError after `ms`. */
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    promise.then(
-      (v) => {
-        clearTimeout(timer);
-        resolve(v);
-      },
-      (e) => {
-        clearTimeout(timer);
-        reject(e);
-      },
-    );
-  });
 }
 
 export function useAutoScoreDeal(listingId: string | undefined, hasScores: boolean | undefined) {
@@ -156,104 +140,29 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
     try {
       setState({ status: 'checking', message: 'Preparing buyer scoring...', progress: 5 });
 
-      // Step 1: Get all active universes
-      const { data: allUniverses, error: uError } = await supabase
-        .from('remarketing_buyer_universes')
-        .select('id, name')
-        .eq('archived', false);
-
-      if (uError) throw uError;
-      if (!allUniverses || allUniverses.length === 0) {
-        setState({ status: 'no_universes', message: 'No buyer universes exist yet', progress: 0 });
-        return;
-      }
-
-      const allUniverseIds = allUniverses.map((u) => u.id);
-      const primaryUniverseId = allUniverseIds[0];
-
-      // Step 2: Link deal to all universes
+      // Step 1: Find which universes this deal is ALREADY assigned to.
+      // We do NOT auto-assign deals to universes — that's a manual admin decision.
       const { data: existingLinks } = await supabase
         .from('remarketing_universe_deals')
         .select('universe_id')
         .eq('listing_id', listingId)
         .eq('status', 'active');
 
-      const linkedIds = new Set((existingLinks || []).map((l) => l.universe_id));
-      const unlinkedUniverses = allUniverses.filter((u) => !linkedIds.has(u.id));
+      const linkedUniverseIds = (existingLinks || []).map((l) => l.universe_id);
 
-      if (unlinkedUniverses.length > 0) {
+      if (linkedUniverseIds.length === 0) {
+        // Deal isn't assigned to any universe yet — that's fine, admin needs to do it.
+        // Show a helpful message instead of force-assigning.
         setState({
-          status: 'assigning_universes',
-          message: `Linking deal to ${unlinkedUniverses.length} buyer universe(s)...`,
-          progress: 15,
+          status: 'no_universes',
+          message: 'This deal has not been assigned to a buyer universe yet.',
+          progress: 0,
         });
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        const rows = unlinkedUniverses.map((u) => ({
-          universe_id: u.id,
-          listing_id: listingId,
-          added_by: user?.id,
-          status: 'active' as const,
-        }));
-
-        for (let i = 0; i < rows.length; i += 50) {
-          const batch = rows.slice(i, i + 50);
-          const { error: assignError } = await supabase
-            .from('remarketing_universe_deals')
-            .upsert(batch, { onConflict: 'universe_id,listing_id', ignoreDuplicates: true });
-          if (assignError) {
-            console.warn('[useAutoScoreDeal] Universe assignment failed:', assignError.message);
-          }
-        }
+        triggeredRef.current = false;
+        return;
       }
 
-      // Step 3: Assign orphan buyers (no universe_id) to primary universe
-      setState({
-        status: 'importing_buyers',
-        message: 'Checking for unassigned buyers...',
-        progress: 25,
-      });
-
-      const { count: orphanCount } = await supabase
-        .from('remarketing_buyers')
-        .select('*', { count: 'exact', head: true })
-        .is('universe_id', null)
-        .eq('archived', false);
-
-      if (orphanCount && orphanCount > 0) {
-        setState({
-          status: 'importing_buyers',
-          message: `Assigning ${orphanCount} unlinked buyer(s) to scoring universe...`,
-          progress: 30,
-        });
-
-        // Batch update orphans
-        let assigned = 0;
-        while (assigned < orphanCount) {
-          const { data: orphanBatch } = await supabase
-            .from('remarketing_buyers')
-            .select('id')
-            .is('universe_id', null)
-            .eq('archived', false)
-            .limit(500);
-
-          if (!orphanBatch || orphanBatch.length === 0) break;
-
-          await supabase
-            .from('remarketing_buyers')
-            .update({ universe_id: primaryUniverseId })
-            .in(
-              'id',
-              orphanBatch.map((b) => b.id),
-            );
-
-          assigned += orphanBatch.length;
-        }
-      }
-
-      // Step 4: Import marketplace buyers not yet in remarketing system
+      // Step 2: Import marketplace buyers not yet in remarketing system
       try {
         const { data: connections } = await supabase
           .from('connection_requests')
@@ -275,8 +184,11 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
               setState({
                 status: 'importing_buyers',
                 message: `Importing ${unlinkedProfiles.length} marketplace buyer(s)...`,
-                progress: 35,
+                progress: 20,
               });
+
+              // Use the first linked universe for new marketplace buyers
+              const targetUniverseId = linkedUniverseIds[0];
 
               for (const profile of unlinkedProfiles) {
                 const companyName =
@@ -289,7 +201,7 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
                   .insert({
                     company_name: companyName,
                     buyer_type: profile.buyer_type || null,
-                    universe_id: primaryUniverseId,
+                    universe_id: targetUniverseId,
                     notes: `Auto-imported from marketplace interest (listing ${listingId})`,
                   } as never)
                   .select('id')
@@ -309,17 +221,16 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
         console.warn('[useAutoScoreDeal] Marketplace import failed (non-fatal):', marketplaceErr);
       }
 
-      // Step 5: Queue scoring FIRST — this is the critical path
-      // Don't wait for Google discovery before queuing existing buyers
+      // Step 3: Queue scoring for ONLY the universes this deal is already assigned to
       setState({
         status: 'queuing',
-        message: `Queuing scoring across all buyers in ${allUniverseIds.length} universe(s)...`,
+        message: `Queuing scoring for ${linkedUniverseIds.length} assigned universe(s)...`,
         progress: 50,
       });
 
       const { queueDealScoring } = await import('@/lib/remarketing/queueScoring');
       let totalQueued = 0;
-      for (const uid of allUniverseIds) {
+      for (const uid of linkedUniverseIds) {
         try {
           totalQueued += await queueDealScoring({ universeId: uid, listingIds: [listingId] });
         } catch (err) {
@@ -340,115 +251,12 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
         }
       }
 
-      // Step 6: Switch to polling mode — scoring is running
+      // Step 4: Switch to polling mode — scoring is running
       setState({
         status: 'scoring',
-        message: 'Scoring all buyers — this runs in the background...',
+        message: 'Scoring buyers in assigned universes — this runs in the background...',
         progress: 65,
       });
-
-      // Step 7: Google discovery runs AFTER scoring is queued, with a 15s timeout
-      // This is non-blocking — scoring is already in progress
-      try {
-        const { data: listing } = await supabase
-          .from('listings')
-          .select(
-            'title, category, categories, location, address_state, industry, services, revenue, number_of_locations',
-          )
-          .eq('id', listingId)
-          .single();
-
-        if (listing) {
-          const industry =
-            listing.industry ||
-            listing.category ||
-            (listing.categories as string[] | null)?.[0] ||
-            '';
-          const geography = listing.address_state || listing.location || '';
-          const services = (listing.services as string[] | null)?.join(', ') || '';
-          const revenueHint = listing.revenue
-            ? `$${(listing.revenue / 1_000_000).toFixed(1)}M revenue`
-            : '';
-          const locationHint = listing.number_of_locations
-            ? `${listing.number_of_locations}+ locations`
-            : '';
-
-          const queryParts = [
-            industry && `${industry} companies`,
-            services && `offering ${services}`,
-            geography && `in ${geography}`,
-            revenueHint,
-            locationHint,
-            'acquisitions OR "looking to acquire" OR "platform company"',
-          ].filter(Boolean);
-          const searchQuery = queryParts.join(' ');
-
-          // 15-second timeout — if discovery hangs, scoring still proceeds
-          const discoveryPromise = supabase.functions.invoke('discover-companies', {
-            body: {
-              query: searchQuery,
-              industry: industry || undefined,
-              geography: geography || undefined,
-              min_locations: listing.number_of_locations || undefined,
-              max_results: 15,
-            },
-          });
-
-          const { data: discoveryResult, error: discoverError } = await withTimeout(
-            discoveryPromise,
-            15_000,
-            'Google discovery',
-          );
-
-          if (discoverError) {
-            console.warn('[useAutoScoreDeal] Google discovery failed:', discoverError.message);
-          } else if (discoveryResult?.companies?.length > 0) {
-            const newCompanies = discoveryResult.companies.filter(
-              (c: { already_in_db: boolean }) => !c.already_in_db,
-            );
-
-            if (newCompanies.length > 0) {
-              const buyersToInsert = newCompanies.map(
-                (c: {
-                  name: string;
-                  url?: string;
-                  description?: string;
-                  industry?: string;
-                  location?: string;
-                }) => ({
-                  company_name: c.name,
-                  company_website: c.url || null,
-                  business_summary: c.description || null,
-                  industry_vertical: c.industry || industry || null,
-                  hq_state: c.location || geography || null,
-                  universe_id: primaryUniverseId,
-                  notes: `Auto-discovered via Google search for deal: ${listing.title}`,
-                  extraction_sources: JSON.stringify({
-                    source: 'google_discover',
-                    deal_id: listingId,
-                    discovered_at: new Date().toISOString(),
-                    search_query: searchQuery,
-                  }),
-                }),
-              );
-
-              for (let i = 0; i < buyersToInsert.length; i += 25) {
-                const batch = buyersToInsert.slice(i, i + 25);
-                await supabase.from('remarketing_buyers').insert(batch as never);
-              }
-
-              // Re-queue scoring for the primary universe to pick up newly discovered buyers
-              await queueDealScoring({
-                universeId: primaryUniverseId,
-                listingIds: [listingId],
-              }).catch(() => {});
-            }
-          }
-        }
-      } catch (discoverErr) {
-        // Discovery is non-fatal — scoring is already running
-        console.warn('[useAutoScoreDeal] Google discovery skipped:', discoverErr);
-      }
     } catch (err) {
       console.error('[useAutoScoreDeal] Error:', err);
       // Reset triggeredRef so the user can retry
@@ -474,12 +282,6 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
   return {
     ...state,
     triggerAutoScore,
-    isAutoScoring: [
-      'checking',
-      'assigning_universes',
-      'importing_buyers',
-      'queuing',
-      'scoring',
-    ].includes(state.status),
+    isAutoScoring: ['checking', 'importing_buyers', 'queuing', 'scoring'].includes(state.status),
   };
 }

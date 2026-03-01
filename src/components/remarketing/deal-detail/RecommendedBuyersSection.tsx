@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Zap,
   AlertCircle,
-  Globe,
   ChevronLeft,
   ChevronRight,
   UserCheck,
@@ -138,33 +137,22 @@ export function RecommendedBuyersSection({
 
   // Auto-scoring in progress
   if (autoScore.isAutoScoring) {
-    const isDiscovering = autoScore.status === 'discovering';
     const isImporting = autoScore.status === 'importing_buyers';
     return (
       <Card>
         <CardContent className="py-10 space-y-4">
           <div className="flex items-center justify-center gap-2">
-            {isDiscovering ? (
-              <Globe className="h-5 w-5 text-blue-500 animate-pulse" />
-            ) : (
-              <Zap className="h-5 w-5 text-primary animate-pulse" />
-            )}
+            <Zap className="h-5 w-5 text-primary animate-pulse" />
             <span className="text-sm font-medium text-foreground">
-              {isDiscovering
-                ? 'Discovering Buyers via Google'
-                : isImporting
-                  ? 'Importing Buyers'
-                  : 'Auto-Scoring Buyers'}
+              {isImporting ? 'Importing Buyers' : 'Scoring Buyers'}
             </span>
           </div>
           <p className="text-xs text-muted-foreground text-center">{autoScore.message}</p>
           <Progress value={autoScore.progress} className="h-1.5 max-w-xs mx-auto" />
           <p className="text-[10px] text-muted-foreground/50 text-center">
-            {isDiscovering
-              ? 'Searching Google for potential acquisition buyers matching this deal profile.'
-              : isImporting
-                ? 'Pulling in marketplace buyers and unassigned buyers so every buyer gets scored.'
-                : 'Scoring all buyers across the entire buyer pool. This runs in the background — you can navigate away and come back.'}
+            {isImporting
+              ? 'Pulling in marketplace buyers so they can be scored.'
+              : 'Scoring buyers in assigned universes. This runs in the background — you can navigate away and come back.'}
           </p>
         </CardContent>
       </Card>
@@ -202,18 +190,20 @@ export function RecommendedBuyersSection({
     );
   }
 
-  // No universes exist at all
+  // No universes assigned to this deal
   if (autoScore.status === 'no_universes') {
     return (
       <Card>
         <CardContent className="py-10 text-center space-y-3">
           <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-          <p className="text-sm text-muted-foreground">No buyer universes configured yet</p>
-          <p className="text-xs text-muted-foreground/60">
-            Create a buyer universe and import buyers to enable recommendations.
+          <p className="text-sm text-muted-foreground">
+            This deal has not been assigned to a buyer universe yet
           </p>
-          <Button variant="outline" size="sm" onClick={() => navigate('/admin/buyers/universes')}>
-            Go to Universes
+          <p className="text-xs text-muted-foreground/60">
+            Assign this deal to a buyer universe to enable buyer recommendations.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/remarketing/deals')}>
+            Go to Remarketing Deals
           </Button>
         </CardContent>
       </Card>

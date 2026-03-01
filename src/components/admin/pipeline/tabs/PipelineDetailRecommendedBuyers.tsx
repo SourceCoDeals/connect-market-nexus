@@ -9,7 +9,6 @@ import {
   Sparkles,
   RefreshCw,
   Zap,
-  Globe,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
@@ -154,31 +153,20 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
 
   // Auto-scoring in progress
   if (autoScore.isAutoScoring) {
-    const isDiscovering = autoScore.status === 'discovering';
     const isImporting = autoScore.status === 'importing_buyers';
     return (
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="text-center space-y-4 max-w-xs">
           <div className="flex items-center justify-center gap-2">
-            {isDiscovering ? (
-              <Globe className="h-5 w-5 text-blue-500 animate-pulse" />
-            ) : (
-              <Zap className="h-5 w-5 text-primary animate-pulse" />
-            )}
+            <Zap className="h-5 w-5 text-primary animate-pulse" />
             <span className="text-sm font-medium text-foreground">
-              {isDiscovering
-                ? 'Discovering Buyers via Google'
-                : isImporting
-                  ? 'Importing Buyers'
-                  : 'Auto-Scoring Buyers'}
+              {isImporting ? 'Importing Buyers' : 'Scoring Buyers'}
             </span>
           </div>
           <p className="text-xs text-muted-foreground">{autoScore.message}</p>
           <Progress value={autoScore.progress} className="h-1.5" />
           <p className="text-[10px] text-muted-foreground/50">
-            {isDiscovering
-              ? 'Searching Google for potential acquisition buyers matching this deal profile.'
-              : 'Scoring all buyers across every universe. You can navigate away and come back.'}
+            Scoring buyers in assigned universes. You can navigate away and come back.
           </p>
         </div>
       </div>
@@ -220,12 +208,19 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="text-center space-y-3">
           <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-          <p className="text-sm text-muted-foreground">No buyer universes configured yet</p>
-          <p className="text-xs text-muted-foreground/60">
-            Create a buyer universe and import buyers to enable recommendations.
+          <p className="text-sm text-muted-foreground">
+            This deal has not been assigned to a buyer universe yet
           </p>
-          <Button variant="outline" size="sm" onClick={() => navigate('/admin/buyers/universes')}>
-            Go to Universes
+          <p className="text-xs text-muted-foreground/60">
+            Assign this deal to a buyer universe in the Remarketing section to enable
+            recommendations.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/admin/remarketing/deals`)}
+          >
+            Go to Remarketing Deals
           </Button>
         </div>
       </div>
