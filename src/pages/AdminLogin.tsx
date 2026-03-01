@@ -51,8 +51,8 @@ const AdminLogin = () => {
         title: 'Welcome back',
         description: 'Redirecting to admin panel...',
       });
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
       setIsSubmitting(false);
     }

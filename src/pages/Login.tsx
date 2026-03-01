@@ -48,13 +48,14 @@ const Login = () => {
         title: "Welcome back",
         description: "You have successfully logged in.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Error logged by error handler
-      setError(err.message || "Failed to sign in");
+      const message = err instanceof Error ? err.message : "Failed to sign in";
+      setError(message);
       toast({
         variant: "destructive",
         title: "Login failed",
-        description: err.message || "Please check your credentials and try again"
+        description: err instanceof Error ? err.message : "Please check your credentials and try again"
       });
     } finally {
       setIsSubmitting(false);

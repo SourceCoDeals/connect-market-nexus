@@ -70,8 +70,8 @@ export function ConnectionRequestDialog({
     try {
       setError(null);
       await onConfirm(adminComment);
-    } catch (err: any) {
-      setError(err.message || "An error occurred while processing your request");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred while processing your request");
     }
   };
 

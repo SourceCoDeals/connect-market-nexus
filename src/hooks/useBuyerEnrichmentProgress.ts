@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ENRICHMENT_STATUS } from '@/constants';
 
 export interface BuyerEnrichmentProgress {
   isEnriching: boolean;
@@ -42,10 +43,10 @@ export function useBuyerEnrichmentProgress() {
       const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
 
       const [pendingRes, processingRes, completedRes, failedRes] = await Promise.all([
-        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending').gte('queued_at', cutoff),
-        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'processing').gte('queued_at', cutoff),
-        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'completed').gte('queued_at', cutoff),
-        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'failed').gte('queued_at', cutoff),
+        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', ENRICHMENT_STATUS.PENDING).gte('queued_at', cutoff),
+        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', ENRICHMENT_STATUS.PROCESSING).gte('queued_at', cutoff),
+        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', ENRICHMENT_STATUS.COMPLETED).gte('queued_at', cutoff),
+        supabase.from('buyer_enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', ENRICHMENT_STATUS.FAILED).gte('queued_at', cutoff),
       ]);
 
       const pending = pendingRes.count ?? 0;

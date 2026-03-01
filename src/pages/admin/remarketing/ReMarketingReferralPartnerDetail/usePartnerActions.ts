@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { SingleDealEnrichmentResult } from "./types";
 import type { ReferralPartner } from "@/types/remarketing";
 import type { DealListing } from "../types";
+import { LISTING_STATUSES } from '@/constants';
 
 export function usePartnerActions(partnerId: string | undefined, partner: ReferralPartner | undefined, deals: DealListing[] | undefined) {
   const queryClient = useQueryClient();
@@ -160,10 +161,10 @@ export function usePartnerActions(partnerId: string | undefined, partner: Referr
   const handleBulkApprove = async () => {
     const ids = Array.from(selectedDealIds);
     if (!ids.length) return;
-    const { data: maxRankRow, error: maxRankRowError } = await supabase.from("listings").select("manual_rank_override").eq("status", "active").not("manual_rank_override", "is", null).order("manual_rank_override", { ascending: false }).limit(1).maybeSingle();
+    const { data: maxRankRow, error: maxRankRowError } = await supabase.from("listings").select("manual_rank_override").eq("status", LISTING_STATUSES.ACTIVE).not("manual_rank_override", "is", null).order("manual_rank_override", { ascending: false }).limit(1).maybeSingle();
     if (maxRankRowError) throw maxRankRowError;
     let nextRank = (maxRankRow?.manual_rank_override as number | null) ?? 0;
-    const updates = ids.map((id) => { nextRank += 1; return supabase.from("listings").update({ status: "active", remarketing_status: "active", pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString(), manual_rank_override: nextRank } as never).eq("id", id); });
+    const updates = ids.map((id) => { nextRank += 1; return supabase.from("listings").update({ status: LISTING_STATUSES.ACTIVE, remarketing_status: "active", pushed_to_all_deals: true, pushed_to_all_deals_at: new Date().toISOString(), manual_rank_override: nextRank } as never).eq("id", id); });
     const results = await Promise.all(updates);
     const failed = results.filter((r) => r.error);
     if (failed.length) { toast.error("Failed to approve some deals"); return; }

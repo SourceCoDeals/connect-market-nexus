@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { LISTING_STATUSES } from '@/constants';
 import { Link } from "react-router-dom";
 import {
   Dialog,
@@ -58,7 +59,7 @@ export const UnlinkedListingsWidget = () => {
         .from("listings")
         .select("id, title, category, location, revenue, created_at")
         .is("deleted_at", null)
-        .eq("status", "active")
+        .eq("status", LISTING_STATUSES.ACTIVE)
         .order("created_at", { ascending: false });
 
       if (listingsError) throw listingsError;

@@ -10,6 +10,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { InboxThread } from "./types";
+import { CONNECTION_STATUSES } from '@/constants';
 
 // ─── Props ───
 
@@ -91,9 +92,9 @@ export function ThreadListItem({
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
               style={
-                thread.request_status === 'approved' ? { backgroundColor: '#DEC76B', color: '#0E101A' } :
-                thread.request_status === 'pending' ? { backgroundColor: '#F7F4DD', color: '#5A5A5A', border: '1px solid #DEC76B' } :
-                thread.request_status === 'rejected' ? { backgroundColor: '#8B0000', color: '#FFFFFF' } :
+                thread.request_status === CONNECTION_STATUSES.APPROVED ? { backgroundColor: '#DEC76B', color: '#0E101A' } :
+                thread.request_status === CONNECTION_STATUSES.PENDING ? { backgroundColor: '#F7F4DD', color: '#5A5A5A', border: '1px solid #DEC76B' } :
+                thread.request_status === CONNECTION_STATUSES.REJECTED ? { backgroundColor: '#8B0000', color: '#FFFFFF' } :
                 { backgroundColor: '#E8E8E8', color: '#5A5A5A' }
               }
             >

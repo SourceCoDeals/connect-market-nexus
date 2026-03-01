@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { ENRICHMENT_STATUS } from '@/constants';
 
 export interface DealEnrichmentError {
   listingId: string;
@@ -83,10 +84,10 @@ export function useEnrichmentProgress() {
 
       // Use lightweight count queries instead of fetching all rows
       const [pendingRes, processingRes, completedRes, failedRes, pausedRes] = await Promise.all([
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending').gte('queued_at', cutoff),
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'processing').gte('queued_at', cutoff),
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'completed').gte('queued_at', cutoff),
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'failed').gte('queued_at', cutoff),
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', ENRICHMENT_STATUS.PENDING).gte('queued_at', cutoff),
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', ENRICHMENT_STATUS.PROCESSING).gte('queued_at', cutoff),
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', ENRICHMENT_STATUS.COMPLETED).gte('queued_at', cutoff),
+        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', ENRICHMENT_STATUS.FAILED).gte('queued_at', cutoff),
         supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'paused').gte('queued_at', cutoff),
       ]);
 
@@ -204,7 +205,7 @@ export function useEnrichmentProgress() {
       const { error } = await supabase
         .from('enrichment_queue')
         .update({ status: 'paused' })
-        .eq('status', 'pending');
+        .eq('status', ENRICHMENT_STATUS.PENDING);
       if (error) throw error;
       toast({ title: "Enrichment paused", description: "Remaining deals have been paused. In-progress deals will finish." });
       lastFetchRef.current = 0; // Allow immediate fetch

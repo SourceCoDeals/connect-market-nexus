@@ -10,6 +10,7 @@ import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fi
 import type { BuyerType } from '@/types';
 import { useAssociatedRequests, type AssociatedRequest } from '@/hooks/admin/use-associated-requests';
 import { Label } from '@/components/ui/label';
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface ConnectionRequestRow {
   id: string;
@@ -396,7 +397,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                               {req.created_at && formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
                             </p>
                           </div>
-                          <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
+                          <Badge variant={req.status === CONNECTION_STATUSES.APPROVED ? 'default' : 'secondary'} className="text-xs">
                             {req.status}
                           </Badge>
                         </div>
@@ -426,7 +427,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                               <p className="text-sm font-medium text-foreground">{displayName}</p>
                               <p className="text-xs text-muted-foreground font-mono">{req.lead_email || req.user?.email}</p>
                             </div>
-                            <Badge variant={req.status === 'approved' ? 'default' : 'secondary'} className="text-xs ml-2">
+                            <Badge variant={req.status === CONNECTION_STATUSES.APPROVED ? 'default' : 'secondary'} className="text-xs ml-2">
                               {req.status}
                             </Badge>
                           </div>

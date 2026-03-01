@@ -80,12 +80,13 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
         .order("scored_at", { ascending: false });
       if (approvalsError) throw approvalsError;
 
-      approvals?.forEach((approval: any) => {
+      approvals?.forEach((approval) => {
+        const deal = approval.deal as { title?: string } | null;
         activityEvents.push({
           id: `approval-${approval.id}`,
           type: "approval",
           title: "Approved for Deal",
-          description: `Selected for outreach: ${approval.deal?.title || "Unknown deal"}`,
+          description: `Selected for outreach: ${deal?.title || "Unknown deal"}`,
           timestamp: approval.scored_at,
           metadata: approval,
         });
@@ -103,12 +104,13 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
         .order("passed_at", { ascending: false });
       if (passesError) throw passesError;
 
-      passes?.forEach((pass: any) => {
+      passes?.forEach((pass) => {
+        const passDeal = pass.deal as { title?: string } | null;
         activityEvents.push({
           id: `pass-${pass.id}`,
           type: "pass",
           title: "Passed on Deal",
-          description: `${pass.pass_category || "Passed"}: ${pass.deal?.title || "Unknown deal"}`,
+          description: `${pass.pass_category || "Passed"}: ${passDeal?.title || "Unknown deal"}`,
           timestamp: pass.passed_at || pass.scored_at,
           metadata: pass,
         });

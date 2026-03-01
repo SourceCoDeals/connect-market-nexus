@@ -13,8 +13,8 @@ interface CompanyData {
     phone_number: string | null;
     website: string | null;
     linkedin_profile: string | null;
-    business_categories: any;
-    target_locations: any;
+    business_categories: string[] | null;
+    target_locations: string[] | null;
     sampleUserEmail: string;
     sampleUserId: string;
   };
@@ -55,9 +55,10 @@ export function useMarketplaceCompanies() {
       if (error) throw error;
 
       // Group by company name and aggregate data
+      type ProfileRow = NonNullable<typeof data>[number];
       const companyMap = new Map<string, {
         company: string;
-        users: Array<any>;
+        users: ProfileRow[];
       }>();
 
       data?.forEach((profile) => {

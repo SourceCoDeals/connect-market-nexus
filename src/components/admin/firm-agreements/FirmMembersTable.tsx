@@ -5,6 +5,7 @@ import { useMemberRequestsDeals } from "@/hooks/admin/use-member-requests-deals"
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface FirmMembersTableProps {
   members: FirmMember[];
@@ -129,9 +130,9 @@ function MemberRow({ member }: { member: FirmMember }) {
                             </div>
                           </div>
                           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)] text-[11px] font-medium text-slate-700 tracking-[0.02em] whitespace-nowrap">
-                            {request.status === 'approved' && <Check className="h-3 w-3 text-emerald-600" />}
-                            {request.status === 'pending' && <Clock className="h-3 w-3 text-amber-600" />}
-                            {request.status === 'rejected' && <X className="h-3 w-3 text-slate-500" />}
+                            {request.status === CONNECTION_STATUSES.APPROVED && <Check className="h-3 w-3 text-emerald-600" />}
+                            {request.status === CONNECTION_STATUSES.PENDING && <Clock className="h-3 w-3 text-amber-600" />}
+                            {request.status === CONNECTION_STATUSES.REJECTED && <X className="h-3 w-3 text-slate-500" />}
                             {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                           </span>
                         </div>

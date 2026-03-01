@@ -11,9 +11,11 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
+type DateFilterValue = Date | string | { min: Date; max: Date } | number | null;
+
 interface DateValueInputProps {
-  value: any; // Date | string | { min: Date; max: Date } | number (for last_n_days)
-  onChange: (value: any) => void;
+  value: DateFilterValue;
+  onChange: (value: DateFilterValue) => void;
   dual?: boolean;
   isLastNDays?: boolean;
 }

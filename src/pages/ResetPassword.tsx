@@ -57,8 +57,8 @@ export default function ResetPassword() {
       if (error) throw error;
       toast({ title: "Password updated", description: "You can now sign in with your new password." });
       navigate("/login", { replace: true });
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Reset failed", description: err.message || "Please request a new link." });
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Reset failed", description: err instanceof Error ? err.message : "Please request a new link." });
     } finally {
       setLoading(false);
     }

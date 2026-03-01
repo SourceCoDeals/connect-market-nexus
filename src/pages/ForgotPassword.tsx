@@ -47,8 +47,8 @@ export default function ForgotPassword() {
         title: "If the email exists, a reset link was sent",
         description: "Check your inbox for next steps.",
       });
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Could not send reset", description: err.message || "Please try again." });
+    } catch (err: unknown) {
+      toast({ variant: "destructive", title: "Could not send reset", description: err instanceof Error ? err.message : "Please try again." });
     } finally {
       setLoading(false);
     }
