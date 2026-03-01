@@ -14,4 +14,4 @@ CREATE INDEX IF NOT EXISTS idx_seed_cache_expires
 
 ALTER TABLE public.buyer_seed_cache ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "admin_all" ON public.buyer_seed_cache
-  FOR ALL USING (public.is_admin_or_moderator());
+  FOR ALL USING (public.is_admin(auth.uid()));

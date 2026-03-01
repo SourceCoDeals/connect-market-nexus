@@ -28,6 +28,24 @@ interface SeedBuyersParams {
   forceRefresh?: boolean;
 }
 
+/** Extract the real error message from a Supabase FunctionsHttpError */
+async function extractEdgeFunctionError(error: unknown): Promise<string> {
+  if (error && typeof error === 'object' && 'context' in error) {
+    try {
+      const ctx = (error as { context: Response }).context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) return body.error + (body.details ? `: ${body.details}` : '');
+        return JSON.stringify(body);
+      }
+    } catch {
+      // Fall through
+    }
+  }
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
 export function useSeedBuyers() {
   const queryClient = useQueryClient();
 
@@ -36,7 +54,10 @@ export function useSeedBuyers() {
       const { data, error } = await supabase.functions.invoke('seed-buyers', {
         body: { listingId, maxBuyers, forceRefresh },
       });
-      if (error) throw error;
+      if (error) {
+        const msg = await extractEdgeFunctionError(error);
+        throw new Error(msg);
+      }
       return data as SeedBuyersResponse;
     },
     onSuccess: (_data, variables) => {

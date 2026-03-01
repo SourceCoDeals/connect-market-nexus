@@ -20,4 +20,4 @@ CREATE INDEX IF NOT EXISTS idx_buyer_rec_cache_expires
 -- RLS: admins can read/write, no public access
 ALTER TABLE public.buyer_recommendation_cache ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "admin_all" ON public.buyer_recommendation_cache
-  FOR ALL USING (public.is_admin_or_moderator());
+  FOR ALL USING (public.is_admin(auth.uid()));
