@@ -209,7 +209,7 @@ export function useEnrichmentProgress() {
       toast({ title: "Enrichment paused", description: "Remaining deals have been paused. In-progress deals will finish." });
       lastFetchRef.current = 0; // Allow immediate fetch
       fetchQueueStatus();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   }, [fetchQueueStatus]);
@@ -227,7 +227,7 @@ export function useEnrichmentProgress() {
       toast({ title: "Enrichment resumed", description: "Remaining deals will continue enriching." });
       lastFetchRef.current = 0;
       fetchQueueStatus();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   }, [fetchQueueStatus]);
@@ -250,7 +250,7 @@ export function useEnrichmentProgress() {
       setProgress(EMPTY_PROGRESS);
 
       toast({ title: "Enrichment cancelled", description: "Remaining deals have been removed from the queue." });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   }, []);

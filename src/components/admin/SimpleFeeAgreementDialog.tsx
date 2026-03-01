@@ -161,7 +161,7 @@ export function SimpleFeeAgreementDialog({
 
       toast.success("Fee agreement email sent!");
       handleClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.message || "Failed to send email");
     } finally {
       setIsSending(false);

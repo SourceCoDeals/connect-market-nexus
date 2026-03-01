@@ -4,7 +4,6 @@
  * Queries for the rm_task_activity_log audit trail.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { TaskActivityLogEntry } from '@/types/daily-tasks';
@@ -17,7 +16,7 @@ export function useTaskActivityLog(taskId: string | null) {
     enabled: !!taskId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('rm_task_activity_log' as any)
+        .from('rm_task_activity_log' as never)
         .select(
           `
           *,

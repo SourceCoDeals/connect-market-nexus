@@ -5,13 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import {
-  Users,
-  Mail,
-  Phone,
-  Activity,
-  User,
-} from 'lucide-react';
+import { Users, Mail, Phone, Activity, User } from 'lucide-react';
 import {
   ContactActivityTimeline,
   ContactActivityTimelineByEmail,
@@ -65,30 +59,41 @@ export function DealContactHistoryTab({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('deals')
-        .select(`
+        .select(
+          `
           id,
           contact_name,
           contact_email,
           contact_phone,
           remarketing_buyer_id,
           remarketing_buyers!deals_remarketing_buyer_id_fkey ( company_name, buyer_type )
-        `)
+        `,
+        )
         .eq('listing_id', listingId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      return (data || []).map((d: any) => ({
-        id: d.id,
-        dealId: d.id,
-        buyerName: d.remarketing_buyers?.company_name || d.contact_name || 'Unknown',
-        buyerType: d.remarketing_buyers?.buyer_type || null,
-        contactName: d.contact_name,
-        contactEmail: d.contact_email,
-        contactPhone: d.contact_phone,
-        remarketing_buyer_id: d.remarketing_buyer_id,
-      })) as AssociatedBuyer[];
+      return (data || []).map(
+        (d: {
+          id: string;
+          contact_name: string | null;
+          contact_email: string | null;
+          contact_phone: string | null;
+          remarketing_buyer_id: string | null;
+          remarketing_buyers: { company_name: string; buyer_type: string } | null;
+        }) => ({
+          id: d.id,
+          dealId: d.id,
+          buyerName: d.remarketing_buyers?.company_name || d.contact_name || 'Unknown',
+          buyerType: d.remarketing_buyers?.buyer_type || null,
+          contactName: d.contact_name,
+          contactEmail: d.contact_email,
+          contactPhone: d.contact_phone,
+          remarketing_buyer_id: d.remarketing_buyer_id,
+        }),
+      ) as AssociatedBuyer[];
     },
     enabled: !!listingId,
   });
@@ -159,7 +164,8 @@ export function DealContactHistoryTab({
     );
   }
 
-  const hasNoContacts = !primaryContactEmail && uniqueBuyers.length === 0 && sellerContacts.length === 0;
+  const hasNoContacts =
+    !primaryContactEmail && uniqueBuyers.length === 0 && sellerContacts.length === 0;
 
   if (hasNoContacts) {
     return (
@@ -240,7 +246,8 @@ export function DealContactHistoryTab({
           </Badge>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Unified email (SmartLead), call (PhoneBurner), and LinkedIn (HeyReach) history for all contacts associated with this deal
+          Unified email (SmartLead), call (PhoneBurner), and LinkedIn (HeyReach) history for all
+          contacts associated with this deal
         </p>
       </CardHeader>
       <CardContent>
@@ -262,7 +269,10 @@ export function DealContactHistoryTab({
                       </Badge>
                     )}
                     {tab.type === 'buyer' && (
-                      <Badge variant="outline" className="text-[8px] px-1 py-0 h-4 border-blue-200 text-blue-700">
+                      <Badge
+                        variant="outline"
+                        className="text-[8px] px-1 py-0 h-4 border-blue-200 text-blue-700"
+                      >
                         Buyer
                       </Badge>
                     )}

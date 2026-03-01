@@ -76,7 +76,7 @@ export function useSearchAnalytics(timeRangeDays: number = 30) {
         
         // Track filters
         if (search.filters_applied && typeof search.filters_applied === 'object') {
-          const filters = search.filters_applied as Record<string, any>;
+          const filters = search.filters_applied as Record<string, unknown>;
           Object.keys(filters).forEach(filterKey => {
             if (filters[filterKey] !== null && filters[filterKey] !== undefined && filters[filterKey] !== '') {
               filterCounts[filterKey] = (filterCounts[filterKey] || 0) + 1;

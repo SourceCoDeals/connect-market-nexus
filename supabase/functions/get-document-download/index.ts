@@ -83,8 +83,8 @@ serve(async (req: Request) => {
       );
     }
 
-    // Return cached URL if available
-    const existingUrl = (firm as any)[signedUrlField] || (firm as any)[documentUrlField];
+    const firmRecord = firm as Record<string, unknown>;
+    const existingUrl = (firmRecord[signedUrlField] as string) || (firmRecord[documentUrlField] as string);
     if (existingUrl) {
       return new Response(
         JSON.stringify({ url: existingUrl }),
@@ -92,8 +92,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // Fetch from DocuSeal API
-    const submissionId = (firm as any)[submissionField];
+    const submissionId = firmRecord[submissionField] as string | null;
     if (!submissionId) {
       // No submission — try template PDF fallback
       const templateId = isNda
@@ -179,7 +178,7 @@ serve(async (req: Request) => {
       JSON.stringify({ url: docUrl }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } },
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     const corsHeaders = getCorsHeaders(req);
     console.error("❌ Unexpected error:", err);
     return new Response(

@@ -33,7 +33,7 @@ async function runTest(
   try {
     const result = await fn();
     return { id, name, ...result, durationMs: Math.round(performance.now() - start) };
-  } catch (e: any) {
+  } catch (e: unknown) {
     return {
       id,
       name,
@@ -441,7 +441,7 @@ serve(async (req: Request) => {
           headers: { "X-Auth-Token": docusealApiKey },
         });
         cleanupNotes.push(`Archived submission ${submissionId}`);
-      } catch (e: any) {
+      } catch (e: unknown) {
         cleanupNotes.push(`Failed to archive submission: ${e.message}`);
       }
     }
@@ -480,7 +480,7 @@ serve(async (req: Request) => {
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Integration test error:", error);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),

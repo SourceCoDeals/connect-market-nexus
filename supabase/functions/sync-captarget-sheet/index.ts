@@ -39,7 +39,12 @@ const INSERT_CHUNK = 25; // Insert in small batches to avoid cascading failures
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
-async function getAccessToken(serviceAccountKey: any): Promise<string> {
+interface GoogleServiceAccountKey {
+  client_email: string;
+  private_key: string;
+}
+
+async function getAccessToken(serviceAccountKey: GoogleServiceAccountKey): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const payload = {
@@ -201,7 +206,7 @@ function rowHasData(row: string[]): boolean {
 
 // ── Parse service account key with resilient JSON handling ──────────
 
-function parseServiceAccountKey(raw: string): any {
+function parseServiceAccountKey(raw: string): GoogleServiceAccountKey {
   const cleaned = raw
     .trim()
     .replace(/^\uFEFF/, '')
@@ -231,7 +236,7 @@ function parseServiceAccountKey(raw: string): any {
 
 // ── Build a record from a sheet row ─────────────────────────────────
 
-async function rowToRecord(row: string[], captargetStatus: string, tabName: string): Promise<Record<string, any>> {
+async function rowToRecord(row: string[], captargetStatus: string, tabName: string): Promise<Record<string, unknown>> {
   const clientName = (row[COL.client_folder_name] || "").trim();
   const companyName = (row[COL.company_name] || "").trim();
   const dateRaw = (row[COL.date] || "").trim();
@@ -323,7 +328,7 @@ serve(async (req) => {
   // which uses nextval('deal_identifier_seq') — no application-side generation needed.
 
   const startTime = Date.now();
-  const syncErrors: any[] = [];
+  const syncErrors: unknown[] = [];
   let rowsRead = 0;
   let rowsInserted = 0;
   let rowsUpdated = 0;
@@ -332,7 +337,7 @@ serve(async (req) => {
   const filteredByData = 0;
   let rowsExcluded = 0;
   const exclusionReasons: Array<{ company: string; reason: string; category: string }> = [];
-  let exclusionsToLog: any[] = [];
+  let exclusionsToLog: unknown[] = [];
   let syncStatus = "success";
   const tabsProcessed: string[] = [];
 
@@ -376,9 +381,10 @@ serve(async (req) => {
       let tabRows: string[][];
       try {
         tabRows = await fetchSheetRows(accessToken, sheetId, tab.name);
-      } catch (tabErr: any) {
-        console.error(`Failed to fetch tab "${tab.name}":`, tabErr.message);
-        syncErrors.push({ tab: tab.name, error: tabErr.message });
+      } catch (tabErr: unknown) {
+        const tabErrMsg = tabErr instanceof Error ? tabErr.message : String(tabErr);
+        console.error(`Failed to fetch tab "${tab.name}":`, tabErrMsg);
+        syncErrors.push({ tab: tab.name, error: tabErrMsg });
         continue;
       }
 
@@ -450,7 +456,7 @@ serve(async (req) => {
           batch.map((row) => rowToRecord(row, tab.captarget_status, tab.name))
         );
 
-        const batchRecords: any[] = [];
+        const batchRecords: unknown[] = [];
         const batchHashes: string[] = [];
 
         for (let j = 0; j < recordResults.length; j++) {
@@ -493,8 +499,8 @@ serve(async (req) => {
         }
         if (lookupFailed) continue;
 
-        const toInsert: any[] = [];
-        const toUpdate: any[] = [];
+        const toInsert: unknown[] = [];
+        const toUpdate: unknown[] = [];
 
         for (const record of batchRecords) {
           const existingId = existingMap.get(record.captarget_row_hash);
@@ -609,7 +615,7 @@ serve(async (req) => {
           for (let u = 0; u < toUpdate.length; u += UPDATE_CHUNK) {
             const chunk = toUpdate.slice(u, u + UPDATE_CHUNK);
             const updateResults = await Promise.allSettled(
-              chunk.map(({ id, ...fields }: any) =>
+              chunk.map(({ id, ...fields }: { id: string; [key: string]: unknown }) =>
                 supabase.from("listings").update(fields).eq("id", id)
               )
             );
@@ -643,10 +649,11 @@ serve(async (req) => {
       if (hasMore) break;
       tabsProcessed.push(tab.name);
     }
-  } catch (err: any) {
-    console.error("Sync failed:", err.message);
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("Sync failed:", errMsg);
     syncStatus = "failed";
-    syncErrors.push({ fatal: true, error: err.message });
+    syncErrors.push({ fatal: true, error: errMsg });
   }
 
   const durationMs = Date.now() - startTime;

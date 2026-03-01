@@ -52,7 +52,7 @@ export function UserActionButtons({
         title: 'Password reset initiated',
         description: 'If the email exists, the user will receive a reset link.'
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         variant: 'destructive',
         title: 'Failed to send reset',

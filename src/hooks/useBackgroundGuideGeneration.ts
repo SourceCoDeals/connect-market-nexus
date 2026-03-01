@@ -10,7 +10,7 @@ interface GenerationStatus {
   current_phase: string | null;
   phases_completed: number;
   total_phases: number;
-  generated_content: any;
+  generated_content: Record<string, unknown> | null;
   error: string | null;
   started_at: string;
   completed_at: string | null;
@@ -18,14 +18,14 @@ interface GenerationStatus {
 
 interface UseBackgroundGuideGenerationProps {
   universeId: string;
-  onComplete?: (content: string, criteria: any) => void;
+  onComplete?: (content: string, criteria: Record<string, unknown> | null) => void;
   onError?: (error: string) => void;
 }
 
 export function useBackgroundGuideGeneration({
   universeId,
   onComplete,
-  onError
+  onError,
 }: UseBackgroundGuideGenerationProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentGeneration, setCurrentGeneration] = useState<GenerationStatus | null>(null);
@@ -63,9 +63,11 @@ export function useBackgroundGuideGeneration({
         setIsGenerating(true);
 
         // Restore progress from the database record
-        const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
+        const progressPercent = Math.round(
+          (generation.phases_completed / generation.total_phases) * 100,
+        );
         setProgress(progressPercent);
-        
+
         startPolling(generation.id);
       }
     } catch (err) {
@@ -98,25 +100,30 @@ export function useBackgroundGuideGeneration({
       }
 
       // Call the background generation endpoint using supabase functions invoke
-      const { data, error } = await invokeWithTimeout<{ generation_id: string }>('generate-ma-guide-background', {
-        body: { universe_id: universeId },
-        timeoutMs: 120_000,
-      });
+      const { data, error } = await invokeWithTimeout<{ generation_id: string }>(
+        'generate-ma-guide-background',
+        {
+          body: { universe_id: universeId },
+          timeoutMs: 120_000,
+        },
+      );
 
       if (error) {
         throw new Error(error.message || 'Failed to start generation');
       }
 
-      toast.success('Guide generation started. You can navigate away - it will continue in the background.');
+      toast.success(
+        'Guide generation started. You can navigate away - it will continue in the background.',
+      );
 
       // Start polling for progress
       startPolling(data!.generation_id);
-
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to start guide generation');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message || 'Failed to start guide generation');
       setIsGenerating(false);
       if (onError) {
-        onError(error.message);
+        onError(message);
       }
     }
   };
@@ -156,7 +163,9 @@ export function useBackgroundGuideGeneration({
       setCurrentGeneration(generation);
 
       // Calculate progress percentage
-      const progressPercent = Math.round((generation.phases_completed / generation.total_phases) * 100);
+      const progressPercent = Math.round(
+        (generation.phases_completed / generation.total_phases) * 100,
+      );
       setProgress(progressPercent);
 
       // Handle completion
@@ -179,8 +188,7 @@ export function useBackgroundGuideGeneration({
         }
         setIsGenerating(false);
       }
-
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error checking generation status:', error);
 
       // Don't show errors on every poll, just log them
@@ -230,7 +238,9 @@ export function useBackgroundGuideGeneration({
     setIsGenerating(false);
     setCurrentGeneration(null);
     setProgress(0);
-    toast.info('Stopped monitoring generation progress. The generation will continue in the background.');
+    toast.info(
+      'Stopped monitoring generation progress. The generation will continue in the background.',
+    );
   };
 
   return {
@@ -241,6 +251,6 @@ export function useBackgroundGuideGeneration({
     cancelGeneration,
     phaseName: currentGeneration?.current_phase || '',
     phasesCompleted: currentGeneration?.phases_completed || 0,
-    totalPhases: currentGeneration?.total_phases || 14
+    totalPhases: currentGeneration?.total_phases || 14,
   };
 }

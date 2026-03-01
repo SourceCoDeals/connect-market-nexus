@@ -138,7 +138,7 @@ adam.haile@sourcecodeals.com`
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error in simple verification email function:', error);
 
     try {

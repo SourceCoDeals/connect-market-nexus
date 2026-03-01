@@ -36,7 +36,7 @@ interface SearchResult {
   title: string;
   date: string;
   duration_minutes: number | null;
-  participants: any[];
+  participants: unknown[];
   external_participants: ExternalParticipant[];
   summary: string;
   meeting_url: string;
@@ -172,11 +172,37 @@ const ALL_TRANSCRIPTS_QUERY = `
   }
 `;
 
+interface FirefliesTranscript {
+  id: string;
+  title?: string;
+  date?: number | string;
+  duration?: number;
+  organizer_email?: string;
+  participants?: string[];
+  meeting_attendees?: MeetingAttendee[];
+  transcript_url?: string;
+  summary?: {
+    short_summary?: string;
+    keywords?: string[];
+    action_items?: string[];
+  };
+  meeting_info?: {
+    silent_meeting?: boolean;
+    summary_status?: string;
+  };
+}
+
+interface MeetingAttendee {
+  displayName?: string;
+  email?: string;
+  name?: string;
+}
+
 /**
  * Check if a transcript has actual content (not a silent/skipped meeting).
  * Returns false if the meeting was silent AND skipped with no summary.
  */
-function transcriptHasContent(t: any): boolean {
+function transcriptHasContent(t: FirefliesTranscript): boolean {
   const info = t.meeting_info || {};
   const isSilent = info.silent_meeting === true;
   const isSkipped = info.summary_status === 'skipped';
@@ -193,16 +219,16 @@ function transcriptHasContent(t: any): boolean {
  * Extract external participants from meeting attendees.
  * Filters out internal @sourcecodeals.com and @captarget.com addresses.
  */
-function extractExternalParticipants(attendees: any[]): ExternalParticipant[] {
+function extractExternalParticipants(attendees: unknown[]): ExternalParticipant[] {
   if (!Array.isArray(attendees)) return [];
 
-  return attendees
-    .filter((a: any) => {
+  return (attendees as MeetingAttendee[])
+    .filter((a: MeetingAttendee) => {
       const email = (a.email || '').toLowerCase();
       if (!email) return false;
       return !INTERNAL_DOMAINS.some((domain) => email.endsWith(`@${domain}`));
     })
-    .map((a: any) => ({
+    .map((a: MeetingAttendee) => ({
       name: a.displayName || a.name || a.email?.split('@')[0] || 'Unknown',
       email: a.email || '',
     }));
@@ -216,8 +242,8 @@ async function paginatedFetch(
   variables: Record<string, unknown>,
   maxPages = 4,
   batchSize = 50,
-): Promise<any[]> {
-  const results: any[] = [];
+): Promise<FirefliesTranscript[]> {
+  const results: FirefliesTranscript[] = [];
   let skip = 0;
 
   for (let page = 0; page < maxPages; page++) {
@@ -318,7 +344,7 @@ serve(async (req) => {
     }
 
     // === Phase 1: Primary search — emails + keyword in parallel ===
-    const searches: Promise<{ results: any[]; type: 'email' | 'keyword' }>[] = [];
+    const searches: Promise<{ results: FirefliesTranscript[]; type: 'email' | 'keyword' }>[] = [];
 
     // Search each email individually AND as a group to maximize results.
     // Fireflies' participants filter may use AND logic with arrays,
@@ -413,7 +439,7 @@ serve(async (req) => {
 
     // Merge and deduplicate by transcript ID, tracking match_type per result
     const seen = new Map<string, 'email' | 'keyword'>();
-    const matchingResults: any[] = [];
+    const matchingResults: FirefliesTranscript[] = [];
 
     for (const { results, type } of searchResults) {
       for (const t of results) {
@@ -436,7 +462,7 @@ serve(async (req) => {
       (t) => seen.get(t.id) === 'email' && transcriptHasContent(t),
     );
 
-    const fallbackResults: any[] = [];
+    const fallbackResults: FirefliesTranscript[] = [];
     if (emailResultsWithContent.length === 0 && companyName && companyName.trim().length >= 3) {
       console.log(
         `No email results with content, running fallback keyword search for "${companyName}"`,
@@ -464,7 +490,7 @@ serve(async (req) => {
     const allResults = [...matchingResults, ...fallbackResults];
 
     // === Format results ===
-    const formattedResults: SearchResult[] = allResults.slice(0, limit).map((t: any) => {
+    const formattedResults: SearchResult[] = allResults.slice(0, limit).map((t: FirefliesTranscript) => {
       // Convert date
       let dateStr = new Date().toISOString();
       if (t.date) {

@@ -14,8 +14,6 @@ import { useBulkDealImport } from '@/hooks/admin/use-bulk-deal-import';
 import { useNotificationEmailSender } from '@/hooks/admin/use-notification-email-sender';
 import { useDealOwnerNotifications } from '@/hooks/admin/use-deal-owner-notifications';
 
-
-
 export function PipelineShell() {
   const pipeline = usePipelineCore();
   const { deals: pipelineDeals, setSelectedDeal } = pipeline;
@@ -26,10 +24,10 @@ export function PipelineShell() {
   const [isUndoImportOpen, setIsUndoImportOpen] = useState(false);
   const { bulkImport, isLoading: isBulkImporting } = useBulkDealImport();
   const hasProcessedUrlParams = React.useRef(false);
-  
+
   // Automatically send emails for pending notifications
   useNotificationEmailSender();
-  
+
   // Listen for deal owner assignment/reassignment and send email notifications
   useDealOwnerNotifications();
 
@@ -40,19 +38,19 @@ export function PipelineShell() {
 
   const handleDealCreated = (dealId: string) => {
     // Auto-select the newly created deal to open its detail panel
-    const createdDeal = pipeline.deals.find(d => d.deal_id === dealId);
+    const createdDeal = pipeline.deals.find((d) => d.deal_id === dealId);
     if (createdDeal) {
       pipeline.setSelectedDeal(createdDeal);
     } else {
       // If not found immediately (due to query timing), wait a bit and try again
       setTimeout(() => {
-        const deal = pipeline.deals.find(d => d.deal_id === dealId);
+        const deal = pipeline.deals.find((d) => d.deal_id === dealId);
         if (deal) pipeline.setSelectedDeal(deal);
       }, 500);
     }
   };
 
-  const handleBulkImport = async (data: any) => {
+  const handleBulkImport = async (data: Parameters<typeof bulkImport>[0]) => {
     try {
       const result = await bulkImport(data);
       // Only close if there are NO duplicates to resolve
@@ -84,7 +82,7 @@ export function PipelineShell() {
       const { dealId } = event.detail;
       if (dealId) {
         // Find the deal
-        const deal = pipelineDeals.find(d => d.deal_id === dealId);
+        const deal = pipelineDeals.find((d) => d.deal_id === dealId);
         if (deal) {
           setSelectedDeal(deal);
         } else {
@@ -93,9 +91,15 @@ export function PipelineShell() {
       }
     };
 
-    window.addEventListener('open-deal-from-notification', handleOpenDealFromNotification as EventListener);
+    window.addEventListener(
+      'open-deal-from-notification',
+      handleOpenDealFromNotification as EventListener,
+    );
     return () => {
-      window.removeEventListener('open-deal-from-notification', handleOpenDealFromNotification as EventListener);
+      window.removeEventListener(
+        'open-deal-from-notification',
+        handleOpenDealFromNotification as EventListener,
+      );
     };
   }, [pipelineDeals, setSelectedDeal]);
 
@@ -108,7 +112,7 @@ export function PipelineShell() {
     const dealId = urlParams.get('deal');
 
     if (dealId && pipelineDeals.length > 0) {
-      const deal = pipelineDeals.find(d => d.deal_id === dealId);
+      const deal = pipelineDeals.find((d) => d.deal_id === dealId);
       if (deal) {
         setSelectedDeal(deal);
 
@@ -126,7 +130,7 @@ export function PipelineShell() {
       hasProcessedUrlParams.current = false;
     };
   }, []);
-  
+
   if (pipeline.isLoading) {
     return (
       <div className="h-screen flex flex-col">
@@ -142,7 +146,7 @@ export function PipelineShell() {
       </div>
     );
   }
-  
+
   return (
     <div className="pipeline-shell">
       {/* CSS Grid Layout */}
@@ -172,10 +176,10 @@ export function PipelineShell() {
         .pipeline-workspace { grid-area: workspace; }
         .pipeline-detail { grid-area: detail; }
       `}</style>
-      
+
       {/* Header */}
       <div className="pipeline-header">
-        <PipelineHeader 
+        <PipelineHeader
           pipeline={pipeline}
           onOpenCreateDeal={() => handleOpenCreateDeal()}
           onOpenBulkImport={() => setIsBulkImportOpen(true)}
@@ -187,32 +191,29 @@ export function PipelineShell() {
 
       {/* Main Workspace */}
       <div className="pipeline-workspace">
-        <PipelineWorkspace 
-          pipeline={pipeline}
-          onOpenCreateDeal={handleOpenCreateDeal}
-        />
+        <PipelineWorkspace pipeline={pipeline} onOpenCreateDeal={handleOpenCreateDeal} />
       </div>
-      
+
       {/* Backdrop Overlay */}
-      {(!pipeline.isMobile && pipeline.selectedDeal) && (
-        <div 
+      {!pipeline.isMobile && pipeline.selectedDeal && (
+        <div
           className="fixed inset-0 bg-black/30 z-40 animate-fade-in"
           onClick={() => pipeline.setSelectedDeal(null)}
         />
       )}
-      
+
       {/* Detail Panel */}
-      {(!pipeline.isMobile && pipeline.selectedDeal) && (
+      {!pipeline.isMobile && pipeline.selectedDeal && (
         <div className="fixed top-0 right-0 bottom-0 z-50 flex justify-end">
           <PipelineDetailPanel pipeline={pipeline} />
         </div>
       )}
-      
+
       {/* Filter Panel Overlay */}
       <PipelineFilterPanel pipeline={pipeline} />
 
       {/* Create Deal Modal */}
-      <CreateDealModal 
+      <CreateDealModal
         open={isCreateDealModalOpen}
         onOpenChange={setIsCreateDealModalOpen}
         prefilledStageId={prefilledStageId}
@@ -220,10 +221,7 @@ export function PipelineShell() {
       />
 
       {/* Stage Management Modal */}
-      <StageManagementModal
-        open={isStageManagementOpen}
-        onOpenChange={setIsStageManagementOpen}
-      />
+      <StageManagementModal open={isStageManagementOpen} onOpenChange={setIsStageManagementOpen} />
 
       {/* Bulk Import Modal */}
       <BulkDealImportDialog

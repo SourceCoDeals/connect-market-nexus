@@ -5,7 +5,7 @@
  * doesn't have to re-implement the same JWT validation + is_admin RPC.
  */
 
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 interface AuthResult {
   authenticated: boolean;
@@ -19,20 +19,23 @@ interface AuthResult {
  * Uses the anon key to validate the JWT.
  */
 export async function requireAuth(req: Request): Promise<AuthResult> {
-  const authHeader = req.headers.get("Authorization");
+  const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
-    return { authenticated: false, isAdmin: false, error: "Authentication required" };
+    return { authenticated: false, isAdmin: false, error: 'Authentication required' };
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const anonClient = createClient(supabaseUrl, supabaseAnonKey);
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
+  const token = authHeader.replace('Bearer ', '');
+  const {
+    data: { user },
+    error: authError,
+  } = await anonClient.auth.getUser(token);
 
   if (authError || !user) {
-    return { authenticated: false, isAdmin: false, error: "Invalid authentication token" };
+    return { authenticated: false, isAdmin: false, error: 'Invalid authentication token' };
   }
 
   return { authenticated: true, isAdmin: false, userId: user.id };
@@ -44,14 +47,19 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
  */
 export async function requireAdmin(
   req: Request,
-  supabaseAdmin: any
+  supabaseAdmin: SupabaseClient,
 ): Promise<AuthResult> {
   const auth = await requireAuth(req);
   if (!auth.authenticated) return auth;
 
-  const { data: isAdmin } = await supabaseAdmin.rpc("is_admin", { user_id: auth.userId });
+  const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { user_id: auth.userId });
   if (!isAdmin) {
-    return { authenticated: true, isAdmin: false, userId: auth.userId, error: "Admin access required" };
+    return {
+      authenticated: true,
+      isAdmin: false,
+      userId: auth.userId,
+      error: 'Admin access required',
+    };
   }
 
   return { authenticated: true, isAdmin: true, userId: auth.userId };
@@ -61,18 +69,18 @@ export async function requireAdmin(
  * Escape HTML special characters to prevent injection in email templates.
  */
 export function escapeHtml(str: string): string {
-  if (!str) return "";
+  if (!str) return '';
   return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
  * Escape HTML and convert newlines to <br> tags (for email templates).
  */
 export function escapeHtmlWithBreaks(str: string): string {
-  return escapeHtml(str).replace(/\n/g, "<br>");
+  return escapeHtml(str).replace(/\n/g, '<br>');
 }

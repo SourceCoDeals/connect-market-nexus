@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Loader2,
   Link as LinkIcon,
@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   FileText,
   Info,
-} from "lucide-react";
+} from 'lucide-react';
 
 interface FirefliesLinkPanelProps {
   contactEmail?: string | null;
@@ -41,9 +41,19 @@ interface FirefliesLinkPanelProps {
   onFfQueryChange: (val: string) => void;
   ffSearchLoading: boolean;
   onFfQuickSearch: () => void;
-  ffResults: any[];
+  ffResults: unknown[];
   ffLinking: string | null;
-  onLinkSearchResult: (transcript: any) => void;
+  onLinkSearchResult: (transcript: {
+    id: string;
+    title?: string;
+    date?: string;
+    meeting_url?: string;
+    duration_minutes?: number;
+    has_content?: boolean;
+    match_type?: string;
+    summary?: string | { short_summary?: string };
+    external_participants?: { name: string; email?: string }[];
+  }) => void;
 }
 
 export function FirefliesLinkPanel({
@@ -76,13 +86,14 @@ export function FirefliesLinkPanel({
   const handleUploadWithPreview = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files?.length) {
-      setUploadedFileNames(Array.from(files).map(f => f.name));
+      setUploadedFileNames(Array.from(files).map((f) => f.name));
     }
     onFfFileUpload(e);
   };
 
   // Check if URL looks like a valid Fireflies link
-  const isValidFirefliesUrl = firefliesUrl.trim() && /fireflies\.ai\/view\/[^/?#]+/.test(firefliesUrl.trim());
+  const isValidFirefliesUrl =
+    firefliesUrl.trim() && /fireflies\.ai\/view\/[^/?#]+/.test(firefliesUrl.trim());
   const hasUrlInput = firefliesUrl.trim().length > 0;
   const showUrlWarning = hasUrlInput && !isValidFirefliesUrl && firefliesUrl.trim().length > 10;
 
@@ -94,9 +105,7 @@ export function FirefliesLinkPanel({
           <div className="text-xs text-muted-foreground space-y-0.5">
             {contactName && <p>Contact: {contactName}</p>}
             {emailCount === 1 && <p>{contactEmails?.[0] || contactEmail}</p>}
-            {emailCount > 1 && (
-              <p>{emailCount} contact emails linked</p>
-            )}
+            {emailCount > 1 && <p>{emailCount} contact emails linked</p>}
             {lastSynced && (
               <p className="flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3 text-green-600" />
@@ -104,24 +113,47 @@ export function FirefliesLinkPanel({
               </p>
             )}
           </div>
-          <Button size="sm" variant="outline" onClick={onSync} disabled={syncLoading} className="shrink-0">
-            {syncLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
-            {syncLoading ? 'Searching Fireflies...' : `Auto-Sync${emailCount > 1 ? ` (${emailCount})` : ''}`}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onSync}
+            disabled={syncLoading}
+            className="shrink-0"
+          >
+            {syncLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+            )}
+            {syncLoading
+              ? 'Searching Fireflies...'
+              : `Auto-Sync${emailCount > 1 ? ` (${emailCount})` : ''}`}
           </Button>
         </div>
       ) : (
         <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/20 rounded-md p-2.5">
           <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-          <p className="text-xs text-amber-700 dark:text-amber-400">Add a contact email to this deal to enable auto-sync from Fireflies</p>
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Add a contact email to this deal to enable auto-sync from Fireflies
+          </p>
         </div>
       )}
 
       {/* Manual link tabs */}
       <Tabs defaultValue="search" className="space-y-3">
         <TabsList className="grid w-full grid-cols-3 h-8">
-          <TabsTrigger value="search" className="text-xs"><Search className="h-3.5 w-3.5 mr-1" />Search Fireflies</TabsTrigger>
-          <TabsTrigger value="link" className="text-xs"><Link2 className="h-3.5 w-3.5 mr-1" />Paste Link</TabsTrigger>
-          <TabsTrigger value="upload" className="text-xs"><Upload className="h-3.5 w-3.5 mr-1" />Upload</TabsTrigger>
+          <TabsTrigger value="search" className="text-xs">
+            <Search className="h-3.5 w-3.5 mr-1" />
+            Search Fireflies
+          </TabsTrigger>
+          <TabsTrigger value="link" className="text-xs">
+            <Link2 className="h-3.5 w-3.5 mr-1" />
+            Paste Link
+          </TabsTrigger>
+          <TabsTrigger value="upload" className="text-xs">
+            <Upload className="h-3.5 w-3.5 mr-1" />
+            Upload
+          </TabsTrigger>
         </TabsList>
 
         {/* SEARCH TAB — Now the default / primary tab */}
@@ -130,12 +162,24 @@ export function FirefliesLinkPanel({
             <Input
               placeholder="Search by company name, person, or keywords..."
               value={ffQuery}
-              onChange={e => onFfQueryChange(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !ffSearchLoading && onFfQuickSearch()}
+              onChange={(e) => onFfQueryChange(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !ffSearchLoading && onFfQuickSearch()}
               className="flex-1 h-8 text-sm"
             />
-            <Button onClick={onFfQuickSearch} disabled={ffSearchLoading || !ffQuery.trim()} size="sm" className="h-8">
-              {ffSearchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Search className="h-4 w-4 mr-1" />Search</>}
+            <Button
+              onClick={onFfQuickSearch}
+              disabled={ffSearchLoading || !ffQuery.trim()}
+              size="sm"
+              className="h-8"
+            >
+              {ffSearchLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Search className="h-4 w-4 mr-1" />
+                  Search
+                </>
+              )}
             </Button>
           </div>
 
@@ -144,12 +188,16 @@ export function FirefliesLinkPanel({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium text-muted-foreground">
-                  {ffResults.length} result{ffResults.length !== 1 ? 's' : ''} found — click a title to view in Fireflies, or link to this deal
+                  {ffResults.length} result{ffResults.length !== 1 ? 's' : ''} found — click a title
+                  to view in Fireflies, or link to this deal
                 </p>
               </div>
               <div className="space-y-2 max-h-72 overflow-auto">
-                {ffResults.map(r => (
-                  <div key={r.id} className={`border rounded-lg p-3 space-y-2 transition-colors ${r.has_content === false ? 'opacity-60 bg-muted/30' : 'hover:bg-muted/30'}`}>
+                {ffResults.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`border rounded-lg p-3 space-y-2 transition-colors ${r.has_content === false ? 'opacity-60 bg-muted/30' : 'hover:bg-muted/30'}`}
+                  >
                     {/* Title row — clickable link to Fireflies */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
@@ -167,8 +215,20 @@ export function FirefliesLinkPanel({
                           <p className="text-sm font-medium truncate">{r.title}</p>
                         )}
                       </div>
-                      <Button size="sm" className="h-7 shrink-0" onClick={() => onLinkSearchResult(r)} disabled={ffLinking === r.id}>
-                        {ffLinking === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><LinkIcon className="h-3.5 w-3.5 mr-1" />Link to Deal</>}
+                      <Button
+                        size="sm"
+                        className="h-7 shrink-0"
+                        onClick={() => onLinkSearchResult(r)}
+                        disabled={ffLinking === r.id}
+                      >
+                        {ffLinking === r.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <>
+                            <LinkIcon className="h-3.5 w-3.5 mr-1" />
+                            Link to Deal
+                          </>
+                        )}
                       </Button>
                     </div>
 
@@ -176,13 +236,20 @@ export function FirefliesLinkPanel({
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {new Date(r.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
                       </span>
                       {r.duration_minutes && <span>{r.duration_minutes} min</span>}
                       {r.external_participants && r.external_participants.length > 0 && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          With: {r.external_participants.map((p: any) => p.name).join(', ')}
+                          With:{' '}
+                          {r.external_participants
+                            .map((p: unknown) => (p as { name: string }).name)
+                            .join(', ')}
                         </span>
                       )}
                     </div>
@@ -197,13 +264,19 @@ export function FirefliesLinkPanel({
                     {/* Status badges */}
                     <div className="flex items-center gap-1.5">
                       {r.has_content === false && (
-                        <Badge variant="outline" className="text-[10px] h-4 text-amber-600 border-amber-300 gap-0.5">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] h-4 text-amber-600 border-amber-300 gap-0.5"
+                        >
                           <AlertTriangle className="h-2.5 w-2.5" />
                           No transcript captured
                         </Badge>
                       )}
                       {r.match_type === 'keyword' && (
-                        <Badge variant="outline" className="text-[10px] h-4 text-blue-600 border-blue-300">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] h-4 text-blue-600 border-blue-300"
+                        >
                           Matched by name
                         </Badge>
                       )}
@@ -231,12 +304,24 @@ export function FirefliesLinkPanel({
             <Input
               placeholder="https://app.fireflies.ai/view/your-transcript"
               value={firefliesUrl}
-              onChange={e => onFirefliesUrlChange(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && !linkingUrl && onLinkByUrl()}
+              onChange={(e) => onFirefliesUrlChange(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !linkingUrl && onLinkByUrl()}
               className={`flex-1 h-8 text-sm ${showUrlWarning ? 'border-amber-400 focus-visible:ring-amber-400' : ''}`}
             />
-            <Button onClick={onLinkByUrl} disabled={linkingUrl || !isValidFirefliesUrl} size="sm" className="h-8">
-              {linkingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <><LinkIcon className="h-4 w-4 mr-1" />Link</>}
+            <Button
+              onClick={onLinkByUrl}
+              disabled={linkingUrl || !isValidFirefliesUrl}
+              size="sm"
+              className="h-8"
+            >
+              {linkingUrl ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <LinkIcon className="h-4 w-4 mr-1" />
+                  Link
+                </>
+              )}
             </Button>
           </div>
           {showUrlWarning ? (
@@ -247,14 +332,22 @@ export function FirefliesLinkPanel({
           ) : (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Info className="h-3 w-3" />
-              Paste a Fireflies transcript URL — the transcript content will be fetched automatically when you open it
+              Paste a Fireflies transcript URL — the transcript content will be fetched
+              automatically when you open it
             </p>
           )}
         </TabsContent>
 
         {/* UPLOAD TAB */}
         <TabsContent value="upload" className="space-y-2">
-          <input ref={ffFileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.vtt,.srt,.md" multiple onChange={handleUploadWithPreview} className="hidden" />
+          <input
+            ref={ffFileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.txt,.vtt,.srt,.md"
+            multiple
+            onChange={handleUploadWithPreview}
+            className="hidden"
+          />
           <Button
             variant="outline"
             className="w-full h-16 border-dashed"
@@ -267,7 +360,10 @@ export function FirefliesLinkPanel({
                 <div className="text-left">
                   <span className="text-sm">Uploading...</span>
                   {uploadedFileNames.length > 0 && (
-                    <p className="text-xs text-muted-foreground">{uploadedFileNames[0]}{uploadedFileNames.length > 1 ? ` +${uploadedFileNames.length - 1} more` : ''}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {uploadedFileNames[0]}
+                      {uploadedFileNames.length > 1 ? ` +${uploadedFileNames.length - 1} more` : ''}
+                    </p>
                   )}
                 </div>
               </div>

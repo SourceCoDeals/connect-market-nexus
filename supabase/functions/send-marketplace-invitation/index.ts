@@ -107,7 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ success: true, emailId: emailResponse?.data?.id }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error sending marketplace invitation:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Failed to send invitation' }),

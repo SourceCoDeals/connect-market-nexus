@@ -125,12 +125,12 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in OTP rate limiter:", error);
     return new Response(
       JSON.stringify({ 
         allowed: false,
-        error: error.message || 'OTP rate limiting failed',
+        error: error instanceof Error ? error.message : 'OTP rate limiting failed',
         remaining: 0,
         reset_time: new Date(Date.now() + DEFAULT_WINDOW_MINUTES * 60 * 1000).toISOString(),
         current_count: DEFAULT_MAX_REQUESTS,

@@ -6,8 +6,8 @@
  * remarketing_buyer_contacts is frozen (read-only pre-Feb 2026 data).
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+type SupabaseClient = ReturnType<typeof createClient>;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -861,7 +861,11 @@ async function getFirmAgreements(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(
-      (f: any) =>
+      (f: {
+        primary_company_name?: string;
+        normalized_company_name?: string;
+        website_domain?: string;
+      }) =>
         f.primary_company_name?.toLowerCase().includes(term) ||
         f.normalized_company_name?.toLowerCase().includes(term) ||
         f.website_domain?.toLowerCase().includes(term),
@@ -872,8 +876,10 @@ async function getFirmAgreements(
     data: {
       firms: results,
       total: results.length,
-      nda_signed: results.filter((f: any) => f.nda_signed).length,
-      fee_agreement_signed: results.filter((f: any) => f.fee_agreement_signed).length,
+      nda_signed: results.filter((f: { nda_signed: boolean }) => f.nda_signed).length,
+      fee_agreement_signed: results.filter(
+        (f: { fee_agreement_signed: boolean }) => f.fee_agreement_signed,
+      ).length,
     },
   };
 }

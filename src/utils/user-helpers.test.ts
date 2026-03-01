@@ -26,7 +26,7 @@ describe('createListingFromData', () => {
   });
 
   it('throws error for null data', () => {
-    expect(() => createListingFromData(null as unknown as Record<string, any>)).toThrow('Cannot create listing from null data');
+    expect(() => createListingFromData(null as unknown as Record<string, unknown>)).toThrow('Cannot create listing from null data');
   });
 
   it('provides defaults for missing fields', () => {

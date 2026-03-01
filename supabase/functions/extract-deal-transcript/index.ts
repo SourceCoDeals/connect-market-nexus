@@ -1,11 +1,11 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { normalizeStates, mergeStates } from "../_shared/geography.ts";
-import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
-import { isPlaceholder } from "../_shared/deal-extraction.ts";
-import { GEMINI_25_FLASH_MODEL } from "../_shared/ai-providers.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { normalizeStates, mergeStates } from '../_shared/geography.ts';
+import { buildPriorityUpdates, updateExtractionSources } from '../_shared/source-priority.ts';
+import { isPlaceholder } from '../_shared/deal-extraction.ts';
+import { GEMINI_25_FLASH_MODEL } from '../_shared/ai-providers.ts';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 interface FinancialExtraction {
   value?: number;
@@ -116,13 +116,18 @@ serve(async (req) => {
       }
     }
 
-    const { transcriptId, transcriptText: providedText, dealInfo, applyToDeal = true } = await req.json();
+    const {
+      transcriptId,
+      transcriptText: providedText,
+      dealInfo,
+      applyToDeal = true,
+    } = await req.json();
 
     if (!transcriptId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing transcriptId' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Missing transcriptId' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Fetch transcript text from database if not provided
@@ -138,7 +143,7 @@ serve(async (req) => {
       if (fetchError || !transcript) {
         return new Response(
           JSON.stringify({ error: 'Transcript not found or has no text content' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -148,7 +153,7 @@ serve(async (req) => {
       if (!transcriptText || transcriptText.trim().length === 0) {
         return new Response(
           JSON.stringify({ error: 'Transcript has no text content to extract from' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
     }
@@ -163,7 +168,9 @@ serve(async (req) => {
       transcriptTitle = tMeta?.title || null;
     }
 
-    console.log(`Extracting intelligence from transcript ${transcriptId}${transcriptTitle ? ` ("${transcriptTitle}")` : ''}, text length: ${transcriptText.length}`);
+    console.log(
+      `Extracting intelligence from transcript ${transcriptId}${transcriptTitle ? ` ("${transcriptTitle}")` : ''}, text length: ${transcriptText.length}`,
+    );
 
     // Use AI to extract intelligence
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
@@ -175,13 +182,17 @@ serve(async (req) => {
 
 Your job is to extract EVERY piece of deal intelligence from this transcript. Be EXHAUSTIVE, not conservative. If something is mentioned even briefly, capture it. Read the ENTIRE transcript word by word — do not skip ANY section. Owners reveal critical information throughout the conversation, not just when directly asked.
 
-${dealInfo ? `CURRENT DEAL PROFILE (for context — update if transcript has newer/better info):
+${
+  dealInfo
+    ? `CURRENT DEAL PROFILE (for context — update if transcript has newer/better info):
 Company: ${dealInfo.company_name || 'Unknown'}
 Industry: ${dealInfo.industry || 'Unknown'}
 Location: ${dealInfo.location || 'Not specified'}
 Revenue: ${dealInfo.revenue ? '$' + dealInfo.revenue.toLocaleString() : 'Unknown'}
 EBITDA: ${dealInfo.ebitda ? '$' + dealInfo.ebitda.toLocaleString() : 'Unknown'}
-` : ''}
+`
+    : ''
+}
 
 TRANSCRIPT/NOTES TO ANALYZE:
 """
@@ -580,7 +591,8 @@ Return a JSON object with these fields (use null for unknown, empty array [] whe
 Return ONLY the JSON object. No markdown fences, no explanation.`;
 
     // Call Gemini directly (plain JSON mode) to avoid schema branching limits
-    const { callGeminiWithRetry, getGeminiHeaders, GEMINI_API_URL } = await import("../_shared/ai-providers.ts");
+    const { callGeminiWithRetry, getGeminiHeaders, GEMINI_API_URL } =
+      await import('../_shared/ai-providers.ts');
 
     const geminiResponse = await callGeminiWithRetry(
       GEMINI_API_URL,
@@ -596,13 +608,15 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         response_format: { type: 'json_object' },
       },
       90000,
-      'extract-deal-transcript'
+      'extract-deal-transcript',
     );
 
     if (!geminiResponse.ok) {
       const errText = await geminiResponse.text();
       console.error('Gemini API error:', geminiResponse.status, errText.substring(0, 500));
-      throw new Error(`AI extraction failed: Gemini API returned ${geminiResponse.status}: ${errText.substring(0, 200)}`);
+      throw new Error(
+        `AI extraction failed: Gemini API returned ${geminiResponse.status}: ${errText.substring(0, 200)}`,
+      );
     }
 
     const geminiResult = await geminiResponse.json();
@@ -611,7 +625,10 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
     let extracted: ExtractionResult | null = null;
     try {
       // Strip markdown fences if present
-      const cleaned = rawContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      const cleaned = rawContent
+        .replace(/^```(?:json)?\s*\n?/i, '')
+        .replace(/\n?```\s*$/i, '')
+        .trim();
       extracted = JSON.parse(cleaned);
     } catch (parseErr) {
       console.error('Failed to parse Gemini JSON response:', rawContent.substring(0, 500));
@@ -633,7 +650,7 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
     for (const key of Object.keys(extracted) as (keyof ExtractionResult)[]) {
       const val = extracted[key];
       if (typeof val === 'string' && isPlaceholder(val)) {
-        (extracted as any)[key] = null;
+        delete extracted[key];
       }
     }
 
@@ -666,10 +683,10 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
     // ========== KEY SPEC REQUIREMENT: Apply to listings table ==========
     let dealUpdated = false;
     let fieldsUpdated: string[] = [];
-    
+
     if (applyToDeal && transcriptRecord?.listing_id) {
       const listingId = transcriptRecord.listing_id;
-      
+
       // Fetch current listing with extraction_sources
       const { data: listing, error: listingError } = await supabase
         .from('listings')
@@ -679,7 +696,9 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
 
       if (listingError || !listing) {
         console.error('Failed to fetch listing for enrichment:', listingError);
-        throw new Error(`Failed to fetch listing ${listingId}: ${listingError?.message || 'Not found'}`);
+        throw new Error(
+          `Failed to fetch listing ${listingId}: ${listingError?.message || 'Not found'}`,
+        );
       }
 
       if (listing) {
@@ -720,14 +739,16 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         }
 
         // Map other fields
-        if (extracted.geographic_states?.length) flatExtracted.geographic_states = extracted.geographic_states;
+        if (extracted.geographic_states?.length)
+          flatExtracted.geographic_states = extracted.geographic_states;
         {
           const n = toFiniteNumber(extracted.number_of_locations);
           if (n != null) flatExtracted.number_of_locations = n;
         }
         if (extracted.service_mix) flatExtracted.service_mix = extracted.service_mix;
         if (extracted.owner_goals) flatExtracted.owner_goals = extracted.owner_goals;
-        if (extracted.transition_preferences) flatExtracted.transition_preferences = extracted.transition_preferences;
+        if (extracted.transition_preferences)
+          flatExtracted.transition_preferences = extracted.transition_preferences;
         if (extracted.customer_types) flatExtracted.customer_types = extracted.customer_types;
         // customer_concentration is NUMERIC in DB but LLM returns rich text.
         // Append the text to customer_types so the detail isn't lost,
@@ -747,18 +768,25 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
             flatExtracted.customer_types = 'Customer Concentration: ' + concText;
           }
         }
-        if (extracted.customer_geography) flatExtracted.customer_geography = extracted.customer_geography;
-        if (extracted.executive_summary) flatExtracted.executive_summary = extracted.executive_summary;
-        if (extracted.growth_trajectory) flatExtracted.growth_trajectory = extracted.growth_trajectory;
+        if (extracted.customer_geography)
+          flatExtracted.customer_geography = extracted.customer_geography;
+        if (extracted.executive_summary)
+          flatExtracted.executive_summary = extracted.executive_summary;
+        if (extracted.growth_trajectory)
+          flatExtracted.growth_trajectory = extracted.growth_trajectory;
         if (extracted.key_quotes?.length) flatExtracted.key_quotes = extracted.key_quotes;
         if (extracted.financial_notes) flatExtracted.financial_notes = extracted.financial_notes;
-        if (extracted.main_contact_name) flatExtracted.main_contact_name = extracted.main_contact_name;
-        if (extracted.main_contact_email) flatExtracted.main_contact_email = extracted.main_contact_email;
-        if (extracted.main_contact_phone) flatExtracted.main_contact_phone = extracted.main_contact_phone;
+        if (extracted.main_contact_name)
+          flatExtracted.main_contact_name = extracted.main_contact_name;
+        if (extracted.main_contact_email)
+          flatExtracted.main_contact_email = extracted.main_contact_email;
+        if (extracted.main_contact_phone)
+          flatExtracted.main_contact_phone = extracted.main_contact_phone;
         if (extracted.industry) flatExtracted.industry = extracted.industry;
         if (extracted.website) flatExtracted.website = extracted.website;
         if (extracted.location) flatExtracted.location = extracted.location;
-        if ((extracted as any).ownership_structure) flatExtracted.ownership_structure = (extracted as any).ownership_structure;
+        if (extracted.ownership_structure)
+          flatExtracted.ownership_structure = extracted.ownership_structure;
         if (extracted.timeline_notes) flatExtracted.timeline_notes = extracted.timeline_notes;
         if (extracted.services?.length) flatExtracted.services = extracted.services;
 
@@ -777,14 +805,19 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         }
         {
           const fy = toFiniteNumber(extracted.founded_year);
-          if (fy != null && fy > 1800 && fy <= new Date().getFullYear()) flatExtracted.founded_year = fy;
+          if (fy != null && fy > 1800 && fy <= new Date().getFullYear())
+            flatExtracted.founded_year = fy;
         }
         if (extracted.key_risks) flatExtracted.key_risks = extracted.key_risks;
-        if (extracted.technology_systems) flatExtracted.technology_systems = extracted.technology_systems;
+        if (extracted.technology_systems)
+          flatExtracted.technology_systems = extracted.technology_systems;
         if (extracted.real_estate_info) flatExtracted.real_estate_info = extracted.real_estate_info;
-        if (extracted.special_requirements) flatExtracted.special_requirements = extracted.special_requirements;
-        if (extracted.end_market_description) flatExtracted.end_market_description = extracted.end_market_description;
-        if (extracted.financial_followup_questions?.length) flatExtracted.financial_followup_questions = extracted.financial_followup_questions;
+        if (extracted.special_requirements)
+          flatExtracted.special_requirements = extracted.special_requirements;
+        if (extracted.end_market_description)
+          flatExtracted.end_market_description = extracted.end_market_description;
+        if (extracted.financial_followup_questions?.length)
+          flatExtracted.financial_followup_questions = extracted.financial_followup_questions;
 
         // SAFETY: Only update columns that actually exist on the listings row.
         // PostgREST rejects the entire update when any unknown column is present.
@@ -802,9 +835,16 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
         // SAFETY: Sanitize numeric fields — LLM sometimes returns prose for numeric columns.
         // A single bad value causes PostgREST to reject the entire update.
         const NUMERIC_FIELDS = new Set([
-          'revenue', 'ebitda', 'ebitda_margin', 'number_of_locations',
-          'full_time_employees', 'part_time_employees', 'founded_year',
-          'linkedin_employee_count', 'team_page_employee_count', 'customer_concentration',
+          'revenue',
+          'ebitda',
+          'ebitda_margin',
+          'number_of_locations',
+          'full_time_employees',
+          'part_time_employees',
+          'founded_year',
+          'linkedin_employee_count',
+          'team_page_employee_count',
+          'customer_concentration',
         ]);
         const removedNumeric: Array<{ key: string; value: unknown }> = [];
         for (const [k, v] of Object.entries(filteredExtracted)) {
@@ -812,7 +852,10 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           if (typeof v === 'string') {
             const cleaned = v.replace(/[$,%]/g, '').trim();
             const n = Number(cleaned);
-            if (Number.isFinite(n)) { filteredExtracted[k] = n; continue; }
+            if (Number.isFinite(n)) {
+              filteredExtracted[k] = n;
+              continue;
+            }
           }
           if (typeof v !== 'number' || !Number.isFinite(v)) {
             removedNumeric.push({ key: k, value: v });
@@ -831,14 +874,14 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           'transcript',
           transcriptId,
           isPlaceholder,
-          transcriptTitle || undefined
+          transcriptTitle || undefined,
         );
 
         // Merge geographic_states instead of replacing
         if (updates.geographic_states && listing.geographic_states?.length > 0) {
           updates.geographic_states = mergeStates(
             listing.geographic_states,
-            updates.geographic_states as string[]
+            updates.geographic_states as string[],
           );
         }
 
@@ -874,47 +917,58 @@ Return ONLY the JSON object. No markdown fences, no explanation.`;
           })
           .eq('id', transcriptId);
         if (!dealUpdated) {
-          console.log(`Transcript ${transcriptId} extracted but no new fields applied (existing data has higher priority)`);
+          console.log(
+            `Transcript ${transcriptId} extracted but no new fields applied (existing data has higher priority)`,
+          );
         }
       }
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         extracted,
-        fieldsExtracted: Object.keys(extracted).filter(k => extracted[k as keyof ExtractionResult] != null).length,
+        fieldsExtracted: Object.keys(extracted).filter(
+          (k) => extracted[k as keyof ExtractionResult] != null,
+        ).length,
         dealUpdated,
         fieldsUpdated,
-        message: dealUpdated 
+        message: dealUpdated
           ? `Intelligence extracted and ${fieldsUpdated.length} fields applied to deal`
-          : 'Intelligence extracted successfully'
+          : 'Intelligence extracted successfully',
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-
   } catch (error) {
     console.error('Error in extract-deal-transcript:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
 
     // Update transcript extraction_status to failed
     try {
-      const bodyText = await req.clone().text().catch(() => '{}');
+      const bodyText = await req
+        .clone()
+        .text()
+        .catch(() => '{}');
       const { transcriptId: failedId } = JSON.parse(bodyText);
       if (failedId) {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const sb = createClient(supabaseUrl, supabaseKey);
-        await sb.from('deal_transcripts').update({
-          extraction_status: 'failed',
-          extraction_error: message,
-        }).eq('id', failedId);
+        await sb
+          .from('deal_transcripts')
+          .update({
+            extraction_status: 'failed',
+            extraction_error: message,
+          })
+          .eq('id', failedId);
       }
-    } catch (_) { /* best effort */ }
+    } catch (_) {
+      /* best effort */
+    }
 
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

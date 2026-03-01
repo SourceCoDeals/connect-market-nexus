@@ -1,28 +1,27 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { MemosTab } from "@/components/admin/data-room/MemosTab";
-import { DocumentsPanel } from "@/components/admin/data-room/DocumentsPanel";
-import { AccessMatrixPanel } from "@/components/admin/data-room/AccessMatrixPanel";
-import { AuditLogPanel } from "@/components/admin/data-room/AuditLogPanel";
-import { DistributionLogPanel } from "@/components/admin/data-room/DistributionLogPanel";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { MemosTab } from '@/components/admin/data-room/MemosTab';
+import { DocumentsPanel } from '@/components/admin/data-room/DocumentsPanel';
+import { AccessMatrixPanel } from '@/components/admin/data-room/AccessMatrixPanel';
+import { AuditLogPanel } from '@/components/admin/data-room/AuditLogPanel';
+import { DistributionLogPanel } from '@/components/admin/data-room/DistributionLogPanel';
 import {
   DealActivityLog,
   DealPipelinePanel,
   DealMarketplacePanel,
-} from "@/components/remarketing/deal-detail";
-import {
-  BookOpen,
-  ClipboardList,
-  FolderOpen,
-  Send,
-  Target,
-  Users,
-} from "lucide-react";
-import { Link } from "react-router-dom";
+} from '@/components/remarketing/deal-detail';
+import { BookOpen, ClipboardList, FolderOpen, Send, Target, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface DataRoomTabProps {
-  deal: any;
+  deal: {
+    internal_company_name?: string | null;
+    title?: string | null;
+    project_name?: string | null;
+    is_internal_deal?: boolean | null;
+    status?: string | null;
+  };
   dealId: string;
   scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
 }
@@ -120,7 +119,6 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
         </div>
 
         <DistributionLogPanel dealId={dealId} />
-
       </TabsContent>
 
       <TabsContent value="activity" className="space-y-6">

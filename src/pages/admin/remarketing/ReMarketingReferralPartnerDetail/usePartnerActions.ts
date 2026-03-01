@@ -6,7 +6,7 @@ import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarket
 import { useAuth } from "@/context/AuthContext";
 import type { SingleDealEnrichmentResult } from "./types";
 
-export function usePartnerActions(partnerId: string | undefined, partner: any, deals: any[] | undefined) {
+export function usePartnerActions(partnerId: string | undefined, partner: { share_token?: string | null } | null | undefined, deals: unknown[] | undefined) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
@@ -198,7 +198,7 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId] });
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
-    } catch (err: any) { toast.error(`Delete failed: ${err.message}`); }
+    } catch (err: unknown) { toast.error(`Delete failed: ${err.message}`); }
     setConfirmAction(null);
   };
 
@@ -219,7 +219,7 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
         setSelectedDealIds(new Set());
         queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(`Failed: ${err.message}`);
     } finally {
       setIsMarkingNotFit(false);

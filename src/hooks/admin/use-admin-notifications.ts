@@ -15,7 +15,7 @@ export interface AdminNotification {
   user_id?: string;
   feedback_id?: string;
   action_url?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 

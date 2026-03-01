@@ -24,12 +24,29 @@ import { FlagForBuyerButton } from '@/components/daily-tasks/FlagForBuyerButton'
 import { isSponsorType, findPeFirmByName, getBuyerTypeLabel } from './constants';
 import type { BuyerTab } from './constants';
 
+interface BuyerRecord {
+  id: string;
+  company_name: string;
+  company_website?: string | null;
+  buyer_type?: string | null;
+  pe_firm_name?: string | null;
+  hq_city?: string | null;
+  hq_state?: string | null;
+  business_summary?: string | null;
+  thesis_summary?: string | null;
+  alignment_score?: number | null;
+  has_fee_agreement?: boolean | null;
+  marketplace_firm_id?: string | null;
+  firm_agreement?: { nda_signed?: boolean } | null;
+  universe?: { name: string } | null;
+}
+
 interface BuyerTableRowProps {
-  buyer: any;
+  buyer: BuyerRecord;
   globalIdx: number;
   activeTab: BuyerTab;
   selectedIds: Set<string>;
-  buyers: any[] | undefined;
+  buyers: unknown[] | undefined;
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
   toggleSelect: (

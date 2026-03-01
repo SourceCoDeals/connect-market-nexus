@@ -78,7 +78,7 @@ serve(async (req) => {
 
     // If no inline content, check for M&A guide in documents
     if (!maGuideContent && Array.isArray(universe.documents)) {
-      const maGuideDoc = universe.documents.find((doc: any) => doc.type === "ma_guide" && doc.url);
+      const maGuideDoc = universe.documents.find((doc: { type?: string; url?: string; name?: string }) => doc.type === "ma_guide" && doc.url);
       
       if (maGuideDoc) {
         console.log(`[score-industry-alignment] Found M&A guide document: ${maGuideDoc.name}`);
@@ -155,7 +155,7 @@ ${maGuideContent}
 
     // Build service criteria context
     let serviceCriteriaContext = "";
-    const serviceCriteria = universe.service_criteria as any;
+    const serviceCriteria = universe.service_criteria as { primary_focus?: string; keywords?: string[] } | null;
     if (serviceCriteria) {
       if (serviceCriteria.primary_focus) {
         serviceCriteriaContext += `\nPrimary Industry Focus: ${serviceCriteria.primary_focus}`;

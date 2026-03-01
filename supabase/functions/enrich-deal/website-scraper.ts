@@ -11,11 +11,8 @@
  * All functionality is preserved — this is a pure extraction.
  */
 
-import { validateUrl } from "../_shared/security.ts";
-import {
-  DEAL_SCRAPE_TIMEOUT_MS,
-  WEBSITE_PLACEHOLDERS,
-} from "../_shared/deal-extraction.ts";
+import { validateUrl } from '../_shared/security.ts';
+import { DEAL_SCRAPE_TIMEOUT_MS, WEBSITE_PLACEHOLDERS } from '../_shared/deal-extraction.ts';
 
 export interface ScrapeResult {
   url: string;
@@ -36,8 +33,8 @@ export interface WebsiteScrapingResult {
  * Resolve the best website URL from deal fields.
  * Returns null if no valid URL is found.
  */
-export function resolveWebsiteUrl(deal: any): string | null {
-  let websiteUrl = deal.website;
+export function resolveWebsiteUrl(deal: Record<string, unknown>): string | null {
+  let websiteUrl = deal.website as string | null;
 
   // Reject email addresses stored in website field
   if (websiteUrl && websiteUrl.includes('@')) {
@@ -53,7 +50,7 @@ export function resolveWebsiteUrl(deal: any): string | null {
 
   // Try to extract from internal_deal_memo_link
   if (!websiteUrl && deal.internal_deal_memo_link) {
-    const memoLink = deal.internal_deal_memo_link;
+    const memoLink = String(deal.internal_deal_memo_link);
     if (!memoLink.includes('sharepoint.com') && !memoLink.includes('onedrive')) {
       const websiteMatch = memoLink.match(/Website:\s*(https?:\/\/[^\s]+)/i);
       if (websiteMatch) {
@@ -70,7 +67,10 @@ export function resolveWebsiteUrl(deal: any): string | null {
 
   // Handle multiple comma-separated URLs
   if (websiteUrl.includes(',')) {
-    const urls = websiteUrl.split(',').map((u: string) => u.trim()).filter(Boolean);
+    const urls = websiteUrl
+      .split(',')
+      .map((u: string) => u.trim())
+      .filter(Boolean);
     websiteUrl = urls[0];
     console.log(`Multiple URLs detected, using first: "${websiteUrl}" (from ${urls.length} URLs)`);
   }
@@ -94,7 +94,11 @@ export function resolveWebsiteUrl(deal: any): string | null {
  * Validate URL against SSRF attacks.
  * Returns the normalized URL or an error.
  */
-export function validateWebsiteUrl(websiteUrl: string): { valid: boolean; normalizedUrl?: string; reason?: string } {
+export function validateWebsiteUrl(websiteUrl: string): {
+  valid: boolean;
+  normalizedUrl?: string;
+  reason?: string;
+} {
   const urlValidation = validateUrl(websiteUrl);
   if (!urlValidation.valid) {
     console.error(`SSRF blocked for deal website: ${websiteUrl} - ${urlValidation.reason}`);
@@ -111,7 +115,7 @@ async function scrapePage(url: string, firecrawlApiKey: string): Promise<ScrapeR
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${firecrawlApiKey}`,
+        Authorization: `Bearer ${firecrawlApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -125,8 +129,14 @@ async function scrapePage(url: string, firecrawlApiKey: string): Promise<ScrapeR
 
     if (!response.ok) {
       let errorBody = '';
-      try { errorBody = await response.text(); } catch { /* ignored */ }
-      console.error(`Firecrawl scrape failed for ${url}: HTTP ${response.status} — ${errorBody.slice(0, 300)}`);
+      try {
+        errorBody = await response.text();
+      } catch {
+        /* ignored */
+      }
+      console.error(
+        `Firecrawl scrape failed for ${url}: HTTP ${response.status} — ${errorBody.slice(0, 300)}`,
+      );
       return { url, content: '', success: false };
     }
 
@@ -134,7 +144,10 @@ async function scrapePage(url: string, firecrawlApiKey: string): Promise<ScrapeR
     const content = data.data?.markdown || data.markdown || '';
     return { url, content, success: content.length > 50 };
   } catch (err) {
-    console.error(`Firecrawl scrape exception for ${url}:`, err instanceof Error ? err.message : err);
+    console.error(
+      `Firecrawl scrape exception for ${url}:`,
+      err instanceof Error ? err.message : err,
+    );
     return { url, content: '', success: false };
   }
 }
@@ -174,10 +187,12 @@ function extractSubpageUrls(homepageContent: string, baseUrl: string): string[] 
       if (path === '/' || path === '') continue;
       if (/\.(pdf|jpg|jpeg|png|gif|svg|css|js|xml|zip)$/i.test(path)) continue;
 
-      if (SUBPAGE_PATTERNS.some(pattern => pattern.test(path))) {
+      if (SUBPAGE_PATTERNS.some((pattern) => pattern.test(path))) {
         found.add(resolved.origin + resolved.pathname);
       }
-    } catch { /* skip malformed URLs */ }
+    } catch {
+      /* skip malformed URLs */
+    }
   }
 
   // Also try matching bare href="..." patterns (in case markdown has raw HTML)
@@ -191,10 +206,12 @@ function extractSubpageUrls(homepageContent: string, baseUrl: string): string[] 
       if (path === '/' || path === '') continue;
       if (/\.(pdf|jpg|jpeg|png|gif|svg|css|js|xml|zip)$/i.test(path)) continue;
 
-      if (SUBPAGE_PATTERNS.some(pattern => pattern.test(path))) {
+      if (SUBPAGE_PATTERNS.some((pattern) => pattern.test(path))) {
         found.add(resolved.origin + resolved.pathname);
       }
-    } catch { /* skip malformed URLs */ }
+    } catch {
+      /* skip malformed URLs */
+    }
   }
 
   return Array.from(found).slice(0, MAX_SUBPAGES);
@@ -203,7 +220,10 @@ function extractSubpageUrls(homepageContent: string, baseUrl: string): string[] 
 /**
  * Scrape the homepage plus up to 3 high-value subpages and assemble website content.
  */
-export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string): Promise<{
+export async function scrapeWebsite(
+  websiteUrl: string,
+  firecrawlApiKey: string,
+): Promise<{
   scrapedPages: ScrapeResult[];
   successfulScrapes: ScrapeResult[];
   websiteContent: string;
@@ -218,14 +238,16 @@ export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string)
   if (homepageResult.success && homepageResult.content.length > 50) {
     const subpageUrls = extractSubpageUrls(homepageResult.content, websiteUrl);
     if (subpageUrls.length > 0) {
-      console.log(`Found ${subpageUrls.length} high-value subpages to scrape: ${subpageUrls.join(', ')}`);
+      console.log(
+        `Found ${subpageUrls.length} high-value subpages to scrape: ${subpageUrls.join(', ')}`,
+      );
       const subpageResults = await Promise.allSettled(
-        subpageUrls.map(url => {
+        subpageUrls.map((url) => {
           // Use a shorter timeout for subpages
           const controller = new AbortController();
           const timer = setTimeout(() => controller.abort(), SUBPAGE_TIMEOUT_MS);
           return scrapePage(url, firecrawlApiKey).finally(() => clearTimeout(timer));
-        })
+        }),
       );
       for (const result of subpageResults) {
         if (result.status === 'fulfilled') {
@@ -237,7 +259,7 @@ export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string)
     }
   }
 
-  const successfulScrapes = scrapedPages.filter(p => p.success);
+  const successfulScrapes = scrapedPages.filter((p) => p.success);
   console.log(`Successfully scraped ${successfulScrapes.length} of ${scrapedPages.length} pages`);
 
   let websiteContent = '';
@@ -248,10 +270,10 @@ export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string)
     }
   }
 
-  const scrapedPagesSummary = scrapedPages.map(p => ({
+  const scrapedPagesSummary = scrapedPages.map((p) => ({
     url: p.url,
     success: p.success,
-    chars: p.content.length
+    chars: p.content.length,
   }));
   console.log('Scrape summary:', JSON.stringify(scrapedPagesSummary));
 

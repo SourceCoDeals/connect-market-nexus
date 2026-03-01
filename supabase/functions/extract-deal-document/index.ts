@@ -38,8 +38,8 @@ async function extractDocumentContent(documentUrl: string): Promise<DocumentCont
     .download(storagePath);
 
   if (error || !data) {
-    const errName = (error as any)?.name || 'Unknown';
-    const errMsg = error?.message || (error as any)?.statusCode || JSON.stringify(error);
+    const errName = (error as { name?: string })?.name || 'Unknown';
+    const errMsg = error?.message || (error as { statusCode?: string })?.statusCode || JSON.stringify(error);
     console.error(`[DOCUMENT_FETCH] Storage error (${errName}):`, JSON.stringify(error));
     throw new Error(`Failed to download document from path "${storagePath}": ${errName} - ${errMsg}. The file may not exist in storage — please re-upload.`);
   }
@@ -86,7 +86,7 @@ async function extractCriteriaFromDocument(
   content: DocumentContent,
   documentName: string,
   industryName: string
-): Promise<any> {
+): Promise<unknown> {
   console.log('[EXTRACTION_START] Processing document');
 
   const systemPrompt = `You are an expert M&A advisor analyzing a document to extract buyer fit criteria and deal information. These documents may be shorter and more focused than comprehensive M&A guides — they could be deal memos, broker packages, internal research notes, or one-pagers.
@@ -343,7 +343,7 @@ Industry: ${industryName}`;
     try {
       return JSON.parse(toolCalls[0].function.arguments);
     } catch (e: unknown) {
-      throw new Error(`Failed to parse extraction result: ${(e as Error).message}`);
+      throw new Error(`Failed to parse extraction result: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -425,7 +425,7 @@ serve(async (req) => {
       const content = await extractDocumentContent(document_url);
       const extractionResult = await extractCriteriaFromDocument(content, document_name, industry_name);
 
-      const confidenceScores: any = {
+      const confidenceScores: Record<string, unknown> = {
         overall: extractionResult.overall_confidence,
         document_type: extractionResult.document_metadata?.document_type,
       };
@@ -473,7 +473,7 @@ serve(async (req) => {
         .from('criteria_extraction_sources')
         .update({
           extraction_status: 'failed',
-          extraction_error: (extractionError as Error).message,
+          extraction_error: extractionError instanceof Error ? extractionError.message : String(extractionError),
           extraction_completed_at: new Date().toISOString()
         })
         .eq('id', sourceRecord.id);
@@ -484,7 +484,7 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error('[ERROR]', error);
     return new Response(
-      JSON.stringify({ success: false, error: (error as Error).message }),
+      JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }

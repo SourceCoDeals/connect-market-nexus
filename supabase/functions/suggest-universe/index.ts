@@ -142,10 +142,10 @@ Only include universes with confidence >= 50. Sort by confidence descending.`;
     try {
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]) as { index: number; confidence: number; reason: string; matching_criteria?: string[] }[];
         suggestions = parsed
-          .filter((s: any) => s.confidence >= 50)
-          .map((s: any) => ({
+          .filter((s) => s.confidence >= 50)
+          .map((s) => ({
             universe_id: unlinkedUniverses[s.index - 1]?.id,
             universe_name: unlinkedUniverses[s.index - 1]?.name,
             confidence: s.confidence,

@@ -1,8 +1,8 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { logEmailDelivery } from '../_shared/email-logger.ts';
 
 interface ReferralRequest {
   listingId: string;
@@ -15,51 +15,52 @@ interface ReferralRequest {
 serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error("No authorization header");
+      throw new Error('No authorization header');
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
 
     if (authError || !user) {
-      throw new Error("Unauthorized");
+      throw new Error('Unauthorized');
     }
 
-    const { listingId, recipientEmail, recipientName, personalMessage, ccSelf }: ReferralRequest = 
+    const { listingId, recipientEmail, recipientName, personalMessage, ccSelf }: ReferralRequest =
       await req.json();
 
     // Get listing details
     const { data: listing, error: listingError } = await supabase
-      .from("listings")
-      .select("title, category, location, revenue, ebitda")
-      .eq("id", listingId)
+      .from('listings')
+      .select('title, category, location, revenue, ebitda')
+      .eq('id', listingId)
       .single();
 
     if (listingError) throw listingError;
 
     // Get referrer profile
     const { data: profile } = await supabase
-      .from("profiles")
-      .select("first_name, last_name, email")
-      .eq("id", user.id)
+      .from('profiles')
+      .select('first_name, last_name, email')
+      .eq('id', user.id)
       .single();
 
-    const referrerName = profile 
+    const referrerName = profile
       ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email
       : 'A colleague';
-    
+
     const referrerEmail = profile?.email || '';
 
     // Format currency
@@ -91,13 +92,17 @@ serve(async (req: Request) => {
                 They shared a business listing with you
               </p>
 
-              ${personalMessage ? `
+              ${
+                personalMessage
+                  ? `
                 <div style="margin-bottom: 32px; padding: 16px; background-color: #f8fafc; border-left: 2px solid #cbd5e1; border-radius: 4px;">
                   <p style="margin: 0; font-size: 14px; color: #475569; font-style: italic;">
                     "${personalMessage}"
                   </p>
                 </div>
-              ` : ''}
+              `
+                  : ''
+              }
 
               <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
                 <h2 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #0f172a;">
@@ -151,31 +156,41 @@ serve(async (req: Request) => {
       throw new Error('BREVO_API_KEY not configured');
     }
 
-    const brevoPayload: any = {
-      sender: { 
-        name: "SourceCo Marketplace", 
-        email: Deno.env.get('NOREPLY_EMAIL') || "noreply@sourcecodeals.com"
+    const brevoPayload: {
+      sender: { name: string; email: string };
+      to: { email: string; name: string }[];
+      subject: string;
+      htmlContent: string;
+      cc?: { email: string; name: string }[];
+    } = {
+      sender: {
+        name: 'SourceCo Marketplace',
+        email: Deno.env.get('NOREPLY_EMAIL') || 'noreply@sourcecodeals.com',
       },
-      to: [{ 
-        email: recipientEmail, 
-        name: recipientName || recipientEmail 
-      }],
+      to: [
+        {
+          email: recipientEmail,
+          name: recipientName || recipientEmail,
+        },
+      ],
       subject: `${referrerName} shared a business opportunity with you`,
       htmlContent: emailHtml,
     };
 
     // Add CC if requested
     if (ccSelf && referrerEmail) {
-      brevoPayload.cc = [{ 
-        email: referrerEmail, 
-        name: referrerName 
-      }];
+      brevoPayload.cc = [
+        {
+          email: referrerEmail,
+          name: referrerName,
+        },
+      ];
     }
 
     const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'accept': 'application/json',
+        accept: 'application/json',
         'api-key': brevoApiKey,
         'content-type': 'application/json',
       },
@@ -210,7 +225,7 @@ serve(async (req: Request) => {
       .from('deal_referrals')
       .update({
         sent_at: new Date().toISOString(),
-        delivery_status: 'sent'
+        delivery_status: 'sent',
       })
       .eq('listing_id', listingId)
       .eq('recipient_email', recipientEmail)
@@ -222,24 +237,24 @@ serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: 'Referral sent successfully',
-        messageId: emailResult.messageId
+        messageId: emailResult.messageId,
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
-      }
+      },
     );
-  } catch (error: any) {
-    console.error("Error sending referral:", error);
+  } catch (error: unknown) {
+    console.error('Error sending referral:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
-      }
+      },
     );
   }
 });

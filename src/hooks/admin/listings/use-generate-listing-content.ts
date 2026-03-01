@@ -57,7 +57,7 @@ export function useGenerateListingContent() {
 
       toast({ title: 'Content generated', description: field ? `${field} has been generated.` : 'All listing content has been generated.' });
       return result.content as GeneratedListingContent;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Generate listing content error:', err);
       toast({
         variant: 'destructive',

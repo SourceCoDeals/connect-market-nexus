@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 interface DuplicateChannelWarningProps {
-  sourceMetadata?: Record<string, any>;
+  sourceMetadata?: Record<string, unknown>;
   className?: string;
 }
 

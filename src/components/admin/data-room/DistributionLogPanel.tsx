@@ -14,7 +14,7 @@ interface DistributionLogPanelProps {
   dealId: string;
 }
 
-const CHANNEL_ICONS: Record<string, any> = {
+const CHANNEL_ICONS: Record<string, unknown> = {
   platform: Monitor,
   email: Mail,
   manual_log: ClipboardList,

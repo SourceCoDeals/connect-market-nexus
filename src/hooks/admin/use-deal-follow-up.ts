@@ -16,7 +16,7 @@ export function useUpdateFollowupStatus() {
       followed_up: boolean;
       notes?: string;
     }) => {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         followed_up,
         updated_at: new Date().toISOString(),
       };
@@ -137,8 +137,8 @@ export function useCreateStageTask() {
       };
 
       const { data, error } = await (supabase
-        .from('daily_standup_tasks' as any)
-        .insert(taskData as any)
+        .from('daily_standup_tasks' as 'profiles')
+        .insert(taskData as never)
         .select()
         .single());
 

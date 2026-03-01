@@ -52,10 +52,12 @@ export function DocumentDistributionTab({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select(`
+        .select(
+          `
           id, company_name,
           contacts!contacts_remarketing_buyer_id_fkey(first_name, last_name, email, is_primary_at_firm)
-        `)
+        `,
+        )
         .eq('archived', false)
         .eq('contacts.contact_type', 'buyer')
         .eq('contacts.archived', false)
@@ -64,27 +66,49 @@ export function DocumentDistributionTab({
 
       if (error) throw error;
 
-      return (data || []).flatMap((buyer: any) => {
-        const contacts = buyer.contacts || [];
+      return (data || []).flatMap(
+        (buyer: {
+          id: string;
+          company_name: string;
+          contacts:
+            | {
+                first_name: string | null;
+                last_name: string | null;
+                email: string | null;
+                is_primary_at_firm: boolean | null;
+              }[]
+            | null;
+        }) => {
+          const contacts = buyer.contacts || [];
 
-        if (contacts.length === 0) {
-          // Firm with no contacts — still list it
-          return [{
-            id: buyer.id,
-            name: buyer.company_name,
-            email: '',
-            firm: buyer.company_name,
-          }];
-        }
+          if (contacts.length === 0) {
+            // Firm with no contacts — still list it
+            return [
+              {
+                id: buyer.id,
+                name: buyer.company_name,
+                email: '',
+                firm: buyer.company_name,
+              },
+            ];
+          }
 
-        // Return each contact as a separate buyer option
-        return contacts.map((c: any) => ({
-          id: buyer.id,
-          name: [c.first_name, c.last_name].filter(Boolean).join(' ') || buyer.company_name,
-          email: c.email || '',
-          firm: buyer.company_name,
-        }));
-      }) as BuyerOption[];
+          // Return each contact as a separate buyer option
+          return contacts.map(
+            (c: {
+              first_name: string | null;
+              last_name: string | null;
+              email: string | null;
+              is_primary_at_firm: boolean | null;
+            }) => ({
+              id: buyer.id,
+              name: [c.first_name, c.last_name].filter(Boolean).join(' ') || buyer.company_name,
+              email: c.email || '',
+              firm: buyer.company_name,
+            }),
+          );
+        },
+      ) as BuyerOption[];
     },
   });
 
@@ -129,19 +153,11 @@ export function DocumentDistributionTab({
         </TabsContent>
 
         <TabsContent value="marketing">
-          <MarketingDocumentsTab
-            dealId={dealId}
-            projectName={projectName}
-            buyers={buyers}
-          />
+          <MarketingDocumentsTab dealId={dealId} projectName={projectName} buyers={buyers} />
         </TabsContent>
 
         <TabsContent value="dataroom">
-          <DataRoomFilesTab
-            dealId={dealId}
-            projectName={projectName}
-            buyers={buyers}
-          />
+          <DataRoomFilesTab dealId={dealId} projectName={projectName} buyers={buyers} />
         </TabsContent>
 
         <TabsContent value="activity">

@@ -15,7 +15,7 @@ const PLACEHOLDER_PATTERNS = [
   /\$X+M?/gi,
 ];
 
-function cleanPlaceholders(value: any): any {
+function cleanPlaceholders(value: unknown): unknown {
   if (typeof value === 'string') {
     let cleaned = value;
     for (const pattern of PLACEHOLDER_PATTERNS) {
@@ -27,8 +27,8 @@ function cleanPlaceholders(value: any): any {
     return value.map(cleanPlaceholders).filter(Boolean);
   }
   if (typeof value === 'object' && value !== null) {
-    const result: Record<string, any> = {};
-    for (const [key, val] of Object.entries(value)) {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
       const cleaned = cleanPlaceholders(val);
       if (cleaned !== null && cleaned !== undefined && cleaned !== '') {
         result[key] = cleaned;
@@ -40,17 +40,16 @@ function cleanPlaceholders(value: any): any {
 }
 
 // Separate EBITDA multiples from dollar values
-function fixMisplacedMultiples(criteria: any): any {
+function fixMisplacedMultiples(criteria: Record<string, unknown>): Record<string, unknown> {
   if (!criteria?.size_criteria) return criteria;
+
+  const size = criteria.size_criteria as Record<string, unknown>;
   
-  const size = criteria.size_criteria;
-  
-  // If EBITDA min looks like a multiple (< 20), move it
-  if (size.ebitda_min && size.ebitda_min < 20) {
+  if (size.ebitda_min && (size.ebitda_min as number) < 20) {
     size.ebitda_multiple_min = size.ebitda_min;
     delete size.ebitda_min;
   }
-  if (size.ebitda_max && size.ebitda_max < 20) {
+  if (size.ebitda_max && (size.ebitda_max as number) < 20) {
     size.ebitda_multiple_max = size.ebitda_max;
     delete size.ebitda_max;
   }
@@ -323,8 +322,8 @@ function parseLocally(text: string) {
   const lowerText = text.toLowerCase();
   
   const result = {
-    size_criteria: {} as Record<string, any>,
-    geography_criteria: {} as Record<string, any>,
+    size_criteria: {} as Record<string, unknown>,
+    geography_criteria: {} as Record<string, unknown>,
     service_criteria: {
       primary_focus: [] as string[],
       required_services: [] as string[],
@@ -337,7 +336,7 @@ function parseLocally(text: string) {
       include_strategic: true,
       include_family_office: true
     },
-    scoring_behavior: {} as Record<string, any>,
+    scoring_behavior: {} as Record<string, unknown>,
     extracted_keywords: [] as string[],
   };
 

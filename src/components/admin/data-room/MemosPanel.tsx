@@ -15,10 +15,25 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  BookOpen, Sparkles, FileText, Send, Download, Edit,
-  Loader2, CheckCircle, Clock, Archive,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  BookOpen,
+  Sparkles,
+  FileText,
+  Send,
+  Download,
+  Edit,
+  Loader2,
+  CheckCircle,
+  Clock,
+  Archive,
+  type LucideIcon,
 } from 'lucide-react';
 import {
   useLeadMemos,
@@ -42,7 +57,7 @@ const BRANDING_OPTIONS = [
   { value: 'cortec', label: 'Cortec Group' },
 ];
 
-const STATUS_BADGES: Record<string, { label: string; icon: any; className: string }> = {
+const STATUS_BADGES: Record<string, { label: string; icon: LucideIcon; className: string }> = {
   draft: { label: 'Draft', icon: Edit, className: 'bg-amber-100 text-amber-800' },
   published: { label: 'Published', icon: CheckCircle, className: 'bg-green-100 text-green-800' },
   archived: { label: 'Archived', icon: Archive, className: 'bg-gray-100 text-gray-600' },
@@ -53,14 +68,16 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
   const generateMemo = useGenerateMemo();
   const publishMemo = usePublishMemo();
 
-  const [generateType, setGenerateType] = useState<'anonymous_teaser' | 'full_memo' | 'both'>('both');
+  const [generateType, setGenerateType] = useState<'anonymous_teaser' | 'full_memo' | 'both'>(
+    'both',
+  );
   const [branding, setBranding] = useState('sourceco');
   const [editingMemo, setEditingMemo] = useState<LeadMemo | null>(null);
   const [sendingMemo, setSendingMemo] = useState<LeadMemo | null>(null);
   const [loggingMemo, setLoggingMemo] = useState<LeadMemo | null>(null);
 
-  const teaserMemos = memos.filter(m => m.memo_type === 'anonymous_teaser');
-  const fullMemos = memos.filter(m => m.memo_type === 'full_memo');
+  const teaserMemos = memos.filter((m) => m.memo_type === 'anonymous_teaser');
+  const fullMemos = memos.filter((m) => m.memo_type === 'full_memo');
 
   const handleGenerate = () => {
     generateMemo.mutate({
@@ -76,8 +93,10 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
 
   const handleExportPdf = (memo: LeadMemo) => {
     // Generate PDF from memo content client-side
-    const sections = (memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections || [];
-    const brandName = BRANDING_OPTIONS.find(b => b.value === memo.branding)?.label || 'SourceCo';
+    const sections =
+      (memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections ||
+      [];
+    const brandName = BRANDING_OPTIONS.find((b) => b.value === memo.branding)?.label || 'SourceCo';
     const isAnonymous = memo.memo_type === 'anonymous_teaser';
 
     // Build HTML for print
@@ -107,12 +126,16 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
           <p class="memo-type">${isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}</p>
           <p class="date">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        ${sections.map((s: any) => `
+        ${sections
+          .map(
+            (s: { title: string; content: string }) => `
           <div class="section">
             <h2>${s.title}</h2>
             <div>${s.content.replace(/\n/g, '<br>')}</div>
           </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </body>
       </html>
     `;
@@ -138,13 +161,7 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
 
   // If editing a memo, show the editor
   if (editingMemo) {
-    return (
-      <MemoEditor
-        memo={editingMemo}
-        dealId={dealId}
-        onClose={() => setEditingMemo(null)}
-      />
-    );
+    return <MemoEditor memo={editingMemo} dealId={dealId} onClose={() => setEditingMemo(null)} />;
   }
 
   return (
@@ -160,8 +177,15 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
         <CardContent>
           <div className="flex items-end gap-3">
             <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Memo Type</label>
-              <Select value={generateType} onValueChange={(v: any) => setGenerateType(v)}>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Memo Type
+              </label>
+              <Select
+                value={generateType}
+                onValueChange={(v: string) =>
+                  setGenerateType(v as 'anonymous_teaser' | 'full_memo' | 'both')
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -173,22 +197,23 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
               </Select>
             </div>
             <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Branding</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Branding
+              </label>
               <Select value={branding} onValueChange={setBranding}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {BRANDING_OPTIONS.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  {BRANDING_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button
-              onClick={handleGenerate}
-              disabled={generateMemo.isPending}
-            >
+            <Button onClick={handleGenerate} disabled={generateMemo.isPending}>
               {generateMemo.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -198,7 +223,8 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            AI will draft from transcripts, enrichment data, and manual entries. You can edit before publishing.
+            AI will draft from transcripts, enrichment data, and manual entries. You can edit before
+            publishing.
           </p>
         </CardContent>
       </Card>
@@ -243,20 +269,12 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
 
       {/* Send Email Dialog */}
       {sendingMemo && (
-        <SendMemoDialog
-          memo={sendingMemo}
-          dealId={dealId}
-          onClose={() => setSendingMemo(null)}
-        />
+        <SendMemoDialog memo={sendingMemo} dealId={dealId} onClose={() => setSendingMemo(null)} />
       )}
 
       {/* Manual Log Dialog */}
       {loggingMemo && (
-        <ManualLogDialog
-          memo={loggingMemo}
-          dealId={dealId}
-          onClose={() => setLoggingMemo(null)}
-        />
+        <ManualLogDialog memo={loggingMemo} dealId={dealId} onClose={() => setLoggingMemo(null)} />
       )}
     </div>
   );
@@ -288,7 +306,7 @@ function MemoSection({
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {memos.map(memo => {
+          {memos.map((memo) => {
             const statusInfo = STATUS_BADGES[memo.status];
             const StatusIcon = statusInfo.icon;
 
@@ -298,7 +316,9 @@ function MemoSection({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">
-                      {memo.memo_type === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Full Lead Memo'}
+                      {memo.memo_type === 'anonymous_teaser'
+                        ? 'Anonymous Teaser'
+                        : 'Full Lead Memo'}
                       <span className="text-xs text-muted-foreground ml-1">v{memo.version}</span>
                     </p>
                     <Badge className={statusInfo.className} variant="secondary">
@@ -307,23 +327,40 @@ function MemoSection({
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {BRANDING_OPTIONS.find(b => b.value === memo.branding)?.label || memo.branding}
+                    {BRANDING_OPTIONS.find((b) => b.value === memo.branding)?.label ||
+                      memo.branding}
                     {' · '}
                     {new Date(memo.created_at).toLocaleDateString()}
-                    {memo.published_at && ` · Published ${new Date(memo.published_at).toLocaleDateString()}`}
+                    {memo.published_at &&
+                      ` · Published ${new Date(memo.published_at).toLocaleDateString()}`}
                   </p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <Button variant="ghost" size="sm" onClick={() => onEdit(memo)} title="Edit">
                     <Edit className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onExportPdf(memo)} title="Export PDF">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onExportPdf(memo)}
+                    title="Export PDF"
+                  >
                     <Download className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onSendEmail(memo)} title="Send via Email">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSendEmail(memo)}
+                    title="Send via Email"
+                  >
                     <Send className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onManualLog(memo)} title="Log Manual Send">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onManualLog(memo)}
+                    title="Log Manual Send"
+                  >
                     <Clock className="h-3.5 w-3.5" />
                   </Button>
                   {memo.status === 'draft' && (

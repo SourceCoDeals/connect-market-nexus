@@ -1,10 +1,10 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from "../_shared/ai-providers.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from '../_shared/ai-providers.ts';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 // Bump this when deploying to verify the active function version
-const VERSION = "map-csv-columns@2026-02-03.2";
+const VERSION = 'map-csv-columns@2026-02-03.2';
 
 interface MappingRequest {
   columns: string[];
@@ -25,9 +25,18 @@ const BUYER_FIELDS = [
   { field: 'platform_website', description: 'Website URL of the portfolio company' },
   { field: 'pe_firm_name', description: 'Name of the private equity firm/sponsor' },
   { field: 'pe_firm_website', description: 'Website URL of the PE firm' },
-  { field: 'company_website', description: 'General website URL (if not separated into platform/PE)' },
-  { field: 'buyer_type', description: 'Type of buyer (PE firm, platform, strategic, family office)' },
-  { field: 'hq_city_state', description: 'Combined headquarters city and state (e.g., "Phoenix, AZ")' },
+  {
+    field: 'company_website',
+    description: 'General website URL (if not separated into platform/PE)',
+  },
+  {
+    field: 'buyer_type',
+    description: 'Type of buyer (PE firm, platform, strategic, family office)',
+  },
+  {
+    field: 'hq_city_state',
+    description: 'Combined headquarters city and state (e.g., "Phoenix, AZ")',
+  },
   { field: 'hq_city', description: 'Headquarters city only' },
   { field: 'hq_state', description: 'Headquarters state (2-letter code preferred, e.g., TX, CA)' },
   { field: 'hq_country', description: 'Headquarters country' },
@@ -54,7 +63,10 @@ const BUYER_FIELDS = [
 const DEAL_FIELDS = [
   { field: 'title', description: 'Company name (REQUIRED)' },
   { field: 'website', description: 'Company website URL' },
-  { field: 'category', description: 'Industry or business category (e.g., Collision, HVAC, Roofing)' },
+  {
+    field: 'category',
+    description: 'Industry or business category (e.g., Collision, HVAC, Roofing)',
+  },
   { field: 'revenue', description: 'Annual revenue amount (numeric)' },
   { field: 'ebitda', description: 'EBITDA amount (numeric)' },
   { field: 'description', description: 'Business description or AI-generated summary' },
@@ -72,7 +84,10 @@ const DEAL_FIELDS = [
   { field: 'main_contact_last_name', description: 'Last name only of primary contact' },
   { field: 'main_contact_email', description: 'Primary contact email address' },
   { field: 'main_contact_phone', description: 'Primary contact phone number' },
-  { field: 'main_contact_title', description: 'Job title or role of primary contact (e.g., Owner, CEO)' },
+  {
+    field: 'main_contact_title',
+    description: 'Job title or role of primary contact (e.g., Owner, CEO)',
+  },
   { field: 'internal_company_name', description: 'Internal name for the company' },
   { field: 'internal_notes', description: 'Internal notes (not shown to buyers)' },
   { field: 'owner_goals', description: 'Owner goals or seller motivation' },
@@ -88,7 +103,7 @@ const DEAL_FIELDS = [
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
@@ -99,18 +114,17 @@ serve(async (req) => {
       ts: new Date().toISOString(),
     });
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+      throw new Error('GEMINI_API_KEY is not configured');
     }
 
-    const { columns, targetType, sampleData } = await req.json() as MappingRequest;
+    const { columns, targetType, sampleData } = (await req.json()) as MappingRequest;
 
     if (!columns || columns.length === 0) {
-      return new Response(
-        JSON.stringify({ mappings: [], _version: VERSION }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ mappings: [], _version: VERSION }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const fields = targetType === 'buyer' ? BUYER_FIELDS : DEAL_FIELDS;
@@ -120,12 +134,12 @@ serve(async (req) => {
     if (sampleData && sampleData.length > 0) {
       sampleDataStr = '\n\nSample data from first 3 rows:\n';
       sampleData.slice(0, 3).forEach((row, i) => {
-        sampleDataStr += `Row ${i + 1}: ${columns.map(col => `${col}="${row[col] || ''}"`).join(', ')}\n`;
+        sampleDataStr += `Row ${i + 1}: ${columns.map((col) => `${col}="${row[col] || ''}"`).join(', ')}\n`;
       });
     }
 
     let systemPrompt: string;
-    
+
     if (targetType === 'deal') {
       systemPrompt = `You are a data mapping expert for M&A deal/company data imports.
 Given CSV column names and sample data, map them to target database fields for company listings.
@@ -213,145 +227,175 @@ CSV Columns: ${columns.join(', ')}
 ${sampleDataStr}
 
 Target Fields:
-${fields.map(f => `- ${f.field}: ${f.description}`).join('\n')}
+${fields.map((f) => `- ${f.field}: ${f.description}`).join('\n')}
 
 Map each CSV column to the most appropriate target field, or null if no match.
 Consider the sample data to make better decisions.`;
 
     const response = await fetch(GEMINI_API_URL, {
-      method: "POST",
+      method: 'POST',
       headers: getGeminiHeaders(GEMINI_API_KEY),
       body: JSON.stringify({
         model: DEFAULT_GEMINI_MODEL,
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "map_columns",
-            description: "Map CSV columns to target database fields",
-            parameters: {
-              type: "object",
-              properties: {
-                mappings: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      csvColumn: { type: "string" },
-                      targetField: { type: "string", nullable: true },
-                      confidence: { type: "number", minimum: 0, maximum: 1 }
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'map_columns',
+              description: 'Map CSV columns to target database fields',
+              parameters: {
+                type: 'object',
+                properties: {
+                  mappings: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        csvColumn: { type: 'string' },
+                        targetField: { type: 'string', nullable: true },
+                        confidence: { type: 'number', minimum: 0, maximum: 1 },
+                      },
+                      required: ['csvColumn', 'targetField', 'confidence'],
                     },
-                    required: ["csvColumn", "targetField", "confidence"]
-                  }
-                }
+                  },
+                },
+                required: ['mappings'],
               },
-              required: ["mappings"]
-            }
-          }
-        }],
-        tool_choice: { type: "function", function: { name: "map_columns" } }
+            },
+          },
+        ],
+        tool_choice: { type: 'function', function: { name: 'map_columns' } },
       }),
     });
 
     if (!response.ok) {
       if (response.status === 429) {
-        console.log("Rate limited, falling back to heuristic mapping");
+        console.log('Rate limited, falling back to heuristic mapping');
         const heuristic = heuristicMapping(columns, targetType);
         const complete = ensureCompleteMappings(columns, heuristic);
-        return new Response(
-          JSON.stringify({ mappings: complete, _version: VERSION }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ mappings: complete, _version: VERSION }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
       if (response.status === 402) {
-        console.log("Payment required, falling back to heuristic mapping");
+        console.log('Payment required, falling back to heuristic mapping');
         const heuristic = heuristicMapping(columns, targetType);
         const complete = ensureCompleteMappings(columns, heuristic);
-        return new Response(
-          JSON.stringify({ mappings: complete, _version: VERSION }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ mappings: complete, _version: VERSION }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
     const result = await response.json();
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
-    
+
     if (!toolCall) {
-      console.log("No tool call, falling back to heuristic");
+      console.log('No tool call, falling back to heuristic');
       const heuristic = heuristicMapping(columns, targetType);
       const complete = ensureCompleteMappings(columns, heuristic);
-      return new Response(
-        JSON.stringify({ mappings: complete, _version: VERSION }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ mappings: complete, _version: VERSION }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     let aiMappings: ColumnMapping[];
     try {
       const parsed = JSON.parse(toolCall.function.arguments);
-      aiMappings = parsed.mappings.map((m: any) => ({
-        ...m,
-        aiSuggested: true
-      }));
+      aiMappings = parsed.mappings.map(
+        (m: { csvColumn: string; targetField: string | null; confidence: number }) => ({
+          ...m,
+          aiSuggested: true,
+        }),
+      );
     } catch (e) {
-      console.error("Failed to parse AI response, using heuristic");
+      console.error('Failed to parse AI response, using heuristic');
       aiMappings = heuristicMapping(columns, targetType);
     }
 
     // CRITICAL: Ensure we return a complete mapping for every input column
     const completeMappings = ensureCompleteMappings(columns, aiMappings);
-    
-    console.log(`[${VERSION}] Mapping stats: requested=${columns.length}, ai_returned=${aiMappings.length}, final=${completeMappings.length}`);
 
-    return new Response(
-      JSON.stringify({ mappings: completeMappings, _version: VERSION }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    console.log(
+      `[${VERSION}] Mapping stats: requested=${columns.length}, ai_returned=${aiMappings.length}, final=${completeMappings.length}`,
     );
+
+    return new Response(JSON.stringify({ mappings: completeMappings, _version: VERSION }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error(`[${VERSION}] Map CSV columns error:`, error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error", _version: VERSION }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        _version: VERSION,
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
 
-function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buyer'): ColumnMapping[] {
-  return columns.map(col => {
+function heuristicMapping(
+  columns: string[],
+  targetType: 'buyer' | 'deal' = 'buyer',
+): ColumnMapping[] {
+  return columns.map((col) => {
     const lower = col.toLowerCase().trim();
     let targetField: string | null = null;
     let confidence = 0.5;
 
     if (targetType === 'deal') {
       // Deal/Company mappings - ORDER MATTERS (most specific first)
-      
+
       // IGNORE columns - check FIRST before any other matches
       // Status should NEVER be imported - it's set by the system
-      if (lower === 'marketplace' || lower === 'fit / not fit' || lower === 'fit/not fit' || 
-          lower.includes('qualified') || lower.includes('buyers shown') || 
-          lower.includes('appointment') || lower.includes('data source') ||
-          lower === 'status' || lower === 'deal status' || lower === 'stage' || lower === 'pipeline stage') {
+      if (
+        lower === 'marketplace' ||
+        lower === 'fit / not fit' ||
+        lower === 'fit/not fit' ||
+        lower.includes('qualified') ||
+        lower.includes('buyers shown') ||
+        lower.includes('appointment') ||
+        lower.includes('data source') ||
+        lower === 'status' ||
+        lower === 'deal status' ||
+        lower === 'stage' ||
+        lower === 'pipeline stage'
+      ) {
         targetField = null;
         confidence = 0;
       }
       // Company name
-      else if (lower.includes('company') && lower.includes('name') || lower === 'company name' || lower === 'name' || lower === 'business name' || lower === 'account') {
+      else if (
+        (lower.includes('company') && lower.includes('name')) ||
+        lower === 'company name' ||
+        lower === 'name' ||
+        lower === 'business name' ||
+        lower === 'account'
+      ) {
         targetField = 'title';
         confidence = 0.95;
       }
       // Website - but NOT LinkedIn, Fireflies, or Recording URLs
-      else if ((lower.includes('website') || lower === 'url' || lower === 'site') && 
-               !lower.includes('linkedin') && !lower.includes('fireflies') && !lower.includes('recording')) {
+      else if (
+        (lower.includes('website') || lower === 'url' || lower === 'site') &&
+        !lower.includes('linkedin') &&
+        !lower.includes('fireflies') &&
+        !lower.includes('recording')
+      ) {
         targetField = 'website';
         confidence = 0.9;
       }
       // Fireflies/Recording URL - specific patterns
-      else if (lower.includes('fireflies') || (lower.includes('recording') && !lower.includes('google'))) {
+      else if (
+        lower.includes('fireflies') ||
+        (lower.includes('recording') && !lower.includes('google'))
+      ) {
         targetField = 'fireflies_url';
         confidence = 0.9;
       }
@@ -361,7 +405,12 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
         confidence = 0.85;
       }
       // Industry/Category
-      else if (lower.includes('industry') || lower.includes('category') || lower.includes('sector') || lower.includes('vertical')) {
+      else if (
+        lower.includes('industry') ||
+        lower.includes('category') ||
+        lower.includes('sector') ||
+        lower.includes('vertical')
+      ) {
         targetField = 'category';
         confidence = 0.85;
       }
@@ -379,8 +428,11 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       else if (lower.includes('ai description') || lower.includes('ai summary')) {
         targetField = 'description';
         confidence = 0.9;
-      }
-      else if (lower.includes('description') || lower.includes('summary') || lower.includes('about')) {
+      } else if (
+        lower.includes('description') ||
+        lower.includes('summary') ||
+        lower.includes('about')
+      ) {
         targetField = 'description';
         confidence = 0.8;
       }
@@ -388,22 +440,30 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       else if (lower.includes('bill') && lower.includes('note')) {
         targetField = 'general_notes';
         confidence = 0.95;
-      }
-      else if (lower.includes('notes') || lower.includes('comment')) {
+      } else if (lower.includes('notes') || lower.includes('comment')) {
         targetField = 'general_notes';
         confidence = 0.75;
       }
       // Main Services
-      else if (lower.includes('service') || lower.includes('offering') || lower.includes('product')) {
+      else if (
+        lower.includes('service') ||
+        lower.includes('offering') ||
+        lower.includes('product')
+      ) {
         targetField = 'services';
         confidence = 0.85;
       }
       // Employee Count (not Range - we skip range)
-      else if (lower === 'employee count' || lower.includes('headcount') || lower.includes('fte') || lower === 'employees' || lower === 'staff') {
+      else if (
+        lower === 'employee count' ||
+        lower.includes('headcount') ||
+        lower.includes('fte') ||
+        lower === 'employees' ||
+        lower === 'staff'
+      ) {
         targetField = 'full_time_employees';
         confidence = 0.85;
-      }
-      else if (lower === 'employee range') {
+      } else if (lower === 'employee range') {
         // Skip - we only import the exact count
         targetField = null;
         confidence = 0;
@@ -412,12 +472,10 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       else if (lower === 'address' || lower === 'full address' || lower === 'street address') {
         targetField = 'address';
         confidence = 0.85;
-      }
-      else if (lower === 'city' || lower.includes('city')) {
+      } else if (lower === 'city' || lower.includes('city')) {
         targetField = 'address_city';
         confidence = 0.8;
-      }
-      else if ((lower === 'state' || lower.includes('state')) && !lower.includes('united')) {
+      } else if ((lower === 'state' || lower.includes('state')) && !lower.includes('united')) {
         targetField = 'address_state';
         confidence = 0.75;
       }
@@ -437,32 +495,54 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
         confidence = 0.8;
       }
       // Contact - Title/Role
-      else if (lower === 'title' || lower.includes('job title') || lower.includes('role') || lower.includes('position')) {
+      else if (
+        lower === 'title' ||
+        lower.includes('job title') ||
+        lower.includes('role') ||
+        lower.includes('position')
+      ) {
         targetField = 'main_contact_title';
         confidence = 0.75;
       }
       // Email
-      else if (lower === 'email' || lower.includes('email') && !lower.includes('sent')) {
+      else if (lower === 'email' || (lower.includes('email') && !lower.includes('sent'))) {
         targetField = 'main_contact_email';
         confidence = 0.9;
       }
       // Phone
-      else if (lower === 'phone' || lower.includes('phone') || lower.includes('mobile') || lower.includes('cell')) {
+      else if (
+        lower === 'phone' ||
+        lower.includes('phone') ||
+        lower.includes('mobile') ||
+        lower.includes('cell')
+      ) {
         targetField = 'main_contact_phone';
         confidence = 0.9;
       }
       // Google Review Count
-      else if (lower === 'google review count' || (lower.includes('google') && lower.includes('review') && lower.includes('count'))) {
+      else if (
+        lower === 'google review count' ||
+        (lower.includes('google') && lower.includes('review') && lower.includes('count'))
+      ) {
         targetField = 'google_review_count';
         confidence = 0.95;
       }
       // Google Review Score/Rating
-      else if (lower === 'google review score' || lower === 'google rating' || (lower.includes('google') && (lower.includes('score') || lower.includes('rating')))) {
+      else if (
+        lower === 'google review score' ||
+        lower === 'google rating' ||
+        (lower.includes('google') && (lower.includes('score') || lower.includes('rating')))
+      ) {
         targetField = 'google_review_score';
         confidence = 0.95;
       }
       // Number of Locations
-      else if (lower === 'locations' || lower === '# of locations' || lower.includes('location count') || lower === 'number of locations') {
+      else if (
+        lower === 'locations' ||
+        lower === '# of locations' ||
+        lower.includes('location count') ||
+        lower === 'number of locations'
+      ) {
         targetField = 'number_of_locations';
         confidence = 0.85;
       }
@@ -472,7 +552,12 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
         confidence = 0.8;
       }
       // Status
-      else if (lower === 'status' || lower.includes('deal status') || lower.includes('stage') || lower.includes('pipeline')) {
+      else if (
+        lower === 'status' ||
+        lower.includes('deal status') ||
+        lower.includes('stage') ||
+        lower.includes('pipeline')
+      ) {
         targetField = 'status';
         confidence = 0.75;
       }
@@ -489,22 +574,31 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       } else if (lower.includes('company') || lower.includes('name') || lower.includes('firm')) {
         targetField = 'company_name';
         confidence = 0.8;
-      } else if (lower.includes('platform') && (lower.includes('website') || lower.includes('url') || lower.includes('site'))) {
+      } else if (
+        lower.includes('platform') &&
+        (lower.includes('website') || lower.includes('url') || lower.includes('site'))
+      ) {
         targetField = 'platform_website';
         confidence = 0.9;
-      } else if ((lower.includes('pe') || lower.includes('sponsor') || lower.includes('firm')) && 
-                 (lower.includes('website') || lower.includes('url') || lower.includes('site'))) {
+      } else if (
+        (lower.includes('pe') || lower.includes('sponsor') || lower.includes('firm')) &&
+        (lower.includes('website') || lower.includes('url') || lower.includes('site'))
+      ) {
         targetField = 'pe_firm_website';
         confidence = 0.9;
       } else if (lower.includes('website') || lower.includes('url') || lower.includes('site')) {
         targetField = 'company_website';
         confidence = 0.8;
-      } else if ((lower.includes('pe') || lower.includes('private equity') || lower.includes('sponsor')) && 
-                 (lower.includes('name') || lower === 'pe firm' || lower === 'sponsor')) {
+      } else if (
+        (lower.includes('pe') || lower.includes('private equity') || lower.includes('sponsor')) &&
+        (lower.includes('name') || lower === 'pe firm' || lower === 'sponsor')
+      ) {
         targetField = 'pe_firm_name';
         confidence = 0.85;
-      } else if ((lower.includes('hq') || lower.includes('headquarters')) && 
-                 (lower.includes('city') || lower.includes('state') || lower.includes('location'))) {
+      } else if (
+        (lower.includes('hq') || lower.includes('headquarters')) &&
+        (lower.includes('city') || lower.includes('state') || lower.includes('location'))
+      ) {
         targetField = 'hq_city_state';
         confidence = 0.8;
       } else if (lower.includes('city') && lower.includes('state')) {
@@ -522,7 +616,11 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       } else if (lower.includes('type') || lower.includes('category')) {
         targetField = 'buyer_type';
         confidence = 0.7;
-      } else if (lower.includes('thesis') || lower.includes('focus') || lower.includes('strategy')) {
+      } else if (
+        lower.includes('thesis') ||
+        lower.includes('focus') ||
+        lower.includes('strategy')
+      ) {
         targetField = 'thesis_summary';
         confidence = 0.8;
       } else if ((lower.includes('revenue') || lower.includes('rev')) && lower.includes('min')) {
@@ -537,24 +635,42 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       } else if (lower.includes('ebitda') && lower.includes('max')) {
         targetField = 'target_ebitda_max';
         confidence = 0.9;
-      } else if (lower.includes('target') && (lower.includes('geography') || lower.includes('state') || lower.includes('region'))) {
+      } else if (
+        lower.includes('target') &&
+        (lower.includes('geography') || lower.includes('state') || lower.includes('region'))
+      ) {
         targetField = 'target_geographies';
         confidence = 0.75;
       } else if (lower.includes('geography') || lower.includes('region')) {
         targetField = 'target_geographies';
         confidence = 0.6;
-      } else if (lower.includes('service') || lower.includes('industry') || lower.includes('sector')) {
+      } else if (
+        lower.includes('service') ||
+        lower.includes('industry') ||
+        lower.includes('sector')
+      ) {
         targetField = 'target_services';
         confidence = 0.7;
-      } else if (lower.includes('footprint') || lower.includes('location') || lower.includes('presence') || lower.includes('current')) {
+      } else if (
+        lower.includes('footprint') ||
+        lower.includes('location') ||
+        lower.includes('presence') ||
+        lower.includes('current')
+      ) {
         targetField = 'geographic_footprint';
         confidence = 0.6;
       } else if (lower.includes('note')) {
         targetField = 'notes';
         confidence = 0.8;
       }
-      // Contact fields for buyer import
-      else if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('name') && !lower.includes('first') && !lower.includes('last')) {
+      // Contact fields for buyer import (check after general fields)
+      if (
+        !targetField &&
+        (lower.includes('contact') || lower.includes('primary')) &&
+        lower.includes('name') &&
+        !lower.includes('first') &&
+        !lower.includes('last')
+      ) {
         targetField = 'contact_name';
         confidence = 0.85;
       } else if ((lower.includes('contact') && lower.includes('first')) || lower === 'first name') {
@@ -563,25 +679,37 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       } else if ((lower.includes('contact') && lower.includes('last')) || lower === 'last name') {
         targetField = 'contact_last_name';
         confidence = 0.85;
-      } else if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('email')) {
+      } else if (
+        (lower.includes('contact') || lower.includes('primary')) &&
+        lower.includes('email')
+      ) {
         targetField = 'contact_email';
         confidence = 0.85;
       } else if (lower === 'email' || lower === 'e-mail') {
         targetField = 'contact_email';
         confidence = 0.7;
-      } else if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('phone')) {
+      } else if (
+        (lower.includes('contact') || lower.includes('primary')) &&
+        lower.includes('phone')
+      ) {
         targetField = 'contact_phone';
         confidence = 0.85;
       } else if (lower === 'phone' || lower === 'phone number') {
         targetField = 'contact_phone';
         confidence = 0.7;
-      } else if ((lower.includes('contact') || lower.includes('primary')) && (lower.includes('title') || lower.includes('role'))) {
+      } else if (
+        (lower.includes('contact') || lower.includes('primary')) &&
+        (lower.includes('title') || lower.includes('role'))
+      ) {
         targetField = 'contact_title';
         confidence = 0.85;
       } else if (lower === 'title' || lower === 'job title' || lower === 'role') {
         targetField = 'contact_title';
         confidence = 0.7;
-      } else if (lower.includes('linkedin') && (lower.includes('profile') || lower.includes('contact') || lower.includes('person'))) {
+      } else if (
+        lower.includes('linkedin') &&
+        (lower.includes('profile') || lower.includes('contact') || lower.includes('person'))
+      ) {
         targetField = 'contact_linkedin_url';
         confidence = 0.85;
       } else if (lower.includes('linkedin')) {
@@ -594,7 +722,7 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
       csvColumn: col,
       targetField,
       confidence,
-      aiSuggested: false
+      aiSuggested: false,
     };
   });
 }
@@ -604,7 +732,10 @@ function heuristicMapping(columns: string[], targetType: 'buyer' | 'deal' = 'buy
  * This is CRITICAL: AI may return a partial list, but we must always
  * return one mapping per input column, in order.
  */
-function ensureCompleteMappings(inputColumns: string[], partialMappings: ColumnMapping[]): ColumnMapping[] {
+function ensureCompleteMappings(
+  inputColumns: string[],
+  partialMappings: ColumnMapping[],
+): ColumnMapping[] {
   // Build lookup by normalized column name
   const lookup = new Map<string, ColumnMapping>();
   for (const m of partialMappings) {
@@ -636,10 +767,13 @@ function ensureCompleteMappings(inputColumns: string[], partialMappings: ColumnM
   });
 
   // Log any missing columns for debugging
-  const missingCount = inputColumns.length - partialMappings.filter(m => m.csvColumn).length;
+  const missingCount = inputColumns.length - partialMappings.filter((m) => m.csvColumn).length;
   if (missingCount > 0) {
-    const missing = inputColumns.filter(col => !lookup.has(col.toLowerCase().trim()));
-    console.log(`[ensureCompleteMappings] Filled ${missingCount} missing columns. First 10:`, missing.slice(0, 10));
+    const missing = inputColumns.filter((col) => !lookup.has(col.toLowerCase().trim()));
+    console.log(
+      `[ensureCompleteMappings] Filled ${missingCount} missing columns. First 10:`,
+      missing.slice(0, 10),
+    );
   }
 
   return complete;

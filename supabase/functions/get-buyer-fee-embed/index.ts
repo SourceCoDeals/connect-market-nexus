@@ -79,13 +79,14 @@ serve(async (req: Request) => {
       .single();
 
     if (!profile?.email) {
-      return new Response(
-        JSON.stringify({ error: 'Profile not found' }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+      return new Response(JSON.stringify({ error: 'Profile not found' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
-    const buyerName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email;
+    const buyerName =
+      `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email;
 
     const docusealApiKey = Deno.env.get('DOCUSEAL_API_KEY');
     if (!docusealApiKey) {
@@ -119,7 +120,9 @@ serve(async (req: Request) => {
           : Array.isArray(submitters)
             ? submitters
             : [];
-        const submitter = data.find((s: any) => s.email === profile.email) || data[0];
+        const submitter =
+          data.find((s: { email?: string; embed_src?: string }) => s.email === profile.email) ||
+          data[0];
         if (submitter?.embed_src) {
           return new Response(JSON.stringify({ feeSigned: false, embedSrc: submitter.embed_src }), {
             status: 200,
@@ -139,7 +142,9 @@ serve(async (req: Request) => {
               fee_agreement_signed_at: now,
               fee_docuseal_status: 'completed',
               fee_agreement_status: 'signed',
-              ...(docUrl ? { fee_signed_document_url: docUrl, fee_agreement_document_url: docUrl } : {}),
+              ...(docUrl
+                ? { fee_signed_document_url: docUrl, fee_agreement_document_url: docUrl }
+                : {}),
               updated_at: now,
             })
             .eq('id', firmId);
@@ -153,12 +158,18 @@ serve(async (req: Request) => {
             for (const member of members) {
               await supabaseAdmin
                 .from('profiles')
-                .update({ fee_agreement_signed: true, fee_agreement_signed_at: now, updated_at: now })
+                .update({
+                  fee_agreement_signed: true,
+                  fee_agreement_signed_at: now,
+                  updated_at: now,
+                })
                 .eq('id', member.user_id);
             }
           }
 
-          console.log(`🔧 Self-healed: fee agreement for firm ${firmId} marked as signed (DocuSeal says completed)`);
+          console.log(
+            `🔧 Self-healed: fee agreement for firm ${firmId} marked as signed (DocuSeal says completed)`,
+          );
 
           return new Response(JSON.stringify({ feeSigned: true, embedSrc: null }), {
             status: 200,
@@ -167,17 +178,21 @@ serve(async (req: Request) => {
         }
       } else {
         const errorText = await submitterRes.text();
-        console.error('❌ DocuSeal API error fetching existing submission:', submitterRes.status, errorText);
+        console.error(
+          '❌ DocuSeal API error fetching existing submission:',
+          submitterRes.status,
+          errorText,
+        );
       }
     }
 
     // No existing submission or couldn't get embed_src — create new submission
     const feeTemplateId = Deno.env.get('DOCUSEAL_FEE_TEMPLATE_ID');
     if (!feeTemplateId) {
-      return new Response(
-        JSON.stringify({ error: 'Fee agreement template not configured' }),
-        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+      return new Response(JSON.stringify({ error: 'Fee agreement template not configured' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     const submissionPayload = {
@@ -212,11 +227,15 @@ serve(async (req: Request) => {
 
     if (!docusealResponse.ok) {
       const errorText = await docusealResponse.text();
-      console.error('❌ DocuSeal API error creating submission:', docusealResponse.status, errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create signing form' }),
-        { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+      console.error(
+        '❌ DocuSeal API error creating submission:',
+        docusealResponse.status,
+        errorText,
       );
+      return new Response(JSON.stringify({ error: 'Failed to create signing form' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     const result = await docusealResponse.json();
@@ -248,12 +267,15 @@ serve(async (req: Request) => {
 
     console.log(`✅ Created fee agreement submission ${submissionId} for buyer ${userId}`);
 
-    return new Response(
-      JSON.stringify({ feeSigned: false, embedSrc }),
-      { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-    );
+    return new Response(JSON.stringify({ feeSigned: false, embedSrc }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   } catch (error: unknown) {
-    console.error('❌ Error in get-buyer-fee-embed:', error instanceof Error ? error.message : String(error));
+    console.error(
+      '❌ Error in get-buyer-fee-embed:',
+      error instanceof Error ? error.message : String(error),
+    );
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },

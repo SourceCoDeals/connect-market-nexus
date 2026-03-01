@@ -3,9 +3,8 @@
  * Buyer connection requests, deal conversation messages, NDA/fee agreement tracking.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+type SupabaseClient = ReturnType<typeof createClient>;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -119,7 +118,14 @@ async function getConnectionRequests(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(
-      (r: any) =>
+      (r: {
+        lead_name?: string;
+        lead_email?: string;
+        lead_company?: string;
+        lead_role?: string;
+        decision_notes?: string;
+        last_message_preview?: string;
+      }) =>
         r.lead_name?.toLowerCase().includes(term) ||
         r.lead_email?.toLowerCase().includes(term) ||
         r.lead_company?.toLowerCase().includes(term) ||
@@ -184,7 +190,7 @@ async function getConnectionMessages(
       .from('connection_requests')
       .select('id')
       .eq('listing_id', args.deal_id as string);
-    connectionRequestIds = (crData || []).map((r: any) => r.id);
+    connectionRequestIds = (crData || []).map((r: { id: string }) => r.id);
     if (connectionRequestIds!.length === 0) return { data: { messages: [], total: 0 } };
   }
 
@@ -211,10 +217,14 @@ async function getConnectionMessages(
     data: {
       messages,
       total: messages.length,
-      unread_by_admin: messages.filter((m: any) => !m.is_read_by_admin && m.sender_role === 'buyer')
-        .length,
-      unread_by_buyer: messages.filter((m: any) => !m.is_read_by_buyer && m.sender_role === 'admin')
-        .length,
+      unread_by_admin: messages.filter(
+        (m: { is_read_by_admin: boolean; sender_role: string }) =>
+          !m.is_read_by_admin && m.sender_role === 'buyer',
+      ).length,
+      unread_by_buyer: messages.filter(
+        (m: { is_read_by_buyer: boolean; sender_role: string }) =>
+          !m.is_read_by_buyer && m.sender_role === 'admin',
+      ).length,
     },
   };
 }

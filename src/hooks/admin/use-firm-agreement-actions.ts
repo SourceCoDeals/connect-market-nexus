@@ -30,7 +30,7 @@ export function useUpdateAgreementViaUser() {
 
   return useMutation({
     mutationFn: async ({ userId, agreementType, action, adminNotes }: UpdateAgreementParams) => {
-      const { data, error } = await (supabase.rpc as any)('update_agreement_via_user', {
+      const { data, error } = await supabase.rpc('update_agreement_via_user', {
         p_user_id: userId,
         p_agreement_type: agreementType,
         p_action: action,
@@ -88,7 +88,7 @@ export function useUserFirm(userId: string | undefined) {
 
       // Try firm_members first
       const { data: membership, error: memErr } = await supabase
-        .from('firm_members' as never)
+        .from('firm_members')
         .select(`
           firm_id,
           firm:firm_agreements!firm_members_firm_id_fkey(
@@ -103,22 +103,22 @@ export function useUserFirm(userId: string | undefined) {
         .maybeSingle();
 
       if (memErr) throw memErr;
-      if ((membership as any)?.firm) return (membership as any).firm;
+      const membershipData = membership as { firm_id: string; firm: AgreementResult | null } | null;
+      if (membershipData?.firm) return membershipData.firm;
 
-      // Try email domain match
       const { data: profile } = await supabase
-        .from('profiles' as never)
+        .from('profiles')
         .select('email, company')
         .eq('id', userId)
         .maybeSingle();
 
-      if (!(profile as any)?.email) return null;
+      if (!profile?.email) return null;
 
-      const domain = (profile as any).email.split('@')[1];
+      const domain = profile.email.split('@')[1];
       if (!domain) return null;
 
       const { data: firm } = await supabase
-        .from('firm_agreements' as never)
+        .from('firm_agreements')
         .select(`
           id, primary_company_name,
           nda_signed, nda_signed_at, nda_signed_by_name, nda_email_sent, nda_email_sent_at, nda_status,

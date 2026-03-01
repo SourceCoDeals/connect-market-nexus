@@ -1,4 +1,4 @@
-/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
+/* eslint-disable no-console */
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
@@ -365,10 +365,7 @@ serve(async (req) => {
       aliasMap.set(a.profile_id, existing);
     }
 
-    const teamMembers = (teamRoles || []).map((r: any) => ({
-      // Use user_id directly from user_roles (matches auth.uid()) rather than
-      // the joined profiles.id which can be unreliable when PostgREST infers
-      // the FK path through auth.users with multiple candidate FKs.
+    const teamMembers = (teamRoles || []).map((r: { user_id: string; profiles: { id: string; first_name: string; last_name: string } }) => ({
       id: r.user_id,
       name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
       first_name: r.profiles.first_name || '',
@@ -435,7 +432,7 @@ serve(async (req) => {
         .limit(1);
 
       if (deals && deals.length > 0) {
-        const deal = deals[0] as any;
+        const deal = deals[0] as { id: string; listing_id: string; stage_id: string; deal_stages: { name: string } | null; listings: { ebitda: number | null; title: string; internal_company_name: string } };
         return {
           id: deal.id,
           ebitda: deal.listings?.ebitda ?? null,
@@ -451,8 +448,8 @@ serve(async (req) => {
       .select('listing_id, listings!inner(ebitda)');
 
     const allEbitdaValues = (allDeals || [])
-      .map((d: any) => d.listings?.ebitda)
-      .filter((e: any): e is number => typeof e === 'number' && e > 0);
+      .map((d: { listing_id: string; listings: { ebitda: number | null } }) => d.listings?.ebitda)
+      .filter((e: unknown): e is number => typeof e === 'number' && e > 0);
 
     // 7. Create standup meeting record
     const { data: meeting, error: meetingError } = await supabase

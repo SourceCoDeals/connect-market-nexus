@@ -94,7 +94,7 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
       setAfter(aData as Record<string, unknown> | null);
 
       addLog(`enrich-deal for ${dealId.slice(0, 8)}… (enrichment ${enrichmentDone ? 'completed' : 'queued'})`, Date.now() - t0);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
       setError(e.message);
       addLog(`enrich-deal for ${dealId.slice(0, 8)}… — ${e.message}`, dur, false);

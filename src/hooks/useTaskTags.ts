@@ -11,18 +11,17 @@ export function useExistingTags() {
     queryKey: ['task-tags-distinct'],
     queryFn: async () => {
       // Fetch all non-empty tag arrays from active tasks
-      const { data, error } = await (supabase
-        .from('daily_standup_tasks' as any)
+      const { data, error } = await supabase
+        .from('daily_standup_tasks')
         .select('tags')
         .not('tags', 'eq', '{}')
-        .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue']) as any);
+        .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue']);
 
       if (error) throw error;
 
-      // Flatten and deduplicate
       const tagSet = new Set<string>();
       for (const row of data || []) {
-        const tags = (row as { tags: string[] }).tags;
+        const tags = row.tags;
         if (Array.isArray(tags)) {
           for (const tag of tags) {
             tagSet.add(tag.toLowerCase());

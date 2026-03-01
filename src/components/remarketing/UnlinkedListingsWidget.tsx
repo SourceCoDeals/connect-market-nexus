@@ -1,10 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertTriangle,
   Link as LinkIcon,
@@ -13,24 +13,24 @@ import {
   Loader2,
   Target,
   Building2,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 
 interface UniverseSuggestion {
   universe_id: string;
@@ -42,30 +42,37 @@ interface UniverseSuggestion {
 
 export const UnlinkedListingsWidget = () => {
   const queryClient = useQueryClient();
-  const [selectedListing, setSelectedListing] = useState<any>(null);
+  const [selectedListing, setSelectedListing] = useState<{
+    id: string;
+    title: string;
+    category: string | null;
+    location: string | null;
+    revenue: number | null;
+    created_at: string;
+  } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedUniverse, setSelectedUniverse] = useState<string>("");
+  const [selectedUniverse, setSelectedUniverse] = useState<string>('');
   const [suggestions, setSuggestions] = useState<UniverseSuggestion[]>([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
 
   // Fetch unlinked active listings
   const { data: unlinkedListings, isLoading } = useQuery({
-    queryKey: ["remarketing", "unlinked-listings"],
+    queryKey: ['remarketing', 'unlinked-listings'],
     queryFn: async () => {
       // Get all active listings
       const { data: listings, error: listingsError } = await supabase
-        .from("listings")
-        .select("id, title, category, location, revenue, created_at")
-        .is("deleted_at", null)
-        .eq("status", "active")
-        .order("created_at", { ascending: false });
+        .from('listings')
+        .select('id, title, category, location, revenue, created_at')
+        .is('deleted_at', null)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
 
       if (listingsError) throw listingsError;
 
       // Get all linked listing IDs
       const { data: links, error: linksError } = await supabase
-        .from("remarketing_universe_deals")
-        .select("listing_id");
+        .from('remarketing_universe_deals')
+        .select('listing_id');
 
       if (linksError) throw linksError;
 
@@ -78,13 +85,13 @@ export const UnlinkedListingsWidget = () => {
 
   // Fetch all universes for the dropdown
   const { data: universes } = useQuery({
-    queryKey: ["remarketing", "universes"],
+    queryKey: ['remarketing', 'universes'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("remarketing_buyer_universes")
-        .select("id, name")
-        .eq("archived", false)
-        .order("name");
+        .from('remarketing_buyer_universes')
+        .select('id, name')
+        .eq('archived', false)
+        .order('name');
 
       if (error) throw error;
       return data || [];
@@ -93,32 +100,26 @@ export const UnlinkedListingsWidget = () => {
 
   // Link listing to universe mutation
   const linkMutation = useMutation({
-    mutationFn: async ({
-      listingId,
-      universeId,
-    }: {
-      listingId: string;
-      universeId: string;
-    }) => {
-      const { error } = await supabase.from("remarketing_universe_deals").insert({
+    mutationFn: async ({ listingId, universeId }: { listingId: string; universeId: string }) => {
+      const { error } = await supabase.from('remarketing_universe_deals').insert({
         listing_id: listingId,
         universe_id: universeId,
-        status: "active",
+        status: 'active',
       });
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "unlinked-listings"] });
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "universes"] });
-      toast.success("Listing linked to universe");
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'unlinked-listings'] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'universes'] });
+      toast.success('Listing linked to universe');
       setDialogOpen(false);
       setSelectedListing(null);
-      setSelectedUniverse("");
+      setSelectedUniverse('');
       setSuggestions([]);
     },
     onError: () => {
-      toast.error("Failed to link listing");
+      toast.error('Failed to link listing');
     },
   });
 
@@ -126,7 +127,7 @@ export const UnlinkedListingsWidget = () => {
   const handleGetSuggestions = async (listingId: string) => {
     setIsSuggesting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("suggest-universe", {
+      const { data, error } = await supabase.functions.invoke('suggest-universe', {
         body: { listing_id: listingId },
       });
 
@@ -134,19 +135,26 @@ export const UnlinkedListingsWidget = () => {
 
       setSuggestions(data.suggestions || []);
       if (data.suggestions?.length === 0) {
-        toast.info("No strong universe matches found - select manually");
+        toast.info('No strong universe matches found - select manually');
       }
     } catch (error) {
-      toast.error("Failed to get AI suggestions");
+      toast.error('Failed to get AI suggestions');
     } finally {
       setIsSuggesting(false);
     }
   };
 
-  const handleOpenDialog = async (listing: any) => {
+  const handleOpenDialog = async (listing: {
+    id: string;
+    title: string;
+    category: string | null;
+    location: string | null;
+    revenue: number | null;
+    created_at: string;
+  }) => {
     setSelectedListing(listing);
     setDialogOpen(true);
-    setSelectedUniverse("");
+    setSelectedUniverse('');
     setSuggestions([]);
     // Auto-get suggestions
     await handleGetSuggestions(listing.id);
@@ -161,7 +169,7 @@ export const UnlinkedListingsWidget = () => {
   };
 
   const formatCurrency = (value: number | null) => {
-    if (!value) return "—";
+    if (!value) return '—';
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
     return `$${value}`;
@@ -212,18 +220,12 @@ export const UnlinkedListingsWidget = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{listing.title}</p>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                      <span>{listing.category || "Uncategorized"}</span>
-                      {listing.revenue && (
-                        <span>{formatCurrency(listing.revenue)}</span>
-                      )}
+                      <span>{listing.category || 'Uncategorized'}</span>
+                      {listing.revenue && <span>{formatCurrency(listing.revenue)}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenDialog(listing)}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => handleOpenDialog(listing)}>
                       <LinkIcon className="h-4 w-4 mr-1" />
                       Link
                     </Button>
@@ -275,8 +277,8 @@ export const UnlinkedListingsWidget = () => {
                       onClick={() => setSelectedUniverse(s.universe_id)}
                       className={`w-full p-3 rounded-lg border text-left transition-colors ${
                         selectedUniverse === s.universe_id
-                          ? "border-primary bg-primary/5"
-                          : "hover:bg-muted/50"
+                          ? 'border-primary bg-primary/5'
+                          : 'hover:bg-muted/50'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -284,15 +286,11 @@ export const UnlinkedListingsWidget = () => {
                           <Target className="h-4 w-4 text-primary" />
                           <span className="font-medium">{s.universe_name}</span>
                         </div>
-                        <Badge
-                          variant={s.confidence >= 80 ? "default" : "secondary"}
-                        >
+                        <Badge variant={s.confidence >= 80 ? 'default' : 'secondary'}>
                           {s.confidence}% match
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {s.reason}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">{s.reason}</p>
                     </button>
                   ))}
                 </div>
@@ -328,10 +326,7 @@ export const UnlinkedListingsWidget = () => {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleLink}
-                disabled={!selectedUniverse || linkMutation.isPending}
-              >
+              <Button onClick={handleLink} disabled={!selectedUniverse || linkMutation.isPending}>
                 {linkMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

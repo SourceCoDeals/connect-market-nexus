@@ -28,7 +28,7 @@ function escapeHtmlWithBreaks(str: string): string {
 describe('escapeHtml', () => {
   it('escapes angle brackets', () => {
     expect(escapeHtml('<script>alert("xss")</script>')).toBe(
-      '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
+      '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;',
     );
   });
 
@@ -43,8 +43,8 @@ describe('escapeHtml', () => {
 
   it('returns empty string for falsy input', () => {
     expect(escapeHtml('')).toBe('');
-    expect(escapeHtml(null as any)).toBe('');
-    expect(escapeHtml(undefined as any)).toBe('');
+    expect(escapeHtml(null as unknown as string)).toBe('');
+    expect(escapeHtml(undefined as unknown as string)).toBe('');
   });
 
   it('leaves safe strings unchanged', () => {
@@ -62,8 +62,6 @@ describe('escapeHtmlWithBreaks', () => {
   });
 
   it('escapes HTML AND converts newlines', () => {
-    expect(escapeHtmlWithBreaks('<b>bold</b>\nnewline')).toBe(
-      '&lt;b&gt;bold&lt;/b&gt;<br>newline'
-    );
+    expect(escapeHtmlWithBreaks('<b>bold</b>\nnewline')).toBe('&lt;b&gt;bold&lt;/b&gt;<br>newline');
   });
 });

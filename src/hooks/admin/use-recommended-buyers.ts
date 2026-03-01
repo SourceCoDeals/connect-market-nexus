@@ -163,8 +163,12 @@ const EMPTY_OUTREACH: OutreachInfo = {
  */
 const IN_QUERY_CHUNK_SIZE = 300;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseFilterBuilder = any;
+type SupabaseFilterBuilder = {
+  in: (
+    column: string,
+    values: string[],
+  ) => PromiseLike<{ data: unknown[] | null; error: Error | null }>;
+};
 
 async function chunkedIn<T>(
   baseQuery: () => SupabaseFilterBuilder,
@@ -399,7 +403,7 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
         ),
       ]);
 
-      const buyerMap = new Map(buyersData.map((b: any) => [b.id as string, b as any]));
+      const buyerMap = new Map(buyersData.map((b) => [b.id as string, b]));
 
       // Build engagement map from connection requests
       const engagementMap = new Map<string, { last_date: string; type: string }>();

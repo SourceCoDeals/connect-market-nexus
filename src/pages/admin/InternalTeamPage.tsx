@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Search, Users, History, Loader2 } from 'lucide-react';
-import type { User } from '@/types';
+import type { User, BuyerType } from '@/types';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 
 const InternalTeamPage = () => {
@@ -27,23 +27,29 @@ const InternalTeamPage = () => {
   // Filter to only show internal team members (owner, admin, moderator)
   const teamMembers = useMemo(() => {
     if (!allUserRoles) return [];
-    return allUserRoles.filter((u) =>
-      ['owner', 'admin', 'moderator'].includes(u.role)
-    );
+    return allUserRoles.filter((u) => ['owner', 'admin', 'moderator'].includes(u.role));
   }, [allUserRoles]);
 
   const filteredMembers = useMemo(() => {
     if (!search.trim()) return teamMembers;
     const q = search.toLowerCase();
-    return teamMembers.filter((m) =>
-      (m.user_email || '').toLowerCase().includes(q) ||
-      (m.user_first_name || '').toLowerCase().includes(q) ||
-      (m.user_last_name || '').toLowerCase().includes(q)
+    return teamMembers.filter(
+      (m) =>
+        (m.user_email || '').toLowerCase().includes(q) ||
+        (m.user_first_name || '').toLowerCase().includes(q) ||
+        (m.user_last_name || '').toLowerCase().includes(q),
     );
   }, [teamMembers, search]);
 
   // Convert role data to User-compatible shape for TeamMemberCard
-  const toUserShape = (member: any): User => {
+  const toUserShape = (member: {
+    user_id: string;
+    user_email?: string;
+    user_first_name?: string;
+    user_last_name?: string;
+    granted_at?: string;
+    role: string;
+  }): User => {
     const firstName = member.user_first_name || '';
     const lastName = member.user_last_name || '';
     const now = member.granted_at || new Date().toISOString();
@@ -62,15 +68,33 @@ const InternalTeamPage = () => {
       is_admin: true,
       approval_status: 'approved' as const,
       email_verified: true,
-      get firstName() { return firstName; },
-      get lastName() { return lastName; },
-      get phoneNumber() { return ''; },
-      get isAdmin() { return true; },
-      get buyerType(): any { return 'individual'; },
-      get emailVerified() { return true; },
-      get isApproved() { return true; },
-      get createdAt() { return now; },
-      get updatedAt() { return now; },
+      get firstName() {
+        return firstName;
+      },
+      get lastName() {
+        return lastName;
+      },
+      get phoneNumber() {
+        return '';
+      },
+      get isAdmin() {
+        return true;
+      },
+      get buyerType(): BuyerType {
+        return 'individual';
+      },
+      get emailVerified() {
+        return true;
+      },
+      get isApproved() {
+        return true;
+      },
+      get createdAt() {
+        return now;
+      },
+      get updatedAt() {
+        return now;
+      },
     };
   };
 
@@ -168,10 +192,7 @@ const InternalTeamPage = () => {
       </div>
 
       {/* Invite Dialog */}
-      <InviteTeamMemberDialog
-        open={inviteDialogOpen}
-        onOpenChange={setInviteDialogOpen}
-      />
+      <InviteTeamMemberDialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen} />
     </div>
   );
 };

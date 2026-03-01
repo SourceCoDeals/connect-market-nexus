@@ -2,6 +2,58 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { errorResponse } from "../_shared/error-response.ts";
 
+interface SalesforceAccount {
+  Id: string;
+  Name: string;
+  Phone?: string;
+  Website?: string;
+  AnnualRevenue?: number;
+  EBITDA__c?: number;
+  BillingCity?: string;
+  BillingState?: string;
+  BillingCountry?: string;
+  RecordTypeId?: string;
+  Remarketing__c?: boolean;
+  Remarketing_CB_Create_Date__c?: string;
+  Remarketing_Reason__c?: string;
+  Remarketing_Target_Stages__c?: string;
+  Target_Stage__c?: string;
+  Target_Sub_Stage__c?: string;
+  Marketplace_Sub_Stage__c?: string;
+  Interest_in_Selling__c?: string;
+  Tier__c?: string;
+  OwnerId?: string;
+  Previous_Search__c?: string;
+  Primary_Opportunity__c?: string;
+  Primary_Client_Account__c?: string;
+  Note_Summary__c?: string;
+  Historic_Note_Summary__c?: string;
+  remarketing_note__c?: string;
+  LastModifiedDate?: string;
+  CreatedDate?: string;
+}
+
+interface SalesforceContact {
+  Id?: string;
+  Email?: string;
+  FirstName?: string;
+  LastName?: string;
+  Phone?: string;
+  MobilePhone?: string;
+  Title?: string;
+}
+
+interface SalesforceData {
+  "Account Data"?: SalesforceAccount;
+  "Contacts Data"?: SalesforceContact | SalesforceContact[];
+}
+
+interface WebhookPayload {
+  salesforce_data?: SalesforceData;
+  body?: { salesforce_data?: SalesforceData; "Account Data"?: SalesforceAccount };
+  "Account Data"?: SalesforceAccount;
+}
+
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -14,7 +66,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const raw: any = await req.json();
+    const raw: WebhookPayload | WebhookPayload[] = await req.json();
 
     // Log the top-level structure for debugging
     console.log("Received payload keys:", Array.isArray(raw) ? `array[${raw.length}]` : Object.keys(raw || {}));
@@ -25,7 +77,7 @@ Deno.serve(async (req: Request) => {
     // Shape 3: { salesforce_data: {...} }                     — direct payload
     // Shape 4: [{ salesforce_data: {...} }]                   — array without body wrapper
     // Shape 5: { "Account Data": {...}, "Contacts Data": ... } — raw SF data directly
-    function extractSalesforceData(payload: any): any {
+    function extractSalesforceData(payload: WebhookPayload | WebhookPayload[] | null): SalesforceData | null {
       if (!payload) return null;
 
       // If it's an array, try the first element
@@ -34,17 +86,13 @@ Deno.serve(async (req: Request) => {
         return extractSalesforceData(payload[0]);
       }
 
-      // Direct salesforce_data key
       if (payload.salesforce_data) return payload.salesforce_data;
 
-      // Nested under body
       if (payload.body?.salesforce_data) return payload.body.salesforce_data;
 
-      // Raw SF data (has "Account Data" directly)
-      if (payload["Account Data"]) return payload;
+      if (payload["Account Data"]) return payload as unknown as SalesforceData;
 
-      // body itself might be the SF data
-      if (payload.body?.["Account Data"]) return payload.body;
+      if (payload.body?.["Account Data"]) return payload.body as unknown as SalesforceData;
 
       return null;
     }
@@ -56,26 +104,23 @@ Deno.serve(async (req: Request) => {
     }
     console.log("Extracted salesforce_data keys:", Object.keys(salesforceData));
 
-    const account: any = salesforceData["Account Data"];
+    const account = salesforceData["Account Data"] as SalesforceAccount | undefined;
     if (!account?.Id || !account?.Name) {
       return errorResponse("Missing required Account.Id or Account.Name", 400, corsHeaders);
     }
 
-    // Normalize contacts: single object → array, null → empty array
-    const rawContacts: any = salesforceData["Contacts Data"];
-    let contacts: any[] = [];
+    const rawContacts = salesforceData["Contacts Data"];
+    let contacts: SalesforceContact[] = [];
     if (Array.isArray(rawContacts)) {
       contacts = rawContacts;
-    } else if (rawContacts && typeof rawContacts === "object" && rawContacts.Id) {
-      contacts = [rawContacts];
+    } else if (rawContacts && typeof rawContacts === "object" && (rawContacts as SalesforceContact).Id) {
+      contacts = [rawContacts as SalesforceContact];
     }
 
-    // Find primary contact (first with valid email)
-    const primaryContact = contacts.find((c: any) => c.Email && c.Email.trim());
+    const primaryContact = contacts.find((c: SalesforceContact) => c.Email && c.Email.trim());
     const accountPhone = account.Phone || null;
 
-    // Phone fallback for a contact
-    const resolvePhone = (contact: any): string | null =>
+    const resolvePhone = (contact: SalesforceContact | undefined): string | null =>
       contact?.Phone || contact?.MobilePhone || accountPhone;
 
     // Normalize website
@@ -85,7 +130,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Build listing payload
-    const listingPayload: Record<string, any> = {
+    const listingPayload: Record<string, unknown> = {
       salesforce_account_id: account.Id,
       title: account.Name,
       internal_company_name: account.Name,
@@ -137,7 +182,7 @@ Deno.serve(async (req: Request) => {
     // Supabase admin client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey) as any;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Check if listing exists by salesforce_account_id
     const { data: existingListing } = await supabase
@@ -176,7 +221,7 @@ Deno.serve(async (req: Request) => {
     // Upsert contacts (unique index is on lower(email), listing_id WHERE contact_type='seller' AND archived=false)
     let contactsUpserted = 0;
     for (let i = 0; i < contacts.length; i++) {
-      const contact: any = contacts[i];
+      const contact: SalesforceContact = contacts[i];
       const email = contact.Email?.trim()?.toLowerCase();
       if (!email) continue;
 
@@ -245,8 +290,8 @@ Deno.serve(async (req: Request) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("salesforce-remarketing-webhook error:", err);
-    return errorResponse(err.message || "Internal server error", 500, corsHeaders);
+    return errorResponse(err instanceof Error ? err.message : "Internal server error", 500, corsHeaders);
   }
 });

@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 interface PublishResponse {
   success: boolean;
   message: string;
-  listing?: any;
+  listing?: Record<string, unknown>;
   error?: string;
   validationErrors?: string[];
   remarketingLinked?: boolean;
@@ -18,9 +18,15 @@ export function usePublishListing() {
   const queryClient = useQueryClient();
 
   const publishMutation = useMutation({
-    mutationFn: async ({ listingId, action }: { listingId: string; action: 'publish' | 'unpublish' }) => {
+    mutationFn: async ({
+      listingId,
+      action,
+    }: {
+      listingId: string;
+      action: 'publish' | 'unpublish';
+    }) => {
       const { data, error } = await supabase.functions.invoke<PublishResponse>('publish-listing', {
-        body: { listingId, action }
+        body: { listingId, action },
       });
 
       if (error) {
@@ -34,7 +40,9 @@ export function usePublishListing() {
         }
         // Handle remarketing conflict
         if (data.remarketingLinked) {
-          throw new Error('Cannot publish: listing is linked to remarketing systems. Remove from universes first.');
+          throw new Error(
+            'Cannot publish: listing is linked to remarketing systems. Remove from universes first.',
+          );
         }
         throw new Error(data.error || 'Failed to update listing');
       }
@@ -44,10 +52,13 @@ export function usePublishListing() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       queryClient.invalidateQueries({ queryKey: ['simple-listings'] });
-      
+
       toast({
-        title: variables.action === 'publish' ? 'Published to Marketplace' : 'Removed from Marketplace',
-        description: data?.message || `Listing has been ${variables.action === 'publish' ? 'published' : 'unpublished'} successfully.`,
+        title:
+          variables.action === 'publish' ? 'Published to Marketplace' : 'Removed from Marketplace',
+        description:
+          data?.message ||
+          `Listing has been ${variables.action === 'publish' ? 'published' : 'unpublished'} successfully.`,
       });
     },
     onError: (error: Error, variables) => {
@@ -61,7 +72,8 @@ export function usePublishListing() {
 
   return {
     publishListing: (listingId: string) => publishMutation.mutate({ listingId, action: 'publish' }),
-    unpublishListing: (listingId: string) => publishMutation.mutate({ listingId, action: 'unpublish' }),
+    unpublishListing: (listingId: string) =>
+      publishMutation.mutate({ listingId, action: 'unpublish' }),
     isPublishing: publishMutation.isPending,
   };
 }

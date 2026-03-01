@@ -100,7 +100,7 @@ export const PLACEHOLDER_STRINGS = new Set([
  */
 export function getFieldSourcePriority(
   fieldName: string,
-  extractionSources: any[],
+  extractionSources: unknown[],
 ): { priority: number; sourceType: string | null } {
   let maxPriority = 0;
   let sourceType: string | null = null;

@@ -9,30 +9,36 @@ interface TierDistributionChartProps {
 }
 
 const TIER_COLORS: Record<string, string> = {
-  'A': 'hsl(142, 76%, 36%)', // emerald-600
-  'B': 'hsl(217, 91%, 60%)', // blue-500
-  'C': 'hsl(45, 93%, 47%)',  // amber-500
-  'D': 'hsl(0, 72%, 51%)'    // red-500
+  A: 'hsl(142, 76%, 36%)', // emerald-600
+  B: 'hsl(217, 91%, 60%)', // blue-500
+  C: 'hsl(45, 93%, 47%)', // amber-500
+  D: 'hsl(0, 72%, 51%)', // red-500
 };
 
 const TIER_LABELS: Record<string, string> = {
-  'A': 'Excellent Fit',
-  'B': 'Good Fit',
-  'C': 'Moderate Fit',
-  'D': 'Low Fit'
+  A: 'Excellent Fit',
+  B: 'Good Fit',
+  C: 'Moderate Fit',
+  D: 'Low Fit',
 };
 
 export function TierDistributionChart({ data, className }: TierDistributionChartProps) {
-  const chartData = data.map(d => ({
+  const chartData = data.map((d) => ({
     ...d,
     name: `Tier ${d.tier}`,
     label: TIER_LABELS[d.tier] || d.tier,
-    fill: TIER_COLORS[d.tier] || 'hsl(220, 9%, 46%)'
+    fill: TIER_COLORS[d.tier] || 'hsl(220, 9%, 46%)',
   }));
 
   const total = data.reduce((sum, d) => sum + d.count, 0);
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({
+    active,
+    payload,
+  }: {
+    active?: boolean;
+    payload?: { payload: { name: string; label: string; count: number; percentage: number } }[];
+  }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -53,7 +59,7 @@ export function TierDistributionChart({ data, className }: TierDistributionChart
     return null;
   };
 
-  const renderCustomLabel = ({ tier, percentage }: any) => {
+  const renderCustomLabel = ({ tier, percentage }: { tier: string; percentage: number }) => {
     if (percentage < 5) return null;
     return `${tier}: ${percentage.toFixed(0)}%`;
   };
@@ -95,18 +101,12 @@ export function TierDistributionChart({ data, className }: TierDistributionChart
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            
+
             {/* Legend */}
             <div className="grid grid-cols-2 gap-2 mt-4">
               {chartData.map((tier) => (
-                <div 
-                  key={tier.tier} 
-                  className="flex items-center gap-2 p-2 rounded-lg bg-muted/50"
-                >
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: tier.fill }}
-                  />
+                <div key={tier.tier} className="flex items-center gap-2 p-2 rounded-lg bg-muted/50">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tier.fill }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{tier.name}</p>
                     <p className="text-xs text-muted-foreground">{tier.count} matches</p>

@@ -21,7 +21,7 @@ interface LogActivityParams {
   activityType: DealActivityType;
   title: string;
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export async function logDealActivity({

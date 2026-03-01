@@ -25,13 +25,28 @@ export const extractWebsiteFromMemo = (memoLink: string | null | undefined): str
 };
 
 // Get effective website - prefer website field, fallback to extracted from memo
-export const getEffectiveWebsite = (deal: any): string | null => {
+export const getEffectiveWebsite = (
+  deal: { website?: string | null; internal_deal_memo_link?: string | null } | null,
+): string | null => {
   if (deal?.website) return deal.website;
   return extractWebsiteFromMemo(deal?.internal_deal_memo_link);
 };
 
 // Calculate data completeness
-export const calculateDataCompleteness = (deal: any, effectiveWebsite: string | null): number => {
+export const calculateDataCompleteness = (
+  deal: {
+    title?: string | null;
+    description?: string | null;
+    location?: string | null;
+    revenue?: number | null;
+    ebitda?: number | null;
+    category?: string | null;
+    executive_summary?: string | null;
+    service_mix?: string[] | null;
+    geographic_states?: string[] | null;
+  } | null,
+  effectiveWebsite: string | null,
+): number => {
   if (!deal) return 0;
 
   const fields = [
@@ -47,12 +62,12 @@ export const calculateDataCompleteness = (deal: any, effectiveWebsite: string | 
     deal.geographic_states,
   ];
 
-  const filledFields = fields.filter(f => f !== null && f !== undefined && f !== '').length;
+  const filledFields = fields.filter((f) => f !== null && f !== undefined && f !== '').length;
   return Math.round((filledFields / fields.length) * 100);
 };
 
 export const formatCurrency = (value: number | null): string => {
-  if (!value) return "Not specified";
+  if (!value) return 'Not specified';
   if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
   return `$${value}`;

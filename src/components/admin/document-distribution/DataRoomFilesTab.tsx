@@ -9,8 +9,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Upload, FileText, File, FileSpreadsheet, FileImage,
-  Send, Trash2, Users, Download,
+  Upload,
+  FileText,
+  File,
+  FileSpreadsheet,
+  FileImage,
+  Send,
+  Trash2,
+  Users,
+  Download,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -81,8 +88,8 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
 
   const handleDelete = async (docId: string) => {
     const { error } = await supabase
-      .from('deal_documents' as any)
-      .update({ status: 'deleted', updated_at: new Date().toISOString() } as any)
+      .from('deal_documents')
+      .update({ status: 'deleted', updated_at: new Date().toISOString() })
       .eq('id', docId);
     if (error) {
       toast.error('Failed to delete document');
@@ -106,8 +113,8 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
 
   // Count buyers with access to each document
   const getBuyerAccessCount = (docId: string): number => {
-    return accessRecords.filter(a =>
-      a.is_active && (!a.granted_document_ids || a.granted_document_ids.includes(docId))
+    return accessRecords.filter(
+      (a) => a.is_active && (!a.granted_document_ids || a.granted_document_ids.includes(docId)),
     ).length;
   };
 
@@ -118,9 +125,12 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
         className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
           isDragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
         }`}
-        onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
         onDragLeave={() => setIsDragOver(false)}
-        onDrop={e => {
+        onDrop={(e) => {
           e.preventDefault();
           setIsDragOver(false);
           handleUpload(e.dataTransfer.files);
@@ -129,23 +139,18 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
         <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           Drag and drop files here, or{' '}
-          <button
-            className="text-primary underline"
-            onClick={() => fileInputRef.current?.click()}
-          >
+          <button className="text-primary underline" onClick={() => fileInputRef.current?.click()}>
             browse
           </button>
         </p>
-        <p className="text-xs text-muted-foreground mt-1">
-          PDF, DOCX, XLSX, and images accepted
-        </p>
+        <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, XLSX, and images accepted</p>
         <input
           ref={fileInputRef}
           type="file"
           multiple
           accept=".pdf,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg"
           className="hidden"
-          onChange={e => e.target.files && handleUpload(e.target.files)}
+          onChange={(e) => e.target.files && handleUpload(e.target.files)}
         />
       </div>
 
@@ -161,7 +166,7 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
         </Card>
       ) : (
         <div className="space-y-2">
-          {documents.map(doc => (
+          {documents.map((doc) => (
             <Card key={doc.id}>
               <CardContent className="py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -180,19 +185,11 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
                     <Users className="h-3 w-3 mr-1" />
                     {getBuyerAccessCount(doc.id)} buyers
                   </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePreview(doc.file_path)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => handlePreview(doc.file_path)}>
                     <Download className="h-3.5 w-3.5 mr-1" />
                     Preview
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setReleaseDoc(doc)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setReleaseDoc(doc)}>
                     <Send className="h-3.5 w-3.5 mr-1" />
                     Release
                   </Button>
@@ -213,7 +210,9 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
 
       <ReleaseModal
         open={!!releaseDoc}
-        onOpenChange={open => { if (!open) setReleaseDoc(null); }}
+        onOpenChange={(open) => {
+          if (!open) setReleaseDoc(null);
+        }}
         document={releaseDoc}
         dealId={dealId}
         projectName={projectName}

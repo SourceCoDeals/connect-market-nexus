@@ -65,7 +65,7 @@ interface DealsActionDialogsProps {
   // Enrichment summary
   showEnrichmentSummary: boolean;
   dismissSummary: () => void;
-  enrichmentSummary: any;
+  enrichmentSummary: { total?: number; success?: number; failed?: number; errors?: { id: string; error: string }[] } | null;
   handleRetryFailedEnrichment: () => void;
 }
 

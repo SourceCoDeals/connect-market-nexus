@@ -3,6 +3,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, callGeminiWithTool } from "../_shared/ai-providers.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
+class GenerationError extends Error {
+  code: string;
+  recoverable: boolean;
+  constructor(message: string, code: string, recoverable: boolean) {
+    super(message);
+    this.code = code;
+    this.recoverable = recoverable;
+  }
+}
+
 // Phase definitions for the 13-phase SSE streaming generator
 const GENERATION_PHASES = [
   { id: '1a', name: 'Industry Definition', focus: 'NAICS codes, market size, industry segmentation' },
@@ -20,6 +30,21 @@ const GENERATION_PHASES = [
   { id: '4b', name: 'Quality Validation', focus: 'Completeness check and gap identification' },
   { id: '5a', name: 'References & Sources', focus: 'Industry sources, data citations, research references' },
 ];
+
+interface ClarificationContext {
+  industry_overview?: string;
+  segments?: string[];
+  example_companies?: string;
+  geography_focus?: string;
+  revenue_range?: string;
+  [key: string]: string | string[] | undefined;
+}
+
+interface GeminiRequestBody {
+  model: string;
+  max_tokens: number;
+  messages: Array<{ role: string; content: string }>;
+}
 
 interface QualityResult {
   passed: boolean;
@@ -125,7 +150,7 @@ function validateQuality(content: string): QualityResult {
 }
 
 // Build context string from clarification answers
-function buildClarificationContext(context: any): string {
+function buildClarificationContext(context: ClarificationContext | undefined): string {
   if (!context || Object.keys(context).length === 0) {
     return '';
   }
@@ -168,7 +193,7 @@ async function generatePhaseContent(
   industryName: string,
   existingContent: string,
   apiKey: string,
-  clarificationContext?: any,
+  clarificationContext?: ClarificationContext,
   _retryCount = 0,
   firefliesIntelligence?: string
 ): Promise<string> {
@@ -499,22 +524,22 @@ function parseCriteriaBlock(block: string): ExtractedCriteria {
         if (currentSection === 'size') {
           const num = parseFloat(cleanValue.replace(/[,$]/g, ''));
           if (!isNaN(num)) {
-            (criteria.size_criteria as any)[key] = num;
+            (criteria.size_criteria as Record<string, number>)[key] = num;
           }
         } else if (currentSection === 'geography') {
           if (key === 'coverage') {
             criteria.geography_criteria.coverage = cleanValue;
           } else {
-            (criteria.geography_criteria as any)[key] = cleanValue.split(',').map(s => s.trim()).filter(Boolean);
+            (criteria.geography_criteria as Record<string, string | string[]>)[key] = cleanValue.split(',').map(s => s.trim()).filter(Boolean);
           }
         } else if (currentSection === 'service') {
           if (key === 'business_model') {
             criteria.service_criteria.business_model = cleanValue;
           } else {
-            (criteria.service_criteria as any)[key] = cleanValue.split(',').map(s => s.trim()).filter(Boolean);
+            (criteria.service_criteria as Record<string, string | string[]>)[key] = cleanValue.split(',').map(s => s.trim()).filter(Boolean);
           }
         } else if (currentSection === 'buyer_types') {
-          (criteria.buyer_types_criteria as any)[key] = cleanValue.toLowerCase() === 'true';
+          (criteria.buyer_types_criteria as Record<string, boolean>)[key] = cleanValue.toLowerCase() === 'true';
         }
       }
     }
@@ -622,7 +647,7 @@ async function generatePhaseWithTimeout(
   industryName: string,
   existingContent: string,
   apiKey: string,
-  clarificationContext?: any,
+  clarificationContext?: ClarificationContext,
   retryCount = 0,
   firefliesIntelligence?: string
 ): Promise<string> {
@@ -672,7 +697,7 @@ async function generatePhaseContentWithModel(
   industryName: string,
   existingContent: string,
   apiKey: string,
-  clarificationContext: any,
+  clarificationContext: ClarificationContext | undefined,
   model: string,
   firefliesIntelligence?: string
 ): Promise<string> {
@@ -730,7 +755,7 @@ NOW GENERATE THE FOLLOWING SECTION:
 
   try {
     // Build the request body for Gemini (OpenAI-compatible format)
-    const requestBody: any = {
+    const requestBody: GeminiRequestBody = {
       model,
       max_tokens: CRITICAL_PHASES.includes(phase.id) ? 8000 : 6000,
       messages: [
@@ -750,47 +775,32 @@ NOW GENERATE THE FOLLOWING SECTION:
       console.error(`Phase ${phase.id} generation failed:`, response.status, text);
 
       if (response.status === 429) {
-        const err = new Error(`Rate limit exceeded for phase ${phase.id}`);
-        (err as any).code = 'rate_limited';
-        (err as any).recoverable = true;
-        throw err;
+        throw new GenerationError(`Rate limit exceeded for phase ${phase.id}`, 'rate_limited', true);
       }
       if (response.status === 402) {
-        const err = new Error(`AI credits depleted. Please add credits to continue.`);
-        (err as any).code = 'payment_required';
-        (err as any).recoverable = false;
-        throw err;
+        throw new GenerationError(`AI credits depleted. Please add credits to continue.`, 'payment_required', false);
       }
       if (response.status >= 500) {
-        const err = new Error(`AI service temporarily unavailable for phase ${phase.id}`);
-        (err as any).code = 'service_unavailable';
-        (err as any).recoverable = true;
-        throw err;
+        throw new GenerationError(`AI service temporarily unavailable for phase ${phase.id}`, 'service_unavailable', true);
       }
       throw new Error(`Failed to generate phase ${phase.id}`);
     }
 
     const result = await response.json();
-    // Gemini OpenAI-compatible format: choices[0].message.content
     const responseText = result.choices?.[0]?.message?.content || '';
     return responseText;
   } catch (error) {
-    // Handle network errors and other exceptions
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      const err = new Error(`Network error while generating phase ${phase.id}: ${error.message}`);
-      (err as any).code = 'network_error';
-      (err as any).recoverable = true;
-      throw err;
+      throw new GenerationError(`Network error while generating phase ${phase.id}: ${error.message}`, 'network_error', true);
     }
-    // Re-throw other errors (like rate limit errors) with their codes intact
-    if (error instanceof Error && (error as any).code) {
+    if (error instanceof GenerationError) {
       throw error;
     }
-    // Wrap unexpected errors
-    const err = new Error(`Error generating phase ${phase.id}: ${error instanceof Error ? error.message : String(error)}`);
-    (err as any).code = 'generation_error';
-    (err as any).recoverable = true;
-    throw err;
+    throw new GenerationError(
+      `Error generating phase ${phase.id}: ${error instanceof Error ? error.message : String(error)}`,
+      'generation_error',
+      true,
+    );
   }
 }
 
@@ -1165,20 +1175,19 @@ serve(async (req) => {
           const phaseContent = await generatePhaseContent(phase, industry_name, fullContent, GEMINI_API_KEY, enrichedContext, 0, fireflies_intelligence);
           fullContent += phaseContent + '\n\n';
         } catch (phaseError: unknown) {
-          const pe = phaseError as any;
-          // Propagate rate limit as 429 so queue processor knows it's recoverable
-          if (pe?.code === 'rate_limited' || pe?.message?.includes('Rate limit') || pe?.message?.includes('429')) {
-            return new Response(
-              JSON.stringify({ error: pe.message || 'Rate limited', recoverable: true }),
-              { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-          // Propagate service errors as 503
-          if (pe?.code === 'service_unavailable' || pe?.recoverable) {
-            return new Response(
-              JSON.stringify({ error: pe.message || 'Service unavailable', recoverable: true }),
-              { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+          if (phaseError instanceof GenerationError) {
+            if (phaseError.code === 'rate_limited' || phaseError.message?.includes('Rate limit') || phaseError.message?.includes('429')) {
+              return new Response(
+                JSON.stringify({ error: phaseError.message || 'Rate limited', recoverable: true }),
+                { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            if (phaseError.code === 'service_unavailable' || phaseError.recoverable) {
+              return new Response(
+                JSON.stringify({ error: phaseError.message || 'Service unavailable', recoverable: true }),
+                { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
           }
           throw phaseError;
         }
@@ -1215,7 +1224,7 @@ serve(async (req) => {
     // SSE Streaming response for batch
     const readable = new ReadableStream({
       async start(controller) {
-        const send = (data: any) => {
+        const send = (data: Record<string, unknown>) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
         };
 

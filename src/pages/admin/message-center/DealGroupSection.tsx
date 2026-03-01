@@ -20,7 +20,7 @@ export interface DealGroupSectionProps {
   group: DealGroup;
   selectedThreadId: string | null;
   onSelectThread: (id: string) => void;
-  adminProfiles?: Record<string, any> | null;
+  adminProfiles?: Record<string, unknown> | null;
 }
 
 // ─── Component ───

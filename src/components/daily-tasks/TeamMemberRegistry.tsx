@@ -1,7 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+type UntypedTable = Parameters<typeof supabase.from>[0];
+
+interface AliasRow {
+  id: string;
+  profile_id: string;
+  alias: string;
+}
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,16 +31,16 @@ export function TeamMemberRegistry() {
         .select('user_id, role, profiles!inner(id, first_name, last_name, email)')
         .in('role', ['owner', 'admin', 'moderator']);
 
-      const { data: aliases } = await supabase.from('team_member_aliases' as any).select('*');
+      const { data: aliases } = await supabase.from('team_member_aliases' as UntypedTable).select('*');
 
       const aliasMap = new Map<string, { id: string; alias: string }[]>();
-      for (const a of (aliases || []) as any[]) {
+      for (const a of (aliases || []) as AliasRow[]) {
         const existing = aliasMap.get(a.profile_id) || [];
         existing.push({ id: a.id, alias: a.alias });
         aliasMap.set(a.profile_id, existing);
       }
 
-      return (roles || []).map((r: any) => ({
+      return (roles || []).map((r: { user_id: string; role: string; profiles: { id: string; first_name: string | null; last_name: string | null; email: string } }) => ({
         // Use user_id directly from user_roles (matches auth.uid()) to ensure
         // consistent IDs with the assignee_id filter in useDailyTasks.
         id: r.user_id,
@@ -49,7 +56,7 @@ export function TeamMemberRegistry() {
   // Add alias mutation
   const addAlias = useMutation({
     mutationFn: async ({ profileId, alias }: { profileId: string; alias: string }) => {
-      const { error } = await supabase.from('team_member_aliases' as any).insert({
+      const { error } = await supabase.from('team_member_aliases' as UntypedTable).insert({
         profile_id: profileId,
         alias: alias.trim(),
         created_by: user?.id,
@@ -69,7 +76,7 @@ export function TeamMemberRegistry() {
   const removeAlias = useMutation({
     mutationFn: async (aliasId: string) => {
       const { error } = await supabase
-        .from('team_member_aliases' as any)
+        .from('team_member_aliases' as UntypedTable)
         .delete()
         .eq('id', aliasId);
       if (error) throw error;

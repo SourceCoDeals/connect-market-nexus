@@ -148,7 +148,7 @@ export const useRequestConnection = () => {
 
       return parsedResult;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { is_duplicate?: boolean; duplicate_type?: string; request_id?: string }) => {
       if (data.is_duplicate) {
         if (data.duplicate_type === 'same_user_same_listing') {
           toast({
@@ -174,11 +174,11 @@ export const useRequestConnection = () => {
       // PHASE 2: Use centralized cache invalidation
       invalidateConnectionRequests(queryClient);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to request connection',
+        description: error instanceof Error ? error.message : 'Failed to request connection',
       });
     },
   });
@@ -207,7 +207,7 @@ export const useAllConnectionStatuses = () => {
           map.set(row.listing_id, { exists: true, status: row.status, id: row.id });
         }
         return map;
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching all connection statuses:', error);
         return new Map<string, { exists: boolean; status: string; id: string }>();
       }
@@ -247,7 +247,7 @@ export const useConnectionStatus = (
           status: data?.status || '',
           id: data?.id || '',
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error checking connection status:', error);
         return { exists: false, status: '', id: '' };
       }
@@ -300,7 +300,7 @@ export const useUserConnectionRequests = () => {
         if (error) throw error;
 
         return data as ConnectionRequest[];
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching user connection requests:', error);
         return [];
       }

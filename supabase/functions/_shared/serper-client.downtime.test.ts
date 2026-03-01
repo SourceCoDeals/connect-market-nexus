@@ -20,7 +20,7 @@ const denoStub = {
     get: (key: string) => mockEnv[key] ?? undefined,
   },
 };
-(globalThis as any).Deno = denoStub;
+(globalThis as unknown as { Deno: typeof denoStub }).Deno = denoStub;
 
 const SERPER_BASE = 'https://google.serper.dev';
 
@@ -53,12 +53,14 @@ async function googleSearch(query: string, maxResults: number = 10): Promise<Goo
   const data = await response.json();
   const organic = data.organic || [];
 
-  return organic.slice(0, maxResults).map((r: any) => ({
-    title: r.title || '',
-    url: r.link || '',
-    description: r.snippet || '',
-    position: r.position || 0,
-  }));
+  return organic
+    .slice(0, maxResults)
+    .map((r: { title?: string; link?: string; snippet?: string; position?: number }) => ({
+      title: r.title || '',
+      url: r.link || '',
+      description: r.snippet || '',
+      position: r.position || 0,
+    }));
 }
 
 async function findCompanyLinkedIn(companyName: string): Promise<string | null> {
@@ -106,7 +108,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   mockEnv.SERPER_API_KEY = 'test-serper-key';
   fetchMock = vi.fn();
-  globalThis.fetch = fetchMock as any;
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
 });
 
 afterEach(() => {

@@ -9,7 +9,7 @@ interface ErrorLogRequest {
   stack_trace?: string;
   user_id?: string;
   correlation_id?: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   severity: 'low' | 'medium' | 'high' | 'critical';
   source: string;
   timestamp?: string;
@@ -118,14 +118,14 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in error-logger function:', error);
 
     return new Response(
       JSON.stringify({
         success: false,
         error: 'Failed to log error',
-        message: error.message
+        message: error instanceof Error ? error.message : String(error)
       }),
       {
         status: 500,

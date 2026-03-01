@@ -1,20 +1,20 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { useBackgroundGuideGeneration } from "@/hooks/useBackgroundGuideGeneration";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { useBackgroundGuideGeneration } from '@/hooks/useBackgroundGuideGeneration';
 
 interface BackgroundGuideProgressProps {
   universeId: string;
-  onComplete?: (content: string, criteria: any) => void;
+  onComplete?: (content: string, criteria: Record<string, unknown>) => void;
   onError?: (error: string) => void;
 }
 
 export function BackgroundGuideProgress({
   universeId,
   onComplete,
-  onError
+  onError,
 }: BackgroundGuideProgressProps) {
   const {
     isGenerating,
@@ -24,11 +24,11 @@ export function BackgroundGuideProgress({
     cancelGeneration,
     phaseName,
     phasesCompleted,
-    totalPhases
+    totalPhases,
   } = useBackgroundGuideGeneration({
     universeId,
     onComplete,
-    onError
+    onError,
   });
 
   const getStatusBadge = () => {
@@ -74,8 +74,8 @@ export function BackgroundGuideProgress({
             <CardTitle className="text-base">M&A Guide Generation</CardTitle>
             <CardDescription>
               {isGenerating
-                ? "Generation in progress - you can navigate away"
-                : "Generate a comprehensive M&A guide for this universe"}
+                ? 'Generation in progress - you can navigate away'
+                : 'Generate a comprehensive M&A guide for this universe'}
             </CardDescription>
           </div>
           {getStatusBadge()}
@@ -94,9 +94,7 @@ export function BackgroundGuideProgress({
               <Progress value={progress} className="h-2" />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{progress}% complete</span>
-                <span>
-                  Started {new Date(currentGeneration.started_at).toLocaleTimeString()}
-                </span>
+                <span>Started {new Date(currentGeneration.started_at).toLocaleTimeString()}</span>
               </div>
             </div>
 
@@ -109,12 +107,7 @@ export function BackgroundGuideProgress({
               </div>
             )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={cancelGeneration}
-              className="w-full"
-            >
+            <Button variant="outline" size="sm" onClick={cancelGeneration} className="w-full">
               Stop Monitoring (Generation continues in background)
             </Button>
           </>

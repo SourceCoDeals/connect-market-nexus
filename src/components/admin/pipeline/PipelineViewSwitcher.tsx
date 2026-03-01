@@ -23,34 +23,34 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LayoutGrid, Plus, MoreVertical, Trash2, Save, ArrowUpDown, Settings2 } from 'lucide-react';
-import { usePipelineViews, useDeletePipelineView, useUpdatePipelineView } from '@/hooks/admin/use-pipeline-views';
+import {
+  usePipelineViews,
+  useDeletePipelineView,
+  useUpdatePipelineView,
+} from '@/hooks/admin/use-pipeline-views';
 import { PipelineViewDialog } from './PipelineViewDialog';
 import { StageReorderDialog } from './StageReorderDialog';
 import { ViewStagesCustomizer } from './ViewStagesCustomizer';
 import { useToast } from '@/hooks/use-toast';
+import type { DealStage } from '@/hooks/admin/use-deals';
 
 interface PipelineViewSwitcherProps {
   currentViewId?: string;
   onViewChange: (viewId: string) => void;
   onSaveCurrentView?: () => void;
-  getCurrentFilterConfig?: () => any;
-  stages?: any[];
+  getCurrentFilterConfig?: () => Record<string, unknown>;
+  stages?: DealStage[];
 }
 
 export function PipelineViewSwitcher({
   currentViewId,
   onViewChange,
   getCurrentFilterConfig,
-  stages = []
+  stages = [],
 }: PipelineViewSwitcherProps) {
   const { data: views = [], isLoading } = usePipelineViews();
   const deleteView = useDeletePipelineView();
@@ -61,20 +61,22 @@ export function PipelineViewSwitcher({
   const [isCustomizeDialogOpen, setIsCustomizeDialogOpen] = useState(false);
   const [viewToDelete, setViewToDelete] = useState<string | null>(null);
 
-  const defaultView = views.find(v => v.is_default);
+  const defaultView = views.find((v) => v.is_default);
   const selectedViewId = currentViewId || defaultView?.id || views[0]?.id;
 
-  const currentView = views.find(v => v.id === selectedViewId);
+  const currentView = views.find((v) => v.id === selectedViewId);
   const canDeleteCurrentView = currentView && !currentView.is_default;
-  
+
   // Determine if this is Standard Pipeline (no stage_config or empty array)
-  const isStandardPipeline = currentView && (!currentView.stage_config || currentView.stage_config.length === 0);
+  const isStandardPipeline =
+    currentView && (!currentView.stage_config || currentView.stage_config.length === 0);
   const isCustomView = currentView && !isStandardPipeline;
 
   // Get current stage IDs for this view
-  const currentStageIds = currentView?.stage_config && currentView.stage_config.length > 0
-    ? currentView.stage_config.map((sc: any) => sc.stageId)
-    : stages.map(s => s.id);
+  const currentStageIds =
+    currentView?.stage_config && currentView.stage_config.length > 0
+      ? currentView.stage_config.map((sc: { stageId: string }) => sc.stageId)
+      : stages.map((s) => s.id);
 
   if (isLoading) {
     return null;
@@ -85,12 +87,12 @@ export function PipelineViewSwitcher({
       deleteView.mutate(viewToDelete, {
         onSuccess: () => {
           // Switch to default view after deletion
-          const defaultView = views.find(v => v.is_default);
+          const defaultView = views.find((v) => v.is_default);
           if (defaultView) {
             onViewChange(defaultView.id);
           }
           setViewToDelete(null);
-        }
+        },
       });
     }
   };
@@ -98,22 +100,23 @@ export function PipelineViewSwitcher({
   const handleSaveCurrentView = () => {
     if (!selectedViewId) {
       toast({
-        title: "No view selected",
-        description: "Please select a view to save.",
-        variant: "destructive",
+        title: 'No view selected',
+        description: 'Please select a view to save.',
+        variant: 'destructive',
       });
       return;
     }
 
-    const currentView = views.find(v => v.id === selectedViewId);
+    const currentView = views.find((v) => v.id === selectedViewId);
     if (!currentView) return;
 
     // Prevent saving Standard Pipeline
     if (isStandardPipeline) {
       toast({
-        title: "Cannot Modify Standard Pipeline",
-        description: "Standard Pipeline shows all stages and cannot be customized. Create a custom view instead.",
-        variant: "destructive",
+        title: 'Cannot Modify Standard Pipeline',
+        description:
+          'Standard Pipeline shows all stages and cannot be customized. Create a custom view instead.',
+        variant: 'destructive',
       });
       return;
     }
@@ -127,20 +130,23 @@ export function PipelineViewSwitcher({
     // Get current filter state
     const filter_config = getCurrentFilterConfig ? getCurrentFilterConfig() : {};
 
-    updateView.mutate({
-      id: selectedViewId,
-      updates: {
-        stage_config,
-        filter_config,
-      }
-    }, {
-      onSuccess: () => {
-        toast({
-          title: "View Saved",
-          description: `Stage order, filters, and sorting saved to "${currentView.name}".`,
-        });
-      }
-    });
+    updateView.mutate(
+      {
+        id: selectedViewId,
+        updates: {
+          stage_config,
+          filter_config,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: 'View Saved',
+            description: `Stage order, filters, and sorting saved to "${currentView.name}".`,
+          });
+        },
+      },
+    );
   };
 
   const handleSaveStageOrder = async (stageConfig: { stageId: string; position: number }[]) => {
@@ -150,7 +156,8 @@ export function PipelineViewSwitcher({
     if (isStandardPipeline) {
       toast({
         title: 'Cannot Reorder Standard Pipeline',
-        description: 'The Standard Pipeline shows all stages in their global order. Create a custom view to reorder stages.',
+        description:
+          'The Standard Pipeline shows all stages in their global order. Create a custom view to reorder stages.',
         variant: 'destructive',
       });
       return;
@@ -158,22 +165,25 @@ export function PipelineViewSwitcher({
 
     const filter_config = getCurrentFilterConfig ? getCurrentFilterConfig() : {};
 
-    updateView.mutate({
-      id: selectedViewId,
-      updates: {
-        stage_config: stageConfig,
-        filter_config,
-      }
-    }, {
-      onSuccess: () => {
-        toast({
-          title: "Stage order saved",
-          description: "The custom stage order has been saved to this view.",
-        });
-        // Re-apply the view to reflect changes
-        onViewChange(selectedViewId);
-      }
-    });
+    updateView.mutate(
+      {
+        id: selectedViewId,
+        updates: {
+          stage_config: stageConfig,
+          filter_config,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: 'Stage order saved',
+            description: 'The custom stage order has been saved to this view.',
+          });
+          // Re-apply the view to reflect changes
+          onViewChange(selectedViewId);
+        },
+      },
+    );
   };
 
   const handleCustomizeStages = async (stageIds: string[]) => {
@@ -184,28 +194,31 @@ export function PipelineViewSwitcher({
       position: index,
     }));
 
-    updateView.mutate({
-      id: selectedViewId,
-      updates: {
-        stage_config: stageConfig,
-      }
-    }, {
-      onSuccess: () => {
-        toast({
-          title: 'Stages Updated',
-          description: 'View stages have been customized successfully.',
-        });
-        // Re-apply the view
-        onViewChange(selectedViewId);
+    updateView.mutate(
+      {
+        id: selectedViewId,
+        updates: {
+          stage_config: stageConfig,
+        },
       },
-      onError: (error) => {
-        toast({
-          title: 'Error',
-          description: `Failed to customize stages: ${error.message}`,
-          variant: 'destructive',
-        });
-      }
-    });
+      {
+        onSuccess: () => {
+          toast({
+            title: 'Stages Updated',
+            description: 'View stages have been customized successfully.',
+          });
+          // Re-apply the view
+          onViewChange(selectedViewId);
+        },
+        onError: (error) => {
+          toast({
+            title: 'Error',
+            description: `Failed to customize stages: ${error.message}`,
+            variant: 'destructive',
+          });
+        },
+      },
+    );
   };
 
   return (
@@ -227,7 +240,7 @@ export function PipelineViewSwitcher({
             </SelectContent>
           </Select>
         )}
-        
+
         {/* Default View Badge */}
         {isStandardPipeline && (
           <TooltipProvider>
@@ -239,13 +252,14 @@ export function PipelineViewSwitcher({
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <p className="text-xs">
-                  This view shows all stages in global order and cannot be customized. Create a custom view for personalized stage order and filters.
+                  This view shows all stages in global order and cannot be customized. Create a
+                  custom view for personalized stage order and filters.
                 </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
-        
+
         {/* View Actions Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -258,13 +272,13 @@ export function PipelineViewSwitcher({
               <Plus className="h-4 w-4 mr-2" />
               New View
             </DropdownMenuItem>
-            
+
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <DropdownMenuItem 
-                      onClick={handleSaveCurrentView} 
+                    <DropdownMenuItem
+                      onClick={handleSaveCurrentView}
                       disabled={!selectedViewId || isStandardPipeline}
                     >
                       <Save className="h-4 w-4 mr-2" />
@@ -280,15 +294,16 @@ export function PipelineViewSwitcher({
                 {isStandardPipeline && (
                   <TooltipContent side="left" className="max-w-xs">
                     <p className="text-xs">
-                      Standard Pipeline cannot be customized. Create a custom view to save stage order and filters.
+                      Standard Pipeline cannot be customized. Create a custom view to save stage
+                      order and filters.
                     </p>
                   </TooltipContent>
                 )}
               </Tooltip>
             </TooltipProvider>
-            
+
             <DropdownMenuSeparator />
-            
+
             {/* Customize Stages - only for custom views */}
             {isCustomView && (
               <DropdownMenuItem onClick={() => setIsCustomizeDialogOpen(true)}>
@@ -296,13 +311,13 @@ export function PipelineViewSwitcher({
                 Add/Remove Stages
               </DropdownMenuItem>
             )}
-            
+
             {/* Reorder Stages - disabled for Standard Pipeline with tooltip */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={() => {
                         if (!isStandardPipeline) {
                           setIsReorderDialogOpen(true);
@@ -323,17 +338,18 @@ export function PipelineViewSwitcher({
                 {isStandardPipeline && (
                   <TooltipContent side="left" className="max-w-xs">
                     <p className="text-xs">
-                      Standard Pipeline shows all stages in global order. Create a custom view to reorder stages.
+                      Standard Pipeline shows all stages in global order. Create a custom view to
+                      reorder stages.
                     </p>
                   </TooltipContent>
                 )}
               </Tooltip>
             </TooltipProvider>
-            
+
             {canDeleteCurrentView && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => setViewToDelete(selectedViewId)}
                   className="text-destructive focus:text-destructive"
                 >
@@ -345,11 +361,8 @@ export function PipelineViewSwitcher({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      
-      <PipelineViewDialog 
-        open={isCreateDialogOpen} 
-        onOpenChange={setIsCreateDialogOpen} 
-      />
+
+      <PipelineViewDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} />
 
       <StageReorderDialog
         open={isReorderDialogOpen}
@@ -377,7 +390,10 @@ export function PipelineViewSwitcher({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteView} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDeleteView}
+              className="bg-destructive hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

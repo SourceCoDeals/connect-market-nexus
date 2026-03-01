@@ -1,12 +1,12 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 const INTERNAL_DOMAINS = (
-  Deno.env.get("INTERNAL_EMAIL_DOMAINS") || "sourcecodeals.com,captarget.com"
+  Deno.env.get('INTERNAL_EMAIL_DOMAINS') || 'sourcecodeals.com,captarget.com'
 )
-  .split(",")
+  .split(',')
   .map((d: string) => d.trim().toLowerCase())
   .filter(Boolean);
 
@@ -26,25 +26,20 @@ interface AutoPairRequest {
 // Fireflies API helpers (same pattern as other edge functions)
 // ---------------------------------------------------------------------------
 
-async function firefliesGraphQL(
-  query: string,
-  variables?: Record<string, unknown>,
-) {
-  const apiKey = Deno.env.get("FIREFLIES_API_KEY");
+async function firefliesGraphQL(query: string, variables?: Record<string, unknown>) {
+  const apiKey = Deno.env.get('FIREFLIES_API_KEY');
   if (!apiKey) {
-    throw new Error(
-      "FIREFLIES_API_KEY is not configured. Add it as a Supabase secret.",
-    );
+    throw new Error('FIREFLIES_API_KEY is not configured. Add it as a Supabase secret.');
   }
 
   const doFetch = async () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), FIREFLIES_API_TIMEOUT_MS);
     try {
-      const response = await fetch("https://api.fireflies.ai/graphql", {
-        method: "POST",
+      const response = await fetch('https://api.fireflies.ai/graphql', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({ query, variables }),
@@ -54,7 +49,7 @@ async function firefliesGraphQL(
       return response;
     } catch (err) {
       clearTimeout(timeoutId);
-      if (err instanceof DOMException && err.name === "AbortError") {
+      if (err instanceof DOMException && err.name === 'AbortError') {
         throw new Error(`Fireflies API timeout after ${FIREFLIES_API_TIMEOUT_MS}ms`);
       }
       throw err;
@@ -109,28 +104,29 @@ const ALL_TRANSCRIPTS_QUERY = `
   }
 `;
 
-function transcriptHasContent(t: any): boolean {
+function transcriptHasContent(t: {
+  meeting_info?: { silent_meeting?: boolean; summary_status?: string };
+  summary?: { short_summary?: string };
+}): boolean {
   const info = t.meeting_info || {};
   const isSilent = info.silent_meeting === true;
-  const isSkipped = info.summary_status === "skipped";
+  const isSkipped = info.summary_status === 'skipped';
   const hasSummary = !!t.summary?.short_summary;
   if ((isSilent || isSkipped) && !hasSummary) return false;
   return true;
 }
 
-function extractExternalParticipants(
-  attendees: any[],
-): { name: string; email: string }[] {
+function extractExternalParticipants(attendees: unknown[]): { name: string; email: string }[] {
   if (!Array.isArray(attendees)) return [];
   return attendees
-    .filter((a: any) => {
-      const email = (a.email || "").toLowerCase();
+    .filter((a: { email?: string; displayName?: string; name?: string }) => {
+      const email = (a.email || '').toLowerCase();
       if (!email) return false;
       return !INTERNAL_DOMAINS.some((domain) => email.endsWith(`@${domain}`));
     })
-    .map((a: any) => ({
-      name: a.displayName || a.name || a.email?.split("@")[0] || "Unknown",
-      email: a.email || "",
+    .map((a: { email?: string; displayName?: string; name?: string }) => ({
+      name: a.displayName || a.name || a.email?.split('@')[0] || 'Unknown',
+      email: a.email || '',
     }));
 }
 
@@ -143,10 +139,10 @@ function normalizeCompanyName(name: string): string {
     .toLowerCase()
     .replace(
       /\b(inc|llc|ltd|corp|corporation|company|co|group|holdings|partners|lp|l\.p\.|l\.l\.c\.)\b\.?/gi,
-      "",
+      '',
     )
-    .replace(/[^a-z0-9 ]/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -157,13 +153,13 @@ function normalizeCompanyName(name: string): string {
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = (await req.json()) as AutoPairRequest;
@@ -177,15 +173,15 @@ serve(async (req) => {
     const emailToBuyerIds = new Map<string, Set<string>>();
     {
       let contactQuery = supabase
-        .from("contacts")
-        .select("email, remarketing_buyer_id")
-        .eq("contact_type", "buyer")
-        .eq("archived", false)
-        .not("email", "is", null)
-        .not("remarketing_buyer_id", "is", null);
+        .from('contacts')
+        .select('email, remarketing_buyer_id')
+        .eq('contact_type', 'buyer')
+        .eq('archived', false)
+        .not('email', 'is', null)
+        .not('remarketing_buyer_id', 'is', null);
 
       if (body.buyerIds?.length) {
-        contactQuery = contactQuery.in("remarketing_buyer_id", body.buyerIds);
+        contactQuery = contactQuery.in('remarketing_buyer_id', body.buyerIds);
       }
 
       const { data: contacts } = await contactQuery;
@@ -202,12 +198,12 @@ serve(async (req) => {
     const nameToBuyerIds = new Map<string, Set<string>>();
     {
       let buyerQuery = supabase
-        .from("remarketing_buyers")
-        .select("id, company_name, pe_firm_name")
-        .eq("archived", false);
+        .from('remarketing_buyers')
+        .select('id, company_name, pe_firm_name')
+        .eq('archived', false);
 
       if (body.buyerIds?.length) {
-        buyerQuery = buyerQuery.in("id", body.buyerIds);
+        buyerQuery = buyerQuery.in('id', body.buyerIds);
       }
 
       const { data: buyers } = await buyerQuery;
@@ -229,12 +225,12 @@ serve(async (req) => {
     {
       // Listings with main contact email
       let listingQuery = supabase
-        .from("listings")
-        .select("id, main_contact_email, title")
-        .is("deleted_at", null);
+        .from('listings')
+        .select('id, main_contact_email, title')
+        .is('deleted_at', null);
 
       if (body.listingIds?.length) {
-        listingQuery = listingQuery.in("id", body.listingIds);
+        listingQuery = listingQuery.in('id', body.listingIds);
       }
 
       const { data: listings } = await listingQuery;
@@ -242,16 +238,14 @@ serve(async (req) => {
         // Email match
         if (l.main_contact_email) {
           const email = l.main_contact_email.toLowerCase().trim();
-          if (!emailToListingIds.has(email))
-            emailToListingIds.set(email, new Set());
+          if (!emailToListingIds.has(email)) emailToListingIds.set(email, new Set());
           emailToListingIds.get(email)!.add(l.id);
         }
         // Company name match from title
         if (l.title && l.title.length >= 3) {
           const norm = normalizeCompanyName(l.title);
           if (norm) {
-            if (!nameToListingIds.has(norm))
-              nameToListingIds.set(norm, new Set());
+            if (!nameToListingIds.has(norm)) nameToListingIds.set(norm, new Set());
             nameToListingIds.get(norm)!.add(l.id);
           }
         }
@@ -265,8 +259,8 @@ serve(async (req) => {
     const existingBuyerLinks = new Set<string>(); // "buyerId:firefliesId"
     {
       const { data } = await supabase
-        .from("buyer_transcripts")
-        .select("buyer_id, fireflies_transcript_id");
+        .from('buyer_transcripts')
+        .select('buyer_id, fireflies_transcript_id');
       for (const row of data || []) {
         existingBuyerLinks.add(`${row.buyer_id}:${row.fireflies_transcript_id}`);
       }
@@ -275,9 +269,9 @@ serve(async (req) => {
     const existingDealLinks = new Set<string>(); // "listingId:firefliesId"
     {
       const { data } = await supabase
-        .from("deal_transcripts")
-        .select("listing_id, fireflies_transcript_id")
-        .not("fireflies_transcript_id", "is", null);
+        .from('deal_transcripts')
+        .select('listing_id, fireflies_transcript_id')
+        .not('fireflies_transcript_id', 'is', null);
       for (const row of data || []) {
         existingDealLinks.add(`${row.listing_id}:${row.fireflies_transcript_id}`);
       }
@@ -289,7 +283,7 @@ serve(async (req) => {
     // ------------------------------------------------------------------
     // 2. Fetch all recent Fireflies transcripts
     // ------------------------------------------------------------------
-    const allTranscripts: any[] = [];
+    const allTranscripts: unknown[] = [];
     const batchSize = 50;
     const maxPages = Math.ceil(maxTranscripts / batchSize);
 
@@ -317,24 +311,20 @@ serve(async (req) => {
     for (const transcript of allTranscripts) {
       if (!transcript.id) continue;
 
-      const externalParticipants = extractExternalParticipants(
-        transcript.meeting_attendees || [],
-      );
+      const externalParticipants = extractExternalParticipants(transcript.meeting_attendees || []);
       const participantEmails = externalParticipants
         .map((p) => p.email.toLowerCase())
         .filter(Boolean);
 
       const hasContent = transcriptHasContent(transcript);
-      const title = transcript.title || "";
+      const title = transcript.title || '';
       const normalizedTitle = normalizeCompanyName(title);
 
       // Convert Fireflies date
       let callDate: string | null = null;
       if (transcript.date) {
         const dateNum =
-          typeof transcript.date === "number"
-            ? transcript.date
-            : parseInt(transcript.date, 10);
+          typeof transcript.date === 'number' ? transcript.date : parseInt(transcript.date, 10);
         if (!isNaN(dateNum)) {
           callDate = new Date(dateNum).toISOString();
         }
@@ -342,7 +332,7 @@ serve(async (req) => {
 
       // --- Match to buyers ---
       const matchedBuyerIds = new Set<string>();
-      const buyerMatchTypes = new Map<string, "email" | "keyword">();
+      const buyerMatchTypes = new Map<string, 'email' | 'keyword'>();
 
       // Phase 1: Email match
       for (const email of participantEmails) {
@@ -350,7 +340,7 @@ serve(async (req) => {
         if (buyerIds) {
           for (const bid of buyerIds) {
             matchedBuyerIds.add(bid);
-            buyerMatchTypes.set(bid, "email");
+            buyerMatchTypes.set(bid, 'email');
           }
         }
       }
@@ -358,14 +348,11 @@ serve(async (req) => {
       // Phase 2: Company name match (fallback for buyers with no email match)
       if (normalizedTitle.length >= 3) {
         for (const [companyNorm, buyerIds] of nameToBuyerIds) {
-          if (
-            normalizedTitle.includes(companyNorm) ||
-            companyNorm.includes(normalizedTitle)
-          ) {
+          if (normalizedTitle.includes(companyNorm) || companyNorm.includes(normalizedTitle)) {
             for (const bid of buyerIds) {
               if (!matchedBuyerIds.has(bid)) {
                 matchedBuyerIds.add(bid);
-                buyerMatchTypes.set(bid, "keyword");
+                buyerMatchTypes.set(bid, 'keyword');
               }
             }
           }
@@ -381,24 +368,20 @@ serve(async (req) => {
         }
 
         try {
-          const { error: insertErr } = await supabase
-            .from("buyer_transcripts")
-            .insert({
-              buyer_id: buyerId,
-              fireflies_transcript_id: transcript.id,
-              transcript_url: transcript.transcript_url || null,
-              title: title || "Call",
-              call_date: callDate,
-              participants: transcript.meeting_attendees || [],
-              duration_minutes: transcript.duration
-                ? Math.round(transcript.duration)
-                : null,
-              summary: transcript.summary?.short_summary || null,
-              key_points: transcript.summary?.keywords || [],
-            });
+          const { error: insertErr } = await supabase.from('buyer_transcripts').insert({
+            buyer_id: buyerId,
+            fireflies_transcript_id: transcript.id,
+            transcript_url: transcript.transcript_url || null,
+            title: title || 'Call',
+            call_date: callDate,
+            participants: transcript.meeting_attendees || [],
+            duration_minutes: transcript.duration ? Math.round(transcript.duration) : null,
+            summary: transcript.summary?.short_summary || null,
+            key_points: transcript.summary?.keywords || [],
+          });
 
           if (insertErr) {
-            if (insertErr.code === "23505") {
+            if (insertErr.code === '23505') {
               buyersSkipped++;
             } else {
               errors.push(`buyer ${buyerId}: ${insertErr.message}`);
@@ -408,15 +391,13 @@ serve(async (req) => {
             existingBuyerLinks.add(linkKey);
           }
         } catch (e) {
-          errors.push(
-            `buyer ${buyerId}: ${e instanceof Error ? e.message : "Unknown"}`,
-          );
+          errors.push(`buyer ${buyerId}: ${e instanceof Error ? e.message : 'Unknown'}`);
         }
       }
 
       // --- Match to deals ---
       const matchedListingIds = new Set<string>();
-      const dealMatchTypes = new Map<string, "email" | "keyword">();
+      const dealMatchTypes = new Map<string, 'email' | 'keyword'>();
 
       // Phase 1: Email match
       for (const email of participantEmails) {
@@ -424,7 +405,7 @@ serve(async (req) => {
         if (listingIds) {
           for (const lid of listingIds) {
             matchedListingIds.add(lid);
-            dealMatchTypes.set(lid, "email");
+            dealMatchTypes.set(lid, 'email');
           }
         }
       }
@@ -432,14 +413,11 @@ serve(async (req) => {
       // Phase 2: Company name match
       if (normalizedTitle.length >= 3) {
         for (const [companyNorm, listingIds] of nameToListingIds) {
-          if (
-            normalizedTitle.includes(companyNorm) ||
-            companyNorm.includes(normalizedTitle)
-          ) {
+          if (normalizedTitle.includes(companyNorm) || companyNorm.includes(normalizedTitle)) {
             for (const lid of listingIds) {
               if (!matchedListingIds.has(lid)) {
                 matchedListingIds.add(lid);
-                dealMatchTypes.set(lid, "keyword");
+                dealMatchTypes.set(lid, 'keyword');
               }
             }
           }
@@ -456,33 +434,29 @@ serve(async (req) => {
 
         try {
           const attendeeEmails = (transcript.meeting_attendees || [])
-            .map((a: any) => a.email)
+            .map((a: { email?: string }) => a.email)
             .filter(Boolean);
 
-          const { error: insertErr } = await supabase
-            .from("deal_transcripts")
-            .insert({
-              listing_id: listingId,
-              fireflies_transcript_id: transcript.id,
-              fireflies_meeting_id: transcript.id,
-              transcript_url: transcript.transcript_url || null,
-              title: title || "Call",
-              call_date: callDate,
-              participants: transcript.meeting_attendees || [],
-              meeting_attendees: attendeeEmails,
-              duration_minutes: transcript.duration
-                ? Math.round(transcript.duration)
-                : null,
-              source: "fireflies",
-              auto_linked: true,
-              transcript_text: "",
-              has_content: hasContent,
-              match_type: dealMatchTypes.get(listingId) || "email",
-              external_participants: externalParticipants,
-            });
+          const { error: insertErr } = await supabase.from('deal_transcripts').insert({
+            listing_id: listingId,
+            fireflies_transcript_id: transcript.id,
+            fireflies_meeting_id: transcript.id,
+            transcript_url: transcript.transcript_url || null,
+            title: title || 'Call',
+            call_date: callDate,
+            participants: transcript.meeting_attendees || [],
+            meeting_attendees: attendeeEmails,
+            duration_minutes: transcript.duration ? Math.round(transcript.duration) : null,
+            source: 'fireflies',
+            auto_linked: true,
+            transcript_text: '',
+            has_content: hasContent,
+            match_type: dealMatchTypes.get(listingId) || 'email',
+            external_participants: externalParticipants,
+          });
 
           if (insertErr) {
-            if (insertErr.code === "23505") {
+            if (insertErr.code === '23505') {
               dealsSkipped++;
             } else {
               errors.push(`deal ${listingId}: ${insertErr.message}`);
@@ -492,9 +466,7 @@ serve(async (req) => {
             existingDealLinks.add(linkKey);
           }
         } catch (e) {
-          errors.push(
-            `deal ${listingId}: ${e instanceof Error ? e.message : "Unknown"}`,
-          );
+          errors.push(`deal ${listingId}: ${e instanceof Error ? e.message : 'Unknown'}`);
         }
       }
     }
@@ -509,21 +481,21 @@ serve(async (req) => {
       errors: errors.length > 0 ? errors.slice(0, 20) : undefined,
     };
 
-    console.log("Auto-pair complete:", result);
+    console.log('Auto-pair complete:', result);
 
     return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error("Auto-pair error:", error);
+    console.error('Auto-pair error:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : 'Unknown error',
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
     );
   }

@@ -6,9 +6,7 @@
  * → unified get_outreach_records with a `source` parameter.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -170,7 +168,7 @@ async function searchBuyerUniverses(
   if (error) return { error: error.message };
 
   // Add has_ma_guide flag and strip full guide content to save tokens
-  let results = (data || []).map((u: any) => {
+  let results = (data || []).map((u: Record<string, unknown>) => {
     const { ma_guide_content, ...rest } = u;
     return { ...rest, has_ma_guide: !!ma_guide_content };
   });
@@ -179,14 +177,14 @@ async function searchBuyerUniverses(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(
-      (u: any) =>
-        u.name?.toLowerCase().includes(term) ||
-        u.description?.toLowerCase().includes(term) ||
-        u.fit_criteria?.toLowerCase().includes(term) ||
-        u.service_criteria?.toLowerCase().includes(term) ||
-        u.geography_criteria?.toLowerCase().includes(term) ||
-        u.size_criteria?.toLowerCase().includes(term) ||
-        u.buyer_types_criteria?.toLowerCase().includes(term),
+      (u) =>
+        (u.name as string)?.toLowerCase().includes(term) ||
+        (u.description as string)?.toLowerCase().includes(term) ||
+        (u.fit_criteria as string)?.toLowerCase().includes(term) ||
+        (u.service_criteria as string)?.toLowerCase().includes(term) ||
+        (u.geography_criteria as string)?.toLowerCase().includes(term) ||
+        (u.size_criteria as string)?.toLowerCase().includes(term) ||
+        (u.buyer_types_criteria as string)?.toLowerCase().includes(term),
     );
   }
 
@@ -270,11 +268,11 @@ async function getUniverseBuyerFits(
     return { data: { message: 'No buyers found in this universe', total: 0 } };
   }
 
-  const buyerIds = buyers.map((b: any) => b.id);
+  const buyerIds = buyers.map((b: { id: string }) => b.id);
 
   // 2. Fetch all scores for these buyers (across all deals in the universe)
   // Batch in chunks of 100 to avoid query limits
-  const allScores: any[] = [];
+  const allScores: unknown[] = [];
   for (let i = 0; i < buyerIds.length; i += 100) {
     const chunk = buyerIds.slice(i, i + 100);
     const { data: scores } = await supabase
@@ -488,8 +486,8 @@ async function getOutreachRecordsUnified(
 
   // Compute total
   const totalCount =
-    ((results.outreach_records as any)?.total || 0) +
-    ((results.remarketing_outreach as any)?.total || 0);
+    ((results.outreach_records as { total?: number })?.total || 0) +
+    ((results.remarketing_outreach as { total?: number })?.total || 0);
 
   results.total_across_sources = totalCount;
   if (errors.length > 0) results.errors = errors;

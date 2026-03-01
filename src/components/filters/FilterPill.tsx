@@ -1,7 +1,7 @@
-import { X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import type { FilterFieldDef, FilterRule } from "./filter-definitions";
-import { OPERATORS_BY_TYPE } from "./filter-definitions";
+import { X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import type { FilterFieldDef, FilterRule } from './filter-definitions';
+import { OPERATORS_BY_TYPE } from './filter-definitions';
 
 interface FilterPillProps {
   rule: FilterRule;
@@ -12,69 +12,62 @@ interface FilterPillProps {
 }
 
 function formatValue(
-  value: any,
+  value: FilterRule['value'],
   fieldDef: FilterFieldDef,
   operator: string,
-  options: { label: string; value: string }[]
+  options: { label: string; value: string }[],
 ): string {
-  if (value == null || value === "") return "";
+  if (value == null || value === '') return '';
 
   // Boolean / empty operators
-  const opDef = OPERATORS_BY_TYPE[fieldDef.type]?.find(
-    (o) => o.value === operator
-  );
-  if (opDef?.noValue) return "";
+  const opDef = OPERATORS_BY_TYPE[fieldDef.type]?.find((o) => o.value === operator);
+  if (opDef?.noValue) return '';
 
   // Currency
-  if (fieldDef.type === "currency") {
-    if (typeof value === "object" && value.min != null) {
-      const fmtMin = value.min ? `$${Number(value.min).toLocaleString()}` : "?";
-      const fmtMax = value.max ? `$${Number(value.max).toLocaleString()}` : "?";
+  if (fieldDef.type === 'currency') {
+    if (typeof value === 'object' && value.min != null) {
+      const fmtMin = value.min ? `$${Number(value.min).toLocaleString()}` : '?';
+      const fmtMax = value.max ? `$${Number(value.max).toLocaleString()}` : '?';
       return `${fmtMin} - ${fmtMax}`;
     }
     return `$${Number(value).toLocaleString()}`;
   }
 
   // Number between
-  if (
-    (fieldDef.type === "number") &&
-    typeof value === "object" &&
-    value.min != null
-  ) {
+  if (fieldDef.type === 'number' && typeof value === 'object' && value.min != null) {
     return `${value.min} - ${value.max}`;
   }
 
   // Array (multi-select)
   if (Array.isArray(value)) {
-    if (value.length === 0) return "";
+    if (value.length === 0) return '';
     if (value.length <= 2) {
-      return value
-        .map((v) => options.find((o) => o.value === v)?.label ?? v)
-        .join(", ");
+      return value.map((v) => options.find((o) => o.value === v)?.label ?? v).join(', ');
     }
     return `${value.length} selected`;
   }
 
   // Select – map value to label
-  if (fieldDef.type === "select" || fieldDef.type === "user") {
+  if (fieldDef.type === 'select' || fieldDef.type === 'user') {
     return options.find((o) => o.value === value)?.label ?? String(value);
   }
 
   // Date – last_n_days
-  if (operator === "last_n_days") {
+  if (operator === 'last_n_days') {
     return `${value} days`;
   }
 
   // Date object
-  if (fieldDef.type === "date" && typeof value === "object" && value.min) {
-    const minStr = value.min instanceof Date
-      ? value.min.toLocaleDateString()
-      : new Date(value.min).toLocaleDateString();
+  if (fieldDef.type === 'date' && typeof value === 'object' && value.min) {
+    const minStr =
+      value.min instanceof Date
+        ? value.min.toLocaleDateString()
+        : new Date(value.min).toLocaleDateString();
     const maxStr = value.max
       ? value.max instanceof Date
         ? value.max.toLocaleDateString()
         : new Date(value.max).toLocaleDateString()
-      : "?";
+      : '?';
     return `${minStr} - ${maxStr}`;
   }
 
@@ -83,16 +76,8 @@ function formatValue(
   return String(value);
 }
 
-export function FilterPill({
-  rule,
-  fieldDef,
-  options,
-  onRemove,
-  onClick,
-}: FilterPillProps) {
-  const opDef = OPERATORS_BY_TYPE[fieldDef.type]?.find(
-    (o) => o.value === rule.operator
-  );
+export function FilterPill({ rule, fieldDef, options, onRemove, onClick }: FilterPillProps) {
+  const opDef = OPERATORS_BY_TYPE[fieldDef.type]?.find((o) => o.value === rule.operator);
   const opLabel = opDef?.label ?? rule.operator;
   const valueStr = formatValue(rule.value, fieldDef, rule.operator, options);
 

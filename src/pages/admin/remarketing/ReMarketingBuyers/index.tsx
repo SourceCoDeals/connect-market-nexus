@@ -1,32 +1,29 @@
-import { useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import {
-  Search,
-  Sparkles,
-  Download,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useBuyerEnrichmentProgress } from "@/hooks/useBuyerEnrichmentProgress";
-import { EnrichmentProgressIndicator } from "@/components/remarketing/EnrichmentProgressIndicator";
-import { BuyerCSVImport } from "@/components/remarketing";
-import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
-import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
-import { useBuyersData } from "./useBuyersData";
-import AddBuyerDialog from "./AddBuyerDialog";
-import BuyersTable from "./BuyersTable";
+} from '@/components/ui/select';
+import { Search, Sparkles, Download } from 'lucide-react';
+import { toast } from 'sonner';
+import { useBuyerEnrichmentProgress } from '@/hooks/useBuyerEnrichmentProgress';
+import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
+import { BuyerCSVImport } from '@/components/remarketing';
+import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { useBuyersData } from './useBuyersData';
+import AddBuyerDialog from './AddBuyerDialog';
+import BuyersTable from './BuyersTable';
 
 const ReMarketingBuyers = () => {
-  const { progress: buyerEnrichmentProgress, cancel: cancelBuyerEnrichment } = useBuyerEnrichmentProgress();
+  const { progress: buyerEnrichmentProgress, cancel: cancelBuyerEnrichment } =
+    useBuyerEnrichmentProgress();
 
   const {
     search,
@@ -104,13 +101,19 @@ const ReMarketingBuyers = () => {
     },
     onTriggerAction: (action) => {
       if (action === 'enrich_selected') {
-        const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b: any) => b.id);
+        const ids =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : filteredBuyers.map((b: { id: string }) => b.id);
         if (ids.length > 0) {
           setEnrichingIds(new Set(ids));
-          import("@/lib/remarketing/queueEnrichment").then(({ queueBuyerEnrichment }) =>
-            queueBuyerEnrichment(ids).then(() => {
-              queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-            }).catch(() => toast.error('Failed to queue enrichment')).finally(() => setEnrichingIds(new Set()))
+          import('@/lib/remarketing/queueEnrichment').then(({ queueBuyerEnrichment }) =>
+            queueBuyerEnrichment(ids)
+              .then(() => {
+                queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+              })
+              .catch(() => toast.error('Failed to queue enrichment'))
+              .finally(() => setEnrichingIds(new Set())),
           );
         }
       }
@@ -136,11 +139,14 @@ const ReMarketingBuyers = () => {
             className="gap-1.5"
             disabled={enrichingIds.size > 0 || filteredBuyers.length === 0}
             onClick={async () => {
-              const ids = selectedIds.size > 0 ? Array.from(selectedIds) : filteredBuyers.map((b: any) => b.id);
+              const ids =
+                selectedIds.size > 0
+                  ? Array.from(selectedIds)
+                  : filteredBuyers.map((b: { id: string }) => b.id);
               if (ids.length === 0) return;
               setEnrichingIds(new Set(ids));
               try {
-                const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+                const { queueBuyerEnrichment } = await import('@/lib/remarketing/queueEnrichment');
                 await queueBuyerEnrichment(ids);
                 queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
               } catch (err) {
@@ -152,7 +158,11 @@ const ReMarketingBuyers = () => {
             }}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            {enrichingIds.size > 0 ? `Enriching…` : selectedIds.size > 0 ? `Enrich Selected (${selectedIds.size})` : 'Enrich All'}
+            {enrichingIds.size > 0
+              ? `Enriching…`
+              : selectedIds.size > 0
+                ? `Enrich Selected (${selectedIds.size})`
+                : 'Enrich All'}
           </Button>
           <AddBuyerDialog
             isOpen={isAddDialogOpen}
@@ -174,7 +184,9 @@ const ReMarketingBuyers = () => {
           estimatedTimeRemaining={buyerEnrichmentProgress.estimatedTimeRemaining}
           processingRate={buyerEnrichmentProgress.processingRate}
           itemLabel="buyers"
-          successfulCount={buyerEnrichmentProgress.completedCount - buyerEnrichmentProgress.failedCount}
+          successfulCount={
+            buyerEnrichmentProgress.completedCount - buyerEnrichmentProgress.failedCount
+          }
           failedCount={buyerEnrichmentProgress.failedCount}
           onCancel={cancelBuyerEnrichment}
         />
@@ -186,7 +198,9 @@ const ReMarketingBuyers = () => {
           <TabsTrigger value="all">All Buyers ({tabCounts.all})</TabsTrigger>
           <TabsTrigger value="pe_firm">Sponsors & Firms ({tabCounts.pe_firm})</TabsTrigger>
           <TabsTrigger value="platform">Platforms ({tabCounts.platform})</TabsTrigger>
-          <TabsTrigger value="needs_agreements">Needs Agreements ({tabCounts.needs_agreements})</TabsTrigger>
+          <TabsTrigger value="needs_agreements">
+            Needs Agreements ({tabCounts.needs_agreements})
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -195,22 +209,29 @@ const ReMarketingBuyers = () => {
         <Card>
           <CardContent className="p-3 flex items-center gap-3">
             <span className="text-sm font-medium">{selectedIds.size} selected</span>
-            <Button size="sm" variant="outline" disabled={enrichingIds.size > 0} onClick={async () => {
-              const ids = Array.from(selectedIds);
-              if (ids.length === 0) return;
-              setEnrichingIds(new Set(ids));
-              try {
-                const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-                await queueBuyerEnrichment(ids);
-                queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-              } catch (err) {
-                // Bulk enrich failed — toast shown to user
-                toast.error('Failed to queue enrichment');
-              } finally {
-                setEnrichingIds(new Set());
-              }
-            }}>
-              <Sparkles className="h-3.5 w-3.5 mr-1.5" /> {enrichingIds.size > 0 ? 'Enriching…' : 'Enrich Selected'}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={enrichingIds.size > 0}
+              onClick={async () => {
+                const ids = Array.from(selectedIds);
+                if (ids.length === 0) return;
+                setEnrichingIds(new Set(ids));
+                try {
+                  const { queueBuyerEnrichment } =
+                    await import('@/lib/remarketing/queueEnrichment');
+                  await queueBuyerEnrichment(ids);
+                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
+                } catch (err) {
+                  // Bulk enrich failed — toast shown to user
+                  toast.error('Failed to queue enrichment');
+                } finally {
+                  setEnrichingIds(new Set());
+                }
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" />{' '}
+              {enrichingIds.size > 0 ? 'Enriching…' : 'Enrich Selected'}
             </Button>
             <Button size="sm" variant="outline" onClick={handleExportCSV}>
               <Download className="h-3.5 w-3.5 mr-1.5" /> Export CSV
@@ -242,8 +263,10 @@ const ReMarketingBuyers = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Universes</SelectItem>
-                {universes?.map(u => (
-                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                {universes?.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -272,7 +295,6 @@ const ReMarketingBuyers = () => {
         handleEnrichBuyer={handleEnrichBuyer}
         deleteMutation={deleteMutation}
       />
-
     </div>
   );
 };

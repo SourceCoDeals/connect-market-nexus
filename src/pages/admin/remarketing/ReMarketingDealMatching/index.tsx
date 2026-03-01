@@ -84,16 +84,16 @@ export default function ReMarketingDealMatching() {
       )}
 
       {/* Background scoring progress */}
-      {(data.backgroundScoring as any).isActive && (
+      {data.backgroundScoring.isScoring && (
         <Card className="border-blue-200 bg-blue-50/50">
           <CardContent className="p-4 flex items-center gap-4">
             <Activity className="h-5 w-5 text-blue-600 animate-pulse" />
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-sm font-medium">Scoring in progress...</p>
-                <span className="text-xs text-muted-foreground">{(data.backgroundScoring as any).completed}/{(data.backgroundScoring as any).total}</span>
+                <span className="text-xs text-muted-foreground">{data.backgroundScoring.currentCount}/{data.backgroundScoring.expectedCount}</span>
               </div>
-              <Progress value={((data.backgroundScoring as any).completed / Math.max((data.backgroundScoring as any).total, 1)) * 100} className="h-2" />
+              <Progress value={(data.backgroundScoring.currentCount / Math.max(data.backgroundScoring.expectedCount, 1)) * 100} className="h-2" />
             </div>
           </CardContent>
         </Card>
@@ -172,9 +172,9 @@ export default function ReMarketingDealMatching() {
             return (
               <BuyerMatchCard
                 key={score.id}
-                score={score as any}
+                score={score as React.ComponentProps<typeof BuyerMatchCard>['score']}
                 listingId={listingId}
-                outreach={outreach as any}
+                outreach={outreach as React.ComponentProps<typeof BuyerMatchCard>['outreach']}
                 firmFeeAgreement={feeAgreement ? { signed: feeAgreement.signed || false, signedAt: feeAgreement.signedAt || null } : undefined}
                 isSelected={actions.selectedIds.has(score.id)}
                 isHighlighted={actions.highlightedBuyerIds?.includes(score.buyer_id)}
@@ -215,8 +215,8 @@ export default function ReMarketingDealMatching() {
         <BulkEmailDialog
           open={actions.emailDialogOpen}
           onOpenChange={actions.setEmailDialogOpen}
-          scores={(data.scores?.filter((s: any) => actions.selectedIds.has(s.id)) || []) as any}
-          listing={data.listing as any}
+          scores={(data.scores?.filter((s) => actions.selectedIds.has(s.id)) || []) as React.ComponentProps<typeof BulkEmailDialog>['scores']}
+          listing={data.listing as React.ComponentProps<typeof BulkEmailDialog>['listing']}
           onSent={(buyerIds: string[]) => { actions.setHighlightedBuyerIds(buyerIds); setTimeout(() => actions.setHighlightedBuyerIds([]), 5000); }}
         />
       )}

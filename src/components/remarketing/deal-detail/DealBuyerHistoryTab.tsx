@@ -69,27 +69,45 @@ export function DealBuyerHistoryTab({ listingId, listingTitle }: DealBuyerHistor
 
       if (error) throw error;
 
-      return (data || []).map((d: any) => ({
-        id: d.id,
-        title: d.title,
-        contact_name: d.contact_name,
-        contact_company: d.contact_company,
-        contact_email: d.contact_email,
-        contact_phone: d.contact_phone,
-        nda_status: d.nda_status,
-        fee_agreement_status: d.fee_agreement_status,
-        memo_sent: false,
-        created_at: d.created_at,
-        updated_at: d.updated_at,
-        stage_name: d.deal_stages?.name || null,
-        stage_color: d.deal_stages?.color || null,
-        owner_first: d.profiles?.first_name || null,
-        owner_last: d.profiles?.last_name || null,
-        remarketing_buyer_id: d.remarketing_buyer_id,
-        buyer_company_name: d.remarketing_buyers?.company_name || null,
-        buyer_type: d.remarketing_buyers?.buyer_type || null,
-        connection_request_id: d.connection_request_id,
-      })) as BuyerHistoryEntry[];
+      return (data || []).map(
+        (d: {
+          id: string;
+          title: string | null;
+          contact_name: string | null;
+          contact_company: string | null;
+          contact_email: string | null;
+          contact_phone: string | null;
+          nda_status: string | null;
+          fee_agreement_status: string | null;
+          created_at: string;
+          updated_at: string | null;
+          remarketing_buyer_id: string | null;
+          connection_request_id: string | null;
+          deal_stages: { name: string; color: string } | null;
+          profiles: { first_name: string; last_name: string } | null;
+          remarketing_buyers: { company_name: string; buyer_type: string } | null;
+        }) => ({
+          id: d.id,
+          title: d.title,
+          contact_name: d.contact_name,
+          contact_company: d.contact_company,
+          contact_email: d.contact_email,
+          contact_phone: d.contact_phone,
+          nda_status: d.nda_status,
+          fee_agreement_status: d.fee_agreement_status,
+          memo_sent: false,
+          created_at: d.created_at,
+          updated_at: d.updated_at,
+          stage_name: d.deal_stages?.name || null,
+          stage_color: d.deal_stages?.color || null,
+          owner_first: d.profiles?.first_name || null,
+          owner_last: d.profiles?.last_name || null,
+          remarketing_buyer_id: d.remarketing_buyer_id,
+          buyer_company_name: d.remarketing_buyers?.company_name || null,
+          buyer_type: d.remarketing_buyers?.buyer_type || null,
+          connection_request_id: d.connection_request_id,
+        }),
+      ) as BuyerHistoryEntry[];
     },
     enabled: !!listingId,
   });

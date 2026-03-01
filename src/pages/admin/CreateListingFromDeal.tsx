@@ -162,7 +162,7 @@ export default function CreateListingFromDeal() {
     }
   }, [prefilled, dealId, aiApplied, isGenerating, generateContent]);
 
-  const handleSubmit = async (data: any, image?: File | null) => {
+  const handleSubmit = async (data: Record<string, unknown>, image?: File | null) => {
     try {
       const listingData = {
         ...data,
@@ -186,7 +186,7 @@ export default function CreateListingFromDeal() {
 
       toast.success('Marketplace listing created — review and publish from the Listings tab.');
       navigate('/admin/marketplace/queue');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.message || 'Failed to create listing');
     }
   };
@@ -268,7 +268,7 @@ export default function CreateListingFromDeal() {
           </Button>
           <div className="text-sm text-muted-foreground">
             Creating anonymous listing from:{' '}
-            <strong>{(deal as any)?.internal_company_name || 'Unknown Deal'}</strong>
+            <strong>{(deal as Record<string, unknown> | null)?.internal_company_name as string || 'Unknown Deal'}</strong>
           </div>
         </div>
       </div>

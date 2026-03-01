@@ -342,7 +342,7 @@ Do NOT infer or guess any information.`;
 
 /** AI extraction result type */
 export interface AIExtractionResult {
-  data: any | null;
+  data: Record<string, unknown> | null;
   error?: { code: string; message: string };
   usage?: { inputTokens: number; outputTokens: number };
 }
@@ -351,7 +351,7 @@ export interface AIExtractionResult {
 async function callBuyerGemini(
   systemPrompt: string,
   userPrompt: string,
-  tool: { name: string; description: string; input_schema: any },
+  tool: { name: string; description: string; input_schema: Record<string, unknown> },
   geminiApiKey: string,
   rateLimitConfig?: RateLimitConfig,
 ): Promise<AIExtractionResult> {
@@ -527,10 +527,10 @@ export function validateSizeCriteria(extracted: AIExtractionResult): AIExtractio
  */
 export function shouldOverwrite(
   fieldName: string,
-  existingValue: any,
-  newValue: any,
+  existingValue: unknown,
+  newValue: unknown,
   hasTranscriptSource: boolean,
-  existingSources: any[],
+  existingSources: unknown[],
   newSourceType: SourceType = 'platform_website'
 ): boolean {
   // Existing value is empty/null → always overwrite (fill gaps from any source)
@@ -577,21 +577,21 @@ export function shouldOverwrite(
  * Applies provenance validation, source priority, normalization, and completeness scoring.
  */
 export function buildBuyerUpdateObject(
-  buyer: any,
-  extractedData: Record<string, any>,
+  buyer: Record<string, unknown>,
+  extractedData: Record<string, unknown>,
   hasTranscriptSource: boolean,
-  existingSources: any[],
-  evidenceRecords: any[],
+  existingSources: unknown[],
+  evidenceRecords: unknown[],
   fieldSourceMap: Record<string, SourceType> = {},
-): Record<string, any> {
+): Record<string, unknown> {
   const timestamp = new Date().toISOString();
 
   // Build per-field source tracking: merge existing field_sources with new ones
   const existingFieldSources: Record<string, { source: string; priority: number; at: string }> =
-    existingSources.find((s: any) => s.type === 'field_sources')?.fields || {};
+    (existingSources.find((s) => (s as Record<string, unknown>).type === 'field_sources') as Record<string, unknown> | undefined)?.fields as Record<string, { source: string; priority: number; at: string }> || {};
   const fieldSources = { ...existingFieldSources };
 
-  const updateData: Record<string, any> = {
+  const updateData: Record<string, unknown> = {
     data_last_updated: timestamp,
     // extraction_sources is finalized at the end after field_sources are computed
   };
@@ -698,7 +698,7 @@ export function buildBuyerUpdateObject(
   // Finalize extraction_sources: merge evidence records + per-field source tracking
   // Filter out any old field_sources entry, then append the updated one
   const baseEntries = [...existingSources, ...evidenceRecords].filter(
-    (s: any) => s.type !== 'field_sources'
+    (s) => (s as Record<string, unknown>).type !== 'field_sources'
   );
   baseEntries.push({ type: 'field_sources', fields: fieldSources });
   updateData.extraction_sources = baseEntries;

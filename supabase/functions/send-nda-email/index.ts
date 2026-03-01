@@ -27,7 +27,7 @@ interface SendNDAEmailRequest {
 }
 
 // Admin profiles mapping - only basic info, no hardcoded contact details
-const ADMIN_PROFILES: Record<string, any> = {
+const ADMIN_PROFILES: Record<string, unknown> = {
   'bill.martin@sourcecodeals.com': {
     email: 'bill.martin@sourcecodeals.com',
     name: 'Bill Martin',
@@ -437,7 +437,7 @@ ${adminSignature}
         } catch (dbError) {
           console.error(`⚠️ Database update failed for ${recipient.email}:`, dbError);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`❌ Error sending to ${recipient.email}:`, error);
         failCount++;
         emailResults.push({ email: recipient.email, success: false, error: error.message });
@@ -461,7 +461,7 @@ ${adminSignature}
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error in send-nda-email function:', error);
     return new Response(
       JSON.stringify({ 

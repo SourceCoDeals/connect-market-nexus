@@ -8,7 +8,7 @@
  * the enrichment pipeline if the events table is under load.
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export type EnrichmentEventStatus = 'success' | 'failure' | 'timeout' | 'rate_limited' | 'skipped';
 export type EntityType = 'deal' | 'buyer';
@@ -35,10 +35,7 @@ export interface EnrichmentEventParams {
  * appear in Supabase function error logs. Also added a direct INSERT fallback when
  * the RPC doesn't exist (e.g., migration not applied), so events aren't silently lost.
  */
-export function logEnrichmentEvent(
-  supabase: SupabaseClient,
-  params: EnrichmentEventParams
-): void {
+export function logEnrichmentEvent(supabase: SupabaseClient, params: EnrichmentEventParams): void {
   const rpcParams = {
     p_entity_type: params.entityType,
     p_entity_id: params.entityId,
@@ -53,36 +50,45 @@ export function logEnrichmentEvent(
     p_tokens_used: params.tokensUsed || 0,
   };
 
-  Promise.resolve(
-    supabase.rpc('log_enrichment_event', rpcParams)
-  ).then((result: any) => {
-    if (result?.error) {
-      // RPC doesn't exist — fall back to direct INSERT so events aren't silently lost
-      if (result.error.code === 'PGRST202' || result.error.code === '42883') {
-        return supabase.from('enrichment_events').insert({
-          entity_type: params.entityType,
-          entity_id: params.entityId,
-          provider: params.provider,
-          function_name: params.functionName,
-          status: params.status,
-          step_name: params.stepName || null,
-          job_id: params.jobId || null,
-          error_message: params.errorMessage?.substring(0, 500) || null,
-          duration_ms: params.durationMs || null,
-          fields_updated: params.fieldsUpdated || 0,
-          tokens_used: params.tokensUsed || 0,
-        }).then((insertResult: any) => {
-          if (insertResult?.error) {
-            console.error('[enrichment-events] Direct INSERT also failed:', insertResult.error.message);
-          }
-        });
+  Promise.resolve(supabase.rpc('log_enrichment_event', rpcParams))
+    .then((result: { error?: { code?: string; message?: string } | null }) => {
+      if (result?.error) {
+        // RPC doesn't exist — fall back to direct INSERT so events aren't silently lost
+        if (result.error.code === 'PGRST202' || result.error.code === '42883') {
+          return supabase
+            .from('enrichment_events')
+            .insert({
+              entity_type: params.entityType,
+              entity_id: params.entityId,
+              provider: params.provider,
+              function_name: params.functionName,
+              status: params.status,
+              step_name: params.stepName || null,
+              job_id: params.jobId || null,
+              error_message: params.errorMessage?.substring(0, 500) || null,
+              duration_ms: params.durationMs || null,
+              fields_updated: params.fieldsUpdated || 0,
+              tokens_used: params.tokensUsed || 0,
+            })
+            .then((insertResult: { error?: { message?: string } | null }) => {
+              if (insertResult?.error) {
+                console.error(
+                  '[enrichment-events] Direct INSERT also failed:',
+                  insertResult.error.message,
+                );
+              }
+            });
+        }
+        console.error(
+          '[enrichment-events] RPC failed to log event:',
+          result.error.message,
+          `(entity=${params.entityType}:${params.entityId}, status=${params.status})`,
+        );
       }
-      console.error('[enrichment-events] RPC failed to log event:', result.error.message,
-        `(entity=${params.entityType}:${params.entityId}, status=${params.status})`);
-    }
-  }).catch((err: unknown) => {
-    console.error('[enrichment-events] Event logging error:', err);
-  });
+    })
+    .catch((err: unknown) => {
+      console.error('[enrichment-events] Event logging error:', err);
+    });
 }
 
 /**
@@ -92,7 +98,7 @@ export function logEnrichmentEvent(
 export async function withEventLogging<T>(
   supabase: SupabaseClient,
   params: Omit<EnrichmentEventParams, 'status' | 'durationMs' | 'errorMessage'>,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
 ): Promise<T> {
   const start = Date.now();
   try {
@@ -106,9 +112,11 @@ export async function withEventLogging<T>(
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const status: EnrichmentEventStatus =
-      errorMessage.includes('timeout') || errorMessage.includes('abort') ? 'timeout' :
-      errorMessage.includes('429') || errorMessage.includes('rate') ? 'rate_limited' :
-      'failure';
+      errorMessage.includes('timeout') || errorMessage.includes('abort')
+        ? 'timeout'
+        : errorMessage.includes('429') || errorMessage.includes('rate')
+          ? 'rate_limited'
+          : 'failure';
 
     logEnrichmentEvent(supabase, {
       ...params,

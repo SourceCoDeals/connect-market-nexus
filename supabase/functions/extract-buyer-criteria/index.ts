@@ -18,6 +18,58 @@ interface ExtractionRequest {
   industry_name?: string;
 }
 
+interface ExtractedBuyer {
+  buyer_identity?: {
+    name?: string;
+    type?: string;
+    website?: string;
+    parent_company?: string;
+  };
+  size_criteria?: {
+    revenue_min?: number;
+    revenue_max?: number;
+    ebitda_min?: number;
+    ebitda_max?: number;
+    location_range?: string;
+    confidence?: number;
+    source?: string;
+  };
+  service_criteria?: {
+    target_services?: string[];
+    service_exclusions?: string[];
+    service_notes?: string;
+    confidence?: number;
+  };
+  geography_criteria?: {
+    target_regions?: string[];
+    target_states?: string[];
+    geographic_exclusions?: string[];
+    geographic_flexibility?: string;
+    confidence?: number;
+    source?: string;
+  };
+  buyer_profile?: {
+    typical_size_range?: string;
+    geographic_focus?: string;
+    service_preferences?: string[];
+    strategic_rationale?: string;
+    typical_structure?: string;
+    growth_strategies?: string[];
+  };
+  deal_history?: {
+    company_name: string;
+    location?: string;
+    approximate_size?: string;
+    year?: number;
+    services?: string[];
+  }[];
+}
+
+interface ExtractionResult {
+  buyers: ExtractedBuyer[];
+  overall_confidence: number;
+}
+
 /**
  * Extract buyer fit criteria from AI-generated M&A guide
  * SOURCE PRIORITY: 60 (Document — lower than Transcript at 100)
@@ -29,7 +81,7 @@ interface ExtractionRequest {
 async function extractCriteriaFromGuide(
   guideContent: string,
   industryName: string,
-): Promise<any> {
+): Promise<ExtractionResult> {
   console.log('[EXTRACTION_START] Beginning criteria extraction');
   console.log(`[GUIDE_LENGTH] ${guideContent.length} characters, ~${Math.round(guideContent.split(/\s+/).length)} words`);
 
@@ -345,13 +397,13 @@ serve(async (req) => {
             overall: overallConfidence,
             buyer_count: buyers.length,
             avg_size_confidence: buyers.length > 0
-              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.size_criteria?.confidence || 0), 0) / buyers.length)
+              ? Math.round(buyers.reduce((sum: number, b: ExtractedBuyer) => sum + (b.size_criteria?.confidence || 0), 0) / buyers.length)
               : 0,
             avg_service_confidence: buyers.length > 0
-              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.service_criteria?.confidence || 0), 0) / buyers.length)
+              ? Math.round(buyers.reduce((sum: number, b: ExtractedBuyer) => sum + (b.service_criteria?.confidence || 0), 0) / buyers.length)
               : 0,
             avg_geography_confidence: buyers.length > 0
-              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.geography_criteria?.confidence || 0), 0) / buyers.length)
+              ? Math.round(buyers.reduce((sum: number, b: ExtractedBuyer) => sum + (b.geography_criteria?.confidence || 0), 0) / buyers.length)
               : 0,
           }
         })
@@ -381,12 +433,12 @@ serve(async (req) => {
         }
       );
 
-    } catch (extractionError: any) {
+    } catch (extractionError: unknown) {
       await supabase
         .from('criteria_extraction_sources')
         .update({
           extraction_status: 'failed',
-          extraction_error: (extractionError as Error)?.message ?? String(extractionError),
+          extraction_error: extractionError instanceof Error ? extractionError.message : String(extractionError),
           extraction_completed_at: new Date().toISOString()
         })
         .eq('id', sourceRecord.id);
@@ -394,7 +446,7 @@ serve(async (req) => {
       throw extractionError;
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[ERROR]', error);
     return new Response(
       JSON.stringify({
@@ -409,7 +461,7 @@ serve(async (req) => {
   }
 });
 
-async function applyToUniverse(supabase: any, universeId: string, buyers: any[]) {
+async function applyToUniverse(supabase: ReturnType<typeof createClient>, universeId: string, buyers: ExtractedBuyer[]) {
   if (!buyers || buyers.length === 0) return;
 
   // Source priority enforcement: check if transcript-sourced criteria already exist
@@ -465,18 +517,19 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: any[])
     return arr[idx];
   };
 
-  const universeUpdate: any = {};
+  const universeUpdate: Record<string, unknown> = {};
 
   if (revenueMinVals.length > 0 || revenueMaxVals.length > 0) {
-    universeUpdate.size_criteria = {
+    const sizeCriteria: Record<string, number | undefined> = {
       min_revenue: percentile(revenueMinVals, 0.25),
       max_revenue: percentile(revenueMaxVals, 0.75),
       min_ebitda: percentile(ebitdaMinVals, 0.25),
       max_ebitda: percentile(ebitdaMaxVals, 0.75),
     };
-    Object.keys(universeUpdate.size_criteria).forEach(key => {
-      if (universeUpdate.size_criteria[key] === undefined) delete universeUpdate.size_criteria[key];
+    Object.keys(sizeCriteria).forEach(key => {
+      if (sizeCriteria[key] === undefined) delete sizeCriteria[key];
     });
+    universeUpdate.size_criteria = sizeCriteria;
   }
 
   if (allStates.size > 0 || allRegions.size > 0) {
@@ -505,7 +558,7 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: any[])
 
   // Build target_buyer_types array from extracted buyer profiles
   // This populates the TargetBuyerTypesPanel in the UI
-  const targetBuyerTypes = buyers.map((buyer: any, index: number) => ({
+  const targetBuyerTypes = buyers.map((buyer: ExtractedBuyer, index: number) => ({
     id: buyer.buyer_identity?.name
       ? buyer.buyer_identity.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
       : `buyer_${index + 1}`,
@@ -523,7 +576,7 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: any[])
     revenue_per_location: undefined,
     deal_requirements: buyer.buyer_profile?.typical_structure || undefined,
     enabled: true,
-  })).filter((t: any) => t.name);
+  })).filter((t: { name?: string }) => t.name);
 
   if (targetBuyerTypes.length > 0) {
     universeUpdate.target_buyer_types = targetBuyerTypes;

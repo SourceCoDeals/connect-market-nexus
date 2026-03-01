@@ -1,20 +1,31 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Upload, FileText, CheckCircle, AlertCircle, Building2 } from "lucide-react";
-import { CreateInboundLeadData } from "@/hooks/admin/use-inbound-leads";
-import { useAdminListings } from "@/hooks/admin/use-admin-listings";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Upload, FileText, CheckCircle, AlertCircle, Building2 } from 'lucide-react';
+import { CreateInboundLeadData } from '@/hooks/admin/use-inbound-leads';
+import { useAdminListings } from '@/hooks/admin/use-admin-listings';
 
 interface BulkLeadImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (leads: CreateInboundLeadData[], listingId?: string, listingTitle?: string, shouldConvert?: boolean) => void;
+  onConfirm: (
+    leads: CreateInboundLeadData[],
+    listingId?: string,
+    listingTitle?: string,
+    shouldConvert?: boolean,
+  ) => void;
   isLoading?: boolean;
 }
 
@@ -30,28 +41,28 @@ export const BulkLeadImportDialog = ({
   isOpen,
   onClose,
   onConfirm,
-  isLoading = false
+  isLoading = false,
 }: BulkLeadImportDialogProps) => {
-  const [csvText, setCsvText] = useState("");
+  const [csvText, setCsvText] = useState('');
   const [parsedLeads, setParsedLeads] = useState<ParsedLead[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
-  const [selectedSource, setSelectedSource] = useState<string>("manual");
-  const [selectedListingId, setSelectedListingId] = useState<string>("none");
+  const [selectedSource, setSelectedSource] = useState<string>('manual');
+  const [selectedListingId, setSelectedListingId] = useState<string>('none');
   const [shouldConvert, setShouldConvert] = useState(true);
-  
+
   // Fetch active listings for mapping
   const { useListings } = useAdminListings();
   const { data: listings = [], isLoading: listingsLoading } = useListings('active', isOpen);
 
   const sourceOptions = [
-    { value: "manual", label: "Manual Entry" },
-    { value: "webflow", label: "Webflow Form" },
-    { value: "website", label: "Website Form" },
-    { value: "referral", label: "Referral" },
-    { value: "cold_outreach", label: "Cold Outreach" },
-    { value: "networking", label: "Networking" },
-    { value: "linkedin", label: "LinkedIn" },
-    { value: "email", label: "Email Campaign" },
+    { value: 'manual', label: 'Manual Entry' },
+    { value: 'webflow', label: 'Webflow Form' },
+    { value: 'website', label: 'Website Form' },
+    { value: 'referral', label: 'Referral' },
+    { value: 'cold_outreach', label: 'Cold Outreach' },
+    { value: 'networking', label: 'Networking' },
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'email', label: 'Email Campaign' },
   ];
 
   const sampleCSV = `Supported headers (flexible): Name, Email address, Company name, Phone number, Role, Message, Date
@@ -63,45 +74,66 @@ Example (tab TSV with Date column):
 Date	Name	Email address	Company name	Phone number	Role	Message
 08/27/2025 9:37:24 pm	Paul Cifelli	pcifelli@kinderhook.com	Kinderhook Industries	12017451613	Private Equity	"Automotive, value added distribution, environmental services and healthcare services"`;
 
-
   const parseCSV = () => {
     if (!csvText.trim()) {
-      setParseErrors(["Please enter CSV data"]);
+      setParseErrors(['Please enter CSV data']);
       return;
     }
 
     const lines = csvText.trim().split('\n');
     if (lines.length < 2) {
-      setParseErrors(["CSV must have at least a header row and one data row"]);
+      setParseErrors(['CSV must have at least a header row and one data row']);
       return;
     }
 
     // Handle both comma and tab delimited data
     const delimiter = lines[0].includes('\t') ? '\t' : ',';
-    const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase());
+    const headers = lines[0].split(delimiter).map((h) => h.trim().toLowerCase());
     const errors: string[] = [];
     const leads: ParsedLead[] = [];
 
     // Flexible column name matching
     const findColumn = (variations: string[]) => {
-      return headers.findIndex(h => variations.some(v => h.includes(v.toLowerCase())));
+      return headers.findIndex((h) => variations.some((v) => h.includes(v.toLowerCase())));
     };
 
-    const nameIndex = findColumn(['name','full name','contact name']);
-    const emailIndex = findColumn(['email address','email','e-mail']);
-    const companyIndex = findColumn(['company name','company','organization','organisation','firm','fund']);
-    const phoneIndex = findColumn(['phone number','phone','mobile','telephone','cell']);
-    const roleIndex = findColumn(['role','buyer type','buyer','type','investor type','buyer role']);
-    const messageIndex = findColumn(['message','notes','comment','comments','details','inquiry','note']);
+    const nameIndex = findColumn(['name', 'full name', 'contact name']);
+    const emailIndex = findColumn(['email address', 'email', 'e-mail']);
+    const companyIndex = findColumn([
+      'company name',
+      'company',
+      'organization',
+      'organisation',
+      'firm',
+      'fund',
+    ]);
+    const phoneIndex = findColumn(['phone number', 'phone', 'mobile', 'telephone', 'cell']);
+    const roleIndex = findColumn([
+      'role',
+      'buyer type',
+      'buyer',
+      'type',
+      'investor type',
+      'buyer role',
+    ]);
+    const messageIndex = findColumn([
+      'message',
+      'notes',
+      'comment',
+      'comments',
+      'details',
+      'inquiry',
+      'note',
+    ]);
 
     // Validate required columns
     if (nameIndex === -1) {
-      errors.push("Missing required column: Name");
+      errors.push('Missing required column: Name');
     }
     if (emailIndex === -1) {
-      errors.push("Missing required column: Email");
+      errors.push('Missing required column: Email');
     }
-    
+
     if (errors.length > 0) {
       setParseErrors(errors);
       return;
@@ -125,16 +157,16 @@ Date	Name	Email address	Company name	Phone number	Role	Message
           current += char;
         }
         result.push(current);
-        return result.map(v => v.trim().replace(/^"|"$/g, ''));
+        return result.map((v) => v.trim().replace(/^"|"$/g, ''));
       }
-      return line.split('\t').map(v => v.trim().replace(/^"|"$/g, ''));
+      return line.split('\t').map((v) => v.trim().replace(/^"|"$/g, ''));
     };
 
     // Parse data rows
     for (let i = 1; i < lines.length; i++) {
       const values = splitCSVLine(lines[i], delimiter);
       const leadErrors: string[] = [];
-      
+
       if (values.length !== headers.length) {
         leadErrors.push(`Row ${i + 1}: Column count mismatch`);
         continue;
@@ -147,7 +179,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
         phone_number: phoneIndex >= 0 ? values[phoneIndex] || '' : '',
         role: roleIndex >= 0 ? values[roleIndex] || '' : '',
         message: messageIndex >= 0 ? values[messageIndex] || '' : '',
-        source: selectedSource as any,
+        source: selectedSource as CreateInboundLeadData['source'],
         source_form_name: 'bulk_import',
       };
 
@@ -162,7 +194,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
       leads.push({
         data: leadData,
         errors: leadErrors,
-        index: i + 1
+        index: i + 1,
       });
     }
 
@@ -171,32 +203,32 @@ Date	Name	Email address	Company name	Phone number	Role	Message
   };
 
   const handleImport = () => {
-    const validLeads = parsedLeads.filter(lead => lead.errors.length === 0);
+    const validLeads = parsedLeads.filter((lead) => lead.errors.length === 0);
     if (validLeads.length > 0) {
-      const selectedListing = listings.find(l => l.id === selectedListingId);
-      const finalListingId = selectedListingId === "none" ? undefined : selectedListingId;
+      const selectedListing = listings.find((l) => l.id === selectedListingId);
+      const finalListingId = selectedListingId === 'none' ? undefined : selectedListingId;
       onConfirm(
-        validLeads.map(lead => lead.data), 
+        validLeads.map((lead) => lead.data),
         finalListingId,
         selectedListing?.title || undefined,
-        shouldConvert
+        shouldConvert,
       );
       handleClose();
     }
   };
 
   const handleClose = () => {
-    setCsvText("");
+    setCsvText('');
     setParsedLeads([]);
     setParseErrors([]);
-    setSelectedSource("manual");
-    setSelectedListingId("none");
+    setSelectedSource('manual');
+    setSelectedListingId('none');
     setShouldConvert(true);
     onClose();
   };
 
-  const validLeads = parsedLeads.filter(lead => lead.errors.length === 0);
-  const invalidLeads = parsedLeads.filter(lead => lead.errors.length > 0);
+  const validLeads = parsedLeads.filter((lead) => lead.errors.length === 0);
+  const invalidLeads = parsedLeads.filter((lead) => lead.errors.length > 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -207,7 +239,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
             Bulk Import Leads
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Input Section - Scrollable */}
           <div className="flex flex-col max-h-full overflow-hidden">
@@ -234,7 +266,8 @@ Date	Name	Email address	Company name	Phone number	Role	Message
               <div>
                 <Label htmlFor="listing-select">Target Listing (Optional)</Label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Select a listing to automatically map all leads to. Leave empty to review manually later.
+                  Select a listing to automatically map all leads to. Leave empty to review manually
+                  later.
                 </p>
                 <Select value={selectedListingId} onValueChange={setSelectedListingId}>
                   <SelectTrigger>
@@ -257,26 +290,24 @@ Date	Name	Email address	Company name	Phone number	Role	Message
                 )}
               </div>
 
-              {selectedListingId && selectedListingId !== "none" && (
+              {selectedListingId && selectedListingId !== 'none' && (
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="auto-convert"
                     checked={shouldConvert}
                     onCheckedChange={(checked) => setShouldConvert(checked === true)}
                   />
-                  <Label 
-                    htmlFor="auto-convert" 
-                    className="text-sm font-normal cursor-pointer"
-                  >
+                  <Label htmlFor="auto-convert" className="text-sm font-normal cursor-pointer">
                     Automatically convert to connection requests
                   </Label>
                 </div>
               )}
-              
+
               <div>
                 <Label htmlFor="csv-input">CSV Data</Label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Paste CSV/TSV. Headers like Email address, Company name, Phone number, Role, Message, Date are supported.
+                  Paste CSV/TSV. Headers like Email address, Company name, Phone number, Role,
+                  Message, Date are supported.
                 </p>
                 <Textarea
                   id="csv-input"
@@ -286,7 +317,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
                   className="min-h-[160px] font-mono text-xs"
                 />
               </div>
-              
+
               <div>
                 <h4 className="text-sm font-medium mb-2">Sample Format:</h4>
                 <div className="bg-muted/50 border rounded-lg p-3">
@@ -299,11 +330,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
 
             {/* Parse Button - Fixed at bottom */}
             <div className="pt-4 border-t border-border/40 mt-4">
-              <Button 
-                onClick={parseCSV} 
-                disabled={!csvText.trim() || isLoading}
-                className="w-full"
-              >
+              <Button onClick={parseCSV} disabled={!csvText.trim() || isLoading} className="w-full">
                 <FileText className="h-4 w-4 mr-2" />
                 Parse CSV
               </Button>
@@ -313,7 +340,7 @@ Date	Name	Email address	Company name	Phone number	Role	Message
           {/* Preview Section */}
           <div className="space-y-4 overflow-y-auto">
             <h4 className="text-sm font-semibold">Preview</h4>
-            
+
             {parseErrors.length > 0 && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -344,24 +371,36 @@ Date	Name	Email address	Company name	Phone number	Role	Message
 
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
                   {parsedLeads.map((lead) => (
-                    <div 
+                    <div
                       key={lead.index}
                       className={`p-3 rounded-lg border text-xs ${
-                        lead.errors.length > 0 
-                          ? 'bg-destructive/5 border-destructive/20' 
+                        lead.errors.length > 0
+                          ? 'bg-destructive/5 border-destructive/20'
                           : 'bg-success/5 border-success/20'
                       }`}
                     >
                       <div className="font-medium">
-                        Row {lead.index}: {lead.data.name || 'No Name'} ({lead.data.email || 'No Email'})
+                        Row {lead.index}: {lead.data.name || 'No Name'} (
+                        {lead.data.email || 'No Email'})
                       </div>
                       <div className="text-muted-foreground">
                         {lead.data.company_name && <span>{lead.data.company_name}</span>}
-                        {lead.data.role && <span>{lead.data.company_name ? ' • ' : ''}Role: {lead.data.role}</span>}
-                        {lead.data.phone_number && <span>{(lead.data.company_name || lead.data.role) ? ' • ' : ''}Phone: {lead.data.phone_number}</span>}
+                        {lead.data.role && (
+                          <span>
+                            {lead.data.company_name ? ' • ' : ''}Role: {lead.data.role}
+                          </span>
+                        )}
+                        {lead.data.phone_number && (
+                          <span>
+                            {lead.data.company_name || lead.data.role ? ' • ' : ''}Phone:{' '}
+                            {lead.data.phone_number}
+                          </span>
+                        )}
                       </div>
                       {lead.data.message && (
-                        <div className="text-muted-foreground mt-1 break-words">“{lead.data.message}”</div>
+                        <div className="text-muted-foreground mt-1 break-words">
+                          “{lead.data.message}”
+                        </div>
                       )}
                       {lead.errors.length > 0 && (
                         <div className="text-destructive mt-1">
@@ -381,20 +420,19 @@ Date	Name	Email address	Company name	Phone number	Role	Message
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleImport}
             disabled={validLeads.length === 0 || isLoading}
             className="flex items-center gap-2"
           >
             <Upload className="h-4 w-4" />
-            {isLoading 
-              ? "Processing..." 
-              : selectedListingId && selectedListingId !== "none" && shouldConvert
+            {isLoading
+              ? 'Processing...'
+              : selectedListingId && selectedListingId !== 'none' && shouldConvert
                 ? `Import & Convert ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
-                : selectedListingId && selectedListingId !== "none"
+                : selectedListingId && selectedListingId !== 'none'
                   ? `Import & Map ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
-                  : `Import ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`
-            }
+                  : `Import ${validLeads.length} Lead${validLeads.length !== 1 ? 's' : ''}`}
           </Button>
         </div>
       </DialogContent>

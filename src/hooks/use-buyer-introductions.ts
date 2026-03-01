@@ -18,7 +18,7 @@ export function useBuyerIntroductions(listingId: string | undefined) {
     queryKey,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('buyer_introductions' as any)
+        .from('buyer_introductions' as never)
         .select('*')
         .eq('listing_id', listingId!)
         .is('archived_at', null)
@@ -46,12 +46,12 @@ export function useBuyerIntroductions(listingId: string | undefined) {
   const createMutation = useMutation({
     mutationFn: async (input: CreateBuyerIntroductionInput) => {
       const { data, error } = await supabase
-        .from('buyer_introductions' as any)
+        .from('buyer_introductions' as never)
         .insert({
           ...input,
           introduction_status: 'not_introduced',
           created_by: user?.id,
-        } as any)
+        } as never)
         .select()
         .single();
 
@@ -72,11 +72,11 @@ export function useBuyerIntroductions(listingId: string | undefined) {
       const oldRecord = introductions.find((i) => i.id === id);
 
       const { data, error } = await supabase
-        .from('buyer_introductions' as any)
+        .from('buyer_introductions' as never)
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
-        } as any)
+        } as never)
         .eq('id', id)
         .select()
         .single();
@@ -85,12 +85,12 @@ export function useBuyerIntroductions(listingId: string | undefined) {
 
       // Log status change if status was updated
       if (updates.introduction_status && oldRecord) {
-        await supabase.from('introduction_status_log' as any).insert({
+        await supabase.from('introduction_status_log' as never).insert({
           buyer_introduction_id: id,
           old_status: oldRecord.introduction_status,
           new_status: updates.introduction_status,
           changed_by: user?.id,
-        } as any);
+        } as never);
       }
 
       return data as unknown as BuyerIntroduction;
@@ -107,8 +107,8 @@ export function useBuyerIntroductions(listingId: string | undefined) {
   const archiveMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('buyer_introductions' as any)
-        .update({ archived_at: new Date().toISOString() } as any)
+        .from('buyer_introductions' as never)
+        .update({ archived_at: new Date().toISOString() } as never)
         .eq('id', id);
 
       if (error) throw error;

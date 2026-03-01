@@ -4,8 +4,7 @@
  * Updated Feb 2026: Added get_call_history tool to expose PhoneBurner call data to AI.
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -166,8 +165,8 @@ async function getOutreachStatus(
   let filteredDealAccess = dealAccess;
   if (args.buyer_id) {
     const bid = args.buyer_id as string;
-    filteredAccess = (access as any[]).filter((a: any) => a.remarketing_buyer_id === bid);
-    filteredDealAccess = (dealAccess as any[]).filter((a: any) => a.buyer_id === bid);
+    filteredAccess = (access as { remarketing_buyer_id?: string }[]).filter((a) => a.remarketing_buyer_id === bid);
+    filteredDealAccess = (dealAccess as { buyer_id?: string }[]).filter((a) => a.buyer_id === bid);
   }
 
   // Compute status summary from scores

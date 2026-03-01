@@ -20,9 +20,9 @@ interface BulkImportData {
   batchId?: string;
 }
 
-export type DuplicateType = 
-  | 'exact_user_and_listing' 
-  | 'lead_email_and_listing' 
+export type DuplicateType =
+  | 'exact_user_and_listing'
+  | 'lead_email_and_listing'
   | 'same_company_different_email'
   | 'cross_source_inbound_lead';
 
@@ -71,7 +71,10 @@ export function useBulkDealImport() {
 
   const bulkImport = useMutation({
     mutationFn: async (data: BulkImportData): Promise<ImportResult> => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
@@ -92,7 +95,9 @@ export function useBulkDealImport() {
           // ===== LEVEL 1: Check if user exists in profiles =====
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('id, email, company, first_name, last_name, nda_signed, fee_agreement_signed, nda_email_sent, fee_agreement_email_sent')
+            .select(
+              'id, email, company, first_name, last_name, nda_signed, fee_agreement_signed, nda_email_sent, fee_agreement_email_sent',
+            )
             .eq('email', deal.email)
             .maybeSingle();
           if (profileError) throw profileError;
@@ -105,15 +110,15 @@ export function useBulkDealImport() {
             .or(
               profile?.id
                 ? `user_id.eq.${profile.id},lead_email.eq.${deal.email}`
-                : `lead_email.eq.${deal.email}`
+                : `lead_email.eq.${deal.email}`,
             );
           if (existingRequestsError) throw existingRequestsError;
 
           if (existingRequests && existingRequests.length > 0) {
             const existingRequest = existingRequests[0];
-            const duplicateType: DuplicateType = 
-              existingRequest.user_id === profile?.id 
-                ? 'exact_user_and_listing' 
+            const duplicateType: DuplicateType =
+              existingRequest.user_id === profile?.id
+                ? 'exact_user_and_listing'
                 : 'lead_email_and_listing';
 
             result.duplicates++;
@@ -125,11 +130,13 @@ export function useBulkDealImport() {
                 existingStatus: existingRequest.status,
                 existingMessage: existingRequest.user_message ?? undefined,
                 existingCreatedAt: existingRequest.created_at,
-                userProfile: profile ? {
-                  id: profile.id,
-                  email: profile.email,
-                  company: profile.company || deal.companyName,
-                } : undefined,
+                userProfile: profile
+                  ? {
+                      id: profile.id,
+                      email: profile.email,
+                      company: profile.company || deal.companyName,
+                    }
+                  : undefined,
               },
             });
             continue;
@@ -172,7 +179,11 @@ export function useBulkDealImport() {
             .limit(1);
           if (inboundLeadsError) throw inboundLeadsError;
 
-          if (inboundLeads && inboundLeads.length > 0 && inboundLeads[0].mapped_to_listing_id === data.listingId) {
+          if (
+            inboundLeads &&
+            inboundLeads.length > 0 &&
+            inboundLeads[0].mapped_to_listing_id === data.listingId
+          ) {
             const inboundLead = inboundLeads[0];
             result.duplicates++;
             result.details.duplicates.push({
@@ -194,7 +205,7 @@ export function useBulkDealImport() {
               user_id: profile?.id || null,
               // Populate lead fields from user profile if exists, otherwise from CSV
               lead_email: profile?.email || deal.email,
-              lead_name: profile 
+              lead_name: profile
                 ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || deal.name
                 : deal.name,
               lead_company: profile?.company || deal.companyName || null,
@@ -224,16 +235,17 @@ export function useBulkDealImport() {
             connectionRequestId: newRequest.id,
             linkedToUser: !!profile?.id,
             userId: profile?.id,
-            userName: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : undefined,
+            userName: profile
+              ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+              : undefined,
             userEmail: profile?.email,
             userCompany: profile?.company || undefined,
           });
-
-        } catch (error: any) {
+        } catch (error: unknown) {
           result.errors++;
           result.details.errors.push({
             deal,
-            error: error.message,
+            error: error instanceof Error ? error.message : String(error),
           });
         }
       }
@@ -251,14 +263,12 @@ export function useBulkDealImport() {
       ]);
 
       if (result.imported > 0) {
-        toast.success(
-          `Successfully imported ${result.imported} connection request(s)`,
-          {
-            description: result.duplicates > 0 
-              ? `Found ${result.duplicates} duplicate(s) to review` 
+        toast.success(`Successfully imported ${result.imported} connection request(s)`, {
+          description:
+            result.duplicates > 0
+              ? `Found ${result.duplicates} duplicate(s) to review`
               : 'Connection requests and deals created',
-          }
-        );
+        });
       }
 
       if (result.errors > 0) {
@@ -273,9 +283,9 @@ export function useBulkDealImport() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error('Bulk import failed', {
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
       });
     },
   });

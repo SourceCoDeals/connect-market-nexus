@@ -59,7 +59,7 @@ const SignupSuccess = () => {
         title: "Email sent!",
         description: "We've sent another verification email to your inbox.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Resend verification error:', error);
       
       setAttemptCount(prev => prev + 1);

@@ -124,7 +124,7 @@ async function fetchWithAutoRetry(
 
 function mockResponse(
   status: number,
-  body: any = '',
+  body: string | Record<string, unknown> = '',
   headers: Record<string, string> = {},
 ): Response {
   return {

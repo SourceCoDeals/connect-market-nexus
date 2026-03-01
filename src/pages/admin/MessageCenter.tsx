@@ -29,7 +29,7 @@ function useInboxThreads() {
     queryKey: ["inbox-threads"],
     queryFn: async () => {
       const { data: requests, error: reqError } = await (supabase
-        .from("connection_requests") as any)
+        .from("connection_requests") as unknown as ReturnType<typeof supabase.from>)
         .select(`
           id, status, user_id, listing_id, user_message, created_at,
           conversation_state, last_message_at, last_message_preview, last_message_sender_role,
@@ -44,7 +44,7 @@ function useInboxThreads() {
 
       // Fetch unread counts
       const { data: unreadMessages, error: unreadError } = await (supabase
-        .from("connection_messages") as any)
+        .from("connection_messages") as unknown as ReturnType<typeof supabase.from>)
         .select("connection_request_id")
         .eq("is_read_by_admin", false)
         .eq("sender_role", "buyer");
@@ -52,23 +52,23 @@ function useInboxThreads() {
       if (unreadError) throw unreadError;
 
       const unreadMap: Record<string, number> = {};
-      (unreadMessages || []).forEach((msg: any) => {
+      (unreadMessages || []).forEach((msg: { connection_request_id: string }) => {
         unreadMap[msg.connection_request_id] = (unreadMap[msg.connection_request_id] || 0) + 1;
       });
 
       // Fetch pipeline deal IDs for these connection requests
-      const requestIds = (requests || []).map((r: any) => r.id);
+      const requestIds = (requests || []).map((r: { id: string }) => r.id);
       const { data: deals } = await supabase
         .from("deals")
         .select("id, connection_request_id")
         .in("connection_request_id", requestIds.length > 0 ? requestIds : ["__none__"]);
 
       const dealMap: Record<string, string> = {};
-      (deals || []).forEach((d: any) => {
+      (deals || []).forEach((d: { id: string; connection_request_id: string }) => {
         dealMap[d.connection_request_id] = d.id;
       });
 
-      const threads: InboxThread[] = (requests || []).map((req: any) => {
+      const threads: InboxThread[] = (requests || []).map((req: Record<string, unknown> & { id: string; user: Record<string, unknown> | null; listing: Record<string, unknown> | null }) => {
         const user = req.user;
         return {
           connection_request_id: req.id,

@@ -26,6 +26,8 @@
  *   });
  */
 
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 interface EmailDeliveryLogEntry {
   email: string;
   emailType: string;
@@ -35,25 +37,27 @@ interface EmailDeliveryLogEntry {
 }
 
 export async function logEmailDelivery(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: SupabaseClient,
   entry: EmailDeliveryLogEntry,
 ): Promise<void> {
   try {
-    const { error } = await supabase.from("email_delivery_logs").insert({
+    const { error } = await supabase.from('email_delivery_logs').insert({
       email: entry.email,
       email_type: entry.emailType,
       status: entry.status,
       correlation_id: entry.correlationId ?? crypto.randomUUID(),
       error_message: entry.errorMessage ?? null,
-      sent_at: entry.status === "sent" ? new Date().toISOString() : null,
+      sent_at: entry.status === 'sent' ? new Date().toISOString() : null,
     });
 
     if (error) {
-      console.warn("[email-logger] Failed to insert delivery log:", error.message);
+      console.warn('[email-logger] Failed to insert delivery log:', error.message);
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Never throw — logging must not break the caller
-    console.warn("[email-logger] Unexpected error:", err.message);
+    console.warn(
+      '[email-logger] Unexpected error:',
+      err instanceof Error ? err.message : String(err),
+    );
   }
 }

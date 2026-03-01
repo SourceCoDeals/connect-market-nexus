@@ -18,7 +18,11 @@ interface DealSidebarProps {
   presentedByAdminId?: string | null;
 }
 
-export default function DealSidebar({ executiveSummaryUrl, listingId, presentedByAdminId }: DealSidebarProps) {
+export default function DealSidebar({
+  executiveSummaryUrl,
+  listingId,
+  presentedByAdminId,
+}: DealSidebarProps) {
   // GAP 10: Fetch presenter dynamically from database
   const { data: presenter } = useQuery({
     queryKey: ['deal-presenter', presentedByAdminId],
@@ -31,14 +35,15 @@ export default function DealSidebar({ executiveSummaryUrl, listingId, presentedB
         .eq('id', presentedByAdminId!)
         .single();
       if (!data) return null;
-      const d = data as any;
       return {
-        name: `${d.first_name || ''} ${d.last_name || ''}`.trim() || DEFAULT_PRESENTER.name,
-        title: d.title ? `${d.title}, ${d.company || 'SourceCo'}` : DEFAULT_PRESENTER.title,
-        phone: d.phone_number || DEFAULT_PRESENTER.phone,
-        email: d.email || DEFAULT_PRESENTER.email,
-        avatarUrl: d.avatar_url || DEFAULT_PRESENTER.avatarUrl,
-        calendarUrl: d.calendar_url || DEFAULT_PRESENTER.calendarUrl,
+        name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || DEFAULT_PRESENTER.name,
+        title: data.title
+          ? `${data.title}, ${data.company || 'SourceCo'}`
+          : DEFAULT_PRESENTER.title,
+        phone: data.phone_number || DEFAULT_PRESENTER.phone,
+        email: data.email || DEFAULT_PRESENTER.email,
+        avatarUrl: DEFAULT_PRESENTER.avatarUrl,
+        calendarUrl: DEFAULT_PRESENTER.calendarUrl,
       };
     },
   });

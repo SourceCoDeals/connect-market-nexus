@@ -2,7 +2,7 @@
  * MemosTab: Two-slot memo interface for the deal page.
  *
  * Each deal has two memo slots: Anonymous Teaser & Full Lead Memo
- * 
+ *
  * Workflow per slot:
  *   1. Generate Draft → AI creates content saved to lead_memos table (viewable in-app)
  *   2. Download Draft → Export saved draft as .docx for editing in Word
@@ -15,8 +15,18 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
-  FileText, Upload, Sparkles, Download, Trash2, RefreshCw,
-  Loader2, FileUp, CheckCircle2, Calendar, Eye, BookOpen,
+  FileText,
+  Upload,
+  Sparkles,
+  Download,
+  Trash2,
+  RefreshCw,
+  Loader2,
+  FileUp,
+  CheckCircle2,
+  Calendar,
+  Eye,
+  BookOpen,
 } from 'lucide-react';
 import {
   useDataRoomDocuments,
@@ -40,12 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
@@ -62,20 +67,24 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
   const { data: memos = [], isLoading: memosLoading } = useLeadMemos(dealId);
 
   // Find the most recent PDF for each slot
-  const teaserDoc = documents.find(d => d.document_category === 'anonymous_teaser');
-  const fullMemoDoc = documents.find(d => d.document_category === 'full_memo');
+  const teaserDoc = documents.find((d) => d.document_category === 'anonymous_teaser');
+  const fullMemoDoc = documents.find((d) => d.document_category === 'full_memo');
 
   // Find the most recent AI draft for each slot
-  const teaserDraft = memos.find(m => m.memo_type === 'anonymous_teaser');
-  const fullMemoDraft = memos.find(m => m.memo_type === 'full_memo');
+  const teaserDraft = memos.find((m) => m.memo_type === 'anonymous_teaser');
+  const fullMemoDraft = memos.find((m) => m.memo_type === 'full_memo');
 
   const isLoading = docsLoading || memosLoading;
 
   if (isLoading) {
     return (
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="animate-pulse"><CardContent className="py-12" /></Card>
-        <Card className="animate-pulse"><CardContent className="py-12" /></Card>
+        <Card className="animate-pulse">
+          <CardContent className="py-12" />
+        </Card>
+        <Card className="animate-pulse">
+          <CardContent className="py-12" />
+        </Card>
       </div>
     );
   }
@@ -190,7 +199,7 @@ function MemoSlotCard({
             window.open(data.url, '_blank');
           }
         },
-      }
+      },
     );
   };
 
@@ -205,7 +214,7 @@ function MemoSlotCard({
     setGenerateProgress(0);
     // Simulate progress steps while AI generates
     const progressInterval = setInterval(() => {
-      setGenerateProgress(prev => {
+      setGenerateProgress((prev) => {
         if (prev >= 90) return prev; // Cap at 90 until actually done
         // Slow down as it approaches 90
         const increment = prev < 30 ? 8 : prev < 60 ? 4 : 2;
@@ -220,7 +229,7 @@ function MemoSlotCard({
       });
       setGenerateProgress(100);
       // Brief pause to show 100%
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 500));
     } finally {
       clearInterval(progressInterval);
       setIsGenerating(false);
@@ -233,7 +242,11 @@ function MemoSlotCard({
     setIsDownloadingDocx(true);
     try {
       await generateMemoDocx({
-        sections: draft.content.sections as any,
+        sections: draft.content.sections as Array<{
+          heading?: string;
+          body?: string;
+          bullets?: string[];
+        }>,
         memoType: slotType,
         dealTitle: dealTitle || 'Deal',
         branding: 'SourceCo',
@@ -282,7 +295,9 @@ function MemoSlotCard({
             /* ─── Locked State: entire card is disabled ─── */
             <div className="space-y-4">
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Draft</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  AI Draft
+                </p>
                 <div className="flex items-center justify-center py-6 border-2 border-dashed rounded-lg bg-muted/20 opacity-60">
                   <div className="text-center space-y-1">
                     <FileText className="h-6 w-6 mx-auto text-muted-foreground/40" />
@@ -292,224 +307,240 @@ function MemoSlotCard({
               </div>
               <Separator />
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Final PDF</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Final PDF
+                </p>
                 <div className="flex items-center justify-center py-4 border-2 border-dashed rounded-lg bg-muted/20 opacity-60">
                   <div className="text-center">
                     <FileUp className="h-6 w-6 mx-auto text-muted-foreground/40 mb-1" />
-                    <p className="text-xs text-muted-foreground">Requires Full Lead Memo PDF first</p>
+                    <p className="text-xs text-muted-foreground">
+                      Requires Full Lead Memo PDF first
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-          <>
-          {/* ─── AI Draft Section ─── */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Draft</p>
-            {isGenerating ? (
-              <div className="space-y-3 p-4 rounded-lg border bg-blue-50/30 dark:bg-blue-950/10">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 text-blue-600 animate-spin flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">
-                      {hasDraft ? 'Regenerating' : 'Generating'} {slotType === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Full Lead Memo'}…
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {generateProgress < 30
-                        ? 'Analyzing deal data and transcripts…'
-                        : generateProgress < 60
-                        ? 'Drafting memo sections…'
-                        : generateProgress < 90
-                        ? 'Finalizing content…'
-                        : 'Almost done…'}
-                    </p>
-                  </div>
-                  <span className="text-xs font-medium text-blue-700">{generateProgress}%</span>
-                </div>
-                <Progress value={generateProgress} className="h-2" />
-              </div>
-            ) : hasDraft ? (
+            <>
+              {/* ─── AI Draft Section ─── */}
               <div className="space-y-2">
-                <div className="flex items-start gap-3 p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20">
-                  <div className="h-9 w-9 rounded bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <BookOpen className="h-4 w-4 text-blue-600" />
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  AI Draft
+                </p>
+                {isGenerating ? (
+                  <div className="space-y-3 p-4 rounded-lg border bg-blue-50/30 dark:bg-blue-950/10">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-5 w-5 text-blue-600 animate-spin flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">
+                          {hasDraft ? 'Regenerating' : 'Generating'}{' '}
+                          {slotType === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Full Lead Memo'}…
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {generateProgress < 30
+                            ? 'Analyzing deal data and transcripts…'
+                            : generateProgress < 60
+                              ? 'Drafting memo sections…'
+                              : generateProgress < 90
+                                ? 'Finalizing content…'
+                                : 'Almost done…'}
+                        </p>
+                      </div>
+                      <span className="text-xs font-medium text-blue-700">{generateProgress}%</span>
+                    </div>
+                    <Progress value={generateProgress} className="h-2" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">
-                      {slotType === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Full Lead Memo'} — v{draft.version || 1}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                      <Calendar className="h-3 w-3" />
-                      <span>Generated {format(new Date(draft.created_at!), 'MMM d, yyyy h:mm a')}</span>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {draft.status}
-                      </Badge>
+                ) : hasDraft ? (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-3 p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20">
+                      <div className="h-9 w-9 rounded bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <BookOpen className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">
+                          {slotType === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Full Lead Memo'}{' '}
+                          — v{draft.version || 1}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          <Calendar className="h-3 w-3" />
+                          <span>
+                            Generated {format(new Date(draft.created_at!), 'MMM d, yyyy h:mm a')}
+                          </span>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                            {draft.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setPreviewOpen(true)}
+                      >
+                        <Eye className="h-3.5 w-3.5 mr-1.5" />
+                        Preview
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={handleDownloadDocx}
+                        disabled={isDownloadingDocx}
+                      >
+                        {isDownloadingDocx ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Download .docx
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateDraft}
+                        disabled={isGenerating}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Regenerate
+                      </Button>
                     </div>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setPreviewOpen(true)}
-                  >
-                    <Eye className="h-3.5 w-3.5 mr-1.5" />
-                    Preview
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={handleDownloadDocx}
-                    disabled={isDownloadingDocx}
-                  >
-                    {isDownloadingDocx ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                ) : (
+                  <div className="space-y-1.5">
+                    <Button
+                      className="w-full"
+                      onClick={handleGenerateDraft}
+                      disabled={isGenerating || !!generateDisabledReason}
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      )}
+                      Generate Draft
+                    </Button>
+                    {generateDisabledReason && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        {generateDisabledReason}
+                      </p>
                     )}
-                    Download .docx
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateDraft}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    Regenerate
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Button
-                  className="w-full"
-                  onClick={handleGenerateDraft}
-                  disabled={isGenerating || !!generateDisabledReason}
-                >
-                  {isGenerating ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 mr-2" />
-                  )}
-                  Generate Draft
-                </Button>
-                {generateDisabledReason && (
-                  <p className="text-xs text-muted-foreground text-center">{generateDisabledReason}</p>
+                  </div>
                 )}
               </div>
-            )}
-          </div>
 
-          <Separator />
+              <Separator />
 
-          {/* ─── Final PDF Section ─── */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Final PDF</p>
-            {hasDocument ? (
+              {/* ─── Final PDF Section ─── */}
               <div className="space-y-2">
-                <div className="flex items-start gap-3 p-3 rounded-lg border bg-green-50/50 dark:bg-green-950/20">
-                  <div className="h-9 w-9 rounded bg-red-50 flex items-center justify-center flex-shrink-0">
-                    <FileText className="h-4 w-4 text-red-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{document.file_name}</p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                      <Calendar className="h-3 w-3" />
-                      <span>Uploaded {format(new Date(document.created_at), 'MMM d, yyyy')}</span>
-                      {document.file_size_bytes && (
-                        <>
-                          <span>·</span>
-                          <span>{(document.file_size_bytes / 1024).toFixed(0)} KB</span>
-                        </>
-                      )}
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Final PDF
+                </p>
+                {hasDocument ? (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-3 p-3 rounded-lg border bg-green-50/50 dark:bg-green-950/20">
+                      <div className="h-9 w-9 rounded bg-red-50 flex items-center justify-center flex-shrink-0">
+                        <FileText className="h-4 w-4 text-red-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{document.file_name}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          <Calendar className="h-3 w-3" />
+                          <span>
+                            Uploaded {format(new Date(document.created_at), 'MMM d, yyyy')}
+                          </span>
+                          {document.file_size_bytes && (
+                            <>
+                              <span>·</span>
+                              <span>{(document.file_size_bytes / 1024).toFixed(0)} KB</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={handleDownloadPdf}
+                        disabled={documentUrl.isPending}
+                      >
+                        {documentUrl.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Download
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={handleUploadClick}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Replace
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setConfirmRemove(true)}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
                     </div>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={handleDownloadPdf}
-                    disabled={documentUrl.isPending}
-                  >
-                    {documentUrl.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    Download
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={handleUploadClick}
-                    disabled={isUploading}
-                  >
-                    {isUploading ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    Replace
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => setConfirmRemove(true)}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-center py-4 border-2 border-dashed rounded-lg bg-muted/30">
-                  <div className="text-center">
-                    <FileUp className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1" />
-                    <p className="text-xs text-muted-foreground">No final PDF uploaded</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-center py-4 border-2 border-dashed rounded-lg bg-muted/30">
+                      <div className="text-center">
+                        <FileUp className="h-6 w-6 mx-auto text-muted-foreground/50 mb-1" />
+                        <p className="text-xs text-muted-foreground">No final PDF uploaded</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleUploadClick}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Upload PDF
+                    </Button>
                   </div>
-                </div>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleUploadClick}
-                  disabled={isUploading}
-                >
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4 mr-2" />
-                  )}
-                  Upload PDF
-                </Button>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,application/pdf"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          </>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </>
           )}
         </CardContent>
       </Card>
@@ -539,13 +570,15 @@ function MemoSlotCard({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemove} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleRemove}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </>
   );
 }
@@ -557,19 +590,15 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
 
   if (!sections || !Array.isArray(sections)) {
     return (
-      <p className="text-sm text-muted-foreground italic">
-        No preview available for this draft.
-      </p>
+      <p className="text-sm text-muted-foreground italic">No preview available for this draft.</p>
     );
   }
 
   return (
     <div className="space-y-4">
-      {sections.map((section: any) => (
+      {sections.map((section: { heading?: string; body?: string; bullets?: string[] }) => (
         <div key={section.heading || section.body?.slice(0, 40)}>
-          {section.heading && (
-            <h3 className="text-sm font-semibold mb-1">{section.heading}</h3>
-          )}
+          {section.heading && <h3 className="text-sm font-semibold mb-1">{section.heading}</h3>}
           {section.body && (
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{section.body}</p>
           )}

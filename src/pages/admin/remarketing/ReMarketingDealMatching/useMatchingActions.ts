@@ -6,16 +6,28 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import type { OutreachStatus } from "@/components/remarketing";
 
+interface ScoreData {
+  id: string;
+  buyer_id: string;
+  universe_id?: string;
+  composite_score?: number;
+  geography_score?: number;
+  size_score?: number;
+  service_score?: number;
+  owner_goals_score?: number;
+  [key: string]: unknown;
+}
+
 interface UseMatchingActionsProps {
   listingId: string | undefined;
-  scores: any[] | undefined;
+  scores: ScoreData[] | undefined;
   selectedUniverse: string;
   linkedUniverses: Array<{ id: string; name: string }> | undefined;
   setIsScoring: (v: boolean) => void;
   setScoringProgress: (v: number) => void;
   setCustomInstructions: (v: string) => void;
   refetchOutreach: () => void;
-  listing: any;
+  listing: { title?: string | null } | undefined;
 }
 
 export function useMatchingActions({
@@ -32,13 +44,13 @@ export function useMatchingActions({
   const [selectedBuyerForPass, setSelectedBuyerForPass] = useState<{
     id: string;
     name: string;
-    scoreData?: any;
+    scoreData?: ScoreData;
   } | null>(null);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
 
   // Log learning history helper
-  const logLearningHistory = async (scoreData: any, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
+  const logLearningHistory = async (scoreData: ScoreData, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
     try {
       await supabase.from('buyer_learning_history').insert({
         buyer_id: scoreData.buyer_id,
@@ -73,7 +85,7 @@ export function useMatchingActions({
       status: string;
       pass_reason?: string;
       pass_category?: string;
-      scoreData?: any;
+      scoreData?: ScoreData;
     }) => {
       const { error } = await supabase
         .from('remarketing_scores')
@@ -229,7 +241,7 @@ export function useMatchingActions({
   };
 
   // Handle pass with dialog
-  const handleOpenPassDialog = (scoreId: string, buyerName: string, scoreData?: any) => {
+  const handleOpenPassDialog = (scoreId: string, buyerName: string, scoreData?: ScoreData) => {
     setSelectedBuyerForPass({ id: scoreId, name: buyerName, scoreData });
     setPassDialogOpen(true);
   };
@@ -249,7 +261,7 @@ export function useMatchingActions({
   };
 
   // Handle toggle interested (approve/revert to pending)
-  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: any) => {
+  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: ScoreData) => {
     if (interested) {
       // Toggling ON -> approve
       await handleApprove(scoreId, scoreData);
@@ -261,7 +273,7 @@ export function useMatchingActions({
   };
 
   // Handle approve - auto-creates outreach record + triggers contact discovery
-  const handleApprove = async (scoreId: string, scoreData?: any) => {
+  const handleApprove = async (scoreId: string, scoreData?: ScoreData) => {
     // First update the score status
     await updateScoreMutation.mutateAsync({ id: scoreId, status: 'approved', scoreData });
 
@@ -432,9 +444,9 @@ export function useMatchingActions({
       // Refresh pipeline deals query
       queryClient.invalidateQueries({ queryKey: ['pipeline-deals-for-listing', listingId] });
       queryClient.invalidateQueries({ queryKey: ['deals'] });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Pipeline move failed — toast shown to user
-      toast.error(err?.message || 'Failed to move buyer to pipeline');
+      toast.error(err instanceof Error ? err.message : 'Failed to move buyer to pipeline');
     }
   };
 

@@ -49,7 +49,7 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
 
       // Fetch extraction sources
       const { data: srcData, error: srcDataError } = await (
-        supabase.from('extraction_sources' as any) as any
+        supabase.from('extraction_sources' as never) as unknown as ReturnType<typeof supabase.from>
       )
         .select('*')
         .eq('listing_id', dealId);
@@ -110,7 +110,7 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
         sources: sourceMap,
       });
       addLog(`provenance test for ${dealId.slice(0, 8)}…`, Date.now() - t0);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
       setError(e.message);
       addLog(`provenance test — ${e.message}`, dur, false);

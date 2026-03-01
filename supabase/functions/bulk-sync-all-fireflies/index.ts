@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
@@ -160,7 +160,31 @@ const GET_TRANSCRIPT_CONTENT_QUERY = `
 // Helpers
 // ---------------------------------------------------------------------------
 
-function transcriptHasContent(t: any): boolean {
+interface FirefliesAttendee {
+  displayName?: string;
+  email?: string;
+  name?: string;
+}
+
+interface FirefliesTranscript {
+  id: string;
+  title?: string;
+  date?: number | string;
+  duration?: number;
+  organizer_email?: string;
+  participants?: string[];
+  meeting_attendees?: FirefliesAttendee[];
+  transcript_url?: string;
+  summary?: { short_summary?: string; keywords?: string[] };
+  meeting_info?: { silent_meeting?: boolean; summary_status?: string };
+}
+
+interface FirefliesSentence {
+  text: string;
+  speaker_name?: string;
+}
+
+function transcriptHasContent(t: FirefliesTranscript): boolean {
   const info = t.meeting_info || {};
   const isSilent = info.silent_meeting === true;
   const isSkipped = info.summary_status === "skipped";
@@ -170,16 +194,16 @@ function transcriptHasContent(t: any): boolean {
 }
 
 function extractExternalParticipants(
-  attendees: any[],
+  attendees: FirefliesAttendee[],
 ): { name: string; email: string }[] {
   if (!Array.isArray(attendees)) return [];
   return attendees
-    .filter((a: any) => {
+    .filter((a: FirefliesAttendee) => {
       const email = (a.email || "").toLowerCase();
       if (!email) return false;
       return !INTERNAL_DOMAINS.some((domain) => email.endsWith(`@${domain}`));
     })
-    .map((a: any) => ({
+    .map((a: FirefliesAttendee) => ({
       name: a.displayName || a.name || a.email?.split("@")[0] || "Unknown",
       email: a.email || "",
     }));
@@ -197,7 +221,7 @@ function normalizeCompanyName(name: string): string {
     .trim();
 }
 
-function convertFirefliesDate(date: any): string | null {
+function convertFirefliesDate(date: number | string | null | undefined): string | null {
   if (!date) return null;
   const dateNum = typeof date === "number" ? date : parseInt(date, 10);
   if (isNaN(dateNum)) return null;
@@ -227,7 +251,7 @@ async function fetchTranscriptContent(
       transcript.sentences.length > 0
     ) {
       text = transcript.sentences
-        .map((s: any) => `${s.speaker_name || "Unknown"}: ${s.text}`)
+        .map((s: FirefliesSentence) => `${s.speaker_name || "Unknown"}: ${s.text}`)
         .join("\n");
     }
 
@@ -456,7 +480,7 @@ serve(async (req) => {
         const normalizedTitle = normalizeCompanyName(title);
         const callDate = convertFirefliesDate(transcript.date);
         const attendeeEmails = (transcript.meeting_attendees || [])
-          .map((a: any) => a.email)
+          .map((a: FirefliesAttendee) => a.email)
           .filter(Boolean);
 
         let matchedAnything = false;
@@ -752,7 +776,7 @@ serve(async (req) => {
 // Content-only phase: backfill missing transcript text
 // ---------------------------------------------------------------------------
 async function handleContentPhase(
-  supabase: any,
+  supabase: SupabaseClient,
   corsHeaders: Record<string, string>,
   batchSize: number,
   isTimedOut: () => boolean,
@@ -775,7 +799,7 @@ async function handleContentPhase(
     );
   }
 
-  const items = (missing || []).filter((r: any) => r.fireflies_transcript_id);
+  const items = (missing || []).filter((r: { id: string; fireflies_transcript_id: string | null }) => r.fireflies_transcript_id);
   console.log(`Content phase: ${items.length} transcripts need content`);
 
   let fetched = 0;

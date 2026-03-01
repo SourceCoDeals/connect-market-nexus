@@ -1,5 +1,9 @@
 import { Bell, CheckCheck, Clock, ListTodo } from 'lucide-react';
-import { useAdminNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead } from '@/hooks/admin/use-admin-notifications';
+import {
+  useAdminNotifications,
+  useMarkNotificationAsRead,
+  useMarkAllNotificationsAsRead,
+} from '@/hooks/admin/use-admin-notifications';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -12,7 +16,11 @@ export default function AdminNotifications() {
   const markAllAsRead = useMarkAllNotificationsAsRead();
   const navigate = useNavigate();
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: {
+    id: string;
+    groupedIds?: string[];
+    action_url?: string;
+  }) => {
     const idsToMark = notification.groupedIds || [notification.id];
     markAsRead.mutate(idsToMark);
 
@@ -32,8 +40,8 @@ export default function AdminNotifications() {
     }
   };
 
-  const unreadNotifications = notifications.filter(n => !n.is_read);
-  const readNotifications = notifications.filter(n => n.is_read);
+  const unreadNotifications = notifications.filter((n) => !n.is_read);
+  const readNotifications = notifications.filter((n) => n.is_read);
 
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
@@ -41,7 +49,9 @@ export default function AdminNotifications() {
         <div>
           <h1 className="text-3xl font-bold">Notifications</h1>
           <p className="text-muted-foreground mt-1">
-            {unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'You\'re all caught up!'}
+            {unreadCount > 0
+              ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
+              : "You're all caught up!"}
           </p>
         </div>
         {unreadCount > 0 && (
@@ -62,7 +72,8 @@ export default function AdminNotifications() {
             <Bell className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-lg font-semibold mb-2">No notifications yet</h3>
             <p className="text-muted-foreground">
-              You'll receive notifications here when tasks are assigned to you or deals require attention.
+              You'll receive notifications here when tasks are assigned to you or deals require
+              attention.
             </p>
           </CardContent>
         </Card>
@@ -79,9 +90,9 @@ export default function AdminNotifications() {
                   <Card
                     key={notification.id}
                     className={cn(
-                      "cursor-pointer transition-all hover:shadow-md border-l-4",
-                      notification.notification_type === 'task_assigned' && "border-l-primary",
-                      notification.notification_type === 'task_completed' && "border-l-green-600"
+                      'cursor-pointer transition-all hover:shadow-md border-l-4',
+                      notification.notification_type === 'task_assigned' && 'border-l-primary',
+                      notification.notification_type === 'task_completed' && 'border-l-green-600',
                     )}
                     onClick={() => handleNotificationClick(notification)}
                   >
@@ -109,12 +120,17 @@ export default function AdminNotifications() {
                                   {notification.metadata.deal_title}
                                 </span>
                                 {notification.metadata.priority && (
-                                  <span className={cn(
-                                    "px-2 py-0.5 rounded text-xs font-medium uppercase",
-                                    notification.metadata.priority === 'high' && "bg-red-100 text-red-700",
-                                    notification.metadata.priority === 'medium' && "bg-yellow-100 text-yellow-700",
-                                    notification.metadata.priority === 'low' && "bg-blue-100 text-blue-700"
-                                  )}>
+                                  <span
+                                    className={cn(
+                                      'px-2 py-0.5 rounded text-xs font-medium uppercase',
+                                      notification.metadata.priority === 'high' &&
+                                        'bg-red-100 text-red-700',
+                                      notification.metadata.priority === 'medium' &&
+                                        'bg-yellow-100 text-yellow-700',
+                                      notification.metadata.priority === 'low' &&
+                                        'bg-blue-100 text-blue-700',
+                                    )}
+                                  >
                                     {notification.metadata.priority}
                                   </span>
                                 )}
@@ -124,7 +140,9 @@ export default function AdminNotifications() {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
                           <Clock className="w-3 h-3" />
-                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                          })}
                         </div>
                       </div>
                     </CardHeader>
@@ -159,7 +177,9 @@ export default function AdminNotifications() {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
                           <Clock className="w-3 h-3" />
-                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                          })}
                         </div>
                       </div>
                     </CardHeader>

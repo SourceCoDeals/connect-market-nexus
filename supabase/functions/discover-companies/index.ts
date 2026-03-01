@@ -107,7 +107,7 @@ Deno.serve(async (req: Request) => {
 
     // 2. Execute Google searches via Apify
     console.log(`[discover-companies] Executing ${searchQueries.length} search queries`);
-    const allResults: any[] = [];
+    const allResults: unknown[] = [];
 
     for (const query of searchQueries.slice(0, 3)) {
       try {

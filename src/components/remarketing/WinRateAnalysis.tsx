@@ -1,25 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Trophy, 
-  TrendingUp, 
+import {
+  Trophy,
+  TrendingUp,
   TrendingDown,
   Minus,
   Building2,
   Target,
   Clock,
-  DollarSign
+  DollarSign,
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  ResponsiveContainer,
-  Cell
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
 
 interface WinRateBySegment {
@@ -51,7 +43,7 @@ const TIER_COLORS = {
   'Tier A': 'hsl(142, 76%, 36%)',
   'Tier B': 'hsl(217, 91%, 60%)',
   'Tier C': 'hsl(45, 93%, 47%)',
-  'Tier D': 'hsl(0, 72%, 51%)'
+  'Tier D': 'hsl(0, 72%, 51%)',
 };
 
 const formatCurrency = (value: number) => {
@@ -60,7 +52,15 @@ const formatCurrency = (value: number) => {
   return `$${value.toFixed(0)}`;
 };
 
-const CustomTooltip = ({ active, payload, label: _label }: any) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label: _label,
+}: {
+  active?: boolean;
+  payload?: { payload: WinRateBySegment }[];
+  label?: string;
+}) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -97,7 +97,7 @@ export const WinRateAnalysis = ({
   byBuyerType,
   byDealSize,
   overallStats,
-  className
+  className,
 }: WinRateAnalysisProps) => {
   const getTrendIcon = (winRate: number, benchmark: number) => {
     if (winRate > benchmark + 5) return <TrendingUp className="h-4 w-4 text-green-500" />;
@@ -106,7 +106,7 @@ export const WinRateAnalysis = ({
   };
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Overall Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -121,7 +121,7 @@ export const WinRateAnalysis = ({
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -129,12 +129,10 @@ export const WinRateAnalysis = ({
               <span className="text-sm">Total Revenue</span>
             </div>
             <p className="text-2xl font-bold">{formatCurrency(overallStats.totalRevenue)}</p>
-            <p className="text-xs text-muted-foreground">
-              From closed deals
-            </p>
+            <p className="text-xs text-muted-foreground">From closed deals</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -142,12 +140,10 @@ export const WinRateAnalysis = ({
               <span className="text-sm">Avg Deal Size</span>
             </div>
             <p className="text-2xl font-bold">{formatCurrency(overallStats.avgDealSize)}</p>
-            <p className="text-xs text-muted-foreground">
-              Per won deal
-            </p>
+            <p className="text-xs text-muted-foreground">Per won deal</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -155,9 +151,7 @@ export const WinRateAnalysis = ({
               <span className="text-sm">Avg Days to Close</span>
             </div>
             <p className="text-2xl font-bold">{overallStats.avgDaysToClose}</p>
-            <p className="text-xs text-muted-foreground">
-              From first contact
-            </p>
+            <p className="text-xs text-muted-foreground">From first contact</p>
           </CardContent>
         </Card>
       </div>
@@ -166,9 +160,7 @@ export const WinRateAnalysis = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Win Rate by Match Tier</CardTitle>
-          <CardDescription>
-            How initial match quality correlates with deal success
-          </CardDescription>
+          <CardDescription>How initial match quality correlates with deal success</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[200px]">
@@ -181,25 +173,28 @@ export const WinRateAnalysis = ({
                   {byTier.map((entry) => (
                     <Cell
                       key={entry.segment}
-                      fill={TIER_COLORS[entry.segment as keyof typeof TIER_COLORS] || 'hsl(220, 9%, 46%)'}
+                      fill={
+                        TIER_COLORS[entry.segment as keyof typeof TIER_COLORS] ||
+                        'hsl(220, 9%, 46%)'
+                      }
                     />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
-          
+
           {/* Tier detail rows */}
           <div className="mt-4 space-y-2">
-            {byTier.map(tier => (
+            {byTier.map((tier) => (
               <div key={tier.segment} className="flex items-center gap-3">
                 <div className="w-16">
-                  <Badge 
+                  <Badge
                     variant="outline"
-                    style={{ 
+                    style={{
                       backgroundColor: `${TIER_COLORS[tier.segment as keyof typeof TIER_COLORS]}20`,
                       borderColor: TIER_COLORS[tier.segment as keyof typeof TIER_COLORS],
-                      color: TIER_COLORS[tier.segment as keyof typeof TIER_COLORS]
+                      color: TIER_COLORS[tier.segment as keyof typeof TIER_COLORS],
                     }}
                   >
                     {tier.segment}
@@ -226,11 +221,9 @@ export const WinRateAnalysis = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {byBuyerType.map(type => (
+            {byBuyerType.map((type) => (
               <div key={type.segment} className="flex items-center gap-3">
-                <div className="w-32 truncate text-sm font-medium">
-                  {type.segment}
-                </div>
+                <div className="w-32 truncate text-sm font-medium">{type.segment}</div>
                 <Progress value={type.winRate} className="flex-1 h-2" />
                 <div className="w-20 text-right">
                   <span className="text-sm font-medium">{type.winRate.toFixed(0)}%</span>
@@ -241,7 +234,7 @@ export const WinRateAnalysis = ({
               </div>
             ))}
           </div>
-          
+
           {byBuyerType.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               <p>No win data available yet</p>

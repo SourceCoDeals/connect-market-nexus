@@ -20,8 +20,8 @@ interface ContactInfoSectionProps {
   isSelectingUser: boolean;
   selectedUserId: string | null;
   selectedCompanyName: string | null;
-  marketplaceUsers: any[] | undefined;
-  marketplaceCompanies: any[] | undefined;
+  marketplaceUsers: unknown[] | undefined;
+  marketplaceCompanies: unknown[] | undefined;
   userOptions: { value: string; label: string; searchTerms: string }[];
   handleUserSelect: (userId: string) => void;
   handleToggleUserSelection: () => void;

@@ -42,7 +42,7 @@ export function useCreateDealForm(
   } | null>(null);
 
   const form = useForm<CreateDealFormData>({
-    resolver: zodResolver(createDealSchema as any),
+    resolver: zodResolver(createDealSchema as never),
     defaultValues: {
       title: '',
       description: '',
@@ -73,7 +73,7 @@ export function useCreateDealForm(
 
   useEffect(() => {
     if (selectedStageId && stages) {
-      const selectedStage = stages.find(stage => stage.id === selectedStageId);
+      const selectedStage = stages.find((stage) => stage.id === selectedStageId);
       if (selectedStage && selectedStage.default_probability !== undefined) {
         form.setValue('probability', selectedStage.default_probability);
       }
@@ -164,7 +164,7 @@ export function useCreateDealForm(
         }
       }
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         ...data,
         source: 'manual',
         nda_status: 'not_sent',
@@ -187,7 +187,7 @@ export function useCreateDealForm(
           if (companyProfilesError) throw companyProfilesError;
 
           if (companyProfiles && companyProfiles.length > 0) {
-            const userIds = companyProfiles.map(p => p.id);
+            const userIds = companyProfiles.map((p) => p.id);
 
             // Find other connection requests from users in this company OR with same company name
             const { data: sameCompanyRequests, error: sameCompanyRequestsError } = await supabase
@@ -199,7 +199,7 @@ export function useCreateDealForm(
 
             if (sameCompanyRequests && sameCompanyRequests.length > 0) {
               // Create bidirectional associations
-              const associations = sameCompanyRequests.flatMap(req => [
+              const associations = sameCompanyRequests.flatMap((req) => [
                 {
                   primary_request_id: connectionRequestId,
                   related_request_id: req.id,
@@ -225,7 +225,7 @@ export function useCreateDealForm(
               const { error: assocError } = await supabase
                 .from('connection_request_contacts')
                 .upsert(associations, {
-                  onConflict: 'primary_request_id,related_request_id'
+                  onConflict: 'primary_request_id,related_request_id',
                 });
 
               if (assocError) {
@@ -296,10 +296,13 @@ export function useCreateDealForm(
 
   // Handle user selection
   const handleUserSelect = (userId: string) => {
-    const user = marketplaceUsers?.find(u => u.id === userId);
+    const user = marketplaceUsers?.find((u) => u.id === userId);
     if (user) {
       setSelectedUserId(userId);
-      form.setValue('contact_name', `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email);
+      form.setValue(
+        'contact_name',
+        `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+      );
       form.setValue('contact_email', user.email);
       form.setValue('contact_company', user.company || '');
     }
@@ -325,7 +328,7 @@ export function useCreateDealForm(
     form.setValue('contact_company', companyName);
 
     // Auto-populate from profile template if existing company
-    const selectedCompany = marketplaceCompanies?.find(c => c.value === companyName);
+    const selectedCompany = marketplaceCompanies?.find((c) => c.value === companyName);
     if (selectedCompany?.profileTemplate) {
       const template = selectedCompany.profileTemplate;
 
@@ -339,7 +342,6 @@ export function useCreateDealForm(
         name: companyName,
         email: template.sampleUserEmail,
       });
-
     }
   };
 
@@ -347,7 +349,7 @@ export function useCreateDealForm(
   const generateSearchTerms = (words: string[]): string => {
     const terms = new Set<string>();
 
-    words.forEach(word => {
+    words.forEach((word) => {
       const cleaned = word.toLowerCase().trim();
       if (!cleaned) return;
 
@@ -369,7 +371,7 @@ export function useCreateDealForm(
       return [];
     }
 
-    return marketplaceUsers.map(user => {
+    return marketplaceUsers.map((user) => {
       const firstName = user.first_name || '';
       const lastName = user.last_name || '';
       const name = `${firstName} ${lastName}`.trim() || user.email;

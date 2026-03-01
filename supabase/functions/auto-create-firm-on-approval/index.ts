@@ -284,8 +284,8 @@ serve(async (req: Request) => {
           const errorText = await docusealResponse.text();
           console.error('❌ DocuSeal NDA creation failed:', errorText);
         }
-      } catch (docuError: any) {
-        if (docuError.name === 'AbortError') {
+      } catch (docuError: unknown) {
+        if (docuError instanceof Error && docuError.name === 'AbortError') {
           console.error('⚠️ DocuSeal NDA creation timed out');
         } else {
           console.error('⚠️ DocuSeal NDA creation error:', docuError);
@@ -304,7 +304,7 @@ serve(async (req: Request) => {
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ Error in auto-create-firm-on-approval:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,

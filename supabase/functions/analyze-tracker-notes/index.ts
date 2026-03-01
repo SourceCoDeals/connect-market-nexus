@@ -1,120 +1,138 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, callGeminiWithRetry } from "../_shared/ai-providers.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import {
+  GEMINI_API_URL,
+  getGeminiHeaders,
+  DEFAULT_GEMINI_MODEL,
+  callGeminiWithRetry,
+} from '../_shared/ai-providers.ts';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 /**
  * Analyze Tracker Notes Edge Function
- * 
+ *
  * Input Pathway 1: Quick Import from Notes
  * Extracts structured buyer universe criteria from unstructured text
  * (call notes, emails, meeting notes, etc.)
  */
 
 const EXTRACTION_TOOL = {
-  type: "function",
+  type: 'function',
   function: {
-    name: "extract_criteria",
-    description: "Extract structured buyer universe criteria from natural language text",
+    name: 'extract_criteria',
+    description: 'Extract structured buyer universe criteria from natural language text',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
         size_criteria: {
-          type: "object",
+          type: 'object',
           properties: {
-            revenue_min: { type: "number", description: "Minimum revenue in dollars" },
-            revenue_max: { type: "number", description: "Maximum revenue in dollars" },
-            ebitda_min: { type: "number", description: "Minimum EBITDA in dollars" },
-            ebitda_max: { type: "number", description: "Maximum EBITDA in dollars" },
-            ebitda_multiple_min: { type: "number", description: "Minimum EBITDA multiple (e.g., 3 for 3x)" },
-            ebitda_multiple_max: { type: "number", description: "Maximum EBITDA multiple" },
-            locations_min: { type: "number" },
-            locations_max: { type: "number" },
-            revenue_per_location: { type: "number" },
-            other_notes: { type: "string" }
-          }
+            revenue_min: { type: 'number', description: 'Minimum revenue in dollars' },
+            revenue_max: { type: 'number', description: 'Maximum revenue in dollars' },
+            ebitda_min: { type: 'number', description: 'Minimum EBITDA in dollars' },
+            ebitda_max: { type: 'number', description: 'Maximum EBITDA in dollars' },
+            ebitda_multiple_min: {
+              type: 'number',
+              description: 'Minimum EBITDA multiple (e.g., 3 for 3x)',
+            },
+            ebitda_multiple_max: { type: 'number', description: 'Maximum EBITDA multiple' },
+            locations_min: { type: 'number' },
+            locations_max: { type: 'number' },
+            revenue_per_location: { type: 'number' },
+            other_notes: { type: 'string' },
+          },
         },
         service_criteria: {
-          type: "object",
+          type: 'object',
           properties: {
             primary_focus: {
-              type: "array",
-              items: { type: "string" },
-              description: "PRIMARY industry/service focus - REQUIRED. Examples: 'Collision Repair', 'HVAC', 'Pest Control'"
+              type: 'array',
+              items: { type: 'string' },
+              description:
+                "PRIMARY industry/service focus - REQUIRED. Examples: 'Collision Repair', 'HVAC', 'Pest Control'",
             },
-            required_services: { type: "array", items: { type: "string" } },
-            preferred_services: { type: "array", items: { type: "string" } },
-            excluded_services: { type: "array", items: { type: "string" } },
-            business_model: { type: "string" },
-            customer_profile: { type: "string" }
+            required_services: { type: 'array', items: { type: 'string' } },
+            preferred_services: { type: 'array', items: { type: 'string' } },
+            excluded_services: { type: 'array', items: { type: 'string' } },
+            business_model: { type: 'string' },
+            customer_profile: { type: 'string' },
           },
-          required: ["primary_focus"]
+          required: ['primary_focus'],
         },
         geography_criteria: {
-          type: "object",
+          type: 'object',
           properties: {
-            target_states: { type: "array", items: { type: "string" } },
-            target_regions: { type: "array", items: { type: "string" } },
-            preferred_metros: { type: "array", items: { type: "string" } },
-            exclude_states: { type: "array", items: { type: "string" } },
-            coverage: { type: "string", enum: ["local", "regional", "national", "multi-state"] },
-            hq_requirements: { type: "string" }
-          }
+            target_states: { type: 'array', items: { type: 'string' } },
+            target_regions: { type: 'array', items: { type: 'string' } },
+            preferred_metros: { type: 'array', items: { type: 'string' } },
+            exclude_states: { type: 'array', items: { type: 'string' } },
+            coverage: { type: 'string', enum: ['local', 'regional', 'national', 'multi-state'] },
+            hq_requirements: { type: 'string' },
+          },
         },
         buyer_types_criteria: {
-          type: "object",
+          type: 'object',
           properties: {
-            include_pe_firms: { type: "boolean" },
-            include_platforms: { type: "boolean" },
-            include_strategic: { type: "boolean" },
-            include_family_office: { type: "boolean" },
+            include_pe_firms: { type: 'boolean' },
+            include_platforms: { type: 'boolean' },
+            include_strategic: { type: 'boolean' },
+            include_family_office: { type: 'boolean' },
             buyer_types: {
-              type: "array",
+              type: 'array',
               items: {
-                type: "object",
+                type: 'object',
                 properties: {
-                  id: { type: "string" },
-                  priority: { type: "number" },
-                  name: { type: "string" },
-                  description: { type: "string" },
-                  locations_min: { type: "number" },
-                  locations_max: { type: "number" },
-                  enabled: { type: "boolean" }
-                }
-              }
-            }
-          }
+                  id: { type: 'string' },
+                  priority: { type: 'number' },
+                  name: { type: 'string' },
+                  description: { type: 'string' },
+                  locations_min: { type: 'number' },
+                  locations_max: { type: 'number' },
+                  enabled: { type: 'boolean' },
+                },
+              },
+            },
+          },
         },
         scoring_hints: {
-          type: "object",
+          type: 'object',
           properties: {
-            geography_mode: { type: "string", enum: ["strict", "flexible", "national"] },
-            size_importance: { type: "string", enum: ["critical", "important", "flexible"] },
-            service_matching: { type: "string", enum: ["exact", "related", "broad"] }
-          }
+            geography_mode: { type: 'string', enum: ['strict', 'flexible', 'national'] },
+            size_importance: { type: 'string', enum: ['critical', 'important', 'flexible'] },
+            service_matching: { type: 'string', enum: ['exact', 'related', 'broad'] },
+          },
         },
         human_readable_summaries: {
-          type: "object",
+          type: 'object',
           properties: {
-            size_summary: { type: "string", description: "One-line summary like 'Revenue: $5M-$25M, EBITDA: $1M+'" },
-            service_summary: { type: "string", description: "One-line summary of service focus" },
-            geography_summary: { type: "string", description: "One-line summary of geographic focus" },
-            buyer_types_summary: { type: "string", description: "One-line summary of target buyer types" }
-          }
+            size_summary: {
+              type: 'string',
+              description: "One-line summary like 'Revenue: $5M-$25M, EBITDA: $1M+'",
+            },
+            service_summary: { type: 'string', description: 'One-line summary of service focus' },
+            geography_summary: {
+              type: 'string',
+              description: 'One-line summary of geographic focus',
+            },
+            buyer_types_summary: {
+              type: 'string',
+              description: 'One-line summary of target buyer types',
+            },
+          },
         },
         confidence: {
-          type: "number",
-          description: "Confidence score 0-1 for the extraction quality"
+          type: 'number',
+          description: 'Confidence score 0-1 for the extraction quality',
         },
         extracted_keywords: {
-          type: "array",
-          items: { type: "string" },
-          description: "Key terms extracted from the text"
-        }
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Key terms extracted from the text',
+        },
       },
-      required: ["service_criteria", "confidence"]
-    }
-  }
+      required: ['service_criteria', 'confidence'],
+    },
+  },
 };
 
 serve(async (req) => {
@@ -130,13 +148,13 @@ serve(async (req) => {
     if (!notes_text || notes_text.trim().length < 20) {
       return new Response(
         JSON.stringify({ error: 'Please provide notes with at least 20 characters' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
     if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+      throw new Error('GEMINI_API_KEY is not configured');
     }
 
     console.log(`Analyzing notes for universe: ${universe_name || 'unnamed'}`);
@@ -188,32 +206,32 @@ Extract all available criteria using the extract_criteria function. Be thorough 
       {
         model: DEFAULT_GEMINI_MODEL,
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         tools: [EXTRACTION_TOOL],
-        tool_choice: { type: "function", function: { name: "extract_criteria" } }
+        tool_choice: { type: 'function', function: { name: 'extract_criteria' } },
       },
       45000,
-      'analyze-tracker-notes'
+      'analyze-tracker-notes',
     );
 
     if (!response.ok) {
       if (response.status === 429 || response.status === 529) {
         return new Response(
-          JSON.stringify({ error: "AI service busy. Please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'AI service busy. Please try again in a moment.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
       const text = await response.text();
-      console.error("AI Gateway error:", response.status, text);
-      throw new Error("Failed to analyze notes");
+      console.error('AI Gateway error:', response.status, text);
+      throw new Error('Failed to analyze notes');
     }
 
     const result = await response.json();
@@ -221,21 +239,23 @@ Extract all available criteria using the extract_criteria function. Be thorough 
     // Extract the tool call result
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
     if (!toolCall || toolCall.function.name !== 'extract_criteria') {
-      throw new Error("AI did not return expected extraction result");
+      throw new Error('AI did not return expected extraction result');
     }
 
     let extractedData;
     try {
       extractedData = JSON.parse(toolCall.function.arguments);
     } catch {
-      console.error("Failed to parse tool call arguments");
-      throw new Error("Failed to parse extraction result");
+      console.error('Failed to parse tool call arguments');
+      throw new Error('Failed to parse extraction result');
     }
 
     // Post-process: clean placeholders and validate
     const cleanedData = cleanExtractedData(extractedData);
 
-    console.log(`Extracted criteria with ${Math.round((cleanedData.confidence || 0.5) * 100)}% confidence`);
+    console.log(
+      `Extracted criteria with ${Math.round((cleanedData.confidence || 0.5) * 100)}% confidence`,
+    );
 
     return new Response(
       JSON.stringify({
@@ -243,27 +263,26 @@ Extract all available criteria using the extract_criteria function. Be thorough 
         criteria: cleanedData,
         summaries: cleanedData.human_readable_summaries || {},
         confidence: cleanedData.confidence || 0.5,
-        keywords: cleanedData.extracted_keywords || []
+        keywords: cleanedData.extracted_keywords || [],
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-
   } catch (error) {
     console.error('Error analyzing notes:', error);
     const message = error instanceof Error ? error.message : 'Failed to analyze notes';
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 
 // Clean extracted data to remove placeholders and fix common issues
-function cleanExtractedData(data: any): any {
+function cleanExtractedData(data: Record<string, unknown>): Record<string, unknown> {
   const cleaned = JSON.parse(JSON.stringify(data)); // Deep clone
-  
+
   // Remove placeholder patterns
-  const cleanValue = (val: any): any => {
+  const cleanValue = (val: unknown): unknown => {
     if (typeof val === 'string') {
       // Remove [X], [VALUE], etc.
       if (/\[[^\]]*\]/.test(val)) return undefined;
@@ -271,10 +290,10 @@ function cleanExtractedData(data: any): any {
       return val.trim() || undefined;
     }
     if (Array.isArray(val)) {
-      return val.map(cleanValue).filter(v => v !== undefined);
+      return val.map(cleanValue).filter((v) => v !== undefined);
     }
     if (typeof val === 'object' && val !== null) {
-      const result: Record<string, any> = {};
+      const result: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(val)) {
         const cleaned = cleanValue(v);
         if (cleaned !== undefined && cleaned !== null) {
@@ -287,11 +306,11 @@ function cleanExtractedData(data: any): any {
     }
     return val;
   };
-  
+
   // Clean all sections
   if (cleaned.size_criteria) {
     cleaned.size_criteria = cleanValue(cleaned.size_criteria) || {};
-    
+
     // Fix EBITDA multiples stored in dollar fields
     const sc = cleaned.size_criteria;
     if (sc.ebitda_min && sc.ebitda_min > 0 && sc.ebitda_min < 20) {
@@ -303,30 +322,36 @@ function cleanExtractedData(data: any): any {
       delete sc.ebitda_max;
     }
   }
-  
+
   if (cleaned.service_criteria) {
     cleaned.service_criteria = cleanValue(cleaned.service_criteria) || {};
-    
+
     // Ensure primary_focus exists
-    if (!cleaned.service_criteria.primary_focus || cleaned.service_criteria.primary_focus.length === 0) {
+    if (
+      !cleaned.service_criteria.primary_focus ||
+      cleaned.service_criteria.primary_focus.length === 0
+    ) {
       // Try to infer from required_services
       if (cleaned.service_criteria.required_services?.length > 0) {
-        cleaned.service_criteria.primary_focus = cleaned.service_criteria.required_services.slice(0, 3);
+        cleaned.service_criteria.primary_focus = cleaned.service_criteria.required_services.slice(
+          0,
+          3,
+        );
       }
     }
   }
-  
+
   if (cleaned.geography_criteria) {
     cleaned.geography_criteria = cleanValue(cleaned.geography_criteria) || {};
   }
-  
+
   if (cleaned.buyer_types_criteria) {
     cleaned.buyer_types_criteria = cleanValue(cleaned.buyer_types_criteria) || {};
   }
-  
+
   if (cleaned.scoring_hints) {
     cleaned.scoring_hints = cleanValue(cleaned.scoring_hints) || {};
   }
-  
+
   return cleaned;
 }

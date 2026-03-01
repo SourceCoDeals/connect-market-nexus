@@ -11,7 +11,7 @@ interface EmailRequest {
   content: string;
   email_type: string;
   correlation_id: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -118,13 +118,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Enhanced email delivery error:', error);
 
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         details: 'Failed to deliver email'
       }),
       {

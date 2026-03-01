@@ -11,17 +11,20 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+type UntypedTable = Parameters<typeof supabase.from>[0];
+
 function useAutoApproveSetting() {
   return useQuery({
     queryKey: ['app-settings', 'task_auto_approve_high_confidence'],
     queryFn: async () => {
-      const { data } = await (supabase
-        .from('app_settings' as any)
+      const { data } = await supabase
+        .from('app_settings' as UntypedTable)
         .select('value')
         .eq('key', 'task_auto_approve_high_confidence')
-        .single() as any);
+        .single();
       if (!data) return true; // default: enabled
-      return (data as any).value === 'true' || (data as any).value === true;
+      const val = (data as Record<string, unknown>).value;
+      return val === 'true' || val === true;
     },
     staleTime: 60_000,
   });
@@ -33,12 +36,12 @@ function useUpdateAutoApproveSetting() {
 
   return useMutation({
     mutationFn: async (enabled: boolean) => {
-      const { error } = await (supabase
-        .from('app_settings' as any)
+      const { error } = await supabase
+        .from('app_settings' as UntypedTable)
         .upsert(
-          { key: 'task_auto_approve_high_confidence', value: String(enabled) },
+          { key: 'task_auto_approve_high_confidence', value: String(enabled) } as never,
           { onConflict: 'key' },
-        ) as any);
+        );
       if (error) throw error;
     },
     onSuccess: (_, enabled) => {

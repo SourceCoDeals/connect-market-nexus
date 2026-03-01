@@ -1,21 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import {
-  CheckCircle2,
-  Merge,
-  Loader2,
-  ChevronDown,
-  ChevronUp
-} from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { Json } from "@/integrations/supabase/types";
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { CheckCircle2, Merge, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import type { Json } from '@/integrations/supabase/types';
 
 interface CriteriaReviewPanelProps {
   universeId: string;
@@ -74,10 +68,7 @@ interface ExtractionSource {
   created_at: string;
 }
 
-export const CriteriaReviewPanel = ({
-  universeId,
-  onApplyComplete
-}: CriteriaReviewPanelProps) => {
+export const CriteriaReviewPanel = ({ universeId, onApplyComplete }: CriteriaReviewPanelProps) => {
   const [sources, setSources] = useState<ExtractionSource[]>([]);
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
@@ -99,9 +90,7 @@ export const CriteriaReviewPanel = ({
       setSources((data || []) as ExtractionSource[]);
 
       const unapplied = new Set(
-        ((data || []) as ExtractionSource[])
-          .filter(s => !s.applied_to_criteria)
-          .map(s => s.id)
+        ((data || []) as ExtractionSource[]).filter((s) => !s.applied_to_criteria).map((s) => s.id),
       );
       setSelectedSources(unapplied);
     } catch (_error: unknown) {
@@ -143,7 +132,7 @@ export const CriteriaReviewPanel = ({
 
     setIsApplying(true);
     try {
-      const selectedData = sources.filter(s => selectedSources.has(s.id));
+      const selectedData = sources.filter((s) => selectedSources.has(s.id));
       const synthesizedCriteria = synthesizeCriteria(selectedData);
 
       const { error: updateError } = await supabase
@@ -153,7 +142,7 @@ export const CriteriaReviewPanel = ({
           geography_criteria: synthesizedCriteria.geography_criteria as unknown as Json,
           service_criteria: synthesizedCriteria.service_criteria as unknown as Json,
           buyer_types_criteria: synthesizedCriteria.buyer_types_criteria as unknown as Json,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', universeId);
 
@@ -163,29 +152,38 @@ export const CriteriaReviewPanel = ({
         .from('criteria_extraction_sources' as never)
         .update({
           applied_to_criteria: true,
-          applied_at: new Date().toISOString()
+          applied_at: new Date().toISOString(),
         } as never)
         .in('id', Array.from(selectedSources));
 
       if (markError) throw markError;
 
-      await (supabase.from('criteria_extraction_history' as never) as any).insert({
+      await (
+        supabase.from('criteria_extraction_history' as never) as unknown as {
+          insert: (row: Record<string, unknown>) => Promise<{ error: Error | null }>;
+        }
+      ).insert({
         universe_id: universeId,
         change_type: 'synthesis',
-        changed_sections: ['size_criteria', 'geography_criteria', 'service_criteria', 'buyer_types_criteria'],
+        changed_sections: [
+          'size_criteria',
+          'geography_criteria',
+          'service_criteria',
+          'buyer_types_criteria',
+        ],
         after_snapshot: synthesizedCriteria,
-        change_summary: `Applied criteria from ${selectedSources.size} source(s): ${selectedData.map(s => s.source_name).join(', ')}`
+        change_summary: `Applied criteria from ${selectedSources.size} source(s): ${selectedData.map((s) => s.source_name).join(', ')}`,
       });
 
       toast.success('Criteria applied successfully', {
-        description: `Merged data from ${selectedSources.size} source(s)`
+        description: `Merged data from ${selectedSources.size} source(s)`,
       });
 
       loadSources();
       onApplyComplete?.();
     } catch (error: unknown) {
       toast.error('Failed to apply criteria', {
-        description: (error as Error).message
+        description: (error as Error).message,
       });
     } finally {
       setIsApplying(false);
@@ -193,32 +191,48 @@ export const CriteriaReviewPanel = ({
   };
 
   const synthesizeCriteria = (sources: ExtractionSource[]) => {
-    const sizeCriteria = sources.map(s => s.extracted_data?.size_criteria).filter(Boolean) as SizeCriteria[];
-    const geoCriteria = sources.map(s => s.extracted_data?.geography_criteria).filter(Boolean) as GeoCriteria[];
-    const serviceCriteria = sources.map(s => s.extracted_data?.service_criteria).filter(Boolean) as ServiceCriteria[];
-    const buyerTypesCriteria = sources.map(s => s.extracted_data?.buyer_types_criteria).filter(Boolean) as BuyerTypesCriteria[];
+    const sizeCriteria = sources
+      .map((s) => s.extracted_data?.size_criteria)
+      .filter(Boolean) as SizeCriteria[];
+    const geoCriteria = sources
+      .map((s) => s.extracted_data?.geography_criteria)
+      .filter(Boolean) as GeoCriteria[];
+    const serviceCriteria = sources
+      .map((s) => s.extracted_data?.service_criteria)
+      .filter(Boolean) as ServiceCriteria[];
+    const buyerTypesCriteria = sources
+      .map((s) => s.extracted_data?.buyer_types_criteria)
+      .filter(Boolean) as BuyerTypesCriteria[];
 
     return {
       size_criteria: synthesizeSizeCriteria(sizeCriteria),
       geography_criteria: synthesizeGeographyCriteria(geoCriteria),
       service_criteria: synthesizeServiceCriteria(serviceCriteria),
-      buyer_types_criteria: synthesizeBuyerTypesCriteria(buyerTypesCriteria)
+      buyer_types_criteria: synthesizeBuyerTypesCriteria(buyerTypesCriteria),
     };
   };
 
   const synthesizeSizeCriteria = (criteria: SizeCriteria[]) => {
     if (criteria.length === 0) return {};
 
-    const revenueMin = Math.min(...criteria.map(c => c.revenue_min).filter((v): v is number => v != null));
-    const revenueMax = Math.max(...criteria.map(c => c.revenue_max).filter((v): v is number => v != null));
-    const ebitdaMin = Math.min(...criteria.map(c => c.ebitda_min).filter((v): v is number => v != null));
-    const ebitdaMax = Math.max(...criteria.map(c => c.ebitda_max).filter((v): v is number => v != null));
+    const revenueMin = Math.min(
+      ...criteria.map((c) => c.revenue_min).filter((v): v is number => v != null),
+    );
+    const revenueMax = Math.max(
+      ...criteria.map((c) => c.revenue_max).filter((v): v is number => v != null),
+    );
+    const ebitdaMin = Math.min(
+      ...criteria.map((c) => c.ebitda_min).filter((v): v is number => v != null),
+    );
+    const ebitdaMax = Math.max(
+      ...criteria.map((c) => c.ebitda_max).filter((v): v is number => v != null),
+    );
 
     return {
       revenue_min: isFinite(revenueMin) ? revenueMin : undefined,
       revenue_max: isFinite(revenueMax) ? revenueMax : undefined,
       ebitda_min: isFinite(ebitdaMin) ? ebitdaMin : undefined,
-      ebitda_max: isFinite(ebitdaMax) ? ebitdaMax : undefined
+      ebitda_max: isFinite(ebitdaMax) ? ebitdaMax : undefined,
     };
   };
 
@@ -228,14 +242,14 @@ export const CriteriaReviewPanel = ({
     const allRegions = new Set<string>();
     const allStates = new Set<string>();
 
-    criteria.forEach(c => {
+    criteria.forEach((c) => {
       c.target_regions?.forEach((r: string) => allRegions.add(r));
       c.target_states?.forEach((s: string) => allStates.add(s));
     });
 
     return {
       target_regions: Array.from(allRegions).sort(),
-      target_states: Array.from(allStates).sort()
+      target_states: Array.from(allStates).sort(),
     };
   };
 
@@ -243,21 +257,21 @@ export const CriteriaReviewPanel = ({
     if (criteria.length === 0) return {};
 
     const allServices = new Set<string>();
-    criteria.forEach(c => {
+    criteria.forEach((c) => {
       c.target_services?.forEach((s: string) => allServices.add(s));
     });
 
     return {
-      target_services: Array.from(allServices).sort()
+      target_services: Array.from(allServices).sort(),
     };
   };
 
   const synthesizeBuyerTypesCriteria = (criteria: BuyerTypesCriteria[]) => {
     if (criteria.length === 0) return {};
 
-    const allBuyerTypes = criteria.flatMap(c => c.buyer_types || []);
+    const allBuyerTypes = criteria.flatMap((c) => c.buyer_types || []);
     return {
-      buyer_types: allBuyerTypes
+      buyer_types: allBuyerTypes,
     };
   };
 
@@ -367,7 +381,9 @@ export const CriteriaReviewPanel = ({
                             )}
                             {source.confidence_scores?.overall && (
                               <Badge
-                                variant={source.confidence_scores.overall >= 80 ? 'default' : 'secondary'}
+                                variant={
+                                  source.confidence_scores.overall >= 80 ? 'default' : 'secondary'
+                                }
                               >
                                 {source.confidence_scores.overall}%
                               </Badge>
@@ -400,8 +416,14 @@ export const CriteriaReviewPanel = ({
                           <div>
                             <div className="font-medium mb-1">Size Criteria</div>
                             <div className="text-muted-foreground space-y-1">
-                              <div>Revenue: {formatCurrency(sizeCrit.revenue_min)} - {formatCurrency(sizeCrit.revenue_max)}</div>
-                              <div>EBITDA: {formatCurrency(sizeCrit.ebitda_min)} - {formatCurrency(sizeCrit.ebitda_max)}</div>
+                              <div>
+                                Revenue: {formatCurrency(sizeCrit.revenue_min)} -{' '}
+                                {formatCurrency(sizeCrit.revenue_max)}
+                              </div>
+                              <div>
+                                EBITDA: {formatCurrency(sizeCrit.ebitda_min)} -{' '}
+                                {formatCurrency(sizeCrit.ebitda_max)}
+                              </div>
                               <div className="text-xs">
                                 Confidence: {source.confidence_scores?.size}%
                               </div>
@@ -449,7 +471,8 @@ export const CriteriaReviewPanel = ({
                             <div className="text-muted-foreground space-y-1">
                               {buyerTypesCrit!.buyer_types!.map((bt) => (
                                 <div key={String(bt.profile_name)}>
-                                  {String(bt.priority_rank)}. {String(bt.profile_name)} ({String(bt.buyer_type)})
+                                  {String(bt.priority_rank)}. {String(bt.profile_name)} (
+                                  {String(bt.buyer_type)})
                                 </div>
                               ))}
                               <div className="text-xs">

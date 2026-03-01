@@ -3,9 +3,7 @@
  * Query, search, and inspect deals (listings) in the pipeline.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -646,7 +644,7 @@ async function getDealDetails(
           .select(contactFields)
           .eq('id', dealsRow.buyer_contact_id)
           .single()
-          .then((r: any) => {
+          .then((r: { data: Record<string, unknown> | null }) => {
             buyerContact = r.data;
           }),
       );
@@ -658,7 +656,7 @@ async function getDealDetails(
           .select(contactFields)
           .eq('id', dealsRow.seller_contact_id)
           .single()
-          .then((r: any) => {
+          .then((r: { data: Record<string, unknown> | null }) => {
             sellerContact = r.data;
           }),
       );
@@ -723,15 +721,16 @@ async function getDealTasks(
   if (error) return { error: error.message };
 
   // Map field names for backward compatibility with consumers
-  const tasks = (data || []).map((t: any) => ({
+  interface TaskRow { id: string; title: string; description: string; status: string; priority: string; due_date: string | null; assignee_id: string; created_by: string; completed_at: string | null; completed_by: string | null; created_at: string; assigned_to?: string; assigned_by?: string; }
+  const tasks = (data || []).map((t: TaskRow) => ({
     ...t,
     assigned_to: t.assignee_id,
     assigned_by: t.created_by,
   }));
   const grouped = {
-    pending: tasks.filter((t: any) => t.status === 'pending' || t.status === 'pending_approval'),
-    in_progress: tasks.filter((t: any) => t.status === 'in_progress'),
-    completed: tasks.filter((t: any) => t.status === 'completed'),
+    pending: tasks.filter((t: TaskRow) => t.status === 'pending' || t.status === 'pending_approval'),
+    in_progress: tasks.filter((t: TaskRow) => t.status === 'in_progress'),
+    completed: tasks.filter((t: TaskRow) => t.status === 'completed'),
   };
 
   return {
@@ -744,7 +743,7 @@ async function getDealTasks(
         completed: grouped.completed.length,
       },
       overdue: tasks.filter(
-        (t: any) => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed',
+        (t: TaskRow) => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'completed',
       ).length,
     },
   };
@@ -804,7 +803,7 @@ async function getPipelineSummary(
   return {
     data: {
       total_deals: deals.length,
-      priority_deals: deals.filter((d: any) => d.is_priority_target).length,
+      priority_deals: deals.filter((d: Record<string, unknown>) => d.is_priority_target).length,
       grouped_by: groupBy,
       groups,
     },

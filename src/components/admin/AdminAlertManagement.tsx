@@ -3,16 +3,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Mail, Bell, Clock } from 'lucide-react';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { formatCurrency } from '@/lib/currency-utils';
 
-
 interface DealAlertWithUser {
   id: string;
   name: string;
-  criteria: any;
+  criteria: Record<string, unknown>;
   frequency: string;
   is_active: boolean;
   created_at: string;
@@ -23,12 +29,17 @@ interface DealAlertWithUser {
 }
 
 export function AdminAlertManagement() {
-  const { data: alerts, isLoading, error } = useQuery({
+  const {
+    data: alerts,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['admin', 'deal-alerts-management'],
     queryFn: async () => {
       const { data: alertData, error: alertError } = await supabase
         .from('deal_alerts')
-        .select(`
+        .select(
+          `
           id,
           name,
           criteria,
@@ -37,13 +48,14 @@ export function AdminAlertManagement() {
           created_at,
           last_sent_at,
           user_id
-        `)
+        `,
+        )
         .order('created_at', { ascending: false });
 
       if (alertError) throw alertError;
 
       // Get user profiles separately
-      const userIds = alertData?.map(alert => alert.user_id) || [];
+      const userIds = alertData?.map((alert) => alert.user_id) || [];
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, email, first_name, last_name')
@@ -52,16 +64,19 @@ export function AdminAlertManagement() {
       if (profileError) throw profileError;
 
       // Create a map of user profiles
-      const profileMap = new Map(profileData?.map(profile => [profile.id, profile]) || []);
+      const profileMap = new Map(profileData?.map((profile) => [profile.id, profile]) || []);
 
-      return alertData?.map(alert => {
-        const profile = profileMap.get(alert.user_id);
-        return {
-          ...alert,
-          user_email: profile?.email || 'Unknown',
-          user_name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Unknown',
-        };
-      }) as DealAlertWithUser[] || [];
+      return (
+        (alertData?.map((alert) => {
+          const profile = profileMap.get(alert.user_id);
+          return {
+            ...alert,
+            user_email: profile?.email || 'Unknown',
+            user_name:
+              `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Unknown',
+          };
+        }) as DealAlertWithUser[]) || []
+      );
     },
   });
 
@@ -83,33 +98,41 @@ export function AdminAlertManagement() {
     );
   }
 
-  const formatCriteria = (criteria: any) => {
-    const parts = [];
-    
+  const formatCriteria = (criteria: {
+    category?: string;
+    location?: string;
+    revenueMin?: number;
+    revenueMax?: number;
+    ebitdaMin?: number;
+    ebitdaMax?: number;
+    search?: string;
+  }) => {
+    const parts: string[] = [];
+
     if (criteria.category && criteria.category !== 'all') {
       parts.push(`Category: ${criteria.category}`);
     }
-    
+
     if (criteria.location && criteria.location !== 'all') {
       parts.push(`Location: ${criteria.location}`);
     }
-    
+
     if (criteria.revenueMin || criteria.revenueMax) {
       const min = criteria.revenueMin ? formatCurrency(criteria.revenueMin) : '0';
       const max = criteria.revenueMax ? formatCurrency(criteria.revenueMax) : '∞';
       parts.push(`Revenue: ${min} - ${max}`);
     }
-    
+
     if (criteria.ebitdaMin || criteria.ebitdaMax) {
       const min = criteria.ebitdaMin ? formatCurrency(criteria.ebitdaMin) : '0';
       const max = criteria.ebitdaMax ? formatCurrency(criteria.ebitdaMax) : '∞';
       parts.push(`EBITDA: ${min} - ${max}`);
     }
-    
+
     if (criteria.search) {
       parts.push(`Keywords: "${criteria.search}"`);
     }
-    
+
     return parts.length > 0 ? parts.join(' • ') : 'No specific criteria';
   };
 
@@ -152,7 +175,7 @@ export function AdminAlertManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {alerts.map(alert => (
+              {alerts.map((alert) => (
                 <TableRow key={alert.id}>
                   <TableCell>
                     <div className="space-y-1">
@@ -170,14 +193,15 @@ export function AdminAlertManagement() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm max-w-xs">
-                      {formatCriteria(alert.criteria)}
-                    </div>
+                    <div className="text-sm max-w-xs">{formatCriteria(alert.criteria)}</div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={getFrequencyBadgeVariant(alert.frequency)}>
-                      {alert.frequency === 'instant' ? 'Instant' : 
-                       alert.frequency === 'daily' ? 'Daily' : 'Weekly'}
+                      {alert.frequency === 'instant'
+                        ? 'Instant'
+                        : alert.frequency === 'daily'
+                          ? 'Daily'
+                          : 'Weekly'}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -199,12 +223,8 @@ export function AdminAlertManagement() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                      >
-                        <a 
+                      <Button variant="outline" size="sm" asChild>
+                        <a
                           href={`mailto:${alert.user_email}?subject=Regarding your deal alert: ${alert.name}`}
                           target="_blank"
                           rel="noopener noreferrer"

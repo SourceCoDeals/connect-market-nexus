@@ -49,11 +49,11 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
   const [orderedStageIds, setOrderedStageIds] = useState<string[]>([]);
 
   const form = useForm<ViewFormData>({
-    resolver: zodResolver(viewSchema as any),
+    resolver: zodResolver(viewSchema as unknown as Parameters<typeof zodResolver>[0]),
     defaultValues: {
       name: '',
       description: '',
-      selectedStages: stages.map(s => s.id),
+      selectedStages: stages.map((s) => s.id),
       isDefault: false,
     },
   });
@@ -65,7 +65,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
       if (currentSelected.length > 0) {
         setOrderedStageIds(currentSelected);
       } else {
-        setOrderedStageIds(stages.map(s => s.id));
+        setOrderedStageIds(stages.map((s) => s.id));
       }
     }
   }, [open, stages, form]);
@@ -76,8 +76,10 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
       if (name === 'selectedStages' && value.selectedStages) {
         // Keep order, but add new selections to end and remove deselected
         const newSelected = value.selectedStages;
-        const currentOrdered = orderedStageIds.filter(id => newSelected.includes(id));
-        const newIds = newSelected.filter((id): id is string => id !== undefined && !orderedStageIds.includes(id));
+        const currentOrdered = orderedStageIds.filter((id) => newSelected.includes(id));
+        const newIds = newSelected.filter(
+          (id): id is string => id !== undefined && !orderedStageIds.includes(id),
+        );
         setOrderedStageIds([...currentOrdered, ...newIds]);
       }
     });
@@ -105,7 +107,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
         name: data.name,
         description: data.description || '',
         stage_config: orderedStageIds
-          .filter(id => data.selectedStages.includes(id))
+          .filter((id) => data.selectedStages.includes(id))
           .map((stageId, index) => ({
             stageId,
             position: index,
@@ -121,8 +123,8 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
   };
 
   const orderedSelectedStages = orderedStageIds
-    .map(id => stages.find(s => s.id === id))
-    .filter(stage => stage && form.watch('selectedStages')?.includes(stage.id));
+    .map((id) => stages.find((s) => s.id === id))
+    .filter((stage) => stage && form.watch('selectedStages')?.includes(stage.id));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -157,10 +159,10 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
                 <FormItem>
                   <FormLabel>Description (Optional)</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="Brief description of this view..."
                       className="min-h-[60px]"
-                      {...field} 
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -199,15 +201,13 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
                                       return checked
                                         ? field.onChange([...field.value, stage.id])
                                         : field.onChange(
-                                            field.value?.filter(
-                                              (value) => value !== stage.id
-                                            )
+                                            field.value?.filter((value) => value !== stage.id),
                                           );
                                     }}
                                   />
                                 </FormControl>
                                 <div className="flex items-center gap-2 flex-1">
-                                  <div 
+                                  <div
                                     className="w-3 h-3 rounded-full"
                                     style={{ backgroundColor: stage.color }}
                                   />
@@ -246,7 +246,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
                           <Card key={stage.id} className="p-2">
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 flex-1">
-                                <div 
+                                <div
                                   className="w-3 h-3 rounded-full"
                                   style={{ backgroundColor: stage.color }}
                                 />
@@ -257,7 +257,7 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
                                   </div>
                                 </div>
                               </div>
-                              
+
                               <div className="flex items-center gap-1">
                                 <Button
                                   type="button"
@@ -296,15 +296,10 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
               render={({ field }) => (
                 <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                   <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Set as Default View
-                    </FormLabel>
+                    <FormLabel>Set as Default View</FormLabel>
                     <FormDescription>
                       This view will be shown by default when opening the pipeline
                     </FormDescription>
@@ -314,17 +309,10 @@ export function PipelineViewDialog({ open, onOpenChange }: PipelineViewDialogPro
             />
 
             <div className="flex justify-end space-x-2">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
-                disabled={createView.isPending}
-              >
+              <Button type="submit" disabled={createView.isPending}>
                 {createView.isPending ? 'Creating...' : 'Create View'}
               </Button>
             </div>

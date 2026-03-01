@@ -74,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
       status: result.allowed ? 200 : 429,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in rate-limiter function:", error);
     return new Response(
       JSON.stringify({ 

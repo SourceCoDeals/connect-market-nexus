@@ -173,39 +173,45 @@ export default function EnrichmentQueue() {
       ]);
 
       // Fetch labels for deals
-      const dealListingIds = (dealRes.data || []).map((d: any) => d.listing_id).filter(Boolean);
+      type DealQueueRow = { id: string; listing_id: string; status: string; queued_at: string; started_at: string | null; completed_at: string | null; last_error: string | null; attempts: number };
+      type BuyerQueueRow = { id: string; buyer_id: string; status: string; queued_at: string; started_at: string | null; completed_at: string | null; last_error: string | null; attempts: number };
+      type ScoringQueueRow = { id: string; buyer_id: string | null; listing_id: string | null; score_type: string; status: string; created_at: string; processed_at: string | null; last_error: string | null; attempts: number };
+      type ListingLabel = { id: string; internal_company_name: string | null; title: string | null };
+      type BuyerLabel = { id: string; company_name: string | null };
+
+      const dealListingIds = (dealRes.data || []).map((d: DealQueueRow) => d.listing_id).filter(Boolean);
       const dealLabels: Record<string, string> = {};
       if (dealListingIds.length > 0) {
         const { data: listings, error: listingsError } = await supabase.from("listings").select("id, internal_company_name, title").in("id", dealListingIds.slice(0, 100));
         if (listingsError) throw listingsError;
-        (listings || []).forEach((l: any) => { dealLabels[l.id] = l.internal_company_name || l.title || l.id.slice(0, 8); });
+        (listings || []).forEach((l: ListingLabel) => { dealLabels[l.id] = l.internal_company_name || l.title || l.id.slice(0, 8); });
       }
-      setDealItems((dealRes.data || []).map((d: any) => ({ ...d, label: dealLabels[d.listing_id] || d.listing_id?.slice(0, 8) || "—" })));
+      setDealItems((dealRes.data || []).map((d: DealQueueRow) => ({ ...d, label: dealLabels[d.listing_id] || d.listing_id?.slice(0, 8) || "—" })));
 
       // Fetch labels for buyers
-      const buyerIds = (buyerRes.data || []).map((b: any) => b.buyer_id).filter(Boolean);
+      const buyerIds = (buyerRes.data || []).map((b: BuyerQueueRow) => b.buyer_id).filter(Boolean);
       const buyerLabels: Record<string, string> = {};
       if (buyerIds.length > 0) {
         const { data: buyers, error: buyersError } = await supabase.from("remarketing_buyers").select("id, company_name").in("id", buyerIds.slice(0, 100));
         if (buyersError) throw buyersError;
-        (buyers || []).forEach((b: any) => { buyerLabels[b.id] = b.company_name || b.id.slice(0, 8); });
+        (buyers || []).forEach((b: BuyerLabel) => { buyerLabels[b.id] = b.company_name || b.id.slice(0, 8); });
       }
-      setBuyerItems((buyerRes.data || []).map((b: any) => ({ ...b, label: buyerLabels[b.buyer_id] || b.buyer_id?.slice(0, 8) || "—" })));
+      setBuyerItems((buyerRes.data || []).map((b: BuyerQueueRow) => ({ ...b, label: buyerLabels[b.buyer_id] || b.buyer_id?.slice(0, 8) || "—" })));
 
       // Fetch labels for scoring items (may reference listings or buyers)
-      const scoringListingIds = (scoringRes.data || []).map((s: any) => s.listing_id).filter(Boolean);
-      const scoringBuyerIds = (scoringRes.data || []).map((s: any) => s.buyer_id).filter(Boolean);
+      const scoringListingIds = (scoringRes.data || []).map((s: ScoringQueueRow) => s.listing_id).filter(Boolean);
+      const scoringBuyerIds = (scoringRes.data || []).map((s: ScoringQueueRow) => s.buyer_id).filter(Boolean);
       const scoringListingLabels: Record<string, string> = {};
       const scoringBuyerLabels: Record<string, string> = {};
       if (scoringListingIds.length > 0) {
         const { data: sListings } = await supabase.from("listings").select("id, internal_company_name, title").in("id", scoringListingIds.slice(0, 100));
-        (sListings || []).forEach((l: any) => { scoringListingLabels[l.id] = l.internal_company_name || l.title || l.id.slice(0, 8); });
+        (sListings || []).forEach((l: ListingLabel) => { scoringListingLabels[l.id] = l.internal_company_name || l.title || l.id.slice(0, 8); });
       }
       if (scoringBuyerIds.length > 0) {
         const { data: sBuyers } = await supabase.from("remarketing_buyers").select("id, company_name").in("id", scoringBuyerIds.slice(0, 100));
-        (sBuyers || []).forEach((b: any) => { scoringBuyerLabels[b.id] = b.company_name || b.id.slice(0, 8); });
+        (sBuyers || []).forEach((b: BuyerLabel) => { scoringBuyerLabels[b.id] = b.company_name || b.id.slice(0, 8); });
       }
-      setScoringItems((scoringRes.data || []).map((s: any) => ({
+      setScoringItems((scoringRes.data || []).map((s: ScoringQueueRow) => ({
         ...s,
         queued_at: s.created_at,
         completed_at: s.processed_at,

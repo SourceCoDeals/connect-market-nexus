@@ -13,7 +13,11 @@ const ListingsManagementTabs = () => {
   const { mutateAsync: createListing, isPending: isCreating } = useCreateListing();
   const { mutateAsync: updateListing, isPending: isUpdating } = useUpdateListing();
 
-  const handleFormSubmit = async (data: any, image?: File | null, sendDealAlerts?: boolean) => {
+  const handleFormSubmit = async (
+    data: Record<string, unknown>,
+    image?: File | null,
+    sendDealAlerts?: boolean,
+  ) => {
     try {
       if (editingListing) {
         await updateListing({ id: editingListing.id, listing: data, image });

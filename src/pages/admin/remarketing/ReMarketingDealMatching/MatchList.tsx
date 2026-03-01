@@ -18,12 +18,19 @@ import {
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import type { SortOption, FilterTab } from "./types";
 
+interface ScoreRecord {
+  id: string;
+  buyer_id: string;
+  composite_score?: number;
+  [key: string]: unknown;
+}
+
 interface MatchListProps {
-  listing: any;
+  listing: { location?: string | null; title?: string | null } | undefined;
   listingId: string | undefined;
-  scores: any[] | undefined;
-  allScores: any[] | undefined;
-  filteredScores: any[];
+  scores: ScoreRecord[] | undefined;
+  allScores: ScoreRecord[] | undefined;
+  filteredScores: ScoreRecord[];
   scoresLoading: boolean;
   linkedUniverses: Array<{ id: string; name: string }> | undefined;
   selectedUniverse: string;
@@ -33,7 +40,7 @@ interface MatchListProps {
     passed: number;
   };
   outreachCount: number;
-  outreachRecords: any[] | undefined;
+  outreachRecords: Array<{ score_id: string; status: string; contacted_at?: string; notes?: string }> | undefined;
   feeAgreementLookup: Map<string, { signed: boolean; signedAt: string | null }>;
   pipelineDealByBuyer: Map<string, string>;
   activeTab: FilterTab;
@@ -47,9 +54,9 @@ interface MatchListProps {
   selectedIds: Set<string>;
   highlightedBuyerIds: string[];
   handleSelect: (id: string, selected: boolean) => void;
-  handleApprove: (scoreId: string, scoreData?: any) => Promise<void>;
-  handleOpenPassDialog: (scoreId: string, buyerName: string, scoreData?: any) => void;
-  handleToggleInterested: (scoreId: string, interested: boolean, scoreData?: any) => Promise<void>;
+  handleApprove: (scoreId: string, scoreData?: ScoreRecord) => Promise<void>;
+  handleOpenPassDialog: (scoreId: string, buyerName: string, scoreData?: ScoreRecord) => void;
+  handleToggleInterested: (scoreId: string, interested: boolean, scoreData?: ScoreRecord) => Promise<void>;
   handleOutreachUpdate: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   handleScoreViewed: (scoreId: string) => Promise<void>;
   handleMoveToPipeline: (scoreId: string, buyerId: string, targetListingId: string) => Promise<void>;
@@ -205,7 +212,7 @@ export function MatchList({
           </Card>
         ) : (
           <div className="space-y-3">
-            {filteredScores.map((score: any) => {
+            {filteredScores.map((score: ScoreRecord) => {
               const outreach = outreachRecords?.find(o => o.score_id === score.id);
               return (
                 <BuyerMatchCard

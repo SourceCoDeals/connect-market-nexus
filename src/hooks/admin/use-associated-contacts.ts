@@ -7,7 +7,7 @@ export interface AssociatedContact {
   primary_request_id: string;
   related_request_id: string;
   relationship_type: string;
-  relationship_metadata: any; // Using any for now to handle JSON type flexibility
+  relationship_metadata: Record<string, unknown>;
   created_at: string;
 }
 
@@ -47,19 +47,21 @@ export function useCreateAssociatedContact() {
     mutationFn: async (contactData: CreateAssociatedContactData) => {
       const { data, error } = await supabase
         .from('connection_request_contacts')
-        .insert([{
-          primary_request_id: contactData.connection_request_id,
-          related_request_id: contactData.connection_request_id, // For now, same as primary
-          relationship_type: 'same_firm',
-          relationship_metadata: {
-            name: contactData.name,
-            email: contactData.email,
-            phone: contactData.phone,
-            role: contactData.role,
-            company: contactData.company,
-            source: contactData.source
-          }
-        }])
+        .insert([
+          {
+            primary_request_id: contactData.connection_request_id,
+            related_request_id: contactData.connection_request_id, // For now, same as primary
+            relationship_type: 'same_firm',
+            relationship_metadata: {
+              name: contactData.name,
+              email: contactData.email,
+              phone: contactData.phone,
+              role: contactData.role,
+              company: contactData.company,
+              source: contactData.source,
+            },
+          },
+        ])
         .select()
         .single();
 
@@ -67,19 +69,19 @@ export function useCreateAssociatedContact() {
       return data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['associated-contacts', variables.connection_request_id] 
+      queryClient.invalidateQueries({
+        queryKey: ['associated-contacts', variables.connection_request_id],
       });
       toast({
-        title: "Contact added",
-        description: "Associated contact has been successfully added",
+        title: 'Contact added',
+        description: 'Associated contact has been successfully added',
       });
     },
     onError: (_error) => {
       toast({
-        variant: "destructive",
-        title: "Failed to add contact",
-        description: "Could not add the associated contact",
+        variant: 'destructive',
+        title: 'Failed to add contact',
+        description: 'Could not add the associated contact',
       });
     },
   });

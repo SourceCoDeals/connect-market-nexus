@@ -50,7 +50,7 @@ export default function ScoringSection({ addLog, dealId, runRef }: Props) {
         `calculate-deal-quality for ${dealId.slice(0, 8)}… (score: ${listing?.deal_total_score ?? '—'})`,
         dur,
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
       setError(e.message);
       addLog(`scoring — ${e.message}`, dur, false);

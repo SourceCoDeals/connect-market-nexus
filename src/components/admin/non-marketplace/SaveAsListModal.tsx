@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -12,18 +12,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { ListChecks, Loader2 } from "lucide-react";
-import { useCreateContactList } from "@/hooks/admin/use-contact-lists";
-import type { NonMarketplaceUser, NonMarketplaceUserFilters } from "@/types/non-marketplace-user";
-import type { ContactListFilterSnapshot, CreateContactListMemberInput } from "@/types/contact-list";
+} from '@/components/ui/select';
+import { ListChecks, Loader2 } from 'lucide-react';
+import { useCreateContactList } from '@/hooks/admin/use-contact-lists';
+import type { NonMarketplaceUser, NonMarketplaceUserFilters } from '@/types/non-marketplace-user';
+import type { ContactListFilterSnapshot, CreateContactListMemberInput } from '@/types/contact-list';
 
 interface SaveAsListModalProps {
   open: boolean;
@@ -41,10 +41,10 @@ export function SaveAsListModal({
   onSuccess,
 }: SaveAsListModalProps) {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [listType, setListType] = useState<"buyer" | "seller" | "mixed">("buyer");
-  const [tags, setTags] = useState("");
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [listType, setListType] = useState<'buyer' | 'seller' | 'mixed'>('buyer');
+  const [tags, setTags] = useState('');
 
   const createList = useCreateContactList();
 
@@ -60,11 +60,11 @@ export function SaveAsListModal({
     }));
 
     const filterSnapshot: ContactListFilterSnapshot | undefined = filters
-      ? { page: "buyer_contacts", ...filters }
+      ? { page: 'buyer_contacts', ...filters }
       : undefined;
 
     const tagsList = tags
-      .split(",")
+      .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
 
@@ -79,14 +79,14 @@ export function SaveAsListModal({
       },
       {
         onSuccess: (data) => {
-          setName("");
-          setDescription("");
-          setTags("");
+          setName('');
+          setDescription('');
+          setTags('');
           onOpenChange(false);
           onSuccess?.(data.id);
           navigate(`/admin/lists/${data.id}`);
         },
-      }
+      },
     );
   };
 
@@ -102,7 +102,8 @@ export function SaveAsListModal({
             Save as List
           </DialogTitle>
           <DialogDescription>
-            Create a reusable contact list from your selection. Lists can be exported to PhoneBurner or CSV.
+            Create a reusable contact list from your selection. Lists can be exported to PhoneBurner
+            or CSV.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +144,10 @@ export function SaveAsListModal({
           {/* List Type */}
           <div className="space-y-2">
             <Label>List Type</Label>
-            <Select value={listType} onValueChange={(v) => setListType(v as any)}>
+            <Select
+              value={listType}
+              onValueChange={(v) => setListType(v as 'buyer' | 'seller' | 'mixed')}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -171,10 +175,7 @@ export function SaveAsListModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={!name.trim() || createList.isPending}
-          >
+          <Button onClick={handleCreate} disabled={!name.trim() || createList.isPending}>
             {createList.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

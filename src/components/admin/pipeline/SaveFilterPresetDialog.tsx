@@ -16,7 +16,7 @@ import { useCreateFilterPreset } from '@/hooks/admin/use-filter-presets';
 interface SaveFilterPresetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentFilters: Record<string, any>;
+  currentFilters: Record<string, unknown>;
 }
 
 export function SaveFilterPresetDialog({ open, onOpenChange, currentFilters }: SaveFilterPresetDialogProps) {

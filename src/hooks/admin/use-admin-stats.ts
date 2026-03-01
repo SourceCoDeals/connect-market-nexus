@@ -71,7 +71,7 @@ export function useAdminStats() {
             pendingConnections: pendingConnections || 0,
             approvedConnections: approvedConnections || 0,
           } as AdminStats;
-        } catch (error: any) {
+        } catch (error: unknown) {
           toast({
             variant: 'destructive',
             title: 'Error loading stats',
@@ -181,7 +181,7 @@ export function useAdminStats() {
           activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
           
           return activities.slice(0, 10); // Return 10 most recent activities
-        } catch (error: any) {
+        } catch (error: unknown) {
           toast({
             variant: 'destructive',
             title: 'Error loading activities',

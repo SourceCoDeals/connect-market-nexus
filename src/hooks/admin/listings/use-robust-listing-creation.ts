@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { uploadListingImage } from '@/lib/storage-utils';
 
 // Validation and sanitization utilities
-const sanitizeArrayField = (field: any): string[] => {
+const sanitizeArrayField = (field: unknown): string[] => {
   if (!field) return [];
   if (Array.isArray(field)) {
     return field.filter((item) => item && typeof item === 'string' && item.trim().length > 0);
@@ -13,12 +13,12 @@ const sanitizeArrayField = (field: any): string[] => {
   return [];
 };
 
-const sanitizeStringField = (field: any, defaultValue: string = ''): string => {
+const sanitizeStringField = (field: unknown, defaultValue: string = ''): string => {
   if (typeof field === 'string') return field.trim();
   return defaultValue;
 };
 
-const sanitizeNumericField = (field: any): number => {
+const sanitizeNumericField = (field: unknown): number => {
   const num = Number(field);
   return isNaN(num) ? 0 : num;
 };
@@ -31,7 +31,7 @@ interface DatabaseListingInsert {
   acquisition_type?: 'add_on' | 'platform' | null;
   description: string;
   description_html: string | null;
-  description_json: any;
+  description_json: Record<string, unknown> | null;
   location: string;
   revenue: number;
   ebitda: number;
@@ -89,9 +89,9 @@ interface DatabaseListingInsert {
 
   // Landing page content fields
   investment_thesis?: string | null;
-  custom_sections?: any;
+  custom_sections?: Array<{ title: string; description: string }> | null;
   services?: string[] | null;
-  growth_drivers?: any;
+  growth_drivers?: string[] | null;
   competitive_position?: string | null;
   ownership_structure?: string | null;
   seller_motivation?: string | null;
@@ -199,24 +199,24 @@ export function useRobustListingCreation() {
           source_deal_id: listing.source_deal_id || null,
 
           // Landing page content fields
-          investment_thesis: (listing as any).investment_thesis || null,
-          custom_sections: (listing as any).custom_sections || null,
-          services: (listing as any).services || null,
-          growth_drivers: (listing as any).growth_drivers || null,
-          competitive_position: (listing as any).competitive_position || null,
+          investment_thesis: listing.investment_thesis || null,
+          custom_sections: listing.custom_sections || null,
+          services: listing.services || null,
+          growth_drivers: listing.growth_drivers || null,
+          competitive_position: listing.competitive_position || null,
           ownership_structure: listing.ownership_structure || null,
           seller_motivation: listing.seller_motivation || null,
-          business_model: (listing as any).business_model || null,
-          customer_geography: (listing as any).customer_geography || null,
-          customer_types: (listing as any).customer_types || null,
-          revenue_model: (listing as any).revenue_model || null,
-          end_market_description: (listing as any).end_market_description || null,
+          business_model: listing.business_model || null,
+          customer_geography: listing.customer_geography || null,
+          customer_types: listing.customer_types || null,
+          revenue_model: listing.revenue_model || null,
+          end_market_description: listing.end_market_description || null,
         };
 
         // Step 3: Insert listing with isolated transaction
         const { data: insertedListing, error: insertError } = await supabase
           .from('listings')
-          .insert(databaseInsert as any)
+          .insert(databaseInsert as never)
           .select()
           .single();
 
@@ -256,7 +256,7 @@ export function useRobustListingCreation() {
             } else {
               finalListing = updatedListing;
             }
-          } catch (imageError: any) {
+          } catch (_imageError: unknown) {
             toast({
               variant: 'destructive',
               title: 'Image Upload Failed',
@@ -271,7 +271,7 @@ export function useRobustListingCreation() {
           try {
             // Call deal alerts function separately to avoid transaction interference
             await triggerDealAlertsForListing(finalListing);
-          } catch (alertError: any) {
+          } catch (_alertError: unknown) {
             // Don't fail the entire operation for deal alerts
             toast({
               title: 'Listing Created',
@@ -281,8 +281,8 @@ export function useRobustListingCreation() {
         }
 
         return finalListing as unknown as AdminListing;
-      } catch (error: any) {
-        throw new Error(error.message || 'Failed to create listing');
+      } catch (error: unknown) {
+        throw new Error(error instanceof Error ? error.message : 'Failed to create listing');
       }
     },
     onSuccess: (data) => {
@@ -303,7 +303,7 @@ export function useRobustListingCreation() {
         description: `"${data.title}" has been created. Use Publish to make it visible on the marketplace.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Failed to Create Listing',
@@ -316,7 +316,7 @@ export function useRobustListingCreation() {
 /**
  * Separate function to handle deal alerts without affecting main listing creation
  */
-async function triggerDealAlertsForListing(listing: any): Promise<void> {
+async function triggerDealAlertsForListing(listing: Record<string, unknown>): Promise<void> {
   try {
     // Query deal alerts that match this listing
     const { data: matchingAlerts, error } = await supabase.rpc('match_deal_alerts_with_listing', {

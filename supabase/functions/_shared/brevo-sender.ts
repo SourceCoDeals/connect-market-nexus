@@ -60,7 +60,7 @@ export async function sendViaBervo(
     || "notifications@sourcecodeals.com";
   const senderName = options.senderName || "SourceCo Notifications";
 
-  const payload: Record<string, any> = {
+  const payload: Record<string, unknown> = {
     sender: { name: senderName, email: senderEmail },
     to: [{ email: options.to, name: options.toName || options.to }],
     subject: options.subject,
@@ -114,7 +114,7 @@ export async function sendViaBervo(
       // Server error (5xx) — retry with backoff
       lastError = `HTTP ${response.status}: ${JSON.stringify(data)}`;
       console.warn(`[brevo-sender] Server error (attempt ${attempt + 1}/${maxRetries + 1}):`, lastError);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Network/timeout error — retry with backoff
       lastError = err.message;
       console.warn(`[brevo-sender] Fetch error (attempt ${attempt + 1}/${maxRetries + 1}):`, lastError);

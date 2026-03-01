@@ -1,20 +1,21 @@
-import { UseFormReturn } from "react-hook-form";
-import { FormField, FormItem, FormControl } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { EDITOR_DESIGN } from "@/lib/editor-design-system";
-import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { FieldValues, UseFormReturn } from 'react-hook-form';
+import { FormField, FormItem, FormControl } from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { EDITOR_DESIGN } from '@/lib/editor-design-system';
+import { cn } from '@/lib/utils';
+import { ChevronDown, ChevronRight, Plus, X } from 'lucide-react';
+import { useState } from 'react';
 
 interface EditorLandingPageContentSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<FieldValues>;
 }
 
 export function EditorLandingPageContentSection({ form }: EditorLandingPageContentSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const customSections: Array<{ title: string; description: string }> = form.watch('custom_sections') || [];
+  const customSections: Array<{ title: string; description: string }> =
+    form.watch('custom_sections') || [];
   const services: string[] = form.watch('services') || [];
 
   const addCustomSection = () => {
@@ -24,7 +25,10 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
 
   const removeCustomSection = (index: number) => {
     const current = form.getValues('custom_sections') || [];
-    form.setValue('custom_sections', current.filter((_: any, i: number) => i !== index));
+    form.setValue(
+      'custom_sections',
+      current.filter((_: unknown, i: number) => i !== index),
+    );
   };
 
   const updateCustomSection = (index: number, field: 'title' | 'description', value: string) => {
@@ -40,7 +44,10 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
 
   const removeService = (index: number) => {
     const current = form.getValues('services') || [];
-    form.setValue('services', current.filter((_: any, i: number) => i !== index));
+    form.setValue(
+      'services',
+      current.filter((_: unknown, i: number) => i !== index),
+    );
   };
 
   const updateService = (index: number, value: string) => {
@@ -50,7 +57,14 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
   };
 
   return (
-    <div className={cn(EDITOR_DESIGN.cardBg, EDITOR_DESIGN.cardBorder, "rounded-lg", EDITOR_DESIGN.cardPadding)}>
+    <div
+      className={cn(
+        EDITOR_DESIGN.cardBg,
+        EDITOR_DESIGN.cardBorder,
+        'rounded-lg',
+        EDITOR_DESIGN.cardPadding,
+      )}
+    >
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -79,7 +93,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                       placeholder="Why this is a compelling acquisition opportunity..."
                       {...field}
                       value={field.value || ''}
-                      className={cn("text-sm resize-y", EDITOR_DESIGN.inputBg, EDITOR_DESIGN.inputBorder, "rounded p-2")}
+                      className={cn(
+                        'text-sm resize-y',
+                        EDITOR_DESIGN.inputBg,
+                        EDITOR_DESIGN.inputBorder,
+                        'rounded p-2',
+                      )}
                     />
                   </FormControl>
                 </FormItem>
@@ -88,10 +107,16 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
           </div>
 
           {/* Custom Sections */}
-          <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider)}>
+          <div className={cn('pt-3', EDITOR_DESIGN.subtleDivider)}>
             <div className="flex items-center justify-between mb-2">
               <div className={EDITOR_DESIGN.microLabel}>Content Sections</div>
-              <Button type="button" variant="ghost" size="sm" onClick={addCustomSection} className="h-6 gap-1 text-xs">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={addCustomSection}
+                className="h-6 gap-1 text-xs"
+              >
                 <Plus className="h-3 w-3" /> Add Section
               </Button>
             </div>
@@ -108,24 +133,35 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                   placeholder="Section title"
                   value={section.title}
                   onChange={(e) => updateCustomSection(i, 'title', e.target.value)}
-                  className={cn("mb-2 text-sm", EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
+                  className={cn('mb-2 text-sm', EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
                 />
                 <Textarea
                   rows={2}
                   placeholder="Section content..."
                   value={section.description}
                   onChange={(e) => updateCustomSection(i, 'description', e.target.value)}
-                  className={cn("text-sm resize-y", EDITOR_DESIGN.inputBg, EDITOR_DESIGN.inputBorder, "rounded p-2")}
+                  className={cn(
+                    'text-sm resize-y',
+                    EDITOR_DESIGN.inputBg,
+                    EDITOR_DESIGN.inputBorder,
+                    'rounded p-2',
+                  )}
                 />
               </div>
             ))}
           </div>
 
           {/* Services */}
-          <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider)}>
+          <div className={cn('pt-3', EDITOR_DESIGN.subtleDivider)}>
             <div className="flex items-center justify-between mb-2">
               <div className={EDITOR_DESIGN.microLabel}>Services / Offerings</div>
-              <Button type="button" variant="ghost" size="sm" onClick={addService} className="h-6 gap-1 text-xs">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={addService}
+                className="h-6 gap-1 text-xs"
+              >
                 <Plus className="h-3 w-3" /> Add
               </Button>
             </div>
@@ -136,9 +172,17 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                     placeholder="Service or offering"
                     value={service}
                     onChange={(e) => updateService(i, e.target.value)}
-                    className={cn("flex-1 text-sm", EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
+                    className={cn(
+                      'flex-1 text-sm',
+                      EDITOR_DESIGN.miniHeight,
+                      EDITOR_DESIGN.inputBg,
+                    )}
                   />
-                  <button type="button" onClick={() => removeService(i)} className="text-muted-foreground hover:text-destructive p-1">
+                  <button
+                    type="button"
+                    onClick={() => removeService(i)}
+                    className="text-muted-foreground hover:text-destructive p-1"
+                  >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -147,7 +191,7 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
           </div>
 
           {/* Business Details Grid */}
-          <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider, "grid grid-cols-2 gap-3")}>
+          <div className={cn('pt-3', EDITOR_DESIGN.subtleDivider, 'grid grid-cols-2 gap-3')}>
             <div className={EDITOR_DESIGN.microFieldSpacing}>
               <div className={EDITOR_DESIGN.microLabel}>Business Model</div>
               <FormField
@@ -156,7 +200,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="e.g., Recurring revenue" {...field} value={field.value || ''} className={cn("text-sm", EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)} />
+                      <Input
+                        placeholder="e.g., Recurring revenue"
+                        {...field}
+                        value={field.value || ''}
+                        className={cn('text-sm', EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -170,7 +219,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="e.g., Southeast US" {...field} value={field.value || ''} className={cn("text-sm", EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)} />
+                      <Input
+                        placeholder="e.g., Southeast US"
+                        {...field}
+                        value={field.value || ''}
+                        className={cn('text-sm', EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -184,7 +238,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="e.g., B2B, Commercial" {...field} value={field.value || ''} className={cn("text-sm", EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)} />
+                      <Input
+                        placeholder="e.g., B2B, Commercial"
+                        {...field}
+                        value={field.value || ''}
+                        className={cn('text-sm', EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -198,7 +257,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="e.g., Contract-based" {...field} value={field.value || ''} className={cn("text-sm", EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)} />
+                      <Input
+                        placeholder="e.g., Contract-based"
+                        {...field}
+                        value={field.value || ''}
+                        className={cn('text-sm', EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -207,7 +271,7 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
           </div>
 
           {/* Ownership / Seller */}
-          <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider, "grid grid-cols-2 gap-3")}>
+          <div className={cn('pt-3', EDITOR_DESIGN.subtleDivider, 'grid grid-cols-2 gap-3')}>
             <div className={EDITOR_DESIGN.microFieldSpacing}>
               <div className={EDITOR_DESIGN.microLabel}>Ownership Structure</div>
               <FormField
@@ -216,7 +280,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="e.g., Founder-owned, 20+ years" {...field} value={field.value || ''} className={cn("text-sm", EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)} />
+                      <Input
+                        placeholder="e.g., Founder-owned, 20+ years"
+                        {...field}
+                        value={field.value || ''}
+                        className={cn('text-sm', EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -230,7 +299,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <Input placeholder="e.g., Retirement, succession" {...field} value={field.value || ''} className={cn("text-sm", EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)} />
+                      <Input
+                        placeholder="e.g., Retirement, succession"
+                        {...field}
+                        value={field.value || ''}
+                        className={cn('text-sm', EDITOR_DESIGN.miniHeight, EDITOR_DESIGN.inputBg)}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -239,7 +313,7 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
           </div>
 
           {/* Competitive Position & End Market */}
-          <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider, "space-y-3")}>
+          <div className={cn('pt-3', EDITOR_DESIGN.subtleDivider, 'space-y-3')}>
             <div className={EDITOR_DESIGN.microFieldSpacing}>
               <div className={EDITOR_DESIGN.microLabel}>Competitive Position</div>
               <FormField
@@ -253,7 +327,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                         placeholder="Market position, differentiation, moat..."
                         {...field}
                         value={field.value || ''}
-                        className={cn("text-sm resize-y", EDITOR_DESIGN.inputBg, EDITOR_DESIGN.inputBorder, "rounded p-2")}
+                        className={cn(
+                          'text-sm resize-y',
+                          EDITOR_DESIGN.inputBg,
+                          EDITOR_DESIGN.inputBorder,
+                          'rounded p-2',
+                        )}
                       />
                     </FormControl>
                   </FormItem>
@@ -273,7 +352,12 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
                         placeholder="Target market, industry dynamics..."
                         {...field}
                         value={field.value || ''}
-                        className={cn("text-sm resize-y", EDITOR_DESIGN.inputBg, EDITOR_DESIGN.inputBorder, "rounded p-2")}
+                        className={cn(
+                          'text-sm resize-y',
+                          EDITOR_DESIGN.inputBg,
+                          EDITOR_DESIGN.inputBorder,
+                          'rounded p-2',
+                        )}
                       />
                     </FormControl>
                   </FormItem>

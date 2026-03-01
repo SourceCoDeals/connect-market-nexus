@@ -12,7 +12,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 interface SessionSecurityRequest {
   action: 'validate_session' | 'check_concurrent_sessions' | 'invalidate_sessions' | 'detect_anomalies';
   user_id?: string;
-  session_data?: any;
+  session_data?: Record<string, unknown>;
   ip_address?: string;
   user_agent?: string;
 }
@@ -29,7 +29,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     console.log(`Session security action: ${action} for user: ${user_id}`);
     
-    let result: any;
+    let result: Record<string, unknown>;
     
     switch (action) {
       case 'validate_session':
@@ -52,10 +52,10 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in session-security function:", error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Session security check failed' }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Session security check failed' }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -64,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function validateSession(userId?: string, sessionData?: any, ipAddress?: string, userAgent?: string) {
+async function validateSession(userId?: string, sessionData?: Record<string, unknown>, ipAddress?: string, userAgent?: string) {
   if (!userId) {
     return { valid: false, reason: 'No user ID provided' };
   }
@@ -135,7 +135,7 @@ async function checkConcurrentSessions(userId?: string) {
     // Estimate concurrent sessions based on unique IP addresses
     const uniqueIPs = new Set();
     activities?.forEach(activity => {
-      const metadata = activity.metadata as any;
+      const metadata = activity.metadata as Record<string, unknown> | null;
       if (metadata?.ip_address) {
         uniqueIPs.add(metadata.ip_address);
       }
@@ -264,12 +264,12 @@ async function getRecentSessions(userId: string, hours: number = 24) {
   
   return activities?.map(activity => ({
     timestamp: activity.created_at,
-    ip_address: (activity.metadata as any)?.ip_address,
-    user_agent: (activity.metadata as any)?.user_agent
+    ip_address: (activity.metadata as Record<string, unknown> | null)?.ip_address,
+    user_agent: (activity.metadata as Record<string, unknown> | null)?.user_agent
   })) || [];
 }
 
-async function logSessionActivity(userId: string, activityType: string, metadata: any) {
+async function logSessionActivity(userId: string, activityType: string, metadata: Record<string, unknown>) {
   try {
     await supabase
       .from('user_activity')

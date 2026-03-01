@@ -32,6 +32,8 @@ import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { useGPPartnerDeals } from './useGPPartnerDeals';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import type { Operator } from '@/components/filters';
+import type { SortColumn } from './types';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { GPPartnerKPICards } from './GPPartnerKPICards';
 import { GPPartnerTable } from './GPPartnerTable';
@@ -172,7 +174,7 @@ export default function GPPartnerDeals() {
       const rules = filters.map((f, idx) => ({
         id: `ai-filter-${idx}`,
         field: f.field,
-        operator: f.operator as any,
+        operator: f.operator as Operator,
         value: f.value,
       }));
       if (clearExisting) hook.setFilterState({ rules, conjunction: 'and', search: '' });
@@ -185,7 +187,7 @@ export default function GPPartnerDeals() {
         created_at: 'created_at',
         priority: 'priority',
       };
-      hook.handleSort((fieldMap[field] || field) as any);
+      hook.handleSort((fieldMap[field] || field) as SortColumn);
     },
     onTriggerAction: (action) => {
       if (action === 'push_to_dialer') setDialerOpen(true);

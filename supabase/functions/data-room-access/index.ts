@@ -24,9 +24,40 @@
  *   - bulk: true
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
+
+interface GrantBody {
+  deal_id?: string;
+  remarketing_buyer_id?: string;
+  marketplace_user_id?: string;
+  can_view_teaser?: boolean;
+  can_view_full_memo?: boolean;
+  can_view_data_room?: boolean;
+  fee_agreement_override_reason?: string;
+  expires_at?: string;
+  bulk?: boolean;
+  buyer_ids?: Array<{ remarketing_buyer_id?: string; marketplace_user_id?: string }>;
+}
+
+interface AccessRecord {
+  deal_id: string;
+  can_view_teaser: boolean;
+  can_view_full_memo: boolean;
+  can_view_data_room: boolean;
+  last_modified_by: string;
+  last_modified_at: string;
+  revoked_at: string | null;
+  remarketing_buyer_id?: string;
+  marketplace_user_id?: string;
+  fee_agreement_override?: boolean;
+  fee_agreement_override_reason?: string;
+  fee_agreement_override_by?: string;
+  expires_at?: string;
+  granted_by?: string;
+  granted_at?: string;
+}
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
@@ -175,8 +206,8 @@ Deno.serve(async (req: Request) => {
 });
 
 async function handleSingleGrant(
-  supabase: any,
-  body: any,
+  supabase: SupabaseClient,
+  body: GrantBody,
   adminUserId: string,
   ipAddress: string | null,
   userAgent: string | null,
@@ -242,14 +273,14 @@ async function handleSingleGrant(
   }
 
   // Upsert access record
-  const accessData: any = {
-    deal_id,
+  const accessData: AccessRecord = {
+    deal_id: deal_id!,
     can_view_teaser,
     can_view_full_memo,
     can_view_data_room,
     last_modified_by: adminUserId,
     last_modified_at: new Date().toISOString(),
-    revoked_at: null, // Clear revocation if re-granting
+    revoked_at: null,
   };
 
   if (remarketing_buyer_id) {
@@ -349,8 +380,8 @@ async function handleSingleGrant(
 }
 
 async function handleBulkGrant(
-  supabase: any,
-  body: any,
+  supabase: SupabaseClient,
+  body: GrantBody,
   adminUserId: string,
   ipAddress: string | null,
   userAgent: string | null,
@@ -371,23 +402,14 @@ async function handleBulkGrant(
     );
   }
 
-  const results: any[] = [];
-  const errors: any[] = [];
+  const results: Array<{ buyer_id: string | undefined; success: boolean }> = [];
+  const errors: Array<{ buyer_id: string | undefined; error: string }> = [];
 
   for (const buyer of buyer_ids) {
     try {
-      const grantBody = {
-        deal_id,
-        remarketing_buyer_id: buyer.remarketing_buyer_id,
-        marketplace_user_id: buyer.marketplace_user_id,
-        can_view_teaser,
-        can_view_full_memo,
-        can_view_data_room,
-      };
-
       // For bulk, skip fee agreement check (admin is making a deliberate bulk decision)
-      const accessData: any = {
-        deal_id,
+      const accessData: AccessRecord = {
+        deal_id: deal_id!,
         can_view_teaser,
         can_view_full_memo,
         can_view_data_room,

@@ -128,7 +128,7 @@ Deno.serve(async (req: Request) => {
     const dataContext = buildDataContext(deal, transcripts || [], valuationData);
 
     // Generate memo(s)
-    const results: any = {};
+    const results: Record<string, Record<string, unknown>> = {};
 
     if (memo_type === "anonymous_teaser" || memo_type === "both") {
       const teaserContent = await generateMemo(
@@ -200,7 +200,7 @@ Deno.serve(async (req: Request) => {
         memo_type,
         branding,
         sources_used: dataContext.sources,
-        memo_ids: Object.values(results).map((r: any) => r.id),
+        memo_ids: Object.values(results).map((r) => r.id),
       },
       p_ip_address: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
       p_user_agent: req.headers.get("user-agent") || null,
@@ -209,10 +209,10 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({ success: true, memos: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Generate memo error:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to generate memo", details: (error as Error).message }),
+      JSON.stringify({ error: "Failed to generate memo", details: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -221,7 +221,7 @@ Deno.serve(async (req: Request) => {
 // ─── Data Context Builder ───
 
 interface DataContext {
-  deal: any;
+  deal: Record<string, unknown>;
   transcriptExcerpts: string;
   enrichmentData: string;
   manualEntries: string;
@@ -229,7 +229,7 @@ interface DataContext {
   sources: string[];
 }
 
-function buildDataContext(deal: any, transcripts: any[], valuationData: any): DataContext {
+function buildDataContext(deal: Record<string, unknown>, transcripts: Record<string, unknown>[], valuationData: Record<string, unknown> | null): DataContext {
   const sources: string[] = [];
 
   // Transcript excerpts (highest priority)
@@ -477,7 +477,7 @@ Generate the memo now. Return ONLY the JSON object with "sections" array.`;
     throw new Error("No content returned from AI");
   }
 
-  let parsed: any;
+  let parsed: { sections?: MemoSection[] };
   try {
     parsed = JSON.parse(content);
   } catch {

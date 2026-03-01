@@ -5,7 +5,7 @@ import { calculateDealScore, estimateEmployeesFromRange } from './deal-scoring-v
 // Helper: build a deal object with defaults
 // ============================================================================
 
-function makeDeal(overrides: Record<string, any> = {}) {
+function makeDeal(overrides: Record<string, unknown> = {}) {
   return {
     revenue: null,
     ebitda: null,

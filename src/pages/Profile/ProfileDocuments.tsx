@@ -24,7 +24,7 @@ function useSignedDocuments() {
 
       // Get firm membership
       const { data: membership } = await (supabase
-        .from("firm_members") as any)
+        .from("firm_members" as never) as unknown as ReturnType<typeof supabase.from>)
         .select("firm_id")
         .eq("user_id", user.id)
         .limit(1)
@@ -34,7 +34,7 @@ function useSignedDocuments() {
 
       // Get firm agreement with signed doc URLs
       const { data: firm } = await (supabase
-        .from("firm_agreements") as any)
+        .from("firm_agreements" as never) as unknown as ReturnType<typeof supabase.from>)
         .select(
           "nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url"
         )

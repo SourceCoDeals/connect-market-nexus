@@ -4,7 +4,6 @@
  * Queries and mutations for the rm_task_comments threaded discussion system.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -18,7 +17,7 @@ export function useTaskComments(taskId: string | null) {
     enabled: !!taskId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('rm_task_comments' as any)
+        .from('rm_task_comments' as never)
         .select(
           `
           *,
@@ -42,7 +41,7 @@ export function useAddTaskComment() {
   return useMutation({
     mutationFn: async ({ taskId, body }: { taskId: string; body: string }) => {
       const { data, error } = await supabase
-        .from('rm_task_comments' as any)
+        .from('rm_task_comments' as never)
         .insert({
           task_id: taskId,
           user_id: user?.id,
@@ -54,7 +53,7 @@ export function useAddTaskComment() {
       if (error) throw error;
 
       // Log activity
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await supabase.from('rm_task_activity_log' as never).insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'commented',
@@ -75,7 +74,7 @@ export function useDeleteTaskComment() {
   return useMutation({
     mutationFn: async ({ commentId, taskId }: { commentId: string; taskId: string }) => {
       const { error } = await supabase
-        .from('rm_task_comments' as any)
+        .from('rm_task_comments' as never)
         .delete()
         .eq('id', commentId);
 

@@ -115,8 +115,8 @@ describe('detectPlaceholders', () => {
 
   it('returns false for empty/null input', () => {
     expect(detectPlaceholders('')).toBe(false);
-    expect(detectPlaceholders(null as any)).toBe(false);
-    expect(detectPlaceholders(undefined as any)).toBe(false);
+    expect(detectPlaceholders(null as unknown as string)).toBe(false);
+    expect(detectPlaceholders(undefined as unknown as string)).toBe(false);
   });
 });
 
@@ -144,7 +144,7 @@ describe('validateNumericRange', () => {
   });
 
   it('rejects non-numbers', () => {
-    expect(validateNumericRange('abc' as any, 0, 100)).toMatchObject({ valid: false });
+    expect(validateNumericRange('abc' as unknown as number, 0, 100)).toMatchObject({ valid: false });
   });
 
   it('includes field name in reason', () => {

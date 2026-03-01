@@ -14,7 +14,7 @@
  * All functions are pure — no DB writes, no side effects.
  */
 
-import { normalizeState } from "./geography.ts";
+import { normalizeState } from './geography.ts';
 
 // ============================================================================
 // CONFIGURATION
@@ -91,10 +91,18 @@ export const VALID_LISTING_UPDATE_KEYS = new Set([
 
 // Financial data must NEVER come from website scraping — only from transcripts or manual entry
 export const FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES = [
-  'revenue', 'revenue_value', 'revenue_is_inferred', 'revenue_source_quote',
-  'ebitda', 'ebitda_amount', 'ebitda_margin', 'ebitda_margin_percentage',
-  'ebitda_is_inferred', 'ebitda_source_quote',
-  'financial_notes', 'financial_followup_questions',
+  'revenue',
+  'revenue_value',
+  'revenue_is_inferred',
+  'revenue_source_quote',
+  'ebitda',
+  'ebitda_amount',
+  'ebitda_margin',
+  'ebitda_margin_percentage',
+  'ebitda_is_inferred',
+  'ebitda_source_quote',
+  'financial_notes',
+  'financial_followup_questions',
   'asking_price',
 ];
 
@@ -114,8 +122,32 @@ export const NUMERIC_LISTING_FIELDS = new Set([
 ]);
 
 // Placeholder values to reject from any field
-export const WEBSITE_PLACEHOLDERS = ['<unknown>', 'unknown', 'n/a', 'none', 'null', 'not found', 'not specified', 'not provided', 'no.com', 'test.com', 'example.com', 'www.test.com', 'www.example.com'];
-export const ADDRESS_PLACEHOLDERS = ['not found', 'n/a', 'unknown', 'none', 'null', 'undefined', 'tbd', 'not available', 'not specified'];
+export const WEBSITE_PLACEHOLDERS = [
+  '<unknown>',
+  'unknown',
+  'n/a',
+  'none',
+  'null',
+  'not found',
+  'not specified',
+  'not provided',
+  'no.com',
+  'test.com',
+  'example.com',
+  'www.test.com',
+  'www.example.com',
+];
+export const ADDRESS_PLACEHOLDERS = [
+  'not found',
+  'n/a',
+  'unknown',
+  'none',
+  'null',
+  'undefined',
+  'tbd',
+  'not available',
+  'not specified',
+];
 
 // ============================================================================
 // AI PROMPT + TOOL SCHEMA
@@ -211,87 +243,99 @@ export const DEAL_TOOL_SCHEMA = {
         // Company identity
         internal_company_name: {
           type: 'string',
-          description: 'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".'
+          description:
+            'The REAL company name extracted from the website (from logo, header, footer, legal notices). Must be an actual business name, NOT a generic description like "Marketing Agency" or "Home Services Company".',
         },
         industry: {
           type: 'string',
-          description: 'REQUIRED. Primary industry classification. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Residential Landscaping", "Environmental Remediation", "Healthcare Staffing", "Commercial Cleaning", "Electrical Contracting".'
+          description:
+            'REQUIRED. Primary industry classification. Be specific but concise (2-4 words). Examples: "HVAC Services", "Commercial Plumbing", "IT Managed Services", "Residential Landscaping", "Environmental Remediation", "Healthcare Staffing", "Commercial Cleaning", "Electrical Contracting".',
         },
         website: {
           type: 'string',
-          description: 'Canonical website URL if different from the scraped URL (e.g., redirected domain)'
+          description:
+            'Canonical website URL if different from the scraped URL (e.g., redirected domain)',
         },
         linkedin_url: {
           type: 'string',
-          description: 'LinkedIn company page URL if found on the website'
+          description: 'LinkedIn company page URL if found on the website',
         },
         // Summary & services
         executive_summary: {
           type: 'string',
-          description: 'A 5-8 sentence PE-investor-grade summary. This is the MOST IMPORTANT field. Include: what the company does, business model (how it makes money — B2B/B2C, recurring/project-based), size indicators (locations, years, employees), geographic footprint, competitive advantages (certifications, preferred vendor status, proprietary processes, market position, awards), customer base quality, and acquisition attractiveness. Every sentence must contain a specific fact or detail.'
+          description:
+            'A 5-8 sentence PE-investor-grade summary. This is the MOST IMPORTANT field. Include: what the company does, business model (how it makes money — B2B/B2C, recurring/project-based), size indicators (locations, years, employees), geographic footprint, competitive advantages (certifications, preferred vendor status, proprietary processes, market position, awards), customer base quality, and acquisition attractiveness. Every sentence must contain a specific fact or detail.',
         },
         services: {
           type: 'array',
           items: { type: 'string' },
-          description: 'List of EVERY distinct service/product offered. Be specific: "fire restoration" not just "restoration". Use lowercase except proper nouns.'
+          description:
+            'List of EVERY distinct service/product offered. Be specific: "fire restoration" not just "restoration". Use lowercase except proper nouns.',
         },
         service_mix: {
           type: 'string',
-          description: 'Detailed 2-4 sentence description of the full service portfolio. Include how services interrelate, residential vs commercial split, recurring vs project-based, specializations, and certifications.'
+          description:
+            'Detailed 2-4 sentence description of the full service portfolio. Include how services interrelate, residential vs commercial split, recurring vs project-based, specializations, and certifications.',
         },
         // Location & geography
         location: {
           type: 'string',
-          description: 'Primary location in "City, ST" format (e.g., "Dallas, TX", "Chicago, IL")'
+          description: 'Primary location in "City, ST" format (e.g., "Dallas, TX", "Chicago, IL")',
         },
         geographic_states: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Two-letter US state codes where the company has CONFIRMED physical presence or operations. Only include states explicitly mentioned. (e.g., ["CA", "TX"])'
+          description:
+            'Two-letter US state codes where the company has CONFIRMED physical presence or operations. Only include states explicitly mentioned. (e.g., ["CA", "TX"])',
         },
         number_of_locations: {
           type: 'number',
-          description: 'Number of physical locations/offices/branches'
+          description: 'Number of physical locations/offices/branches',
         },
         street_address: {
           type: 'string',
-          description: 'Street address only (e.g., "123 Main Street"). Do NOT include city/state/zip. Null if not found.'
+          description:
+            'Street address only (e.g., "123 Main Street"). Do NOT include city/state/zip. Null if not found.',
         },
         address_city: {
           type: 'string',
-          description: 'City name only (e.g., "Dallas", "Los Angeles").'
+          description: 'City name only (e.g., "Dallas", "Los Angeles").',
         },
         address_state: {
           type: 'string',
-          description: '2-letter US state code (e.g., "TX", "CA") or Canadian province code (e.g., "ON", "BC").'
+          description:
+            '2-letter US state code (e.g., "TX", "CA") or Canadian province code (e.g., "ON", "BC").',
         },
         address_zip: {
           type: 'string',
-          description: 'ZIP code (e.g., "75201", "90210")'
+          description: 'ZIP code (e.g., "75201", "90210")',
         },
         address_country: {
           type: 'string',
-          description: 'Country code, typically "US" or "CA"'
+          description: 'Country code, typically "US" or "CA"',
         },
         // Customers
         customer_types: {
           type: 'string',
-          description: 'Detailed 1-2 sentence description of customer segments. Be specific — not just "commercial" but what KIND of customers.'
+          description:
+            'Detailed 1-2 sentence description of customer segments. Be specific — not just "commercial" but what KIND of customers.',
         },
         customer_geography: {
           type: 'string',
-          description: 'Service radius, coverage area, or where customers are located (e.g., "50-mile radius around Indianapolis", "All of southern Indiana and Louisville metro")'
+          description:
+            'Service radius, coverage area, or where customers are located (e.g., "50-mile radius around Indianapolis", "All of southern Indiana and Louisville metro")',
         },
         // Quotes & evidence
         key_quotes: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Up to 10 verbatim quotes from the website — testimonials, taglines, mission statements, or any text that reveals the company\'s positioning, reputation, or value proposition.'
+          description:
+            "Up to 10 verbatim quotes from the website — testimonials, taglines, mission statements, or any text that reveals the company's positioning, reputation, or value proposition.",
         },
       },
-      required: ['industry']
-    }
-  }
+      required: ['industry'],
+    },
+  },
 };
 
 // ============================================================================
@@ -300,13 +344,74 @@ export const DEAL_TOOL_SCHEMA = {
 
 // Valid US state and Canadian province codes
 const US_STATE_CODES = new Set([
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC', 'PR'
+  'AL',
+  'AK',
+  'AZ',
+  'AR',
+  'CA',
+  'CO',
+  'CT',
+  'DE',
+  'FL',
+  'GA',
+  'HI',
+  'ID',
+  'IL',
+  'IN',
+  'IA',
+  'KS',
+  'KY',
+  'LA',
+  'ME',
+  'MD',
+  'MA',
+  'MI',
+  'MN',
+  'MS',
+  'MO',
+  'MT',
+  'NE',
+  'NV',
+  'NH',
+  'NJ',
+  'NM',
+  'NY',
+  'NC',
+  'ND',
+  'OH',
+  'OK',
+  'OR',
+  'PA',
+  'RI',
+  'SC',
+  'SD',
+  'TN',
+  'TX',
+  'UT',
+  'VT',
+  'VA',
+  'WA',
+  'WV',
+  'WI',
+  'WY',
+  'DC',
+  'PR',
 ]);
-const CA_PROVINCE_CODES = new Set(['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT']);
+const CA_PROVINCE_CODES = new Set([
+  'AB',
+  'BC',
+  'MB',
+  'NB',
+  'NL',
+  'NS',
+  'NT',
+  'NU',
+  'ON',
+  'PE',
+  'QC',
+  'SK',
+  'YT',
+]);
 
 /**
  * Strip financial fields from website-extracted data.
@@ -390,7 +495,8 @@ export function cleanAddressCity(extracted: Record<string, unknown>): void {
 
   // Pattern 2: Street address followed by city name without proper separators
   if (!fullMatch) {
-    const streetIndicators = /(St\.?|Street|Ave\.?|Avenue|Rd\.?|Road|Dr\.?|Drive|Blvd\.?|Boulevard|Ln\.?|Lane|Way|Ct\.?|Court|Pkwy\.?|Parkway|Pl\.?|Place|Cir\.?|Circle|Park)\s+/i;
+    const streetIndicators =
+      /(St\.?|Street|Ave\.?|Avenue|Rd\.?|Road|Dr\.?|Drive|Blvd\.?|Boulevard|Ln\.?|Lane|Way|Ct\.?|Court|Pkwy\.?|Parkway|Pl\.?|Place|Cir\.?|Circle|Park)\s+/i;
     const streetMatch = cityStr.match(streetIndicators);
     if (streetMatch && streetMatch.index !== undefined) {
       const lastStreetIndex = cityStr.lastIndexOf(streetMatch[0]);
@@ -400,10 +506,14 @@ export function cleanAddressCity(extracted: Record<string, unknown>): void {
 
         if (cleanedCity.length > 0 && cleanedCity.length < 50 && !/\d/.test(cleanedCity)) {
           if (!extracted.street_address) {
-            extracted.street_address = cityStr.substring(0, lastStreetIndex + streetMatch[0].length - 1).trim();
+            extracted.street_address = cityStr
+              .substring(0, lastStreetIndex + streetMatch[0].length - 1)
+              .trim();
           }
           cityStr = cleanedCity;
-          console.log(`Parsed city "${cityStr}" from combined address, street: "${extracted.street_address}"`);
+          console.log(
+            `Parsed city "${cityStr}" from combined address, street: "${extracted.street_address}"`,
+          );
         }
       }
     }
@@ -416,7 +526,11 @@ export function cleanAddressCity(extracted: Record<string, unknown>): void {
   cityStr = cityStr.replace(/\s+\d{5}(-\d{4})?$/, '').trim();
 
   // Reject placeholder values
-  if (cityStr.length > 0 && cityStr.length < 50 && !ADDRESS_PLACEHOLDERS.includes(cityStr.toLowerCase())) {
+  if (
+    cityStr.length > 0 &&
+    cityStr.length < 50 &&
+    !ADDRESS_PLACEHOLDERS.includes(cityStr.toLowerCase())
+  ) {
     extracted.address_city = cityStr;
   } else {
     console.log(`Rejecting invalid/placeholder address_city: "${extracted.address_city}"`);
@@ -451,7 +565,10 @@ export function defaultAddressCountry(extracted: Record<string, unknown>): void 
 /**
  * Extract location count from website content via regex when AI didn't find it.
  */
-export function extractLocationCount(extracted: Record<string, unknown>, websiteContent: string): void {
+export function extractLocationCount(
+  extracted: Record<string, unknown>,
+  websiteContent: string,
+): void {
   if (extracted.number_of_locations) return;
 
   const locationPatterns = [
@@ -511,7 +628,10 @@ export function validateLinkedInUrl(extracted: Record<string, unknown>): void {
  * Run all post-extraction validations on extracted deal data.
  * Modifies the extracted object in-place.
  */
-export function validateDealExtraction(extracted: Record<string, unknown>, websiteContent: string): void {
+export function validateDealExtraction(
+  extracted: Record<string, unknown>,
+  websiteContent: string,
+): void {
   stripFinancialFields(extracted);
   filterToValidKeys(extracted);
   validateAddressState(extracted);
@@ -529,7 +649,16 @@ export function validateDealExtraction(extracted: Record<string, unknown>, websi
 
 // Placeholder strings shared across transcript processing
 export const TRANSCRIPT_PLACEHOLDER_STRINGS = new Set([
-  'unknown', '<unknown>', 'n/a', 'na', 'not specified', 'not provided', 'none', 'null', '-', '—',
+  'unknown',
+  '<unknown>',
+  'n/a',
+  'na',
+  'not specified',
+  'not provided',
+  'none',
+  'null',
+  '-',
+  '—',
 ]);
 
 // Patterns that match verbose AI placeholder responses like "Not discussed on this call."
@@ -558,12 +687,16 @@ export function isPlaceholder(v: unknown): boolean {
   if (typeof v !== 'string') return false;
   const raw = v.trim().toLowerCase();
   const normalized = raw.replace(/^<|>$/g, '').trim();
-  if (raw.length === 0 || TRANSCRIPT_PLACEHOLDER_STRINGS.has(raw) || TRANSCRIPT_PLACEHOLDER_STRINGS.has(normalized)) {
+  if (
+    raw.length === 0 ||
+    TRANSCRIPT_PLACEHOLDER_STRINGS.has(raw) ||
+    TRANSCRIPT_PLACEHOLDER_STRINGS.has(normalized)
+  ) {
     return true;
   }
   // Check verbose patterns — strip leading field name prefix like "Ownership structure "
   // before matching, since the AI often echoes the field name.
-  return PLACEHOLDER_PATTERNS.some(p => p.test(raw));
+  return PLACEHOLDER_PATTERNS.some((p) => p.test(raw));
 }
 
 /**
@@ -588,33 +721,39 @@ export function toFiniteNumber(v: unknown): number | undefined {
  * @param listingKeys - Set of known listing column names
  * @returns Flat key-value pairs ready for listing update
  */
-export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>): Record<string, unknown> {
+export function mapTranscriptToListing(
+  extracted: Record<string, unknown>,
+  listingKeys: Set<string>,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
 
   // Structured revenue
   {
-    const revenueValue = toFiniteNumber(extracted?.revenue?.value);
+    const revenue = extracted?.revenue as Record<string, unknown> | undefined;
+    const revenueValue = toFiniteNumber(revenue?.value);
     if (revenueValue != null) {
       out.revenue = revenueValue;
-      out.revenue_is_inferred = !!extracted?.revenue?.is_inferred;
-      if (extracted?.revenue?.source_quote) out.revenue_source_quote = extracted.revenue.source_quote;
+      out.revenue_is_inferred = !!revenue?.is_inferred;
+      if (revenue?.source_quote) out.revenue_source_quote = revenue.source_quote;
     }
   }
 
   // Structured EBITDA
   {
-    const ebitdaAmount = toFiniteNumber(extracted?.ebitda?.amount);
+    const ebitda = extracted?.ebitda as Record<string, unknown> | undefined;
+    const ebitdaAmount = toFiniteNumber(ebitda?.amount);
     if (ebitdaAmount != null) out.ebitda = ebitdaAmount;
 
-    const marginPct = toFiniteNumber(extracted?.ebitda?.margin_percentage);
+    const marginPct = toFiniteNumber(ebitda?.margin_percentage);
     if (marginPct != null) out.ebitda_margin = marginPct / 100;
 
-    if (extracted?.ebitda) out.ebitda_is_inferred = !!extracted.ebitda.is_inferred;
-    if (extracted?.ebitda?.source_quote) out.ebitda_source_quote = extracted.ebitda.source_quote;
+    if (ebitda) out.ebitda_is_inferred = !!ebitda.is_inferred;
+    if (ebitda?.source_quote) out.ebitda_source_quote = ebitda.source_quote;
   }
 
   // Common fields
-  if (Array.isArray(extracted?.geographic_states) && extracted.geographic_states.length) out.geographic_states = extracted.geographic_states;
+  if (Array.isArray(extracted?.geographic_states) && extracted.geographic_states.length)
+    out.geographic_states = extracted.geographic_states;
 
   {
     const n = toFiniteNumber(extracted?.number_of_locations);
@@ -624,7 +763,8 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (extracted?.industry) out.industry = extracted.industry;
 
   if (extracted?.owner_goals) out.owner_goals = extracted.owner_goals;
-  if (extracted?.transition_preferences) out.transition_preferences = extracted.transition_preferences;
+  if (extracted?.transition_preferences)
+    out.transition_preferences = extracted.transition_preferences;
   if (extracted?.timeline_notes) out.timeline_notes = extracted.timeline_notes;
 
   if (extracted?.customer_types) out.customer_types = extracted.customer_types;
@@ -647,7 +787,8 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (extracted?.executive_summary) out.executive_summary = extracted.executive_summary;
   if (extracted?.growth_trajectory) out.growth_trajectory = extracted.growth_trajectory;
 
-  if (Array.isArray(extracted?.key_quotes) && extracted.key_quotes.length) out.key_quotes = extracted.key_quotes;
+  if (Array.isArray(extracted?.key_quotes) && extracted.key_quotes.length)
+    out.key_quotes = extracted.key_quotes;
   if (extracted?.financial_notes) out.financial_notes = extracted.financial_notes;
 
   if (extracted?.main_contact_name) out.main_contact_name = extracted.main_contact_name;
@@ -655,7 +796,8 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (extracted?.main_contact_phone) out.main_contact_phone = extracted.main_contact_phone;
 
   if (extracted?.ownership_structure) out.ownership_structure = extracted.ownership_structure;
-  if (Array.isArray(extracted?.services) && extracted.services.length) out.services = extracted.services;
+  if (Array.isArray(extracted?.services) && extracted.services.length)
+    out.services = extracted.services;
   if (extracted?.website) out.website = extracted.website;
   if (extracted?.location) out.location = extracted.location;
 
@@ -680,8 +822,13 @@ export function mapTranscriptToListing(extracted: any, listingKeys: Set<string>)
   if (extracted?.technology_systems) out.technology_systems = extracted.technology_systems;
   if (extracted?.real_estate_info) out.real_estate_info = extracted.real_estate_info;
   if (extracted?.special_requirements) out.special_requirements = extracted.special_requirements;
-  if (extracted?.end_market_description) out.end_market_description = extracted.end_market_description;
-  if (Array.isArray(extracted?.financial_followup_questions) && extracted.financial_followup_questions.length) out.financial_followup_questions = extracted.financial_followup_questions;
+  if (extracted?.end_market_description)
+    out.end_market_description = extracted.end_market_description;
+  if (
+    Array.isArray(extracted?.financial_followup_questions) &&
+    extracted.financial_followup_questions.length
+  )
+    out.financial_followup_questions = extracted.financial_followup_questions;
 
   // Filter to known listing columns (defensive)
   const filtered: Record<string, unknown> = {};
@@ -731,7 +878,10 @@ export function sanitizeListingUpdates(updates: Record<string, unknown>): Record
     console.warn('[Transcripts] Removed invalid numeric fields from updates:', removed);
   }
   if (removedPlaceholders.length > 0) {
-    console.warn('[Transcripts] Removed placeholder string fields from updates:', removedPlaceholders);
+    console.warn(
+      '[Transcripts] Removed placeholder string fields from updates:',
+      removedPlaceholders,
+    );
   }
 
   return sanitized;

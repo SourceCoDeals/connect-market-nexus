@@ -97,7 +97,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
       setLastName('');
       setRole('moderator');
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Failed to invite',
         description: error.message || 'Something went wrong.',

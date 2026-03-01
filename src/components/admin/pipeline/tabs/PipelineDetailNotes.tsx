@@ -5,7 +5,12 @@ import { MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
-import { useDealComments, useCreateDealComment, useUpdateDealComment, useDeleteDealComment } from '@/hooks/admin/use-deal-comments';
+import {
+  useDealComments,
+  useCreateDealComment,
+  useUpdateDealComment,
+  useDeleteDealComment,
+} from '@/hooks/admin/use-deal-comments';
 
 interface PipelineDetailNotesProps {
   deal: Deal;
@@ -27,22 +32,29 @@ export function PipelineDetailNotes({ deal }: PipelineDetailNotesProps) {
   const extractMentions = (text: string): string[] => {
     const mentionRegex = /@(\w+)/g;
     const matches = text.matchAll(mentionRegex);
-    const mentionedNames = Array.from(matches, m => m[1]);
+    const mentionedNames = Array.from(matches, (m) => m[1]);
     if (!allAdminProfiles || mentionedNames.length === 0) return [];
     const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
     return Object.values(allAdminProfiles)
-      .filter(admin => mentionedNames.some(name => {
-        const n = normalize(name);
-        return normalize(admin.displayName || '').includes(n) || normalize(admin.email || '').includes(n);
-      }))
-      .map(admin => admin.id);
+      .filter((admin) =>
+        mentionedNames.some((name) => {
+          const n = normalize(name);
+          return (
+            normalize(admin.displayName || '').includes(n) ||
+            normalize(admin.email || '').includes(n)
+          );
+        }),
+      )
+      .map((admin) => admin.id);
   };
 
   const filteredAdmins = React.useMemo(() => {
     if (!allAdminProfiles || !mentionSearch) return [];
     const search = mentionSearch.toLowerCase();
-    return Object.values(allAdminProfiles).filter(admin =>
-      admin.displayName.toLowerCase().includes(search) || admin.email.toLowerCase().includes(search)
+    return Object.values(allAdminProfiles).filter(
+      (admin) =>
+        admin.displayName.toLowerCase().includes(search) ||
+        admin.email.toLowerCase().includes(search),
     );
   }, [allAdminProfiles, mentionSearch]);
 
@@ -63,12 +75,14 @@ export function PipelineDetailNotes({ deal }: PipelineDetailNotesProps) {
     } else setShowMentionsList(false);
   };
 
-  const insertMention = (admin: any) => {
+  const insertMention = (admin: { displayName: string }) => {
     const cursorPos = textareaRef.current?.selectionStart || 0;
     const before = newCommentText.substring(0, cursorPos);
     const after = newCommentText.substring(cursorPos);
     const lastAt = before.lastIndexOf('@');
-    setNewCommentText(before.substring(0, lastAt) + '@' + admin.displayName.replace(/\s/g, '') + ' ' + after);
+    setNewCommentText(
+      before.substring(0, lastAt) + '@' + admin.displayName.replace(/\s/g, '') + ' ' + after,
+    );
     setShowMentionsList(false);
     textareaRef.current?.focus();
   };
@@ -78,7 +92,7 @@ export function PipelineDetailNotes({ deal }: PipelineDetailNotesProps) {
       const mentions = extractMentions(newCommentText);
       createComment.mutate(
         { dealId: deal.deal_id, commentText: newCommentText.trim(), mentionedAdmins: mentions },
-        { onSuccess: () => setNewCommentText('') }
+        { onSuccess: () => setNewCommentText('') },
       );
     }
   };
@@ -89,7 +103,9 @@ export function PipelineDetailNotes({ deal }: PipelineDetailNotesProps) {
         <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-medium text-foreground">Notes</h3>
-          <span className="text-xs text-muted-foreground font-mono">{dealComments?.length || 0}</span>
+          <span className="text-xs text-muted-foreground font-mono">
+            {dealComments?.length || 0}
+          </span>
         </div>
 
         <div className="space-y-2 relative">
@@ -144,7 +160,10 @@ export function PipelineDetailNotes({ deal }: PipelineDetailNotesProps) {
         ) : dealComments && dealComments.length > 0 ? (
           <div className="space-y-2">
             {dealComments.map((comment) => (
-              <div key={comment.id} className="group p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors">
+              <div
+                key={comment.id}
+                className="group p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors"
+              >
                 {editingCommentId === comment.id ? (
                   <div className="space-y-2">
                     <Textarea
@@ -154,22 +173,54 @@ export function PipelineDetailNotes({ deal }: PipelineDetailNotesProps) {
                       autoFocus
                     />
                     <div className="flex items-center gap-2">
-                      <Button size="sm" onClick={() => {
-                        if (editingCommentText.trim()) {
-                          updateComment.mutate(
-                            { commentId: comment.id, commentText: editingCommentText.trim(), mentionedAdmins: extractMentions(editingCommentText), dealId: deal.deal_id },
-                            { onSuccess: () => { setEditingCommentId(null); setEditingCommentText(''); } }
-                          );
-                        }
-                      }} disabled={!editingCommentText.trim() || updateComment.isPending} className="h-6 text-xs">Save</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="h-6 text-xs">Cancel</Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (editingCommentText.trim()) {
+                            updateComment.mutate(
+                              {
+                                commentId: comment.id,
+                                commentText: editingCommentText.trim(),
+                                mentionedAdmins: extractMentions(editingCommentText),
+                                dealId: deal.deal_id,
+                              },
+                              {
+                                onSuccess: () => {
+                                  setEditingCommentId(null);
+                                  setEditingCommentText('');
+                                },
+                              },
+                            );
+                          }
+                        }}
+                        disabled={!editingCommentText.trim() || updateComment.isPending}
+                        className="h-6 text-xs"
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingCommentId(null);
+                          setEditingCommentText('');
+                        }}
+                        className="h-6 text-xs"
+                      >
+                        Cancel
+                      </Button>
                     </div>
                   </div>
                 ) : (
                   <>
                     <p className="text-sm text-foreground whitespace-pre-wrap mb-2">
                       {comment.comment_text.split(/(@\w+)/g).map((part: string, i: number) => {
-                        if (part.startsWith('@')) return <span key={i} className="text-primary font-medium">{part}</span>;
+                        if (part.startsWith('@'))
+                          return (
+                            <span key={i} className="text-primary font-medium">
+                              {part}
+                            </span>
+                          );
                         return part;
                       })}
                     </p>
@@ -177,14 +228,39 @@ export function PipelineDetailNotes({ deal }: PipelineDetailNotesProps) {
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="font-medium">{comment.admin_name}</span>
                         <span className="text-muted-foreground/40">·</span>
-                        <span>{formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}</span>
+                        <span>
+                          {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                        </span>
                         {comment.updated_at !== comment.created_at && (
-                          <><span className="text-muted-foreground/40">·</span><span className="italic">edited</span></>
+                          <>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span className="italic">edited</span>
+                          </>
                         )}
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="sm" variant="ghost" onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.comment_text); }} className="h-6 w-6 p-0"><Pencil className="h-3 w-3" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => { if (confirm('Delete this note?')) deleteComment.mutate({ commentId: comment.id, dealId: deal.deal_id }); }} className="h-6 w-6 p-0 text-destructive hover:text-destructive"><Trash2 className="h-3 w-3" /></Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingCommentId(comment.id);
+                            setEditingCommentText(comment.comment_text);
+                          }}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            if (confirm('Delete this note?'))
+                              deleteComment.mutate({ commentId: comment.id, dealId: deal.deal_id });
+                          }}
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
                   </>

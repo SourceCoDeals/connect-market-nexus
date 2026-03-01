@@ -28,7 +28,7 @@ export function useContactCallStats(buyerId: string | null) {
         .select('id')
         .eq('buyer_id', buyerId);
 
-      const contactIds = (contacts || []).map((c: any) => c.id);
+      const contactIds = (contacts || []).map((c: { id: string }) => c.id);
       if (contactIds.length === 0) return emptyStats();
 
       const { data: activities } = await supabase

@@ -15,15 +15,15 @@
  * The frontend uses this to pre-fill the listing editor for admin review.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders } from "../_shared/cors.ts";
-import { requireAdmin } from "../_shared/auth.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 import {
   ANTHROPIC_API_URL,
   DEFAULT_CLAUDE_MODEL,
   getAnthropicHeaders,
   fetchWithAutoRetry,
-} from "../_shared/ai-providers.ts";
+} from '../_shared/ai-providers.ts';
 
 // ─── Types ───
 
@@ -51,7 +51,7 @@ interface ListingContent {
 }
 
 interface DataContext {
-  deal: any;
+  deal: Record<string, unknown>;
   transcriptExcerpts: string;
   enrichmentData: string;
   manualEntries: string;
@@ -62,38 +62,97 @@ interface DataContext {
 // ─── Banned Words ───
 
 const BANNED_WORDS = [
-  "strong", "robust", "impressive", "attractive", "compelling",
-  "well-positioned", "significant opportunity", "poised for growth",
-  "track record of success", "best-in-class", "proven", "demonstrated",
-  "synergies", "uniquely positioned", "market leader",
-  "value creation opportunity",
+  'strong',
+  'robust',
+  'impressive',
+  'attractive',
+  'compelling',
+  'well-positioned',
+  'significant opportunity',
+  'poised for growth',
+  'track record of success',
+  'best-in-class',
+  'proven',
+  'demonstrated',
+  'synergies',
+  'uniquely positioned',
+  'market leader',
+  'value creation opportunity',
 ];
 
 // ─── State-to-Region Mapping ───
 
 const STATE_TO_REGION: Record<string, string> = {
-  AL: "Southeast", AK: "Pacific Northwest", AZ: "Southwest", AR: "South Central",
-  CA: "West Coast", CO: "Mountain West", CT: "Northeast", DE: "Mid-Atlantic",
-  FL: "Southeast", GA: "Southeast", HI: "Pacific", ID: "Mountain West",
-  IL: "Midwest", IN: "Midwest", IA: "Midwest", KS: "Central",
-  KY: "Southeast", LA: "Gulf Coast", ME: "New England", MD: "Mid-Atlantic",
-  MA: "New England", MI: "Great Lakes", MN: "Upper Midwest", MS: "Gulf Coast",
-  MO: "Central", MT: "Mountain West", NE: "Central", NV: "Mountain West",
-  NH: "New England", NJ: "Mid-Atlantic", NM: "Southwest", NY: "Northeast",
-  NC: "Southeast", ND: "Upper Midwest", OH: "Great Lakes", OK: "South Central",
-  OR: "Pacific Northwest", PA: "Mid-Atlantic", RI: "New England", SC: "Southeast",
-  SD: "Upper Midwest", TN: "Southeast", TX: "South Central", UT: "Mountain West",
-  VT: "New England", VA: "Mid-Atlantic", WA: "Pacific Northwest", WV: "Appalachian",
-  WI: "Great Lakes", WY: "Mountain West", DC: "Mid-Atlantic",
+  AL: 'Southeast',
+  AK: 'Pacific Northwest',
+  AZ: 'Southwest',
+  AR: 'South Central',
+  CA: 'West Coast',
+  CO: 'Mountain West',
+  CT: 'Northeast',
+  DE: 'Mid-Atlantic',
+  FL: 'Southeast',
+  GA: 'Southeast',
+  HI: 'Pacific',
+  ID: 'Mountain West',
+  IL: 'Midwest',
+  IN: 'Midwest',
+  IA: 'Midwest',
+  KS: 'Central',
+  KY: 'Southeast',
+  LA: 'Gulf Coast',
+  ME: 'New England',
+  MD: 'Mid-Atlantic',
+  MA: 'New England',
+  MI: 'Great Lakes',
+  MN: 'Upper Midwest',
+  MS: 'Gulf Coast',
+  MO: 'Central',
+  MT: 'Mountain West',
+  NE: 'Central',
+  NV: 'Mountain West',
+  NH: 'New England',
+  NJ: 'Mid-Atlantic',
+  NM: 'Southwest',
+  NY: 'Northeast',
+  NC: 'Southeast',
+  ND: 'Upper Midwest',
+  OH: 'Great Lakes',
+  OK: 'South Central',
+  OR: 'Pacific Northwest',
+  PA: 'Mid-Atlantic',
+  RI: 'New England',
+  SC: 'Southeast',
+  SD: 'Upper Midwest',
+  TN: 'Southeast',
+  TX: 'South Central',
+  UT: 'Mountain West',
+  VT: 'New England',
+  VA: 'Mid-Atlantic',
+  WA: 'Pacific Northwest',
+  WV: 'Appalachian',
+  WI: 'Great Lakes',
+  WY: 'Mountain West',
+  DC: 'Mid-Atlantic',
 };
 
 // All valid listing content fields that can be individually regenerated
 const VALID_FIELDS = [
-  "title", "hero_description", "description", "investment_thesis",
-  "custom_sections", "services", "growth_drivers", "competitive_position",
-  "ownership_structure", "seller_motivation", "business_model",
-  "customer_geography", "customer_types", "revenue_model",
-  "end_market_description",
+  'title',
+  'hero_description',
+  'description',
+  'investment_thesis',
+  'custom_sections',
+  'services',
+  'growth_drivers',
+  'competitive_position',
+  'ownership_structure',
+  'seller_motivation',
+  'business_model',
+  'customer_geography',
+  'customer_types',
+  'revenue_model',
+  'end_market_description',
 ];
 
 // ─── Main Handler ───
@@ -101,27 +160,27 @@ const VALID_FIELDS = [
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
-  if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const anthropicApiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY')!;
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
   const auth = await requireAdmin(req, supabaseAdmin);
   if (!auth.isAdmin) {
     return new Response(JSON.stringify({ error: auth.error }), {
       status: auth.authenticated ? 403 : 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 
@@ -129,154 +188,194 @@ Deno.serve(async (req: Request) => {
     const { deal_id, field } = await req.json();
 
     if (!deal_id) {
-      return new Response(JSON.stringify({ error: "deal_id is required" }), {
+      return new Response(JSON.stringify({ error: 'deal_id is required' }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (field && !VALID_FIELDS.includes(field)) {
       return new Response(
         JSON.stringify({
-          error: `Invalid field "${field}". Valid fields: ${VALID_FIELDS.join(", ")}`,
+          error: `Invalid field "${field}". Valid fields: ${VALID_FIELDS.join(', ')}`,
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     // Fetch deal data
     const { data: deal, error: dealError } = await supabaseAdmin
-      .from("listings")
-      .select("*")
-      .eq("id", deal_id)
+      .from('listings')
+      .select('*')
+      .eq('id', deal_id)
       .single();
 
     if (dealError || !deal) {
-      return new Response(JSON.stringify({ error: "Deal not found" }), {
+      return new Response(JSON.stringify({ error: 'Deal not found' }), {
         status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Fetch transcripts
     const { data: transcripts } = await supabaseAdmin
-      .from("deal_transcripts")
-      .select("transcript_text, extracted_data, call_date, title, extraction_status")
-      .eq("listing_id", deal_id)
-      .not("extraction_status", "eq", "failed")
-      .order("call_date", { ascending: false })
+      .from('deal_transcripts')
+      .select('transcript_text, extracted_data, call_date, title, extraction_status')
+      .eq('listing_id', deal_id)
+      .not('extraction_status', 'eq', 'failed')
+      .order('call_date', { ascending: false })
       .limit(10);
 
     // Fetch valuation data
     const { data: valuationData } = await supabaseAdmin
-      .from("valuation_leads")
-      .select("*")
-      .eq("pushed_listing_id", deal_id)
+      .from('valuation_leads')
+      .select('*')
+      .eq('pushed_listing_id', deal_id)
       .maybeSingle();
 
     // Build data context
     const dataContext = buildDataContext(deal, transcripts || [], valuationData);
 
     // Generate listing content via AI
-    const content = await generateListingContent(
-      anthropicApiKey,
-      dataContext,
-      field || null
-    );
+    const content = await generateListingContent(anthropicApiKey, dataContext, field || null);
 
     return new Response(JSON.stringify({ success: true, content }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error("Generate listing content error:", error);
+    console.error('Generate listing content error:', error);
     return new Response(
       JSON.stringify({
-        error: "Failed to generate listing content",
+        error: 'Failed to generate listing content',
         details: (error as Error).message,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
 
 // ─── Data Context Builder ───
 
-function buildDataContext(deal: any, transcripts: any[], valuationData: any): DataContext {
+function buildDataContext(
+  deal: Record<string, unknown>,
+  transcripts: unknown[],
+  valuationData: Record<string, unknown> | null,
+): DataContext {
   const sources: string[] = [];
 
   // Transcript excerpts (highest priority)
-  let transcriptExcerpts = "";
+  let transcriptExcerpts = '';
   if (transcripts.length > 0) {
-    sources.push("transcripts");
+    sources.push('transcripts');
     transcriptExcerpts = transcripts
-      .map((t, i) => {
-        const parts = [];
-        if (t.title) parts.push(`Title: ${t.title}`);
-        if (t.extracted_data) parts.push(`Extracted Insights: ${JSON.stringify(t.extracted_data)}`);
-        if (t.transcript_text) {
-          // Take first 25000 chars per transcript for comprehensive context
-          parts.push(`Transcript: ${t.transcript_text.substring(0, 25000)}`);
-        }
-        return `--- Call ${i + 1} (${t.call_date || "unknown date"}) ---\n${parts.join("\n")}`;
-      })
-      .join("\n\n");
+      .map(
+        (
+          t: {
+            title?: string;
+            extracted_data?: unknown;
+            transcript_text?: string;
+            call_date?: string;
+          },
+          i: number,
+        ) => {
+          const parts = [];
+          if (t.title) parts.push(`Title: ${t.title}`);
+          if (t.extracted_data)
+            parts.push(`Extracted Insights: ${JSON.stringify(t.extracted_data)}`);
+          if (t.transcript_text) {
+            // Take first 25000 chars per transcript for comprehensive context
+            parts.push(`Transcript: ${t.transcript_text.substring(0, 25000)}`);
+          }
+          return `--- Call ${i + 1} (${t.call_date || 'unknown date'}) ---\n${parts.join('\n')}`;
+        },
+      )
+      .join('\n\n');
   }
 
   // General Notes (separate data source)
-  let notesExcerpt = "";
+  let notesExcerpt = '';
   if (deal.internal_notes && deal.internal_notes.trim()) {
-    sources.push("general_notes");
+    sources.push('general_notes');
     notesExcerpt = deal.internal_notes;
   }
 
   // Enrichment data (website scrape + LinkedIn)
   const enrichmentFields = [
-    "description", "executive_summary", "services", "service_mix",
-    "geographic_states", "address_city", "address_state",
-    "linkedin_employee_count", "linkedin_specialties", "linkedin_industry",
-    "founded_year", "end_market_description", "customer_segments",
-    "industry", "category", "revenue", "ebitda", "ebitda_margin",
-    "employee_count", "number_of_locations",
+    'description',
+    'executive_summary',
+    'services',
+    'service_mix',
+    'geographic_states',
+    'address_city',
+    'address_state',
+    'linkedin_employee_count',
+    'linkedin_specialties',
+    'linkedin_industry',
+    'founded_year',
+    'end_market_description',
+    'customer_segments',
+    'industry',
+    'category',
+    'revenue',
+    'ebitda',
+    'ebitda_margin',
+    'employee_count',
+    'number_of_locations',
   ];
   const enrichmentData = enrichmentFields
-    .filter(f => deal[f] != null && deal[f] !== "")
-    .map(f => `${f}: ${JSON.stringify(deal[f])}`)
-    .join("\n");
-  if (enrichmentData) sources.push("enrichment");
+    .filter((f) => deal[f] != null && deal[f] !== '')
+    .map((f) => `${f}: ${JSON.stringify(deal[f])}`)
+    .join('\n');
+  if (enrichmentData) sources.push('enrichment');
 
   // Manual data entries (structured fields entered by admin)
   const manualFields = [
-    "internal_company_name", "title", "website", "main_contact_name",
-    "main_contact_email", "main_contact_phone", "main_contact_title",
-    "owner_response", "seller_motivation", "owner_goals",
-    "transition_preferences",
-    "revenue_breakdown", "asking_price", "valuation_multiple",
+    'internal_company_name',
+    'title',
+    'website',
+    'main_contact_name',
+    'main_contact_email',
+    'main_contact_phone',
+    'main_contact_title',
+    'owner_response',
+    'seller_motivation',
+    'owner_goals',
+    'transition_preferences',
+    'revenue_breakdown',
+    'asking_price',
+    'valuation_multiple',
   ];
   const manualEntries = manualFields
-    .filter(f => deal[f] != null && deal[f] !== "")
-    .map(f => `${f}: ${JSON.stringify(deal[f])}`)
-    .join("\n");
-  if (manualEntries) sources.push("manual_entries");
+    .filter((f) => deal[f] != null && deal[f] !== '')
+    .map((f) => `${f}: ${JSON.stringify(deal[f])}`)
+    .join('\n');
+  if (manualEntries) sources.push('manual_entries');
 
   // Valuation data
-  let valuationStr = "";
+  let valuationStr = '';
   if (valuationData) {
-    sources.push("valuation_calculator");
+    sources.push('valuation_calculator');
     const valFields = [
-      "revenue", "ebitda", "industry", "state", "years_in_business",
-      "growth_rate", "recurring_revenue_percentage",
+      'revenue',
+      'ebitda',
+      'industry',
+      'state',
+      'years_in_business',
+      'growth_rate',
+      'recurring_revenue_percentage',
     ];
     valuationStr = valFields
-      .filter(f => valuationData[f] != null)
-      .map(f => `${f}: ${JSON.stringify(valuationData[f])}`)
-      .join("\n");
+      .filter((f) => valuationData[f] != null)
+      .map((f) => `${f}: ${JSON.stringify(valuationData[f])}`)
+      .join('\n');
   }
 
   return {
     deal,
     transcriptExcerpts,
     enrichmentData,
-    manualEntries: manualEntries + (notesExcerpt ? `\n\n--- GENERAL NOTES ---\n${notesExcerpt}` : ""),
+    manualEntries:
+      manualEntries + (notesExcerpt ? `\n\n--- GENERAL NOTES ---\n${notesExcerpt}` : ''),
     valuationData: valuationStr,
     sources,
   };
@@ -287,23 +386,23 @@ function buildDataContext(deal: any, transcripts: any[], valuationData: any): Da
 function enforceBannedWordsOnString(text: string): string {
   let cleaned = text;
   for (const banned of BANNED_WORDS) {
-    const regex = new RegExp(`\\b${banned}\\b`, "gi");
-    cleaned = cleaned.replace(regex, "");
+    const regex = new RegExp(`\\b${banned}\\b`, 'gi');
+    cleaned = cleaned.replace(regex, '');
   }
   // Clean up double spaces left by removals
-  cleaned = cleaned.replace(/  +/g, " ").replace(/ ,/g, ",").replace(/ \./g, ".");
+  cleaned = cleaned.replace(/  +/g, ' ').replace(/ ,/g, ',').replace(/ \./g, '.');
   return cleaned;
 }
 
-function enforceBannedWordsOnContent(content: any): any {
-  if (typeof content === "string") {
+function enforceBannedWordsOnContent(content: unknown): unknown {
+  if (typeof content === 'string') {
     return enforceBannedWordsOnString(content);
   }
   if (Array.isArray(content)) {
-    return content.map(item => enforceBannedWordsOnContent(item));
+    return content.map((item) => enforceBannedWordsOnContent(item));
   }
-  if (content && typeof content === "object") {
-    const cleaned: any = {};
+  if (content && typeof content === 'object') {
+    const cleaned: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(content)) {
       cleaned[key] = enforceBannedWordsOnContent(value);
     }
@@ -317,10 +416,10 @@ function enforceBannedWordsOnContent(content: any): any {
 async function generateListingContent(
   apiKey: string,
   context: DataContext,
-  singleField: string | null
+  singleField: string | null,
 ): Promise<Partial<ListingContent>> {
-  const dealState = context.deal.address_state || "";
-  const regionName = STATE_TO_REGION[dealState.toUpperCase()] || "Central";
+  const dealState = context.deal.address_state || '';
+  const regionName = STATE_TO_REGION[dealState.toUpperCase()] || 'Central';
   const projectCodename = `Project ${regionName}`;
 
   const fieldInstructions = singleField
@@ -343,28 +442,28 @@ WRITING STYLE RULES:
 - Avoid superlatives and marketing language
 - Use specific numbers and data points where available (as ranges)
 - Be direct and concise — do not pad sentences
-- ABSOLUTELY DO NOT USE any of these banned words/phrases: ${BANNED_WORDS.map(w => `"${w}"`).join(", ")}
+- ABSOLUTELY DO NOT USE any of these banned words/phrases: ${BANNED_WORDS.map((w) => `"${w}"`).join(', ')}
 
-The company is located in the ${regionName} region of the U.S.${dealState ? ` (${dealState})` : ""}.
+The company is located in the ${regionName} region of the U.S.${dealState ? ` (${dealState})` : ''}.
 
 ${fieldInstructions}
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON object with the requested fields. No markdown code fences, no explanation — just the JSON.`;
 
-  const userPrompt = `Generate ${singleField ? `the "${singleField}" field` : "all listing content fields"} from the following company data.
+  const userPrompt = `Generate ${singleField ? `the "${singleField}" field` : 'all listing content fields'} from the following company data.
 
 === CALL TRANSCRIPTS (highest priority — richest source of detail) ===
-${context.transcriptExcerpts || "No transcripts available."}
+${context.transcriptExcerpts || 'No transcripts available.'}
 
 === ENRICHMENT DATA (website scrape + LinkedIn) ===
-${context.enrichmentData || "No enrichment data available."}
+${context.enrichmentData || 'No enrichment data available.'}
 
 === MANUAL DATA ENTRIES & GENERAL NOTES ===
-${context.manualEntries || "No manual entries or notes."}
+${context.manualEntries || 'No manual entries or notes.'}
 
 === VALUATION CALCULATOR DATA ===
-${context.valuationData || "No valuation data."}
+${context.valuationData || 'No valuation data.'}
 
 DATA SOURCE PRIORITY: Transcripts > General Notes > Enrichment/Website > Manual entries.
 When sources conflict, prefer higher-priority sources.
@@ -374,19 +473,17 @@ Generate the listing content now. Return ONLY the JSON object.`;
   const response = await fetchWithAutoRetry(
     ANTHROPIC_API_URL,
     {
-      method: "POST",
+      method: 'POST',
       headers: getAnthropicHeaders(apiKey),
       body: JSON.stringify({
         model: DEFAULT_CLAUDE_MODEL,
         system: systemPrompt,
-        messages: [
-          { role: "user", content: userPrompt },
-        ],
+        messages: [{ role: 'user', content: userPrompt }],
         temperature: 0.4,
         max_tokens: 8192,
       }),
     },
-    { callerName: "generate-listing-content", maxRetries: 2 }
+    { callerName: 'generate-listing-content', maxRetries: 2 },
   );
 
   if (!response.ok) {
@@ -398,10 +495,10 @@ Generate the listing content now. Return ONLY the JSON object.`;
   const rawContent = result.content?.[0]?.text;
 
   if (!rawContent) {
-    throw new Error("No content returned from AI");
+    throw new Error('No content returned from AI');
   }
 
-  let parsed: any;
+  let parsed: Partial<ListingContent>;
   try {
     parsed = JSON.parse(rawContent);
   } catch {
@@ -410,7 +507,7 @@ Generate the listing content now. Return ONLY the JSON object.`;
     if (jsonMatch) {
       parsed = JSON.parse(jsonMatch[1]);
     } else {
-      throw new Error("Failed to parse AI response as JSON");
+      throw new Error('Failed to parse AI response as JSON');
     }
   }
 
@@ -506,5 +603,8 @@ Return: { "revenue_model": "..." }`,
 Return: { "end_market_description": "..." }`,
   };
 
-  return fieldDescriptions[field] || `Generate ONLY the "${field}" field. Return it wrapped in a JSON object: { "${field}": ... }`;
+  return (
+    fieldDescriptions[field] ||
+    `Generate ONLY the "${field}" field. Return it wrapped in a JSON object: { "${field}": ... }`
+  );
 }

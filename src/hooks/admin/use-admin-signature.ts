@@ -10,14 +10,15 @@ interface UpdateSignatureParams {
 }
 
 const DEFAULT_SIGNATURE = {
-  signature_html: '[Your Name]<br>[Your Title]<br>[Your Email]<br>[Your Phone - Optional]<br>[Your Calendly Link - Optional]',
+  signature_html:
+    '[Your Name]<br>[Your Title]<br>[Your Email]<br>[Your Phone - Optional]<br>[Your Calendly Link - Optional]',
   signature_text: `[Your Name]
 [Your Title]
 [Your Email]
 [Your Phone - Optional]
 [Your Calendly Link - Optional]`,
   phone_number: '',
-  calendly_url: ''
+  calendly_url: '',
 };
 
 export function useAdminSignature() {
@@ -33,7 +34,8 @@ export function useAdminSignature() {
         .eq('admin_id', (await supabase.auth.getUser()).data.user?.id ?? '')
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 = no rows returned
         throw error;
       }
 
@@ -44,16 +46,21 @@ export function useAdminSignature() {
           signature_text: DEFAULT_SIGNATURE.signature_text,
           phone_number: DEFAULT_SIGNATURE.phone_number,
           calendly_url: DEFAULT_SIGNATURE.calendly_url,
-          isDefault: true
+          isDefault: true,
         };
       }
 
       return { ...data, isDefault: false };
-    }
+    },
   });
 
   const updateSignatureMutation = useMutation({
-    mutationFn: async ({ signature_html, signature_text, phone_number, calendly_url }: UpdateSignatureParams) => {
+    mutationFn: async ({
+      signature_html,
+      signature_text,
+      phone_number,
+      calendly_url,
+    }: UpdateSignatureParams) => {
       const { data: existingSignature, error: existingSignatureError } = await supabase
         .from('admin_signature_preferences')
         .select('id')
@@ -69,7 +76,7 @@ export function useAdminSignature() {
             signature_text,
             phone_number,
             calendly_url,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('admin_id', (await supabase.auth.getUser()).data.user?.id ?? '')
           .select()
@@ -88,7 +95,7 @@ export function useAdminSignature() {
             signature_html,
             signature_text,
             phone_number,
-            calendly_url
+            calendly_url,
           })
           .select()
           .single();
@@ -104,13 +111,13 @@ export function useAdminSignature() {
       });
       queryClient.invalidateQueries({ queryKey: ['admin-signature'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         variant: 'destructive',
         title: 'Update Failed',
-        description: error.message || 'Failed to update signature.',
+        description: error instanceof Error ? error.message : 'Failed to update signature.',
       });
-    }
+    },
   });
 
   const resetToDefaultMutation = useMutation({
@@ -119,7 +126,7 @@ export function useAdminSignature() {
         signature_html: DEFAULT_SIGNATURE.signature_html,
         signature_text: DEFAULT_SIGNATURE.signature_text,
         phone_number: DEFAULT_SIGNATURE.phone_number,
-        calendly_url: DEFAULT_SIGNATURE.calendly_url
+        calendly_url: DEFAULT_SIGNATURE.calendly_url,
       });
     },
     onSuccess: () => {
@@ -127,7 +134,7 @@ export function useAdminSignature() {
         title: 'Signature Reset',
         description: 'Your email signature has been reset to default.',
       });
-    }
+    },
   });
 
   return {
@@ -135,6 +142,6 @@ export function useAdminSignature() {
     isLoading,
     updateSignature: updateSignatureMutation.mutate,
     resetToDefault: resetToDefaultMutation.mutate,
-    isUpdating: updateSignatureMutation.isPending || resetToDefaultMutation.isPending
+    isUpdating: updateSignatureMutation.isPending || resetToDefaultMutation.isPending,
   };
 }

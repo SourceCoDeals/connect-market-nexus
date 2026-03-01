@@ -314,8 +314,14 @@ describe('Contact deduplication', () => {
 
   it('handles fullName property (Apify format)', () => {
     const contacts = [
-      { fullName: 'John Doe', linkedin_url: 'https://linkedin.com/in/johndoe' } as any,
-      { fullName: 'John Doe', linkedin_url: 'https://linkedin.com/in/johndoe' } as any,
+      {
+        fullName: 'John Doe',
+        linkedin_url: 'https://linkedin.com/in/johndoe',
+      } as unknown as Parameters<typeof deduplicateContacts>[0][0],
+      {
+        fullName: 'John Doe',
+        linkedin_url: 'https://linkedin.com/in/johndoe',
+      } as unknown as Parameters<typeof deduplicateContacts>[0][0],
     ];
     expect(deduplicateContacts(contacts)).toHaveLength(1);
   });

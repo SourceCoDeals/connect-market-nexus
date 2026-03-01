@@ -15,11 +15,22 @@ import {
 } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 import { ScoreTierBadge, DealSourceBadge } from "@/components/remarketing";
+import type { ScoreTier } from "@/types/remarketing";
+
+interface DealHeaderDeal {
+  category?: string | null;
+  status?: string;
+  deal_source?: string | null;
+  seller_interest_score?: number | null;
+  address_city?: string | null;
+  address_state?: string | null;
+  location?: string | null;
+}
 
 interface DealHeaderProps {
-  deal: any;
+  deal: DealHeaderDeal;
   backTo: string | null;
-  navigate: (to: any) => void;
+  navigate: (to: string | number) => void;
   displayName: string;
   listedName: string | null;
   dataCompleteness: number;
@@ -166,7 +177,7 @@ export function DealHeader({
         ) : null}
       </div>
       <div className="flex items-center gap-2">
-        {tier && <ScoreTierBadge tier={tier as any} size="lg" />}
+        {tier && <ScoreTierBadge tier={tier as ScoreTier} size="lg" />}
       </div>
     </div>
   );

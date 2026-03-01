@@ -95,7 +95,7 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
         if (error) throw error;
         
         // Transform raw database response to Listing interface with computed properties
-        const listings = (rawListings || []).map((rawListing: any) => ({
+        const listings = (rawListings || []).map((rawListing: Record<string, unknown> & { owner_notes?: string; created_at: string; updated_at: string; revenue: number; ebitda: number }) => ({
           ...rawListing,
           // Add computed properties as getters
           get ownerNotes() { return rawListing.owner_notes || ''; },

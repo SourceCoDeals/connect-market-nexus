@@ -5,8 +5,8 @@
  * All AI operations standardized on Gemini 2.0 Flash.
  */
 
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { waitForProviderSlot, withConcurrencyTracking, reportRateLimit } from "./rate-limiter.ts";
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { waitForProviderSlot, withConcurrencyTracking, reportRateLimit } from './rate-limiter.ts';
 
 /** Optional rate limit coordination config. When provided, AI calls coordinate with the shared rate limiter. */
 export interface RateLimitConfig {
@@ -14,15 +14,16 @@ export interface RateLimitConfig {
 }
 
 // API Endpoints
-export const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-export const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+export const GEMINI_API_URL =
+  'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+export const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
 // Default models
-export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
-export const GEMINI_25_FLASH_MODEL = "gemini-2.5-flash";
-export const DEFAULT_GEMINI_PRO_MODEL = "gemini-2.0-pro-exp";
-export const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514";
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
+export const GEMINI_25_FLASH_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_PRO_MODEL = 'gemini-2.0-pro-exp';
+export const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514';
 
 /**
  * Build Gemini API request headers
@@ -31,7 +32,7 @@ export const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514";
 export function getGeminiHeaders(apiKey: string): Record<string, string> {
   return {
     Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   };
 }
 
@@ -41,9 +42,9 @@ export function getGeminiHeaders(apiKey: string): Record<string, string> {
  */
 export function getAnthropicHeaders(apiKey: string): Record<string, string> {
   return {
-    "x-api-key": apiKey,
-    "anthropic-version": "2023-06-01",
-    "Content-Type": "application/json",
+    'x-api-key': apiKey,
+    'anthropic-version': '2023-06-01',
+    'Content-Type': 'application/json',
   };
 }
 
@@ -63,34 +64,34 @@ export function parseAIError(status: number, responseText?: string): AIErrorResp
   switch (status) {
     case 401:
       return {
-        error: "Invalid API key",
-        code: "invalid_api_key",
+        error: 'Invalid API key',
+        code: 'invalid_api_key',
         recoverable: false,
       };
     case 402:
       return {
-        error: "Payment required - please add credits",
-        code: "payment_required",
+        error: 'Payment required - please add credits',
+        code: 'payment_required',
         recoverable: false,
       };
     case 429:
       return {
-        error: "Rate limit exceeded - please try again later",
-        code: "rate_limited",
+        error: 'Rate limit exceeded - please try again later',
+        code: 'rate_limited',
         recoverable: true,
       };
     case 500:
     case 502:
     case 503:
       return {
-        error: "AI service temporarily unavailable",
-        code: "service_unavailable",
+        error: 'AI service temporarily unavailable',
+        code: 'service_unavailable',
         recoverable: true,
       };
     default:
       return {
         error: responseText || `AI API error: ${status}`,
-        code: "unknown_error",
+        code: 'unknown_error',
         recoverable: false,
       };
   }
@@ -125,7 +126,7 @@ export async function fetchWithAutoRetry(
     baseDelayMs?: number;
     maxDelayMs?: number;
     callerName?: string;
-  } = {}
+  } = {},
 ): Promise<Response> {
   const { maxRetries = 3, baseDelayMs = 2000, maxDelayMs = 60000, callerName = 'AI' } = config;
 
@@ -144,8 +145,10 @@ export async function fetchWithAutoRetry(
         const retryAfterMs = parseRetryAfter(response) || baseDelayMs * Math.pow(2, attempt);
         const waitMs = Math.min(retryAfterMs, maxDelayMs);
         const jitter = Math.random() * 1000;
-        console.warn(`[${callerName}] Rate limited (429), waiting ${Math.round(waitMs + jitter)}ms before retry ${attempt + 1}/${maxRetries}...`);
-        await new Promise(r => setTimeout(r, waitMs + jitter));
+        console.warn(
+          `[${callerName}] Rate limited (429), waiting ${Math.round(waitMs + jitter)}ms before retry ${attempt + 1}/${maxRetries}...`,
+        );
+        await new Promise((r) => setTimeout(r, waitMs + jitter));
         continue;
       }
 
@@ -153,8 +156,10 @@ export async function fetchWithAutoRetry(
         if (attempt === maxRetries) return response;
         const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
         const jitter = Math.random() * delay * 0.3;
-        console.warn(`[${callerName}] Server error (${response.status}), retrying in ${Math.round(delay + jitter)}ms...`);
-        await new Promise(r => setTimeout(r, delay + jitter));
+        console.warn(
+          `[${callerName}] Server error (${response.status}), retrying in ${Math.round(delay + jitter)}ms...`,
+        );
+        await new Promise((r) => setTimeout(r, delay + jitter));
         continue;
       }
 
@@ -169,7 +174,7 @@ export async function fetchWithAutoRetry(
       if (attempt < maxRetries) {
         const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
         console.warn(`[${callerName}] Network error, retrying in ${delay}ms: ${lastError.message}`);
-        await new Promise(r => setTimeout(r, delay));
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
     }
@@ -185,20 +190,31 @@ export async function fetchWithAutoRetry(
 export async function callGeminiWithTool(
   systemPrompt: string,
   userPrompt: string,
-  tool: any,
+  tool: Record<string, unknown>,
   apiKey: string,
   model: string = DEFAULT_GEMINI_MODEL,
   timeoutMs: number = 45000,
   maxTokens: number = 8192,
-  rateLimitConfig?: RateLimitConfig
-): Promise<{ data: any | null; error?: { code: string; message: string }; usage?: { input_tokens: number; output_tokens: number } }> {
+  rateLimitConfig?: RateLimitConfig,
+): Promise<{
+  data: Record<string, unknown> | null;
+  error?: { code: string; message: string };
+  usage?: { input_tokens: number; output_tokens: number };
+}> {
   try {
     // Normalize tool format — accept both OpenAI and legacy formats
-    let openAITool: any;
+    let openAITool: Record<string, unknown>;
     if (tool.type === 'function' && tool.function) {
       openAITool = tool;
     } else if (tool.name && tool.input_schema) {
-      openAITool = { type: 'function', function: { name: tool.name, description: tool.description || '', parameters: tool.input_schema } };
+      openAITool = {
+        type: 'function',
+        function: {
+          name: tool.name,
+          description: tool.description || '',
+          parameters: tool.input_schema,
+        },
+      };
     } else {
       openAITool = tool;
     }
@@ -216,61 +232,79 @@ export async function callGeminiWithTool(
       const response = await fetchWithAutoRetry(
         GEMINI_API_URL,
         {
-          method: "POST",
+          method: 'POST',
           headers: getGeminiHeaders(apiKey),
           body: JSON.stringify({
             model,
             messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
             ],
             tools: [openAITool],
-            tool_choice: { type: "function", function: { name: toolName } },
+            tool_choice: { type: 'function', function: { name: toolName } },
             temperature: 0,
             max_tokens: maxTokens,
           }),
           signal: AbortSignal.timeout(timeoutMs),
         },
-        { maxRetries: 3, baseDelayMs: 2000, callerName: `Gemini/${model}` }
+        { maxRetries: 3, baseDelayMs: 2000, callerName: `Gemini/${model}` },
       );
 
       const durationMs = Date.now() - startTime;
 
       if (response.status === 402) {
-        return { data: null, error: { code: "payment_required", message: "AI credits depleted" } };
+        return { data: null, error: { code: 'payment_required', message: 'AI credits depleted' } };
       }
       if (response.status === 429) {
         // Report rate limit to shared coordinator
         if (rateLimitConfig?.supabase) {
           await reportRateLimit(rateLimitConfig.supabase, 'gemini');
         }
-        return { data: null, error: { code: "rate_limited", message: "Rate limit exceeded after retries" } };
+        return {
+          data: null,
+          error: { code: 'rate_limited', message: 'Rate limit exceeded after retries' },
+        };
       }
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Gemini API call failed: ${response.status}`, errorText.substring(0, 500));
-        return { data: null, error: { code: `http_${response.status}`, message: `Gemini API returned ${response.status}: ${errorText.substring(0, 200)}` } };
+        return {
+          data: null,
+          error: {
+            code: `http_${response.status}`,
+            message: `Gemini API returned ${response.status}: ${errorText.substring(0, 200)}`,
+          },
+        };
       }
 
       const responseData = await response.json();
-      const usage = responseData.usage ? {
-        input_tokens: responseData.usage.prompt_tokens || 0,
-        output_tokens: responseData.usage.completion_tokens || 0,
-      } : undefined;
+      const usage = responseData.usage
+        ? {
+            input_tokens: responseData.usage.prompt_tokens || 0,
+            output_tokens: responseData.usage.completion_tokens || 0,
+          }
+        : undefined;
 
       if (usage) {
-        console.log(`[Gemini/${model}] ${usage.input_tokens}in/${usage.output_tokens}out tokens, ${durationMs}ms`);
+        console.log(
+          `[Gemini/${model}] ${usage.input_tokens}in/${usage.output_tokens}out tokens, ${durationMs}ms`,
+        );
       }
 
       const toolCall = responseData.choices?.[0]?.message?.tool_calls?.[0];
       if (!toolCall?.function?.arguments) {
-        console.warn("No tool_call in Gemini response");
-        return { data: null, error: { code: "no_tool_use", message: "Gemini did not return tool use" }, usage };
+        console.warn('No tool_call in Gemini response');
+        return {
+          data: null,
+          error: { code: 'no_tool_use', message: 'Gemini did not return tool use' },
+          usage,
+        };
       }
 
-      const parsed = typeof toolCall.function.arguments === 'string'
-        ? JSON.parse(toolCall.function.arguments)
-        : toolCall.function.arguments;
+      const parsed =
+        typeof toolCall.function.arguments === 'string'
+          ? JSON.parse(toolCall.function.arguments)
+          : toolCall.function.arguments;
 
       return { data: parsed, usage };
     };
@@ -281,13 +315,19 @@ export async function callGeminiWithTool(
     }
     return await doFetch();
   } catch (error) {
-    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
       console.error(`Gemini API timeout after ${timeoutMs}ms`);
-      return { data: null, error: { code: "timeout", message: `Gemini API timeout after ${timeoutMs}ms` } };
+      return {
+        data: null,
+        error: { code: 'timeout', message: `Gemini API timeout after ${timeoutMs}ms` },
+      };
     }
-    console.error("Gemini API error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return { data: null, error: { code: "unknown_error", message: `Gemini API error: ${message}` } };
+    console.error('Gemini API error:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      data: null,
+      error: { code: 'unknown_error', message: `Gemini API error: ${message}` },
+    };
   }
 }
 
@@ -300,16 +340,16 @@ export async function callGeminiWithRetry(
   headers: Record<string, string>,
   body: Record<string, unknown>,
   timeoutMs: number = 45000,
-  callerName: string = 'Gemini'
+  callerName: string = 'Gemini',
 ): Promise<Response> {
   return fetchWithAutoRetry(
     url,
     {
-      method: "POST",
+      method: 'POST',
       headers,
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     },
-    { maxRetries: 3, baseDelayMs: 2000, callerName }
+    { maxRetries: 3, baseDelayMs: 2000, callerName },
   );
 }

@@ -182,7 +182,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ error: 'Invalid action' }),
       { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in password-reset function:', error);
     return new Response(
       JSON.stringify({ error: error?.message || 'Internal server error' }),

@@ -107,7 +107,7 @@ export function AddBuyerToUniverseDialog({ open, onOpenChange, universeId, onBuy
       onBuyerAdded();
       onOpenChange(false);
       resetForm();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error(error.message || "Error adding buyer");
     } finally {
       setIsSubmitting(false);

@@ -13,7 +13,7 @@ interface UserJourneyEvent {
   user_id: string;
   user_email: string;
   user_name: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -51,7 +51,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error in user-journey-notifications function:", error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
@@ -67,7 +67,7 @@ async function processUserJourneyEvent(event: UserJourneyEvent, correlationId: s
   const { event_type, user_email, user_name } = event;
   
   let emailType: string;
-  let emailData: Record<string, any> = {};
+  let emailData: Record<string, unknown> = {};
   
   switch (event_type) {
     case 'user_created':

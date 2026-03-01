@@ -1,25 +1,13 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button as _Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  Mic,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  Clock,
-  Users,
-  Tag,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button as _Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Mic, ChevronDown, ChevronUp, ExternalLink, Clock, Users, Tag } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
 
 interface TranscriptWithSummary {
   id: string;
@@ -42,26 +30,22 @@ interface MeetingTranscriptSummariesProps {
   listingId: string;
 }
 
-export function MeetingTranscriptSummaries({
-  listingId,
-}: MeetingTranscriptSummariesProps) {
+export function MeetingTranscriptSummaries({ listingId }: MeetingTranscriptSummariesProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  const { data: transcripts = [], isLoading } = useQuery<
-    TranscriptWithSummary[]
-  >({
-    queryKey: ["deal-meeting-summaries", listingId],
+  const { data: transcripts = [], isLoading } = useQuery<TranscriptWithSummary[]>({
+    queryKey: ['deal-meeting-summaries', listingId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("deal_transcripts")
+      const { data, error } = await supabase
+        .from('deal_transcripts' as never)
         .select(
-          "id, title, call_date, duration_minutes, transcript_url, source, has_content, external_participants, extracted_data, created_at"
+          'id, title, call_date, duration_minutes, transcript_url, source, has_content, external_participants, extracted_data, created_at',
         )
-        .eq("listing_id", listingId)
-        .eq("source", "fireflies")
-        .order("call_date", { ascending: false, nullsFirst: false });
+        .eq('listing_id', listingId)
+        .eq('source', 'fireflies')
+        .order('call_date', { ascending: false, nullsFirst: false });
       if (error) throw error;
-      return (data || []) as TranscriptWithSummary[];
+      return (data || []) as unknown as TranscriptWithSummary[];
     },
     enabled: !!listingId,
     staleTime: 60_000,
@@ -69,9 +53,7 @@ export function MeetingTranscriptSummaries({
 
   // Only show transcripts that have actual content (summaries or has_content flag)
   const transcriptsWithContent = transcripts.filter(
-    (t) =>
-      t.has_content !== false &&
-      (t.extracted_data?.fireflies_summary || t.title)
+    (t) => t.has_content !== false && (t.extracted_data?.fireflies_summary || t.title),
   );
 
   if (isLoading) {
@@ -119,10 +101,7 @@ export function MeetingTranscriptSummaries({
         <CollapsibleContent>
           <CardContent className="space-y-3 pt-0">
             {transcriptsWithContent.map((transcript) => (
-              <MeetingSummaryCard
-                key={transcript.id}
-                transcript={transcript}
-              />
+              <MeetingSummaryCard key={transcript.id} transcript={transcript} />
             ))}
           </CardContent>
         </CollapsibleContent>
@@ -131,11 +110,7 @@ export function MeetingTranscriptSummaries({
   );
 }
 
-function MeetingSummaryCard({
-  transcript,
-}: {
-  transcript: TranscriptWithSummary;
-}) {
+function MeetingSummaryCard({ transcript }: { transcript: TranscriptWithSummary }) {
   const [expanded, setExpanded] = useState(false);
   const summary = transcript.extracted_data?.fireflies_summary;
   const keywords = transcript.extracted_data?.fireflies_keywords;
@@ -148,7 +123,7 @@ function MeetingSummaryCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h4 className="text-sm font-medium truncate">
-              {transcript.title || "Untitled Meeting"}
+              {transcript.title || 'Untitled Meeting'}
             </h4>
             {transcript.duration_minutes && transcript.duration_minutes > 0 && (
               <Badge variant="outline" className="text-[10px] gap-1 shrink-0">
@@ -160,8 +135,8 @@ function MeetingSummaryCard({
           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
             {transcript.call_date && (
               <span>
-                {format(new Date(transcript.call_date), "MMM d, yyyy · h:mm a")}
-                {" · "}
+                {format(new Date(transcript.call_date), 'MMM d, yyyy · h:mm a')}
+                {' · '}
                 {formatDistanceToNow(new Date(transcript.call_date), {
                   addSuffix: true,
                 })}
@@ -187,11 +162,7 @@ function MeetingSummaryCard({
         <div className="flex items-center gap-1.5 flex-wrap">
           <Users className="h-3 w-3 text-muted-foreground shrink-0" />
           {externalParticipants.map((p, i) => (
-            <Badge
-              key={i}
-              variant="secondary"
-              className="text-[10px] font-normal"
-            >
+            <Badge key={i} variant="secondary" className="text-[10px] font-normal">
               {p.name || p.email}
             </Badge>
           ))}
@@ -201,11 +172,7 @@ function MeetingSummaryCard({
       {/* Summary */}
       {summary && (
         <div>
-          <p
-            className={`text-sm text-muted-foreground ${
-              !expanded ? "line-clamp-3" : ""
-            }`}
-          >
+          <p className={`text-sm text-muted-foreground ${!expanded ? 'line-clamp-3' : ''}`}>
             {summary}
           </p>
           {summary.length > 200 && (
@@ -213,7 +180,7 @@ function MeetingSummaryCard({
               onClick={() => setExpanded(!expanded)}
               className="text-xs text-primary hover:underline mt-1"
             >
-              {expanded ? "Show less" : "Show more"}
+              {expanded ? 'Show less' : 'Show more'}
             </button>
           )}
         </div>
@@ -224,18 +191,12 @@ function MeetingSummaryCard({
         <div className="flex items-center gap-1.5 flex-wrap">
           <Tag className="h-3 w-3 text-muted-foreground shrink-0" />
           {keywords.slice(0, 6).map((kw, i) => (
-            <Badge
-              key={i}
-              variant="outline"
-              className="text-[10px] font-normal"
-            >
+            <Badge key={i} variant="outline" className="text-[10px] font-normal">
               {kw}
             </Badge>
           ))}
           {keywords.length > 6 && (
-            <span className="text-[10px] text-muted-foreground">
-              +{keywords.length - 6} more
-            </span>
+            <span className="text-[10px] text-muted-foreground">+{keywords.length - 6} more</span>
           )}
         </div>
       )}

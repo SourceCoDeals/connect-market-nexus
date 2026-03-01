@@ -47,6 +47,7 @@ import { DealTableRow } from '../components/DealTableRow';
 import { DealsKPICards } from '../components/DealsKPICards';
 import { DealsActionDialogs } from '../components/DealsActionDialogs';
 
+import type { Operator } from '@/components/filters/filter-definitions/types';
 import { useReMarketingDeals } from './useReMarketingDeals';
 import {
   formatCurrency,
@@ -107,7 +108,7 @@ const ReMarketingDeals = () => {
       const rules = filters.map((f, idx) => ({
         id: `ai-filter-${idx}`,
         field: f.field,
-        operator: f.operator as any,
+        operator: f.operator as Operator,
         value: f.value,
       }));
       if (clearExisting) {

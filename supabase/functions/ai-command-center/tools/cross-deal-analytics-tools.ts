@@ -3,9 +3,7 @@
  * Aggregate analytics across universes, deals, and buyers for strategic insights.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -127,7 +125,7 @@ async function universeComparison(
   if (!universes?.length) return { data: { universes: [], message: 'No universes found' } };
 
   // Fetch scoring stats per universe
-  const universeIds = universes.map((u: any) => u.id);
+  const universeIds = universes.map((u: { id: string }) => u.id);
   const [scoresResult, outreachResult, decisionsResult] = await Promise.all([
     supabase
       .from('remarketing_scores')
@@ -148,14 +146,13 @@ async function universeComparison(
   const _approvals = decisionsResult.data || [];
 
   // Aggregate per universe
-  const universeStats = universes.map((u: any) => {
-    const uScores = scores.filter((s: any) => {
-      // Match by universe_id if available
-      return (s as any).universe_id === u.id;
+  const universeStats = universes.map((u: { id: string; name: string; buyer_count: number; deal_count: number }) => {
+    const uScores = scores.filter((s: { universe_id?: string }) => {
+      return s.universe_id === u.id;
     });
-    const uOutreach = outreach.filter((o: any) => (o as any).universe_id === u.id);
+    const uOutreach = outreach.filter((o: { universe_id?: string }) => o.universe_id === u.id);
 
-    const compositeScores = uScores.map((s: any) => s.composite_score).filter(Boolean) as number[];
+    const compositeScores = uScores.map((s: { composite_score?: number }) => s.composite_score).filter(Boolean) as number[];
     const avgScore =
       compositeScores.length > 0
         ? Math.round(compositeScores.reduce((a, b) => a + b, 0) / compositeScores.length)
@@ -190,7 +187,7 @@ async function universeComparison(
   });
 
   // Sort by conversion rate
-  universeStats.sort((a: any, b: any) => b.conversion_rate_pct - a.conversion_rate_pct);
+  universeStats.sort((a, b) => b.conversion_rate_pct - a.conversion_rate_pct);
 
   return {
     data: {
@@ -228,7 +225,7 @@ async function dealComparison(
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     deals = deals.filter(
-      (d: any) =>
+      (d: { title?: string; industry?: string; category?: string; services?: string[] }) =>
         d.title?.toLowerCase().includes(term) ||
         d.industry?.toLowerCase().includes(term) ||
         d.category?.toLowerCase().includes(term) ||
@@ -258,7 +255,7 @@ async function dealComparison(
     };
 
   // Fetch score counts per deal
-  const dealIds = deals.map((d: any) => d.id);
+  const dealIds = deals.map((d: { id: string }) => d.id);
   const [scoresResult, outreachResult, tasksResult] = await Promise.all([
     supabase
       .from('remarketing_scores')
@@ -276,19 +273,19 @@ async function dealComparison(
   const outreach = outreachResult.data || [];
   const tasks = tasksResult.data || [];
 
-  const dealStats = deals.map((d: any) => {
-    const dScores = scores.filter((s: any) => s.listing_id === d.id);
-    const dOutreach = outreach.filter((o: any) => o.deal_id === d.id);
-    const dTasks = tasks.filter((t: any) => t.entity_id === d.id);
+  const dealStats = deals.map((d: { id: string; title: string; revenue: number; ebitda: number; deal_total_score: number; status: string; address_state: string }) => {
+    const dScores = scores.filter((s: { listing_id: string }) => s.listing_id === d.id);
+    const dOutreach = outreach.filter((o: { deal_id: string }) => o.deal_id === d.id);
+    const dTasks = tasks.filter((t: { entity_id: string }) => t.entity_id === d.id);
 
-    const composites = dScores.map((s: any) => s.composite_score).filter(Boolean) as number[];
+    const composites = dScores.map((s: { composite_score?: number }) => s.composite_score).filter(Boolean) as number[];
     const avgScore =
       composites.length > 0
         ? Math.round(composites.reduce((a: number, b: number) => a + b, 0) / composites.length)
         : null;
 
-    const approved = dScores.filter((s: any) => s.status === 'approved').length;
-    const passed = dScores.filter((s: any) => s.status === 'passed').length;
+    const approved = dScores.filter((s: { status?: string }) => s.status === 'approved').length;
+    const passed = dScores.filter((s: { status?: string }) => s.status === 'passed').length;
 
     return {
       deal_id: d.id,
@@ -304,7 +301,7 @@ async function dealComparison(
       passed_buyers: passed,
       approval_rate_pct: dScores.length > 0 ? Math.round((approved / dScores.length) * 100) : 0,
       active_outreach: dOutreach.length,
-      open_tasks: dTasks.filter((t: any) => t.status === 'pending' || t.status === 'in_progress')
+      open_tasks: dTasks.filter((t: { status?: string }) => t.status === 'pending' || t.status === 'in_progress')
         .length,
     };
   });
@@ -397,7 +394,7 @@ async function sourceAnalysis(
   if (args.industry) {
     const term = (args.industry as string).toLowerCase();
     filteredDeals = filteredDeals.filter(
-      (d: any) =>
+      (d: { title?: string; industry?: string; category?: string; services?: string[] }) =>
         d.title?.toLowerCase().includes(term) ||
         d.industry?.toLowerCase().includes(term) ||
         d.category?.toLowerCase().includes(term) ||

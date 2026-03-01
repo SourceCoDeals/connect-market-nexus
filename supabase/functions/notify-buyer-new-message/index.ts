@@ -160,8 +160,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const buyer = request.user as any;
-    const listing = request.listing as any;
+    const buyer = request.user as { first_name?: string; last_name?: string; email?: string } | null;
+    const listing = request.listing as { title?: string } | null;
 
     if (!buyer?.email) {
       console.error(
@@ -228,10 +228,10 @@ const handler = async (req: Request): Promise<Response> => {
       }),
       { headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[notify-buyer-new-message] Error:', error);
 
-    return new Response(JSON.stringify({ success: false, error: error.message }), {
+    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });

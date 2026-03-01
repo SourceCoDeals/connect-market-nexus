@@ -99,8 +99,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const webhookSecret = Deno.env.get('PHONEBURNER_WEBHOOK_SECRET');
-  // deno-lint-ignore no-explicit-any
-  const supabase: any = createClient(supabaseUrl, serviceRoleKey);
+  const supabase: ReturnType<typeof createClient> = createClient(supabaseUrl, serviceRoleKey);
 
   const rawBody = await req.text();
 
@@ -309,8 +308,7 @@ function extractContactInfo(payload: Record<string, unknown>) {
 }
 
 async function processEvent(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   eventType: string,
   payload: Record<string, unknown>,
   topLevelTranscript: string | null,

@@ -1,6 +1,6 @@
-import { QueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { QueryClient } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -8,8 +8,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { FirefliesTranscriptSearch } from "@/components/buyers/FirefliesTranscriptSearch";
+} from '@/components/ui/table';
+import { FirefliesTranscriptSearch } from '@/components/buyers/FirefliesTranscriptSearch';
 
 interface NotesCallsTabProps {
   firmId: string;
@@ -42,20 +42,19 @@ export const NotesCallsTab = ({
         <CardHeader>
           <CardTitle>Find Call Transcripts</CardTitle>
           <CardDescription>
-            Search your Fireflies call history to link firm-level conversations with{" "}
-            {firmName}
+            Search your Fireflies call history to link firm-level conversations with {firmName}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <FirefliesTranscriptSearch
             buyerId={firmId}
-            companyName={firmName || ""}
+            companyName={firmName || ''}
             peFirmName={firmName}
             platformWebsite={firmWebsite}
             contacts={contacts.filter((c) => c.email).map((c) => ({ email: c.email! }))}
             onTranscriptLinked={() => {
               queryClient.invalidateQueries({
-                queryKey: ["remarketing", "transcripts", firmId],
+                queryKey: ['remarketing', 'transcripts', firmId],
               });
             }}
           />
@@ -80,11 +79,11 @@ export const NotesCallsTab = ({
                 {transcripts.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
-                      {t.title || (t as any).file_name || "Transcript"}
+                      {t.title || (t['file_name'] as string | undefined) || 'Transcript'}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
-                        {t.source || "manual"}
+                        {t.source || 'manual'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">

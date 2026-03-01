@@ -5,8 +5,7 @@
  * getting campaign stats, and pushing contacts to campaigns.
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 import { smartleadRequest } from '../../_shared/smartlead-client.ts';
@@ -195,8 +194,7 @@ async function getSmartleadCampaigns(
     for (const d of deals || []) dealMap.set(d.id, d.title);
   }
 
-  // deno-lint-ignore no-explicit-any
-  const enriched = campaigns.map((c: any) => {
+  const enriched = campaigns.map((c: Record<string, unknown>) => {
     const stats = statsMap.get(c.id);
     return {
       id: c.id,
@@ -414,8 +412,7 @@ async function getSmartleadEmailHistory(
   }
 
   // Build campaign participation list
-  // deno-lint-ignore no-explicit-any
-  const campaigns = (campaignLeads || []).map((cl: any) => ({
+  const campaigns = (campaignLeads || []).map((cl: Record<string, unknown> & { campaign?: Record<string, unknown> }) => ({
     campaign_name: cl.campaign?.name || 'Unknown',
     campaign_status: cl.campaign?.status || 'Unknown',
     email: cl.email,

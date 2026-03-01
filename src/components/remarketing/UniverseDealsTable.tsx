@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
+import { useState, useCallback, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -11,29 +11,24 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { 
-  Building2, 
-  MapPin, 
+} from '@/components/ui/select';
+import {
+  Building2,
+  MapPin,
   Target,
   Sparkles,
   ThumbsUp,
@@ -47,9 +42,9 @@ import {
   ArrowDown,
   Search,
   Filter,
-  X
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+  X,
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 interface UniverseDeal {
   id: string;
@@ -109,7 +104,8 @@ const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => v
 );
 
 const getScoreBg = (score: number) => {
-  if (score >= 80) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400';
+  if (score >= 80)
+    return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400';
   if (score >= 60) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400';
   if (score >= 40) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400';
   return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
@@ -123,7 +119,23 @@ const getScoreTier = (score: number) => {
   return 'F';
 };
 
-type SortField = 'name' | 'description' | 'serviceArea' | 'approved' | 'interested' | 'passed' | 'added' | 'liCount' | 'liRange' | 'googleReviews' | 'googleRating' | 'revenue' | 'ebitda' | 'quality' | 'sellerInterest' | 'score';
+type SortField =
+  | 'name'
+  | 'description'
+  | 'serviceArea'
+  | 'approved'
+  | 'interested'
+  | 'passed'
+  | 'added'
+  | 'liCount'
+  | 'liRange'
+  | 'googleReviews'
+  | 'googleRating'
+  | 'revenue'
+  | 'ebitda'
+  | 'quality'
+  | 'sellerInterest'
+  | 'score';
 type SortDir = 'asc' | 'desc';
 
 const DEFAULT_WIDTHS: Record<string, number> = {
@@ -190,21 +202,24 @@ export const UniverseDealsTable = ({
   const [showFilters, setShowFilters] = useState(false);
 
   const selectedIds = controlledSelected ?? internalSelected;
-  const setSelectedIds = useCallback((ids: string[]) => {
-    if (onSelectionChange) onSelectionChange(ids);
-    else setInternalSelected(ids);
-  }, [onSelectionChange]);
+  const setSelectedIds = useCallback(
+    (ids: string[]) => {
+      if (onSelectionChange) onSelectionChange(ids);
+      else setInternalSelected(ids);
+    },
+    [onSelectionChange],
+  );
 
   // Derive unique states from deals
   const uniqueStates = useMemo(() => {
     const states = new Set<string>();
-    deals.forEach(d => d.listing.geographic_states?.forEach(s => states.add(s)));
+    deals.forEach((d) => d.listing.geographic_states?.forEach((s) => states.add(s)));
     return Array.from(states).sort();
   }, [deals]);
 
   // Filter deals
   const filteredDeals = useMemo(() => {
-    return deals.filter(deal => {
+    return deals.filter((deal) => {
       const l = deal.listing;
       // Search
       if (search) {
@@ -220,7 +235,7 @@ export const UniverseDealsTable = ({
       }
       // Employee range
       if (employeeFilter !== 'all') {
-        const range = EMPLOYEE_RANGES.find(r => r.label === employeeFilter);
+        const range = EMPLOYEE_RANGES.find((r) => r.label === employeeFilter);
         if (range) {
           const count = l.linkedin_employee_count || 0;
           if (count < range.min || count > range.max) return false;
@@ -243,30 +258,92 @@ export const UniverseDealsTable = ({
   const sortedDeals = useMemo(() => {
     if (!sortField) return filteredDeals;
     const sorted = [...filteredDeals].sort((a, b) => {
-      const engA = engagementStats[a.listing.id] || { approved: 0, interested: 0, passed: 0, avgScore: 0 };
-      const engB = engagementStats[b.listing.id] || { approved: 0, interested: 0, passed: 0, avgScore: 0 };
-      let valA: any, valB: any;
+      const engA = engagementStats[a.listing.id] || {
+        approved: 0,
+        interested: 0,
+        passed: 0,
+        avgScore: 0,
+      };
+      const engB = engagementStats[b.listing.id] || {
+        approved: 0,
+        interested: 0,
+        passed: 0,
+        avgScore: 0,
+      };
+      let valA: string | number, valB: string | number;
       switch (sortField) {
-        case 'name': valA = (a.listing.internal_company_name || a.listing.title || '').toLowerCase(); valB = (b.listing.internal_company_name || b.listing.title || '').toLowerCase(); break;
-        case 'description': valA = (a.listing.description || '').toLowerCase(); valB = (b.listing.description || '').toLowerCase(); break;
-        case 'serviceArea': valA = (a.listing.geographic_states || []).join(','); valB = (b.listing.geographic_states || []).join(','); break;
-        case 'approved': valA = engA.approved; valB = engB.approved; break;
-        case 'interested': valA = engA.interested; valB = engB.interested; break;
-        case 'passed': valA = engA.passed; valB = engB.passed; break;
-        case 'added': valA = new Date(a.added_at).getTime(); valB = new Date(b.added_at).getTime(); break;
-        case 'liCount': valA = a.listing.linkedin_employee_count || 0; valB = b.listing.linkedin_employee_count || 0; break;
-        case 'liRange': valA = (a.listing.linkedin_employee_range || ''); valB = (b.listing.linkedin_employee_range || ''); break;
-        case 'googleReviews': valA = a.listing.google_review_count || 0; valB = b.listing.google_review_count || 0; break;
-        case 'googleRating': valA = a.listing.google_rating || 0; valB = b.listing.google_rating || 0; break;
-        case 'revenue': valA = a.listing.revenue || 0; valB = b.listing.revenue || 0; break;
-        case 'ebitda': valA = a.listing.ebitda || 0; valB = b.listing.ebitda || 0; break;
-        case 'quality': valA = a.listing.deal_total_score ?? -1; valB = b.listing.deal_total_score ?? -1; break;
-        case 'sellerInterest': valA = a.listing.seller_interest_score ?? -1; valB = b.listing.seller_interest_score ?? -1; break;
-        case 'score': valA = engA.avgScore; valB = engB.avgScore; break;
-        default: return 0;
+        case 'name':
+          valA = (a.listing.internal_company_name || a.listing.title || '').toLowerCase();
+          valB = (b.listing.internal_company_name || b.listing.title || '').toLowerCase();
+          break;
+        case 'description':
+          valA = (a.listing.description || '').toLowerCase();
+          valB = (b.listing.description || '').toLowerCase();
+          break;
+        case 'serviceArea':
+          valA = (a.listing.geographic_states || []).join(',');
+          valB = (b.listing.geographic_states || []).join(',');
+          break;
+        case 'approved':
+          valA = engA.approved;
+          valB = engB.approved;
+          break;
+        case 'interested':
+          valA = engA.interested;
+          valB = engB.interested;
+          break;
+        case 'passed':
+          valA = engA.passed;
+          valB = engB.passed;
+          break;
+        case 'added':
+          valA = new Date(a.added_at).getTime();
+          valB = new Date(b.added_at).getTime();
+          break;
+        case 'liCount':
+          valA = a.listing.linkedin_employee_count || 0;
+          valB = b.listing.linkedin_employee_count || 0;
+          break;
+        case 'liRange':
+          valA = a.listing.linkedin_employee_range || '';
+          valB = b.listing.linkedin_employee_range || '';
+          break;
+        case 'googleReviews':
+          valA = a.listing.google_review_count || 0;
+          valB = b.listing.google_review_count || 0;
+          break;
+        case 'googleRating':
+          valA = a.listing.google_rating || 0;
+          valB = b.listing.google_rating || 0;
+          break;
+        case 'revenue':
+          valA = a.listing.revenue || 0;
+          valB = b.listing.revenue || 0;
+          break;
+        case 'ebitda':
+          valA = a.listing.ebitda || 0;
+          valB = b.listing.ebitda || 0;
+          break;
+        case 'quality':
+          valA = a.listing.deal_total_score ?? -1;
+          valB = b.listing.deal_total_score ?? -1;
+          break;
+        case 'sellerInterest':
+          valA = a.listing.seller_interest_score ?? -1;
+          valB = b.listing.seller_interest_score ?? -1;
+          break;
+        case 'score':
+          valA = engA.avgScore;
+          valB = engB.avgScore;
+          break;
+        default:
+          return 0;
       }
-      if (typeof valA === 'string') return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      return sortDir === 'asc' ? valA - valB : valB - valA;
+      if (typeof valA === 'string' && typeof valB === 'string')
+        return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      return sortDir === 'asc'
+        ? (valA as number) - (valB as number)
+        : (valB as number) - (valA as number);
     });
     return sorted;
   }, [filteredDeals, sortField, sortDir, engagementStats]);
@@ -275,21 +352,24 @@ export const UniverseDealsTable = ({
   const someSelected = selectedIds.length > 0 && selectedIds.length < sortedDeals.length;
 
   const toggleAll = () => {
-    setSelectedIds(allSelected ? [] : sortedDeals.map(d => d.id));
+    setSelectedIds(allSelected ? [] : sortedDeals.map((d) => d.id));
   };
 
   const toggleOne = (dealId: string) => {
     setSelectedIds(
       selectedIds.includes(dealId)
-        ? selectedIds.filter(id => id !== dealId)
-        : [...selectedIds, dealId]
+        ? selectedIds.filter((id) => id !== dealId)
+        : [...selectedIds, dealId],
     );
   };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       if (sortDir === 'desc') setSortDir('asc');
-      else { setSortField(null); setSortDir('desc'); }
+      else {
+        setSortField(null);
+        setSortDir('desc');
+      }
     } else {
       setSortField(field);
       setSortDir('desc');
@@ -298,38 +378,48 @@ export const UniverseDealsTable = ({
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-30" />;
-    return sortDir === 'asc' 
-      ? <ArrowUp className="h-3 w-3 ml-1 text-primary" /> 
-      : <ArrowDown className="h-3 w-3 ml-1 text-primary" />;
+    return sortDir === 'asc' ? (
+      <ArrowUp className="h-3 w-3 ml-1 text-primary" />
+    ) : (
+      <ArrowDown className="h-3 w-3 ml-1 text-primary" />
+    );
   };
 
   // Column resize handlers
-  const handleResizeStart = useCallback((col: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resizingRef.current = { col, startX: e.clientX, startWidth: columnWidths[col] };
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!resizingRef.current) return;
-      const delta = moveEvent.clientX - resizingRef.current.startX;
-      const newWidth = Math.max(40, resizingRef.current.startWidth + delta);
-      setColumnWidths(prev => ({ ...prev, [resizingRef.current!.col]: newWidth }));
-    };
-    const handleMouseUp = () => {
-      resizingRef.current = null;
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  }, [columnWidths]);
+  const handleResizeStart = useCallback(
+    (col: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      resizingRef.current = { col, startX: e.clientX, startWidth: columnWidths[col] };
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        if (!resizingRef.current) return;
+        const delta = moveEvent.clientX - resizingRef.current.startX;
+        const newWidth = Math.max(40, resizingRef.current.startWidth + delta);
+        setColumnWidths((prev) => ({ ...prev, [resizingRef.current!.col]: newWidth }));
+      };
+      const handleMouseUp = () => {
+        resizingRef.current = null;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    },
+    [columnWidths],
+  );
 
   const w = (col: string) => columnWidths[col];
 
-  const hasActiveFilters = stateFilter !== 'all' || employeeFilter !== 'all' || qualityTierFilter !== 'all' || enrichmentFilter !== 'all' || search.length > 0;
+  const hasActiveFilters =
+    stateFilter !== 'all' ||
+    employeeFilter !== 'all' ||
+    qualityTierFilter !== 'all' ||
+    enrichmentFilter !== 'all' ||
+    search.length > 0;
 
   const clearAllFilters = () => {
     setSearch('');
@@ -354,7 +444,7 @@ export const UniverseDealsTable = ({
             />
           </div>
           <Button
-            variant={showFilters ? "secondary" : "outline"}
+            variant={showFilters ? 'secondary' : 'outline'}
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
             className="h-8"
@@ -362,19 +452,35 @@ export const UniverseDealsTable = ({
             <Filter className="h-3.5 w-3.5 mr-1.5" />
             Filters
             {hasActiveFilters && (
-              <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px] bg-primary/10 text-primary">
-                {[stateFilter !== 'all', employeeFilter !== 'all', qualityTierFilter !== 'all', enrichmentFilter !== 'all'].filter(Boolean).length}
+              <Badge
+                variant="secondary"
+                className="ml-1.5 h-4 px-1 text-[10px] bg-primary/10 text-primary"
+              >
+                {
+                  [
+                    stateFilter !== 'all',
+                    employeeFilter !== 'all',
+                    qualityTierFilter !== 'all',
+                    enrichmentFilter !== 'all',
+                  ].filter(Boolean).length
+                }
               </Badge>
             )}
           </Button>
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-8 text-xs text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAllFilters}
+              className="h-8 text-xs text-muted-foreground"
+            >
               <X className="h-3 w-3 mr-1" />
               Clear all
             </Button>
           )}
           <span className="text-xs text-muted-foreground ml-auto">
-            {sortedDeals.length}{sortedDeals.length !== deals.length ? ` of ${deals.length}` : ''} deals
+            {sortedDeals.length}
+            {sortedDeals.length !== deals.length ? ` of ${deals.length}` : ''} deals
           </span>
         </div>
 
@@ -386,8 +492,10 @@ export const UniverseDealsTable = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All States</SelectItem>
-                {uniqueStates.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                {uniqueStates.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -398,8 +506,10 @@ export const UniverseDealsTable = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sizes</SelectItem>
-                {EMPLOYEE_RANGES.map(r => (
-                  <SelectItem key={r.label} value={r.label}>{r.label} employees</SelectItem>
+                {EMPLOYEE_RANGES.map((r) => (
+                  <SelectItem key={r.label} value={r.label}>
+                    {r.label} employees
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -410,8 +520,10 @@ export const UniverseDealsTable = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Tiers</SelectItem>
-                {SCORE_TIERS.map(t => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                {SCORE_TIERS.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
                 ))}
                 <SelectItem value="none">Not Scored</SelectItem>
               </SelectContent>
@@ -432,29 +544,54 @@ export const UniverseDealsTable = ({
       </div>
 
       <div className="overflow-x-auto">
-        <Table className="table-fixed" style={{ minWidth: Object.values(columnWidths).reduce((a, b) => a + b, 0) }}>
+        <Table
+          className="table-fixed"
+          style={{ minWidth: Object.values(columnWidths).reduce((a, b) => a + b, 0) }}
+        >
           <TableHeader>
             <TableRow>
               <TableHead style={{ width: w('checkbox') }}>
                 <Checkbox
-                  checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                  checked={allSelected ? true : someSelected ? 'indeterminate' : false}
                   onCheckedChange={toggleAll}
                   aria-label="Select all deals"
                 />
               </TableHead>
-              <TableHead style={{ width: w('name') }} className="relative cursor-pointer select-none" onClick={() => handleSort('name')}>
-                <span className="flex items-center">Deal Name <SortIcon field="name" /></span>
+              <TableHead
+                style={{ width: w('name') }}
+                className="relative cursor-pointer select-none"
+                onClick={() => handleSort('name')}
+              >
+                <span className="flex items-center">
+                  Deal Name <SortIcon field="name" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('name', e)} />
               </TableHead>
-              <TableHead style={{ width: w('description') }} className="relative cursor-pointer select-none" onClick={() => handleSort('description')}>
-                <span className="flex items-center">Description <SortIcon field="description" /></span>
+              <TableHead
+                style={{ width: w('description') }}
+                className="relative cursor-pointer select-none"
+                onClick={() => handleSort('description')}
+              >
+                <span className="flex items-center">
+                  Description <SortIcon field="description" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('description', e)} />
               </TableHead>
-              <TableHead style={{ width: w('serviceArea') }} className="relative cursor-pointer select-none" onClick={() => handleSort('serviceArea')}>
-                <span className="flex items-center">Service Area <SortIcon field="serviceArea" /></span>
+              <TableHead
+                style={{ width: w('serviceArea') }}
+                className="relative cursor-pointer select-none"
+                onClick={() => handleSort('serviceArea')}
+              >
+                <span className="flex items-center">
+                  Service Area <SortIcon field="serviceArea" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('serviceArea', e)} />
               </TableHead>
-              <TableHead style={{ width: w('approved') }} className="text-center relative cursor-pointer select-none" onClick={() => handleSort('approved')}>
+              <TableHead
+                style={{ width: w('approved') }}
+                className="text-center relative cursor-pointer select-none"
+                onClick={() => handleSort('approved')}
+              >
                 <Tooltip>
                   <TooltipTrigger className="flex items-center gap-1">
                     <ThumbsUp className="h-3.5 w-3.5 text-emerald-500" />
@@ -464,7 +601,11 @@ export const UniverseDealsTable = ({
                 </Tooltip>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('approved', e)} />
               </TableHead>
-              <TableHead style={{ width: w('interested') }} className="text-center relative cursor-pointer select-none" onClick={() => handleSort('interested')}>
+              <TableHead
+                style={{ width: w('interested') }}
+                className="text-center relative cursor-pointer select-none"
+                onClick={() => handleSort('interested')}
+              >
                 <Tooltip>
                   <TooltipTrigger className="flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5 text-amber-500" />
@@ -474,7 +615,11 @@ export const UniverseDealsTable = ({
                 </Tooltip>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('interested', e)} />
               </TableHead>
-              <TableHead style={{ width: w('passed') }} className="text-center relative cursor-pointer select-none" onClick={() => handleSort('passed')}>
+              <TableHead
+                style={{ width: w('passed') }}
+                className="text-center relative cursor-pointer select-none"
+                onClick={() => handleSort('passed')}
+              >
                 <Tooltip>
                   <TooltipTrigger className="flex items-center gap-1">
                     <ThumbsDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -484,44 +629,104 @@ export const UniverseDealsTable = ({
                 </Tooltip>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('passed', e)} />
               </TableHead>
-              <TableHead style={{ width: w('added') }} className="relative cursor-pointer select-none" onClick={() => handleSort('added')}>
-                <span className="flex items-center">Added <SortIcon field="added" /></span>
+              <TableHead
+                style={{ width: w('added') }}
+                className="relative cursor-pointer select-none"
+                onClick={() => handleSort('added')}
+              >
+                <span className="flex items-center">
+                  Added <SortIcon field="added" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('added', e)} />
               </TableHead>
-              <TableHead style={{ width: w('liCount') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('liCount')}>
-                <span className="flex items-center justify-end">LI Count <SortIcon field="liCount" /></span>
+              <TableHead
+                style={{ width: w('liCount') }}
+                className="text-right relative cursor-pointer select-none"
+                onClick={() => handleSort('liCount')}
+              >
+                <span className="flex items-center justify-end">
+                  LI Count <SortIcon field="liCount" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('liCount', e)} />
               </TableHead>
-              <TableHead style={{ width: w('liRange') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('liRange')}>
-                <span className="flex items-center justify-end">LI Range <SortIcon field="liRange" /></span>
+              <TableHead
+                style={{ width: w('liRange') }}
+                className="text-right relative cursor-pointer select-none"
+                onClick={() => handleSort('liRange')}
+              >
+                <span className="flex items-center justify-end">
+                  LI Range <SortIcon field="liRange" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('liRange', e)} />
               </TableHead>
-              <TableHead style={{ width: w('googleReviews') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('googleReviews')}>
-                <span className="flex items-center justify-end">Reviews <SortIcon field="googleReviews" /></span>
+              <TableHead
+                style={{ width: w('googleReviews') }}
+                className="text-right relative cursor-pointer select-none"
+                onClick={() => handleSort('googleReviews')}
+              >
+                <span className="flex items-center justify-end">
+                  Reviews <SortIcon field="googleReviews" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('googleReviews', e)} />
               </TableHead>
-              <TableHead style={{ width: w('googleRating') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('googleRating')}>
-                <span className="flex items-center justify-end">Rating <SortIcon field="googleRating" /></span>
+              <TableHead
+                style={{ width: w('googleRating') }}
+                className="text-right relative cursor-pointer select-none"
+                onClick={() => handleSort('googleRating')}
+              >
+                <span className="flex items-center justify-end">
+                  Rating <SortIcon field="googleRating" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('googleRating', e)} />
               </TableHead>
-              <TableHead style={{ width: w('revenue') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('revenue')}>
-                <span className="flex items-center justify-end">Revenue <SortIcon field="revenue" /></span>
+              <TableHead
+                style={{ width: w('revenue') }}
+                className="text-right relative cursor-pointer select-none"
+                onClick={() => handleSort('revenue')}
+              >
+                <span className="flex items-center justify-end">
+                  Revenue <SortIcon field="revenue" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('revenue', e)} />
               </TableHead>
-              <TableHead style={{ width: w('ebitda') }} className="text-right relative cursor-pointer select-none" onClick={() => handleSort('ebitda')}>
-                <span className="flex items-center justify-end">EBITDA <SortIcon field="ebitda" /></span>
+              <TableHead
+                style={{ width: w('ebitda') }}
+                className="text-right relative cursor-pointer select-none"
+                onClick={() => handleSort('ebitda')}
+              >
+                <span className="flex items-center justify-end">
+                  EBITDA <SortIcon field="ebitda" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('ebitda', e)} />
               </TableHead>
-              <TableHead style={{ width: w('quality') }} className="text-center relative cursor-pointer select-none" onClick={() => handleSort('quality')}>
-                <span className="flex items-center justify-center">Quality <SortIcon field="quality" /></span>
+              <TableHead
+                style={{ width: w('quality') }}
+                className="text-center relative cursor-pointer select-none"
+                onClick={() => handleSort('quality')}
+              >
+                <span className="flex items-center justify-center">
+                  Quality <SortIcon field="quality" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('quality', e)} />
               </TableHead>
-              <TableHead style={{ width: w('sellerInterest') }} className="text-center relative cursor-pointer select-none" onClick={() => handleSort('sellerInterest')}>
-                <span className="flex items-center justify-center">Seller <SortIcon field="sellerInterest" /></span>
+              <TableHead
+                style={{ width: w('sellerInterest') }}
+                className="text-center relative cursor-pointer select-none"
+                onClick={() => handleSort('sellerInterest')}
+              >
+                <span className="flex items-center justify-center">
+                  Seller <SortIcon field="sellerInterest" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('sellerInterest', e)} />
               </TableHead>
-              <TableHead style={{ width: w('score') }} className="text-center relative cursor-pointer select-none" onClick={() => handleSort('score')}>
-                <span className="flex items-center justify-center">Score <SortIcon field="score" /></span>
+              <TableHead
+                style={{ width: w('score') }}
+                className="text-center relative cursor-pointer select-none"
+                onClick={() => handleSort('score')}
+              >
+                <span className="flex items-center justify-center">
+                  Score <SortIcon field="score" />
+                </span>
                 <ResizeHandle onMouseDown={(e) => handleResizeStart('score', e)} />
               </TableHead>
               <TableHead style={{ width: w('actions') }}></TableHead>
@@ -532,8 +737,14 @@ export const UniverseDealsTable = ({
               <TableRow>
                 <TableCell colSpan={18} className="text-center py-12 text-muted-foreground">
                   <Target className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                  <p className="font-medium">{hasActiveFilters ? 'No deals match your filters' : 'No deals in this universe'}</p>
-                  <p className="text-sm">{hasActiveFilters ? 'Try adjusting your filters' : 'Add deals to start matching with buyers'}</p>
+                  <p className="font-medium">
+                    {hasActiveFilters ? 'No deals match your filters' : 'No deals in this universe'}
+                  </p>
+                  <p className="text-sm">
+                    {hasActiveFilters
+                      ? 'Try adjusting your filters'
+                      : 'Add deals to start matching with buyers'}
+                  </p>
                   {hasActiveFilters && (
                     <Button variant="outline" size="sm" className="mt-3" onClick={clearAllFilters}>
                       Clear filters
@@ -543,14 +754,26 @@ export const UniverseDealsTable = ({
               </TableRow>
             ) : (
               sortedDeals.map((deal) => {
-                const engagement = engagementStats[deal.listing.id] || { approved: 0, interested: 0, passed: 0, avgScore: 0 };
+                const engagement = engagementStats[deal.listing.id] || {
+                  approved: 0,
+                  interested: 0,
+                  passed: 0,
+                  avgScore: 0,
+                };
                 const isSelected = selectedIds.includes(deal.id);
-                
+
                 return (
                   <TableRow
                     key={deal.id}
                     className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''}`}
-                    onClick={() => navigate(`/admin/deals/${deal.listing.id}`, universeId ? { state: { from: `/admin/buyers/universes/${universeId}` } } : undefined)}
+                    onClick={() =>
+                      navigate(
+                        `/admin/deals/${deal.listing.id}`,
+                        universeId
+                          ? { state: { from: `/admin/buyers/universes/${universeId}` } }
+                          : undefined,
+                      )
+                    }
                   >
                     <TableCell style={{ width: w('checkbox') }}>
                       <Checkbox
@@ -569,7 +792,9 @@ export const UniverseDealsTable = ({
                         <div className="min-w-0 overflow-hidden">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-foreground truncate">
-                              {deal.listing.internal_company_name || deal.listing.title || 'Untitled Deal'}
+                              {deal.listing.internal_company_name ||
+                                deal.listing.title ||
+                                'Untitled Deal'}
                             </span>
                             {deal.listing.enriched_at && (
                               <Badge variant="secondary" className="text-xs px-1.5 shrink-0">
@@ -588,7 +813,7 @@ export const UniverseDealsTable = ({
                     </TableCell>
 
                     <TableCell style={{ width: w('description') }}>
-                      {(deal.listing.description || deal.listing.executive_summary) ? (
+                      {deal.listing.description || deal.listing.executive_summary ? (
                         <p className="text-sm text-muted-foreground line-clamp-2 overflow-hidden">
                           {deal.listing.description || deal.listing.executive_summary}
                         </p>
@@ -600,31 +825,47 @@ export const UniverseDealsTable = ({
                     <TableCell style={{ width: w('serviceArea') }}>
                       <div className="flex flex-wrap gap-1">
                         {deal.listing.geographic_states?.slice(0, 3).map((state) => (
-                          <Badge key={state} variant="outline" className="text-xs">{state}</Badge>
+                          <Badge key={state} variant="outline" className="text-xs">
+                            {state}
+                          </Badge>
                         ))}
                         {(deal.listing.geographic_states?.length || 0) > 3 && (
-                          <Badge variant="outline" className="text-xs">+{(deal.listing.geographic_states?.length || 0) - 3}</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            +{(deal.listing.geographic_states?.length || 0) - 3}
+                          </Badge>
                         )}
-                        {!deal.listing.geographic_states?.length && <span className="text-xs text-muted-foreground">—</span>}
+                        {!deal.listing.geographic_states?.length && (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </div>
                     </TableCell>
 
                     <TableCell style={{ width: w('approved') }} className="text-center">
                       {engagement.approved > 0 ? (
-                        <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">{engagement.approved}</Badge>
-                      ) : <span className="text-muted-foreground">—</span>}
+                        <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
+                          {engagement.approved}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('interested') }} className="text-center">
                       {engagement.interested > 0 ? (
-                        <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">{engagement.interested}</Badge>
-                      ) : <span className="text-muted-foreground">—</span>}
+                        <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">
+                          {engagement.interested}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('passed') }} className="text-center">
                       {engagement.passed > 0 ? (
                         <span className="text-sm text-muted-foreground">{engagement.passed}</span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('added') }}>
@@ -635,30 +876,46 @@ export const UniverseDealsTable = ({
 
                     <TableCell style={{ width: w('liCount') }} className="text-right">
                       {deal.listing.linkedin_employee_count != null ? (
-                        <span className="text-sm tabular-nums">{deal.listing.linkedin_employee_count.toLocaleString()}</span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                        <span className="text-sm tabular-nums">
+                          {deal.listing.linkedin_employee_count.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('liRange') }} className="text-right">
                       {deal.listing.linkedin_employee_range ? (
                         <span className="text-sm">{deal.listing.linkedin_employee_range}</span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('googleReviews') }} className="text-right">
                       {deal.listing.google_review_count != null ? (
-                        <span className="text-sm tabular-nums">{deal.listing.google_review_count.toLocaleString()}</span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                        <span className="text-sm tabular-nums">
+                          {deal.listing.google_review_count.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('googleRating') }} className="text-right">
                       {deal.listing.google_rating != null ? (
-                        <span className="text-sm tabular-nums">⭐ {deal.listing.google_rating}</span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                        <span className="text-sm tabular-nums">
+                          ⭐ {deal.listing.google_rating}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('revenue') }} className="text-right">
-                      <span className="text-sm font-medium">{formatCurrency(deal.listing.revenue)}</span>
+                      <span className="text-sm font-medium">
+                        {formatCurrency(deal.listing.revenue)}
+                      </span>
                     </TableCell>
 
                     <TableCell style={{ width: w('ebitda') }} className="text-right">
@@ -667,26 +924,38 @@ export const UniverseDealsTable = ({
 
                     <TableCell style={{ width: w('quality') }} className="text-center">
                       {deal.listing.deal_total_score != null ? (
-                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(deal.listing.deal_total_score)}`}>
+                        <span
+                          className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(deal.listing.deal_total_score)}`}
+                        >
                           {Math.round(deal.listing.deal_total_score)}
                         </span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('sellerInterest') }} className="text-center">
                       {deal.listing.seller_interest_score != null ? (
-                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(deal.listing.seller_interest_score)}`}>
+                        <span
+                          className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(deal.listing.seller_interest_score)}`}
+                        >
                           {Math.round(deal.listing.seller_interest_score)}
                         </span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('score') }} className="text-center">
                       {engagement.avgScore > 0 ? (
-                        <span className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(engagement.avgScore)}`}>
+                        <span
+                          className={`text-sm font-medium px-2 py-0.5 rounded ${getScoreBg(engagement.avgScore)}`}
+                        >
                           {Math.round(engagement.avgScore)}
                         </span>
-                      ) : <span className="text-muted-foreground">—</span>}
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
 
                     <TableCell style={{ width: w('actions') }}>
@@ -697,22 +966,52 @@ export const UniverseDealsTable = ({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/deals/${deal.listing.id}`, universeId ? { state: { from: `/admin/buyers/universes/${universeId}` } } : undefined); }}>
-                            <ExternalLink className="h-4 w-4 mr-2" />View Deal
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(
+                                `/admin/deals/${deal.listing.id}`,
+                                universeId
+                                  ? { state: { from: `/admin/buyers/universes/${universeId}` } }
+                                  : undefined,
+                              );
+                            }}
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View Deal
                           </DropdownMenuItem>
                           {onScoreDeal && (
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onScoreDeal(deal.listing.id); }}>
-                              <Target className="h-4 w-4 mr-2" />Score Deal
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onScoreDeal(deal.listing.id);
+                              }}
+                            >
+                              <Target className="h-4 w-4 mr-2" />
+                              Score Deal
                             </DropdownMenuItem>
                           )}
                           {onEnrichDeal && !deal.listing.enriched_at && (
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEnrichDeal(deal.listing.id); }}>
-                              <Sparkles className="h-4 w-4 mr-2" />Enrich Deal
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEnrichDeal(deal.listing.id);
+                              }}
+                            >
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Enrich Deal
                             </DropdownMenuItem>
                           )}
                           {onRemoveDeal && (
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRemoveDeal(deal.id, deal.listing.id); }} className="text-destructive">
-                              <Trash2 className="h-4 w-4 mr-2" />Remove from Universe
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemoveDeal(deal.id, deal.listing.id);
+                              }}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Remove from Universe
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>

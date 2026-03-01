@@ -55,7 +55,7 @@ const handler = async (req: Request): Promise<Response> => {
         ...corsHeaders,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[admin-notification] Proxy error:", error);
     // Return 200 to not block signup, matching original behavior
     return new Response(

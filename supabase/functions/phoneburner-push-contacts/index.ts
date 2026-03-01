@@ -41,9 +41,20 @@ interface ResolvedContact {
   extra_context?: Record<string, string>;
 }
 
+interface BuyerRow {
+  id: string;
+  company_name?: string;
+  pe_firm_name?: string;
+  buyer_type?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  target_services?: string[];
+  target_geographies?: string[];
+}
+
 async function getValidToken(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<string | null> {
   const { data: tokenRow } = await supabase
@@ -58,8 +69,7 @@ async function getValidToken(
 // ─── Contact resolvers ───
 
 async function resolveFromBuyerContacts(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   ids: string[],
 ): Promise<ResolvedContact[]> {
   const { data: contacts } = await supabase
@@ -69,17 +79,14 @@ async function resolveFromBuyerContacts(
 
   if (!contacts?.length) return [];
 
-  // deno-lint-ignore no-explicit-any
-  const buyerIds = [...new Set(contacts.map((c: any) => c.buyer_id))];
+  const buyerIds = [...new Set(contacts.map((c: { buyer_id: string }) => c.buyer_id))];
   const { data: buyers } = await supabase
     .from('remarketing_buyers')
     .select('id, company_name, pe_firm_name, buyer_type, target_services, target_geographies')
     .in('id', buyerIds);
-  // deno-lint-ignore no-explicit-any
-  const buyerMap = new Map<string, any>((buyers || []).map((b: any) => [b.id, b]));
+  const buyerMap = new Map<string, BuyerRow>((buyers || []).map((b: BuyerRow) => [b.id, b]));
 
-  // deno-lint-ignore no-explicit-any
-  return contacts.map((c: any) => {
+  return contacts.map((c: { id: string; name: string; phone: string | null; email: string | null; title: string | null; buyer_id: string; company_type?: string; last_contacted_date: string | null }) => {
     const buyer = buyerMap.get(c.buyer_id);
     return {
       id: c.id,
@@ -107,8 +114,7 @@ async function resolveFromBuyerContacts(
 }
 
 async function resolveFromBuyers(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   buyerIds: string[],
 ): Promise<ResolvedContact[]> {
   const { data: rmContacts } = await supabase
@@ -125,16 +131,14 @@ async function resolveFromBuyers(
     .from('remarketing_buyers')
     .select('id, company_name, pe_firm_name, buyer_type, contact_name, contact_email, contact_phone')
     .in('id', buyerIds);
-  // deno-lint-ignore no-explicit-any
-  const buyerMap = new Map<string, any>((buyers || []).map((b: any) => [b.id, b]));
+  const buyerMap = new Map<string, BuyerRow>((buyers || []).map((b: BuyerRow) => [b.id, b]));
 
   const seen = new Set<string>();
   const result: ResolvedContact[] = [];
   const buyersWithContacts = new Set<string>();
 
-  // deno-lint-ignore no-explicit-any
   for (const c of (rmContacts || []).sort(
-    (a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0),
+    (a: { is_primary?: boolean }, b: { is_primary?: boolean }) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0),
   )) {
     const key = `${c.email?.toLowerCase() || ''}-${c.phone || ''}`;
     if (seen.has(key) && key !== '-') continue;
@@ -153,8 +157,7 @@ async function resolveFromBuyers(
     });
   }
 
-  // deno-lint-ignore no-explicit-any
-  for (const c of (bcContacts || []) as any[]) {
+  for (const c of (bcContacts || []) as { id: string; buyer_id: string; name: string; email?: string; phone?: string; title?: string; company_type?: string; last_contacted_date?: string; is_primary_contact?: boolean }[]) {
     const key = `${c.email?.toLowerCase() || ''}-${c.phone || ''}`;
     if (seen.has(key) && key !== '-') continue;
     seen.add(key);
@@ -195,8 +198,7 @@ async function resolveFromBuyers(
 }
 
 async function resolveFromListings(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   listingIds: string[],
 ): Promise<ResolvedContact[]> {
   const { data: listings } = await supabase
@@ -207,10 +209,8 @@ async function resolveFromListings(
   if (!listings?.length) return [];
 
   return listings
-    // deno-lint-ignore no-explicit-any
-    .filter((l: any) => l.main_contact_name)
-    // deno-lint-ignore no-explicit-any
-    .map((l: any) => ({
+    .filter((l: { main_contact_name?: string }) => l.main_contact_name)
+    .map((l: { id: string; title?: string; internal_company_name?: string; main_contact_name?: string; main_contact_email?: string; main_contact_phone?: string; main_contact_title?: string; deal_source?: string }) => ({
       id: `listing-${l.id}`,
       name: l.main_contact_name!,
       phone: l.main_contact_phone,
@@ -229,8 +229,7 @@ async function resolveFromListings(
 }
 
 async function resolveFromLeads(
-  // deno-lint-ignore no-explicit-any
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   leadIds: string[],
 ): Promise<ResolvedContact[]> {
   const { data: leads } = await supabase
@@ -240,8 +239,7 @@ async function resolveFromLeads(
 
   if (!leads?.length) return [];
 
-  // deno-lint-ignore no-explicit-any
-  return leads.map((l: any) => ({
+  return leads.map((l: { id: string; name?: string; email?: string; phone_number?: string; company_name?: string; role?: string }) => ({
     id: `lead-${l.id}`,
     name: l.name || l.email || 'Unknown',
     phone: l.phone_number,
@@ -268,8 +266,7 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  // deno-lint-ignore no-explicit-any
-  const supabase: any = createClient(supabaseUrl, serviceRoleKey);
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
