@@ -54,6 +54,12 @@ const ReMarketingLayout = lazyWithRetry(() =>
 const ReMarketingDashboard = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingDashboard'),
 );
+const ReMarketingUniverses = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/ReMarketingUniverses'),
+);
+const ReMarketingUniverseDetail = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/ReMarketingUniverseDetail'),
+);
 const ReMarketingDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/ReMarketingDeals'));
 const ReMarketingDealDetail = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingDealDetail'),
@@ -65,6 +71,9 @@ const ReMarketingBuyerDetail = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingBuyerDetail'),
 );
 const PEFirmDetail = lazyWithRetry(() => import('@/pages/admin/remarketing/PEFirmDetail'));
+const ReMarketingDealMatching = lazyWithRetry(
+  () => import('@/pages/admin/remarketing/ReMarketingDealMatching'),
+);
 const ReMarketingIntroductions = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingIntroductions'),
 );
@@ -124,6 +133,22 @@ export function AdminRoutes() {
       <Route path="buyers/pe-firms/:id" element={<PEFirmDetail />} />
       <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />
       <Route
+        path="buyers/universes"
+        element={
+          <RoleGate min="admin">
+            <ReMarketingUniverses />
+          </RoleGate>
+        }
+      />
+      <Route
+        path="buyers/universes/:id"
+        element={
+          <RoleGate min="admin">
+            <ReMarketingUniverseDetail />
+          </RoleGate>
+        }
+      />
+      <Route
         path="buyers/firm-agreements"
         element={<Navigate to="/admin/buyers?tab=needs_agreements" replace />}
       />
@@ -162,6 +187,7 @@ export function AdminRoutes() {
         <Route path="leads/valuation" element={<ValuationLeads />} />
         <Route path="leads/referrals" element={<ReMarketingReferralPartners />} />
         <Route path="leads/referrals/:partnerId" element={<ReMarketingReferralPartnerDetail />} />
+        <Route path="matching/:listingId" element={<ReMarketingDealMatching />} />
         <Route path="introductions/:listingId" element={<ReMarketingIntroductions />} />
 
         {/* Old remarketing URL redirects */}
@@ -169,6 +195,8 @@ export function AdminRoutes() {
         <Route path="deals/:dealId" element={<RedirectWithId to="/admin/deals/:dealId" />} />
         <Route path="buyers" element={<Navigate to="/admin/buyers" replace />} />
         <Route path="buyers/:id" element={<RedirectWithId to="/admin/buyers/:id" />} />
+        <Route path="universes" element={<Navigate to="/admin/buyers/universes" replace />} />
+        <Route path="universes/:id" element={<RedirectWithId to="/admin/buyers/universes/:id" />} />
         <Route path="analytics" element={<Navigate to="/admin/analytics" replace />} />
         <Route path="settings" element={<Navigate to="/admin/settings/remarketing" replace />} />
         <Route

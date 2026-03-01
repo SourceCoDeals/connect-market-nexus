@@ -23,6 +23,7 @@ import {
   Building2,
   GitBranch,
   Users,
+  Globe2,
   Sparkles,
   Store,
   ShoppingBag,
@@ -47,6 +48,7 @@ import {
   Wrench,
   FlaskConical,
   ExternalLink,
+  Plus,
   List,
   ListChecks,
   Contact,
@@ -140,6 +142,11 @@ export function UnifiedAdminSidebar({
             label: 'All Buyers',
             href: '/admin/buyers',
             icon: <Users className="h-4 w-4" />,
+          },
+          {
+            label: 'Buyer Universes',
+            href: '/admin/buyers/universes',
+            icon: <Globe2 className="h-4 w-4" />,
           },
           {
             label: 'Deal Sourcing',
@@ -557,6 +564,32 @@ export function UnifiedAdminSidebar({
             );
           })}
         </nav>
+
+        {/* New Buyer Universe quick action */}
+        {!collapsed && (
+          <div className="px-3 py-2 border-t border-border/50">
+            <Link to="/admin/buyers/universes?new=true">
+              <Button variant="outline" className="w-full gap-2 h-8 text-xs">
+                <Plus className="h-3.5 w-3.5" />
+                New Buyer Universe
+              </Button>
+            </Link>
+          </div>
+        )}
+        {collapsed && (
+          <div className="px-3 py-2 border-t border-border/50">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/admin/buyers/universes?new=true">
+                  <Button variant="outline" size="icon" className="w-full h-8">
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right">New Buyer Universe</TooltipContent>
+            </Tooltip>
+          </div>
+        )}
 
         {/* User profile menu */}
         <div className="px-3 py-2 border-t border-border/50">

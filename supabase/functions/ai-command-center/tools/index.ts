@@ -18,6 +18,7 @@ import { userTools, executeUserTool } from './user-tools.ts';
 import { actionTools, executeActionTool } from './action-tools.ts';
 import { uiActionTools, executeUIActionTool } from './ui-action-tools.ts';
 import { contentTools, executeContentTool } from './content-tools.ts';
+import { universeTools, executeUniverseTool } from './universe-tools.ts';
 import { signalTools, executeSignalTool } from './signal-tools.ts';
 import { leadTools, executeLeadTool } from './lead-tools.ts';
 import { contactTools, executeContactTool } from './contact-tools.ts';
@@ -63,6 +64,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...actionTools,
   ...uiActionTools,
   ...contentTools,
+  ...universeTools,
   ...signalTools,
   ...leadTools,
   ...contactTools,
@@ -96,6 +98,8 @@ const LEGACY_TOOL_ROUTING: Record<
   // Transcript merges
   search_buyer_transcripts: (sb, name, args) => executeTranscriptTool(sb, name, args),
   search_fireflies: (sb, name, args) => executeTranscriptTool(sb, name, args),
+  // Outreach merge
+  get_remarketing_outreach: (sb, name, args) => executeUniverseTool(sb, name, args),
   // Contact enrichment merges
   enrich_buyer_contacts: (sb, name, args, uid) => executeIntegrationActionTool(sb, name, args, uid),
   enrich_linkedin_contact: (sb, name, args, uid) =>
@@ -126,6 +130,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_deal_memos',
     'get_deal_documents',
     'get_deal_communication', // merged: was get_deal_comments
+    'get_deal_scoring_adjustments',
     'search_contacts',
     'get_connection_requests',
   ],
@@ -165,6 +170,20 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_pe_contacts',
     'search_contacts',
     'select_table_rows',
+  ],
+
+  // Universe & outreach
+  BUYER_UNIVERSE: [
+    'search_buyer_universes',
+    'get_universe_details',
+    'get_universe_buyer_fits',
+    'get_outreach_records', // merged: includes remarketing_outreach
+    'get_top_buyers_for_deal',
+    'search_buyers',
+    'select_table_rows',
+    'apply_table_filter',
+    'sort_table_column',
+    'trigger_page_action',
   ],
 
   // Meeting intelligence
@@ -244,6 +263,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   REMARKETING: [
     'search_buyers',
     'get_top_buyers_for_deal',
+    'get_universe_buyer_fits',
     'select_table_rows',
     'apply_table_filter',
     'sort_table_column',
@@ -314,6 +334,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'google_search_companies',
     'semantic_transcript_search',
     'search_buyers',
+    'search_buyer_universes',
+    'get_universe_details',
     'query_deals',
     'get_industry_trackers',
     'retrieve_knowledge',
@@ -577,6 +599,8 @@ async function _executeToolInternal(
     return executeUIActionTool(supabase, toolName, resolvedArgs);
   if (contentTools.some((t) => t.name === toolName))
     return executeContentTool(supabase, toolName, resolvedArgs);
+  if (universeTools.some((t) => t.name === toolName))
+    return executeUniverseTool(supabase, toolName, resolvedArgs);
   if (signalTools.some((t) => t.name === toolName))
     return executeSignalTool(supabase, toolName, resolvedArgs);
   if (leadTools.some((t) => t.name === toolName))

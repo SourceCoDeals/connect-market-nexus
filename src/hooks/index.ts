@@ -151,6 +151,8 @@ export { useVisitorIdentity } from './useVisitorIdentity';
 export { useUserDetail } from './useUserDetail';
 
 // ─── Scoring ───
+export { useAlignmentScoring } from './useAlignmentScoring';
+export { useBackgroundScoringProgress } from './useBackgroundScoringProgress';
 export { useBackgroundGuideGeneration } from './useBackgroundGuideGeneration';
 
 // ─── Mapbox ───

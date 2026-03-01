@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Calculator, Zap } from "lucide-react";
 import { DealImportDialog, AddDealDialog, DealEnrichmentSummaryDialog } from "@/components/remarketing";
+import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
 
 interface DealsActionDialogsProps {
   // Import dialog
@@ -160,6 +161,14 @@ export const DealsActionDialogs = ({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    {/* Bulk Assign to Universe Dialog */}
+    <BulkAssignUniverseDialog
+      open={showUniverseDialog}
+      onOpenChange={setShowUniverseDialog}
+      dealIds={selectedDealIds}
+      onComplete={onUniverseComplete}
+    />
 
     {/* Single Delete Dialog */}
     <AlertDialog open={!!singleDeleteTarget} onOpenChange={(open) => !open && setSingleDeleteTarget(null)}>
