@@ -7,6 +7,33 @@ import { v4 as uuidv4 } from "uuid";
 import type { DealTranscript, SingleDealEnrichmentResult } from "./types";
 import { processFileText, yieldToUI, mergeArrays, stateNameToCode } from "./helpers";
 
+/** Shape of a Fireflies search result */
+interface FirefliesSearchResult {
+  id: string;
+  title?: string;
+  date?: string;
+  meeting_url?: string;
+  participants?: (string | { email: string; name?: string })[];
+  external_participants?: { name: string; email: string }[];
+  duration_minutes?: number;
+  has_content?: boolean;
+  match_type?: string;
+}
+
+/** Shape of the extract-deal-transcript edge function response */
+interface ExtractTranscriptResponse {
+  fieldsExtracted?: number;
+  dealUpdated?: boolean;
+  fieldsUpdated?: string[];
+}
+
+/** Shape of the add mutation success result */
+interface AddMutationResult {
+  count: number;
+  failed?: number;
+  skipped?: number;
+}
+
 interface UseTranscriptActionsProps {
   dealId: string;
   transcripts: DealTranscript[];
@@ -55,7 +82,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
   const [addMode, setAddMode] = useState<'manual' | 'fireflies'>('manual');
   const [firefliesEmail, setFirefliesEmail] = useState(dealInfo?.main_contact_email || '');
   const [firefliesSearching, setFirefliesSearching] = useState(false);
-  const [firefliesResults, setFirefliesResults] = useState<any[]>([]);
+  const [firefliesResults, setFirefliesResults] = useState<FirefliesSearchResult[]>([]);
   const [selectedFirefliesIds, setSelectedFirefliesIds] = useState<Set<string>>(new Set());
   const [firefliesImporting, setFirefliesImporting] = useState(false);
   const [firefliesSearchInfo, setFirefliesSearchInfo] = useState<string>('');
@@ -138,7 +165,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'processing' as const } : f));
             setProcessingProgress({ current: i + 1, total: totalFiles });
             let transcriptText = '';
-            try { transcriptText = await processFileText(sf.file); } catch (parseErr: any) { /* text extraction failed — will use fallback text */ void parseErr; }
+            try { transcriptText = await processFileText(sf.file); } catch (parseErr: unknown) { /* text extraction failed — will use fallback text */ void parseErr; }
             const filePath = `${dealId}/${uuidv4()}-${sf.file.name}`;
             let fileUrl = null;
             const { error: uploadError } = await supabase.storage.from('deal-transcripts').upload(filePath, sf.file);
@@ -152,7 +179,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
             if (error) throw error;
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'done' as const } : f));
             successCount++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             // Error processing file — status set to 'error' below
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'error' as const } : f));
           }
@@ -176,7 +203,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       if (error) throw error;
       return { count: 1 };
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: AddMutationResult) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
       const parts: string[] = [];
       if (data?.count > 0) parts.push(`${data.count} transcript${data.count > 1 ? 's' : ''} added`);
@@ -211,7 +238,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
   const handleExtract = async (transcript: DealTranscript) => {
     setProcessingId(transcript.id);
     try {
-      const { data, error } = await invokeWithTimeout<any>('extract-deal-transcript', {
+      const { data, error } = await invokeWithTimeout<ExtractTranscriptResponse>('extract-deal-transcript', {
         body: { transcriptId: transcript.id, transcriptText: transcript.transcript_text, dealInfo, applyToDeal: true },
         timeoutMs: 120_000,
       });
@@ -223,8 +250,8 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       } else {
         toast.success(`Extracted ${data.fieldsExtracted || 0} fields from transcript`);
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to extract intelligence");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to extract intelligence");
     } finally {
       setProcessingId(null);
     }
@@ -306,8 +333,8 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
         </div>
       );
       if (skippedFields.length > 0) toast.info(`${skippedFields.length} fields added to notes: ${skippedFields.join(', ')}`);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to apply data");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to apply data");
     } finally {
       setApplyingId(null);
     }
@@ -323,8 +350,8 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       setEnrichmentPollingEnabled(true);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-    } catch (error: any) {
-      const errorMessage = error?.message || String(error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const isNetworkError = errorMessage.includes('Failed to send') || errorMessage.includes('Failed to fetch') || errorMessage.includes('timeout') || errorMessage.includes('aborted') || errorMessage.includes('network') || errorMessage.includes('FetchError');
       if (isNetworkError) {
         // Queue insert may have succeeded even if the worker trigger failed
@@ -355,7 +382,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       const domain = input.includes('@') ? input.split('@')[1].toLowerCase() : input.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].toLowerCase();
       const genericDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com'];
       const isCompanyDomain = domain && !genericDomains.includes(domain);
-      const allResults: any[] = [];
+      const allResults: FirefliesSearchResult[] = [];
 
       if (isCompanyDomain) {
         setFirefliesSearchInfo(`Finding all contacts at @${domain}...`);
@@ -363,7 +390,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
         if (domainContactsError) throw domainContactsError;
         const emailSet = new Set<string>();
         if (input.includes('@')) emailSet.add(input.toLowerCase());
-        if (domainContacts) domainContacts.forEach((c: any) => { if (c.email) emailSet.add(c.email.toLowerCase()); });
+        if (domainContacts) domainContacts.forEach((c) => { if (c.email) emailSet.add(c.email.toLowerCase()); });
         const allEmails = Array.from(emailSet);
         if (allEmails.length > 0) {
           setFirefliesSearchInfo(`Searching Fireflies for ${allEmails.length} contact${allEmails.length !== 1 ? 's' : ''} at @${domain}...`);
@@ -383,10 +410,10 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       }
 
       const seen = new Set<string>();
-      const uniqueResults = allResults.filter((r: any) => { if (!r.id || seen.has(r.id)) return false; seen.add(r.id); return true; });
-      const existingIds = new Set(transcripts.filter((t: any) => t.fireflies_transcript_id).map((t: any) => t.fireflies_transcript_id));
-      const newResults = uniqueResults.filter((r: any) => !existingIds.has(r.id));
-      newResults.sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+      const uniqueResults = allResults.filter((r) => { if (!r.id || seen.has(r.id)) return false; seen.add(r.id); return true; });
+      const existingIds = new Set(transcripts.filter((t): t is DealTranscript & { fireflies_transcript_id: string } => !!(t as Record<string, unknown>).fireflies_transcript_id).map((t) => (t as Record<string, unknown>).fireflies_transcript_id as string));
+      const newResults = uniqueResults.filter((r) => !existingIds.has(r.id));
+      newResults.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
       setFirefliesResults(newResults);
 
       if (newResults.length === 0 && uniqueResults.length > 0) toast.info('All found transcripts are already linked to this deal');
@@ -409,14 +436,14 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       let imported = 0;
       let failed = 0;
       for (const ffId of selectedFirefliesIds) {
-        const result = firefliesResults.find((r: any) => r.id === ffId);
+        const result = firefliesResults.find((r) => r.id === ffId);
         if (!result) continue;
         try {
           const { error: insertError } = await supabase.from('deal_transcripts').insert({
             listing_id: dealId, fireflies_transcript_id: result.id, fireflies_meeting_id: result.id,
             transcript_url: result.meeting_url || null, title: result.title || `Call - ${new Date(result.date).toLocaleDateString()}`,
             call_date: result.date || null, participants: result.participants || [],
-            meeting_attendees: Array.isArray(result.participants) ? result.participants.map((p: any) => typeof p === 'string' ? p : p.email).filter(Boolean) : [],
+            meeting_attendees: Array.isArray(result.participants) ? result.participants.map((p) => typeof p === 'string' ? p : p.email).filter(Boolean) : [],
             duration_minutes: result.duration_minutes || null, source: 'fireflies', auto_linked: false, transcript_text: '',
             has_content: result.has_content !== false,
             match_type: result.match_type || 'email',

@@ -102,6 +102,24 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Idempotency check: skip if rejection email already sent for this connection request
+    if (connectionRequestId) {
+      const { data: existingEmail } = await supabase
+        .from('email_delivery_logs')
+        .select('id')
+        .eq('correlation_id', `buyer-rejection-${connectionRequestId}`)
+        .eq('status', 'sent')
+        .maybeSingle();
+
+      if (existingEmail) {
+        console.log("[notify-buyer-rejection] Already sent for connectionRequestId:", connectionRequestId);
+        return new Response(
+          JSON.stringify({ success: true, message: "Rejection email already sent", duplicate: true }),
+          { headers: { "Content-Type": "application/json", ...corsHeaders } },
+        );
+      }
+    }
+
     const subject = `Regarding Your Interest in ${companyName}`;
     const htmlContent = buildRejectionHtml(buyerName, companyName);
     const textContent = buildPlainText(buyerName, companyName);

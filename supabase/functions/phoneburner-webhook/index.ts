@@ -104,15 +104,19 @@ Deno.serve(async (req) => {
 
   const rawBody = await req.text();
 
-  // ── signature check (logged for auditing, NOT enforced) ──
+  // ── signature check (enforced when secret is configured) ──
   const sig =
     req.headers.get('x-phoneburner-signature') || req.headers.get('X-Phoneburner-Signature');
   let signatureValid = false;
   if (webhookSecret && sig) {
     signatureValid = await verifySignature(rawBody, sig, webhookSecret);
   }
-  if (!signatureValid) {
-    console.warn('PhoneBurner webhook signature missing or invalid — proceeding without auth');
+  if (webhookSecret && !signatureValid) {
+    console.warn('PhoneBurner webhook signature invalid — rejecting request');
+    return jsonResponse({ error: 'Invalid webhook signature' }, 401, corsHeaders);
+  }
+  if (!webhookSecret) {
+    console.warn('PHONEBURNER_WEBHOOK_SECRET not configured — accepting without auth');
   } else {
     console.log('PhoneBurner webhook received, signature verified');
   }

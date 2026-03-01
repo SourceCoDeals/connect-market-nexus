@@ -55,7 +55,7 @@ export interface FirmAgreement {
   fee_docuseal_status: string | null;
   fee_signed_document_url: string | null;
   member_count: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   // Include firm members for search
@@ -132,14 +132,14 @@ export function useFirmAgreements() {
 
       // Count leads per firm
       const leadCounts: Record<string, number> = {};
-      (leadsRes.data || []).forEach((l: any) => {
+      (leadsRes.data || []).forEach((l) => {
         leadCounts[l.firm_id] = (leadCounts[l.firm_id] || 0) + 1;
       });
 
       // Count requests per firm & collect request IDs for deal lookup
       const requestCounts: Record<string, number> = {};
       const requestToFirm: Record<string, string> = {};
-      (requestsRes.data || []).forEach((r: any) => {
+      (requestsRes.data || []).forEach((r) => {
         requestCounts[r.firm_id] = (requestCounts[r.firm_id] || 0) + 1;
         requestToFirm[r.id] = r.firm_id;
       });
@@ -154,7 +154,7 @@ export function useFirmAgreements() {
           .in('connection_request_id', allRequestIds);
         if (dealsDataError) throw dealsDataError;
 
-        (dealsData || []).forEach((d: any) => {
+        (dealsData || []).forEach((d) => {
           const firmId = requestToFirm[d.connection_request_id];
           if (firmId) {
             dealCounts[firmId] = (dealCounts[firmId] || 0) + 1;
@@ -258,9 +258,9 @@ export function useUpdateFirmFeeAgreement() {
       
       const previousData = queryClient.getQueryData(['firm-agreements']);
       
-      queryClient.setQueryData(['firm-agreements'], (old: any) => {
+      queryClient.setQueryData<FirmAgreement[] | undefined>(['firm-agreements'], (old) => {
         if (!old) return old;
-        return old.map((firm: any) =>
+        return old.map((firm) =>
           firm.id === firmId
             ? {
                 ...firm,
@@ -270,7 +270,7 @@ export function useUpdateFirmFeeAgreement() {
             : firm
         );
       });
-      
+
       return { previousData };
     },
     onSuccess: () => {
@@ -283,7 +283,7 @@ export function useUpdateFirmFeeAgreement() {
         description: 'Fee agreement status updated for firm',
       });
     },
-    onError: (error: any, _variables: any, context: any) => {
+    onError: (error: Error, _variables: unknown, context: { previousData?: unknown } | undefined) => {
       if (context?.previousData) {
         queryClient.setQueryData(['firm-agreements'], context.previousData);
       }
@@ -327,9 +327,9 @@ export function useUpdateFirmNDA() {
 
       const previousData = queryClient.getQueryData(['firm-agreements']);
 
-      queryClient.setQueryData(['firm-agreements'], (old: any) => {
+      queryClient.setQueryData<FirmAgreement[] | undefined>(['firm-agreements'], (old) => {
         if (!old) return old;
-        return old.map((firm: any) =>
+        return old.map((firm) =>
           firm.id === firmId
             ? {
                 ...firm,
@@ -352,7 +352,7 @@ export function useUpdateFirmNDA() {
         description: 'NDA status updated for firm',
       });
     },
-    onError: (error: any, _variables: any, context: any) => {
+    onError: (error: Error, _variables: unknown, context: { previousData?: unknown } | undefined) => {
       if (context?.previousData) {
         queryClient.setQueryData(['firm-agreements'], context.previousData);
       }
@@ -416,9 +416,9 @@ export function useUpdateAgreementStatus() {
       await queryClient.cancelQueries({ queryKey: ['firm-agreements'] });
       const previousData = queryClient.getQueryData(['firm-agreements']);
 
-      queryClient.setQueryData(['firm-agreements'], (old: any) => {
+      queryClient.setQueryData<FirmAgreement[] | undefined>(['firm-agreements'], (old) => {
         if (!old) return old;
-        return old.map((firm: any) => {
+        return old.map((firm) => {
           if (firm.id !== params.firmId) return firm;
           if (params.agreementType === 'nda') {
             return {
@@ -451,7 +451,7 @@ export function useUpdateAgreementStatus() {
         description: `Status changed to ${params.newStatus.replace(/_/g, ' ')}`,
       });
     },
-    onError: (error: any, _variables: any, context: any) => {
+    onError: (error: Error, _variables: unknown, context: { previousData?: unknown } | undefined) => {
       if (context?.previousData) {
         queryClient.setQueryData(['firm-agreements'], context.previousData);
       }
@@ -477,7 +477,7 @@ export interface AgreementAuditEntry {
   changed_by: string | null;
   document_url: string | null;
   notes: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 
@@ -543,7 +543,7 @@ export function useAddDomainAlias() {
       queryClient.invalidateQueries({ queryKey: ['firm-domain-aliases', firmId] });
       toast({ title: 'Domain alias added' });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });
@@ -567,7 +567,7 @@ export function useRemoveDomainAlias() {
       queryClient.invalidateQueries({ queryKey: ['firm-domain-aliases', firmId] });
       toast({ title: 'Domain alias removed' });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     },
   });

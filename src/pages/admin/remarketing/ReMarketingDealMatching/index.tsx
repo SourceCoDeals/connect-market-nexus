@@ -4,13 +4,10 @@ import { Progress } from "@/components/ui/progress";
 import { Sparkles, AlertTriangle, Activity, Loader2 } from "lucide-react";
 import {
   BuyerMatchCard,
+  ScoringInstructionsPanel,
+  PassConfirmDialog,
+  BulkEmailDialog,
 } from "@/components/remarketing";
-// @ts-ignore - may not be exported yet
-const ScoringInstructionsPanel = (props: any) => null;
-// @ts-ignore
-const PassConfirmDialog = (props: any) => null;
-// @ts-ignore  
-const BulkEmailDialog = (props: any) => null;
 
 import { MatchingHeader } from "./MatchingHeader";
 import { MatchingControls } from "./MatchingControls";

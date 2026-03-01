@@ -43,6 +43,11 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // Lead sources don't auto-score — only active deals do
+  const LEAD_SOURCES = ['captarget', 'gp_partners', 'valuation_calculator', 'referral'];
+  const isLeadSource = LEAD_SOURCES.includes((deal.deal_source || '').toLowerCase());
+  const isActiveDeal = !isLeadSource;
+
   const limit = showAll ? 100 : 25;
   const { data, isLoading, isError, isFetching, refetch } = useRecommendedBuyers(
     deal.listing_id,
@@ -52,12 +57,12 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
   const autoScore = useAutoScoreDeal(deal.listing_id || undefined, hasScores);
 
-  // Auto-trigger scoring when we detect no scores exist
+  // Auto-trigger scoring for active deals (not lead sources)
   useEffect(() => {
-    if (hasScores === false && autoScore.status === 'idle') {
+    if (isActiveDeal && hasScores === false && autoScore.status === 'idle') {
       autoScore.triggerAutoScore();
     }
-  }, [hasScores, autoScore.status, autoScore.triggerAutoScore]);
+  }, [isActiveDeal, hasScores, autoScore.status, autoScore.triggerAutoScore]);
 
   const filteredAndSorted = useMemo(() => {
     if (!data?.buyers) return [];
@@ -171,6 +176,7 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   // Auto-scoring in progress
   if (autoScore.isAutoScoring) {
     const isDiscovering = autoScore.status === 'discovering';
+    const isImporting = autoScore.status === 'importing_buyers';
     return (
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="text-center space-y-4 max-w-xs">
@@ -181,7 +187,11 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
               <Zap className="h-5 w-5 text-primary animate-pulse" />
             )}
             <span className="text-sm font-medium text-foreground">
-              {isDiscovering ? 'Discovering Buyers via Google' : 'Auto-Scoring Buyers'}
+              {isDiscovering
+                ? 'Discovering Buyers via Google'
+                : isImporting
+                  ? 'Importing Buyers'
+                  : 'Auto-Scoring Buyers'}
             </span>
           </div>
           <p className="text-xs text-muted-foreground">{autoScore.message}</p>
@@ -233,6 +243,31 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   }
 
   if (!data || data.buyers.length === 0) {
+    // Lead source deal — show manual trigger button instead of auto-scoring
+    if (isLeadSource) {
+      return (
+        <div className="flex-1 flex items-center justify-center py-12">
+          <div className="text-center space-y-3">
+            <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+            <p className="text-sm text-muted-foreground">Lead-source deals are not auto-scored.</p>
+            <p className="text-xs text-muted-foreground/60">
+              You can score this deal now if you want buyer recommendations.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => autoScore.triggerAutoScore()}
+              disabled={autoScore.isAutoScoring}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              Recommend Buyers Now
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="text-center space-y-2">

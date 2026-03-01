@@ -1,7 +1,7 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import React from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { meetsRole, type TeamRole } from "@/config/role-permissions";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,38 +12,39 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
-  requireAdmin,
-  requireApproved,
+  requireAdmin = false,
+  requireApproved = false,
   requireRole,
 }) => {
-  const { user, isLoading, authChecked } = useAuth();
+  const { user, isLoading, isAdmin, authChecked, teamRole } = useAuth();
+  const location = useLocation();
 
-  // Show a loading spinner while authentication state is being determined
+  // Show nothing while auth state is loading to prevent flash of content
   if (isLoading || !authChecked) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
 
-  // No authenticated user — redirect to login
+  // Not authenticated — redirect to login
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Admin check
-  if (requireAdmin && !user.is_admin) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-
-  // Approval status check
-  if (requireApproved && user.approval_status !== 'approved') {
+  // Buyer approval check
+  if (requireApproved && user.approval_status !== "approved") {
     return <Navigate to="/pending-approval" replace />;
   }
 
-  // Role check
-  if (requireRole && user.role !== requireRole) {
+  // Admin check
+  if (requireAdmin && !isAdmin) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  // Team role check (e.g., requireRole="admin" or "owner")
+  if (requireRole && !meetsRole(teamRole, requireRole as TeamRole)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

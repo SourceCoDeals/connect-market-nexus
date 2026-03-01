@@ -3,6 +3,30 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { APP_CONFIG } from '@/config/app';
 
+/** Cached admin user shape for optimistic updates */
+interface CachedAdminUser {
+  id: string;
+  fee_agreement_signed?: boolean;
+  fee_agreement_signed_at?: string | null;
+  fee_agreement_email_sent?: boolean;
+  fee_agreement_email_sent_at?: string | null;
+  [key: string]: unknown;
+}
+
+/** Cached connection request shape for optimistic updates */
+interface CachedConnectionRequest {
+  id: string;
+  user?: {
+    id: string;
+    fee_agreement_signed?: boolean;
+    fee_agreement_signed_at?: string | null;
+    fee_agreement_email_sent?: boolean;
+    fee_agreement_email_sent_at?: string | null;
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+}
+
 interface UpdateFeeAgreementParams {
   userId: string;
   isSigned: boolean;
@@ -51,30 +75,30 @@ export const useUpdateFeeAgreement = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
+      queryClient.setQueryData<CachedAdminUser[] | undefined>(['admin-users'], (old) => {
         if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+        return old.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
                 fee_agreement_signed: isSigned,
-                fee_agreement_signed_at: isSigned ? new Date().toISOString() : null 
+                fee_agreement_signed_at: isSigned ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      queryClient.setQueryData<CachedConnectionRequest[] | undefined>(['connection-requests'], (old) => {
         if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+        return old.map((request) =>
+          request.user?.id === userId
+            ? {
+                ...request,
                 user: {
                   ...request.user,
                   fee_agreement_signed: isSigned,
-                  fee_agreement_signed_at: isSigned ? new Date().toISOString() : null 
+                  fee_agreement_signed_at: isSigned ? new Date().toISOString() : null
                 }
               }
             : request
@@ -132,30 +156,30 @@ export const useUpdateFeeAgreementEmailSent = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
+      queryClient.setQueryData<CachedAdminUser[] | undefined>(['admin-users'], (old) => {
         if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+        return old.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
                 fee_agreement_email_sent: isSent,
-                fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null 
+                fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      queryClient.setQueryData<CachedConnectionRequest[] | undefined>(['connection-requests'], (old) => {
         if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+        return old.map((request) =>
+          request.user?.id === userId
+            ? {
+                ...request,
                 user: {
                   ...request.user,
                   fee_agreement_email_sent: isSent,
-                  fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null 
+                  fee_agreement_email_sent_at: isSent ? new Date().toISOString() : null
                 }
               }
             : request
@@ -237,12 +261,12 @@ export const useLogFeeAgreementEmail = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Optimistically update ONLY email sent status
-      queryClient.setQueryData(['admin-users'], (old: any) => {
+      queryClient.setQueryData<CachedAdminUser[] | undefined>(['admin-users'], (old) => {
         if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+        return old.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
                 fee_agreement_email_sent: true,
                 fee_agreement_email_sent_at: new Date().toISOString()
               }
@@ -250,12 +274,12 @@ export const useLogFeeAgreementEmail = () => {
         );
       });
 
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      queryClient.setQueryData<CachedConnectionRequest[] | undefined>(['connection-requests'], (old) => {
         if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+        return old.map((request) =>
+          request.user?.id === userId
+            ? {
+                ...request,
                 user: {
                   ...request.user,
                   fee_agreement_email_sent: true,
