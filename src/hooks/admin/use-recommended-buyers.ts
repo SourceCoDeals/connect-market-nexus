@@ -340,7 +340,7 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
           // Buyer transcripts
           supabase
             .from('buyer_transcripts')
-            .select('buyer_id, call_date')
+            .select('buyer_id, call_date, extracted_insights')
             .in('buyer_id', allBuyerIds)
             .order('call_date', { ascending: false }),
 
@@ -384,6 +384,11 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
             (!existing.latest_call_date || ct.call_date > existing.latest_call_date)
           ) {
             existing.latest_call_date = ct.call_date as string;
+          }
+          // Extract ceo_detected from the JSONB extracted_insights field
+          const insights = ct.extracted_insights as Record<string, unknown> | null;
+          if (insights?.ceo_detected) {
+            existing.ceo_detected = true;
           }
           transcriptMap.set(buyerId, existing);
         }
