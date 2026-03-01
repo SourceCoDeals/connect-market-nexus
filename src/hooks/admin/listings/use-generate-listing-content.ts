@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -28,7 +28,7 @@ export function useGenerateListingContent() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
 
-  const generateContent = async (
+  const generateContent = useCallback(async (
     dealId: string,
     field?: string
   ): Promise<GeneratedListingContent | null> => {
@@ -62,14 +62,14 @@ export function useGenerateListingContent() {
       toast({
         variant: 'destructive',
         title: 'Generation failed',
-        description: err.message || 'Failed to generate listing content. Please try again.',
+        description: (err instanceof Error ? err.message : null) || 'Failed to generate listing content. Please try again.',
       });
       return null;
     } finally {
       setIsGenerating(false);
       setGeneratingField(null);
     }
-  };
+  }, []);
 
   return { generateContent, isGenerating, generatingField };
 }

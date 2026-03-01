@@ -261,10 +261,10 @@ function buildDataContext(deal: Record<string, unknown>, transcripts: Record<str
   const enrichmentFields = [
     "description", "executive_summary", "services", "service_mix",
     "geographic_states", "address_city", "address_state",
-    "linkedin_employee_count", "linkedin_specialties", "linkedin_industry",
-    "founded_year", "end_market_description", "customer_segments",
+    "linkedin_employee_count",
+    "founded_year", "end_market_description",
     "industry", "category", "revenue", "ebitda", "ebitda_margin",
-    "employee_count", "number_of_locations",
+    "full_time_employees", "number_of_locations",
   ];
   const enrichmentData = enrichmentFields
     .filter(f => deal[f] != null && deal[f] !== "")

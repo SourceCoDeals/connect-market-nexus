@@ -49,8 +49,7 @@ export default function CreateListingFromDeal() {
           business_model, revenue_model, end_market_description,
           competitive_position, ownership_structure, seller_motivation,
           owner_goals, transition_preferences, growth_drivers,
-          investment_thesis, founded_year, number_of_locations,
-          linkedin_specialties
+          investment_thesis, founded_year, number_of_locations
         `,
         )
         .eq('id', dealId!)
@@ -158,6 +157,8 @@ export default function CreateListingFromDeal() {
           } as AdminListing;
         });
         toast.success('AI content generated — review and adjust as needed.');
+      }).catch(() => {
+        // Errors are already handled inside generateContent with a toast
       });
     }
   }, [prefilled, dealId, aiApplied, isGenerating, generateContent]);
@@ -187,7 +188,7 @@ export default function CreateListingFromDeal() {
       toast.success('Marketplace listing created — review and publish from the Listings tab.');
       navigate('/admin/marketplace/queue');
     } catch (error: unknown) {
-      toast.error(error.message || 'Failed to create listing');
+      toast.error((error as Error).message || 'Failed to create listing');
     }
   };
 

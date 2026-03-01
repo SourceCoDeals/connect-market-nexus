@@ -309,17 +309,14 @@ function buildDataContext(
     'address_city',
     'address_state',
     'linkedin_employee_count',
-    'linkedin_specialties',
-    'linkedin_industry',
     'founded_year',
     'end_market_description',
-    'customer_segments',
     'industry',
     'category',
     'revenue',
     'ebitda',
     'ebitda_margin',
-    'employee_count',
+    'full_time_employees',
     'number_of_locations',
   ];
   const enrichmentData = enrichmentFields
