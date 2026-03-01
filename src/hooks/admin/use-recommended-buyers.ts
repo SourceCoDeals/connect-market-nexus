@@ -204,7 +204,7 @@ async function fetchMarketplaceBuyers(listingId: string, excludeIds: Set<string>
 async function fetchPipelineBuyers(listingId: string, excludeIds: Set<string>) {
   const { data: deals } = await supabase
     .from('deals')
-    .select('remarketing_buyer_id, stage_name, updated_at')
+    .select('remarketing_buyer_id')
     .eq('listing_id', listingId)
     .not('remarketing_buyer_id', 'is', null);
 
@@ -605,6 +605,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       };
     },
     enabled: !!listingId,
+    retry: 1,
     staleTime: 4 * 60 * 60 * 1000, // 4 hours cache as per spec
   });
 }
