@@ -697,7 +697,7 @@ async function generatePhaseContentWithModel(
   industryName: string,
   existingContent: string,
   apiKey: string,
-  clarificationContext: any,
+  clarificationContext: ClarificationContext | undefined,
   model: string,
   firefliesIntelligence?: string
 ): Promise<string> {
@@ -755,7 +755,7 @@ NOW GENERATE THE FOLLOWING SECTION:
 
   try {
     // Build the request body for Gemini (OpenAI-compatible format)
-    const requestBody: any = {
+    const requestBody: GeminiRequestBody = {
       model,
       max_tokens: CRITICAL_PHASES.includes(phase.id) ? 8000 : 6000,
       messages: [
@@ -1224,7 +1224,7 @@ serve(async (req) => {
     // SSE Streaming response for batch
     const readable = new ReadableStream({
       async start(controller) {
-        const send = (data: any) => {
+        const send = (data: Record<string, unknown>) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
         };
 

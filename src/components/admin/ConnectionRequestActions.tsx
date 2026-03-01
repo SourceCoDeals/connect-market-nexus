@@ -900,8 +900,8 @@ export function ConnectionRequestActions({
                       className="text-xl font-extrabold text-foreground tracking-tight"
                       style={{ fontFamily: 'Manrope, sans-serif' }}
                     >
-                      {(listing as any).asking_price
-                        ? `$${Number((listing as any).asking_price).toLocaleString()}`
+                      {(listing as Record<string, unknown>).asking_price
+                        ? `$${Number((listing as Record<string, unknown>).asking_price).toLocaleString()}`
                         : 'TBD'}
                     </p>
                   </div>

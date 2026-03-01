@@ -48,7 +48,7 @@ async function callFn(
     signal: AbortSignal.timeout(input.timeoutMs),
   });
 
-  let json: any = null;
+  let json: Record<string, unknown> | null = null;
   try {
     json = await res.json();
   } catch {
@@ -58,7 +58,7 @@ async function callFn(
   return { ok: res.ok, status: res.status, json };
 }
 
-function getErrorMessage(fnName: string, status: number, json: any): string {
+function getErrorMessage(fnName: string, status: number, json: Record<string, unknown> | null): string {
   const msg = json?.error || json?.message;
   if (typeof msg === 'string' && msg.trim()) return `${fnName}: ${msg}`;
   return `${fnName}: HTTP ${status}`;

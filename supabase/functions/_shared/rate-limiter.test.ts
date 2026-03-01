@@ -29,8 +29,8 @@ function resetLocalState() {
 }
 
 interface MockSupabaseResult {
-  data: any;
-  error?: any;
+  data: Record<string, unknown> | null;
+  error?: { message: string; code?: string } | null;
 }
 
 function createMockSupabase(queryResult: MockSupabaseResult = { data: null }) {
@@ -51,9 +51,14 @@ function createMockSupabase(queryResult: MockSupabaseResult = { data: null }) {
   };
 }
 
-// Re-implement checkProviderAvailability
+interface MockSupabase {
+  from: ReturnType<typeof vi.fn>;
+  rpc: ReturnType<typeof vi.fn>;
+  _mocks?: Record<string, ReturnType<typeof vi.fn>>;
+}
+
 async function checkProviderAvailability(
-  supabase: any,
+  supabase: MockSupabase,
   provider: AIProviderName,
 ): Promise<{ ok: boolean; retryAfterMs?: number; waitRecommended?: boolean }> {
   try {

@@ -109,21 +109,18 @@ Deno.serve(async (req: Request) => {
       return errorResponse("Missing required Account.Id or Account.Name", 400, corsHeaders);
     }
 
-    // Normalize contacts: single object → array, null → empty array
-    const rawContacts: any = salesforceData["Contacts Data"];
-    let contacts: unknown[] = [];
+    const rawContacts = salesforceData["Contacts Data"];
+    let contacts: SalesforceContact[] = [];
     if (Array.isArray(rawContacts)) {
       contacts = rawContacts;
-    } else if (rawContacts && typeof rawContacts === "object" && rawContacts.Id) {
-      contacts = [rawContacts];
+    } else if (rawContacts && typeof rawContacts === "object" && (rawContacts as SalesforceContact).Id) {
+      contacts = [rawContacts as SalesforceContact];
     }
 
-    // Find primary contact (first with valid email)
-    const primaryContact = contacts.find((c: any) => c.Email && c.Email.trim());
+    const primaryContact = contacts.find((c: SalesforceContact) => c.Email && c.Email.trim());
     const accountPhone = account.Phone || null;
 
-    // Phone fallback for a contact
-    const resolvePhone = (contact: any): string | null =>
+    const resolvePhone = (contact: SalesforceContact | undefined): string | null =>
       contact?.Phone || contact?.MobilePhone || accountPhone;
 
     // Normalize website
@@ -185,7 +182,7 @@ Deno.serve(async (req: Request) => {
     // Supabase admin client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey) as any;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Check if listing exists by salesforce_account_id
     const { data: existingListing } = await supabase
@@ -224,7 +221,7 @@ Deno.serve(async (req: Request) => {
     // Upsert contacts (unique index is on lower(email), listing_id WHERE contact_type='seller' AND archived=false)
     let contactsUpserted = 0;
     for (let i = 0; i < contacts.length; i++) {
-      const contact: any = contacts[i];
+      const contact: SalesforceContact = contacts[i];
       const email = contact.Email?.trim()?.toLowerCase();
       if (!email) continue;
 
