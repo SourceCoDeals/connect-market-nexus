@@ -342,7 +342,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
             .from('call_transcripts' as any)
             .select('buyer_id, call_date, ceo_detected')
             .eq('listing_id', listingId)
-            .in('buyer_id', buyerIds)
+            .in('buyer_id', allBuyerIds)
             .order('call_date', { ascending: false }),
 
           // Outreach records (NDA/memo/meeting funnel)
