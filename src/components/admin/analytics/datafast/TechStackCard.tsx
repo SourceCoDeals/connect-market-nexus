@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { AnalyticsCard, SortToggle, SortValue } from "./AnalyticsCard";
-import { AnalyticsTooltip } from "./AnalyticsTooltip";
-import { Monitor, Smartphone, Tablet } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { BrowserLogo, OSLogo } from "./BrowserLogo";
-import { ProportionalBar } from "./ProportionalBar";
-import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
-import { FilterModal } from "./FilterModal";
+import { useState } from 'react';
+import { AnalyticsCard, SortToggle, SortValue } from './AnalyticsCard';
+import { AnalyticsTooltip } from './AnalyticsTooltip';
+import { Monitor, Smartphone, Tablet } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { BrowserLogo, OSLogo } from './BrowserLogo';
+import { ProportionalBar } from './ProportionalBar';
+import { useAnalyticsFilters } from '@/context/AnalyticsFiltersContext';
+import { FilterModal } from './FilterModal';
 
 interface TechStackCardProps {
   browsers: Array<{ name: string; visitors: number; signups: number; percentage: number }>;
@@ -15,9 +15,9 @@ interface TechStackCardProps {
 }
 
 const DEVICE_ICONS: Record<string, React.ReactNode> = {
-  'Desktop': <Monitor className="h-4 w-4" />,
-  'Mobile': <Smartphone className="h-4 w-4" />,
-  'Tablet': <Tablet className="h-4 w-4" />,
+  Desktop: <Monitor className="h-4 w-4" />,
+  Mobile: <Smartphone className="h-4 w-4" />,
+  Tablet: <Tablet className="h-4 w-4" />,
 };
 
 export function TechStackCard({ browsers, operatingSystems, devices }: TechStackCardProps) {
@@ -25,7 +25,7 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<string>('');
   const { hasFilter } = useAnalyticsFilters();
-  
+
   const tabs = [
     { id: 'browser', label: 'Browser' },
     { id: 'os', label: 'OS' },
@@ -42,9 +42,9 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
   const sortedOS = [...operatingSystems].sort((a, b) => getSortValue(b) - getSortValue(a));
   const sortedDevices = [...devices].sort((a, b) => getSortValue(b) - getSortValue(a));
 
-  const maxBrowserValue = Math.max(...browsers.map(b => getSortValue(b)), 1);
-  const maxOSValue = Math.max(...operatingSystems.map(os => getSortValue(os)), 1);
-  const maxDeviceValue = Math.max(...devices.map(d => getSortValue(d)), 1);
+  const maxBrowserValue = Math.max(...browsers.map((b) => getSortValue(b)), 1);
+  const maxOSValue = Math.max(...operatingSystems.map((os) => getSortValue(os)), 1);
+  const maxDeviceValue = Math.max(...devices.map((d) => getSortValue(d)), 1);
 
   // Removed - filtering now only via Details modal
 
@@ -56,21 +56,21 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
   const getModalItems = () => {
     switch (modalTab) {
       case 'browser':
-        return browsers.map(b => ({
+        return browsers.map((b) => ({
           id: b.name,
           label: b.name,
           visitors: b.visitors,
           signups: b.signups,
         }));
       case 'os':
-        return operatingSystems.map(os => ({
+        return operatingSystems.map((os) => ({
           id: os.name,
           label: os.name,
           visitors: os.visitors,
           signups: os.signups,
         }));
       case 'device':
-        return devices.map(d => ({
+        return devices.map((d) => ({
           id: d.type,
           label: d.type,
           visitors: d.visitors,
@@ -87,10 +87,14 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
 
   const getModalTitle = () => {
     switch (modalTab) {
-      case 'browser': return 'Browsers';
-      case 'os': return 'Operating Systems';
-      case 'device': return 'Devices';
-      default: return 'Details';
+      case 'browser':
+        return 'Browsers';
+      case 'os':
+        return 'Operating Systems';
+      case 'device':
+        return 'Devices';
+      default:
+        return 'Details';
     }
   };
 
@@ -115,14 +119,18 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                       rows={[
                         { label: 'Visitors', value: browser.visitors.toLocaleString() },
                         { label: 'Signups', value: browser.signups || 0 },
-                        { label: 'Share', value: `${browser.percentage.toFixed(1)}%`, highlight: true },
+                        {
+                          label: 'Share',
+                          value: `${browser.percentage.toFixed(1)}%`,
+                          highlight: true,
+                        },
                       ]}
                     >
                       <ProportionalBar value={getSortValue(browser)} maxValue={maxBrowserValue}>
-                        <div 
+                        <div
                           className={cn(
-                            "flex items-center justify-between",
-                            isActive && "opacity-50"
+                            'flex items-center justify-between',
+                            isActive && 'opacity-50',
                           )}
                         >
                           <div className="flex items-center gap-2.5">
@@ -143,11 +151,13 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                   );
                 })}
                 {browsers.length === 0 && (
-                  <div className="text-sm text-muted-foreground text-center py-4">No browser data</div>
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    No browser data
+                  </div>
                 )}
               </>
             )}
-            
+
             {activeTab === 'os' && (
               <>
                 {sortedOS.slice(0, 6).map((os) => {
@@ -163,10 +173,10 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                       ]}
                     >
                       <ProportionalBar value={getSortValue(os)} maxValue={maxOSValue}>
-                        <div 
+                        <div
                           className={cn(
-                            "flex items-center justify-between",
-                            isActive && "opacity-50"
+                            'flex items-center justify-between',
+                            isActive && 'opacity-50',
                           )}
                         >
                           <div className="flex items-center gap-2.5">
@@ -191,7 +201,7 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                 )}
               </>
             )}
-            
+
             {activeTab === 'device' && (
               <>
                 {sortedDevices.map((device) => {
@@ -203,14 +213,18 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                       rows={[
                         { label: 'Visitors', value: device.visitors.toLocaleString() },
                         { label: 'Signups', value: device.signups || 0 },
-                        { label: 'Share', value: `${device.percentage.toFixed(1)}%`, highlight: true },
+                        {
+                          label: 'Share',
+                          value: `${device.percentage.toFixed(1)}%`,
+                          highlight: true,
+                        },
                       ]}
                     >
                       <ProportionalBar value={getSortValue(device)} maxValue={maxDeviceValue}>
-                        <div 
+                        <div
                           className={cn(
-                            "flex items-center justify-between",
-                            isActive && "opacity-50"
+                            'flex items-center justify-between',
+                            isActive && 'opacity-50',
                           )}
                         >
                           <div className="flex items-center gap-2.5">
@@ -233,7 +247,9 @@ export function TechStackCard({ browsers, operatingSystems, devices }: TechStack
                   );
                 })}
                 {devices.length === 0 && (
-                  <div className="text-sm text-muted-foreground text-center py-4">No device data</div>
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    No device data
+                  </div>
                 )}
               </>
             )}

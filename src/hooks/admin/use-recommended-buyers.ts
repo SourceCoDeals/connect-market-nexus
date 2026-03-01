@@ -1,3 +1,42 @@
+/**
+ * useRecommendedBuyers
+ *
+ * Fetches scored and enriched buyer recommendations for a given listing (deal).
+ * Queries `remarketing_scores` for composite scores, then enriches each buyer
+ * with profile data from `remarketing_buyers`, engagement history from
+ * `connection_requests`, call transcript insights from `call_transcripts`,
+ * and outreach funnel status from `outreach_records`.
+ *
+ * Each buyer is classified into a tier (Move Now / Strong Candidate / Speculative)
+ * based on composite score, fee agreement status, and acquisition appetite.
+ * Fit signals are computed from sub-scores, transcript data, and outreach progress.
+ *
+ * @param listingId - The listing (deal) ID to fetch recommendations for.
+ *                    When undefined the query is disabled and returns an empty result.
+ * @param limit     - Maximum number of buyers to return (default 25).
+ *
+ * @returns A React Query result whose `data` is a {@link RecommendedBuyersResult}
+ *          containing the ranked buyer list, tier summary counts, data-enrichment
+ *          stats, and cache timestamp. Uses a 4-hour stale time.
+ *
+ * ## call_transcripts join pattern
+ *
+ * This hook queries the `call_transcripts` table using a **dual-key join**:
+ *
+ *     .eq('listing_id', listingId).in('buyer_id', buyerIds)
+ *
+ * Both `listing_id` AND `buyer_id` are required because we are building a
+ * per-buyer scorecard for a specific listing. A buyer may have transcripts
+ * across many listings, so filtering by `listing_id` ensures we only surface
+ * calls that are relevant to the deal being evaluated. Without the
+ * `listing_id` filter, transcript counts and CEO-detected flags would be
+ * inflated by calls related to unrelated deals.
+ *
+ * This contrasts with `DealTranscriptSection`, which reads from the
+ * `deal_transcripts` table at the deal level only (no `buyer_id` filter)
+ * because its purpose is to show *every* transcript linked to a deal,
+ * regardless of which buyer participated.
+ */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -68,6 +107,21 @@ export interface RecommendedBuyersResult {
   cachedAt: string;
 }
 
+/**
+ * Classifies a buyer into one of three outreach tiers based on their composite
+ * fit score, fee agreement status, and acquisition appetite.
+ *
+ * Tier rules:
+ *  - **Move Now** (score >= 80 AND fee agreement signed OR aggressive/active appetite)
+ *  - **Strong Candidate** (score >= 60)
+ *  - **Speculative** (everything else)
+ *
+ * @param score           - Composite fit score (0-100).
+ * @param hasFeeAgreement - Whether the buyer has a signed fee agreement.
+ * @param appetite        - The buyer's stated acquisition appetite string
+ *                          (e.g. "aggressive", "active", "selective").
+ * @returns An object with the machine-readable `tier` key and a human-readable `label`.
+ */
 function classifyTier(
   score: number,
   hasFeeAgreement: boolean,
@@ -83,6 +137,19 @@ function classifyTier(
   return { tier: 'speculative', label: 'Speculative' };
 }
 
+/**
+ * Derives up to 5 human-readable "fit signal" strings that explain why a buyer
+ * is a strong match for a deal. Signals are drawn from sub-score thresholds
+ * (geography, size, service), acquisition appetite, fee agreement status,
+ * transcript engagement (call count, CEO participation), NDA status, and
+ * prior acquisition history.
+ *
+ * @param buyer      - Raw buyer profile row as a key-value record.
+ * @param score      - Raw remarketing_scores row as a key-value record.
+ * @param transcript - Aggregated call transcript insights for this buyer.
+ * @param outreach   - Outreach funnel status (contacted, NDA, CIM, meeting).
+ * @returns An array of at most 5 descriptive signal strings.
+ */
 function computeFitSignals(
   buyer: Record<string, unknown>,
   score: Record<string, unknown>,

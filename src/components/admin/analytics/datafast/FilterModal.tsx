@@ -1,11 +1,15 @@
-import { useState, useMemo } from "react";
-import { Search, Filter } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useAnalyticsFilters, FilterType, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
-import { cn } from "@/lib/utils";
-import { ProportionalBar } from "./ProportionalBar";
-import { ReferrerLogo } from "./ReferrerLogo";
+import { useState, useMemo } from 'react';
+import { Search, Filter } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
+  useAnalyticsFilters,
+  FilterType,
+  AnalyticsFilter,
+} from '@/context/AnalyticsFiltersContext';
+import { cn } from '@/lib/utils';
+import { ProportionalBar } from './ProportionalBar';
+import { ReferrerLogo } from './ReferrerLogo';
 
 interface FilterModalItem {
   id: string;
@@ -26,16 +30,22 @@ interface FilterModalProps {
   sortBy?: 'visitors' | 'signups' | 'connections';
 }
 
-export function FilterModal({ open, onClose, title, filterType, items, sortBy = 'visitors' }: FilterModalProps) {
-  const [search, setSearch] = useState("");
+export function FilterModal({
+  open,
+  onClose,
+  title,
+  filterType,
+  items,
+  sortBy = 'visitors',
+}: FilterModalProps) {
+  const [search, setSearch] = useState('');
   const { addFilter, hasFilter } = useAnalyticsFilters();
 
   const filteredItems = useMemo(() => {
     if (!search) return items;
     const lower = search.toLowerCase();
-    return items.filter(item => 
-      item.label.toLowerCase().includes(lower) ||
-      item.id.toLowerCase().includes(lower)
+    return items.filter(
+      (item) => item.label.toLowerCase().includes(lower) || item.id.toLowerCase().includes(lower),
     );
   }, [items, search]);
 
@@ -48,9 +58,9 @@ export function FilterModal({ open, onClose, title, filterType, items, sortBy = 
   }, [filteredItems, sortBy]);
 
   const maxValue = useMemo(() => {
-    if (sortBy === 'signups') return Math.max(...items.map(i => i.signups || 0), 1);
-    if (sortBy === 'connections') return Math.max(...items.map(i => i.connections || 0), 1);
-    return Math.max(...items.map(i => i.visitors), 1);
+    if (sortBy === 'signups') return Math.max(...items.map((i) => i.signups || 0), 1);
+    if (sortBy === 'connections') return Math.max(...items.map((i) => i.connections || 0), 1);
+    return Math.max(...items.map((i) => i.visitors), 1);
   }, [items, sortBy]);
 
   const handleFilter = (item: FilterModalItem) => {
@@ -77,7 +87,7 @@ export function FilterModal({ open, onClose, title, filterType, items, sortBy = 
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-medium">{title}</DialogTitle>
           </div>
-          
+
           {/* Search */}
           <div className="relative mt-3">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -89,7 +99,7 @@ export function FilterModal({ open, onClose, title, filterType, items, sortBy = 
             />
           </div>
         </DialogHeader>
-        
+
         {/* Column headers */}
         <div className="flex items-center justify-between px-6 py-2 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border/30">
           <span>{title}</span>
@@ -100,26 +110,28 @@ export function FilterModal({ open, onClose, title, filterType, items, sortBy = 
             <span className="w-8"></span>
           </div>
         </div>
-        
+
         {/* Items list */}
         <div className="flex-1 overflow-y-auto px-6 py-2">
           <div className="space-y-1">
             {sortedItems.map((item) => {
               const isActive = hasFilter(filterType, item.id);
               const value = getValue(item);
-              
+
               return (
                 <ProportionalBar
                   key={item.id}
                   value={value}
                   maxValue={maxValue}
                   secondaryValue={item.connections}
-                  secondaryMaxValue={Math.max(...items.map(i => i.connections || 0), 1)}
+                  secondaryMaxValue={Math.max(...items.map((i) => i.connections || 0), 1)}
                 >
-                  <div className={cn(
-                    "flex items-center justify-between py-2 group cursor-pointer",
-                    isActive && "opacity-50"
-                  )}>
+                  <div
+                    className={cn(
+                      'flex items-center justify-between py-2 group cursor-pointer',
+                      isActive && 'opacity-50',
+                    )}
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       {filterType === 'referrer' && (
                         <ReferrerLogo domain={item.id} className="w-5 h-5 flex-shrink-0" />
@@ -129,7 +141,7 @@ export function FilterModal({ open, onClose, title, filterType, items, sortBy = 
                         <span className="text-xs text-muted-foreground">{item.extra}</span>
                       )}
                     </div>
-                    
+
                     <div className="flex items-center gap-8">
                       <span className="text-sm tabular-nums w-16 text-right">
                         {item.visitors.toLocaleString()}
@@ -137,22 +149,26 @@ export function FilterModal({ open, onClose, title, filterType, items, sortBy = 
                       <span className="text-sm tabular-nums w-16 text-right text-muted-foreground">
                         {(item.signups || 0).toLocaleString()}
                       </span>
-                      <span className={cn(
-                        "text-sm tabular-nums w-16 text-right font-medium",
-                        (item.connections || 0) > 0 ? "text-[hsl(12_95%_60%)]" : "text-muted-foreground"
-                      )}>
+                      <span
+                        className={cn(
+                          'text-sm tabular-nums w-16 text-right font-medium',
+                          (item.connections || 0) > 0
+                            ? 'text-[hsl(12_95%_60%)]'
+                            : 'text-muted-foreground',
+                        )}
+                      >
                         {(item.connections || 0).toLocaleString()}
                       </span>
-                      
+
                       {/* Filter button */}
                       <button
                         onClick={() => handleFilter(item)}
                         disabled={isActive}
                         className={cn(
-                          "p-1.5 rounded-md transition-all",
-                          "opacity-0 group-hover:opacity-100",
-                          "hover:bg-muted",
-                          isActive && "opacity-50 cursor-not-allowed"
+                          'p-1.5 rounded-md transition-all',
+                          'opacity-0 group-hover:opacity-100',
+                          'hover:bg-muted',
+                          isActive && 'opacity-50 cursor-not-allowed',
                         )}
                         title={`Filter by ${item.label}`}
                       >
@@ -163,15 +179,13 @@ export function FilterModal({ open, onClose, title, filterType, items, sortBy = 
                 </ProportionalBar>
               );
             })}
-            
+
             {sortedItems.length === 0 && (
-              <div className="text-sm text-muted-foreground text-center py-8">
-                No results found
-              </div>
+              <div className="text-sm text-muted-foreground text-center py-8">No results found</div>
             )}
           </div>
         </div>
-        
+
         {/* Footer */}
         <div className="px-6 py-3 border-t border-border/50 text-xs text-muted-foreground">
           {items.length} total items • Click the filter icon to filter dashboard

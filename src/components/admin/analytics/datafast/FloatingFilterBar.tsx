@@ -1,7 +1,7 @@
-import { X } from "lucide-react";
-import { useAnalyticsFilters, FilterType } from "@/contexts/AnalyticsFiltersContext";
-import { cn } from "@/lib/utils";
-import { ReferrerLogo } from "./ReferrerLogo";
+import { X } from 'lucide-react';
+import { useAnalyticsFilters, FilterType } from '@/context/AnalyticsFiltersContext';
+import { cn } from '@/lib/utils';
+import { ReferrerLogo } from './ReferrerLogo';
 
 const FILTER_TYPE_LABELS: Record<FilterType, string> = {
   channel: 'Channel',
@@ -28,22 +28,18 @@ export function FloatingFilterBar() {
         <div
           key={`${filter.type}-${filter.value}`}
           className={cn(
-            "inline-flex items-center gap-2 px-4 py-2 rounded-full",
-            "bg-card/95 backdrop-blur-sm border border-border/50 shadow-lg",
-            "text-sm"
+            'inline-flex items-center gap-2 px-4 py-2 rounded-full',
+            'bg-card/95 backdrop-blur-sm border border-border/50 shadow-lg',
+            'text-sm',
           )}
         >
           {/* Icon */}
-          {filter.type === 'referrer' && (
-            <ReferrerLogo domain={filter.value} className="w-4 h-4" />
-          )}
-          
+          {filter.type === 'referrer' && <ReferrerLogo domain={filter.value} className="w-4 h-4" />}
+
           {/* Label */}
-          <span className="text-muted-foreground">
-            {FILTER_TYPE_LABELS[filter.type]} is
-          </span>
+          <span className="text-muted-foreground">{FILTER_TYPE_LABELS[filter.type]} is</span>
           <span className="text-foreground font-medium">{filter.label}</span>
-          
+
           {/* Remove button */}
           <button
             onClick={() => removeFilter(filter.type, filter.value)}
@@ -54,7 +50,6 @@ export function FloatingFilterBar() {
           </button>
         </div>
       ))}
-      
     </div>
   );
 }

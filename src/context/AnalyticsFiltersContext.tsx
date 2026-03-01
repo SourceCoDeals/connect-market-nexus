@@ -1,15 +1,15 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
-export type FilterType = 
-  | 'channel' 
-  | 'referrer' 
-  | 'country' 
-  | 'city' 
+export type FilterType =
+  | 'channel'
+  | 'referrer'
+  | 'country'
+  | 'city'
   | 'region'
-  | 'page' 
-  | 'browser' 
-  | 'os' 
-  | 'device' 
+  | 'page'
+  | 'browser'
+  | 'os'
+  | 'device'
   | 'campaign'
   | 'keyword';
 
@@ -35,26 +35,28 @@ export function AnalyticsFiltersProvider({ children }: { children: ReactNode }) 
   const [filters, setFilters] = useState<AnalyticsFilter[]>([]);
 
   const addFilter = useCallback((filter: AnalyticsFilter) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       // Replace existing filter of same type, or add new one
-      const existingIndex = prev.findIndex(f => f.type === filter.type && f.value === filter.value);
+      const existingIndex = prev.findIndex(
+        (f) => f.type === filter.type && f.value === filter.value,
+      );
       if (existingIndex >= 0) {
         return prev; // Already exists
       }
       // Remove any existing filter of the same type (single-select per type)
-      const filtered = prev.filter(f => f.type !== filter.type);
+      const filtered = prev.filter((f) => f.type !== filter.type);
       return [...filtered, filter];
     });
   }, []);
 
   const removeFilter = useCallback((type: FilterType, value?: string) => {
-    setFilters(prev => 
-      prev.filter(f => {
+    setFilters((prev) =>
+      prev.filter((f) => {
         if (value) {
           return !(f.type === type && f.value === value);
         }
         return f.type !== type;
-      })
+      }),
     );
   }, []);
 
@@ -62,24 +64,29 @@ export function AnalyticsFiltersProvider({ children }: { children: ReactNode }) 
     setFilters([]);
   }, []);
 
-  const hasFilter = useCallback((type: FilterType, value?: string) => {
-    return filters.some(f => {
-      if (value) {
-        return f.type === type && f.value === value;
-      }
-      return f.type === type;
-    });
-  }, [filters]);
+  const hasFilter = useCallback(
+    (type: FilterType, value?: string) => {
+      return filters.some((f) => {
+        if (value) {
+          return f.type === type && f.value === value;
+        }
+        return f.type === type;
+      });
+    },
+    [filters],
+  );
 
   const toggleFilter = useCallback((filter: AnalyticsFilter) => {
-    setFilters(prev => {
-      const existingIndex = prev.findIndex(f => f.type === filter.type && f.value === filter.value);
+    setFilters((prev) => {
+      const existingIndex = prev.findIndex(
+        (f) => f.type === filter.type && f.value === filter.value,
+      );
       if (existingIndex >= 0) {
         // Remove it
         return prev.filter((_, i) => i !== existingIndex);
       }
       // Add it (replace same type)
-      const filtered = prev.filter(f => f.type !== filter.type);
+      const filtered = prev.filter((f) => f.type !== filter.type);
       return [...filtered, filter];
     });
   }, []);
@@ -104,7 +111,7 @@ export function AnalyticsFiltersProvider({ children }: { children: ReactNode }) 
 export function useAnalyticsFilters() {
   const context = useContext(AnalyticsFiltersContext);
   if (!context) {
-    throw new Error("useAnalyticsFilters must be used within an AnalyticsFiltersProvider");
+    throw new Error('useAnalyticsFilters must be used within an AnalyticsFiltersProvider');
   }
   return context;
 }
