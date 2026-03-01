@@ -265,7 +265,11 @@ async function dealComparison(
       .select('listing_id, composite_score, status')
       .in('listing_id', dealIds),
     supabase.from('outreach_records').select('deal_id, stage').in('deal_id', dealIds),
-    supabase.from('deal_tasks').select('deal_id, status').in('deal_id', dealIds),
+    supabase
+      .from('daily_standup_tasks')
+      .select('entity_id, status')
+      .eq('entity_type', 'deal')
+      .in('entity_id', dealIds),
   ]);
 
   const scores = scoresResult.data || [];
@@ -275,7 +279,7 @@ async function dealComparison(
   const dealStats = deals.map((d: any) => {
     const dScores = scores.filter((s: any) => s.listing_id === d.id);
     const dOutreach = outreach.filter((o: any) => o.deal_id === d.id);
-    const dTasks = tasks.filter((t: any) => t.deal_id === d.id);
+    const dTasks = tasks.filter((t: any) => t.entity_id === d.id);
 
     const composites = dScores.map((s: any) => s.composite_score).filter(Boolean) as number[];
     const avgScore =
@@ -315,7 +319,7 @@ async function dealComparison(
         ...(args.industry ? { industry: args.industry } : {}),
         ...(args.deal_ids ? { deal_ids: args.deal_ids } : {}),
       },
-      source_tables: ['listings', 'remarketing_scores', 'outreach_records', 'deal_tasks'],
+      source_tables: ['listings', 'remarketing_scores', 'outreach_records', 'daily_standup_tasks'],
     },
   };
 }

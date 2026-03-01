@@ -137,10 +137,11 @@ async function generateMeetingPrep(
   const queries: Promise<unknown>[] = [
     supabase.from('listings').select('*').eq('id', dealId).single(),
     supabase
-      .from('deal_tasks')
-      .select('id, title, status, priority, due_date, assigned_to')
-      .eq('deal_id', dealId)
-      .in('status', ['pending', 'in_progress'])
+      .from('daily_standup_tasks')
+      .select('id, title, status, priority, due_date, assignee_id')
+      .eq('entity_type', 'deal')
+      .eq('entity_id', dealId)
+      .in('status', ['pending', 'in_progress', 'pending_approval'])
       .order('due_date', { ascending: true, nullsFirst: false })
       .limit(10),
     supabase
@@ -298,8 +299,9 @@ async function generatePipelineReport(
         .select('deal_id, buyer_name, granted_at, is_active')
         .gte('granted_at', cutoffDate),
       supabase
-        .from('deal_tasks')
-        .select('deal_id, title, status, completed_at')
+        .from('daily_standup_tasks')
+        .select('entity_id, title, status, completed_at')
+        .eq('entity_type', 'deal')
         .gte('created_at', cutoffDate),
     ]);
 
@@ -428,11 +430,11 @@ async function generateEodRecap(
       if (userId) q = q.eq('admin_id', userId);
       return q;
     })(),
-    // Tasks completed in period
+    // Tasks completed in period (from unified daily_standup_tasks)
     (() => {
       let q = supabase
-        .from('deal_tasks')
-        .select('id, title, deal_id, priority, completed_at')
+        .from('daily_standup_tasks')
+        .select('id, title, entity_id, priority, completed_at')
         .eq('status', 'completed')
         .gte('completed_at', startStr)
         .lt('completed_at', endStr)
@@ -441,15 +443,15 @@ async function generateEodRecap(
       if (userId) q = q.eq('completed_by', userId);
       return q;
     })(),
-    // Tasks still open (assigned to user)
+    // Tasks still open (assigned to user, from unified daily_standup_tasks)
     (() => {
       let q = supabase
-        .from('deal_tasks')
-        .select('id, title, deal_id, priority, due_date, status')
-        .in('status', ['pending', 'in_progress'])
+        .from('daily_standup_tasks')
+        .select('id, title, entity_id, priority, due_date, status')
+        .in('status', ['pending', 'in_progress', 'pending_approval', 'overdue'])
         .order('due_date', { ascending: true, nullsFirst: false })
         .limit(20);
-      if (userId) q = q.eq('assigned_to', userId);
+      if (userId) q = q.eq('assignee_id', userId);
       return q;
     })(),
     // Outreach records updated in period
@@ -561,12 +563,17 @@ async function generateEodRecap(
       tasks: {
         completed: completedTasks.length,
         completed_list: (
-          completedTasks as Array<{ title: string; deal_id: string; priority: string }>
+          completedTasks as Array<{
+            title: string;
+            entity_id: string;
+            priority: string;
+            completed_at: string;
+          }>
         )
           .slice(0, 10)
           .map((t) => ({
             title: t.title,
-            deal_id: t.deal_id,
+            deal_id: t.entity_id,
             priority: t.priority,
           })),
         still_open: openTasks.length,
@@ -594,7 +601,7 @@ async function generateEodRecap(
         upcoming_tasks: (
           upcomingPriorities as Array<{
             title: string;
-            deal_id: string;
+            entity_id: string;
             due_date: string;
             priority: string;
           }>
@@ -602,7 +609,7 @@ async function generateEodRecap(
           .slice(0, 5)
           .map((t) => ({
             title: t.title,
-            deal_id: t.deal_id,
+            deal_id: t.entity_id,
             due_date: t.due_date,
             priority: t.priority,
           })),

@@ -19,6 +19,7 @@ import type {
   DailyStandupTaskWithRelations,
   TaskStatus,
 } from '@/types/daily-tasks';
+import { logDealActivity } from '@/lib/deal-activity-logger';
 
 const QUERY_KEY = 'daily-standup-tasks';
 
@@ -92,6 +93,13 @@ export function useToggleTaskComplete() {
 
   return useMutation({
     mutationFn: async ({ taskId, completed }: { taskId: string; completed: boolean }) => {
+      // Fetch task to check entity_type for deal activity logging
+      const { data: task } = await supabase
+        .from('daily_standup_tasks' as any)
+        .select('id, title, entity_type, entity_id, created_by')
+        .eq('id', taskId)
+        .single();
+
       const updates: Record<string, unknown> = completed
         ? {
             status: 'completed' as TaskStatus,
@@ -111,11 +119,52 @@ export function useToggleTaskComplete() {
 
       if (error) throw error;
 
+      // Deal activity logging when completing a deal-linked task
+      if (completed && task?.entity_type === 'deal' && task?.entity_id) {
+        await logDealActivity({
+          dealId: task.entity_id,
+          activityType: 'task_completed',
+          title: 'Task Completed',
+          description: `Task "${task.title}" was marked as completed`,
+          metadata: { task_id: taskId, task_title: task.title },
+        });
+
+        // Notify task creator if different from completer
+        if (task.created_by && task.created_by !== user?.id) {
+          try {
+            const { data: dealData } = await supabase
+              .from('deals')
+              .select('title')
+              .eq('id', task.entity_id)
+              .single();
+
+            await supabase.from('admin_notifications').insert({
+              admin_id: task.created_by,
+              notification_type: 'task_completed',
+              title: 'Task Completed',
+              message: `Task "${task.title}" was marked as completed`,
+              deal_id: task.entity_id,
+              task_id: taskId,
+              action_url: `/admin/deals/pipeline?deal=${task.entity_id}&tab=tasks`,
+              metadata: {
+                task_title: task.title,
+                title: dealData?.title || 'Deal',
+                completed_by: user?.id,
+              },
+            });
+          } catch (notifError) {
+            console.error('Failed to send task completion notification:', notifError);
+          }
+        }
+      }
+
       // Recompute ranks whenever task status changes
       await recomputeRanks();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
+      qc.invalidateQueries({ queryKey: ['entity-tasks'] });
+      qc.invalidateQueries({ queryKey: ['admin-notifications'] });
     },
   });
 }
@@ -177,17 +226,101 @@ export function useApproveAllTasks() {
 
 export function useReassignTask() {
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ taskId, newAssigneeId }: { taskId: string; newAssigneeId: string }) => {
+      // Fetch task for deal activity logging and notifications
+      const { data: task } = await supabase
+        .from('daily_standup_tasks' as any)
+        .select('id, title, description, priority, due_date, entity_type, entity_id, assignee_id')
+        .eq('id', taskId)
+        .single();
+
       const { error } = await supabase
         .from('daily_standup_tasks' as any)
         .update({ assignee_id: newAssigneeId, needs_review: false })
         .eq('id', taskId);
       if (error) throw error;
+
+      // Deal activity logging for reassignment of deal-linked tasks
+      if (task?.entity_type === 'deal' && task?.entity_id) {
+        await logDealActivity({
+          dealId: task.entity_id,
+          activityType: 'task_assigned',
+          title: 'Task Reassigned',
+          description: `Task "${task.title}" was reassigned`,
+          metadata: {
+            task_id: taskId,
+            old_assignee: task.assignee_id,
+            new_assignee: newAssigneeId,
+          },
+        });
+      }
+
+      // Send notification to new assignee if different from current user
+      if (newAssigneeId !== user?.id && task) {
+        try {
+          const [{ data: assigneeProfile }, { data: assignerProfile }, { data: dealData }] =
+            await Promise.all([
+              supabase
+                .from('profiles')
+                .select('id, email, first_name, last_name')
+                .eq('id', newAssigneeId)
+                .single(),
+              supabase.from('profiles').select('first_name, last_name').eq('id', user?.id).single(),
+              task.entity_type === 'deal'
+                ? supabase.from('deals').select('title').eq('id', task.entity_id).single()
+                : Promise.resolve({ data: null }),
+            ]);
+
+          if (assigneeProfile?.email) {
+            await supabase.from('admin_notifications').insert({
+              admin_id: newAssigneeId,
+              notification_type: 'task_assigned',
+              title: 'Task Assigned to You',
+              message: `You have been assigned a task: ${task.title}`,
+              deal_id: task.entity_type === 'deal' ? task.entity_id : null,
+              task_id: taskId,
+              action_url:
+                task.entity_type === 'deal'
+                  ? `/admin/deals/pipeline?deal=${task.entity_id}&tab=tasks`
+                  : undefined,
+              metadata: {
+                task_title: task.title,
+                title: dealData?.title || 'Task',
+                assigned_by: user?.id,
+                priority: task.priority,
+              },
+            });
+
+            await supabase.functions.invoke('send-task-notification-email', {
+              body: {
+                assignee_email: assigneeProfile.email,
+                assignee_name:
+                  `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() ||
+                  assigneeProfile.email,
+                assigner_name: assignerProfile
+                  ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim()
+                  : 'Admin',
+                task_title: task.title,
+                task_description: task.description,
+                task_priority: task.priority || 'medium',
+                task_due_date: task.due_date,
+                title: dealData?.title || 'Task',
+                deal_id: task.entity_type === 'deal' ? task.entity_id : undefined,
+              },
+            });
+          }
+        } catch (notifError) {
+          console.error('Failed to send task reassignment notification:', notifError);
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
+      qc.invalidateQueries({ queryKey: ['entity-tasks'] });
+      qc.invalidateQueries({ queryKey: ['admin-notifications'] });
     },
   });
 }

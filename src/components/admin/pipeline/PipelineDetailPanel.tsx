@@ -16,6 +16,7 @@ import { PipelineDetailNotes } from './tabs/PipelineDetailNotes';
 import { PipelineDetailDataRoom } from './tabs/PipelineDetailDataRoom';
 import { PipelineDetailDealInfo } from './tabs/PipelineDetailDealInfo';
 import { PipelineDetailOtherBuyers } from './tabs/PipelineDetailOtherBuyers';
+import { EntityTasksTab } from '@/components/daily-tasks';
 import { DeleteDealDialog } from '@/components/admin/deals/DeleteDealDialog';
 
 interface PipelineDetailPanelProps {
@@ -134,7 +135,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-8 mb-6">
-          <TabsList className="grid w-full grid-cols-5 bg-muted/30 h-10 rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-6 bg-muted/30 h-10 rounded-lg p-1">
             <TabsTrigger
               value="overview"
               className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
@@ -158,6 +159,12 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
               className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
             >
               Data Room
+            </TabsTrigger>
+            <TabsTrigger
+              value="tasks"
+              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+            >
+              Tasks
             </TabsTrigger>
             <TabsTrigger
               value="otherbuyers"
@@ -192,6 +199,19 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
           >
             <PipelineDetailDataRoom deal={selectedDeal} />
+          </TabsContent>
+          <TabsContent
+            value="tasks"
+            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+          >
+            <div className="flex-1 overflow-auto px-8 pb-8">
+              <EntityTasksTab
+                entityType="deal"
+                entityId={selectedDeal.deal_id}
+                entityName={selectedDeal.title}
+                dealId={selectedDeal.deal_id}
+              />
+            </div>
           </TabsContent>
           <TabsContent
             value="otherbuyers"

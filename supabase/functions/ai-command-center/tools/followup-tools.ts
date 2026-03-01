@@ -116,22 +116,24 @@ async function getFollowUpQueue(
     pendingNdasResult,
     unreadMessagesResult,
   ] = await Promise.all([
-    // 1. Overdue tasks
+    // 1. Overdue tasks (from unified daily_standup_tasks)
     supabase
-      .from('deal_tasks')
-      .select('id, title, deal_id, status, priority, due_date')
-      .eq('assigned_to', targetUserId)
-      .in('status', ['pending', 'in_progress'])
+      .from('daily_standup_tasks')
+      .select('id, title, entity_id, status, priority, due_date')
+      .eq('assignee_id', targetUserId)
+      .eq('entity_type', 'deal')
+      .in('status', ['pending', 'in_progress', 'overdue'])
       .lt('due_date', now.toISOString())
       .order('due_date', { ascending: true })
       .limit(limit),
 
-    // 2. Upcoming tasks (next 7 days)
+    // 2. Upcoming tasks (next 7 days, from unified daily_standup_tasks)
     includeUpcoming
       ? supabase
-          .from('deal_tasks')
-          .select('id, title, deal_id, status, priority, due_date')
-          .eq('assigned_to', targetUserId)
+          .from('daily_standup_tasks')
+          .select('id, title, entity_id, status, priority, due_date')
+          .eq('assignee_id', targetUserId)
+          .eq('entity_type', 'deal')
           .in('status', ['pending', 'in_progress'])
           .gte('due_date', now.toISOString())
           .lte('due_date', upcomingDateStr)
@@ -166,8 +168,15 @@ async function getFollowUpQueue(
       .limit(limit),
   ]);
 
-  const overdueTasks = overdueTasksResult.data || [];
-  const upcomingTasks = upcomingTasksResult.data || [];
+  // Map entity_id to deal_id for backward compatibility
+  const overdueTasks = (overdueTasksResult.data || []).map((t: any) => ({
+    ...t,
+    deal_id: t.entity_id,
+  }));
+  const upcomingTasks = (upcomingTasksResult.data || []).map((t: any) => ({
+    ...t,
+    deal_id: t.entity_id,
+  }));
   const staleOutreach = staleOutreachResult.data || [];
   const pendingNdas = pendingNdasResult.data || [];
   const unreadMessages = unreadMessagesResult.data || [];
@@ -225,7 +234,12 @@ async function getFollowUpQueue(
         priority: t.priority,
         due_date: t.due_date,
       })),
-      source_tables: ['deal_tasks', 'outreach_records', 'firm_agreements', 'connection_messages'],
+      source_tables: [
+        'daily_standup_tasks',
+        'outreach_records',
+        'firm_agreements',
+        'connection_messages',
+      ],
     },
   };
 }
@@ -273,14 +287,15 @@ async function getStaleDealsTool(
 
   const activeDeals = new Set((activities || []).map((a: { deal_id: string }) => a.deal_id));
 
-  // 3. Also check deal_tasks for recent updates
+  // 3. Also check daily_standup_tasks for recent updates on deals
   const { data: tasks } = await supabase
-    .from('deal_tasks')
-    .select('deal_id, updated_at')
-    .in('deal_id', dealIds)
-    .gte('updated_at', cutoffDate);
+    .from('daily_standup_tasks')
+    .select('entity_id, created_at')
+    .eq('entity_type', 'deal')
+    .in('entity_id', dealIds)
+    .gte('created_at', cutoffDate);
 
-  for (const t of tasks || []) activeDeals.add(t.deal_id);
+  for (const t of tasks || []) activeDeals.add(t.entity_id);
 
   // 4. Check outreach_records for recent action
   const { data: outreach } = await supabase
