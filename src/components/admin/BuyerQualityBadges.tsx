@@ -1,12 +1,8 @@
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getScoreBadgeVariant } from '@/components/shared/ReMarketingScoreBadge';
 
 const TIER_CONFIG: Record<number, { label: string; className: string }> = {
   1: { label: 'Platform Add-On', className: 'bg-green-100 text-green-800 hover:bg-green-100' },
@@ -51,20 +47,30 @@ export function BuyerTierBadgeFull({
   );
 }
 
-export function BuyerScoreBadge({ score, size = 'sm', showLabel = false }: { score?: number | null; size?: 'sm' | 'md' | 'lg' | 'xl'; showLabel?: boolean }) {
+export function BuyerScoreBadge({
+  score,
+  size = 'sm',
+  showLabel = false,
+}: {
+  score?: number | null;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  showLabel?: boolean;
+}) {
   if (score == null) {
     return <span className="text-xs text-red-500">—</span>;
   }
 
   const getScoreColor = (s: number) => {
-    if (s >= 70) return 'bg-green-500/15 text-green-600 border-green-200';
-    if (s >= 40) return 'bg-yellow-500/15 text-yellow-600 border-yellow-200';
+    const variant = getScoreBadgeVariant(s);
+    if (variant === 'emerald') return 'bg-green-500/15 text-green-600 border-green-200';
+    if (variant === 'amber') return 'bg-yellow-500/15 text-yellow-600 border-yellow-200';
     return 'bg-red-500/15 text-red-600 border-red-200';
   };
 
   const getScoreLabel = (s: number) => {
-    if (s >= 70) return 'Strong';
-    if (s >= 40) return 'Moderate';
+    const variant = getScoreBadgeVariant(s);
+    if (variant === 'emerald') return 'Strong';
+    if (variant === 'amber') return 'Moderate';
     return 'Weak';
   };
 
@@ -84,7 +90,11 @@ export function BuyerScoreBadge({ score, size = 'sm', showLabel = false }: { sco
 
   const badge = (
     <span className="inline-flex flex-col items-center gap-0">
-      {showLabel && <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold leading-none">Buyer Score</span>}
+      {showLabel && (
+        <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold leading-none">
+          Buyer Score
+        </span>
+      )}
       <span
         className={cn(
           'inline-flex items-center rounded-md border font-bold',
@@ -101,15 +111,11 @@ export function BuyerScoreBadge({ score, size = 'sm', showLabel = false }: { sco
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger asChild>
-          {badge}
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs">
           <div className="text-sm">
             <p className="font-semibold mb-1">Buyer Score: {score}/100</p>
-            <p className="text-muted-foreground text-xs">
-              {getScoreLabel(score)} buyer profile
-            </p>
+            <p className="text-muted-foreground text-xs">{getScoreLabel(score)} buyer profile</p>
           </div>
         </TooltipContent>
       </Tooltip>
