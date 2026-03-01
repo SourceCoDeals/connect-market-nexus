@@ -258,6 +258,29 @@ export async function executeDealTool(
   }
 }
 
+// ---------- Retry helper ----------
+
+/** Execute an async function with exponential backoff retries. */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 2,
+  baseDelayMs = 500,
+): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt); // 500ms, 1s
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 // ---------- Implementations ----------
 
 async function queryDeals(
@@ -276,13 +299,13 @@ async function queryDeals(
   const requestedLimit = Number(args.limit) || (needsClientFilter ? 5000 : 25);
   // Always use FULL fields when client-side filtering is active so we can search
   // across ALL data points (industry, category, internal_company_name, services, etc.)
-  const fields = needsClientFilter || depth === 'full' ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
+  const preferFullFields = needsClientFilter || depth === 'full';
 
   // Build base query filters
-  const buildQuery = (offset: number, batchSize: number) => {
+  const buildQuery = (fieldSet: string, offset: number, batchSize: number) => {
     let query = supabase
       .from('listings')
-      .select(fields)
+      .select(fieldSet)
       .is('deleted_at', null)
       .order('updated_at', { ascending: false })
       .range(offset, offset + batchSize - 1);
@@ -297,6 +320,16 @@ async function queryDeals(
     return query;
   };
 
+  // Try fetching with the given field set, with retry + fallback to quick fields
+  let fields = preferFullFields ? DEAL_FIELDS_FULL : DEAL_FIELDS_QUICK;
+  let usedFallback = false;
+
+  const fetchPage = async (offset: number, batchSize: number) => {
+    const { data, error } = await buildQuery(fields, offset, batchSize);
+    if (error) throw error;
+    return data;
+  };
+
   // Paginate to fetch all rows up to requestedLimit
   const PAGE_SIZE = 1000;
   let allData: Record<string, unknown>[] = [];
@@ -304,8 +337,36 @@ async function queryDeals(
 
   while (offset < requestedLimit) {
     const batchSize = Math.min(PAGE_SIZE, requestedLimit - offset);
-    const { data: batch, error } = await buildQuery(offset, batchSize);
-    if (error) return { error: error.message };
+
+    let batch: Record<string, unknown>[] | null = null;
+    try {
+      // Retry each page fetch up to 2 times with exponential backoff
+      batch = await withRetry(() => fetchPage(offset, batchSize));
+    } catch (primaryError) {
+      // If we were using full fields, fall back to quick fields and retry
+      if (fields === DEAL_FIELDS_FULL) {
+        console.warn('[deal-tools] Full-field query failed, falling back to quick fields:', primaryError);
+        fields = DEAL_FIELDS_QUICK;
+        usedFallback = true;
+        // Reset and start over with lighter query
+        allData = [];
+        offset = 0;
+        try {
+          batch = await withRetry(() => fetchPage(0, batchSize));
+        } catch (fallbackError) {
+          const errMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          return {
+            error: `Database query failed after retries: ${errMsg}. This is likely a transient issue — please try again in a moment.`,
+          };
+        }
+      } else {
+        const errMsg = primaryError instanceof Error ? primaryError.message : String(primaryError);
+        return {
+          error: `Database query failed after retries: ${errMsg}. This is likely a transient issue — please try again in a moment.`,
+        };
+      }
+    }
+
     if (!batch || batch.length === 0) break;
     allData = allData.concat(batch);
     if (batch.length < batchSize) break; // last page
@@ -450,6 +511,12 @@ async function queryDeals(
       depth,
       filters_applied: filtersApplied,
       limit_reached: results.length >= requestedLimit,
+      ...(usedFallback
+        ? {
+            _note:
+              'Full-field query timed out; results were fetched with reduced fields. Some fuzzy search fields (executive_summary, investment_thesis, business_model) may not have been checked.',
+          }
+        : {}),
       ...(results.length === 0
         ? {
             suggestion:

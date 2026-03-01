@@ -288,7 +288,7 @@ export async function orchestrate(
           type: 'tool_result',
           tool_use_id: toolId,
           content: JSON.stringify({
-            error: `Tool ${toolName} is temporarily disabled due to repeated failures. Please try again in a few minutes.`,
+            error: `Tool ${toolName} is temporarily disabled due to repeated failures. Do NOT retry this tool. Instead, tell the user there was a temporary database issue and suggest they try again in a couple of minutes. If the query was about deal counts or industry breakdown, try get_pipeline_summary as an alternative.`,
           }),
           is_error: true,
         });
