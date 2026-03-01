@@ -233,7 +233,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
             .in('buyer_id', buyerIds)
             .order('call_date', { ascending: false }),
 
-          // Outreach records (NDA/CIM/meeting funnel)
+          // Outreach records (NDA/memo/meeting funnel)
           supabase
             .from('outreach_records')
             .select(

@@ -321,7 +321,7 @@ Track via connection_requests (NDA/fee status) and firm_agreements.`,
 - get_outreach_records(source: "remarketing_outreach"): campaign-level status per buyer.
 - get_document_engagement: who viewed teasers, memos, data room docs.
 
-Key milestones: contacted_at, nda_sent_at, nda_signed_at, cim_sent_at, meeting_scheduled_at, next_action, next_action_date, outcome.
+Key milestones: contacted_at, nda_sent_at, nda_signed_at, memo_sent (cim_sent_at in DB), meeting_scheduled_at, next_action, next_action_date, outcome.
 
 Reporting format: "Buyer X: NDA signed Jan 15, memo sent Jan 20, meeting pending."
 Flag stale outreach (no activity in 5+ business days) and overdue next actions.`,

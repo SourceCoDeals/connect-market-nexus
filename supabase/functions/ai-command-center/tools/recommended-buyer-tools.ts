@@ -9,7 +9,7 @@
  *   - call_transcripts (buyer-deal call insights, CEO detection, key quotes)
  *   - buyer_transcripts (buyer's own Fireflies call attachments)
  *   - deal_transcripts (deal meeting context, extracted data)
- *   - outreach_records (NDA/CIM/meeting funnel status)
+ *   - outreach_records (NDA/memo/meeting funnel status)
  *   - connection_requests (engagement tracking)
  *   - listings (full deal context: thesis, owner goals, business model)
  *
@@ -466,7 +466,7 @@ async function getRecommendedBuyers(
       .in('buyer_id', buyerIds)
       .order('call_date', { ascending: false }),
 
-    // 2e. Outreach records — NDA/CIM/meeting funnel
+    // 2e. Outreach records — NDA/memo/meeting funnel
     supabase
       .from('outreach_records')
       .select(
