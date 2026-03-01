@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -355,11 +355,29 @@ export function RecommendedBuyersSection({
                     {buyer.composite_fit_score}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {buyer.pe_firm_name
-                        ? `${buyer.company_name} (${buyer.pe_firm_name})`
-                        : buyer.company_name}
-                    </p>
+                    <div className="flex items-center gap-1.5 text-sm truncate">
+                      <Link
+                        to={`/admin/buyers/${buyer.buyer_id}`}
+                        className="font-medium text-foreground hover:text-primary hover:underline transition-colors"
+                      >
+                        {buyer.company_name}
+                      </Link>
+                      {buyer.pe_firm_name && (
+                        <>
+                          <span className="text-muted-foreground/50">·</span>
+                          {buyer.pe_firm_id ? (
+                            <Link
+                              to={`/admin/buyers/pe-firms/${buyer.pe_firm_id}`}
+                              className="text-muted-foreground hover:text-primary hover:underline transition-colors"
+                            >
+                              {buyer.pe_firm_name}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">{buyer.pe_firm_name}</span>
+                          )}
+                        </>
+                      )}
+                    </div>
                     {hqDisplay && (
                       <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
