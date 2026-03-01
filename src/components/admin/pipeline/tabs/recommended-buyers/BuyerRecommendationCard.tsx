@@ -14,6 +14,7 @@ import {
   Shield,
   FileText,
   CalendarCheck,
+  XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -24,6 +25,7 @@ interface BuyerRecommendationCardProps {
   rank: number;
   onDraftEmail?: (buyerId: string) => void;
   onViewProfile?: (buyerId: string) => void;
+  onReject?: (buyerId: string, buyerName: string) => void;
 }
 
 const BUYER_TYPE_LABELS: Record<string, string> = {
@@ -77,6 +79,7 @@ export function BuyerRecommendationCard({
   rank,
   onDraftEmail,
   onViewProfile,
+  onReject,
 }: BuyerRecommendationCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -253,6 +256,17 @@ export function BuyerRecommendationCard({
             >
               <Mail className="h-3 w-3 mr-1" />
               Draft Outreach
+            </Button>
+          )}
+          {onReject && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+              onClick={() => onReject(buyer.buyer_id, buyer.company_name)}
+            >
+              <XCircle className="h-3 w-3 mr-1" />
+              Reject
             </Button>
           )}
           {onViewProfile && (
