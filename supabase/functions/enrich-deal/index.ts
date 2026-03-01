@@ -33,6 +33,7 @@ import { checkProviderAvailability, reportRateLimit } from "../_shared/rate-limi
 import { logAICallCost } from "../_shared/cost-tracker.ts";
 import { logEnrichmentEvent } from "../_shared/enrichment-events.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdminOrServiceRole } from "../_shared/auth.ts";
 import {
   // Configuration
   DEAL_AI_TIMEOUT_MS,
@@ -156,6 +157,16 @@ serve(async (req) => {
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // ── Auth guard: require admin or service role ──
+    const auth = await requireAdminOrServiceRole(req, supabase);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || "Admin access required" }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    // ── End auth guard ──
 
     const { dealId, forceReExtract = false, skipExternalEnrichment = false } = await req.json();
 

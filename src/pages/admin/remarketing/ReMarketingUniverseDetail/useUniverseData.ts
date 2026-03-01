@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import {
   SizeCriteria,
@@ -164,7 +165,7 @@ export function useUniverseData() {
         return new Set<string>();
       }
 
-      return new Set((data || []).map((t: any) => t.buyer_id));
+      return new Set((data || []).map((t) => t.buyer_id));
     },
     enabled: !isNew && !!buyers?.length,
   });
@@ -244,7 +245,7 @@ export function useUniverseData() {
     queryFn: async () => {
       if (isNew || !universeDeals?.length) return {};
 
-      const listingIds = universeDeals.map((d: any) => d.listing?.id).filter(Boolean);
+      const listingIds = universeDeals.map((d) => (d.listing as { id?: string } | null)?.id).filter(Boolean);
       if (listingIds.length === 0) return {};
 
       const { data: scores, error } = await supabase
@@ -320,7 +321,7 @@ export function useUniverseData() {
 
       const guideContent = universe.ma_guide_content;
       const existingDocs = (universe.documents as unknown as DocumentReference[]) || [];
-      const hasGuideDoc = existingDocs.some((d: any) => d.type === 'ma_guide');
+      const hasGuideDoc = existingDocs.some((d) => d.type === 'ma_guide');
 
       // If there's substantial guide content but no document entry, create one
       if (guideContent && guideContent.length > 1000 && !hasGuideDoc) {
@@ -383,7 +384,7 @@ export function useUniverseData() {
   const saveMutation = useMutation({
     mutationFn: async () => {
 
-      const saveData: any = {
+      const saveData: Partial<Tables<'remarketing_buyer_universes'>['Insert']> = {
         ...formData,
         size_criteria: sizeCriteria,
         geography_criteria: geographyCriteria,

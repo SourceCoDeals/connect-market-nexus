@@ -99,10 +99,10 @@ export function AddBuyerDialog({ open, onOpenChange, trackerId, onBuyerAdded }: 
       onBuyerAdded();
       onOpenChange(false);
       resetForm();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error adding buyer",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

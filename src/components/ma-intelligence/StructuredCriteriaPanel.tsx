@@ -13,13 +13,40 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation } from "@tanstack/react-query";
 
+interface SizeCriteria {
+  min_revenue: string;
+  max_revenue: string;
+  min_ebitda: string;
+  max_ebitda: string;
+  min_employees: string;
+  max_employees: string;
+}
+
+interface ServiceCriteria {
+  primary_focus: string;
+  target_services: string[];
+  service_exclusions: string[];
+}
+
+interface GeographyCriteria {
+  target_geographies: string[];
+  geographic_exclusions: string[];
+  national_keywords: string[];
+}
+
+interface BuyerTypesCriteria {
+  addon_only: boolean;
+  platform_only: boolean;
+  other_preferences: string;
+}
+
 interface StructuredCriteriaPanelProps {
   trackerId: string;
   tracker: {
-    size_criteria?: any;
-    service_criteria?: any;
-    geography_criteria?: any;
-    buyer_types_criteria?: any;
+    size_criteria?: SizeCriteria;
+    service_criteria?: ServiceCriteria;
+    geography_criteria?: GeographyCriteria;
+    buyer_types_criteria?: BuyerTypesCriteria;
   };
   onSave?: () => void;
 }
@@ -86,7 +113,7 @@ export function StructuredCriteriaPanel({
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       setValidationStatus('invalid');
       toast({
         title: "Validation Failed",
@@ -121,10 +148,10 @@ export function StructuredCriteriaPanel({
 
       // Validate after save
       validateCriteria.mutate();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }

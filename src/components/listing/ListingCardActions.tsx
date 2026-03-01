@@ -2,6 +2,7 @@ import { useState, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Bookmark, CheckCircle2, Clock, XCircle, Send, Eye } from "lucide-react";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface ListingCardActionsProps {
   viewType: "grid" | "list";
@@ -79,7 +80,7 @@ const ListingCardActions = memo(function ListingCardActions({
   const handleConnectionClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!connectionDisabled || connectionStatus === "rejected") {
+    if (!connectionDisabled || connectionStatus === CONNECTION_STATUSES.REJECTED) {
       setIsDialogOpen(true);
     }
   };
@@ -94,7 +95,7 @@ const ListingCardActions = memo(function ListingCardActions({
       {/* Action Buttons */}
       <div className="space-y-1.5">
         {/* Approved State - Dark "View Deal Details" primary */}
-        {connectionExists && connectionStatus === "approved" ? (
+        {connectionExists && connectionStatus === CONNECTION_STATUSES.APPROVED ? (
           <>
             <Button
               className={`w-full ${viewType === 'list' ? 'h-8' : 'h-10'} px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200`}
@@ -119,12 +120,12 @@ const ListingCardActions = memo(function ListingCardActions({
             {/* Primary CTA - Dark Slate instead of Gold */}
             <Button
               className={`w-full ${viewType === 'list' ? 'h-8' : 'h-11'} px-4 text-[13px] font-semibold rounded-lg transition-all duration-200 
-                ${connectionDisabled && connectionStatus !== "rejected"
+                ${connectionDisabled && connectionStatus !== CONNECTION_STATUSES.REJECTED
                   ? connectionClassName + " shadow-none"
                   : "bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow-md active:shadow-sm"
                 }`}
               onClick={handleConnectionClick}
-              disabled={isRequesting || (connectionDisabled && connectionStatus !== "rejected")}
+              disabled={isRequesting || (connectionDisabled && connectionStatus !== CONNECTION_STATUSES.REJECTED)}
             >
               <div className="flex items-center justify-center gap-2">
                 <ConnectionIcon className="h-4 w-4" />

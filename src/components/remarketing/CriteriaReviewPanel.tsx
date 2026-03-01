@@ -169,7 +169,7 @@ export const CriteriaReviewPanel = ({
 
       if (markError) throw markError;
 
-      await (supabase.from('criteria_extraction_history' as never) as any).insert({
+      await fromTable('criteria_extraction_history').insert({
         universe_id: universeId,
         change_type: 'synthesis',
         changed_sections: ['size_criteria', 'geography_criteria', 'service_criteria', 'buyer_types_criteria'],

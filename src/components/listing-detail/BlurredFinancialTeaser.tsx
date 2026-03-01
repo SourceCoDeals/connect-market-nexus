@@ -22,7 +22,7 @@ const BlurredFinancialTeaser = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Don't show if already connected
-  if (hasConnection && connectionStatus === "approved") {
+  if (hasConnection && connectionStatus === CONNECTION_STATUSES.APPROVED) {
     return null;
   }
 
@@ -32,7 +32,7 @@ const BlurredFinancialTeaser = ({
   };
 
   const handleButtonClick = () => {
-    if (!hasConnection || connectionStatus === "rejected") {
+    if (!hasConnection || connectionStatus === CONNECTION_STATUSES.REJECTED) {
       setIsDialogOpen(true);
     }
   };
@@ -80,11 +80,11 @@ const BlurredFinancialTeaser = ({
             
             <Button
               onClick={handleButtonClick}
-              disabled={isRequesting || (hasConnection && connectionStatus !== "rejected")}
+              disabled={isRequesting || (hasConnection && connectionStatus !== CONNECTION_STATUSES.REJECTED)}
               className="bg-sourceco-accent text-white hover:bg-sourceco-accent/90 transition-colors px-8 h-11 text-sm font-medium rounded-md shadow-sm"
             >
               <LockIcon className="w-4 h-4 mr-2" />
-              {isRequesting ? "Sending Request..." : hasConnection && connectionStatus !== "rejected" ? "Request Sent" : "Request Connection"}
+              {isRequesting ? "Sending Request..." : hasConnection && connectionStatus !== CONNECTION_STATUSES.REJECTED ? "Request Sent" : "Request Connection"}
             </Button>
           </div>
         </div>

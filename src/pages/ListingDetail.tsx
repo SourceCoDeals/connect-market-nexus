@@ -30,6 +30,7 @@ import { MFAGate } from '@/components/auth/MFAGate';
 import { NdaGateModal } from '@/components/docuseal/NdaGateModal';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
 import { AgreementStatusBanner } from '@/components/marketplace/AgreementStatusBanner';
+import { CONNECTION_STATUSES, LISTING_STATUSES } from '@/constants';
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -153,7 +154,7 @@ const ListingDetail = () => {
   }
 
   // Extract isInactive safely with fallback to false if status is undefined
-  const isInactive = listing?.status === 'inactive';
+  const isInactive = listing?.status === LISTING_STATUSES.INACTIVE;
 
   // Show NDA gate modal for unsigned buyers
   if (showNdaGate && ndaStatus?.firmId) {
@@ -201,7 +202,7 @@ const ListingDetail = () => {
             />
 
             {/* Confidential Identity Banner - shown to non-admin users who aren't approved */}
-            {!isAdmin && !(connectionExists && connectionStatusValue === 'approved') && (
+            {!isAdmin && !(connectionExists && connectionStatusValue === CONNECTION_STATUSES.APPROVED) && (
               <div className="flex items-start gap-3 bg-slate-50 border border-slate-200/60 rounded-lg px-4 py-3">
                 <Shield className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-slate-600 leading-relaxed">
@@ -464,7 +465,7 @@ const ListingDetail = () => {
 
                   {/* Link to My Deals when request is pending */}
                   {connectionExists &&
-                    connectionStatusValue === 'pending' &&
+                    connectionStatusValue === CONNECTION_STATUSES.PENDING &&
                     connectionStatus?.id && (
                       <Link
                         to={`/my-requests?deal=${connectionStatus.id}`}

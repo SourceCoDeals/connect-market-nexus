@@ -1,4 +1,5 @@
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdminOrServiceRole } from "../_shared/auth.ts";
 
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
@@ -16,19 +17,29 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
    }
  
    try {
+     // Create Supabase client
+     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+     // ── Auth guard: require admin or service role ──
+     const auth = await requireAdminOrServiceRole(req, supabase);
+     if (!auth.authenticated || !auth.isAdmin) {
+       return new Response(
+         JSON.stringify({ error: auth.error || "Admin access required" }),
+         { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+       );
+     }
+     // ── End auth guard ──
+
      const { universe_id } = await req.json();
- 
+
      if (!universe_id) {
        return new Response(
          JSON.stringify({ error: 'universe_id is required' }),
          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
        );
      }
- 
-     // Create Supabase client
-     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-     const supabase = createClient(supabaseUrl, supabaseServiceKey);
  
      // Check if there's already an active generation for this universe
      const { data: existingGeneration } = await supabase

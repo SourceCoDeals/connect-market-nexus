@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
+import { CONNECTION_STATUSES } from '@/constants';
 
 export function useRealtimeConnections() {
   const queryClient = useQueryClient();
@@ -36,7 +37,7 @@ export function useRealtimeConnections() {
           // Enhanced notifications for status changes (consolidated from enhanced hook)
           if (payload.old?.status !== payload.new?.status) {
             const newStatus = payload.new.status;
-            if (newStatus === 'approved') {
+            if (newStatus === CONNECTION_STATUSES.APPROVED) {
               toast({
                 title: 'Connection Approved! ✅',
                 description: 'Your connection request has been approved.',

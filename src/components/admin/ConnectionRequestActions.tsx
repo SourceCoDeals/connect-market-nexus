@@ -56,6 +56,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow, format } from 'date-fns';
 import { getBuyerTier } from '@/lib/buyer-metrics';
 import { processUrl } from '@/lib/url-utils';
+import { CONNECTION_STATUSES } from '@/constants';
 import {
   Dialog,
   DialogContent,
@@ -160,7 +161,7 @@ export function ConnectionRequestActions({
   const handleAccept = async () => {
     if (!requestId) return;
     try {
-      await updateStatus.mutateAsync({ requestId, status: 'approved' });
+      await updateStatus.mutateAsync({ requestId, status: CONNECTION_STATUSES.APPROVED });
       await sendMessage.mutateAsync({
         connection_request_id: requestId,
         body: 'We have sent you a brief overview of the deal. Please let us know if you are still interested.',
@@ -184,7 +185,7 @@ export function ConnectionRequestActions({
     try {
       await updateStatus.mutateAsync({
         requestId,
-        status: 'rejected',
+        status: CONNECTION_STATUSES.REJECTED,
         notes: note || undefined,
       });
       await sendMessage.mutateAsync({
@@ -229,7 +230,7 @@ export function ConnectionRequestActions({
 
   const handleResetToPending = () => {
     if (!requestId) return;
-    updateStatus.mutate({ requestId, status: 'pending' });
+    updateStatus.mutate({ requestId, status: CONNECTION_STATUSES.PENDING });
   };
 
   // ─── Flag for Review ───
@@ -342,7 +343,7 @@ export function ConnectionRequestActions({
   return (
     <div className="space-y-5">
       {/* ── DECISION BANNER ── */}
-      {requestStatus === 'pending' && requestId && (
+      {requestStatus === CONNECTION_STATUSES.PENDING && requestId && (
         <div className="bg-sourceco-muted rounded-xl overflow-hidden shadow-md border border-sourceco/30">
           <div className="px-6 py-5 flex items-center justify-between gap-6">
             <div className="flex items-center gap-4 min-w-0">
@@ -455,7 +456,7 @@ export function ConnectionRequestActions({
       )}
 
       {/* Status banner — approved */}
-      {requestStatus === 'approved' && requestId && (
+      {requestStatus === CONNECTION_STATUSES.APPROVED && requestId && (
         <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center">
@@ -479,7 +480,7 @@ export function ConnectionRequestActions({
       )}
 
       {/* Status banner — rejected */}
-      {requestStatus === 'rejected' && requestId && (
+      {requestStatus === CONNECTION_STATUSES.REJECTED && requestId && (
         <div className="rounded-xl bg-red-50 border border-red-200 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center">
@@ -527,7 +528,7 @@ export function ConnectionRequestActions({
       )}
 
       {/* Flag for Review button — for non-pending statuses when not already flagged */}
-      {requestStatus !== 'pending' && !flaggedForReview && requestId && (
+      {requestStatus !== CONNECTION_STATUSES.PENDING && !flaggedForReview && requestId && (
         <Popover open={flagPopoverOpen} onOpenChange={setFlagPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -561,7 +562,7 @@ export function ConnectionRequestActions({
       )}
 
       {/* Document status + access for approved */}
-      {requestStatus === 'approved' && listing && (
+      {requestStatus === CONNECTION_STATUSES.APPROVED && listing && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-card border border-border rounded-lg p-4">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
@@ -943,16 +944,16 @@ export function ConnectionRequestActions({
                       </div>
                       <span
                         className={`text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap tracking-wide ${
-                          req.status === 'approved'
+                          req.status === CONNECTION_STATUSES.APPROVED
                             ? 'bg-emerald-50 text-emerald-600'
-                            : req.status === 'rejected'
+                            : req.status === CONNECTION_STATUSES.REJECTED
                               ? 'bg-red-50 text-red-600'
                               : 'bg-amber-50 text-amber-600'
                         }`}
                       >
-                        {req.status === 'approved'
+                        {req.status === CONNECTION_STATUSES.APPROVED
                           ? 'Approved'
-                          : req.status === 'rejected'
+                          : req.status === CONNECTION_STATUSES.REJECTED
                             ? 'Declined'
                             : 'Pending'}
                       </span>

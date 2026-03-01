@@ -32,6 +32,7 @@ import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningMod
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { CONNECTION_STATUSES } from '@/constants';
 
 import type { BuyerThread } from './helpers';
 import { getStatusStyle, getStatusLabel } from './helpers';
@@ -200,7 +201,7 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isRejected = thread.request_status === 'rejected';
+  const isRejected = thread.request_status === CONNECTION_STATUSES.REJECTED;
 
   // ─── Typing indicator state ───
   const [isAdminTyping, setIsAdminTyping] = useState(false);

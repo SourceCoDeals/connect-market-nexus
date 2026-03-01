@@ -5,6 +5,7 @@ import { GEMINI_FLASH_MODEL } from "../_shared/api-urls.ts";
 import { normalizeState, normalizeConfidenceScore } from "../_shared/criteria-validation.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdminOrServiceRole } from "../_shared/auth.ts";
 
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
@@ -293,6 +294,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // ── Auth guard: require admin or service role ──
+    const auth = await requireAdminOrServiceRole(req, supabase);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || "Admin access required" }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // ── End auth guard ──
 
     const { universe_id, guide_content, source_name, industry_name = 'Unknown Industry' }: ExtractionRequest = await req.json();
 

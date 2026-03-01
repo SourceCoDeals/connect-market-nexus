@@ -94,10 +94,10 @@ export default function TrackerDetail() {
 
       setBuyerCount(buyersRes.count || 0);
       setDealCount(dealsRes.count || 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading tracker",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
       navigate("/admin/ma-intelligence/trackers");
@@ -145,10 +145,10 @@ export default function TrackerDetail() {
         toast({ title: "Tracker updated successfully" });
         loadTracker();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error saving tracker",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }
@@ -167,10 +167,10 @@ export default function TrackerDetail() {
 
       toast({ title: tracker.is_active ? "Tracker archived" : "Tracker restored" });
       loadTracker();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error updating tracker",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }

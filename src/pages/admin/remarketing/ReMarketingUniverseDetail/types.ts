@@ -127,4 +127,4 @@ export interface DealEngagementStats {
   };
 }
 
-export type SaveMutation = UseMutationResult<any, Error, void, unknown>;
+export type SaveMutation = UseMutationResult<unknown, Error, void, unknown>;

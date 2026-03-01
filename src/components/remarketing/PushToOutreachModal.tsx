@@ -132,9 +132,9 @@ export function PushToOutreachModal({
         campaign_id: Number(selectedCampaignId),
         entity_type: entityType,
         entity_ids: contactIds,
-      } as any, // both mutation payloads share the same shape
+      } as Parameters<typeof pushMutation.mutate>[0],
       {
-        onSuccess: (data: any) => {
+        onSuccess: (data: unknown) => {
           if (data) setResult(data);
         },
         onError: () => {

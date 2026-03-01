@@ -57,10 +57,10 @@ export function ScoringBehaviorPanel({
 
       setHasChanges(false);
       onSave?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }

@@ -16,6 +16,7 @@ import ListingCardFinancials from './listing/ListingCardFinancials';
 import ListingCardActions from './listing/ListingCardActions';
 import ListingStatusTag from './listing/ListingStatusTag';
 import { SearchSessionContext } from '@/contexts/SearchSessionContext';
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface ListingCardProps {
   listing: Listing;
@@ -144,7 +145,7 @@ const ListingCard = memo(function ListingCard({
               )}
 
               {/* Approved badge - smaller pill at top of image, fully visible */}
-              {connectionExists && connectionStatus?.status === 'approved' && (
+              {connectionExists && connectionStatus?.status === CONNECTION_STATUSES.APPROVED && (
                 <div className="absolute top-3 left-3 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 shadow-sm">
                   <svg
                     className="w-3.5 h-3.5 text-emerald-600"
