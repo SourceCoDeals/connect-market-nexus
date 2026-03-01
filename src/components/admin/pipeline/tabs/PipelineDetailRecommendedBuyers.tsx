@@ -43,6 +43,10 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // Only auto-score for active deals (NDA Sent and beyond, not closed)
+  const isActiveDeal = deal.stage_position >= 3 && deal.stage_position <= 9;
+  const isClosedDeal = deal.stage_position >= 10;
+
   const limit = showAll ? 100 : 25;
   const { data, isLoading, isError, isFetching, refetch } = useRecommendedBuyers(
     deal.listing_id,
@@ -52,12 +56,12 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
   const autoScore = useAutoScoreDeal(deal.listing_id || undefined, hasScores);
 
-  // Auto-trigger scoring when we detect no scores exist
+  // Auto-trigger scoring ONLY for active deals (not leads, not closed)
   useEffect(() => {
-    if (hasScores === false && autoScore.status === 'idle') {
+    if (isActiveDeal && hasScores === false && autoScore.status === 'idle') {
       autoScore.triggerAutoScore();
     }
-  }, [hasScores, autoScore.status, autoScore.triggerAutoScore]);
+  }, [isActiveDeal, hasScores, autoScore.status, autoScore.triggerAutoScore]);
 
   const filteredAndSorted = useMemo(() => {
     if (!data?.buyers) return [];
@@ -238,6 +242,33 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   }
 
   if (!data || data.buyers.length === 0) {
+    // Early-stage lead — show manual trigger button
+    if (!isActiveDeal && !isClosedDeal) {
+      return (
+        <div className="flex-1 flex items-center justify-center py-12">
+          <div className="text-center space-y-3">
+            <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              Buyer scoring runs automatically once a deal reaches NDA stage.
+            </p>
+            <p className="text-xs text-muted-foreground/60">
+              You can also score this deal now if you want early recommendations.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => autoScore.triggerAutoScore()}
+              disabled={autoScore.isAutoScoring}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              Recommend Buyers Now
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="text-center space-y-2">
