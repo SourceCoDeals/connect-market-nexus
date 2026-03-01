@@ -1,14 +1,20 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useSessionEvents, SessionEvent } from "@/hooks/use-session-events";
-import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Skeleton } from "@/components/ui/skeleton";
-import * as LucideIcons from "lucide-react";
-import { groupEventsByTime } from "@/lib/session-event-utils";
-import { ArrowRight } from "lucide-react";
-import EventPropertiesSheet from "./EventPropertiesSheet";
-import { useState, type ComponentType } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { useSessionEvents, SessionEvent } from '@/hooks/use-session-events';
+import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import * as LucideIcons from 'lucide-react';
+import { groupEventsByTime } from '@/lib/session-event-utils';
+import { ArrowRight } from 'lucide-react';
+import EventPropertiesSheet from './EventPropertiesSheet';
+import { useState, type ComponentType } from 'react';
 
 interface SessionEventsDialogProps {
   sessionId: string | null;
@@ -32,12 +38,14 @@ export default function SessionEventsDialog({
     setPropertiesOpen(true);
   };
 
-  const truncatedSessionId = sessionId 
+  const truncatedSessionId = sessionId
     ? `${sessionId.substring(0, 8)}...${sessionId.substring(sessionId.length - 4)}`
     : '';
 
   const getIcon = (iconName: string) => {
-    const Icon = (LucideIcons as Record<string, ComponentType<{ className?: string }>>)[iconName] || LucideIcons.Circle;
+    const Icon =
+      (LucideIcons as unknown as Record<string, ComponentType<{ className?: string }>>)[iconName] ||
+      LucideIcons.Circle;
     return Icon;
   };
 
@@ -69,12 +77,11 @@ export default function SessionEventsDialog({
                 <span className="font-semibold">{data.sessionDuration} minutes</span>
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {data.isOngoing 
-                  ? 'now' 
-                  : data.events.length > 0 
+                {data.isOngoing
+                  ? 'now'
+                  : data.events.length > 0
                     ? format(new Date(data.events[data.events.length - 1].timestamp), 'PPpp')
-                    : 'No timestamp available'
-                }
+                    : 'No timestamp available'}
               </p>
             </div>
 
@@ -107,13 +114,15 @@ export default function SessionEventsDialog({
                 <div className="space-y-3">
                   {groupEventsByTime(data.events).map((eventGroup, groupIdx) => {
                     // Special handling for search event chains - show only the last search
-                    const isSearchChain = eventGroup.every(e => e.description.startsWith('Search -'));
-                    
+                    const isSearchChain = eventGroup.every((e) =>
+                      e.description.startsWith('Search -'),
+                    );
+
                     if (isSearchChain && eventGroup.length > 1) {
                       const lastSearch = eventGroup[eventGroup.length - 1];
                       return (
-                        <div 
-                          key={groupIdx} 
+                        <div
+                          key={groupIdx}
                           className="flex items-start gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
                           onClick={() => handleEventClick(lastSearch)}
                         >
@@ -123,7 +132,9 @@ export default function SessionEventsDialog({
                           <div className="flex items-start gap-2 flex-1">
                             {(() => {
                               const Icon = getIcon(lastSearch.icon);
-                              return <Icon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />;
+                              return (
+                                <Icon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                              );
                             })()}
                             <div className="flex-1">
                               <p className="text-sm font-medium">{lastSearch.description}</p>
@@ -135,12 +146,12 @@ export default function SessionEventsDialog({
                         </div>
                       );
                     }
-                    
+
                     return (
                       <div key={groupIdx}>
                         {eventGroup.length === 1 ? (
                           // Single event
-                          <div 
+                          <div
                             className="flex items-start gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
                             onClick={() => handleEventClick(eventGroup[0])}
                           >
@@ -150,15 +161,20 @@ export default function SessionEventsDialog({
                             <div className="flex items-start gap-2 flex-1">
                               {(() => {
                                 const Icon = getIcon(eventGroup[0].icon);
-                                return <Icon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />;
+                                return (
+                                  <Icon className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                );
                               })()}
                               <div className="flex-1">
                                 <p className="text-sm font-medium">{eventGroup[0].description}</p>
-                                {eventGroup[0].metadata?.page_path && !eventGroup[0].description.includes(eventGroup[0].metadata.page_path) && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {eventGroup[0].metadata.page_path}
-                                  </p>
-                                )}
+                                {eventGroup[0].metadata?.page_path &&
+                                  !eventGroup[0].description.includes(
+                                    eventGroup[0].metadata.page_path,
+                                  ) && (
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                      {eventGroup[0].metadata.page_path}
+                                    </p>
+                                  )}
                                 {eventGroup[0].metadata?.element_id && (
                                   <p className="text-xs text-muted-foreground mt-0.5">
                                     Element: {eventGroup[0].metadata.element_id}
@@ -169,7 +185,7 @@ export default function SessionEventsDialog({
                           </div>
                         ) : (
                           // Event chain (non-search)
-                          <div 
+                          <div
                             className="flex items-start gap-3 cursor-pointer hover:bg-muted/50 rounded-md p-2 -m-2 transition-colors"
                             onClick={() => handleEventClick(eventGroup[0])}
                           >
@@ -184,7 +200,9 @@ export default function SessionEventsDialog({
                                     <div key={event.id} className="flex items-center gap-2">
                                       <div className="flex items-center gap-1.5">
                                         <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                                        <span className="text-xs font-medium">{event.description}</span>
+                                        <span className="text-xs font-medium">
+                                          {event.description}
+                                        </span>
                                       </div>
                                       {eventIdx < eventGroup.length - 1 && (
                                         <ArrowRight className="w-3 h-3 text-muted-foreground" />

@@ -125,8 +125,8 @@ function ValueInput({
 }: {
   fieldDef: FilterFieldDef;
   operator: Operator;
-  value: any;
-  onChange: (v: any) => void;
+  value: FilterRule['value'];
+  onChange: (v: FilterRule['value']) => void;
   options: { label: string; value: string }[];
   isDual?: boolean;
   isMulti?: boolean;

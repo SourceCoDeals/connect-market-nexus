@@ -1,35 +1,28 @@
-import { useState } from "react";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { useState } from 'react';
+import { format } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+
+type DateValue = Date | string | { min?: Date | string; max?: Date | string } | number | null;
 
 interface DateValueInputProps {
-  value: any; // Date | string | { min: Date; max: Date } | number (for last_n_days)
-  onChange: (value: any) => void;
+  value: DateValue;
+  onChange: (value: DateValue) => void;
   dual?: boolean;
   isLastNDays?: boolean;
 }
 
-export function DateValueInput({
-  value,
-  onChange,
-  dual,
-  isLastNDays,
-}: DateValueInputProps) {
+export function DateValueInput({ value, onChange, dual, isLastNDays }: DateValueInputProps) {
   if (isLastNDays) {
     return (
       <div className="flex items-center gap-1.5">
         <Input
           type="number"
-          value={value ?? ""}
+          value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder="N"
           className="h-8 text-sm w-[70px]"
@@ -58,13 +51,7 @@ export function DateValueInput({
     );
   }
 
-  return (
-    <SingleDatePicker
-      value={value}
-      onChange={onChange}
-      placeholder="Pick date"
-    />
-  );
+  return <SingleDatePicker value={value} onChange={onChange} placeholder="Pick date" />;
 }
 
 function SingleDatePicker({
@@ -77,7 +64,7 @@ function SingleDatePicker({
   placeholder: string;
 }) {
   const [open, setOpen] = useState(false);
-  const date = value ? (typeof value === "string" ? new Date(value) : value) : undefined;
+  const date = value ? (typeof value === 'string' ? new Date(value) : value) : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -85,12 +72,12 @@ function SingleDatePicker({
         <Button
           variant="outline"
           className={cn(
-            "h-8 text-sm w-[120px] justify-start font-normal",
-            !date && "text-muted-foreground"
+            'h-8 text-sm w-[120px] justify-start font-normal',
+            !date && 'text-muted-foreground',
           )}
         >
           <CalendarIcon className="mr-1.5 h-3 w-3" />
-          {date ? format(date, "MM/dd/yyyy") : placeholder}
+          {date ? format(date, 'MM/dd/yyyy') : placeholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">

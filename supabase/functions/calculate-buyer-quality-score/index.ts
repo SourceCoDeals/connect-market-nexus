@@ -311,7 +311,10 @@ const handler = async (req: Request): Promise<Response> => {
     const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: `Bearer ${callerToken}` } },
     });
-    const { data: { user: callerUser }, error: callerError } = await anonClient.auth.getUser();
+    const {
+      data: { user: callerUser },
+      error: callerError,
+    } = await anonClient.auth.getUser();
     if (callerError || !callerUser) {
       return errorResponse('Unauthorized', 401, corsHeaders, 'unauthorized');
     }
@@ -336,15 +339,15 @@ const handler = async (req: Request): Promise<Response> => {
       if (unscoredErr) throw unscoredErr;
 
       // Also get their latest connection request messages
-      const profileIds = (unscored || []).map((p: any) => p.id);
-      let messageMap: Record<string, string> = {};
+      const profileIds = (unscored || []).map((p: { id: string }) => p.id);
+      const messageMap: Record<string, string> = {};
       if (profileIds.length > 0) {
         const { data: crs } = await supabase
           .from('connection_requests')
           .select('user_id, user_message')
           .in('user_id', profileIds)
           .order('created_at', { ascending: false });
-        (crs || []).forEach((cr: any) => {
+        (crs || []).forEach((cr: { user_id: string; user_message?: string }) => {
           if (cr.user_message && !messageMap[cr.user_id]) {
             messageMap[cr.user_id] = cr.user_message;
           }
@@ -353,9 +356,13 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Score each buyer sequentially (to avoid overwhelming DB)
       const results: Array<{ id: string; score: number; tier: number }> = [];
-      for (const p of (unscored || [])) {
+      for (const p of unscored || []) {
         try {
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', p.id).single();
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', p.id)
+            .single();
           if (!profile) continue;
 
           let remarketingBuyer: Record<string, unknown> | null = null;
@@ -364,12 +371,18 @@ const handler = async (req: Request): Promise<Response> => {
             .select('buyer_type, thesis_summary')
             .or(`primary_contact_email.eq.${profile.email},marketplace_firm_id.not.is.null`)
             .limit(1);
-          if (rmBuyers && rmBuyers.length > 0) remarketingBuyer = rmBuyers[0] as Record<string, unknown>;
+          if (rmBuyers && rmBuyers.length > 0)
+            remarketingBuyer = rmBuyers[0] as Record<string, unknown>;
 
-          const c1 = calcBuyerTypeScore(profile.buyer_type, remarketingBuyer?.buyer_type as string | null);
+          const c1 = calcBuyerTypeScore(
+            profile.buyer_type,
+            remarketingBuyer?.buyer_type as string | null,
+          );
           const profileTexts = [
-            profile.ideal_target_description || '', profile.specific_business_search || '',
-            profile.mandate_blurb || '', profile.portfolio_company_addon || '',
+            profile.ideal_target_description || '',
+            profile.specific_business_search || '',
+            profile.mandate_blurb || '',
+            profile.portfolio_company_addon || '',
             (remarketingBuyer?.thesis_summary as string) || '',
           ];
           const platformResult = calcPlatformSignal(messageMap[p.id] || null, profileTexts);
@@ -380,12 +393,16 @@ const handler = async (req: Request): Promise<Response> => {
           let tier = determineTier(totalScore);
           if (profile.admin_tier_override != null) tier = profile.admin_tier_override;
 
-          await supabase.from('profiles').update({
-            buyer_quality_score: totalScore, buyer_tier: tier,
-            platform_signal_detected: platformResult.detected,
-            platform_signal_source: platformResult.source,
-            buyer_quality_score_last_calculated: new Date().toISOString(),
-          }).eq('id', p.id);
+          await supabase
+            .from('profiles')
+            .update({
+              buyer_quality_score: totalScore,
+              buyer_tier: tier,
+              platform_signal_detected: platformResult.detected,
+              platform_signal_source: platformResult.source,
+              buyer_quality_score_last_calculated: new Date().toISOString(),
+            })
+            .eq('id', p.id);
 
           results.push({ id: p.id, score: totalScore, tier });
         } catch (e) {
@@ -394,7 +411,8 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       return new Response(JSON.stringify({ scored: results.length, results }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 

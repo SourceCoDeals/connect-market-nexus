@@ -131,7 +131,7 @@ const ReMarketingIntroductions = () => {
     }: {
       buyerId: string;
       field: string;
-      value: any;
+      value: string | null;
     }) => {
       // Check if record exists
       const { data: existing, error: existingError } = await supabase

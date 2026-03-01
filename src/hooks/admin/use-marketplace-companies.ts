@@ -57,11 +57,12 @@ export function useMarketplaceCompanies() {
       if (error) throw error;
 
       // Group by company name and aggregate data
+      type ProfileRow = typeof data extends (infer T)[] | null ? T : never;
       const companyMap = new Map<
         string,
         {
           company: string;
-          users: Array<unknown>;
+          users: ProfileRow[];
         }
       >();
 

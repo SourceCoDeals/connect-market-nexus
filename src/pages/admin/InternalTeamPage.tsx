@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Search, Users, History, Loader2 } from 'lucide-react';
-import type { User } from '@/types';
+import type { User, BuyerType } from '@/types';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 
 const InternalTeamPage = () => {

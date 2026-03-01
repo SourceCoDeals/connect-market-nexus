@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { subDays, format, differenceInSeconds } from "date-fns";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { subDays, format, differenceInSeconds } from 'date-fns';
 
 export interface UserEvent {
   id: string;
@@ -61,7 +61,7 @@ export interface UserDetailData {
     utmCampaign?: string;
     // Cross-domain journey tracking
     originalExternalReferrer?: string; // True discovery source (e.g., google.com)
-    blogLandingPage?: string;          // Entry page on main site (e.g., /marketplace)
+    blogLandingPage?: string; // Entry page on main site (e.g., /marketplace)
     // Full session history for complete journey visibility
     allSessions?: Array<{
       referrer: string | null;
@@ -79,20 +79,56 @@ export interface UserDetailData {
 
 // Animal names for anonymous users
 const ANIMALS = [
-  'Wolf', 'Eagle', 'Lion', 'Tiger', 'Bear', 'Fox', 'Hawk', 'Panther', 'Falcon', 'Jaguar',
-  'Raven', 'Phoenix', 'Dragon', 'Serpent', 'Griffin', 'Owl', 'Shark', 'Dolphin', 'Whale', 'Orca'
+  'Wolf',
+  'Eagle',
+  'Lion',
+  'Tiger',
+  'Bear',
+  'Fox',
+  'Hawk',
+  'Panther',
+  'Falcon',
+  'Jaguar',
+  'Raven',
+  'Phoenix',
+  'Dragon',
+  'Serpent',
+  'Griffin',
+  'Owl',
+  'Shark',
+  'Dolphin',
+  'Whale',
+  'Orca',
 ];
 
 const COLORS = [
-  'Azure', 'Crimson', 'Emerald', 'Golden', 'Ivory', 'Jade', 'Coral', 'Silver', 'Amber', 'Violet',
-  'Scarlet', 'Cobalt', 'Bronze', 'Indigo', 'Platinum', 'Onyx', 'Ruby', 'Sapphire', 'Topaz', 'Pearl'
+  'Azure',
+  'Crimson',
+  'Emerald',
+  'Golden',
+  'Ivory',
+  'Jade',
+  'Coral',
+  'Silver',
+  'Amber',
+  'Violet',
+  'Scarlet',
+  'Cobalt',
+  'Bronze',
+  'Indigo',
+  'Platinum',
+  'Onyx',
+  'Ruby',
+  'Sapphire',
+  'Topaz',
+  'Pearl',
 ];
 
 function generateAnimalName(id: string): string {
   // Generate consistent name from ID hash
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
-    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash = (hash << 5) - hash + id.charCodeAt(i);
     hash = hash & hash;
   }
   const colorIndex = Math.abs(hash) % COLORS.length;
@@ -101,11 +137,13 @@ function generateAnimalName(id: string): string {
 }
 
 // Discovery source priority: original_external_referrer > utm_source > referrer
-function getDiscoverySource(session: {
-  original_external_referrer?: string | null;
-  utm_source?: string | null;
-  referrer?: string | null;
-} | null): string | null {
+function getDiscoverySource(
+  session: {
+    original_external_referrer?: string | null;
+    utm_source?: string | null;
+    referrer?: string | null;
+  } | null,
+): string | null {
   if (!session) return null;
   if (session.original_external_referrer) return session.original_external_referrer;
   if (session.utm_source) return session.utm_source;
@@ -137,14 +175,14 @@ interface SessionRecord {
 
 interface PageViewRecord {
   id: string;
-  created_at: string;
+  created_at: string | null;
   page_path: string | null;
   [key: string]: unknown;
 }
 
 interface ConnectionRecord {
   id: string;
-  created_at: string;
+  created_at: string | null;
   listing_id: string;
   [key: string]: unknown;
 }
@@ -156,34 +194,50 @@ function getFirstMeaningfulSession(sessions: SessionRecord[]): SessionRecord | n
   const chronological = [...sessions].reverse();
 
   // Priority 1: First session with cross-domain tracking
-  const withCrossDomain = chronological.find(s => s.original_external_referrer);
+  const withCrossDomain = chronological.find((s) => s.original_external_referrer);
   if (withCrossDomain) return withCrossDomain;
 
   // Priority 2: First session with UTM source
-  const withUtm = chronological.find(s => s.utm_source);
+  const withUtm = chronological.find((s) => s.utm_source);
   if (withUtm) return withUtm;
 
   // Priority 3: First session with any referrer
-  const withReferrer = chronological.find(s => s.referrer);
+  const withReferrer = chronological.find((s) => s.referrer);
   if (withReferrer) return withReferrer;
 
   // Fallback: actual first session (truly direct)
   return chronological[0];
 }
 
-function categorizeChannel(referrer: string | null, utmSource: string | null, utmMedium: string | null): string {
+function categorizeChannel(
+  referrer: string | null,
+  utmSource: string | null,
+  utmMedium: string | null,
+): string {
   if (!referrer && !utmSource) return 'Direct';
-  
+
   const source = (referrer || utmSource || '').toLowerCase();
   const medium = (utmMedium || '').toLowerCase();
-  
-  if (source.includes('chatgpt') || source.includes('openai') || source.includes('claude') || source.includes('anthropic')) return 'AI';
-  if (source.includes('linkedin') || source.includes('twitter') || source.includes('x.com') || source.includes('facebook')) return 'Organic Social';
+
+  if (
+    source.includes('chatgpt') ||
+    source.includes('openai') ||
+    source.includes('claude') ||
+    source.includes('anthropic')
+  )
+    return 'AI';
+  if (
+    source.includes('linkedin') ||
+    source.includes('twitter') ||
+    source.includes('x.com') ||
+    source.includes('facebook')
+  )
+    return 'Organic Social';
   if (source.includes('google') && !medium.includes('cpc')) return 'Organic Search';
   if (medium.includes('cpc') || medium.includes('paid')) return 'Paid';
   if (medium.includes('email') || medium.includes('newsletter')) return 'Newsletter';
   if (referrer) return 'Referral';
-  
+
   return 'Direct';
 }
 
@@ -199,9 +253,9 @@ export function useUserDetail(visitorId: string | null) {
     queryKey: ['user-detail', visitorId],
     queryFn: async (): Promise<UserDetailData | null> => {
       if (!visitorId) return null;
-      
+
       const sixMonthsAgo = subDays(new Date(), 180).toISOString();
-      
+
       // First, determine if this is a user_id or visitor_id by checking profiles
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -209,9 +263,9 @@ export function useUserDetail(visitorId: string | null) {
         .eq('id', visitorId)
         .maybeSingle();
       if (profileError) throw profileError;
-      
+
       const isUserId = !!profile;
-      
+
       // Fetch sessions based on identifier type
       // Filter out bot sessions
       const sessionsQuery = isUserId
@@ -229,12 +283,12 @@ export function useUserDetail(visitorId: string | null) {
             .eq('is_bot', false)
             .gte('started_at', sixMonthsAgo)
             .order('started_at', { ascending: false });
-      
+
       // First fetch sessions to get session IDs for anonymous users
       const sessionsResult = await sessionsQuery;
       if (sessionsResult.error) throw sessionsResult.error;
       const sessions = sessionsResult.data || [];
-      
+
       // Fetch page views - for anonymous users, query by session_id
       let pageViews: PageViewRecord[] = [];
       if (isUserId) {
@@ -248,7 +302,7 @@ export function useUserDetail(visitorId: string | null) {
         pageViews = data || [];
       } else if (sessions.length > 0) {
         // For anonymous visitors, fetch page views by session IDs
-        const sessionIds = sessions.map(s => s.session_id).filter(Boolean);
+        const sessionIds = sessions.map((s) => s.session_id).filter(Boolean);
         if (sessionIds.length > 0) {
           const { data, error: pageViewsError } = await supabase
             .from('page_views')
@@ -260,7 +314,7 @@ export function useUserDetail(visitorId: string | null) {
           pageViews = data || [];
         }
       }
-      
+
       // Only fetch connections for registered users
       let connections: ConnectionRecord[] = [];
       if (isUserId) {
@@ -272,26 +326,30 @@ export function useUserDetail(visitorId: string | null) {
         if (connectionsError) throw connectionsError;
         connections = data || [];
       }
-      
+
       // Determine if anonymous
       const isAnonymous = !profile || (!profile.first_name && !profile.last_name);
-      const name = isAnonymous 
-        ? generateAnimalName(visitorId) 
+      const name = isAnonymous
+        ? generateAnimalName(visitorId)
         : [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Anonymous';
-      
+
       // Get latest session for geo/tech data
       const latestSession = sessions[0];
-      
+
       // Calculate stats
       const totalPageviews = pageViews.length;
-      const totalSessions = new Set(sessions.map(s => s.session_id)).size;
-      const totalTimeOnSite = sessions.reduce((sum, s) => sum + (s.session_duration_seconds || 0), 0);
-      
+      const totalSessions = new Set(sessions.map((s) => s.session_id)).size;
+      const totalTimeOnSite = sessions.reduce(
+        (sum, s) => sum + (s.session_duration_seconds || 0),
+        0,
+      );
+
       const actualFirstSession = sessions[sessions.length - 1]; // Chronologically first, for timestamps
       const attributionSession = getFirstMeaningfulSession(sessions); // Smart first-touch attribution
       const firstSeen = actualFirstSession?.started_at || new Date().toISOString();
-      const lastSeen = latestSession?.last_active_at || latestSession?.started_at || new Date().toISOString();
-      
+      const lastSeen =
+        latestSession?.last_active_at || latestSession?.started_at || new Date().toISOString();
+
       // Time to convert (first session to first connection)
       let timeToConvert: number | undefined;
       let convertedAt: string | undefined;
@@ -301,12 +359,12 @@ export function useUserDetail(visitorId: string | null) {
         timeToConvert = differenceInSeconds(firstConnectionDate, firstSessionDate);
         convertedAt = connections[0].created_at;
       }
-      
+
       // Build event timeline
       const events: UserEvent[] = [];
-      
+
       // Add page views
-      pageViews.forEach(pv => {
+      pageViews.forEach((pv) => {
         events.push({
           id: pv.id,
           type: 'page_view',
@@ -316,9 +374,9 @@ export function useUserDetail(visitorId: string | null) {
           description: pv.page_path,
         });
       });
-      
+
       // Add connection events
-      connections.forEach(c => {
+      connections.forEach((c) => {
         events.push({
           id: c.id,
           type: 'event',
@@ -328,36 +386,40 @@ export function useUserDetail(visitorId: string | null) {
           metadata: { listingId: c.listing_id },
         });
       });
-      
+
       // Sort by timestamp
       events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-      
+
       // Build activity for last 7 days
       const last7Days: UserActivityDay[] = [];
       for (let i = 6; i >= 0; i--) {
         const date = subDays(new Date(), i);
         const dateStr = format(date, 'yyyy-MM-dd');
-        const dayViews = pageViews.filter(pv => format(new Date(pv.created_at), 'yyyy-MM-dd') === dateStr).length;
+        const dayViews = pageViews.filter(
+          (pv) => format(new Date(pv.created_at), 'yyyy-MM-dd') === dateStr,
+        ).length;
         last7Days.push({
           date: dateStr,
           pageViews: dayViews,
           level: getActivityLevel(dayViews),
         });
       }
-      
+
       // Build activity heatmap for last 6 months
       const activityHeatmap: UserActivityDay[] = [];
       for (let i = 180; i >= 0; i--) {
         const date = subDays(new Date(), i);
         const dateStr = format(date, 'yyyy-MM-dd');
-        const dayViews = pageViews.filter(pv => format(new Date(pv.created_at), 'yyyy-MM-dd') === dateStr).length;
+        const dayViews = pageViews.filter(
+          (pv) => format(new Date(pv.created_at), 'yyyy-MM-dd') === dateStr,
+        ).length;
         activityHeatmap.push({
           date: dateStr,
           pageViews: dayViews,
           level: getActivityLevel(dayViews),
         });
       }
-      
+
       return {
         profile: {
           id: visitorId,
@@ -393,16 +455,25 @@ export function useUserDetail(visitorId: string | null) {
         source: {
           // Use smart first-touch: find first session with meaningful attribution
           referrer: getDiscoverySource(attributionSession) || attributionSession?.referrer,
-          landingPage: attributionSession?.first_touch_landing_page || actualFirstSession?.first_touch_landing_page,
-          channel: categorizeChannel(getDiscoverySource(attributionSession), attributionSession?.utm_source, attributionSession?.utm_medium),
+          landingPage:
+            attributionSession?.first_touch_landing_page ||
+            actualFirstSession?.first_touch_landing_page,
+          channel: categorizeChannel(
+            getDiscoverySource(attributionSession),
+            attributionSession?.utm_source,
+            attributionSession?.utm_medium,
+          ),
           utmSource: attributionSession?.utm_source || actualFirstSession?.utm_source,
           utmMedium: attributionSession?.utm_medium || actualFirstSession?.utm_medium,
           utmCampaign: attributionSession?.utm_campaign || actualFirstSession?.utm_campaign,
           // Cross-domain journey tracking
-          originalExternalReferrer: attributionSession?.original_external_referrer || actualFirstSession?.original_external_referrer,
-          blogLandingPage: attributionSession?.blog_landing_page || actualFirstSession?.blog_landing_page,
+          originalExternalReferrer:
+            attributionSession?.original_external_referrer ||
+            actualFirstSession?.original_external_referrer,
+          blogLandingPage:
+            attributionSession?.blog_landing_page || actualFirstSession?.blog_landing_page,
           // Full journey history - all sessions with their referrers
-          allSessions: sessions.map(s => ({
+          allSessions: sessions.map((s) => ({
             referrer: s.referrer,
             landingPage: s.first_touch_landing_page,
             startedAt: s.started_at ?? new Date().toISOString(),

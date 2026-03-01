@@ -1,24 +1,24 @@
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion";
+} from '@/components/ui/accordion';
 import {
   FileText,
   Sparkles,
@@ -30,8 +30,8 @@ import {
   Briefcase,
   DollarSign,
   MessageSquare,
-} from "lucide-react";
-import { toast } from "sonner";
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TranscriptSectionProps {
   buyerId: string;
@@ -72,8 +72,8 @@ const SOURCE_OPTIONS = [
 
 export const TranscriptSection = ({ buyerId, buyerName: _buyerName }: TranscriptSectionProps) => {
   const queryClient = useQueryClient();
-  const [transcriptText, setTranscriptText] = useState("");
-  const [source, setSource] = useState("call");
+  const [transcriptText, setTranscriptText] = useState('');
+  const [source, setSource] = useState('call');
 
   // Fetch existing transcripts
   const { data: transcripts, isLoading } = useQuery({
@@ -84,7 +84,7 @@ export const TranscriptSection = ({ buyerId, buyerName: _buyerName }: Transcript
         .select('*')
         .eq('buyer_id', buyerId)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return (data || []) as unknown as Transcript[];
     },
@@ -100,7 +100,7 @@ export const TranscriptSection = ({ buyerId, buyerName: _buyerName }: Transcript
           source,
         },
       });
-      
+
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data;
@@ -111,9 +111,9 @@ export const TranscriptSection = ({ buyerId, buyerName: _buyerName }: Transcript
       toast.success('Transcript processed successfully', {
         description: `Updated ${data.fieldsUpdated?.length || 0} fields`,
       });
-      setTranscriptText("");
+      setTranscriptText('');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error('Failed to process transcript', {
         description: error.message,
       });
@@ -198,9 +198,7 @@ Example:
       <Card>
         <CardHeader>
           <CardTitle>Transcript History</CardTitle>
-          <CardDescription>
-            Previously processed transcripts and extracted data
-          </CardDescription>
+          <CardDescription>Previously processed transcripts and extracted data</CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -224,14 +222,12 @@ Example:
                       </Badge>
                       <span className="text-sm text-muted-foreground">
                         {new Date(transcript.created_at).toLocaleDateString()} at{' '}
-                        {new Date(transcript.created_at).toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
+                        {new Date(transcript.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
                         })}
                       </span>
-                      {transcript.processed_at && (
-                        <Check className="h-4 w-4 text-green-500" />
-                      )}
+                      {transcript.processed_at && <Check className="h-4 w-4 text-green-500" />}
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -281,27 +277,31 @@ Example:
                         )}
 
                         {/* Revenue Range */}
-                        {(transcript.extracted_data?.target_revenue_min || transcript.extracted_data?.target_revenue_max) && (
+                        {(transcript.extracted_data?.target_revenue_min ||
+                          transcript.extracted_data?.target_revenue_max) && (
                           <div className="space-y-1">
                             <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                               <DollarSign className="h-3 w-3" />
                               Target Revenue
                             </div>
                             <p className="text-sm">
-                              {formatCurrency(transcript.extracted_data.target_revenue_min)} - {formatCurrency(transcript.extracted_data.target_revenue_max)}
+                              {formatCurrency(transcript.extracted_data.target_revenue_min)} -{' '}
+                              {formatCurrency(transcript.extracted_data.target_revenue_max)}
                             </p>
                           </div>
                         )}
 
                         {/* EBITDA Range */}
-                        {(transcript.extracted_data?.target_ebitda_min || transcript.extracted_data?.target_ebitda_max) && (
+                        {(transcript.extracted_data?.target_ebitda_min ||
+                          transcript.extracted_data?.target_ebitda_max) && (
                           <div className="space-y-1">
                             <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                               <DollarSign className="h-3 w-3" />
                               Target EBITDA
                             </div>
                             <p className="text-sm">
-                              {formatCurrency(transcript.extracted_data.target_ebitda_min)} - {formatCurrency(transcript.extracted_data.target_ebitda_max)}
+                              {formatCurrency(transcript.extracted_data.target_ebitda_min)} -{' '}
+                              {formatCurrency(transcript.extracted_data.target_ebitda_max)}
                             </p>
                           </div>
                         )}
@@ -340,7 +340,9 @@ Example:
                       {/* Thesis Updates */}
                       {transcript.extracted_data?.thesis_updates && (
                         <div className="space-y-1">
-                          <p className="text-xs font-medium text-muted-foreground">Thesis Updates</p>
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Thesis Updates
+                          </p>
                           <p className="text-sm">{transcript.extracted_data.thesis_updates}</p>
                         </div>
                       )}
@@ -352,8 +354,8 @@ Example:
                         </summary>
                         <div className="mt-2 p-3 bg-muted/30 rounded-md">
                           <pre className="text-xs whitespace-pre-wrap font-mono">
-                            {transcript.transcript_text.length > 1000 
-                              ? `${transcript.transcript_text.substring(0, 1000)}...` 
+                            {transcript.transcript_text.length > 1000
+                              ? `${transcript.transcript_text.substring(0, 1000)}...`
                               : transcript.transcript_text}
                           </pre>
                         </div>

@@ -3,7 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, MapPin, DollarSign, TrendingUp } from 'lucide-react';
 import { useUpdateDealAlert, DealAlert, UpdateDealAlertRequest } from '@/hooks/use-deal-alerts';
@@ -43,7 +49,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
 
   const updateAlert = useUpdateDealAlert();
   const { data: metadata } = useListingMetadata();
-  
+
   void metadata;
 
   useEffect(() => {
@@ -71,8 +77,8 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
     }
   };
 
-  const updateCriteria = (key: string, value: any) => {
-    setFormData(prev => ({
+  const updateCriteria = (key: string, value: string | number | string[] | undefined) => {
+    setFormData((prev) => ({
       ...prev,
       criteria: {
         ...prev.criteria,
@@ -87,7 +93,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
       updateCriteria('revenueMax', undefined);
       return;
     }
-    const range = REVENUE_RANGES.find(r => r.label === value);
+    const range = REVENUE_RANGES.find((r) => r.label === value);
     if (range) {
       updateCriteria('revenueMin', range.min);
       updateCriteria('revenueMax', range.max);
@@ -100,7 +106,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
       updateCriteria('ebitdaMax', undefined);
       return;
     }
-    const range = EBITDA_RANGES.find(r => r.label === value);
+    const range = EBITDA_RANGES.find((r) => r.label === value);
     if (range) {
       updateCriteria('ebitdaMin', range.min);
       updateCriteria('ebitdaMax', range.max);
@@ -110,8 +116,8 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
   const getCurrentRevenueRange = () => {
     const criteria = formData.criteria ?? {};
     if (!criteria.revenueMin && !criteria.revenueMax) return 'all';
-    const range = REVENUE_RANGES.find(r =>
-      r.min === criteria.revenueMin && r.max === criteria.revenueMax
+    const range = REVENUE_RANGES.find(
+      (r) => r.min === criteria.revenueMin && r.max === criteria.revenueMax,
     );
     return range?.label || 'all';
   };
@@ -119,8 +125,8 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
   const getCurrentEbitdaRange = () => {
     const criteria = formData.criteria ?? {};
     if (!criteria.ebitdaMin && !criteria.ebitdaMax) return 'all';
-    const range = EBITDA_RANGES.find(r =>
-      r.min === criteria.ebitdaMin && r.max === criteria.ebitdaMax
+    const range = EBITDA_RANGES.find(
+      (r) => r.min === criteria.ebitdaMin && r.max === criteria.ebitdaMax,
     );
     return range?.label || 'all';
   };
@@ -131,7 +137,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
         <DialogHeader>
           <DialogTitle>Edit Deal Alert</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Alert Name</Label>
@@ -139,7 +145,7 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
               id="name"
               placeholder="e.g., Tech Companies in California"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
               required
             />
           </div>
@@ -165,7 +171,10 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                 <div className="space-y-2">
                   <Label>Categories</Label>
                   <MultiCategorySelect
-                    value={formData.criteria?.categories ?? (formData.criteria?.category ? [formData.criteria.category] : [])}
+                    value={
+                      formData.criteria?.categories ??
+                      (formData.criteria?.category ? [formData.criteria.category] : [])
+                    }
                     onValueChange={(values) => {
                       updateCriteria('categories', values);
                       updateCriteria('category', values.length === 1 ? values[0] : '');
@@ -181,7 +190,10 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                     Locations
                   </Label>
                   <MultiLocationSelect
-                    value={formData.criteria?.locations ?? (formData.criteria?.location ? [formData.criteria.location] : [])}
+                    value={
+                      formData.criteria?.locations ??
+                      (formData.criteria?.location ? [formData.criteria.location] : [])
+                    }
                     onValueChange={(values) => {
                       updateCriteria('locations', values);
                       updateCriteria('location', values.length === 1 ? values[0] : '');
@@ -195,8 +207,8 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                   <Label>Frequency</Label>
                   <Select
                     value={formData.frequency}
-                    onValueChange={(value: 'instant' | 'daily' | 'weekly') => 
-                      setFormData(prev => ({ ...prev, frequency: value }))
+                    onValueChange={(value: 'instant' | 'daily' | 'weekly') =>
+                      setFormData((prev) => ({ ...prev, frequency: value }))
                     }
                   >
                     <SelectTrigger>
@@ -215,16 +227,13 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                     <DollarSign className="h-4 w-4" />
                     Revenue Range
                   </Label>
-                  <Select 
-                    value={getCurrentRevenueRange()}
-                    onValueChange={handleRevenueRangeChange}
-                  >
+                  <Select value={getCurrentRevenueRange()} onValueChange={handleRevenueRangeChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any revenue" />
                     </SelectTrigger>
                     <SelectContent className="z-[200]">
                       <SelectItem value="all">Any revenue</SelectItem>
-                      {REVENUE_RANGES.map(range => (
+                      {REVENUE_RANGES.map((range) => (
                         <SelectItem key={range.label} value={range.label}>
                           {range.label}
                         </SelectItem>
@@ -238,16 +247,13 @@ export function EditDealAlertDialog({ alert, open, onOpenChange }: EditDealAlert
                     <TrendingUp className="h-4 w-4" />
                     EBITDA Range
                   </Label>
-                  <Select 
-                    value={getCurrentEbitdaRange()}
-                    onValueChange={handleEbitdaRangeChange}
-                  >
+                  <Select value={getCurrentEbitdaRange()} onValueChange={handleEbitdaRangeChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any EBITDA" />
                     </SelectTrigger>
                     <SelectContent className="z-[200]">
                       <SelectItem value="all">Any EBITDA</SelectItem>
-                      {EBITDA_RANGES.map(range => (
+                      {EBITDA_RANGES.map((range) => (
                         <SelectItem key={range.label} value={range.label}>
                           {range.label}
                         </SelectItem>

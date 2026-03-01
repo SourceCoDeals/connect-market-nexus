@@ -168,8 +168,7 @@ export function useGPPartnerDeals() {
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
     if (hideNotFit) items = items.filter((d) => d.remarketing_status !== 'not_a_fit');
     items.sort((a, b) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let valA: any, valB: any;
+      let valA: string | number, valB: string | number;
       switch (sortColumn) {
         case 'company_name':
           valA = (a.internal_company_name || a.title || '').toLowerCase();
@@ -275,7 +274,6 @@ export function useGPPartnerDeals() {
 
   const orderedIds = useMemo(() => paginatedDeals.map((d) => d.id), [paginatedDeals]);
   const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
-
 
   // Push to Active Deals
   const handlePushToAllDeals = useCallback(
@@ -451,8 +449,8 @@ export function useGPPartnerDeals() {
       }
 
       try {
-        const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
-        const result = await queueDealQualityScoring({ listingIds: targets.map(d => d.id) });
+        const { queueDealQualityScoring } = await import('@/lib/remarketing/queueScoring');
+        const result = await queueDealQualityScoring({ listingIds: targets.map((d) => d.id) });
         if (activityItem)
           updateProgress.mutate({ id: activityItem.id, completedItems: result.scored });
       } catch {

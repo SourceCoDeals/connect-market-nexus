@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -8,17 +8,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Users,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
-import BuyerTableRow from "./BuyerTableRow";
-import { PAGE_SIZE } from "./constants";
-import type { BuyerTab } from "./constants";
+} from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import BuyerTableRow from './BuyerTableRow';
+import { PAGE_SIZE } from './constants';
+import type { BuyerTab } from './constants';
 
 interface BuyersTableProps {
   activeTab: BuyerTab;
@@ -33,19 +28,33 @@ interface BuyersTableProps {
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
   sortColumn: string;
-  sortDirection: "asc" | "desc";
-  toggleSelect: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
+  sortDirection: 'asc' | 'desc';
+  toggleSelect: (
+    id: string,
+    checked: boolean,
+    event?: React.MouseEvent | React.KeyboardEvent,
+  ) => void;
   toggleSelectAll: () => void;
   handleSort: (column: string) => void;
   handleEnrichBuyer: (e: React.MouseEvent, buyerId: string) => void;
   deleteMutation: { mutate: (id: string) => void };
 }
 
-const SortIcon = ({ column, sortColumn, sortDirection }: { column: string; sortColumn: string; sortDirection: "asc" | "desc" }) => {
+const SortIcon = ({
+  column,
+  sortColumn,
+  sortDirection,
+}: {
+  column: string;
+  sortColumn: string;
+  sortDirection: 'asc' | 'desc';
+}) => {
   if (sortColumn !== column) return <ArrowUpDown className="h-3.5 w-3.5 ml-1 opacity-40" />;
-  return sortDirection === 'asc'
-    ? <ArrowUp className="h-3.5 w-3.5 ml-1" />
-    : <ArrowDown className="h-3.5 w-3.5 ml-1" />;
+  return sortDirection === 'asc' ? (
+    <ArrowUp className="h-3.5 w-3.5 ml-1" />
+  ) : (
+    <ArrowDown className="h-3.5 w-3.5 ml-1" />
+  );
 };
 
 const BuyersTable = ({
@@ -80,11 +89,20 @@ const BuyersTable = ({
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-[48px] text-muted-foreground text-xs font-normal">#</TableHead>
-              <TableHead className="w-[260px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('company_name')}>
+              <TableHead className="w-[48px] text-muted-foreground text-xs font-normal">
+                #
+              </TableHead>
+              <TableHead
+                className="w-[260px] cursor-pointer select-none hover:bg-muted/50"
+                onClick={() => handleSort('company_name')}
+              >
                 <span className="flex items-center">
                   {activeTab === 'pe_firm' ? 'Firm Name' : 'Platform / Buyer'}
-                  <SortIcon column="company_name" sortColumn={sortColumn} sortDirection={sortDirection} />
+                  <SortIcon
+                    column="company_name"
+                    sortColumn={sortColumn}
+                    sortDirection={sortDirection}
+                  />
                 </span>
               </TableHead>
               {activeTab === 'pe_firm' ? (
@@ -98,11 +116,31 @@ const BuyersTable = ({
                 </>
               ) : (
                 <>
-                  <TableHead className="w-[180px] cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('pe_firm_name')}>
-                    <span className="flex items-center">PE Firm <SortIcon column="pe_firm_name" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+                  <TableHead
+                    className="w-[180px] cursor-pointer select-none hover:bg-muted/50"
+                    onClick={() => handleSort('pe_firm_name')}
+                  >
+                    <span className="flex items-center">
+                      PE Firm{' '}
+                      <SortIcon
+                        column="pe_firm_name"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                      />
+                    </span>
                   </TableHead>
-                  <TableHead className="cursor-pointer select-none hover:bg-muted/50" onClick={() => handleSort('universe')}>
-                    <span className="flex items-center">Universe <SortIcon column="universe" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+                  <TableHead
+                    className="cursor-pointer select-none hover:bg-muted/50"
+                    onClick={() => handleSort('universe')}
+                  >
+                    <span className="flex items-center">
+                      Universe{' '}
+                      <SortIcon
+                        column="universe"
+                        sortColumn={sortColumn}
+                        sortDirection={sortDirection}
+                      />
+                    </span>
                   </TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="w-[70px] text-center">Mktpl.</TableHead>
@@ -118,17 +156,39 @@ const BuyersTable = ({
             {buyersLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-6" /></TableCell>
-                  <TableCell><Skeleton className="h-10 w-48" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-48" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-4" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-6" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-10 w-48" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-24" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-48" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-8" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-8" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-4 w-8" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-5 w-20" />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-8 w-8" />
+                  </TableCell>
                 </TableRow>
               ))
             ) : filteredBuyers.length === 0 ? (
@@ -140,7 +200,7 @@ const BuyersTable = ({
                 </TableCell>
               </TableRow>
             ) : (
-              pagedBuyers.map((buyer: any, pageIdx: number) => {
+              pagedBuyers.map((buyer: { id: string }, pageIdx: number) => {
                 const globalIdx = (currentPage - 1) * PAGE_SIZE + pageIdx + 1;
                 return (
                   <BuyerTableRow
@@ -166,7 +226,8 @@ const BuyersTable = ({
         {!buyersLoading && filteredBuyers.length > PAGE_SIZE && (
           <div className="flex items-center justify-between px-4 py-3 border-t text-sm text-muted-foreground">
             <span>
-              Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredBuyers.length)} of {filteredBuyers.length}
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}–
+              {Math.min(currentPage * PAGE_SIZE, filteredBuyers.length)} of {filteredBuyers.length}
             </span>
             <div className="flex items-center gap-1">
               <Button
@@ -175,14 +236,18 @@ const BuyersTable = ({
                 className="h-8 px-3"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(1)}
-              >«</Button>
+              >
+                «
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-8 px-3"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p: number) => p - 1)}
-              >‹ Prev</Button>
+              >
+                ‹ Prev
+              </Button>
               <span className="px-3 font-medium text-foreground">
                 Page {currentPage} of {totalPages}
               </span>
@@ -192,14 +257,18 @@ const BuyersTable = ({
                 className="h-8 px-3"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((p: number) => p + 1)}
-              >Next ›</Button>
+              >
+                Next ›
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-8 px-3"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(totalPages)}
-              >»</Button>
+              >
+                »
+              </Button>
             </div>
           </div>
         )}

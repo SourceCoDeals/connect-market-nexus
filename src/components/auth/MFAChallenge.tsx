@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Shield, Loader2 } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Shield, Loader2 } from 'lucide-react';
 
 interface MFAChallengeProps {
   onVerified: () => void;
@@ -12,7 +12,7 @@ interface MFAChallengeProps {
 }
 
 export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [factorId, setFactorId] = useState<string | null>(null);
@@ -22,16 +22,16 @@ export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
     const getFactors = async () => {
       const { data, error: listError } = await supabase.auth.mfa.listFactors();
       if (listError) {
-        setError("Failed to load MFA factors");
+        setError('Failed to load MFA factors');
         return;
       }
       const verified = data?.totp?.find(
-        (f: any) => f.status === "verified"
+        (f: { id: string; status: string }) => f.status === 'verified',
       );
       if (verified) {
         setFactorId(verified.id);
       } else {
-        setError("No MFA factor found");
+        setError('No MFA factor found');
       }
     };
     getFactors();
@@ -44,8 +44,9 @@ export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
     setError(null);
 
     try {
-      const { data: challengeData, error: challengeError } =
-        await supabase.auth.mfa.challenge({ factorId });
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId,
+      });
       if (challengeError) throw challengeError;
 
       const { error: verifyError } = await supabase.auth.mfa.verify({
@@ -57,8 +58,8 @@ export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
 
       onVerified();
     } catch (err: unknown) {
-      setError(err.message || "Invalid verification code. Please try again.");
-      setCode("");
+      setError(err instanceof Error ? err.message : 'Invalid verification code. Please try again.');
+      setCode('');
     } finally {
       setIsVerifying(false);
     }
@@ -87,7 +88,7 @@ export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
             <Input
               value={code}
               onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                const val = e.target.value.replace(/\D/g, '').slice(0, 6);
                 setCode(val);
               }}
               placeholder="000000"
@@ -96,7 +97,7 @@ export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
               autoFocus
               disabled={isVerifying}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && code.length === 6) {
+                if (e.key === 'Enter' && code.length === 6) {
                   handleVerify();
                 }
               }}
@@ -108,9 +109,7 @@ export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
             className="w-full"
             disabled={code.length !== 6 || isVerifying || !factorId}
           >
-            {isVerifying ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
+            {isVerifying ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Verify
           </Button>
 
