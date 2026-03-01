@@ -14,6 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, User, Mail, AlertTriangle } from 'lucide-react';
 import { User as UserType } from '@/types';
 import { EditableSignature } from './EditableSignature';
+import { logger } from '@/lib/logger';
+import { errorHandler } from '@/lib/error-handler';
 
 interface ApprovalEmailDialogProps {
   open: boolean;
@@ -71,11 +73,11 @@ export function ApprovalEmailDialog({
 
   const handleSend = async () => {
     if (!user) {
-      console.error('[ApprovalDialog] handleSend called but user is null');
+      logger.warn('handleSend called but user is null', 'ApprovalEmailDialog');
       return;
     }
 
-    console.log('[ApprovalDialog] handleSend triggered for user:', user.email);
+    logger.debug('handleSend triggered', 'ApprovalEmailDialog', { email: user.email });
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -87,9 +89,9 @@ export function ApprovalEmailDialog({
     };
 
     try {
-      console.log('[ApprovalDialog] Calling onSendApprovalEmail for:', user.email);
+      logger.debug('Calling onSendApprovalEmail', 'ApprovalEmailDialog', { email: user.email });
       await onSendApprovalEmail(user, payload);
-      console.log('[ApprovalDialog] Approval flow completed successfully');
+      logger.info('Approval flow completed successfully', 'ApprovalEmailDialog');
       // Reset form after successful approval - dialog closure is handled by parent (UserActions)
       setCustomSubject('');
       setCustomMessage('');
@@ -97,8 +99,13 @@ export function ApprovalEmailDialog({
       setCustomSignatureText('');
       setErrorMessage(null);
     } catch (error) {
-      console.error('[ApprovalDialog] Error in approval flow:', error);
-      const msg = error instanceof Error ? error.message : 'An unexpected error occurred during approval.';
+      errorHandler(
+        error instanceof Error ? error : String(error),
+        { component: 'ApprovalEmailDialog', operation: 'approval flow' },
+        'medium',
+      );
+      const msg =
+        error instanceof Error ? error.message : 'An unexpected error occurred during approval.';
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
