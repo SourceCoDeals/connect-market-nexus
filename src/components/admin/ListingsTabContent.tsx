@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Building2, Target } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { AdminListingCard } from './AdminListingCard';
-import { ResearchDealCard } from './ResearchDealCard';
 import { ViewSwitcher } from './ViewSwitcher';
 import { AdminListing } from '@/types/admin';
 import { useListingsByType, ListingType } from '@/hooks/admin/listings/use-listings-by-type';
@@ -93,21 +92,12 @@ export function ListingsTabContent({
     }
   };
 
-  // Tab-specific empty state content
-  const emptyStateContent =
-    type === 'marketplace'
-      ? {
-          icon: Building2,
-          title: 'No Marketplace Listings',
-          description: 'Publish your first listing to start attracting buyers.',
-          actionLabel: 'Create Listing',
-        }
-      : {
-          icon: Target,
-          title: 'No Research Deals',
-          description: 'Import or create research deals to begin your M&A pipeline.',
-          actionLabel: 'Create Research Deal',
-        };
+  const emptyStateContent = {
+    icon: Building2,
+    title: 'No Marketplace Listings',
+    description: 'Publish your first listing to start attracting buyers.',
+    actionLabel: 'Create Listing',
+  };
 
   const isFiltered = filterState.rules.length > 0 || filterState.search;
 
@@ -189,30 +179,7 @@ export function ListingsTabContent({
               : 'space-y-4'
           }
         >
-          {filteredAndSortedListings.map((listing) =>
-            type === 'research' ? (
-              <ResearchDealCard
-                key={listing.id}
-                listing={listing}
-                viewMode={viewMode}
-                isSelected={selectedListings.has(listing.id)}
-                onSelect={(selected) => {
-                  const newSelected = new Set(selectedListings);
-                  if (selected) {
-                    newSelected.add(listing.id);
-                  } else {
-                    newSelected.delete(listing.id);
-                  }
-                  setSelectedListings(newSelected);
-                }}
-                onEdit={() => onEdit(listing)}
-                onDelete={() => {
-                  if (window.confirm('Are you sure you want to delete this listing?')) {
-                    deleteListing(listing.id);
-                  }
-                }}
-              />
-            ) : (
+          {filteredAndSortedListings.map((listing) => (
               <AdminListingCard
                 key={listing.id}
                 listing={listing}
@@ -240,8 +207,7 @@ export function ListingsTabContent({
                 }}
                 onStatusTagChange={handleStatusTagChange}
               />
-            ),
-          )}
+          ))}
 
           {filteredAndSortedListings.length === 0 && (
             <div className="col-span-full">
