@@ -136,7 +136,7 @@ export default function DocuSealHealthCheck() {
       setExpanded(autoExpand);
     } catch (e: unknown) {
       setRunState('error');
-      setErrorMsg(e.message || 'Unexpected error');
+      setErrorMsg(e instanceof Error ? e.message : 'Unexpected error');
     }
   }, []);
 

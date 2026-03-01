@@ -18,6 +18,8 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import type { TestContext } from './system-test-runner/testDefinitions';
+import type { ChatbotTestContext } from './chatbot-test-runner/chatbotInfraTests';
 
 const EnrichmentTest = lazy(() => import('@/pages/admin/EnrichmentTest'));
 const SystemTestRunner = lazy(() => import('@/pages/admin/SystemTestRunner'));
@@ -88,7 +90,7 @@ export default function TestingHub() {
           suiteCount,
         });
 
-        const ctx: InstanceType<typeof Object> = {
+        const ctx: TestContext = {
           createdContactIds: [],
           createdAccessIds: [],
           createdReleaseLogIds: [],
@@ -189,7 +191,7 @@ export default function TestingHub() {
           suiteCount,
         });
 
-        const ctx: InstanceType<typeof Object> = {
+        const ctx: ChatbotTestContext = {
           createdConversationIds: [],
           createdAnalyticsIds: [],
           createdFeedbackIds: [],
@@ -307,13 +309,13 @@ export default function TestingHub() {
         suites.docuSealHealth = {
           name: 'DocuSeal Health Check',
           lastRunAt: readTs(DOCUSEAL_STORAGE_KEY + '-ts') || data.ranAt,
-          ...(data.results
-            ? {
-                summary: summarize(data.results),
-                results: data.results,
+          ...(data.error
+            ? { error: data.error }
+            : {
+                summary: summarize(data.results || []),
+                results: data.results || [],
                 cleanup: data.cleanup,
-              }
-            : { error: data.error }),
+              }),
         };
       }
     } catch {
