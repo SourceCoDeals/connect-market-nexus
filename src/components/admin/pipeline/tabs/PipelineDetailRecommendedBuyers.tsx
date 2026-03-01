@@ -44,7 +44,10 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const queryClient = useQueryClient();
 
   // Only auto-score for active deals (NDA Sent and beyond, not closed)
-  const isActiveDeal = deal.stage_position >= 3 && deal.stage_position <= 9;
+  // Lead sources like CapTarget and GP Partners are excluded — use manual button instead
+  const LEAD_SOURCES = ['captarget', 'gp_partners', 'valuation_calculator'];
+  const isLeadSource = LEAD_SOURCES.includes((deal.deal_source || '').toLowerCase());
+  const isActiveDeal = deal.stage_position >= 3 && deal.stage_position <= 9 && !isLeadSource;
   const isClosedDeal = deal.stage_position >= 10;
 
   const limit = showAll ? 100 : 25;
@@ -242,17 +245,19 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   }
 
   if (!data || data.buyers.length === 0) {
-    // Early-stage lead — show manual trigger button
+    // Early-stage lead or lead source — show manual trigger button
     if (!isActiveDeal && !isClosedDeal) {
       return (
         <div className="flex-1 flex items-center justify-center py-12">
           <div className="text-center space-y-3">
             <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
             <p className="text-sm text-muted-foreground">
-              Buyer scoring runs automatically once a deal reaches NDA stage.
+              {isLeadSource
+                ? 'Lead-source deals are not auto-scored.'
+                : 'Buyer scoring runs automatically once a deal reaches NDA stage.'}
             </p>
             <p className="text-xs text-muted-foreground/60">
-              You can also score this deal now if you want early recommendations.
+              You can score this deal now if you want buyer recommendations.
             </p>
             <Button
               variant="outline"
