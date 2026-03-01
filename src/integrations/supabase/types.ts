@@ -449,6 +449,27 @@ export type Database = {
           },
         ]
       }
+      app_settings: {
+        Row: {
+          created_at: string | null
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           admin_id: string | null
@@ -3572,6 +3593,7 @@ export type Database = {
           source_meeting_id: string | null
           source_timestamp: string | null
           status: string
+          tags: string[] | null
           task_type: string
           title: string
           updated_at: string | null
@@ -3601,6 +3623,7 @@ export type Database = {
           source_meeting_id?: string | null
           source_timestamp?: string | null
           status?: string
+          tags?: string[] | null
           task_type?: string
           title: string
           updated_at?: string | null
@@ -3630,6 +3653,7 @@ export type Database = {
           source_meeting_id?: string | null
           source_timestamp?: string | null
           status?: string
+          tags?: string[] | null
           task_type?: string
           title?: string
           updated_at?: string | null

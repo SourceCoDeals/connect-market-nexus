@@ -11,11 +11,11 @@ export function useExistingTags() {
     queryKey: ['task-tags-distinct'],
     queryFn: async () => {
       // Fetch all non-empty tag arrays from active tasks
-      const { data, error } = await supabase
-        .from('daily_standup_tasks' as 'profiles')
+      const { data, error } = await (supabase
+        .from('daily_standup_tasks' as any)
         .select('tags')
         .not('tags', 'eq', '{}')
-        .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue']);
+        .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue']) as any);
 
       if (error) throw error;
 

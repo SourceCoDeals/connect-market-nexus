@@ -15,13 +15,13 @@ function useAutoApproveSetting() {
   return useQuery({
     queryKey: ['app-settings', 'task_auto_approve_high_confidence'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('app_settings' as 'profiles')
+      const { data } = await (supabase
+        .from('app_settings' as any)
         .select('value')
         .eq('key', 'task_auto_approve_high_confidence')
-        .single();
+        .single() as any);
       if (!data) return true; // default: enabled
-      return data.value === 'true' || data.value === true;
+      return (data as any).value === 'true' || (data as any).value === true;
     },
     staleTime: 60_000,
   });
@@ -33,12 +33,12 @@ function useUpdateAutoApproveSetting() {
 
   return useMutation({
     mutationFn: async (enabled: boolean) => {
-      const { error } = await supabase
-        .from('app_settings' as 'profiles')
+      const { error } = await (supabase
+        .from('app_settings' as any)
         .upsert(
           { key: 'task_auto_approve_high_confidence', value: String(enabled) },
           { onConflict: 'key' },
-        );
+        ) as any);
       if (error) throw error;
     },
     onSuccess: (_, enabled) => {

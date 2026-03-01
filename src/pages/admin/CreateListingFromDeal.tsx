@@ -8,7 +8,7 @@ import { useGenerateListingContent } from '@/hooks/admin/listings/use-generate-l
 import { anonymizeDealToListing } from '@/lib/deal-to-listing-anonymizer';
 import { AdminListing } from '@/types/admin';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, AlertTriangle, Sparkles } from 'lucide-react';
+import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
