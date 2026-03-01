@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -193,23 +193,22 @@ export function WebsiteActionsCard({
   );
 }
 
-/**
- * Check deal data quality before allowing push to marketplace.
- * Returns array of missing field names, empty if all good.
- */
-function getMarketplaceQualityGaps(deal: any): string[] {
-  const missing: string[] = [];
-  if (!deal?.website) missing.push('Website');
-  if (!deal?.revenue && !deal?.ebitda) missing.push('Revenue or EBITDA');
-  if (!deal?.address_state && !deal?.location) missing.push('Location');
-  if (!deal?.category && !deal?.industry) missing.push('Category/Industry');
-  if (!deal?.executive_summary && !deal?.description)
-    missing.push('Executive Summary or Description');
-  return missing;
-}
-
 function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }) {
   const queryClient = useQueryClient();
+
+  // Check whether this deal has both memo types generated
+  const { data: memos, isLoading: memosLoading } = useQuery({
+    queryKey: ['deal-memos-check', dealId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lead_memos')
+        .select('id, memo_type, pdf_storage_path, status')
+        .eq('deal_id', dealId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!dealId,
+  });
 
   if (deal?.pushed_to_marketplace) {
     return (
@@ -237,8 +236,50 @@ function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }
     );
   }
 
-  const qualityGaps = getMarketplaceQualityGaps(deal);
-  const isReady = qualityGaps.length === 0;
+  /**
+   * Gate: all of these must be present before a deal can be pushed to the
+   * Marketplace Queue. Each check returns a human-readable label when failing.
+   */
+  const gaps: string[] = [];
+
+  if (!deal?.website)
+    gaps.push('Website');
+
+  if (!deal?.revenue)
+    gaps.push('Revenue');
+
+  if (!deal?.ebitda)
+    gaps.push('EBITDA');
+
+  if (!deal?.address_state && !deal?.location)
+    gaps.push('Location');
+
+  if (!deal?.category && !deal?.industry)
+    gaps.push('Category / Industry');
+
+  if (!deal?.executive_summary && !deal?.description)
+    gaps.push('Description');
+
+  if (!deal?.main_contact_name)
+    gaps.push('Main contact name');
+
+  if (!deal?.main_contact_email)
+    gaps.push('Main contact email');
+
+  const hasLeadMemo = memos?.some(
+    (m) => m.memo_type === 'full_memo' && m.pdf_storage_path,
+  );
+  const hasTeaser = memos?.some(
+    (m) => m.memo_type === 'anonymous_teaser' && m.pdf_storage_path,
+  );
+
+  if (!hasLeadMemo)
+    gaps.push('Lead Memo PDF');
+
+  if (!hasTeaser)
+    gaps.push('Teaser PDF');
+
+  const isReady = gaps.length === 0;
 
   return (
     <TooltipProvider>
@@ -251,7 +292,7 @@ function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }
                 ? 'border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-500'
                 : 'border-gray-200 text-gray-400 cursor-not-allowed'
             }`}
-            disabled={!isReady}
+            disabled={!isReady || memosLoading}
             onClick={async () => {
               if (!isReady) return;
               const {
@@ -275,14 +316,18 @@ function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }
               }
             }}
           >
-            <Store className="h-4 w-4" />
+            {memosLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Store className="h-4 w-4" />
+            )}
             Push to Marketplace
           </Button>
         </TooltipTrigger>
-        <TooltipContent>
+        <TooltipContent className="max-w-xs">
           {isReady
             ? 'Push this deal to the Marketplace Queue for review and publishing.'
-            : `Missing required data: ${qualityGaps.join(', ')}`}
+            : `Complete these before pushing to marketplace:\n${gaps.map((g) => `• ${g}`).join('\n')}`}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

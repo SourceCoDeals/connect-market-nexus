@@ -142,31 +142,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Check if listing is in remarketing systems
-      const { data: remarketingLinks } = await supabaseAdmin
-        .from('remarketing_universe_deals')
-        .select('id')
-        .eq('listing_id', listingId)
-        .eq('status', 'active')
-        .limit(1);
-
-      const { data: remarketingScores } = await supabaseAdmin
-        .from('remarketing_scores')
-        .select('id')
-        .eq('listing_id', listingId)
-        .limit(1);
-
-      if ((remarketingLinks && remarketingLinks.length > 0) || (remarketingScores && remarketingScores.length > 0)) {
-        return new Response(
-          JSON.stringify({ 
-            success: false,
-            error: 'Cannot publish: listing is linked to remarketing systems. Remove from universes first or create a separate marketplace listing.',
-            remarketingLinked: true 
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
       // Validate quality requirements
       const validation = validateListingQuality(listing);
       if (!validation.valid) {
