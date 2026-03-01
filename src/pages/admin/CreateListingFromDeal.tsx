@@ -45,7 +45,7 @@ export default function CreateListingFromDeal() {
           main_contact_name, main_contact_email, main_contact_phone, main_contact_title,
           geographic_states, internal_deal_memo_link,
           pushed_to_marketplace,
-          customer_segments, customer_geography, customer_types,
+          customer_geography, customer_types,
           business_model, revenue_model, end_market_description,
           competitive_position, ownership_structure, seller_motivation,
           owner_goals, transition_preferences, growth_drivers,
