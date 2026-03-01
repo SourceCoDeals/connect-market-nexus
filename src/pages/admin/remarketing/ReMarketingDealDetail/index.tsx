@@ -15,7 +15,7 @@ import { DealHeader } from "./DealHeader";
 import { OverviewTab } from "./OverviewTab";
 import { DataRoomTab } from "./DataRoomTab";
 import { DealCallActivityTab } from "./DealCallActivityTab";
-import { DealContactHistoryTab, DealBuyerHistoryTab, BuyerIntroductionTracker, RecommendedBuyersSection, MeetingTranscriptSummaries } from "@/components/remarketing/deal-detail";
+import { DealContactHistoryTab, DealBuyerHistoryTab, BuyerIntroductionTracker, RecommendedBuyersSection } from "@/components/remarketing/deal-detail";
 import { ListingNotesLog } from "@/components/remarketing/deal-detail/ListingNotesLog";
 
 const ReMarketingDealDetail = () => {
@@ -161,7 +161,6 @@ const ReMarketingDealDetail = () => {
             primaryContactName={deal.main_contact_name}
           />
           <DealCallActivityTab listingId={dealId!} />
-          <MeetingTranscriptSummaries listingId={dealId!} />
           <ListingNotesLog listingId={dealId!} />
         </TabsContent>
 
