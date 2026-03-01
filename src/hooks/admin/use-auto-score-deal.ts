@@ -4,8 +4,10 @@
  * Every deal should have recommended buyers. This hook:
  * 1. Detects when a deal has no scores in remarketing_scores
  * 2. Auto-assigns the deal to ALL active buyer universes (not just one)
- * 3. Queues scoring against every universe so every buyer gets evaluated
- * 4. Polls for progress and refreshes the recommended buyers list when done
+ * 3. Discovers new potential buyers via Google search (discover-companies)
+ * 4. Inserts discovered companies into remarketing_buyers
+ * 5. Queues scoring against every universe so every buyer gets evaluated
+ * 6. Polls for progress and refreshes the recommended buyers list when done
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +17,7 @@ export type AutoScoreStatus =
   | 'idle'
   | 'checking'
   | 'assigning_universes'
+  | 'discovering'
   | 'queuing'
   | 'scoring'
   | 'done'
@@ -151,12 +154,137 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
         }
       }
 
-      // Step 4: Queue scoring against ALL universes (linked + newly linked)
+      // Step 4: Discover new buyers via Google search
       const allUniverseIds = allUniverses.map((u) => u.id);
+      const primaryUniverseId = allUniverseIds[0]; // Use first universe for discovered buyers
+
+      try {
+        setState({
+          status: 'discovering',
+          message: 'Searching Google for potential buyers...',
+          progress: 40,
+        });
+
+        // Fetch listing details to build the search query
+        const { data: listing } = await supabase
+          .from('listings')
+          .select(
+            'title, category, categories, location, address_state, industry, services, description, revenue, number_of_locations',
+          )
+          .eq('id', listingId)
+          .single();
+
+        if (listing) {
+          const industry =
+            listing.industry ||
+            listing.category ||
+            (listing.categories as string[] | null)?.[0] ||
+            '';
+          const geography = listing.address_state || listing.location || '';
+          const services = (listing.services as string[] | null)?.join(', ') || '';
+          const revenueHint = listing.revenue
+            ? `$${(listing.revenue / 1_000_000).toFixed(1)}M revenue`
+            : '';
+          const locationHint = listing.number_of_locations
+            ? `${listing.number_of_locations}+ locations`
+            : '';
+
+          // Build a targeted search query from deal attributes
+          const queryParts = [
+            industry && `${industry} companies`,
+            services && `offering ${services}`,
+            geography && `in ${geography}`,
+            revenueHint,
+            locationHint,
+            'acquisitions OR "looking to acquire" OR "platform company"',
+          ].filter(Boolean);
+          const searchQuery = queryParts.join(' ');
+
+          const { data: discoveryResult, error: discoverError } = await supabase.functions.invoke(
+            'discover-companies',
+            {
+              body: {
+                query: searchQuery,
+                industry: industry || undefined,
+                geography: geography || undefined,
+                min_locations: listing.number_of_locations || undefined,
+                max_results: 15,
+              },
+            },
+          );
+
+          if (discoverError) {
+            console.warn(
+              '[useAutoScoreDeal] Google discovery failed (non-fatal):',
+              discoverError.message,
+            );
+          } else if (discoveryResult?.companies?.length > 0) {
+            const newCompanies = discoveryResult.companies.filter(
+              (c: { already_in_db: boolean }) => !c.already_in_db,
+            );
+
+            if (newCompanies.length > 0) {
+              setState({
+                status: 'discovering',
+                message: `Adding ${newCompanies.length} Google-discovered buyer(s)...`,
+                progress: 45,
+              });
+
+              const buyersToInsert = newCompanies.map(
+                (c: {
+                  name: string;
+                  url?: string;
+                  description?: string;
+                  industry?: string;
+                  location?: string;
+                  estimated_size?: string;
+                }) => ({
+                  company_name: c.name,
+                  company_website: c.url || null,
+                  business_summary: c.description || null,
+                  industry_vertical: c.industry || industry || null,
+                  hq_state: c.location || geography || null,
+                  universe_id: primaryUniverseId,
+                  notes: `Auto-discovered via Google search for deal: ${listing.title}`,
+                  extraction_sources: JSON.stringify({
+                    source: 'google_discover',
+                    deal_id: listingId,
+                    discovered_at: new Date().toISOString(),
+                    search_query: searchQuery,
+                  }),
+                }),
+              );
+
+              // Batch insert — skip duplicates by company name
+              for (let i = 0; i < buyersToInsert.length; i += 25) {
+                const batch = buyersToInsert.slice(i, i + 25);
+                const { error: insertError } = await supabase
+                  .from('remarketing_buyers')
+                  .insert(batch as never);
+                if (insertError) {
+                  console.warn(
+                    '[useAutoScoreDeal] Some buyer inserts failed (likely duplicates):',
+                    insertError.message,
+                  );
+                }
+              }
+
+              console.log(
+                `[useAutoScoreDeal] Inserted ${newCompanies.length} Google-discovered buyers`,
+              );
+            }
+          }
+        }
+      } catch (discoverErr) {
+        // Discovery is non-fatal — log and continue to scoring
+        console.warn('[useAutoScoreDeal] Google discovery step failed (non-fatal):', discoverErr);
+      }
+
+      // Step 5: Queue scoring against ALL universes (linked + newly linked)
       setState({
         status: 'queuing',
         message: `Queuing scoring across ${allUniverseIds.length} universe(s)...`,
-        progress: 50,
+        progress: 55,
       });
 
       const { queueDealScoring } = await import('@/lib/remarketing/queueScoring');
@@ -183,11 +311,11 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
         }
       }
 
-      // Step 5: Switch to polling mode
+      // Step 6: Switch to polling mode
       setState({
         status: 'scoring',
         message: `Scoring buyers across ${allUniverseIds.length} universe(s)...`,
-        progress: 60,
+        progress: 65,
       });
     } catch (err) {
       console.error('[useAutoScoreDeal] Error:', err);
@@ -211,6 +339,12 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
   return {
     ...state,
     triggerAutoScore,
-    isAutoScoring: ['checking', 'assigning_universes', 'queuing', 'scoring'].includes(state.status),
+    isAutoScoring: [
+      'checking',
+      'assigning_universes',
+      'discovering',
+      'queuing',
+      'scoring',
+    ].includes(state.status),
   };
 }

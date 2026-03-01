@@ -21,6 +21,7 @@ import {
   Mail as MailIcon,
   Zap,
   AlertCircle,
+  Globe,
 } from 'lucide-react';
 import { useRecommendedBuyers } from '@/hooks/admin/use-recommended-buyers';
 import { useAutoScoreDeal } from '@/hooks/admin/use-auto-score-deal';
@@ -140,18 +141,26 @@ export function RecommendedBuyersSection({
 
   // Auto-scoring in progress
   if (autoScore.isAutoScoring) {
+    const isDiscovering = autoScore.status === 'discovering';
     return (
       <Card>
         <CardContent className="py-10 space-y-4">
           <div className="flex items-center justify-center gap-2">
-            <Zap className="h-5 w-5 text-primary animate-pulse" />
-            <span className="text-sm font-medium text-foreground">Auto-Scoring Buyers</span>
+            {isDiscovering ? (
+              <Globe className="h-5 w-5 text-blue-500 animate-pulse" />
+            ) : (
+              <Zap className="h-5 w-5 text-primary animate-pulse" />
+            )}
+            <span className="text-sm font-medium text-foreground">
+              {isDiscovering ? 'Discovering Buyers via Google' : 'Auto-Scoring Buyers'}
+            </span>
           </div>
           <p className="text-xs text-muted-foreground text-center">{autoScore.message}</p>
           <Progress value={autoScore.progress} className="h-1.5 max-w-xs mx-auto" />
           <p className="text-[10px] text-muted-foreground/50 text-center">
-            Scoring all buyers across every universe. This runs in the background — you can navigate
-            away and come back.
+            {isDiscovering
+              ? 'Searching Google for potential acquisition buyers matching this deal profile.'
+              : 'Scoring all buyers across every universe. This runs in the background — you can navigate away and come back.'}
           </p>
         </CardContent>
       </Card>
