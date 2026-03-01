@@ -69,9 +69,6 @@ export const PAGE_PERMISSIONS: Record<string, PagePermission> = {
   '/admin/analytics': { minRole: 'viewer' },
   '/admin/analytics/transcripts': { minRole: 'moderator' },
 
-  // ── M&A Intelligence ────────────────────────────────────
-  '/admin/ma-intelligence': { minRole: 'admin' },
-
   // ── Settings ────────────────────────────────────────────
   '/admin/settings/team': { minRole: 'admin' },
   '/admin/settings/owner-leads': { minRole: 'moderator', mutateRole: 'admin' },

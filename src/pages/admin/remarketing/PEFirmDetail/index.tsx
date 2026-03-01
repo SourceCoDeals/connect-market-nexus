@@ -26,7 +26,7 @@ import { DealActivityTab } from "./DealActivityTab";
 import { NotesCallsTab } from "./NotesCallsTab";
 import { AddContactDialog } from "./AddContactDialog";
 import { AddPlatformDialog } from "./AddPlatformDialog";
-import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
+import { BuyerAgreementsPanel } from "@/components/remarketing/BuyerAgreementsPanel";
 import { EntityTasksTab } from "@/components/daily-tasks";
 
 const PEFirmDetail = () => {

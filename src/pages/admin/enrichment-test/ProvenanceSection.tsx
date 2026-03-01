@@ -62,14 +62,37 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
         });
       }
 
-      // Enrich
-      const { error: fnErr } = await supabase.functions.invoke('enrich-deal', {
-        body: { dealId },
-      });
-      const dur = Date.now() - t0;
-      if (fnErr) {
-        setError(String(fnErr));
-        addLog(`provenance test for ${dealId.slice(0, 8)}…`, dur, false);
+      // Enrich via queue
+      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueDealEnrichment([dealId]);
+
+      // Poll for completion
+      let attempts = 0;
+      let enrichmentDone = false;
+      while (attempts < 45 && !enrichmentDone) {
+        await new Promise(r => setTimeout(r, 4000));
+        attempts++;
+        const { data: queueItem } = await supabase
+          .from("enrichment_queue")
+          .select("status")
+          .eq("listing_id", dealId)
+          .order("queued_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (queueItem?.status === "completed" || queueItem?.status === "failed") {
+          enrichmentDone = true;
+          if (queueItem.status === "failed") {
+            const dur = Date.now() - t0;
+            setError("Enrichment failed in queue");
+            addLog(`provenance test for ${dealId.slice(0, 8)}…`, dur, false);
+            return;
+          }
+        }
+      }
+      if (!enrichmentDone) {
+        const dur = Date.now() - t0;
+        setError("Enrichment still running — try again shortly");
+        addLog(`provenance test for ${dealId.slice(0, 8)}… — timed out`, dur, false);
         return;
       }
 
@@ -86,7 +109,7 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
         after: (aData ?? {}) as Record<string, unknown>,
         sources: sourceMap,
       });
-      addLog(`provenance test for ${dealId.slice(0, 8)}…`, dur);
+      addLog(`provenance test for ${dealId.slice(0, 8)}…`, Date.now() - t0);
     } catch (e: any) {
       const dur = Date.now() - t0;
       setError(e.message);

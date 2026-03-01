@@ -29,16 +29,15 @@ export default function ScoringSection({ addLog, dealId, runRef }: Props) {
     setScores(null);
     const t0 = Date.now();
     try {
-      const { data, error: fnErr } = await supabase.functions.invoke('calculate-deal-quality', {
-        body: { listingId: dealId },
-      });
+      const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
+      const result = await queueDealQualityScoring({ listingIds: [dealId] });
       const dur = Date.now() - t0;
-      if (fnErr) {
-        setError(String(fnErr));
+      if (result.errors > 0) {
+        setError("Scoring failed");
         addLog(`calculate-deal-quality for ${dealId.slice(0, 8)}…`, dur, false);
         return;
       }
-      setResponse(data);
+      setResponse(result);
 
       const { data: listing, error: listingError } = await supabase
         .from('listings')

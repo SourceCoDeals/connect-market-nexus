@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { normalizeDomain } from "@/lib/ma-intelligence/normalizeDomain";
+import { normalizeDomain } from "@/lib/remarketing/normalizeDomain";
 import type { BuyerType } from "@/types/remarketing";
 import { isSponsorType, PAGE_SIZE } from "./constants";
 import type { BuyerTab } from "./constants";
@@ -277,19 +277,16 @@ export const useBuyersData = () => {
     setCurrentPage(1);
   };
 
-  // Enrich single buyer
+  // Enrich single buyer via enrichment queue
   const handleEnrichBuyer = async (e: React.MouseEvent, buyerId: string) => {
     e.stopPropagation();
     setEnrichingIds(prev => new Set(prev).add(buyerId));
     try {
-      const { error } = await supabase.functions.invoke('enrich-buyer', {
-        body: { buyerId, force: false },
-      });
-      if (error) throw error;
-      toast.success('Enrichment started');
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([buyerId]);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-    } catch (err: any) {
-      toast.error(err.message || 'Enrichment failed');
+    } catch {
+      // Toast shown by queue utility
     } finally {
       setEnrichingIds(prev => {
         const next = new Set(prev);

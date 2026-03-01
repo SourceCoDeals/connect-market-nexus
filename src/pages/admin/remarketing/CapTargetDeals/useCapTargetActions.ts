@@ -233,17 +233,15 @@ export function useCapTargetActions(
         /* Non-blocking */
       }
 
-      sonnerToast.info(`Scoring ${totalCount} deals in background...`);
       try {
-        await supabase.functions.invoke('calculate-deal-quality', {
-          body: {
-            batchSource: 'captarget',
-            unscoredOnly: mode === 'unscored',
-            globalQueueId: activityItem?.id,
-          },
+        const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
+        await queueDealQualityScoring({
+          batchSource: 'captarget',
+          unscoredOnly: mode === 'unscored',
+          globalQueueId: activityItem?.id,
         });
-      } catch (err) {
-        sonnerToast.error('Failed to start scoring');
+      } catch {
+        // Toast shown by queue utility
         if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: 'failed' });
       }
 
@@ -374,19 +372,10 @@ export function useCapTargetActions(
     }
 
     try {
-      const { data: result, error } = await supabase.functions.invoke('enrich-external-only', {
-        body: { dealSource: 'captarget', mode: 'missing' },
-      });
-      if (error) {
-        sonnerToast.error('Failed to start LinkedIn/Google enrichment');
-        if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: 'failed' });
-      } else {
-        sonnerToast.success(`Queued ${result?.total || 0} deals for LinkedIn + Google enrichment`, {
-          description: 'This runs much faster than full enrichment — no website re-scraping',
-        });
-      }
+      const { queueExternalOnlyEnrichment } = await import("@/lib/remarketing/queueScoring");
+      await queueExternalOnlyEnrichment({ dealSource: 'captarget', mode: 'missing' });
     } catch {
-      sonnerToast.error('Failed to invoke external enrichment');
+      if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: 'failed' });
     }
 
     setIsEnriching(false);

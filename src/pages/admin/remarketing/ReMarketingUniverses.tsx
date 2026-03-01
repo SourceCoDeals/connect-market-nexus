@@ -82,7 +82,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { IntelligenceCoverageBar } from '@/components/remarketing';
-import { deleteUniverseWithRelated } from '@/lib/ma-intelligence/cascadeDelete';
+import { deleteUniverseWithRelated } from '@/lib/remarketing/cascadeDelete';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { useGlobalGateCheck, useGlobalActivityQueue } from '@/hooks/remarketing/useGlobalActivityQueue';

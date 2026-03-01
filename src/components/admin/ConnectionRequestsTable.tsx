@@ -54,7 +54,6 @@ import {
   Loader2,
   Flag,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { AdminConnectionRequest } from "@/types/admin";
 import { User as AdminUsersUser } from "@/types/admin-users";
 import { useUnreadMessageCounts } from "@/hooks/use-connection-messages";
@@ -183,24 +182,12 @@ const ScoreBuyersButton = ({ requests, onRefresh }: { requests: AdminConnectionR
     setIsScoring(true);
     setProgress({ done: 0, total: toScore.length });
 
-    let successes = 0;
-    let failures = 0;
-
-    for (let i = 0; i < toScore.length; i += 2) {
-      const batch = toScore.slice(i, i + 2);
-      const results = await Promise.allSettled(
-        batch.map(profileId =>
-          supabase.functions.invoke('calculate-buyer-quality-score', { body: { profile_id: profileId } })
-        )
-      );
-      results.forEach(r => r.status === 'fulfilled' && !r.value.error ? successes++ : failures++);
-      setProgress({ done: Math.min(i + batch.length, toScore.length), total: toScore.length });
-      // Small delay between batches to prevent edge function timeouts
-      if (i + 2 < toScore.length) await new Promise(res => setTimeout(res, 500));
-    }
+    const { queueBuyerQualityScoring } = await import("@/lib/remarketing/queueScoring");
+    const result = await queueBuyerQualityScoring(toScore);
+    setProgress({ done: toScore.length, total: toScore.length });
 
     setIsScoring(false);
-    toast({ title: 'Scoring complete', description: `${successes} scored${failures > 0 ? `, ${failures} failed` : ''}` });
+    toast({ title: 'Scoring complete', description: `${result.scored} scored${result.errors > 0 ? `, ${result.errors} failed` : ''}` });
     onRefresh?.();
   }, [requests, onRefresh, toast]);
 

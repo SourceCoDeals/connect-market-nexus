@@ -109,7 +109,7 @@ Buyer types: PE firms, family offices, independent sponsors, strategic acquirers
 
 Fee structure: success fee on completed transactions tracked via firm_agreements. For specific details, refer to the SourceCo team.
 
-Key components: Buyer Marketplace, Admin Dashboard, ReMarketing Engine (outbound matching + outreach), M&A Intelligence (trackers, research, transcripts), Data Room (per-deal with granular access), Lead Memos (AI-generated summaries).`,
+Key components: Buyer Marketplace, Admin Dashboard, ReMarketing Engine (outbound matching + outreach + industry trackers + research), Data Room (per-deal with granular access), Lead Memos (AI-generated summaries).`,
   },
 
   terminology: {
@@ -385,11 +385,11 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
   platform_guide: {
     title: 'SourceCo Platform Features Guide',
     content: `**Data Sources (where deals come from):**
-- CapTarget: external PE-backed acquisition targets from Google Sheets. Admin > M&A Intelligence > CapTarget Deals.
-- GP Partners: General Partner referral network. Admin > M&A Intelligence > GP Partner Deals.
+- CapTarget: external PE-backed acquisition targets from Google Sheets. Admin > ReMarketing > CapTarget Deals.
+- GP Partners: General Partner referral network. Admin > ReMarketing > GP Partner Deals.
 - Marketplace: public-facing deal marketplace. Admin > Marketplace.
 - Inbound Leads: website forms, referral partners, manual entry. Admin > Inbound Leads.
-- Valuation Leads: high-intent sellers via valuation calculator (HVAC, collision, auto shop, general). Admin > M&A Intelligence > Valuation Leads.
+- Valuation Leads: high-intent sellers via valuation calculator (HVAC, collision, auto shop, general). Admin > ReMarketing > Valuation Leads.
 - Active Deals (Pipeline): deals actively marketed. Admin > Active Deals.
 
 **Key Workflows:**

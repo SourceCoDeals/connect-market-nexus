@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { formatDistanceToNow } from 'date-fns';
-import { DealScoreBadge } from '@/components/ma-intelligence/DealScoreBadge';
+import { DealScoreBadge } from '@/components/admin/DealScoreBadge';
 
 interface PipelineListViewProps {
   pipeline: ReturnType<typeof usePipelineCore>;

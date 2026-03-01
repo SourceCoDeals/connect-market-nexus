@@ -163,20 +163,16 @@
 |----------|---------|
 | `sync-captarget-sheet/` | Sync CapTarget Google Sheets |
 
-## M&A Intelligence
+## AI Analysis & Research
 | Function | Purpose |
 |----------|---------|
-| `analyze-buyer-notes/` | Analyse buyer notes |
 | `analyze-deal-notes/` | Analyse deal notes |
 | `analyze-scoring-patterns/` | Analyse scoring patterns |
-| `analyze-seller-interest/` | Analyse seller interest |
 | `analyze-tracker-notes/` | Analyse tracker notes |
 | `generate-lead-memo/` | Generate lead memo |
 | `generate-ma-guide/` | Generate M&A guide |
 | `generate-ma-guide-background/` | Background M&A guide generation |
-| `generate-research-questions/` | Generate research questions |
 | `parse-fit-criteria/` | Parse fit criteria |
-| `parse-scoring-instructions/` | Parse scoring instructions |
 | `parse-tracker-documents/` | Parse tracker documents |
 | `process-ma-guide-queue/` | Process M&A guide queue |
 | `validate-criteria/` | Validate buyer criteria |

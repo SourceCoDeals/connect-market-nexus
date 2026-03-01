@@ -49,8 +49,6 @@ src/components/
 ├── layout/                   # Layout components
 ├── listing/                  # Listing components
 ├── listing-detail/           # Listing detail page components
-├── ma-intelligence/          # M&A intelligence components
-│   └── tracker/              # Deal tracker components
 ├── marketplace/              # Marketplace components
 ├── navbar/                   # Navigation bar components
 ├── onboarding/               # User onboarding flow

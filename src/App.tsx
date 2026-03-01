@@ -187,26 +187,6 @@ const DailyTaskAnalytics = lazyWithRetry(
   () => import('@/pages/admin/remarketing/DailyTaskAnalytics'),
 );
 
-// M&A Intelligence (separate layout — unchanged)
-const MAIntelligenceLayout = lazyWithRetry(() =>
-  import('@/components/ma-intelligence').then((m) => ({ default: m.MAIntelligenceLayout })),
-);
-const MADashboard = lazyWithRetry(() =>
-  import('@/pages/admin/ma-intelligence').then((m) => ({ default: m.MADashboard })),
-);
-const MATrackers = lazyWithRetry(() =>
-  import('@/pages/admin/ma-intelligence').then((m) => ({ default: m.MATrackers })),
-);
-const MATrackerDetail = lazyWithRetry(() =>
-  import('@/pages/admin/ma-intelligence').then((m) => ({ default: m.MATrackerDetail })),
-);
-const MAAllBuyers = lazyWithRetry(() =>
-  import('@/pages/admin/ma-intelligence').then((m) => ({ default: m.MAAllBuyers })),
-);
-const MABuyerDetail = lazyWithRetry(() =>
-  import('@/pages/admin/ma-intelligence').then((m) => ({ default: m.MABuyerDetail })),
-);
-
 // Helper: redirect with params interpolation
 function RedirectWithId({ to }: { to: string }) {
   const params = useParams();
@@ -608,26 +588,6 @@ function App() {
                 path="enrichment-test"
                 element={<Navigate to="/admin/testing?tab=enrichment" replace />}
               />
-            </Route>
-
-            {/* ─── M&A INTELLIGENCE (admin+ role required) ─── */}
-            <Route
-              path="/admin/ma-intelligence"
-              element={
-                <ProtectedRoute requireAdmin={true} requireRole="admin">
-                  <MAIntelligenceLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<MADashboard />} />
-              <Route path="trackers" element={<MATrackers />} />
-              <Route path="trackers/new" element={<MATrackerDetail />} />
-              <Route path="trackers/:id" element={<MATrackerDetail />} />
-              <Route path="buyers" element={<MAAllBuyers />} />
-              <Route path="buyers/:id" element={<MABuyerDetail />} />
-              {/* Deals routes redirect to unified All Deals page */}
-              <Route path="deals" element={<Navigate to="/admin/deals" replace />} />
-              <Route path="deals/:id" element={<RedirectWithId to="/admin/deals/:id" />} />
             </Route>
 
             {/* Catch-all */}

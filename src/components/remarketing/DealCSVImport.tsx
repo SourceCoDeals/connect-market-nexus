@@ -18,7 +18,7 @@ import {
 import { Upload, FileSpreadsheet, Loader2, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 // Papa removed – using parseSpreadsheet instead
-import { normalizeDomain } from '@/lib/ma-intelligence/normalizeDomain';
+import { normalizeDomain } from '@/lib/remarketing/normalizeDomain';
 import { parseSpreadsheet, SPREADSHEET_ACCEPT } from '@/lib/parseSpreadsheet';
 
 // Import from unified import engine

@@ -7,6 +7,7 @@ import { StatusBadge, JsonBlock, ComparisonTable, SectionCard, EntityPicker } fr
 import type { AddLogFn } from './shared';
 
 const BUYER_FIELDS = [
+  'company_name',
   'business_summary',
   'target_industries',
   'target_services',
@@ -15,10 +16,10 @@ const BUYER_FIELDS = [
   'service_regions',
   'hq_state',
   'hq_city',
-  'min_revenue',
-  'max_revenue',
-  'min_ebitda',
-  'max_ebitda',
+  'target_revenue_min',
+  'target_revenue_max',
+  'target_ebitda_min',
+  'target_ebitda_max',
   'pe_firm_name',
   'thesis_summary',
   'data_last_updated',
@@ -46,27 +47,47 @@ export default function BuyerEnrichSection({ addLog, buyerId, onBuyerIdChange }:
     const t0 = Date.now();
     try {
       const { data: bData, error: bDataError } = await supabase
-        .from('buyers')
+        .from('remarketing_buyers')
         .select('*')
         .eq('id', buyerId)
         .single();
       if (bDataError) throw bDataError;
       setBefore(bData as Record<string, unknown> | null);
 
-      const { data, error: fnErr } = await supabase.functions.invoke('enrich-buyer', {
-        body: { buyerId },
-      });
-      const dur = Date.now() - t0;
+      // Queue buyer enrichment via shared queue utility
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([buyerId]);
 
-      if (fnErr) {
-        setError(String(fnErr));
-        addLog(`enrich-buyer for ${buyerId.slice(0, 8)}…`, dur, false);
-        return;
+      // Poll for completion (enrichment runs in background)
+      let attempts = 0;
+      let enrichmentDone = false;
+      while (attempts < 45 && !enrichmentDone) {
+        await new Promise(r => setTimeout(r, 4000));
+        attempts++;
+        const { data: queueItem } = await supabase
+          .from("buyer_enrichment_queue")
+          .select("status")
+          .eq("buyer_id", buyerId)
+          .order("queued_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (queueItem?.status === "completed" || queueItem?.status === "failed") {
+          enrichmentDone = true;
+          if (queueItem.status === "failed") {
+            setError("Enrichment failed in queue");
+            addLog(`enrich-buyer for ${buyerId.slice(0, 8)}… — queue failed`, Date.now() - t0, false);
+            return;
+          }
+        }
       }
+
+      const data = enrichmentDone
+        ? { success: true, message: "Enrichment completed via queue" }
+        : { success: true, message: "Enrichment queued — still running in background" };
       setResponse(data);
 
       const { data: aData, error: aDataError } = await supabase
-        .from('buyers')
+        .from('remarketing_buyers')
         .select('*')
         .eq('id', buyerId)
         .single();
@@ -74,8 +95,8 @@ export default function BuyerEnrichSection({ addLog, buyerId, onBuyerIdChange }:
       setAfter(aData as Record<string, unknown> | null);
 
       addLog(
-        `enrich-buyer for ${buyerId.slice(0, 8)}… (${data?.fieldsExtracted ?? '?'} fields, ${data?.dataCompleteness ?? '?'})`,
-        dur,
+        `enrich-buyer for ${buyerId.slice(0, 8)}… (enrichment ${enrichmentDone ? 'completed' : 'queued'})`,
+        Date.now() - t0,
       );
     } catch (e: any) {
       const dur = Date.now() - t0;

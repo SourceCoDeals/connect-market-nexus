@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminUsers } from '@/hooks/admin/use-admin-users';
 import { useAdminEmail } from '@/hooks/admin/use-admin-email';
-import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
 import { ApprovalEmailOptions } from '@/types/admin-users';
 
@@ -159,11 +158,8 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       setApprovedUser(user);
 
       // Step 2: Calculate Buyer Quality Score (fire-and-forget, non-blocking)
-      supabase.functions
-        .invoke('calculate-buyer-quality-score', { body: { profile_id: user.id } })
-        .then((res) => {
-          if (res.error) console.error('[UserActions] Quality score calc failed:', res.error);
-        })
+      import("@/lib/remarketing/queueScoring")
+        .then(({ queueBuyerQualityScoring }) => queueBuyerQualityScoring([user.id]))
         .catch((err) => console.error('[UserActions] Quality score calc error:', err));
 
       // Step 3: Send email

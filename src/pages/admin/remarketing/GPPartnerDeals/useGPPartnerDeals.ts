@@ -450,22 +450,14 @@ export function useGPPartnerDeals() {
         /* Non-blocking */
       }
 
-      sonnerToast.info(`Scoring ${targets.length} deals...`);
-      let successCount = 0;
-      for (const deal of targets) {
-        try {
-          await supabase.functions.invoke('calculate-deal-quality', {
-            body: { listingId: deal.id },
-          });
-          successCount++;
-          if (activityItem)
-            updateProgress.mutate({ id: activityItem.id, completedItems: successCount });
-        } catch {
-          /* continue */
-        }
+      try {
+        const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
+        const result = await queueDealQualityScoring({ listingIds: targets.map(d => d.id) });
+        if (activityItem)
+          updateProgress.mutate({ id: activityItem.id, completedItems: result.scored });
+      } catch {
+        /* continue */
       }
-
-      sonnerToast.success(`Scored ${successCount} of ${targets.length} deals`);
       if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: 'completed' });
       setIsScoring(false);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });

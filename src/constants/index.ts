@@ -44,8 +44,6 @@ export const ROUTES = {
   REMARKETING: '/admin/remarketing',
   REMARKETING_ACTIVITY_QUEUE: '/admin/remarketing/activity-queue',
 
-  // M&A Intelligence
-  MA_INTELLIGENCE: '/admin/ma-intelligence',
 } as const;
 
 // ── Pagination ───────────────────────────────────────────────────────

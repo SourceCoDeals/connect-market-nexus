@@ -77,14 +77,13 @@ export const useRequestConnection = () => {
       }
 
       // Calculate deal-specific buyer quality score (fire-and-forget)
-      supabase.functions
-        .invoke('calculate-buyer-quality-score', {
-          body: {
-            profile_id: userId,
+      import("@/lib/remarketing/queueScoring")
+        .then(({ queueBuyerQualityScoring }) =>
+          queueBuyerQualityScoring([userId], {
             deal_request_message: message?.trim() || null,
             connection_request_id: requestId,
-          },
-        })
+          })
+        )
         .catch((err) => console.error('Buyer quality score calc failed:', err));
 
       // Send notification email to user

@@ -32,13 +32,12 @@ export function BuyerQualityScorePanel({ user }: BuyerQualityScorePanelProps) {
   const handleRecalculate = async () => {
     setIsRecalculating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('calculate-buyer-quality-score', {
-        body: { profile_id: user.id },
-      });
-      if (error) throw error;
+      const { queueBuyerQualityScoring } = await import("@/lib/remarketing/queueScoring");
+      const result = await queueBuyerQualityScoring([user.id]);
+      if (result.errors > 0) throw new Error("Scoring failed");
       toast({
         title: 'Score recalculated',
-        description: `New score: ${data.total_score} (Tier ${data.tier})`,
+        description: 'Buyer quality score updated',
       });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     } catch (err) {
