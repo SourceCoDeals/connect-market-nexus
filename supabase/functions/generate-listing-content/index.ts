@@ -338,9 +338,6 @@ function buildDataContext(
     'seller_motivation',
     'owner_goals',
     'transition_preferences',
-    'revenue_breakdown',
-    'asking_price',
-    'valuation_multiple',
   ];
   const manualEntries = manualFields
     .filter((f) => deal[f] != null && deal[f] !== '')
@@ -356,10 +353,10 @@ function buildDataContext(
       'revenue',
       'ebitda',
       'industry',
-      'state',
-      'years_in_business',
-      'growth_rate',
-      'recurring_revenue_percentage',
+      'region',
+      'growth_trend',
+      'revenue_model',
+      'locations_count',
     ];
     valuationStr = valFields
       .filter((f) => valuationData[f] != null)
