@@ -1,4 +1,13 @@
-import { useState } from "react";
+/**
+ * PassReasonDialog — M&A Intelligence variant.
+ *
+ * This version handles its own Supabase mutation to buyer_deal_scores.
+ * A separate PassReasonDialog exists at src/components/remarketing/PassReasonDialog.tsx
+ * for the Remarketing scoring flow. That variant is purely presentational (callback-based)
+ * and writes to remarketing_scores. The two differ enough in data model and UX to remain
+ * separate.
+ */
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,20 +15,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+} from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface PassReasonDialogProps {
   buyerId: string;
@@ -30,12 +39,12 @@ interface PassReasonDialogProps {
 }
 
 const PASS_CATEGORIES = [
-  { value: "geography", label: "Geography" },
-  { value: "size", label: "Size Criteria" },
-  { value: "service_mix", label: "Service Mix" },
-  { value: "business_model", label: "Business Model" },
-  { value: "owner_goals", label: "Owner Goals" },
-  { value: "other", label: "Other" },
+  { value: 'geography', label: 'Geography' },
+  { value: 'size', label: 'Size Criteria' },
+  { value: 'service_mix', label: 'Service Mix' },
+  { value: 'business_model', label: 'Business Model' },
+  { value: 'owner_goals', label: 'Owner Goals' },
+  { value: 'other', label: 'Other' },
 ];
 
 export function PassReasonDialog({
@@ -45,18 +54,18 @@ export function PassReasonDialog({
   onClose,
   onPass,
 }: PassReasonDialogProps) {
-  const [category, setCategory] = useState<string>("");
-  const [reason, setReason] = useState("");
-  const [notes, setNotes] = useState("");
+  const [category, setCategory] = useState<string>('');
+  const [reason, setReason] = useState('');
+  const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async () => {
     if (!category || !reason) {
       toast({
-        title: "Missing information",
-        description: "Please select a category and provide a reason",
-        variant: "destructive",
+        title: 'Missing information',
+        description: 'Please select a category and provide a reason',
+        variant: 'destructive',
       });
       return;
     }
@@ -66,17 +75,17 @@ export function PassReasonDialog({
     try {
       // Check if a score record exists
       const { data: existingScore, error: existingScoreError } = await supabase
-        .from("buyer_deal_scores")
-        .select("id")
-        .eq("buyer_id", buyerId)
-        .eq("deal_id", dealId)
+        .from('buyer_deal_scores')
+        .select('id')
+        .eq('buyer_id', buyerId)
+        .eq('deal_id', dealId)
         .single();
       if (existingScoreError) throw existingScoreError;
 
       if (existingScore) {
         // Update existing record
         const { error } = await supabase
-          .from("buyer_deal_scores")
+          .from('buyer_deal_scores')
           .update({
             passed_on_deal: true,
             passed_at: new Date().toISOString(),
@@ -84,12 +93,12 @@ export function PassReasonDialog({
             pass_reason: reason,
             pass_notes: notes || null,
           })
-          .eq("id", existingScore.id);
+          .eq('id', existingScore.id);
 
         if (error) throw error;
       } else {
         // Create new record
-        const { error } = await supabase.from("buyer_deal_scores").insert({
+        const { error } = await supabase.from('buyer_deal_scores').insert({
           buyer_id: buyerId,
           deal_id: dealId,
           passed_on_deal: true,
@@ -103,21 +112,21 @@ export function PassReasonDialog({
       }
 
       toast({
-        title: "Passed on deal",
-        description: "The buyer has been marked as passed for this deal",
+        title: 'Passed on deal',
+        description: 'The buyer has been marked as passed for this deal',
       });
 
       // Reset form
-      setCategory("");
-      setReason("");
-      setNotes("");
+      setCategory('');
+      setReason('');
+      setNotes('');
       onPass();
       onClose();
     } catch (error: any) {
       toast({
-        title: "Error passing on deal",
+        title: 'Error passing on deal',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsSubmitting(false);
