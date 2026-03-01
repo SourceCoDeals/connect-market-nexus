@@ -157,6 +157,8 @@ export default function CreateListingFromDeal() {
           } as AdminListing;
         });
         toast.success('AI content generated — review and adjust as needed.');
+      }).catch(() => {
+        // Errors are already handled inside generateContent with a toast
       });
     }
   }, [prefilled, dealId, aiApplied, isGenerating, generateContent]);
