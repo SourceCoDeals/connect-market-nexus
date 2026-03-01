@@ -1,25 +1,32 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Plus,
-  Upload,
-  Search,
-  CheckSquare
-} from "lucide-react";
-import { InboundLead, useCreateInboundLead, useMapLeadToListing, useConvertLeadToRequest, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
-import { useEnhancedBulkLeadOperations } from "@/hooks/admin/use-enhanced-bulk-lead-operations";
-import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { CreateInboundLeadDialog } from "./CreateInboundLeadDialog";
-import { BulkLeadImportDialog } from "./BulkLeadImportDialog";
-import { LeadMappingDialog } from "./LeadMappingDialog";
-import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
-import { CompactLeadCard } from "./CompactLeadCard";
-import { BulkLeadActions } from "./BulkLeadActions";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Plus, Upload, Search, CheckSquare } from 'lucide-react';
+import {
+  InboundLead,
+  useCreateInboundLead,
+  useMapLeadToListing,
+  useConvertLeadToRequest,
+  DuplicateCheckResult,
+} from '@/hooks/admin/use-inbound-leads';
+import { useEnhancedBulkLeadOperations } from '@/hooks/admin/use-enhanced-bulk-lead-operations';
+import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { CreateInboundLeadDialog } from './CreateInboundLeadDialog';
+import { BulkLeadImportDialog } from './BulkLeadImportDialog';
+import { LeadMappingDialog } from './LeadMappingDialog';
+import { DuplicateWarningDialog } from './DuplicateWarningDialog';
+import { CompactLeadCard } from './CompactLeadCard';
+import { BulkLeadActions } from './BulkLeadActions';
 
 interface InboundLeadsTableProps {
   leads: InboundLead[];
@@ -55,7 +62,9 @@ const InboundLeadsTableEmpty = () => (
     <CardContent className="flex flex-col items-center justify-center py-16">
       <Search className="h-16 w-16 text-muted-foreground mb-4" />
       <h3 className="text-xl font-semibold text-muted-foreground mb-2">No inbound leads found</h3>
-      <p className="text-sm text-muted-foreground">Inbound leads from various sources will appear here.</p>
+      <p className="text-sm text-muted-foreground">
+        Inbound leads from various sources will appear here.
+      </p>
     </CardContent>
   </Card>
 );
@@ -64,7 +73,7 @@ export const InboundLeadsTable = ({
   leads,
   isLoading,
   onConvertToRequest,
-  onArchive
+  onArchive,
 }: InboundLeadsTableProps) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isBulkImportDialogOpen, setIsBulkImportDialogOpen] = useState(false);
@@ -72,23 +81,27 @@ export const InboundLeadsTable = ({
   const [isMappingDialogOpen, setIsMappingDialogOpen] = useState(false);
   const [isDuplicateWarningOpen, setIsDuplicateWarningOpen] = useState(false);
   const [duplicateResult, setDuplicateResult] = useState<DuplicateCheckResult | null>(null);
-  const [pendingMappingData, setPendingMappingData] = useState<{ listingId: string; listingTitle: string } | null>(null);
-  
+  const [pendingMappingData, setPendingMappingData] = useState<{
+    listingId: string;
+    listingTitle: string;
+  } | null>(null);
+
   // Filters and search
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+
   // Bulk selection
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
-  
+
   const { mutate: createLead, isPending: isCreating } = useCreateInboundLead();
   const { mutate: mapLeadToListing, isPending: isMapping } = useMapLeadToListing();
   const { mutate: convertLead, isPending: _isConverting } = useConvertLeadToRequest();
-  
+
   // Enhanced bulk operations
-  const { bulkImportWithMapping, isLoading: isBulkOperationLoading } = useEnhancedBulkLeadOperations();
+  const { bulkImportWithMapping, isLoading: isBulkOperationLoading } =
+    useEnhancedBulkLeadOperations();
 
   const handleMapToListing = (lead: InboundLead) => {
     setSelectedLead(lead);
@@ -97,21 +110,26 @@ export const InboundLeadsTable = ({
 
   const handleConfirmMapping = (listingId: string, listingTitle: string) => {
     if (selectedLead) {
-      mapLeadToListing({
-        leadId: selectedLead.id,
-        listingId,
-        listingTitle
-      }, {
-        onError: (error: any) => {
-          if (error.isDuplicateError) {
-            // Handle duplicate detection
-            setDuplicateResult(error.duplicateResult);
-            setPendingMappingData({ listingId, listingTitle });
-            setIsDuplicateWarningOpen(true);
-            setIsMappingDialogOpen(false);
-          }
-        }
-      });
+      mapLeadToListing(
+        {
+          leadId: selectedLead.id,
+          listingId,
+          listingTitle,
+        },
+        {
+          onError: (
+            error: Error & { isDuplicateError?: boolean; duplicateResult?: DuplicateCheckResult },
+          ) => {
+            if (error.isDuplicateError) {
+              // Handle duplicate detection
+              setDuplicateResult(error.duplicateResult ?? null);
+              setPendingMappingData({ listingId, listingTitle });
+              setIsDuplicateWarningOpen(true);
+              setIsMappingDialogOpen(false);
+            }
+          },
+        },
+      );
     }
   };
 
@@ -121,7 +139,7 @@ export const InboundLeadsTable = ({
         leadId: selectedLead.id,
         listingId: pendingMappingData.listingId,
         listingTitle: pendingMappingData.listingTitle,
-        skipDuplicateCheck: true
+        skipDuplicateCheck: true,
       });
       setIsDuplicateWarningOpen(false);
       setIsMappingDialogOpen(false);
@@ -134,7 +152,7 @@ export const InboundLeadsTable = ({
   const handleMergeWithExisting = (requestId: string) => {
     // For now, just show a toast - in a full implementation this would open the connection request
     toast({
-      title: "Opening connection request",
+      title: 'Opening connection request',
       description: `Navigating to connection request ${requestId}`,
     });
     setIsDuplicateWarningOpen(false);
@@ -147,44 +165,48 @@ export const InboundLeadsTable = ({
   // Filter leads based on search and filters
   const filteredLeads = leads.filter((lead) => {
     // Hide archived leads from main view unless specifically filtered for them
-    const showArchived = statusFilter === "archived";
-    if (lead.status === "archived" && !showArchived) {
+    const showArchived = statusFilter === 'archived';
+    if (lead.status === 'archived' && !showArchived) {
       return false;
     }
-    
-    const matchesSearch = searchTerm === "" || 
+
+    const matchesSearch =
+      searchTerm === '' ||
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.company_name && lead.company_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    const matchesSource = sourceFilter === "all" || lead.source === sourceFilter;
-    
+
+    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+    const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
+
     return matchesSearch && matchesStatus && matchesSource;
   });
 
-  const selectedLeads = filteredLeads.filter(lead => selectedLeadIds.has(lead.id));
+  const selectedLeads = filteredLeads.filter((lead) => selectedLeadIds.has(lead.id));
 
   const handleBulkCreate = async (
-    leadsData: unknown[], 
-    listingId?: string, 
-    listingTitle?: string, 
-    shouldConvert?: boolean
+    leadsData: unknown[],
+    listingId?: string,
+    listingTitle?: string,
+    shouldConvert?: boolean,
   ) => {
     bulkImportWithMapping.mutate({
       leads: leadsData,
       listingId,
       listingTitle,
-      shouldConvert
+      shouldConvert,
     });
   };
 
   const handleBulkMap = async (listingId: string, listingTitle: string) => {
-    const pendingLeads = selectedLeads.filter(lead => lead.status === 'pending');
-    
+    const pendingLeads = selectedLeads.filter((lead) => lead.status === 'pending');
+
     try {
       // Get current admin user ID
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError || !user) throw new Error('Authentication required');
 
       let successCount = 0;
@@ -210,22 +232,22 @@ export const InboundLeadsTable = ({
 
       if (successCount > 0) {
         toast({
-          title: "Bulk mapping completed",
+          title: 'Bulk mapping completed',
           description: `Successfully mapped ${successCount} of ${pendingLeads.length} leads`,
         });
       }
     } catch (error: unknown) {
       toast({
-        variant: "destructive",
-        title: "Mapping failed",
-        description: error.message || 'Failed to map leads',
+        variant: 'destructive',
+        title: 'Mapping failed',
+        description: error instanceof Error ? error.message : 'Failed to map leads',
       });
     }
   };
 
   const handleBulkConvert = async () => {
-    const mappedLeads = selectedLeads.filter(lead => lead.status === 'mapped');
-    
+    const mappedLeads = selectedLeads.filter((lead) => lead.status === 'mapped');
+
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
@@ -238,11 +260,11 @@ export const InboundLeadsTable = ({
               successCount++;
               resolve(null);
             },
-            onError: (error: any) => {
+            onError: (error: Error) => {
               errorCount++;
               errors.push(`${lead.name}: ${error.message}`);
               reject(error);
-            }
+            },
           });
         });
       } catch (error) {
@@ -252,15 +274,15 @@ export const InboundLeadsTable = ({
 
     if (successCount > 0) {
       toast({
-        title: "Bulk conversion completed",
+        title: 'Bulk conversion completed',
         description: `Successfully converted ${successCount} of ${mappedLeads.length} leads`,
       });
     }
 
     if (errorCount > 0) {
       toast({
-        variant: "destructive",
-        title: "Some conversions failed",
+        variant: 'destructive',
+        title: 'Some conversions failed',
         description: `${errorCount} leads failed to convert. Check for duplicates.`,
       });
     }
@@ -280,7 +302,7 @@ export const InboundLeadsTable = ({
     if (selectedLeadIds.size === filteredLeads.length) {
       setSelectedLeadIds(new Set());
     } else {
-      setSelectedLeadIds(new Set(filteredLeads.map(lead => lead.id)));
+      setSelectedLeadIds(new Set(filteredLeads.map((lead) => lead.id)));
     }
   };
 
@@ -298,14 +320,11 @@ export const InboundLeadsTable = ({
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row gap-4 justify-between">
         <div className="flex gap-3">
-          <Button 
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Lead
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={() => setIsBulkImportDialogOpen(true)}
             className="flex items-center gap-2"
@@ -386,18 +405,13 @@ export const InboundLeadsTable = ({
         <div className="space-y-4">
           {isSelectMode && (
             <div className="flex items-center gap-2 text-sm">
-              <button
-                onClick={handleSelectAll}
-                className="text-primary hover:underline"
-              >
+              <button onClick={handleSelectAll} className="text-primary hover:underline">
                 {selectedLeadIds.size === filteredLeads.length ? 'Deselect All' : 'Select All'}
               </button>
-              <span className="text-muted-foreground">
-                ({selectedLeadIds.size} selected)
-              </span>
+              <span className="text-muted-foreground">({selectedLeadIds.size} selected)</span>
             </div>
           )}
-          
+
           {/* 2-3 Column Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
             {filteredLeads.map((lead) => (
@@ -426,7 +440,7 @@ export const InboundLeadsTable = ({
         }}
         isLoading={isCreating}
       />
-      
+
       <BulkLeadImportDialog
         isOpen={isBulkImportDialogOpen}
         onClose={() => setIsBulkImportDialogOpen(false)}
@@ -456,9 +470,9 @@ export const InboundLeadsTable = ({
         onProceed={handleProceedWithMapping}
         onMerge={handleMergeWithExisting}
         duplicateResult={duplicateResult}
-        leadEmail={selectedLead?.email || ""}
-        leadCompany={selectedLead?.company_name || ""}
-        listingTitle={pendingMappingData?.listingTitle || ""}
+        leadEmail={selectedLead?.email || ''}
+        leadCompany={selectedLead?.company_name || ''}
+        listingTitle={pendingMappingData?.listingTitle || ''}
       />
     </div>
   );

@@ -7,7 +7,7 @@ export const STEPS = [
   'Account Information',
   'Personal Details',
   'Buyer Profile',
-  'Investment Criteria'
+  'Investment Criteria',
 ];
 
 export const useSignupForm = () => {
@@ -15,18 +15,23 @@ export const useSignupForm = () => {
   const [currentStep, setCurrentStep] = useState(0);
 
   const form = useForm<SignupFormData>({
-    resolver: zodResolver(signupFormSchema as any),
+    resolver: zodResolver(signupFormSchema as unknown as Parameters<typeof zodResolver>[0]),
     defaultValues: {
       email: '',
       password: '',
       firstName: '',
       lastName: '',
       company: '',
-      buyerType: 'privateEquity'
-    }
+      buyerType: 'privateEquity',
+    },
   });
 
-  const { watch, setValue, handleSubmit, formState: { errors } } = form;
+  const {
+    watch,
+    setValue,
+    handleSubmit,
+    formState: { errors },
+  } = form;
   const buyerType = watch('buyerType');
 
   const onSubmit = async (data: SignupFormData) => {
@@ -110,7 +115,7 @@ export const useSignupForm = () => {
         // New Step 4 fields
         deal_intent: data.dealIntent,
         exclusions: data.exclusions,
-        include_keywords: data.includeKeywords
+        include_keywords: data.includeKeywords,
       };
 
       await signup(userData, data.password);
@@ -132,10 +137,12 @@ export const useSignupForm = () => {
         // Check buyer-specific required fields
         switch (type) {
           case 'searchFund':
-            return watch('searchType') &&
-                   watch('acqEquityBand') &&
-                   (watch('financingPlan')?.length ?? 0) > 0 &&
-                   watch('flexSub2mEbitda') !== undefined;
+            return (
+              watch('searchType') &&
+              watch('acqEquityBand') &&
+              (watch('financingPlan')?.length ?? 0) > 0 &&
+              watch('flexSub2mEbitda') !== undefined
+            );
           case 'privateEquity':
             return watch('deployingCapitalNow');
           case 'corporate':
@@ -143,9 +150,11 @@ export const useSignupForm = () => {
           case 'familyOffice':
             return watch('discretionType');
           case 'independentSponsor':
-            return watch('committedEquityBand') &&
-                   (watch('equitySource')?.length ?? 0) > 0 &&
-                   watch('flexSubXmEbitda') !== undefined;
+            return (
+              watch('committedEquityBand') &&
+              (watch('equitySource')?.length ?? 0) > 0 &&
+              watch('flexSubXmEbitda') !== undefined
+            );
           case 'individual':
             return watch('fundingSource') && watch('needsLoan') && watch('idealTarget');
           default:
@@ -168,6 +177,6 @@ export const useSignupForm = () => {
     setCurrentStep,
     isLoading,
     onSubmit,
-    canProceed
+    canProceed,
   };
 };

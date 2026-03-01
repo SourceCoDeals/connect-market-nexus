@@ -284,8 +284,8 @@ serve(async (req: Request) => {
           const errorText = await docusealResponse.text();
           console.error('❌ DocuSeal NDA creation failed:', errorText);
         }
-      } catch (docuError: any) {
-        if (docuError.name === 'AbortError') {
+      } catch (docuError: unknown) {
+        if (docuError instanceof Error && docuError.name === 'AbortError') {
           console.error('⚠️ DocuSeal NDA creation timed out');
         } else {
           console.error('⚠️ DocuSeal NDA creation error:', docuError);

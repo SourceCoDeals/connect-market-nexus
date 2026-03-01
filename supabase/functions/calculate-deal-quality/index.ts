@@ -27,7 +27,7 @@ function estimateEmployeesFromRange(range: string | null): number {
   return 0;
 }
 
-function calculateScoresFromData(deal: any): DealQualityScores {
+function calculateScoresFromData(deal: Record<string, unknown>): DealQualityScores {
   const notes: string[] = [];
 
   const normalizeFinancial = (val: number): number => {
@@ -37,17 +37,18 @@ function calculateScoresFromData(deal: any): DealQualityScores {
     return val;
   };
 
-  const revenue = normalizeFinancial(deal.revenue || 0);
-  const ebitda = normalizeFinancial(deal.ebitda || 0);
+  const revenue = normalizeFinancial(Number(deal.revenue) || 0);
+  const ebitda = normalizeFinancial(Number(deal.ebitda) || 0);
   const hasFinancials = revenue > 0 || ebitda > 0;
 
   // Employee waterfall: LinkedIn count → LinkedIn range → website (FT+PT) → team page
-  const totalWebsiteEmployees = (deal.full_time_employees || 0) + (deal.part_time_employees || 0);
-  let employeeCount = deal.linkedin_employee_count || 0;
+  const totalWebsiteEmployees =
+    (Number(deal.full_time_employees) || 0) + (Number(deal.part_time_employees) || 0);
+  let employeeCount = Number(deal.linkedin_employee_count) || 0;
   let employeeSource = 'linkedin';
 
   if (!employeeCount && deal.linkedin_employee_range) {
-    employeeCount = estimateEmployeesFromRange(deal.linkedin_employee_range);
+    employeeCount = estimateEmployeesFromRange(deal.linkedin_employee_range as string | null);
     employeeSource = 'linkedin_range';
   }
   if (!employeeCount && totalWebsiteEmployees > 0) {
@@ -636,7 +637,9 @@ serve(async (req) => {
           offset: nextOffset,
           scoredSoFar: nextScoredSoFar,
         }),
-      }).catch((err: unknown) => { console.warn('[deal-quality] Continuation trigger failed:', err); });
+      }).catch((err: unknown) => {
+        console.warn('[deal-quality] Continuation trigger failed:', err);
+      });
     } else if (batchSource && listingsToScore.length < BATCH_SIZE && globalQueueId) {
       // Last batch — mark complete
       const totalScoredSoFar = scoredSoFar + scored;
