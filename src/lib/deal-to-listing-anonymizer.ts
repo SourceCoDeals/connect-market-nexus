@@ -4,7 +4,7 @@
  * information from text fields while mapping deal fields to listing fields.
  */
 
-interface DealData {
+export interface DealData {
   id: string;
   title: string | null;
   internal_company_name: string | null;
@@ -30,7 +30,6 @@ interface DealData {
   geographic_states: string[] | null;
   internal_deal_memo_link: string | null;
   // Enrichment fields for landing page content
-  customer_segments?: string[] | null;
   customer_geography?: string | null;
   customer_types?: string | null;
   business_model?: string | null;
