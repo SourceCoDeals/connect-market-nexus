@@ -68,9 +68,10 @@ interface DealMatchedBuyersTabProps {
   dealId: string;
 }
 
+import type { SortDirection } from "@/types";
+
 type FilterTab = "all" | "selected" | "interested" | "passed" | "hidden" | "unscored";
 type SortField = "score" | "name" | "pe_firm" | "status";
-type SortDirection = "asc" | "desc";
 
 export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
   const navigate = useNavigate();

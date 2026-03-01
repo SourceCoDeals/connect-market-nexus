@@ -22,11 +22,11 @@ export const formatGeographyBadges = (states: string[] | null): string | null =>
   return `${states.slice(0, 2).join(', ')} +${states.length - 2}`;
 };
 
-export const formatCurrency = (value: number | null) => {
+import { formatCurrency as _formatCurrency } from '@/lib/currency-utils';
+
+export const formatCurrency = (value: number | null): string => {
   if (!value) return "\u2014";
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value}`;
+  return _formatCurrency(value);
 };
 
 export const formatWebsiteDomain = (website: string | null) => {

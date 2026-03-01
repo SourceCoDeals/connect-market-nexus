@@ -75,4 +75,4 @@ export type SortColumn =
   | "owner"
   | "priority";
 
-export type SortDirection = "asc" | "desc";
+export type { SortDirection } from "@/types";

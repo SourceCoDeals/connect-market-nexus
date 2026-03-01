@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2, Users, Search, FileCheck, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 
+import type { SortDirection } from "@/types";
+
 type SortColumn = "name" | "pe_firm" | "industry";
-type SortDirection = "asc" | "desc";
 
 interface BuyerRow {
   id: string;

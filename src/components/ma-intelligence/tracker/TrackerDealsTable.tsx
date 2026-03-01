@@ -37,8 +37,9 @@ import {
 import type { MADeal } from "@/lib/ma-intelligence/types";
 import { formatDistanceToNow } from "date-fns";
 
+import type { SortDirection } from "@/types";
+
 type SortColumn = "name" | "location" | "revenue" | "ebitda" | "score" | "added";
-type SortDirection = "asc" | "desc";
 
 interface TrackerDealsTableProps {
   deals: MADeal[];

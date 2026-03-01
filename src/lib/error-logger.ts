@@ -71,7 +71,7 @@ class ErrorLogger {
     // Console log for development
     if (process.env.NODE_ENV === 'development') {
       const logMethod = level === 'error' ? console.error : 
-                       level === 'warning' ? console.warn : console.log;
+                       level === 'warning' ? console.warn : console.info;
       logMethod(`[${level.toUpperCase()}] ${entry.message}`, {
         context,
         stack: entry.stack

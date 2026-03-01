@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency } from '@/lib/currency-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,12 +45,7 @@ interface MarketplaceQueueDeal {
   deal_source: string | null;
 }
 
-const formatCurrency = (value: number | null) => {
-  if (!value) return '—';
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value}`;
-};
+/* formatCurrency imported from @/lib/currency-utils */
 
 const MarketplaceQueue = () => {
   const navigate = useNavigate();

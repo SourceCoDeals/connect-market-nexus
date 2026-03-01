@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/currency-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,11 +57,9 @@ interface DealRow {
   linkedin_employee_range?: string | null;
 }
 
-const formatCurrency = (value: number | null) => {
+const formatCurrencyOrDash = (value: number | null) => {
   if (!value) return "-";
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
+  return formatCurrency(value);
 };
 
 const statusBadge = (status: string | undefined, source: "listing" | "submission") => {
@@ -372,10 +371,10 @@ export default function ReferralTrackerPage() {
                           ) : <span className="text-muted-foreground">-</span>}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm text-right truncate">
-                          {formatCurrency(deal.revenue)}
+                          {formatCurrencyOrDash(deal.revenue)}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm text-right truncate">
-                          {formatCurrency(deal.ebitda)}
+                          {formatCurrencyOrDash(deal.ebitda)}
                         </TableCell>
                         <TableCell className="text-sm">
                           {deal.linkedin_employee_count ? (

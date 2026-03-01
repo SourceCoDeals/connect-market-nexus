@@ -29,8 +29,9 @@ interface NonMarketplaceUsersTableProps {
   onToggleSelectAll: () => void;
 }
 
+import type { SortDirection } from "@/types";
+
 type SortColumn = "name" | "company" | "source" | "engagement" | "created_at" | "last_activity";
-type SortDirection = "asc" | "desc";
 
 const SourceBadge = ({ source }: { source: "connection_request" | "inbound_lead" | "deal" }) => {
   const config = {

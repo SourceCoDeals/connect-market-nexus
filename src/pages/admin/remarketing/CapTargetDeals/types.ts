@@ -50,7 +50,7 @@ export type SortColumn =
   | 'google_rating'
   | 'priority';
 
-export type SortDirection = 'asc' | 'desc';
+export type { SortDirection } from '@/types';
 
 export interface SyncProgress {
   inserted: number;

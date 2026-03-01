@@ -22,6 +22,9 @@ export type ListingStatus = 'active' | 'inactive';
 
 export type ConnectionRequestStatus = 'pending' | 'approved' | 'rejected';
 
+/** Table sort direction — canonical definition used across all sortable tables. */
+export type SortDirection = 'asc' | 'desc';
+
 /** Severity levels used by the error handling subsystem. */
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
 

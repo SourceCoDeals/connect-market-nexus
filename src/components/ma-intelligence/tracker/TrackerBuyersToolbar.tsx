@@ -15,13 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Search, Plus, Sparkles, Target, FileUp, MoreVertical, GitMerge, Pause, Play } from "lucide-react";
-
-interface EnrichmentProgress {
-  current: number;
-  total: number;
-  isPaused: boolean;
-  completedIds: string[];
-}
+import type { EnrichmentProgress } from "@/lib/ma-intelligence/types";
 
 interface TrackerBuyersToolbarProps {
   selectedCount: number;

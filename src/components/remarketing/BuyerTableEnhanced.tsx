@@ -46,8 +46,9 @@ interface BuyerRow {
   alignment_checked_at?: string | null;
 }
 
+import type { SortDirection } from '@/types';
+
 type SortKey = 'company_name' | 'pe_firm_name' | 'alignment_score';
-type SortDirection = 'asc' | 'desc';
 
 interface SortConfig {
   key: SortKey;

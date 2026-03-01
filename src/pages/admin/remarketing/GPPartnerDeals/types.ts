@@ -50,7 +50,7 @@ export type SortColumn =
   | "pushed"
   | "priority";
 
-export type SortDirection = "asc" | "desc";
+export type { SortDirection } from "@/types";
 
 export interface NewDealForm {
   company_name: string;

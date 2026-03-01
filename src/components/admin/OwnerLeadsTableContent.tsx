@@ -29,8 +29,9 @@ const STATUS_OPTIONS = [
   { value: "closed", label: "Closed", color: "bg-emerald-100 text-emerald-800" },
 ];
 
+import type { SortDirection } from '@/types';
+
 type SortColumn = 'contacted' | 'contact' | 'company' | 'revenue' | 'timeline' | 'status' | 'date';
-type SortDirection = 'asc' | 'desc';
 
 function getStatusBadge(status: string) {
   const statusOption = STATUS_OPTIONS.find(s => s.value === status);

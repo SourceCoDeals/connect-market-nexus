@@ -19,12 +19,7 @@ interface TrackerBuyersTabProps {
   onBuyerCountChange?: (count: number) => void;
 }
 
-interface EnrichmentProgress {
-  current: number;
-  total: number;
-  isPaused: boolean;
-  completedIds: string[];
-}
+import type { EnrichmentProgress } from "@/lib/ma-intelligence/types";
 
 export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyersTabProps) {
   const [buyers, setBuyers] = useState<MABuyer[]>([]);
