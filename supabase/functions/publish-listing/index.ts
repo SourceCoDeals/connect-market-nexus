@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
@@ -15,26 +15,33 @@ interface ValidationResult {
 // Minimum quality requirements for marketplace publishing.
 // PDF memos are stored in data_room_documents, not on the listing itself,
 // so they must be checked separately via checkMemoPdfs().
-function validateListingQuality(listing: any): ValidationResult {
+function validateListingQuality(listing: Record<string, unknown>): ValidationResult {
   const errors: string[] = [];
 
-  if (!listing.title || listing.title.trim().length < 5) {
+  const title = listing.title as string | undefined;
+  const description = listing.description as string | undefined;
+  const category = listing.category as string | undefined;
+  const categories = listing.categories as string[] | undefined;
+  const location = listing.location as string | undefined;
+  const imageUrl = listing.image_url as string | undefined;
+
+  if (!title || title.trim().length < 5) {
     errors.push('Title must be at least 5 characters');
   }
 
-  if (!listing.description || listing.description.trim().length < 50) {
+  if (!description || description.trim().length < 50) {
     errors.push('Description must be at least 50 characters');
   }
 
-  if (!listing.category && (!listing.categories || listing.categories.length === 0)) {
+  if (!category && (!categories || categories.length === 0)) {
     errors.push('At least one category is required');
   }
 
-  if (!listing.location) {
+  if (!location) {
     errors.push('Location is required');
   }
 
-  if (typeof listing.revenue !== 'number' || listing.revenue <= 0) {
+  if (typeof listing.revenue !== 'number' || (listing.revenue as number) <= 0) {
     errors.push('Revenue must be a positive number');
   }
 
@@ -42,7 +49,7 @@ function validateListingQuality(listing: any): ValidationResult {
     errors.push('EBITDA is required');
   }
 
-  if (!listing.image_url || listing.image_url.trim().length === 0) {
+  if (!imageUrl || imageUrl.trim().length === 0) {
     errors.push('An image is required for marketplace listings');
   }
 
@@ -55,7 +62,7 @@ function validateListingQuality(listing: any): ValidationResult {
 // Check that the source deal (or the listing itself) has both memo PDFs
 // uploaded in data_room_documents.
 async function checkMemoPdfs(
-  supabaseAdmin: any,
+  supabaseAdmin: SupabaseClient,
   listingId: string,
   sourceDealId: string | null,
 ): Promise<string[]> {
@@ -70,10 +77,10 @@ async function checkMemoPdfs(
     .in('document_category', ['full_memo', 'anonymous_teaser']);
 
   const hasLeadMemo = docs?.some(
-    (d: any) => d.document_category === 'full_memo' && d.storage_path,
+    (d: { document_category: string; storage_path: string | null }) => d.document_category === 'full_memo' && d.storage_path,
   );
   const hasTeaser = docs?.some(
-    (d: any) => d.document_category === 'anonymous_teaser' && d.storage_path,
+    (d: { document_category: string; storage_path: string | null }) => d.document_category === 'anonymous_teaser' && d.storage_path,
   );
 
   if (!hasLeadMemo) {

@@ -75,7 +75,7 @@ export function useDealsActions({
   const handleRetryFailedEnrichment = useCallback(async () => {
     dismissSummary();
     if (!enrichmentSummary?.errors.length) return;
-    const failedIds = enrichmentSummary.errors.map((e: any) => e.listingId);
+    const failedIds = enrichmentSummary.errors.map((e: { listingId: string }) => e.listingId);
     const nowIso = new Date().toISOString();
     await supabase
       .from('enrichment_queue')

@@ -20,8 +20,26 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UniverseAssignmentButton } from '@/components/remarketing/deal-detail';
 
+interface DealForWebsiteActions {
+  needs_owner_contact?: boolean | null;
+  category?: string | null;
+  universe_build_flagged?: boolean | null;
+  pushed_to_marketplace?: boolean | null;
+  pushed_to_marketplace_at?: string | null;
+  website?: string | null;
+  revenue?: number | null;
+  ebitda?: number | null;
+  address_state?: string | null;
+  location?: string | null;
+  industry?: string | null;
+  executive_summary?: string | null;
+  description?: string | null;
+  main_contact_name?: string | null;
+  main_contact_email?: string | null;
+}
+
 interface WebsiteActionsCardProps {
-  deal: any;
+  deal: DealForWebsiteActions;
   dealId: string;
   effectiveWebsite: string | null;
   scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
@@ -193,7 +211,7 @@ export function WebsiteActionsCard({
   );
 }
 
-function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }) {
+function PushToMarketplaceButton({ deal, dealId }: { deal: DealForWebsiteActions; dealId: string }) {
   const queryClient = useQueryClient();
 
   // Check whether this deal has both memo PDF types uploaded.

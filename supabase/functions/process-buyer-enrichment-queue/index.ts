@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
         `Processing buyer ${item.buyer_id} (attempt ${item.attempts + 1}) [#${totalProcessed + 1} this run]`,
       );
 
-      const itemForce = (item as any).force === true;
+      const itemForce = item.force === true;
 
       // BUG-7 FIX: Improved freshness check — only skip if the ENRICHMENT PROCESS itself
       // updated the buyer recently, not just any edit. Previously, a manual note edit would
@@ -232,15 +232,15 @@ Deno.serve(async (req) => {
           const sources = Array.isArray(buyerData.extraction_sources)
             ? buyerData.extraction_sources
             : [];
-          const hasRecentEnrichmentSource = sources.some((src: any) => {
-            const srcType = src.type || src.source_type;
+          const hasRecentEnrichmentSource = sources.some((src: Record<string, unknown>) => {
+            const srcType = (src.type as string) || (src.source_type as string);
             const isEnrichmentSource =
               srcType === 'platform_website' ||
               srcType === 'pe_firm_website' ||
               srcType === 'transcript';
             if (!isEnrichmentSource) return false;
             // Check if this source's timestamp is within the freshness window
-            const srcTimestamp = src.extracted_at || src.timestamp;
+            const srcTimestamp = (src.extracted_at as string) || (src.timestamp as string);
             if (!srcTimestamp) return false;
             const srcMs = new Date(srcTimestamp).getTime();
             return Date.now() - srcMs < freshnessWindowMs;

@@ -6,7 +6,7 @@ import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarket
 import { useAuth } from "@/context/AuthContext";
 import type { SingleDealEnrichmentResult } from "./types";
 
-export function usePartnerActions(partnerId: string | undefined, partner: any, deals: unknown[] | undefined) {
+export function usePartnerActions(partnerId: string | undefined, partner: { share_token?: string | null } | null | undefined, deals: unknown[] | undefined) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();

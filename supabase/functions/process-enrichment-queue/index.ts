@@ -236,8 +236,8 @@ serve(async (req) => {
     // set even after partial failures (e.g., website scrape failed but timestamp was set).
     // Now requires enriched_at + at least one quality indicator (executive_summary or industry).
     // Items with force=true bypass this check (explicit re-enrichment request).
-    const forceItems = queueItems.filter((item: any) => item.force === true);
-    const nonForceItems = queueItems.filter((item: any) => item.force !== true);
+    const forceItems = queueItems.filter((item: { force?: boolean }) => item.force === true);
+    const nonForceItems = queueItems.filter((item: { force?: boolean }) => item.force !== true);
 
     if (forceItems.length > 0) {
       console.log(
@@ -419,7 +419,7 @@ serve(async (req) => {
                 serviceRoleKey: supabaseServiceKey,
                 listingId: item.listing_id,
                 timeoutMs: PROCESSING_TIMEOUT_MS,
-                force: (item as any).force === true,
+                force: (item as { force?: boolean }).force === true,
               },
               listing,
             );
@@ -534,10 +534,8 @@ serve(async (req) => {
         } else {
           // Promise rejected - network/timeout/uncaught error.
           // IMPORTANT: still update the queue row so it doesn't get stuck in `processing`.
-          const reason = result.reason as any;
-          const item = reason?.item as
-            | { id: string; listing_id: string; attempts: number }
-            | undefined;
+          const reason = result.reason as { item?: { id: string; listing_id: string; attempts: number }; error?: unknown } | undefined;
+          const item = reason?.item;
           const underlying = reason?.error;
 
           const errorMsg =
