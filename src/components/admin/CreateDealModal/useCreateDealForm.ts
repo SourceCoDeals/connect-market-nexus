@@ -42,7 +42,7 @@ export function useCreateDealForm(
   } | null>(null);
 
   const form = useForm<CreateDealFormData>({
-    resolver: zodResolver(createDealSchema as any),
+    resolver: zodResolver(createDealSchema),
     defaultValues: {
       title: '',
       description: '',
@@ -164,7 +164,7 @@ export function useCreateDealForm(
         }
       }
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         ...data,
         source: 'manual',
         nda_status: 'not_sent',

@@ -301,7 +301,7 @@ serve(async (req) => {
       transcript.sentences.length > 0
     ) {
       transcriptText = transcript.sentences
-        .map((s: any) => {
+        .map((s: { speaker_name?: string; text: string }) => {
           const speaker = s.speaker_name || 'Unknown';
           return `${speaker}: ${s.text}`;
         })

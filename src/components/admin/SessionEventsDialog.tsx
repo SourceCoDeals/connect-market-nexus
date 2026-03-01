@@ -8,7 +8,7 @@ import * as LucideIcons from "lucide-react";
 import { groupEventsByTime } from "@/lib/session-event-utils";
 import { ArrowRight } from "lucide-react";
 import EventPropertiesSheet from "./EventPropertiesSheet";
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 
 interface SessionEventsDialogProps {
   sessionId: string | null;
@@ -37,7 +37,7 @@ export default function SessionEventsDialog({
     : '';
 
   const getIcon = (iconName: string) => {
-    const Icon = (LucideIcons as Record<string, React.ComponentType<{ className?: string }>>)[iconName] || LucideIcons.Circle;
+    const Icon = (LucideIcons as Record<string, ComponentType<{ className?: string }>>)[iconName] || LucideIcons.Circle;
     return Icon;
   };
 

@@ -33,7 +33,7 @@ interface CheckResult {
   name: string;
   status: 'pass' | 'fail' | 'warn' | 'pending' | 'running';
   detail: string;
-  data?: any;
+  data?: Record<string, unknown>;
 }
 
 interface PipelineReport {
@@ -393,7 +393,7 @@ export default function ListingPipelineTest() {
                 Quick pick from marketplace queue
               </p>
               <div className="flex flex-wrap gap-2">
-                {queuedDeals.map((d: any) => (
+                {queuedDeals.map((d: { id: string; internal_company_name: string | null; title: string | null }) => (
                   <Button
                     key={d.id}
                     variant="outline"

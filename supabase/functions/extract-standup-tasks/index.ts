@@ -432,7 +432,7 @@ serve(async (req) => {
         .limit(1);
 
       if (deals && deals.length > 0) {
-        const deal = deals[0] as any;
+        const deal = deals[0] as { id: string; listing_id: string; stage_id: string; deal_stages: { name: string } | null; listings: { ebitda: number | null; title: string; internal_company_name: string } };
         return {
           id: deal.id,
           ebitda: deal.listings?.ebitda ?? null,
@@ -448,8 +448,8 @@ serve(async (req) => {
       .select('listing_id, listings!inner(ebitda)');
 
     const allEbitdaValues = (allDeals || [])
-      .map((d: any) => d.listings?.ebitda)
-      .filter((e: any): e is number => typeof e === 'number' && e > 0);
+      .map((d: { listing_id: string; listings: { ebitda: number | null } }) => d.listings?.ebitda)
+      .filter((e: unknown): e is number => typeof e === 'number' && e > 0);
 
     // 7. Create standup meeting record
     const { data: meeting, error: meetingError } = await supabase

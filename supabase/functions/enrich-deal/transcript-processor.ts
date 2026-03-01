@@ -10,9 +10,8 @@
  */
 
 import { mergeStates } from "../_shared/geography.ts";
-import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
+import { buildPriorityUpdates, updateExtractionSources, createFieldSource, type ExtractionSources } from "../_shared/source-priority.ts";
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import type { ExtractionSources } from "../_shared/source-priority.ts";
 import {
   NUMERIC_LISTING_FIELDS,
   mapTranscriptToListing,

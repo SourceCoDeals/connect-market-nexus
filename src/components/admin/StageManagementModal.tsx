@@ -307,7 +307,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   }, [stages]);
 
   const form = useForm<StageFormData>({
-    resolver: zodResolver(stageSchema as any),
+    resolver: zodResolver(stageSchema as Parameters<typeof zodResolver>[0]),
     defaultValues: {
       name: '',
       description: '',
@@ -316,7 +316,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   });
 
   const editForm = useForm<StageFormData>({
-    resolver: zodResolver(stageSchema as any),
+    resolver: zodResolver(stageSchema as Parameters<typeof zodResolver>[0]),
   });
 
   React.useEffect(() => {

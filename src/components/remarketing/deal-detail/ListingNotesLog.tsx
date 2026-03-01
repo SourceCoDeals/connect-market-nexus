@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+type UntypedTable = Parameters<typeof supabase.from>[0];
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,8 +76,8 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
   const { data: notes = [], isLoading: notesLoading } = useQuery<ListingNote[]>({
     queryKey: ["listing-notes", listingId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("listing_notes")
+      const { data, error } = await supabase
+        .from("listing_notes" as UntypedTable)
         .select(`*, admin:admin_id(email, first_name, last_name)`)
         .eq("listing_id", listingId)
         .order("created_at", { ascending: false });
@@ -90,8 +92,8 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
   const { data: transcripts = [], isLoading: transcriptsLoading } = useQuery<FirefliesTranscript[]>({
     queryKey: ["deal-meeting-summaries", listingId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("deal_transcripts")
+      const { data, error } = await supabase
+        .from("deal_transcripts" as UntypedTable)
         .select(
           "id, title, call_date, duration_minutes, transcript_url, has_content, extracted_data, created_at"
         )
@@ -137,7 +139,7 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
   const addNoteMutation = useMutation({
     mutationFn: async (noteText: string) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from("listing_notes").insert({
+      const { error } = await supabase.from("listing_notes" as UntypedTable).insert({
         listing_id: listingId,
         admin_id: user?.id,
         note: noteText,
@@ -156,8 +158,8 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
 
   const deleteNoteMutation = useMutation({
     mutationFn: async (noteId: string) => {
-      const { error } = await (supabase as any)
-        .from("listing_notes")
+      const { error } = await supabase
+        .from("listing_notes" as UntypedTable)
         .delete()
         .eq("id", noteId);
       if (error) throw error;

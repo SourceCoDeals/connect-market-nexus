@@ -1,6 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { DEFAULT_GEMINI_MODEL, callGeminiWithTool } from "../_shared/ai-providers.ts";
+
+interface ExtractionSource {
+  type: string;
+  transcript_id: string;
+  extracted_at: string;
+  fields_extracted?: string[];
+  status?: string;
+  note?: string;
+}
+
+interface RecentAcquisition {
+  company_name: string;
+  date?: string;
+  location?: string;
+}
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 interface ExtractTranscriptRequest {
@@ -239,7 +254,7 @@ function detectCEOInvolvement(transcript: string): boolean {
   return ceoPatterns.some(pattern => pattern.test(transcript));
 }
 
-async function createEngagementSignal(supabase: any, listingId: string, buyerId: string, signalType: string, signalValue: number) {
+async function createEngagementSignal(supabase: SupabaseClient, listingId: string, buyerId: string, signalType: string, signalValue: number) {
   const { error } = await supabase
     .from('engagement_signals')
     .insert({
@@ -616,7 +631,7 @@ If the transcript is primarily an evaluation of a target company (not a discussi
   return insights;
 }
 
-async function updateListingFromTranscript(supabase: any, listingId: string, insights: DealInsights, transcriptId: string) {
+async function updateListingFromTranscript(supabase: SupabaseClient, listingId: string, insights: DealInsights, transcriptId: string) {
   const updates: Record<string, unknown> = {};
 
   // Financial metrics
@@ -704,7 +719,7 @@ async function updateListingFromTranscript(supabase: any, listingId: string, ins
   }
 }
 
-async function updateBuyerFromTranscript(supabase: any, buyerId: string, insights: BuyerInsights, transcriptId: string) {
+async function updateBuyerFromTranscript(supabase: SupabaseClient, buyerId: string, insights: BuyerInsights, transcriptId: string) {
   const { data: existingBuyer } = await supabase
     .from('remarketing_buyers')
     .select('extraction_sources, thesis_summary, strategic_priorities, target_industries, services_offered, business_summary, operating_locations, geographic_footprint, key_quotes, target_geographies, acquisition_timeline, acquisition_appetite, acquisition_frequency, target_services, buyer_type, industry_vertical, revenue_model, recent_acquisitions, portfolio_companies, notes')
@@ -827,7 +842,7 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
 
   if (insights.recent_acquisitions?.length) {
     const existingAcqs = Array.isArray(existing.recent_acquisitions) ? existing.recent_acquisitions : [];
-    const existingNames = new Set(existingAcqs.map((a: any) => (a.company_name || '').toLowerCase()));
+    const existingNames = new Set(existingAcqs.map((a: RecentAcquisition) => (a.company_name || '').toLowerCase()));
     const newAcqs = insights.recent_acquisitions.filter(
       a => !existingNames.has((a.company_name || '').toLowerCase())
     );
@@ -868,7 +883,7 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
   }
 
   if (Object.keys(updates).length > 0) {
-    const existingSources = (existing.extraction_sources || []) as any[];
+    const existingSources = (existing.extraction_sources || []) as ExtractionSource[];
     const newSource = {
       type: 'transcript',
       transcript_id: transcriptId,
@@ -882,10 +897,10 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
     if (error) {
       console.error("Failed to update buyer from transcript:", error);
     } else {
-      console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields (thesis_summary: ${!!updates.thesis_summary}). Total extraction sources: ${(updates.extraction_sources as any[]).length}`);
+      console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields (thesis_summary: ${!!updates.thesis_summary}). Total extraction sources: ${(updates.extraction_sources as ExtractionSource[]).length}`);
     }
   } else if (insights.is_evaluation_call) {
-    const existingSources = (existing.extraction_sources || []) as any[];
+    const existingSources = (existing.extraction_sources || []) as ExtractionSource[];
     const insufficientUpdate: Record<string, unknown> = {
       extraction_sources: [
         ...existingSources,
@@ -904,7 +919,7 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
     if (error) {
       console.error("Failed to update buyer with insufficient status:", error);
     } else {
-      console.log(`[TranscriptExtraction] Marked transcript ${transcriptId} as insufficient for buyer ${buyerId} — no overwrites. Total extraction sources: ${(insufficientUpdate.extraction_sources as any[]).length}`);
+      console.log(`[TranscriptExtraction] Marked transcript ${transcriptId} as insufficient for buyer ${buyerId} — no overwrites. Total extraction sources: ${(insufficientUpdate.extraction_sources as ExtractionSource[]).length}`);
     }
   }
 }

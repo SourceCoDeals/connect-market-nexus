@@ -35,7 +35,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     let websites: string[] = [];
-    let buyer: any = null;
+    let buyer: { id: string; company_name: string; pe_firm_website: string | null; company_website: string | null } | null = null;
 
     // Get buyer info if buyerId provided (use remarketing_buyers — the active schema)
     if (buyerId) {
@@ -66,7 +66,15 @@ serve(async (req) => {
       });
     }
 
-    const allContacts: unknown[] = [];
+    interface DiscoveredContact {
+      name: string;
+      title?: string;
+      email?: string | null;
+      linkedin_url?: string | null;
+      role_category?: string;
+      source_url?: string;
+    }
+    const allContacts: DiscoveredContact[] = [];
 
     for (const website of websites) {
       try {
@@ -217,7 +225,7 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error('[find-buyer-contacts] Error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Internal server error' }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -228,7 +236,7 @@ async function extractContactsWithAI(
   content: string,
   sourceUrl: string,
   apiKey: string,
-): Promise<any[]> {
+): Promise<{ name: string; title?: string; email?: string | null; linkedin_url?: string | null; role_category?: string; source_url?: string }[]> {
   const systemPrompt = `You are an expert at extracting contact information from web pages. Extract all people mentioned with their roles.
 
 Return JSON array only:
@@ -283,8 +291,8 @@ Only include people with clear names and titles. Return empty array if no contac
     // Parse JSON from response
     const jsonMatch = responseContent.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      const contacts = JSON.parse(jsonMatch[0]);
-      return contacts.map((c: any) => ({ ...c, source_url: sourceUrl }));
+      const contacts = JSON.parse(jsonMatch[0]) as { name: string; title?: string; email?: string | null; linkedin_url?: string | null; role_category?: string }[];
+      return contacts.map((c) => ({ ...c, source_url: sourceUrl }));
     }
 
     return [];
@@ -343,16 +351,24 @@ async function searchLinkedInProfile(
   }
 }
 
-function dedupeContacts(contacts: unknown[]): unknown[] {
-  const seen = new Map<string, any>();
+interface DedupeContact {
+  name: string;
+  title?: string;
+  email?: string | null;
+  linkedin_url?: string | null;
+  role_category?: string;
+  source_url?: string;
+}
+
+function dedupeContacts(contacts: DedupeContact[]): DedupeContact[] {
+  const seen = new Map<string, DedupeContact>();
 
   for (const contact of contacts) {
     const key = contact.name.toLowerCase().trim();
     if (!seen.has(key)) {
       seen.set(key, contact);
     } else {
-      // Merge additional data
-      const existing = seen.get(key);
+      const existing = seen.get(key)!;
       if (!existing.email && contact.email) existing.email = contact.email;
       if (!existing.linkedin_url && contact.linkedin_url)
         existing.linkedin_url = contact.linkedin_url;

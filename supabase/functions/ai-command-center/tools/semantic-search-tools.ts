@@ -4,8 +4,7 @@
  * Falls back to keyword search when embeddings aren't available.
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from "../../_shared/claude-client.ts";
 import type { ToolResult } from "./index.ts";
 
@@ -186,7 +185,7 @@ async function searchBuyerTranscripts(
   terms: string[],
   buyerId: string | undefined,
   limit: number,
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   // buyer_transcripts has title, summary, key_points — but NOT transcript_text
   // Search across title and summary columns
   const titleFilters = terms.slice(0, 5).map(t => `title.ilike.%${t}%`);
@@ -209,10 +208,9 @@ async function searchBuyerTranscripts(
     return [];
   }
 
-  return (data || []).map((d: any) => ({
+  return (data || []).map((d: Record<string, unknown>) => ({
     ...d,
-    // Use summary as transcript_text for downstream snippet extraction
-    transcript_text: d.summary || d.title || '',
+    transcript_text: (d.summary as string) || (d.title as string) || '',
     source_type: 'buyer_transcript',
   }));
 }
@@ -221,7 +219,7 @@ async function searchDealTranscripts(
   supabase: SupabaseClient,
   terms: string[],
   limit: number,
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   // Search transcript_text and title for deal transcripts
   const textFilters = terms.slice(0, 5).map(t => `transcript_text.ilike.%${t}%`);
   const titleFilters = terms.slice(0, 5).map(t => `title.ilike.%${t}%`);
@@ -232,7 +230,7 @@ async function searchDealTranscripts(
     .from('deal_transcripts')
     .select('id, listing_id, title, transcript_text, call_date, created_at')
     .or(orFilters)
-    .neq('transcript_text', '') // Only return transcripts with actual content
+    .neq('transcript_text', '')
     .order('call_date', { ascending: false })
     .limit(limit);
 
@@ -241,7 +239,7 @@ async function searchDealTranscripts(
     return [];
   }
 
-  return (data || []).map((d: any) => ({
+  return (data || []).map((d: Record<string, unknown>) => ({
     ...d,
     source_type: 'deal_transcript',
     buyer_id: null,

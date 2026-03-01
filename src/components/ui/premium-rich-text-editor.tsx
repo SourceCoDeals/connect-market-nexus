@@ -21,7 +21,7 @@ import {
 import { Button } from './button';
 import { Separator } from './separator';
 import { cn } from '@/lib/utils';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 
 interface PremiumRichTextEditorProps {
   content: string;
@@ -137,7 +137,7 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
     return null;
   }
 
-  const ToolbarButton = ({ onClick, active, children, title, disabled }: { onClick: () => void; active?: boolean; children: React.ReactNode; title: string; disabled?: boolean }) => (
+  const ToolbarButton = ({ onClick, active, children, title, disabled }: { onClick: () => void; active?: boolean; children: ReactNode; title: string; disabled?: boolean }) => (
     <Button
       type="button"
       variant="ghost"

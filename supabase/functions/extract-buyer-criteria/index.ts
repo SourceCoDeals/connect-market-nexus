@@ -81,7 +81,7 @@ interface ExtractionResult {
 async function extractCriteriaFromGuide(
   guideContent: string,
   industryName: string,
-): Promise<unknown> {
+): Promise<ExtractionResult> {
   console.log('[EXTRACTION_START] Beginning criteria extraction');
   console.log(`[GUIDE_LENGTH] ${guideContent.length} characters, ~${Math.round(guideContent.split(/\s+/).length)} words`);
 
@@ -433,12 +433,12 @@ serve(async (req) => {
         }
       );
 
-    } catch (extractionError: any) {
+    } catch (extractionError: unknown) {
       await supabase
         .from('criteria_extraction_sources')
         .update({
           extraction_status: 'failed',
-          extraction_error: (extractionError as Error)?.message ?? String(extractionError),
+          extraction_error: extractionError instanceof Error ? extractionError.message : String(extractionError),
           extraction_completed_at: new Date().toISOString()
         })
         .eq('id', sourceRecord.id);
@@ -461,7 +461,7 @@ serve(async (req) => {
   }
 });
 
-async function applyToUniverse(supabase: any, universeId: string, buyers: unknown[]) {
+async function applyToUniverse(supabase: ReturnType<typeof createClient>, universeId: string, buyers: ExtractedBuyer[]) {
   if (!buyers || buyers.length === 0) return;
 
   // Source priority enforcement: check if transcript-sourced criteria already exist
@@ -517,18 +517,19 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: unknow
     return arr[idx];
   };
 
-  const universeUpdate: any = {};
+  const universeUpdate: Record<string, unknown> = {};
 
   if (revenueMinVals.length > 0 || revenueMaxVals.length > 0) {
-    universeUpdate.size_criteria = {
+    const sizeCriteria: Record<string, number | undefined> = {
       min_revenue: percentile(revenueMinVals, 0.25),
       max_revenue: percentile(revenueMaxVals, 0.75),
       min_ebitda: percentile(ebitdaMinVals, 0.25),
       max_ebitda: percentile(ebitdaMaxVals, 0.75),
     };
-    Object.keys(universeUpdate.size_criteria).forEach(key => {
-      if (universeUpdate.size_criteria[key] === undefined) delete universeUpdate.size_criteria[key];
+    Object.keys(sizeCriteria).forEach(key => {
+      if (sizeCriteria[key] === undefined) delete sizeCriteria[key];
     });
+    universeUpdate.size_criteria = sizeCriteria;
   }
 
   if (allStates.size > 0 || allRegions.size > 0) {
@@ -557,7 +558,7 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: unknow
 
   // Build target_buyer_types array from extracted buyer profiles
   // This populates the TargetBuyerTypesPanel in the UI
-  const targetBuyerTypes = buyers.map((buyer: any, index: number) => ({
+  const targetBuyerTypes = buyers.map((buyer: ExtractedBuyer, index: number) => ({
     id: buyer.buyer_identity?.name
       ? buyer.buyer_identity.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
       : `buyer_${index + 1}`,
@@ -575,7 +576,7 @@ async function applyToUniverse(supabase: any, universeId: string, buyers: unknow
     revenue_per_location: undefined,
     deal_requirements: buyer.buyer_profile?.typical_structure || undefined,
     enabled: true,
-  })).filter((t: any) => t.name);
+  })).filter((t: { name?: string }) => t.name);
 
   if (targetBuyerTypes.length > 0) {
     universeUpdate.target_buyer_types = targetBuyerTypes;

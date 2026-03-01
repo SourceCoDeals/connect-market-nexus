@@ -7,8 +7,7 @@
  *   get_score_history + get_buyer_learning_history → get_buyer_history (with history_type param)
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from "../../_shared/claude-client.ts";
 import type { ToolResult } from "./index.ts";
 
@@ -296,7 +295,7 @@ async function getInterestSignals(
     data: {
       signals,
       total: signals.length,
-      converted: signals.filter((s: any) => s.converted_to_connection).length,
+      converted: signals.filter((s: { converted_to_connection?: boolean }) => s.converted_to_connection).length,
     },
   };
 }

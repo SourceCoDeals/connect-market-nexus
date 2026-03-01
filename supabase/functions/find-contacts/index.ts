@@ -167,7 +167,7 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({
           contacts: cached.results,
           total_found: cached.results.length,
-          total_enriched: cached.results.filter((c: any) => c.email).length,
+          total_enriched: cached.results.filter((c: { email?: string }) => c.email).length,
           from_cache: true,
           search_duration_ms: Date.now() - startTime,
         }),

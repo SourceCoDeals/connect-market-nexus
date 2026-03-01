@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
 
 /**
  * docuseal-webhook-handler
@@ -65,12 +65,12 @@ function isValidDocumentUrl(url: string): boolean {
 }
 
 // Basic payload structure validation to ensure this is a real DocuSeal webhook
-function isValidDocuSealPayload(payload: any): boolean {
+function isValidDocuSealPayload(payload: Record<string, unknown>): boolean {
   const eventType = payload?.event_type || payload?.type;
   if (!eventType || typeof eventType !== 'string') return false;
-  const data = payload?.data || payload;
-  if (!data || typeof data !== 'object') return false;
-  // Must have some kind of submission identifier
+  const raw = payload?.data || payload;
+  if (!raw || typeof raw !== 'object') return false;
+  const data = raw as Record<string, unknown>;
   if (!data.submission_id && !data.id) return false;
   return true;
 }
@@ -96,7 +96,7 @@ serve(async (req: Request) => {
     }
 
     // Parse and validate payload structure
-    let payload: any;
+    let payload: Record<string, unknown>;
     try {
       payload = JSON.parse(rawBody);
     } catch {
@@ -109,8 +109,8 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'Invalid payload' }), { status: 400 });
     }
 
-    const rawEventType = payload.event_type || payload.type;
-    const submissionData = payload.data || payload;
+    const rawEventType = String(payload.event_type || payload.type);
+    const submissionData = (payload.data || payload) as Record<string, unknown>;
 
     // Validate event_type format (only allow known patterns)
     const VALID_EVENT_PATTERN =
@@ -248,17 +248,18 @@ serve(async (req: Request) => {
 });
 
 async function processEvent(
-  supabase: any,
+  supabase: SupabaseClient,
   eventType: string,
   firmId: string,
   firmName: string,
   documentType: string,
-  submissionData: any,
+  submissionData: Record<string, unknown>,
   _submissionId: string,
 ) {
   const isNda = documentType === 'nda';
   const now = new Date().toISOString();
   const docLabel = isNda ? 'NDA' : 'Fee Agreement';
+  const documents = Array.isArray(submissionData.documents) ? submissionData.documents as Array<{ url?: string }> : [];
 
   // Map DocuSeal event to status
   let docusealStatus: string;
@@ -326,7 +327,7 @@ async function processEvent(
     if (docusealStatus === 'completed') {
       updates.nda_signed = true;
       updates.nda_signed_at = now;
-      const docUrl = submissionData.documents?.[0]?.url;
+      const docUrl = documents[0]?.url;
       if (docUrl && isValidDocumentUrl(docUrl)) {
         updates.nda_signed_document_url = docUrl;
         updates.nda_document_url = docUrl; // sync to expanded field too
@@ -341,7 +342,7 @@ async function processEvent(
     if (docusealStatus === 'completed') {
       updates.fee_agreement_signed = true;
       updates.fee_agreement_signed_at = now;
-      const docUrl = submissionData.documents?.[0]?.url;
+      const docUrl = documents[0]?.url;
       if (docUrl && isValidDocumentUrl(docUrl)) {
         updates.fee_signed_document_url = docUrl;
         updates.fee_agreement_document_url = docUrl; // sync to expanded field too
@@ -384,7 +385,7 @@ async function processEvent(
         }
 
         // Send buyer notification with signed document download link
-        const signedDocUrl = submissionData.documents?.[0]?.url;
+        const signedDocUrl = documents[0]?.url || null;
         await sendBuyerSignedDocNotification(supabase, members, firmId, docLabel, signedDocUrl);
       }
     } catch (syncError) {
@@ -397,7 +398,7 @@ async function processEvent(
  * Create admin_notifications for all admins when a document event occurs.
  */
 async function createAdminNotification(
-  supabase: any,
+  supabase: SupabaseClient,
   firmId: string,
   firmName: string,
   docLabel: string,
@@ -410,7 +411,7 @@ async function createAdminNotification(
       .select('user_id')
       .in('role', ['admin', 'owner']);
 
-    const admins = (adminRoles || []).map((r: any) => ({ id: r.user_id }));
+    const admins = (adminRoles || []).map((r: { user_id: string }) => ({ id: r.user_id }));
     if (!admins.length) return;
 
     const statusMessages: Record<string, { title: string; message: string }> = {
@@ -431,7 +432,7 @@ async function createAdminNotification(
     const notif = statusMessages[status];
     if (!notif) return;
 
-    const notifications = admins.map((admin: any) => ({
+    const notifications = admins.map((admin: { id: string }) => ({
       admin_id: admin.id,
       title: notif.title,
       message: notif.message,
@@ -459,7 +460,7 @@ async function createAdminNotification(
  * Send a notification + system message to all firm members with a link to download their signed document.
  */
 async function sendBuyerSignedDocNotification(
-  supabase: any,
+  supabase: SupabaseClient,
   members: { user_id: string }[],
   firmId: string,
   docLabel: string,

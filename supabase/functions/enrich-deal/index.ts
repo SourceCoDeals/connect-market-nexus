@@ -219,14 +219,23 @@ serve(async (req) => {
     const transcriptErrors: string[] = [];
     const transcriptFieldNames: string[] = [];
 
-    const transcriptReport = {
+    const transcriptReport: {
+      totalTranscripts: number;
+      processable: number;
+      skipped: number;
+      processed: number;
+      appliedFromExisting: number;
+      appliedFromExistingTranscripts: number;
+      errors: string[];
+      processedThisRun?: number;
+    } = {
       totalTranscripts: allTranscripts?.length || 0,
       processable: 0,
       skipped: 0,
       processed: 0,
       appliedFromExisting: 0,
       appliedFromExistingTranscripts: 0,
-      errors: [] as string[],
+      errors: [],
     };
 
     if (!transcriptsError && allTranscripts?.length) {
@@ -302,11 +311,11 @@ serve(async (req) => {
       }
 
       transcriptReport.processed = transcriptsProcessed + (transcriptReport.appliedFromExistingTranscripts || 0);
-      (transcriptReport as any).processedThisRun = transcriptsProcessed;
+      transcriptReport.processedThisRun = transcriptsProcessed;
       transcriptReport.errors = transcriptErrors;
     } else {
       transcriptReport.processed = transcriptReport.appliedFromExistingTranscripts || 0;
-      (transcriptReport as any).processedThisRun = 0;
+      transcriptReport.processedThisRun = 0;
     }
 
     // Re-fetch deal after transcript processing
@@ -329,7 +338,7 @@ serve(async (req) => {
       transcriptReport.appliedFromExisting === 0
     ) {
       const allHaveExtracted = allTranscripts?.every(
-        (t: any) => t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data as any).length > 0
+        (t: DealTranscriptRow) => t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data as Record<string, unknown>).length > 0
       );
 
       if (allHaveExtracted) {
@@ -770,7 +779,7 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           error: getErrorMessage(updateError),
-          error_code: (updateError as any)?.code,
+          error_code: (updateError as { code?: string })?.code,
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

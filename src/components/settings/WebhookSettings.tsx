@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Trash2, TestTube, Check, X, Loader2, Webhook } from "lucide-react";
 import { toast } from "sonner";
 
+type UntypedTable = Parameters<typeof supabase.from>[0];
+
 interface WebhookConfig {
   id: string;
   name: string;
@@ -65,7 +67,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     mutationFn: async () => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
       const { error } = await supabase
-        .from('webhook_configs' as any)
+        .from('webhook_configs' as UntypedTable)
         .insert({
           universe_id: universeId || null,
           name: formData.name,
@@ -73,7 +75,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
           secret: formData.secret || null,
           event_types: formData.event_types,
           enabled: true
-        } as any);
+        } as never);
 
       if (error) throw error;
     },
@@ -113,8 +115,8 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
       const { error } = await supabase
-        .from('webhook_configs' as any)
-        .update({ enabled } as any)
+        .from('webhook_configs' as UntypedTable)
+        .update({ enabled } as never)
         .eq('id', id);
 
       if (error) throw error;
