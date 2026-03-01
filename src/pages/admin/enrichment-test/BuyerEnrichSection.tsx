@@ -53,16 +53,37 @@ export default function BuyerEnrichSection({ addLog, buyerId, onBuyerIdChange }:
       if (bDataError) throw bDataError;
       setBefore(bData as Record<string, unknown> | null);
 
-      const { data, error: fnErr } = await supabase.functions.invoke('enrich-buyer', {
-        body: { buyerId },
-      });
+      // Queue buyer enrichment via shared queue utility
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([buyerId]);
       const dur = Date.now() - t0;
 
-      if (fnErr) {
-        setError(String(fnErr));
-        addLog(`enrich-buyer for ${buyerId.slice(0, 8)}…`, dur, false);
-        return;
+      // Poll for completion (enrichment runs in background)
+      let attempts = 0;
+      let enrichmentDone = false;
+      while (attempts < 45 && !enrichmentDone) {
+        await new Promise(r => setTimeout(r, 4000));
+        attempts++;
+        const { data: queueItem } = await supabase
+          .from("buyer_enrichment_queue")
+          .select("status")
+          .eq("buyer_id", buyerId)
+          .order("queued_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (queueItem?.status === "completed" || queueItem?.status === "failed") {
+          enrichmentDone = true;
+          if (queueItem.status === "failed") {
+            setError("Enrichment failed in queue");
+            addLog(`enrich-buyer for ${buyerId.slice(0, 8)}… — queue failed`, Date.now() - t0, false);
+            return;
+          }
+        }
       }
+
+      const data = enrichmentDone
+        ? { success: true, message: "Enrichment completed via queue" }
+        : { success: true, message: "Enrichment queued — still running in background" };
       setResponse(data);
 
       const { data: aData, error: aDataError } = await supabase

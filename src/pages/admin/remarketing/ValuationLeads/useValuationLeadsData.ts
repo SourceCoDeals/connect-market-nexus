@@ -866,14 +866,10 @@ export function useValuationLeadsData() {
       setIsScoring(true);
       sonnerToast.info(`Scoring ${targets.length} leads...`);
       try {
-        const { data, error } = await supabase.functions.invoke('calculate-valuation-lead-score', {
-          body: { mode },
-        });
-        if (error) throw error;
-        sonnerToast.success(`Scored ${data?.scored ?? targets.length} leads`);
-      } catch (err) {
-        // Scoring failed — toast shown to user
-        sonnerToast.error('Scoring failed');
+        const { queueValuationLeadScoring } = await import("@/lib/remarketing/queueScoring");
+        await queueValuationLeadScoring(mode);
+      } catch {
+        // Scoring failed — toast shown by queue utility
       }
       setIsScoring(false);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });

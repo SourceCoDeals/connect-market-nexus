@@ -234,3 +234,75 @@ export async function queueDealQualityScoring(
   }
   return { scored, errors, enrichmentQueued };
 }
+
+/**
+ * Queue buyer quality scoring via the calculate-buyer-quality-score edge function.
+ * All buyer quality score calculations should go through this utility.
+ */
+export async function queueBuyerQualityScoring(
+  profileIds: string[],
+  extraBody?: Record<string, unknown>,
+): Promise<{ scored: number; errors: number }> {
+  if (profileIds.length === 0) return { scored: 0, errors: 0 };
+
+  let scored = 0;
+  let errors = 0;
+
+  // Process in small concurrent batches to avoid overwhelming edge functions
+  const BATCH_SIZE = 2;
+  for (let i = 0; i < profileIds.length; i += BATCH_SIZE) {
+    const batch = profileIds.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(profileId =>
+        supabase.functions.invoke("calculate-buyer-quality-score", {
+          body: { profile_id: profileId, ...extraBody },
+        })
+      )
+    );
+    results.forEach(r => {
+      if (r.status === "fulfilled" && !r.value.error) { scored++; } else { errors++; }
+    });
+    // Small delay between batches for rate limiting
+    if (i + BATCH_SIZE < profileIds.length) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+  return { scored, errors };
+}
+
+/**
+ * Queue valuation lead scoring via the calculate-valuation-lead-score edge function.
+ */
+export async function queueValuationLeadScoring(
+  mode: "unscored" | "all",
+): Promise<{ scored: number }> {
+  const { data, error } = await supabase.functions.invoke("calculate-valuation-lead-score", {
+    body: { mode },
+  });
+  if (error) {
+    toast.error("Scoring failed");
+    throw error;
+  }
+  const scored = data?.scored ?? 0;
+  toast.success(`Scored ${scored} lead(s)`);
+  return { scored };
+}
+
+/**
+ * Queue external-only enrichment (LinkedIn + Google) via the enrich-external-only edge function.
+ */
+export async function queueExternalOnlyEnrichment(
+  options: { dealSource: string; mode: string },
+): Promise<{ total: number }> {
+  const { data, error } = await supabase.functions.invoke("enrich-external-only", {
+    body: options,
+  });
+  if (error) {
+    toast.error("Failed to start LinkedIn/Google enrichment");
+    throw error;
+  }
+  toast.success(`Queued ${data?.total || 0} deals for LinkedIn + Google enrichment`, {
+    description: "This runs much faster than full enrichment — no website re-scraping",
+  });
+  return { total: data?.total || 0 };
+}

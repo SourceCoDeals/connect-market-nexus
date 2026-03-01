@@ -51,18 +51,39 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
       if (bDataError) throw bDataError;
       setBefore(bData as Record<string, unknown> | null);
 
-      // Call enrich-deal
-      const { data, error: fnErr } = await supabase.functions.invoke('enrich-deal', {
-        body: { dealId },
-      });
+      // Queue deal enrichment via shared queue utility
+      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueDealEnrichment([dealId]);
       const dur = Date.now() - t0;
 
-      if (fnErr) {
-        setError(String(fnErr));
-        addLog(`enrich-deal for ${dealId.slice(0, 8)}…`, dur, false);
-        return;
+      // Poll for completion (enrichment runs in background)
+      let attempts = 0;
+      let enrichmentDone = false;
+      while (attempts < 45 && !enrichmentDone) {
+        await new Promise(r => setTimeout(r, 4000));
+        attempts++;
+        const { data: queueItem } = await supabase
+          .from("enrichment_queue")
+          .select("status")
+          .eq("listing_id", dealId)
+          .order("queued_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (queueItem?.status === "completed" || queueItem?.status === "failed") {
+          enrichmentDone = true;
+          if (queueItem.status === "failed") {
+            setError("Enrichment failed in queue");
+            addLog(`enrich-deal for ${dealId.slice(0, 8)}… — queue failed`, Date.now() - t0, false);
+            return;
+          }
+        }
       }
-      setResponse(data);
+      if (!enrichmentDone) {
+        setResponse({ success: true, message: "Enrichment queued — still running in background" });
+        addLog(`enrich-deal for ${dealId.slice(0, 8)}… (queued, still running)`, Date.now() - t0);
+      } else {
+        setResponse({ success: true, message: "Enrichment completed via queue" });
+      }
 
       // Fetch after
       const { data: aData, error: aDataError } = await supabase
