@@ -4,10 +4,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ImprovedListingEditor } from '@/components/admin/ImprovedListingEditor';
 import { useRobustListingCreation } from '@/hooks/admin/listings/use-robust-listing-creation';
+import { useGenerateListingContent } from '@/hooks/admin/listings/use-generate-listing-content';
 import { anonymizeDealToListing } from '@/lib/deal-to-listing-anonymizer';
 import { AdminListing } from '@/types/admin';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, AlertTriangle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 /**
@@ -21,6 +22,8 @@ export default function CreateListingFromDeal() {
   const dealId = searchParams.get('fromDeal');
 
   const { mutateAsync: createListing, isPending: isCreating } = useRobustListingCreation();
+  const { generateContent, isGenerating } = useGenerateListingContent();
+  const [aiApplied, setAiApplied] = useState(false);
 
   // Fetch the deal data
   const {
@@ -125,6 +128,40 @@ export default function CreateListingFromDeal() {
     }
   }, [deal, prefilled]);
 
+  // Once we have the prefilled base data, automatically run AI generation
+  // using the deal's transcripts, notes, and enrichment. This replaces the
+  // manual "Generate All with AI" step so the editor opens ready to review.
+  useEffect(() => {
+    if (prefilled && dealId && !aiApplied && !isGenerating) {
+      setAiApplied(true); // prevent double-fire
+      generateContent(dealId).then((content) => {
+        if (!content) return;
+        setPrefilled((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            title: content.title_options?.[0] || prev.title,
+            hero_description: content.hero_description || prev.hero_description,
+            description: content.description || prev.description,
+            investment_thesis: content.investment_thesis || prev.investment_thesis,
+            custom_sections: content.custom_sections || prev.custom_sections,
+            services: content.services || prev.services,
+            growth_drivers: content.growth_drivers || prev.growth_drivers,
+            competitive_position: content.competitive_position || prev.competitive_position,
+            ownership_structure: content.ownership_structure || prev.ownership_structure,
+            seller_motivation: content.seller_motivation || prev.seller_motivation,
+            business_model: content.business_model || prev.business_model,
+            customer_geography: content.customer_geography || prev.customer_geography,
+            customer_types: content.customer_types || prev.customer_types,
+            revenue_model: content.revenue_model || prev.revenue_model,
+            end_market_description: content.end_market_description || prev.end_market_description,
+          } as AdminListing;
+        });
+        toast.success('AI content generated — review and adjust as needed.');
+      });
+    }
+  }, [prefilled, dealId, aiApplied, isGenerating, generateContent]);
+
   const handleSubmit = async (data: any, image?: File | null) => {
     try {
       const listingData = {
@@ -136,25 +173,18 @@ export default function CreateListingFromDeal() {
 
       await createListing({ listing: listingData, image });
 
-      // Clear the deal from the marketplace queue
+      // Invalidate relevant queries — the deal stays in the queue so the
+      // "Listing Created" badge appears. The source_deal_id link is the
+      // canonical record that a listing exists for this deal.
       if (dealId) {
-        await supabase
-          .from('listings')
-          .update({
-            pushed_to_marketplace: false,
-            pushed_to_marketplace_at: null,
-            pushed_to_marketplace_by: null,
-          })
-          .eq('id', dealId);
-
-        // Invalidate all relevant queries
         queryClient.invalidateQueries({ queryKey: ['marketplace-queue'] });
+        queryClient.invalidateQueries({ queryKey: ['marketplace-queue-existing-listings'] });
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
         queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       }
 
-      toast.success('Marketing listing created from deal');
+      toast.success('Marketplace listing created — review and publish from the Listings tab.');
       navigate('/admin/marketplace/queue');
     } catch (error: any) {
       toast.error(error.message || 'Failed to create listing');
@@ -217,10 +247,13 @@ export default function CreateListingFromDeal() {
     );
   }
 
-  if (!prefilled) {
+  if (!prefilled || isGenerating) {
     return (
-      <div className="flex items-center justify-center py-24">
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          {isGenerating ? 'AI is generating listing content from transcripts and notes…' : 'Loading deal data…'}
+        </p>
       </div>
     );
   }
