@@ -47,7 +47,7 @@ export function RecommendedBuyersSection({
   const queryClient = useQueryClient();
 
   const limit = showAll ? 100 : 25;
-  const { data, isLoading, isFetching } = useRecommendedBuyers(listingId, limit);
+  const { data, isLoading, isError, isFetching, refetch } = useRecommendedBuyers(listingId, limit);
 
   const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
 
@@ -134,6 +134,22 @@ export function RecommendedBuyersSection({
             <Loader2 className="h-5 w-5 animate-spin" />
             Loading recommended buyers...
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Query error state
+  if (isError) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center space-y-3">
+          <AlertCircle className="h-6 w-6 text-destructive/60 mx-auto" />
+          <p className="text-sm text-muted-foreground">Failed to load recommended buyers</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+            Retry
+          </Button>
         </CardContent>
       </Card>
     );

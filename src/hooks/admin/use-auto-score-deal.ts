@@ -40,6 +40,8 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
   });
   const triggeredRef = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollCountRef = useRef(0);
+  const MAX_POLL_ATTEMPTS = 30; // 30 * 4s = 2 minutes max
 
   // Check if scoring is already queued/in-progress for this deal
   const { data: queueStatus } = useQuery({
@@ -60,7 +62,24 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
   // Poll for new scores during scoring
   useEffect(() => {
     if (state.status === 'scoring' && listingId) {
+      pollCountRef.current = 0;
       pollingRef.current = setInterval(async () => {
+        pollCountRef.current++;
+
+        if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
+          setState({
+            status: 'error',
+            message:
+              'Scoring timed out. It may still be running in the background — try refreshing.',
+            progress: 0,
+            error: 'Polling timeout',
+          });
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          queryClient.invalidateQueries({ queryKey: ['recommended-buyers', listingId] });
+          return;
+        }
+
         const { count } = await supabase
           .from('remarketing_scores')
           .select('*', { count: 'exact', head: true })

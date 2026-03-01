@@ -204,7 +204,7 @@ async function fetchMarketplaceBuyers(listingId: string, excludeIds: Set<string>
 async function fetchPipelineBuyers(listingId: string, excludeIds: Set<string>) {
   const { data: deals } = await supabase
     .from('deals')
-    .select('remarketing_buyer_id, stage_name, updated_at')
+    .select('remarketing_buyer_id')
     .eq('listing_id', listingId)
     .not('remarketing_buyer_id', 'is', null);
 
@@ -228,7 +228,7 @@ async function fetchContactBuyers(listingId: string, excludeIds: Set<string>) {
   return contacts.map((c) => c.remarketing_buyer_id as string).filter((id) => !excludeIds.has(id));
 }
 
-export function useRecommendedBuyers(listingId: string | undefined, limit = 25) {
+export function useRecommendedBuyers(listingId: string | null | undefined, limit = 25) {
   return useQuery<RecommendedBuyersResult>({
     queryKey: ['recommended-buyers', listingId, limit],
     queryFn: async () => {
@@ -339,10 +339,9 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
 
           // Buyer transcripts
           supabase
-            .from('call_transcripts' as any)
-            .select('buyer_id, call_date, ceo_detected')
-            .eq('listing_id', listingId)
-            .in('buyer_id', buyerIds)
+            .from('buyer_transcripts')
+            .select('buyer_id, call_date, extracted_insights')
+            .in('buyer_id', allBuyerIds)
             .order('call_date', { ascending: false }),
 
           // Outreach records (NDA/memo/meeting funnel)
@@ -363,10 +362,9 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       // Build engagement map from connection requests
       const engagementMap = new Map<string, { last_date: string; type: string }>();
       if (connectionsResult.data) {
-        for (const conn of connectionsResult.data as any[]) {
-          const buyerId = conn.buyer_profile_id as string;
-          if (!engagementMap.has(buyerId)) {
-            engagementMap.set(buyerId, {
+        for (const conn of connectionsResult.data) {
+          if (conn.user_id && !engagementMap.has(conn.user_id)) {
+            engagementMap.set(conn.user_id, {
               last_date: conn.updated_at || conn.created_at,
               type: `Connection request (${conn.status})`,
             });
@@ -377,7 +375,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       // Build transcript insights map
       const transcriptMap = new Map<string, TranscriptInsight>();
       if (callTranscriptsResult.data) {
-        for (const ct of callTranscriptsResult.data as any[]) {
+        for (const ct of callTranscriptsResult.data) {
           const buyerId = ct.buyer_id as string;
           const existing = transcriptMap.get(buyerId) || { ...EMPTY_TRANSCRIPT };
           existing.call_count++;
@@ -386,6 +384,11 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
             (!existing.latest_call_date || ct.call_date > existing.latest_call_date)
           ) {
             existing.latest_call_date = ct.call_date as string;
+          }
+          // Extract ceo_detected from the JSONB extracted_insights field
+          const insights = ct.extracted_insights as Record<string, unknown> | null;
+          if (insights?.ceo_detected) {
+            existing.ceo_detected = true;
           }
           transcriptMap.set(buyerId, existing);
         }
@@ -605,6 +608,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       };
     },
     enabled: !!listingId,
+    retry: 1,
     staleTime: 4 * 60 * 60 * 1000, // 4 hours cache as per spec
   });
 }
