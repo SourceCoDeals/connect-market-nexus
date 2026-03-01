@@ -11180,6 +11180,7 @@ export type Database = {
           listing_id: string | null
           processed_at: string | null
           score_type: string
+          started_at: string | null
           status: string
           universe_id: string
           updated_at: string
@@ -11193,6 +11194,7 @@ export type Database = {
           listing_id?: string | null
           processed_at?: string | null
           score_type: string
+          started_at?: string | null
           status?: string
           universe_id: string
           updated_at?: string
@@ -11206,6 +11208,7 @@ export type Database = {
           listing_id?: string | null
           processed_at?: string | null
           score_type?: string
+          started_at?: string | null
           status?: string
           universe_id?: string
           updated_at?: string
@@ -11524,6 +11527,109 @@ export type Database = {
           weights_used?: Json | null
         }
         Relationships: []
+      }
+      scoring_runs: {
+        Row: {
+          completed_at: string | null
+          failed_count: number
+          id: string
+          listing_id: string
+          scored_count: number
+          started_at: string
+          status: string
+          total_buyers: number
+          triggered_by: string
+          universe_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          failed_count?: number
+          id?: string
+          listing_id: string
+          scored_count?: number
+          started_at?: string
+          status?: string
+          total_buyers?: number
+          triggered_by?: string
+          universe_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          failed_count?: number
+          id?: string
+          listing_id?: string
+          scored_count?: number
+          started_at?: string
+          status?: string
+          total_buyers?: number
+          triggered_by?: string
+          universe_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scoring_runs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "buyer_introduction_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "scoring_runs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "linkedin_manual_review_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scoring_runs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listing_contact_history_summary"
+            referencedColumns: ["listing_id"]
+          },
+          {
+            foreignKeyName: "scoring_runs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scoring_runs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings_needing_enrichment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scoring_runs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scoring_runs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "ranked_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scoring_runs_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "unmapped_primary_owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scoring_runs_universe_id_fkey"
+            columns: ["universe_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyer_universes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       search_analytics: {
         Row: {
@@ -13723,6 +13829,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      check_scores_freshness: {
+        Args: { p_listing_id: string; p_max_age_hours?: number }
+        Returns: {
+          has_scores: boolean
+          is_fresh: boolean
+          oldest_score_age_hours: number
+          score_count: number
+        }[]
+      }
       cleanup_old_notifications: { Args: never; Returns: undefined }
       cleanup_zombie_extractions: { Args: never; Returns: number }
       complete_enrichment_job: {
@@ -13758,6 +13873,7 @@ export type Database = {
         }
         Returns: Json
       }
+      expire_stale_scoring_runs: { Args: never; Returns: number }
       extract_domain: { Args: { url: string }; Returns: string }
       find_listing_by_normalized_domain: {
         Args: { target_domain: string }
@@ -14242,6 +14358,19 @@ export type Database = {
         Args: { p_from_date?: string }
         Returns: Json
       }
+      get_scoring_progress: {
+        Args: { p_listing_id: string }
+        Returns: {
+          completed_at: string
+          failed_count: number
+          progress_pct: number
+          run_id: string
+          scored_count: number
+          started_at: string
+          status: string
+          total_buyers: number
+        }[]
+      }
       get_simple_marketplace_analytics: {
         Args: { days_back?: number }
         Returns: {
@@ -14283,6 +14412,14 @@ export type Database = {
       increment_link_open_count: { Args: { p_link_id: string }; Returns: Json }
       increment_provider_concurrent: {
         Args: { p_provider: string }
+        Returns: undefined
+      }
+      increment_scoring_run_progress: {
+        Args: {
+          p_failed_delta?: number
+          p_listing_id: string
+          p_scored_delta?: number
+        }
         Returns: undefined
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
@@ -14381,6 +14518,10 @@ export type Database = {
       promote_user_to_admin: {
         Args: { target_user_id: string }
         Returns: boolean
+      }
+      recover_stale_queue_items: {
+        Args: { stale_minutes?: number }
+        Returns: Json
       }
       refresh_analytics_views: { Args: never; Returns: undefined }
       refresh_audit_materialized_views: { Args: never; Returns: undefined }
