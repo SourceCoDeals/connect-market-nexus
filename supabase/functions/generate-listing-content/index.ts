@@ -309,7 +309,6 @@ function buildDataContext(
     'address_city',
     'address_state',
     'linkedin_employee_count',
-    'linkedin_specialties',
     'linkedin_industry',
     'founded_year',
     'end_market_description',

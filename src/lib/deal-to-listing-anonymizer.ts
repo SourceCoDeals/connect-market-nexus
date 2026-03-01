@@ -44,7 +44,6 @@ export interface DealData {
   investment_thesis?: string | null;
   founded_year?: number | null;
   number_of_locations?: number | null;
-  linkedin_specialties?: string[] | null;
 }
 
 export interface AnonymizedListingData {
@@ -496,14 +495,11 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
   const employees = deal.full_time_employees || deal.linkedin_employee_count || 0;
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : null;
 
-  // Build services list from service_mix + services + linkedin_specialties
+  // Build services list from service_mix + services
   const services: string[] = [];
   if (deal.service_mix) services.push(...deal.service_mix);
   if (deal.services) {
     deal.services.forEach(s => { if (!services.includes(s)) services.push(s); });
-  }
-  if (deal.linkedin_specialties) {
-    deal.linkedin_specialties.forEach(s => { if (!services.includes(s)) services.push(s); });
   }
 
   // Build growth drivers
