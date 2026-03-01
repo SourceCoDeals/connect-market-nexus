@@ -2,15 +2,20 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { Deal, DealStage, DealRpcRow } from './deal-types';
 
+const rpcCall = supabase.rpc as unknown as (
+  fn: string,
+  params?: Record<string, unknown>,
+) => ReturnType<typeof supabase.rpc>;
+
 export function useDeals() {
   return useQuery({
     queryKey: ['deals'],
     queryFn: async () => {
       // Single RPC call replaces the previous N+1 pattern
       // (deals -> connection_requests -> profiles done server-side)
-      const { data: rpcRows, error: rpcError } = (await (supabase.rpc as any)(
+      const { data: rpcRows, error: rpcError } = (await rpcCall(
         'get_deals_with_buyer_profiles',
-      )) as { data: DealRpcRow[] | null; error: any };
+      )) as { data: DealRpcRow[] | null; error: unknown };
 
       if (rpcError) throw rpcError;
       const rows = rpcRows || [];

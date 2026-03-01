@@ -388,12 +388,12 @@ export default function FirefliesIntegrationPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {recent?.recentBuyer.map((t: any) => (
+                {recent?.recentBuyer.map((t) => (
                   <div key={t.id} className="flex items-center justify-between border rounded-lg px-3 py-2 text-sm">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{t.title || "Untitled"}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {(t.buyer as any)?.company_name || "Unknown buyer"}
+                        {(t.buyer as { company_name?: string } | null)?.company_name || "Unknown buyer"}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 ml-2">
@@ -428,12 +428,12 @@ export default function FirefliesIntegrationPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {recent?.recentDeal.map((t: any) => (
+                {recent?.recentDeal.map((t) => (
                   <div key={t.id} className="flex items-center justify-between border rounded-lg px-3 py-2 text-sm">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{t.title || "Untitled"}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {(t.listing as any)?.title || "Unknown deal"}
+                        {(t.listing as { title?: string } | null)?.title || "Unknown deal"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">

@@ -210,7 +210,7 @@ export function useListingJourneys(listingId?: string) {
         // Process connections
         listing.connection_requests?.forEach(connection => {
           if (userMap.has(connection.user_id)) {
-            userMap.get(connection.user_id).connected = connection.status === 'approved';
+            userMap.get(connection.user_id).connected = connection.status === CONNECTION_STATUSES.APPROVED;
           }
         });
 

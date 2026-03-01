@@ -31,7 +31,16 @@ export default function DealSidebar({ executiveSummaryUrl, listingId, presentedB
         .eq('id', presentedByAdminId!)
         .single();
       if (!data) return null;
-      const d = data as any;
+      const d = data as unknown as {
+        first_name: string | null;
+        last_name: string | null;
+        title: string | null;
+        company: string | null;
+        phone_number: string | null;
+        email: string | null;
+        avatar_url?: string | null;
+        calendar_url?: string | null;
+      };
       return {
         name: `${d.first_name || ''} ${d.last_name || ''}`.trim() || DEFAULT_PRESENTER.name,
         title: d.title ? `${d.title}, ${d.company || 'SourceCo'}` : DEFAULT_PRESENTER.title,

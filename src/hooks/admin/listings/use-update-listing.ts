@@ -39,7 +39,7 @@ export function useUpdateListing() {
           .update({
             ...listing,
             updated_at: new Date().toISOString(),
-          } as any)
+          } as Record<string, unknown>)
           .eq('id', id)
           .select()
           .single();

@@ -1,6 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
+
+interface FirmData {
+  id: string;
+  primary_company_name: string | null;
+  member_count: number | null;
+  fee_agreement_signed: boolean;
+  nda_signed: boolean;
+}
+
 export interface UserFirmInfo {
   firm_id: string | null;
   firm_name: string | null;
@@ -15,8 +27,7 @@ export function useUserFirm(userId: string | null) {
     queryFn: async () => {
       if (!userId) return null;
 
-      const { data, error } = await supabase
-        .from('firm_members' as never)
+      const { data, error } = await fromTable('firm_members')
         .select(`
           firm_id,
           firm:firm_agreements!firm_members_firm_id_fkey (
@@ -36,9 +47,10 @@ export function useUserFirm(userId: string | null) {
         throw error;
       }
 
-      if (!data || !(data as any).firm) return null;
+      const row = data as unknown as { firm_id: string; firm: FirmData | FirmData[] } | null;
+      if (!row?.firm) return null;
 
-      const firm = Array.isArray((data as any).firm) ? (data as any).firm[0] : (data as any).firm;
+      const firm: FirmData = Array.isArray(row.firm) ? row.firm[0] : row.firm;
 
       return {
         firm_id: firm.id,

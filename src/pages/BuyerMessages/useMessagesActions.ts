@@ -2,6 +2,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
+
 // ─── useSendDocumentQuestion ───
 // Sends a document-related question (NDA or fee agreement) as a message
 // and notifies the admin via an edge function.
@@ -23,7 +27,7 @@ export function useSendDocumentQuestion() {
       const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
       const messageBody = `\u{1F4C4} Question about ${docLabel}:\n\n${question}`;
 
-      const { data: activeRequest } = await (supabase.from('connection_requests') as any)
+      const { data: activeRequest } = await fromTable('connection_requests')
         .select('id')
         .eq('user_id', userId)
         .in('status', ['approved', 'on_hold', 'pending'])
@@ -34,7 +38,7 @@ export function useSendDocumentQuestion() {
       const { OZ_ADMIN_ID } = await import('@/constants');
 
       if (activeRequest) {
-        const { error } = await (supabase.from('connection_messages') as any).insert({
+        const { error } = await fromTable('connection_messages').insert({
           connection_request_id: activeRequest.id,
           sender_id: userId,
           body: messageBody,

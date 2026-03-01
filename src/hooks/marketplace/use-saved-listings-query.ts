@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Listing, FilterOptions } from '@/types';
 import { createQueryKey } from '@/lib/query-keys';
+import { LISTING_STATUSES } from '@/constants';
 
 // N02 FIX: Explicit safe columns — avoid SELECT * exposing confidential data
 const MARKETPLACE_SAFE_COLUMNS = [
@@ -46,7 +47,7 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
           .from('listings')
           .select(MARKETPLACE_SAFE_COLUMNS, { count: 'exact' })
           .in('id', listingIds)
-          .eq('status', 'active')
+          .eq('status', LISTING_STATUSES.ACTIVE)
           .is('deleted_at', null)
           .eq('is_internal_deal', false);
         

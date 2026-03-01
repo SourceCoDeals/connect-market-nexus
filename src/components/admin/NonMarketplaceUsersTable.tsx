@@ -381,22 +381,25 @@ export const NonMarketplaceUsersTable = ({
                                   </span>
                                 </div>
                                 <div className="space-y-3">
-                                  {user.associated_records.connection_requests.map((cr: any) => (
-                                    <div key={cr.id} className="space-y-1">
-                                      {cr.listing?.title && (
-                                        <div className="font-medium text-sm text-foreground">{cr.listing.title}</div>
+                                  {user.associated_records.connection_requests.map((cr) => {
+                                    const crData = cr as { id: string; created_at: string; listing?: { title?: string }; lead_nda_signed?: boolean; lead_fee_agreement_signed?: boolean };
+                                    return (
+                                    <div key={crData.id} className="space-y-1">
+                                      {crData.listing?.title && (
+                                        <div className="font-medium text-sm text-foreground">{crData.listing.title}</div>
                                       )}
                                       <div className="text-xs text-muted-foreground">
-                                        {format(new Date(cr.created_at), "MMM d, yyyy")} &middot; {format(new Date(cr.created_at), "h:mm a")}
+                                        {format(new Date(crData.created_at), "MMM d, yyyy")} &middot; {format(new Date(crData.created_at), "h:mm a")}
                                       </div>
-                                      {(cr.lead_nda_signed || cr.lead_fee_agreement_signed) && (
+                                      {(crData.lead_nda_signed || crData.lead_fee_agreement_signed) && (
                                         <div className="flex gap-1 mt-1">
-                                          {cr.lead_nda_signed && <Badge variant="outline" className="text-xs">NDA Signed</Badge>}
-                                          {cr.lead_fee_agreement_signed && <Badge variant="outline" className="text-xs">Fee Signed</Badge>}
+                                          {crData.lead_nda_signed && <Badge variant="outline" className="text-xs">NDA Signed</Badge>}
+                                          {crData.lead_fee_agreement_signed && <Badge variant="outline" className="text-xs">Fee Signed</Badge>}
                                         </div>
                                       )}
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -410,14 +413,17 @@ export const NonMarketplaceUsersTable = ({
                                   </span>
                                 </div>
                                 <div className="space-y-3">
-                                  {user.associated_records.inbound_leads.map((lead: any) => (
-                                    <div key={lead.id} className="space-y-1">
-                                      <div className="font-medium text-sm">{lead.source || "Contact Form"}</div>
+                                  {user.associated_records.inbound_leads.map((lead) => {
+                                    const leadData = lead as { id: string; created_at: string; source?: string };
+                                    return (
+                                    <div key={leadData.id} className="space-y-1">
+                                      <div className="font-medium text-sm">{leadData.source || "Contact Form"}</div>
                                       <div className="text-xs text-muted-foreground">
-                                        {format(new Date(lead.created_at), "MMM d, yyyy")} &middot; {format(new Date(lead.created_at), "h:mm a")}
+                                        {format(new Date(leadData.created_at), "MMM d, yyyy")} &middot; {format(new Date(leadData.created_at), "h:mm a")}
                                       </div>
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -431,20 +437,23 @@ export const NonMarketplaceUsersTable = ({
                                   </span>
                                 </div>
                                 <div className="space-y-3">
-                                  {user.associated_records.deals.map((deal: any) => (
-                                    <div key={deal.id} className="space-y-1">
-                                      <div className="font-medium text-sm">{deal.title || "Untitled Deal"}</div>
-                                      {deal.listing?.title && (
-                                        <div className="text-xs text-muted-foreground">For: {deal.listing.title}</div>
+                                  {user.associated_records.deals.map((deal) => {
+                                    const dealData = deal as { id: string; title?: string; listing?: { title?: string }; nda_status?: string; fee_agreement_status?: string };
+                                    return (
+                                    <div key={dealData.id} className="space-y-1">
+                                      <div className="font-medium text-sm">{dealData.title || "Untitled Deal"}</div>
+                                      {dealData.listing?.title && (
+                                        <div className="text-xs text-muted-foreground">For: {dealData.listing.title}</div>
                                       )}
-                                      {(deal.nda_status === "signed" || deal.fee_agreement_status === "signed") && (
+                                      {(dealData.nda_status === "signed" || dealData.fee_agreement_status === "signed") && (
                                         <div className="flex gap-1 mt-1">
-                                          {deal.nda_status === "signed" && <Badge variant="outline" className="text-xs">NDA Signed</Badge>}
-                                          {deal.fee_agreement_status === "signed" && <Badge variant="outline" className="text-xs">Fee Signed</Badge>}
+                                          {dealData.nda_status === "signed" && <Badge variant="outline" className="text-xs">NDA Signed</Badge>}
+                                          {dealData.fee_agreement_status === "signed" && <Badge variant="outline" className="text-xs">Fee Signed</Badge>}
                                         </div>
                                       )}
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}

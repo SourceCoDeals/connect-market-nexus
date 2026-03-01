@@ -36,6 +36,7 @@ import {
   useMarkMessagesReadByBuyer,
 } from '@/hooks/use-connection-messages';
 import { formatDistanceToNow } from 'date-fns';
+import { CONNECTION_STATUSES } from '@/constants';
 
 /* ─── Props ────────────────────────────────────────────────────────────── */
 
@@ -58,8 +59,8 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const canSend = requestStatus !== 'rejected';
-  const isRejected = requestStatus === 'rejected';
+  const canSend = requestStatus !== CONNECTION_STATUSES.REJECTED;
+  const isRejected = requestStatus === CONNECTION_STATUSES.REJECTED;
 
   // Mark unread admin messages as read when the buyer views this tab
   useEffect(() => {

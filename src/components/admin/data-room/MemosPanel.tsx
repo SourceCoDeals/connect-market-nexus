@@ -42,7 +42,7 @@ const BRANDING_OPTIONS = [
   { value: 'cortec', label: 'Cortec Group' },
 ];
 
-const STATUS_BADGES: Record<string, { label: string; icon: any; className: string }> = {
+const STATUS_BADGES: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; className: string }> = {
   draft: { label: 'Draft', icon: Edit, className: 'bg-amber-100 text-amber-800' },
   published: { label: 'Published', icon: CheckCircle, className: 'bg-green-100 text-green-800' },
   archived: { label: 'Archived', icon: Archive, className: 'bg-gray-100 text-gray-600' },

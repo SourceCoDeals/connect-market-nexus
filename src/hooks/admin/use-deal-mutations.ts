@@ -3,6 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import type { Deal } from './deal-types';
 
+const rpcCall = supabase.rpc as unknown as (
+  fn: string,
+  params: Record<string, unknown>,
+) => ReturnType<typeof supabase.rpc>;
+
 export function useUpdateDealStage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -51,7 +56,7 @@ export function useUpdateDealStage() {
       }
 
       // Use new RPC function with ownership logic
-      const { data, error } = await (supabase.rpc as any)('move_deal_stage_with_ownership', {
+      const { data, error } = await rpcCall('move_deal_stage_with_ownership', {
         p_deal_id: dealId,
         p_new_stage_id: stageId,
         p_current_admin_id: currentAdminId,
@@ -268,7 +273,7 @@ export function useUpdateDeal() {
         if (authError) throw authError;
         if (!user) throw new Error('Not authenticated');
 
-        const { data, error } = await (supabase.rpc as any)('update_deal_owner', {
+        const { data, error } = await rpcCall('update_deal_owner', {
           p_deal_id: dealId,
           p_assigned_to:
             updates.assigned_to === 'unassigned' || updates.assigned_to === ''
@@ -481,7 +486,7 @@ export function useCreateDeal() {
     mutationFn: async (deal: Record<string, unknown>) => {
       const { data, error } = await supabase
         .from('deals')
-        .insert(deal as never)
+        .insert(deal as Record<string, unknown>)
         .select()
         .single();
 

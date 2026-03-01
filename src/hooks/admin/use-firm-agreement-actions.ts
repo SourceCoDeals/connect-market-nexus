@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
+
 /**
  * Unified hook for updating NDA/Fee agreements at the FIRM level.
  * Resolves user → firm automatically via firm_members or email domain.
@@ -87,8 +91,7 @@ export function useUserFirm(userId: string | undefined) {
       if (!userId) return null;
 
       // Try firm_members first
-      const { data: membership, error: memErr } = await supabase
-        .from('firm_members' as never)
+      const { data: membership, error: memErr } = await fromTable('firm_members')
         .select(`
           firm_id,
           firm:firm_agreements!firm_members_firm_id_fkey(
@@ -103,22 +106,22 @@ export function useUserFirm(userId: string | undefined) {
         .maybeSingle();
 
       if (memErr) throw memErr;
-      if ((membership as any)?.firm) return (membership as any).firm;
+      const membershipData = membership as { firm?: Record<string, unknown> } | null;
+      if (membershipData?.firm) return membershipData.firm;
 
       // Try email domain match
-      const { data: profile } = await supabase
-        .from('profiles' as never)
+      const { data: profile } = await fromTable('profiles')
         .select('email, company')
         .eq('id', userId)
         .maybeSingle();
 
-      if (!(profile as any)?.email) return null;
+      const profileData = profile as { email?: string; company?: string } | null;
+      if (!profileData?.email) return null;
 
-      const domain = (profile as any).email.split('@')[1];
+      const domain = profileData.email.split('@')[1];
       if (!domain) return null;
 
-      const { data: firm } = await supabase
-        .from('firm_agreements' as never)
+      const { data: firm } = await fromTable('firm_agreements')
         .select(`
           id, primary_company_name,
           nda_signed, nda_signed_at, nda_signed_by_name, nda_email_sent, nda_email_sent_at, nda_status,

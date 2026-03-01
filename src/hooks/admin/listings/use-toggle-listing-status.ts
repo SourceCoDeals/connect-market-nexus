@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
+import { LISTING_STATUSES } from '@/constants';
 
 /**
  * Hook for toggling a listing's status between active and inactive
@@ -67,7 +68,7 @@ export function useToggleListingStatus() {
         });
       }, 100);
       
-      const statusText = data.status === 'active' ? 'activated' : 'deactivated';
+      const statusText = data.status === LISTING_STATUSES.ACTIVE ? 'activated' : 'deactivated';
       
       toast({
         title: `Listing ${statusText}`,

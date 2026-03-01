@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { LISTING_STATUSES } from '@/constants';
 
 export interface LandingPageDeal {
   id: string;
@@ -107,7 +108,7 @@ export function useRelatedDeals(currentDealId: string | undefined) {
         .select(
           'id, title, location, revenue, ebitda, ebitda_margin, categories, description, hero_description',
         )
-        .eq('status', 'active')
+        .eq('status', LISTING_STATUSES.ACTIVE)
         .neq('id', currentDealId ?? '')
         .order('created_at', { ascending: false })
         .limit(3);

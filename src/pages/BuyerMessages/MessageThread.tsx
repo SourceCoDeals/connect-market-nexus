@@ -655,7 +655,10 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
 
     try {
       if (activeRequest?.id) {
-        const { error } = await (supabase.from('connection_messages') as any).insert({
+        const fromTable = supabase.from.bind(supabase) as (
+          table: string,
+        ) => ReturnType<typeof supabase.from>;
+        const { error } = await fromTable('connection_messages').insert({
           connection_request_id: activeRequest.id,
           sender_id: user.id,
           body,

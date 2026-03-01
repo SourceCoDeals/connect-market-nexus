@@ -24,6 +24,7 @@
  * easy to test and free of coupling to specific query shapes.
  */
 
+import { CONNECTION_STATUSES } from '@/constants';
 import { cn } from '@/lib/utils';
 import { formatCompactCurrency } from '@/lib/utils';
 import { ExternalLink } from 'lucide-react';
@@ -134,7 +135,7 @@ function getCategoryIcon(category?: string) {
  * redesigned 6-stage model (which collapses NDA + Fee into "Sign Docs").
  */
 function getCurrentStage(status: string, ndaSigned?: boolean, hasCim?: boolean): PipelineStageId {
-  if (status === 'rejected') return 'interested';
+  if (status === CONNECTION_STATUSES.REJECTED) return 'interested';
   if (hasCim) return 'under_review';
   if (ndaSigned) return 'sign_docs'; // docs done, waiting for review
   return 'interested';
@@ -161,7 +162,7 @@ export function DealDetailHeader({
   const CategoryIcon = getCategoryIcon(category);
   const currentStage = getCurrentStage(requestStatus, ndaSigned, hasCim);
   const currentIndex = getStageIndex(currentStage);
-  const isRejected = requestStatus === 'rejected';
+  const isRejected = requestStatus === CONNECTION_STATUSES.REJECTED;
 
   // Compute EBITDA margin when both figures are available
   const ebitdaMargin =

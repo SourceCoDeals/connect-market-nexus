@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Listing, ListingStatus } from '@/types';
+import { LISTING_STATUSES } from '@/constants';
 
 interface SimilarListingScore {
   listing: Listing;
@@ -16,7 +17,7 @@ export function useSimilarListings(currentListing: Listing | undefined, limit = 
       const { data: listings, error } = await supabase
         .from('listings')
         .select('id, title, category, categories, location, revenue, ebitda, description, description_html, description_json, tags, owner_notes, files, created_at, updated_at, image_url, status, status_tag, acquisition_type, visible_to_buyer_types, deal_identifier, internal_company_name, internal_primary_owner, primary_owner_id, internal_salesforce_link, internal_deal_memo_link, internal_contact_info, internal_notes, full_time_employees, part_time_employees')
-        .eq('status', 'active')
+        .eq('status', LISTING_STATUSES.ACTIVE)
         .is('deleted_at', null)
         .eq('is_internal_deal', false)
         .neq('id', currentListing.id)

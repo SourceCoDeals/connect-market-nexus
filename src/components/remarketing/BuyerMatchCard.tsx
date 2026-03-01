@@ -85,9 +85,9 @@ interface BuyerMatchCardProps {
   isSelected?: boolean;
   isHighlighted?: boolean;
   onSelect?: (id: string, selected: boolean) => void;
-  onApprove: (scoreId: string, scoreData: any) => void;
-  onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
-  onToggleInterested?: (scoreId: string, interested: boolean, scoreData: any) => void;
+  onApprove: (scoreId: string, scoreData: BuyerMatchCardProps['score']) => void;
+  onPass: (scoreId: string, buyerName: string, scoreData: BuyerMatchCardProps['score']) => void;
+  onToggleInterested?: (scoreId: string, interested: boolean, scoreData: BuyerMatchCardProps['score']) => void;
   onMarkInterested?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   onViewed?: (scoreId: string) => void;

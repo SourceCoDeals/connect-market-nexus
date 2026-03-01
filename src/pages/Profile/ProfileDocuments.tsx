@@ -1,6 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
 import { FileDown, Shield, FileSignature, CheckCircle, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,8 +27,7 @@ function useSignedDocuments() {
       if (!user?.id) return [];
 
       // Get firm membership
-      const { data: membership } = await (supabase
-        .from("firm_members") as any)
+      const { data: membership } = await fromTable("firm_members")
         .select("firm_id")
         .eq("user_id", user.id)
         .limit(1)
@@ -33,8 +36,7 @@ function useSignedDocuments() {
       if (!membership) return [];
 
       // Get firm agreement with signed doc URLs
-      const { data: firm } = await (supabase
-        .from("firm_agreements") as any)
+      const { data: firm } = await fromTable("firm_agreements")
         .select(
           "nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url"
         )

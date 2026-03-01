@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { subDays, format, differenceInSeconds } from "date-fns";
+
+type PageViewRow = Database['public']['Tables']['page_views']['Row'];
+type UserSessionRow = Database['public']['Tables']['user_sessions']['Row'];
+type ConnectionRequestRow = Pick<Database['public']['Tables']['connection_requests']['Row'], 'id' | 'created_at' | 'listing_id'>;
 
 export interface UserEvent {
   id: string;
@@ -115,7 +120,7 @@ function getDiscoverySource(session: {
 // Find the first session with meaningful attribution data
 // Priority: original_external_referrer > utm_source > referrer > any session
 // This handles race conditions where the chronologically first session may have no referrer
-function getFirstMeaningfulSession(sessions: any[]): any | null {
+function getFirstMeaningfulSession(sessions: UserSessionRow[]): UserSessionRow | null {
   if (!sessions || sessions.length === 0) return null;
   
   // Sessions come sorted DESC (most recent first), reverse for chronological

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PaginationState } from './use-simple-pagination';
 import { Listing, ListingStatus } from '@/types';
 import { expandLocations } from '@/lib/location-hierarchy';
+import { LISTING_STATUSES } from '@/constants';
 
 /**
  * For Tier 3 buyers, fetch the count of Tier 1/2 connection requests per listing.
@@ -24,7 +25,7 @@ async function fetchTier12RequestCounts(listingIds: string[]): Promise<Record<st
 
   const counts: Record<string, number> = {};
   for (const row of data) {
-    const tier = (row as any).profiles?.buyer_tier;
+    const tier = (row as unknown as { profiles?: { buyer_tier?: number } }).profiles?.buyer_tier;
     if (tier === 1 || tier === 2) {
       counts[row.listing_id] = (counts[row.listing_id] || 0) + 1;
     }
@@ -74,7 +75,7 @@ async function fetchListings(state: PaginationState, buyerTier?: number | null) 
   let query = supabase
     .from('listings')
     .select(BUYER_VISIBLE_COLUMNS, { count: 'exact' })
-    .eq('status', 'active')
+    .eq('status', LISTING_STATUSES.ACTIVE)
     .is('deleted_at', null)
     .eq('is_internal_deal', false); // Only show marketplace deals, not internal/research deals
 
@@ -185,7 +186,7 @@ async function fetchMetadata() {
   const query = supabase
     .from('listings')
     .select('category, location')
-    .eq('status', 'active')
+    .eq('status', LISTING_STATUSES.ACTIVE)
     .is('deleted_at', null)
     .eq('is_internal_deal', false); // Only show marketplace deals
 

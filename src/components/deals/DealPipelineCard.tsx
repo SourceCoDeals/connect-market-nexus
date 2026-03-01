@@ -69,6 +69,7 @@ import {
   DefaultCategoryIcon,
 } from '@/components/icons/CategoryIcons';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { CONNECTION_STATUSES } from '@/constants';
 
 /* ─── Pipeline stages (same 6-stage model as DealDetailHeader) ───────── */
 
@@ -145,7 +146,7 @@ function getCategoryIcon(category?: string) {
  * Rejected deals always show as 'interested' (first stage).
  */
 function getCurrentStage(status: string, ndaSigned?: boolean, hasCim?: boolean): PipelineStageId {
-  if (status === 'rejected') return 'interested';
+  if (status === CONNECTION_STATUSES.REJECTED) return 'interested';
   if (hasCim) return 'under_review';
   if (ndaSigned) return 'nda_signed';
   return 'interested';
@@ -217,7 +218,7 @@ function getRequestStatusColors(status: string): { bg: string; text: string; bor
  * review with nothing pending).
  */
 function getCtaLabel(status: string, ndaSigned?: boolean, hasCim?: boolean): string | null {
-  if (status === 'rejected') return null;
+  if (status === CONNECTION_STATUSES.REJECTED) return null;
   if (!ndaSigned) return 'Sign NDA';
   if (hasCim) return 'View Deal Memo';
   // NDA signed but not yet under review
@@ -238,7 +239,7 @@ export function DealPipelineCard({
   const CategoryIcon = getCategoryIcon(request.listing?.category);
   const currentStage = getCurrentStage(request.status, ndaSigned, hasCim);
   const currentStageIndex = getStageIndex(currentStage);
-  const isRejected = request.status === 'rejected';
+  const isRejected = request.status === CONNECTION_STATUSES.REJECTED;
 
   // Unified connection-request status (shown in the pill at the bottom)
   const requestStatusLabel = getRequestStatusLabel(request.status);
