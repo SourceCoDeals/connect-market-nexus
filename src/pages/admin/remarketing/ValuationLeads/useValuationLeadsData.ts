@@ -864,7 +864,6 @@ export function useValuationLeadsData() {
         return;
       }
       setIsScoring(true);
-      sonnerToast.info(`Scoring ${targets.length} leads...`);
       try {
         const { queueValuationLeadScoring } = await import("@/lib/remarketing/queueScoring");
         await queueValuationLeadScoring(mode);

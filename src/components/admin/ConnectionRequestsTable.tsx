@@ -54,7 +54,6 @@ import {
   Loader2,
   Flag,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { AdminConnectionRequest } from "@/types/admin";
 import { User as AdminUsersUser } from "@/types/admin-users";
 import { useUnreadMessageCounts } from "@/hooks/use-connection-messages";

@@ -285,8 +285,8 @@ export const useBuyersData = () => {
       const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueBuyerEnrichment([buyerId]);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-    } catch (err: any) {
-      toast.error(err.message || 'Enrichment failed');
+    } catch {
+      // Toast shown by queue utility
     } finally {
       setEnrichingIds(prev => {
         const next = new Set(prev);

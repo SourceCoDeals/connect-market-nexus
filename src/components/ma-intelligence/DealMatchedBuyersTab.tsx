@@ -117,17 +117,19 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
 
   const handleRecalculateScores = async () => {
     try {
-      const { queueDealScoringAllUniverses } = await import("@/lib/remarketing/queueScoring");
-      await queueDealScoringAllUniverses(dealId);
-
+      // score-deal-buyers is an MA Intelligence-specific edge function that operates
+      // on deals.id (not listings.id). It scores buyer-deal match quality.
+      const { error } = await supabase.functions.invoke("score-deal-buyers", {
+        body: { dealId },
+      });
+      if (error) throw error;
       toast({
-        title: "Recalculation queued",
+        title: "Recalculation started",
         description: "Buyer scores are being recalculated in the background",
       });
-
       setTimeout(() => {
         loadBuyerScores();
-      }, 5000);
+      }, 3000);
     } catch (error: any) {
       toast({
         title: "Error recalculating scores",

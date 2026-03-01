@@ -88,22 +88,32 @@ export function useDealDetailData(id: string | undefined) {
 
   const handleEnrich = async () => {
     if (!deal) return;
+    // deals.id != listings.id — the enrichment queue expects listing IDs
+    const listingId = (deal as any).listing_id as string | null;
+    if (!listingId) {
+      toast({ title: "Cannot enrich", description: "This deal is not linked to a listing", variant: "destructive" });
+      return;
+    }
     try {
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
-      await queueDealEnrichment([deal.id]);
-      toast({ title: "Enrichment started", description: "Deal enrichment is running in the background" });
+      await queueDealEnrichment([listingId]);
       setTimeout(loadDeal, 5000);
-    } catch (error: any) {
-      toast({ title: "Error enriching deal", description: error.message, variant: "destructive" });
+    } catch {
+      // Toast shown by queue utility
     }
   };
 
   const handleCalculateScore = async () => {
     if (!deal) return;
     try {
-      const { queueDealScoringAllUniverses } = await import("@/lib/remarketing/queueScoring");
-      await queueDealScoringAllUniverses(deal.id);
-      toast({ title: "Score calculation queued", description: "Deal scoring is running in the background" });
+      // score-deal-buyers is an MA Intelligence-specific edge function that operates
+      // on deals.id (not listings.id). It scores buyer-deal match quality, which is
+      // different from the remarketing scoring queue (deal quality / alignment scoring).
+      const { error } = await supabase.functions.invoke("score-deal-buyers", {
+        body: { dealId: deal.id },
+      });
+      if (error) throw error;
+      toast({ title: "Score calculation started", description: "Deal scoring is running in the background" });
       setTimeout(loadDeal, 5000);
     } catch (error: any) {
       toast({ title: "Error calculating score", description: error.message, variant: "destructive" });

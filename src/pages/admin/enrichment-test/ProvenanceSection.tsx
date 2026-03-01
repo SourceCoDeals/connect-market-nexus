@@ -109,7 +109,7 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
         after: (aData ?? {}) as Record<string, unknown>,
         sources: sourceMap,
       });
-      addLog(`provenance test for ${dealId.slice(0, 8)}…`, dur);
+      addLog(`provenance test for ${dealId.slice(0, 8)}…`, Date.now() - t0);
     } catch (e: any) {
       const dur = Date.now() - t0;
       setError(e.message);

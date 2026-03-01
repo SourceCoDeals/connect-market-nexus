@@ -8,6 +8,8 @@ import { toast } from "sonner";
 interface QueueDealScoringParams {
   universeId: string;
   listingIds: string[];
+  /** Suppress toast notifications (used when called from wrapper functions that show their own toasts) */
+  silent?: boolean;
 }
 
 interface QueueAlignmentScoringParams {
@@ -19,7 +21,7 @@ interface QueueAlignmentScoringParams {
  * Queue deal scoring for one or more listings against all buyers in a universe.
  * Each listing gets one queue entry.
  */
-export async function queueDealScoring({ universeId, listingIds }: QueueDealScoringParams): Promise<number> {
+export async function queueDealScoring({ universeId, listingIds, silent }: QueueDealScoringParams): Promise<number> {
   if (listingIds.length === 0) return 0;
 
   // Check which listings are already queued/processing to avoid duplicates
@@ -36,7 +38,7 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
   const newIds = listingIds.filter(id => !existingSet.has(id));
 
   if (newIds.length === 0) {
-    toast.info("Scoring already in progress for these deals");
+    if (!silent) toast.info("Scoring already in progress for these deals");
     return 0;
   }
 
@@ -62,7 +64,7 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
   );
   if (upsertErrors.length > 0) {
     console.error("Failed to queue deal scoring:", upsertErrors);
-    toast.error("Failed to queue scoring");
+    if (!silent) toast.error("Failed to queue scoring");
     throw new Error(upsertErrors.join('; '));
   }
 
@@ -71,7 +73,7 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
     body: { trigger: "deal-scoring" },
   }).catch(err => console.warn("Worker trigger failed:", err));
 
-  toast.info(`Queued ${newIds.length} deal(s) for background scoring`);
+  if (!silent) toast.info(`Queued ${newIds.length} deal(s) for background scoring`);
   return newIds.length;
 }
 
@@ -163,10 +165,13 @@ export async function queueDealScoringAllUniverses(listingId: string): Promise<n
   let totalQueued = 0;
   for (const uid of universeIds) {
     try {
-      totalQueued += await queueDealScoring({ universeId: uid, listingIds: [listingId] });
+      totalQueued += await queueDealScoring({ universeId: uid, listingIds: [listingId], silent: true });
     } catch (err) {
       console.warn(`[queueDealScoringAllUniverses] Failed for universe ${uid}:`, err);
     }
+  }
+  if (totalQueued > 0) {
+    toast.info(`Queued scoring across ${universeIds.length} universe(s)`);
   }
   return totalQueued;
 }

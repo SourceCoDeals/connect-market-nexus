@@ -54,7 +54,6 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
       // Queue deal enrichment via shared queue utility
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueDealEnrichment([dealId]);
-      const dur = Date.now() - t0;
 
       // Poll for completion (enrichment runs in background)
       let attempts = 0;
@@ -94,8 +93,7 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
       if (aDataError) throw aDataError;
       setAfter(aData as Record<string, unknown> | null);
 
-      const fieldsUpdated = data?.fieldsUpdated?.length ?? 0;
-      addLog(`enrich-deal for ${dealId.slice(0, 8)}… (${fieldsUpdated} fields updated)`, dur);
+      addLog(`enrich-deal for ${dealId.slice(0, 8)}… (enrichment ${enrichmentDone ? 'completed' : 'queued'})`, Date.now() - t0);
     } catch (e: any) {
       const dur = Date.now() - t0;
       setError(e.message);

@@ -186,17 +186,17 @@ export function EntityPicker({ entity, value, onChange, placeholder }: EntityPic
         }
       } else {
         const { data } = await supabase
-          .from('buyers')
-          .select('id, pe_firm_name, platform_company_name, hq_state')
+          .from('remarketing_buyers')
+          .select('id, company_name, pe_firm_name, hq_state')
           .order('created_at', { ascending: false })
           .limit(100);
         if (data) {
           setOptions(
             data.map((b) => ({
               id: b.id,
-              label: b.pe_firm_name || b.id.slice(0, 8),
+              label: b.company_name || b.pe_firm_name || b.id.slice(0, 8),
               subtitle:
-                [b.platform_company_name, b.hq_state].filter(Boolean).join(' · ') || undefined,
+                [b.pe_firm_name, b.hq_state].filter(Boolean).join(' · ') || undefined,
             })),
           );
         }
@@ -233,12 +233,12 @@ export function EntityPicker({ entity, value, onChange, placeholder }: EntityPic
         }
       } else {
         let { data } = await supabase
-          .from('buyers')
-          .select('id, pe_firm_name')
+          .from('remarketing_buyers')
+          .select('id, company_name')
           .is('data_last_updated', null)
           .limit(50);
         if (!data || data.length === 0) {
-          const res = await supabase.from('buyers').select('id, pe_firm_name').limit(50);
+          const res = await supabase.from('remarketing_buyers').select('id, company_name').limit(50);
           data = res.data;
         }
         if (data && data.length > 0) {

@@ -450,7 +450,6 @@ export function useGPPartnerDeals() {
         /* Non-blocking */
       }
 
-      sonnerToast.info(`Scoring ${targets.length} deals...`);
       try {
         const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
         const result = await queueDealQualityScoring({ listingIds: targets.map(d => d.id) });

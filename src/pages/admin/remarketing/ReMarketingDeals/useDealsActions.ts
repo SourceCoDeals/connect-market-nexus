@@ -452,8 +452,8 @@ export function useDealsActions({
           : { mode: 'unscored' }
       );
       refetchListings();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch {
+      // Toast shown by queue utility
     } finally {
       setIsCalculating(false);
     }

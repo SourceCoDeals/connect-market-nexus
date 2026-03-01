@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminUsers } from '@/hooks/admin/use-admin-users';
 import { useAdminEmail } from '@/hooks/admin/use-admin-email';
-import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
 import { ApprovalEmailOptions } from '@/types/admin-users';
 

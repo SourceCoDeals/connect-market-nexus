@@ -233,7 +233,6 @@ export function useCapTargetActions(
         /* Non-blocking */
       }
 
-      sonnerToast.info(`Scoring ${totalCount} deals in background...`);
       try {
         const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
         await queueDealQualityScoring({
@@ -241,8 +240,8 @@ export function useCapTargetActions(
           unscoredOnly: mode === 'unscored',
           globalQueueId: activityItem?.id,
         });
-      } catch (err) {
-        sonnerToast.error('Failed to start scoring');
+      } catch {
+        // Toast shown by queue utility
         if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: 'failed' });
       }
 
