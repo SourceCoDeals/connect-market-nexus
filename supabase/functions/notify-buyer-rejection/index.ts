@@ -1,8 +1,8 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { sendViaBervo } from "../_shared/brevo-sender.ts";
-import { logEmailDelivery } from "../_shared/email-logger.ts";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
+import { sendViaBervo } from '../_shared/brevo-sender.ts';
+import { logEmailDelivery } from '../_shared/email-logger.ts';
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 interface BuyerRejectionRequest {
   connectionRequestId: string;
@@ -82,27 +82,23 @@ The SourceCo Team`;
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
   }
 
   try {
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    const {
-      connectionRequestId,
-      buyerEmail,
-      buyerName,
-      companyName,
-    }: BuyerRejectionRequest = await req.json();
+    const { connectionRequestId, buyerEmail, buyerName, companyName }: BuyerRejectionRequest =
+      await req.json();
 
     if (!buyerEmail || !companyName) {
       return new Response(
-        JSON.stringify({ success: false, error: "buyerEmail and companyName are required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } },
+        JSON.stringify({ success: false, error: 'buyerEmail and companyName are required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
 
@@ -111,7 +107,37 @@ const handler = async (req: Request): Promise<Response> => {
     const textContent = buildPlainText(buyerName, companyName);
     const correlationId = `buyer-rejection-${connectionRequestId || crypto.randomUUID()}`;
 
-    console.log("[notify-buyer-rejection] Sending rejection email to:", buyerEmail, "for:", companyName);
+    // Idempotency check: skip if a rejection email with this correlationId was already sent
+    const { data: existingLog } = await supabase
+      .from('email_delivery_logs')
+      .select('id')
+      .eq('correlation_id', correlationId)
+      .eq('status', 'sent')
+      .limit(1)
+      .maybeSingle();
+
+    if (existingLog) {
+      console.log(
+        '[notify-buyer-rejection] Skipping duplicate rejection email for correlationId:',
+        correlationId,
+      );
+      return new Response(
+        JSON.stringify({
+          success: true,
+          skipped: true,
+          message: 'Rejection email already sent',
+          correlation_id: correlationId,
+        }),
+        { headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+      );
+    }
+
+    console.log(
+      '[notify-buyer-rejection] Sending rejection email to:',
+      buyerEmail,
+      'for:',
+      companyName,
+    );
 
     const result = await sendViaBervo({
       to: buyerEmail,
@@ -119,27 +145,27 @@ const handler = async (req: Request): Promise<Response> => {
       subject,
       htmlContent,
       textContent,
-      senderName: "SourceCo",
-      senderEmail: Deno.env.get("SENDER_EMAIL") || "notifications@sourcecodeals.com",
-      replyToEmail: Deno.env.get("SENDER_EMAIL") || "adam.haile@sourcecodeals.com",
-      replyToName: Deno.env.get("SENDER_NAME") || "Adam Haile",
+      senderName: 'SourceCo',
+      senderEmail: Deno.env.get('SENDER_EMAIL') || 'notifications@sourcecodeals.com',
+      replyToEmail: Deno.env.get('SENDER_EMAIL') || 'adam.haile@sourcecodeals.com',
+      replyToName: Deno.env.get('SENDER_NAME') || 'Adam Haile',
     });
 
     // Log the delivery attempt
     await logEmailDelivery(supabase, {
       email: buyerEmail,
-      emailType: "buyer_rejection",
-      status: result.success ? "sent" : "failed",
+      emailType: 'buyer_rejection',
+      status: result.success ? 'sent' : 'failed',
       correlationId,
       errorMessage: result.success ? undefined : result.error,
     });
 
     if (!result.success) {
-      console.error("[notify-buyer-rejection] Failed to send:", result.error);
-      throw new Error(result.error || "Failed to send rejection email");
+      console.error('[notify-buyer-rejection] Failed to send:', result.error);
+      throw new Error(result.error || 'Failed to send rejection email');
     }
 
-    console.log("[notify-buyer-rejection] Email sent successfully:", result.messageId);
+    console.log('[notify-buyer-rejection] Email sent successfully:', result.messageId);
 
     return new Response(
       JSON.stringify({
@@ -148,15 +174,15 @@ const handler = async (req: Request): Promise<Response> => {
         recipient: buyerEmail,
         correlation_id: correlationId,
       }),
-      { headers: { "Content-Type": "application/json", ...corsHeaders } },
+      { headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   } catch (error: any) {
-    console.error("[notify-buyer-rejection] Error:", error);
+    console.error('[notify-buyer-rejection] Error:', error);
 
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
-    );
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 };
 

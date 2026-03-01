@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ExternalLink, Shield } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-utils';
 import ConnectionButton from '@/components/listing-detail/ConnectionButton';
 import BlurredFinancialTeaser from '@/components/listing-detail/BlurredFinancialTeaser';
@@ -23,6 +23,7 @@ import { DealSourcingCriteriaDialog } from '@/components/listing-detail/DealSour
 import { EditableDescription } from '@/components/listing-detail/EditableDescription';
 import { SimilarListingsCarousel } from '@/components/listing-detail/SimilarListingsCarousel';
 import { EnhancedSaveButton } from '@/components/listing-detail/EnhancedSaveButton';
+import { InvestmentFitScore } from '@/components/listing-detail/InvestmentFitScore';
 import { InternalCompanyInfoDisplay } from '@/components/admin/InternalCompanyInfoDisplay';
 import { BuyerDataRoom } from '@/components/marketplace/BuyerDataRoom';
 import { MFAGate } from '@/components/auth/MFAGate';
@@ -198,6 +199,17 @@ const ListingDetail = () => {
               userViewEnabled={false}
               isInactive={isInactive}
             />
+
+            {/* Confidential Identity Banner - shown to non-admin users who aren't approved */}
+            {!isAdmin && !(connectionExists && connectionStatusValue === 'approved') && (
+              <div className="flex items-start gap-3 bg-slate-50 border border-slate-200/60 rounded-lg px-4 py-3">
+                <Shield className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Business identity is confidential. Request access to receive full deal materials
+                  including the company name.
+                </p>
+              </div>
+            )}
 
             {/* Enhanced Financial Grid */}
             <div className="mt-6">
@@ -447,6 +459,7 @@ const ListingDetail = () => {
                     handleRequestConnection={handleRequestConnection}
                     listingTitle={listing.title}
                     listingId={id!}
+                    listingStatus={listing.status}
                   />
 
                   {/* Link to My Deals when request is pending */}
@@ -472,6 +485,17 @@ const ListingDetail = () => {
                   />
                 </div>
               </div>
+
+              {/* Investment Fit Analysis — buyer-facing match explanation */}
+              {!isAdmin && (
+                <InvestmentFitScore
+                  revenue={listing.revenue}
+                  ebitda={listing.ebitda}
+                  category={listing.category}
+                  location={listing.location}
+                  listing={listing}
+                />
+              )}
 
               {/* Exclusive Deal Flow */}
               <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">

@@ -1,21 +1,27 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Loader2 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-import { MultiCategorySelect } from "@/components/ui/category-select";
-import { MultiLocationSelect } from "@/components/ui/location-select";
-import { CurrencyInput } from "@/components/ui/currency-input";
-import { InvestmentSizeSelect } from "@/components/ui/investment-size-select";
-import { EnhancedCurrencyInput } from "@/components/ui/enhanced-currency-input";
-import { ChipInput } from "@/components/ui/chip-input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { DEAL_INTENT_OPTIONS } from "@/lib/signup-field-options";
-import { ProfileSettings } from "./ProfileSettings";
-import type { ProfileFormProps } from "./types";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Loader2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { MultiCategorySelect } from '@/components/ui/category-select';
+import { MultiLocationSelect } from '@/components/ui/location-select';
+import { CurrencyInput } from '@/components/ui/currency-input';
+import { InvestmentSizeSelect } from '@/components/ui/investment-size-select';
+import { EnhancedCurrencyInput } from '@/components/ui/enhanced-currency-input';
+import { ChipInput } from '@/components/ui/chip-input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { DEAL_INTENT_OPTIONS } from '@/lib/signup-field-options';
+import { ProfileSettings } from './ProfileSettings';
+import type { ProfileFormProps } from './types';
 
 export function ProfileForm({
   user,
@@ -31,9 +37,7 @@ export function ProfileForm({
     <Card>
       <CardHeader>
         <CardTitle>Profile Information</CardTitle>
-        <CardDescription>
-          Update your profile information and preferences.
-        </CardDescription>
+        <CardDescription>Update your profile information and preferences.</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -42,13 +46,23 @@ export function ProfileForm({
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" value={user.email} disabled className="bg-muted/50" />
-              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+              <p className="text-xs text-muted-foreground">
+                Need to update your email? Contact{' '}
+                <a href="mailto:support@sourceco.com" className="text-primary hover:underline">
+                  support@sourceco.com
+                </a>
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="buyer_type">Buyer Type</Label>
-              <Select value={formData.buyer_type} onValueChange={(value) => onSelectChange(value, "buyer_type")}>
-                <SelectTrigger><SelectValue placeholder="Select a buyer type" /></SelectTrigger>
+              <Select
+                value={formData.buyer_type}
+                onValueChange={(value) => onSelectChange(value, 'buyer_type')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a buyer type" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="corporate">Corporate</SelectItem>
                   <SelectItem value="privateEquity">Private Equity</SelectItem>
@@ -64,37 +78,74 @@ export function ProfileForm({
 
             <div className="space-y-2">
               <Label htmlFor="first_name">First Name</Label>
-              <Input id="first_name" name="first_name" value={formData.first_name} onChange={onInputChange} />
+              <Input
+                id="first_name"
+                name="first_name"
+                value={formData.first_name}
+                onChange={onInputChange}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="last_name">Last Name</Label>
-              <Input id="last_name" name="last_name" value={formData.last_name} onChange={onInputChange} />
+              <Input
+                id="last_name"
+                name="last_name"
+                value={formData.last_name}
+                onChange={onInputChange}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="company">Company</Label>
-              <Input id="company" name="company" value={formData.company} onChange={onInputChange} />
+              <Input
+                id="company"
+                name="company"
+                value={formData.company}
+                onChange={onInputChange}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="website">Website</Label>
-              <Input id="website" name="website" value={formData.website} onChange={onInputChange} />
+              <Input
+                id="website"
+                name="website"
+                value={formData.website}
+                onChange={onInputChange}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="linkedin_profile">LinkedIn Profile</Label>
-              <Input id="linkedin_profile" name="linkedin_profile" value={formData.linkedin_profile} onChange={onInputChange} placeholder="https://www.linkedin.com/in/yourprofile" />
+              <Input
+                id="linkedin_profile"
+                name="linkedin_profile"
+                value={formData.linkedin_profile}
+                onChange={onInputChange}
+                placeholder="https://www.linkedin.com/in/yourprofile"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="phone_number">Phone Number</Label>
-              <Input id="phone_number" name="phone_number" value={formData.phone_number} onChange={onInputChange} />
+              <Input
+                id="phone_number"
+                name="phone_number"
+                value={formData.phone_number}
+                onChange={onInputChange}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="job_title">Job Title</Label>
-              <Input id="job_title" name="job_title" value={formData.job_title || ""} onChange={onInputChange} placeholder="e.g., Partner, VP Business Development, Investment Associate" />
+              <Input
+                id="job_title"
+                name="job_title"
+                value={formData.job_title || ''}
+                onChange={onInputChange}
+                placeholder="e.g., Partner, VP Business Development, Investment Associate"
+              />
             </div>
 
             <div className="space-y-2">
@@ -117,38 +168,71 @@ export function ProfileForm({
               <div className="space-y-2">
                 <Label htmlFor="investment_size">Investment Size Range</Label>
                 <InvestmentSizeSelect
-                  value={Array.isArray(formData.investment_size) ? formData.investment_size : (formData.investment_size ? [formData.investment_size] : [])}
-                  onValueChange={(values) => onSelectChange(values, "investment_size")}
+                  value={
+                    Array.isArray(formData.investment_size)
+                      ? formData.investment_size
+                      : formData.investment_size
+                        ? [formData.investment_size]
+                        : []
+                  }
+                  onValueChange={(values) => onSelectChange(values, 'investment_size')}
                   placeholder="Select investment size ranges..."
                 />
               </div>
 
-              {(formData.buyer_type === "privateEquity" || formData.buyer_type === "familyOffice") && (
+              {(formData.buyer_type === 'privateEquity' ||
+                formData.buyer_type === 'familyOffice') && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="fund_size">Fund Size</Label>
-                    <EnhancedCurrencyInput id="fund_size" name="fund_size" value={formData.fund_size || ""} onChange={(value) => onSelectChange(value, 'fund_size')} fieldType="fund" currencyMode="millions" />
+                    <EnhancedCurrencyInput
+                      id="fund_size"
+                      name="fund_size"
+                      value={formData.fund_size || ''}
+                      onChange={(value) => onSelectChange(value, 'fund_size')}
+                      fieldType="fund"
+                      currencyMode="millions"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="aum">Assets Under Management</Label>
-                    <EnhancedCurrencyInput id="aum" name="aum" value={formData.aum || ""} onChange={(value) => onSelectChange(value, 'aum')} fieldType="aum" currencyMode="millions" />
+                    <EnhancedCurrencyInput
+                      id="aum"
+                      name="aum"
+                      value={formData.aum || ''}
+                      onChange={(value) => onSelectChange(value, 'aum')}
+                      fieldType="aum"
+                      currencyMode="millions"
+                    />
                   </div>
                 </>
               )}
 
-              {formData.buyer_type === "corporate" && (
+              {formData.buyer_type === 'corporate' && (
                 <div className="space-y-2">
                   <Label htmlFor="estimated_revenue">Your Company Revenue</Label>
-                  <EnhancedCurrencyInput id="estimated_revenue" name="estimated_revenue" value={formData.estimated_revenue || ""} onChange={(value) => onSelectChange(value, 'estimated_revenue')} fieldType="revenue" currencyMode="millions" />
+                  <EnhancedCurrencyInput
+                    id="estimated_revenue"
+                    name="estimated_revenue"
+                    value={formData.estimated_revenue || ''}
+                    onChange={(value) => onSelectChange(value, 'estimated_revenue')}
+                    fieldType="revenue"
+                    currencyMode="millions"
+                  />
                 </div>
               )}
 
-              {formData.buyer_type === "searchFund" && (
+              {formData.buyer_type === 'searchFund' && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="is_funded">Funding Status</Label>
-                    <Select value={formData.is_funded} onValueChange={(value) => onSelectChange(value, "is_funded")}>
-                      <SelectTrigger><SelectValue placeholder="Select funding status" /></SelectTrigger>
+                    <Select
+                      value={formData.is_funded}
+                      onValueChange={(value) => onSelectChange(value, 'is_funded')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select funding status" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="yes">Funded</SelectItem>
                         <SelectItem value="no">Not Funded</SelectItem>
@@ -156,16 +240,27 @@ export function ProfileForm({
                       </SelectContent>
                     </Select>
                   </div>
-                  {formData.is_funded === "yes" && (
+                  {formData.is_funded === 'yes' && (
                     <div className="space-y-2">
                       <Label htmlFor="funded_by">Funded By</Label>
-                      <Input id="funded_by" name="funded_by" value={formData.funded_by || ""} onChange={onInputChange} placeholder="Name of investor/fund" />
+                      <Input
+                        id="funded_by"
+                        name="funded_by"
+                        value={formData.funded_by || ''}
+                        onChange={onInputChange}
+                        placeholder="Name of investor/fund"
+                      />
                     </div>
                   )}
                   <div className="space-y-2">
                     <Label htmlFor="target_company_size">Target Company Size</Label>
-                    <Select value={formData.target_company_size} onValueChange={(value) => onSelectChange(value, "target_company_size")}>
-                      <SelectTrigger><SelectValue placeholder="Select target size" /></SelectTrigger>
+                    <Select
+                      value={formData.target_company_size}
+                      onValueChange={(value) => onSelectChange(value, 'target_company_size')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select target size" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="small">Small (under $5M revenue)</SelectItem>
                         <SelectItem value="medium">Medium ($5M-$50M revenue)</SelectItem>
@@ -176,12 +271,17 @@ export function ProfileForm({
                 </>
               )}
 
-              {formData.buyer_type === "individual" && (
+              {formData.buyer_type === 'individual' && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="funding_source">Primary Funding Source</Label>
-                    <Select value={formData.funding_source} onValueChange={(value) => onSelectChange(value, "funding_source")}>
-                      <SelectTrigger><SelectValue placeholder="Select funding source" /></SelectTrigger>
+                    <Select
+                      value={formData.funding_source}
+                      onValueChange={(value) => onSelectChange(value, 'funding_source')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select funding source" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="personal">Personal Funds</SelectItem>
                         <SelectItem value="investors">External Investors</SelectItem>
@@ -193,8 +293,13 @@ export function ProfileForm({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="needs_loan">SBA/Bank Loan Interest</Label>
-                    <Select value={formData.needs_loan} onValueChange={(value) => onSelectChange(value, "needs_loan")}>
-                      <SelectTrigger><SelectValue placeholder="Select loan interest" /></SelectTrigger>
+                    <Select
+                      value={formData.needs_loan}
+                      onValueChange={(value) => onSelectChange(value, 'needs_loan')}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select loan interest" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="yes">Yes</SelectItem>
                         <SelectItem value="no">No</SelectItem>
@@ -204,7 +309,13 @@ export function ProfileForm({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="ideal_target">Ideal Target Type</Label>
-                    <Input id="ideal_target" name="ideal_target" value={formData.ideal_target || ""} onChange={onInputChange} placeholder="e.g. lifestyle business, growth company" />
+                    <Input
+                      id="ideal_target"
+                      name="ideal_target"
+                      value={formData.ideal_target || ''}
+                      onChange={onInputChange}
+                      placeholder="e.g. lifestyle business, growth company"
+                    />
                   </div>
                 </>
               )}
@@ -224,58 +335,122 @@ export function ProfileForm({
           <div className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="ideal_target_description">Ideal Target Description</Label>
-              <Textarea id="ideal_target_description" name="ideal_target_description" value={formData.ideal_target_description || ""} onChange={onInputChange} placeholder="Describe your ideal acquisition target or investment criteria..." className="min-h-[100px]" />
+              <Textarea
+                id="ideal_target_description"
+                name="ideal_target_description"
+                value={formData.ideal_target_description || ''}
+                onChange={onInputChange}
+                placeholder="Describe your ideal acquisition target or investment criteria..."
+                className="min-h-[100px]"
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="business_categories">Business Categories of Interest</Label>
-              <MultiCategorySelect value={formData.business_categories || []} onValueChange={(value) => onSelectChange(value, "business_categories")} placeholder="Select business categories..." className="w-full" />
+              <MultiCategorySelect
+                value={formData.business_categories || []}
+                onValueChange={(value) => onSelectChange(value, 'business_categories')}
+                placeholder="Select business categories..."
+                className="w-full"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <div className="space-y-2">
                 <Label htmlFor="revenue_range_min">Revenue Range (Min)</Label>
-                <CurrencyInput id="revenue_range_min" name="revenue_range_min" placeholder="Minimum revenue" value={formData.revenue_range_min || ""} onChange={(value) => onSetFormData(prev => ({ ...prev, revenue_range_min: value }))} />
+                <CurrencyInput
+                  id="revenue_range_min"
+                  name="revenue_range_min"
+                  placeholder="Minimum revenue"
+                  value={formData.revenue_range_min || ''}
+                  onChange={(value) =>
+                    onSetFormData((prev) => ({ ...prev, revenue_range_min: value }))
+                  }
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="revenue_range_max">Revenue Range (Max)</Label>
-                <CurrencyInput id="revenue_range_max" name="revenue_range_max" placeholder="Maximum revenue" value={formData.revenue_range_max || ""} onChange={(value) => onSetFormData(prev => ({ ...prev, revenue_range_max: value }))} />
+                <CurrencyInput
+                  id="revenue_range_max"
+                  name="revenue_range_max"
+                  placeholder="Maximum revenue"
+                  value={formData.revenue_range_max || ''}
+                  onChange={(value) =>
+                    onSetFormData((prev) => ({ ...prev, revenue_range_max: value }))
+                  }
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="specific_business_search">Specific Business Search</Label>
-              <Textarea id="specific_business_search" name="specific_business_search" value={formData.specific_business_search || ""} onChange={onInputChange} placeholder="Describe any specific types of businesses you're looking for..." className="min-h-[80px]" />
+              <Textarea
+                id="specific_business_search"
+                name="specific_business_search"
+                value={formData.specific_business_search || ''}
+                onChange={onInputChange}
+                placeholder="Describe any specific types of businesses you're looking for..."
+                className="min-h-[80px]"
+              />
             </div>
 
             <div className="space-y-2">
               <Label>Deal Intent</Label>
-              <RadioGroup value={formData.deal_intent || ""} onValueChange={(value) => onSelectChange(value, "deal_intent")}>
+              <RadioGroup
+                value={formData.deal_intent || ''}
+                onValueChange={(value) => onSelectChange(value, 'deal_intent')}
+              >
                 {DEAL_INTENT_OPTIONS.map((option) => (
                   <div key={option.value} className="flex items-center space-x-2">
                     <RadioGroupItem value={option.value} id={`dealIntent-${option.value}`} />
-                    <Label htmlFor={`dealIntent-${option.value}`} className="text-sm font-normal">{option.label}</Label>
+                    <Label htmlFor={`dealIntent-${option.value}`} className="text-sm font-normal">
+                      {option.label}
+                    </Label>
                   </div>
                 ))}
               </RadioGroup>
-              <p className="text-sm text-muted-foreground">What type of deals are you primarily focused on pursuing?</p>
+              <p className="text-sm text-muted-foreground">
+                What type of deals are you primarily focused on pursuing?
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="exclusions">Hard Exclusions</Label>
-              <ChipInput value={formData.exclusions || []} onChange={(value) => onSelectChange(value, "exclusions")} placeholder="e.g., unionized, DTC, heavy CapEx" maxChips={10} />
-              <p className="text-sm text-muted-foreground">Industries, business models, or characteristics to avoid (e.g., unionized, DTC, heavy CapEx).</p>
+              <ChipInput
+                value={formData.exclusions || []}
+                onChange={(value) => onSelectChange(value, 'exclusions')}
+                placeholder="e.g., unionized, DTC, heavy CapEx"
+                maxChips={10}
+              />
+              <p className="text-sm text-muted-foreground">
+                Industries, business models, or characteristics to avoid (e.g., unionized, DTC,
+                heavy CapEx).
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="include_keywords">Keywords (optional)</Label>
-              <ChipInput value={formData.include_keywords || []} onChange={(value) => onSelectChange(value, "include_keywords")} placeholder="e.g., route-based, B2B services" maxChips={5} />
-              <p className="text-sm text-muted-foreground">2-5 keywords you care about (e.g., 'route-based', 'B2B services').</p>
+              <ChipInput
+                value={formData.include_keywords || []}
+                onChange={(value) => onSelectChange(value, 'include_keywords')}
+                placeholder="e.g., route-based, B2B services"
+                maxChips={5}
+              />
+              <p className="text-sm text-muted-foreground">
+                2-5 keywords you care about (e.g., 'route-based', 'B2B services').
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="bio">About Me / Bio</Label>
-              <Textarea id="bio" name="bio" value={formData.bio || ""} onChange={onInputChange} placeholder="Tell us about yourself and your investment interests..." className="min-h-[120px]" />
+              <Textarea
+                id="bio"
+                name="bio"
+                value={formData.bio || ''}
+                onChange={onInputChange}
+                placeholder="Tell us about yourself and your investment interests..."
+                className="min-h-[120px]"
+              />
             </div>
           </div>
 

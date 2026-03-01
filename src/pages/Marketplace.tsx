@@ -83,6 +83,20 @@ const MarketplaceContent = () => {
   const totalPages = Math.ceil(totalItems / pagination.state.perPage);
   const [viewType, setViewType] = useState<'grid' | 'list'>('grid');
 
+  // Welcome toast on first visit after approval
+  useEffect(() => {
+    if (user && authChecked && user.approval_status === 'approved') {
+      const hasSeenWelcome = localStorage.getItem('sourceco_shown_welcome');
+      if (!hasSeenWelcome) {
+        toast({
+          title: 'Welcome to SourceCo',
+          description: 'Browse deals, save listings, and request access when you see a fit.',
+        });
+        localStorage.setItem('sourceco_shown_welcome', 'true');
+      }
+    }
+  }, [user, authChecked]);
+
   // Error handling with toast notification
   useEffect(() => {
     if (error) {

@@ -7,115 +7,8 @@ import ListingCard from '@/components/ListingCard';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Settings2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Listing } from '@/types';
+import { computeMatchScore, extractBuyerCriteria } from '@/lib/match-scoring';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-interface MatchReason {
-  type: 'sector' | 'geography' | 'size' | 'acquisition_type';
-  label: string;
-  detail: string;
-}
-
-function computeMatchScore(
-  listing: Listing,
-  buyerCategories: string[],
-  buyerLocations: string[],
-  revenueMin: number | null,
-  revenueMax: number | null,
-  ebitdaMin: number | null,
-  ebitdaMax: number | null,
-  dealIntent: string | null,
-): { score: number; reasons: MatchReason[] } {
-  let score = 0;
-  const reasons: MatchReason[] = [];
-
-  // Category match
-  const listingCategories = listing.categories?.length ? listing.categories : [listing.category];
-  const categoryOverlap = listingCategories.some((c) =>
-    buyerCategories.some((bc) => bc.toLowerCase() === c?.toLowerCase()),
-  );
-  if (categoryOverlap) {
-    score += 3;
-    reasons.push({
-      type: 'sector',
-      label: 'Sector match',
-      detail: `${listing.category} aligns with your focus`,
-    });
-  }
-
-  // Location match
-  const listingLocation = listing.location?.toLowerCase() || '';
-  const locationMatch = buyerLocations.some(
-    (loc) =>
-      listingLocation.includes(loc.toLowerCase()) || loc.toLowerCase().includes(listingLocation),
-  );
-  if (locationMatch) {
-    score += 2;
-    reasons.push({
-      type: 'geography',
-      label: 'Geographic match',
-      detail: `${listing.location} is in your target area`,
-    });
-  }
-
-  // Revenue fit
-  const revMin = revenueMin ? parseFloat(String(revenueMin)) : null;
-  const revMax = revenueMax ? parseFloat(String(revenueMax)) : null;
-  if (listing.revenue && (revMin || revMax)) {
-    const inRange =
-      (!revMin || listing.revenue >= revMin) && (!revMax || listing.revenue <= revMax);
-    if (inRange) {
-      score += 2;
-      reasons.push({
-        type: 'size',
-        label: 'Revenue fit',
-        detail: `Revenue within your target range`,
-      });
-    }
-  }
-
-  // EBITDA fit
-  const ebMin = ebitdaMin ? parseFloat(String(ebitdaMin)) : null;
-  const ebMax = ebitdaMax ? parseFloat(String(ebitdaMax)) : null;
-  if (listing.ebitda && (ebMin || ebMax)) {
-    const inRange = (!ebMin || listing.ebitda >= ebMin) && (!ebMax || listing.ebitda <= ebMax);
-    if (inRange) {
-      score += 2;
-      reasons.push({
-        type: 'size',
-        label: 'EBITDA fit',
-        detail: `EBITDA within your target range`,
-      });
-    }
-  }
-
-  // Acquisition type fit
-  if (dealIntent && listing.acquisition_type) {
-    const intentLower = dealIntent.toLowerCase();
-    const typeLower = listing.acquisition_type.toLowerCase();
-    if (
-      intentLower === 'either' ||
-      intentLower === typeLower ||
-      (intentLower.includes('platform') && typeLower.includes('platform')) ||
-      (intentLower.includes('add') && typeLower.includes('add'))
-    ) {
-      score += 1;
-      reasons.push({
-        type: 'acquisition_type',
-        label: 'Acquisition type fit',
-        detail: `Matches your ${dealIntent} strategy`,
-      });
-    }
-  }
-
-  // Recency boost for newer listings
-  const daysSinceCreated =
-    (Date.now() - new Date(listing.created_at).getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSinceCreated < 7) score += 1;
-  else if (daysSinceCreated < 14) score += 0.5;
-
-  return { score, reasons };
-}
 
 export function MatchedDealsSection() {
   const { user } = useAuth();
@@ -133,32 +26,19 @@ export function MatchedDealsSection() {
   const { data: savedIds } = useAllSavedListingIds();
   const { data: connectionMap } = useAllConnectionStatuses();
 
-  const buyerCategories = useMemo(() => {
-    if (!user?.business_categories) return [];
-    return Array.isArray(user.business_categories) ? user.business_categories : [];
-  }, [user?.business_categories]);
-
-  const buyerLocations = useMemo(() => {
-    if (!user?.target_locations) return [];
-    return Array.isArray(user.target_locations) ? user.target_locations : [user.target_locations];
-  }, [user?.target_locations]);
-
-  // Check if buyer has enough criteria for matching
-  const criteriaCount = [
-    buyerCategories.length > 0,
-    buyerLocations.length > 0,
-    user?.revenue_range_min || user?.revenue_range_max,
-    user?.ebitda_min || user?.ebitda_max,
-    user?.deal_intent,
-  ].filter(Boolean).length;
+  const {
+    buyerCategories,
+    buyerLocations,
+    revenueMin,
+    revenueMax,
+    ebitdaMin,
+    ebitdaMax,
+    dealIntent,
+    criteriaCount,
+  } = useMemo(() => extractBuyerCriteria(user ?? null), [user]);
 
   const matchedListings = useMemo(() => {
     if (!listingsData?.listings || criteriaCount < 2) return [];
-
-    const revenueMin = user?.revenue_range_min ? parseFloat(String(user.revenue_range_min)) : null;
-    const revenueMax = user?.revenue_range_max ? parseFloat(String(user.revenue_range_max)) : null;
-    const ebitdaMin = user?.ebitda_min ? parseFloat(String(user.ebitda_min)) : null;
-    const ebitdaMax = user?.ebitda_max ? parseFloat(String(user.ebitda_max)) : null;
 
     const scored = listingsData.listings
       .filter((listing) => {
@@ -177,7 +57,7 @@ export function MatchedDealsSection() {
           revenueMax,
           ebitdaMin,
           ebitdaMax,
-          user?.deal_intent || null,
+          dealIntent,
         ),
       }))
       .filter((item) => item.score >= 2)
@@ -189,7 +69,11 @@ export function MatchedDealsSection() {
     listingsData?.listings,
     buyerCategories,
     buyerLocations,
-    user,
+    revenueMin,
+    revenueMax,
+    ebitdaMin,
+    ebitdaMax,
+    dealIntent,
     savedIds,
     connectionMap,
     criteriaCount,
