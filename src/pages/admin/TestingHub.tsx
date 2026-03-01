@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail, ListChecks, Store } from 'lucide-react';
+import { Loader2, FlaskConical, Activity, Beaker, Bot, Mail, ListChecks, Store, Sparkles } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 const EnrichmentTest = lazy(() => import('@/pages/admin/EnrichmentTest'));
@@ -10,6 +10,7 @@ const ChatbotTestRunner = lazy(() => import('@/pages/admin/ChatbotTestRunner'));
 const SmartleadTestPage = lazy(() => import('@/pages/admin/SmartleadTestPage'));
 const ThirtyQuestionTest = lazy(() => import('@/pages/admin/ThirtyQuestionTest'));
 const ListingPipelineTest = lazy(() => import('@/pages/admin/ListingPipelineTest'));
+const BuyerRecommendationTest = lazy(() => import('@/pages/admin/BuyerRecommendationTest'));
 
 const Loading = () => (
   <div className="flex items-center justify-center py-20">
@@ -69,6 +70,10 @@ export default function TestingHub() {
               <Store className="h-4 w-4" />
               Listing Pipeline
             </TabsTrigger>
+            <TabsTrigger value="buyer-rec" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Buyer Engine
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="enrichment">
@@ -110,6 +115,12 @@ export default function TestingHub() {
           <TabsContent value="listing-pipeline">
             <Suspense fallback={<Loading />}>
               <ListingPipelineTest />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="buyer-rec">
+            <Suspense fallback={<Loading />}>
+              <BuyerRecommendationTest />
             </Suspense>
           </TabsContent>
         </Tabs>
