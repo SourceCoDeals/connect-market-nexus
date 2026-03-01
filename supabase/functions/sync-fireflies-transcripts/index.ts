@@ -442,6 +442,15 @@ serve(async (req) => {
         const matchType = transcriptMatchType.get(transcript.id) || 'email';
         const externalParticipants = extractExternalParticipants(transcript.meeting_attendees || []);
 
+        // Store Fireflies summary data in extracted_data for display in Contact History
+        const extractedData: Record<string, unknown> = {};
+        if (transcript.summary?.short_summary) {
+          extractedData.fireflies_summary = transcript.summary.short_summary;
+        }
+        if (transcript.summary?.keywords) {
+          extractedData.fireflies_keywords = transcript.summary.keywords;
+        }
+
         const { error: insertError } = await supabase
           .from('deal_transcripts')
           .insert({
@@ -461,6 +470,7 @@ serve(async (req) => {
             has_content: hasContent,
             match_type: matchType,
             external_participants: externalParticipants,
+            extracted_data: extractedData,
           });
 
         if (insertError) {
