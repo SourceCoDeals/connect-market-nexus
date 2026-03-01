@@ -171,6 +171,7 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   // Auto-scoring in progress
   if (autoScore.isAutoScoring) {
     const isDiscovering = autoScore.status === 'discovering';
+    const isImporting = autoScore.status === 'importing_buyers';
     return (
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="text-center space-y-4 max-w-xs">
@@ -181,7 +182,11 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
               <Zap className="h-5 w-5 text-primary animate-pulse" />
             )}
             <span className="text-sm font-medium text-foreground">
-              {isDiscovering ? 'Discovering Buyers via Google' : 'Auto-Scoring Buyers'}
+              {isDiscovering
+                ? 'Discovering Buyers via Google'
+                : isImporting
+                  ? 'Importing Buyers'
+                  : 'Auto-Scoring Buyers'}
             </span>
           </div>
           <p className="text-xs text-muted-foreground">{autoScore.message}</p>
