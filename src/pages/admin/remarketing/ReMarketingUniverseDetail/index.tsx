@@ -107,7 +107,7 @@ const ReMarketingUniverseDetail = () => {
     editingHeader, setEditingHeader,
 
     // Query data
-    universe, isLoading,
+    universe: _universe, isLoading,
     buyers,
     universeDeals, refetchDeals,
 
