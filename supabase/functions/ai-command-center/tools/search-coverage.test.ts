@@ -240,12 +240,14 @@ describe('search_buyers — free-text search field coverage', () => {
 // ============================================================================
 
 describe('query_deals — industry filter field coverage', () => {
+  // Must mirror the industry filter in deal-tools.ts queryDeals()
   const industryFilter = (deal: Record<string, unknown>, term: string): boolean => {
     const industry = (deal.industry as string)?.toLowerCase() || '';
     const category = (deal.category as string)?.toLowerCase() || '';
     const categories = (deal.categories as string[]) || [];
     const services = (deal.services as string[]) || [];
-    const serviceMix = (deal.service_mix as string[]) || [];
+    const serviceMix = (deal.service_mix as string)?.toLowerCase() || ''; // string, NOT array
+    const tags = (deal.tags as string[]) || [];
     const title = (deal.title as string)?.toLowerCase() || '';
     const internalName = (deal.internal_company_name as string)?.toLowerCase() || '';
     const projectName = (deal.project_name as string)?.toLowerCase() || '';
@@ -253,19 +255,34 @@ describe('query_deals — industry filter field coverage', () => {
     const investmentThesis = (deal.investment_thesis as string)?.toLowerCase() || '';
     const businessModel = (deal.business_model as string)?.toLowerCase() || '';
     const industryTier = (deal.industry_tier_name as string)?.toLowerCase() || '';
+    const description = (deal.description as string)?.toLowerCase() || '';
+    const heroDescription = (deal.hero_description as string)?.toLowerCase() || '';
+    const customerTypes = (deal.customer_types as string)?.toLowerCase() || '';
+    const endMarket = (deal.end_market_description as string)?.toLowerCase() || '';
+    const revenueModel = (deal.revenue_model as string)?.toLowerCase() || '';
+    const acquisitionType = (deal.acquisition_type as string)?.toLowerCase() || '';
+    const captargetNotes = (deal.captarget_call_notes as string)?.toLowerCase() || '';
     return (
       industry.includes(term) ||
       category.includes(term) ||
       categories.some((c: string) => c.toLowerCase().includes(term)) ||
       services.some((s: string) => s.toLowerCase().includes(term)) ||
-      serviceMix.some((s: string) => s.toLowerCase().includes(term)) ||
+      serviceMix.includes(term) ||
+      tags.some((t: string) => t.toLowerCase().includes(term)) ||
       title.includes(term) ||
       internalName.includes(term) ||
       projectName.includes(term) ||
       executiveSummary.includes(term) ||
       investmentThesis.includes(term) ||
       businessModel.includes(term) ||
-      industryTier.includes(term)
+      industryTier.includes(term) ||
+      description.includes(term) ||
+      heroDescription.includes(term) ||
+      customerTypes.includes(term) ||
+      endMarket.includes(term) ||
+      revenueModel.includes(term) ||
+      acquisitionType.includes(term) ||
+      captargetNotes.includes(term)
     );
   };
 
@@ -276,13 +293,21 @@ describe('query_deals — industry filter field coverage', () => {
     category: '',
     categories: [],
     services: [],
-    service_mix: [],
+    service_mix: '', // string, not array
+    tags: [],
     internal_company_name: '',
     project_name: '',
     executive_summary: '',
     investment_thesis: '',
     business_model: '',
     industry_tier_name: '',
+    description: '',
+    hero_description: '',
+    customer_types: '',
+    end_market_description: '',
+    revenue_model: '',
+    acquisition_type: '',
+    captarget_call_notes: '',
   };
 
   const fieldsToTest: Array<[string, Record<string, unknown>]> = [
@@ -290,7 +315,8 @@ describe('query_deals — industry filter field coverage', () => {
     ['category', { category: 'Residential HVAC' }],
     ['categories (array)', { categories: ['HVAC', 'Plumbing'] }],
     ['services (array)', { services: ['HVAC installation'] }],
-    ['service_mix (array)', { service_mix: ['HVAC repair 60%'] }],
+    ['service_mix (string)', { service_mix: 'HVAC repair 60%, plumbing 40%' }],
+    ['tags (array)', { tags: ['HVAC', 'Mechanical'] }],
     ['title', { title: 'HVAC Company in Texas' }],
     ['internal_company_name', { internal_company_name: 'Project HVAC Alpha' }],
     ['project_name', { project_name: 'HVAC Platform Build' }],
@@ -298,6 +324,13 @@ describe('query_deals — industry filter field coverage', () => {
     ['investment_thesis', { investment_thesis: 'Consolidation play in the HVAC market' }],
     ['business_model', { business_model: 'HVAC service contracts with recurring revenue' }],
     ['industry_tier_name', { industry_tier_name: 'HVAC & Mechanical Tier 1' }],
+    ['description', { description: 'Full-service HVAC company serving residential customers' }],
+    ['hero_description', { hero_description: 'Premier HVAC provider in the Southeast' }],
+    ['customer_types', { customer_types: 'residential HVAC homeowners' }],
+    ['end_market_description', { end_market_description: 'HVAC services end market' }],
+    ['revenue_model', { revenue_model: 'HVAC maintenance contracts' }],
+    ['acquisition_type', { acquisition_type: 'HVAC platform' }],
+    ['captarget_call_notes', { captarget_call_notes: 'Owner discussed HVAC expansion plans' }],
   ];
 
   for (const [fieldName, override] of fieldsToTest) {
@@ -833,7 +866,7 @@ describe('Cross-cutting regression: industry keyword appears in unexpected field
       category: 'Mechanical',
       categories: [],
       services: ['AC repair'],
-      service_mix: [],
+      service_mix: '', // string, not array
       internal_company_name: '',
       project_name: '',
       executive_summary: 'Strong regional player in building services',

@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -18,9 +19,13 @@ import {
   Phone,
   UserCheck,
   Mail as MailIcon,
+  Zap,
+  Globe,
+  AlertCircle,
 } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useRecommendedBuyers } from '@/hooks/admin/use-recommended-buyers';
+import { useAutoScoreDeal } from '@/hooks/admin/use-auto-score-deal';
 import { useQueryClient } from '@tanstack/react-query';
 import { BuyerRecommendationCard } from './recommended-buyers/BuyerRecommendationCard';
 import { BuyerNarrativePanel } from './recommended-buyers/BuyerNarrativePanel';
@@ -38,8 +43,26 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // Lead sources don't auto-score — only active deals do
+  const LEAD_SOURCES = ['captarget', 'gp_partners', 'valuation_calculator', 'referral'];
+  const isLeadSource = LEAD_SOURCES.includes((deal.deal_source || '').toLowerCase());
+  const isActiveDeal = !isLeadSource;
+
   const limit = showAll ? 100 : 25;
-  const { data, isLoading, isFetching } = useRecommendedBuyers(deal.listing_id, limit);
+  const { data, isLoading, isError, isFetching, refetch } = useRecommendedBuyers(
+    deal.listing_id,
+    limit,
+  );
+
+  const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
+  const autoScore = useAutoScoreDeal(deal.listing_id || undefined, hasScores);
+
+  // Auto-trigger scoring for active deals (not lead sources)
+  useEffect(() => {
+    if (isActiveDeal && hasScores === false && autoScore.status === 'idle') {
+      autoScore.triggerAutoScore();
+    }
+  }, [isActiveDeal, hasScores, autoScore.status, autoScore.triggerAutoScore]);
 
   const filteredAndSorted = useMemo(() => {
     if (!data?.buyers) return [];
@@ -135,24 +158,138 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
     );
   }
 
+  if (isError) {
+    return (
+      <div className="flex-1 flex items-center justify-center py-12">
+        <div className="text-center space-y-3">
+          <AlertCircle className="h-6 w-6 text-destructive/60 mx-auto" />
+          <p className="text-sm text-muted-foreground">Failed to load recommended buyers</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Auto-scoring in progress
+  if (autoScore.isAutoScoring) {
+    const isDiscovering = autoScore.status === 'discovering';
+    const isImporting = autoScore.status === 'importing_buyers';
+    return (
+      <div className="flex-1 flex items-center justify-center py-12">
+        <div className="text-center space-y-4 max-w-xs">
+          <div className="flex items-center justify-center gap-2">
+            {isDiscovering ? (
+              <Globe className="h-5 w-5 text-blue-500 animate-pulse" />
+            ) : (
+              <Zap className="h-5 w-5 text-primary animate-pulse" />
+            )}
+            <span className="text-sm font-medium text-foreground">
+              {isDiscovering
+                ? 'Discovering Buyers via Google'
+                : isImporting
+                  ? 'Importing Buyers'
+                  : 'Auto-Scoring Buyers'}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">{autoScore.message}</p>
+          <Progress value={autoScore.progress} className="h-1.5" />
+          <p className="text-[10px] text-muted-foreground/50">
+            {isDiscovering
+              ? 'Searching Google for potential acquisition buyers matching this deal profile.'
+              : 'Scoring all buyers across every universe. You can navigate away and come back.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (autoScore.status === 'error') {
+    return (
+      <div className="flex-1 flex items-center justify-center py-12">
+        <div className="text-center space-y-3">
+          <AlertCircle className="h-6 w-6 text-destructive/60 mx-auto" />
+          <p className="text-sm text-muted-foreground">Auto-scoring failed: {autoScore.message}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/admin/remarketing/matching/${deal.listing_id}`)}
+          >
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+            Score Manually
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (autoScore.status === 'no_universes') {
+    return (
+      <div className="flex-1 flex items-center justify-center py-12">
+        <div className="text-center space-y-3">
+          <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+          <p className="text-sm text-muted-foreground">No buyer universes configured yet</p>
+          <p className="text-xs text-muted-foreground/60">
+            Create a buyer universe and import buyers to enable recommendations.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/buyers/universes')}>
+            Go to Universes
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!data || data.buyers.length === 0) {
+    // Lead source deal — show manual trigger button instead of auto-scoring
+    if (isLeadSource) {
+      return (
+        <div className="flex-1 flex items-center justify-center py-12">
+          <div className="text-center space-y-3">
+            <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+            <p className="text-sm text-muted-foreground">Lead-source deals are not auto-scored.</p>
+            <p className="text-xs text-muted-foreground/60">
+              You can score this deal now if you want buyer recommendations.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => autoScore.triggerAutoScore()}
+              disabled={autoScore.isAutoScoring}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              Recommend Buyers Now
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 flex items-center justify-center py-12">
         <div className="text-center space-y-2">
           <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
           <p className="text-sm text-muted-foreground">No scored buyers for this deal yet</p>
           <p className="text-xs text-muted-foreground/60">
-            Run buyer matching in Remarketing to generate recommendations.
+            Scoring may still be running in the background. Refresh in a moment.
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2"
-            onClick={() => navigate(`/admin/remarketing/matching/${deal.listing_id}`)}
-          >
-            <Sparkles className="h-3.5 w-3.5 mr-1" />
-            Match Buyers
-          </Button>
+          <div className="flex items-center justify-center gap-2 mt-3">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/admin/remarketing/matching/${deal.listing_id}`)}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              Match Buyers
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -228,7 +365,7 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
         {/* Narrative Panel */}
         <BuyerNarrativePanel
           dealId={deal.deal_id}
-          listingId={deal.listing_id}
+          listingId={deal.listing_id!}
           dealTitle={dealTitle}
           buyers={data.buyers}
           totalScored={data.totalScored}

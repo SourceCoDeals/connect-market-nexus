@@ -47,7 +47,7 @@ export function RecommendedBuyersSection({
   const queryClient = useQueryClient();
 
   const limit = showAll ? 100 : 25;
-  const { data, isLoading, isFetching } = useRecommendedBuyers(listingId, limit);
+  const { data, isLoading, isError, isFetching, refetch } = useRecommendedBuyers(listingId, limit);
 
   const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
 
@@ -139,9 +139,26 @@ export function RecommendedBuyersSection({
     );
   }
 
+  // Query error state
+  if (isError) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center space-y-3">
+          <AlertCircle className="h-6 w-6 text-destructive/60 mx-auto" />
+          <p className="text-sm text-muted-foreground">Failed to load recommended buyers</p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Auto-scoring in progress
   if (autoScore.isAutoScoring) {
     const isDiscovering = autoScore.status === 'discovering';
+    const isImporting = autoScore.status === 'importing_buyers';
     return (
       <Card>
         <CardContent className="py-10 space-y-4">
@@ -152,7 +169,11 @@ export function RecommendedBuyersSection({
               <Zap className="h-5 w-5 text-primary animate-pulse" />
             )}
             <span className="text-sm font-medium text-foreground">
-              {isDiscovering ? 'Discovering Buyers via Google' : 'Auto-Scoring Buyers'}
+              {isDiscovering
+                ? 'Discovering Buyers via Google'
+                : isImporting
+                  ? 'Importing Buyers'
+                  : 'Auto-Scoring Buyers'}
             </span>
           </div>
           <p className="text-xs text-muted-foreground text-center">{autoScore.message}</p>
@@ -160,7 +181,9 @@ export function RecommendedBuyersSection({
           <p className="text-[10px] text-muted-foreground/50 text-center">
             {isDiscovering
               ? 'Searching Google for potential acquisition buyers matching this deal profile.'
-              : 'Scoring all buyers across every universe. This runs in the background — you can navigate away and come back.'}
+              : isImporting
+                ? 'Pulling in marketplace buyers and unassigned buyers so every buyer gets scored.'
+                : 'Scoring all buyers across the entire buyer pool. This runs in the background — you can navigate away and come back.'}
           </p>
         </CardContent>
       </Card>
