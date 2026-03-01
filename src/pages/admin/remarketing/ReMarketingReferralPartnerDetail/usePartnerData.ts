@@ -81,7 +81,7 @@ export function usePartnerData(partnerId: string | undefined) {
     enabled: !!deals?.length,
     refetchInterval: (enrichmentQueue) => {
       const data = enrichmentQueue.state?.data;
-      const hasActive = data?.some((d: any) => d.status === 'pending' || d.status === 'processing');
+      const hasActive = data?.some((d) => d.status === 'pending' || d.status === 'processing');
       return hasActive ? 5000 : false;
     },
   });
@@ -143,11 +143,11 @@ export function usePartnerData(partnerId: string | undefined) {
   // Enrichment progress
   const enrichmentProgress = useMemo(() => {
     if (!enrichmentQueue?.length) return null;
-    const active = enrichmentQueue.filter((q: any) => q.status === 'pending' || q.status === 'processing');
+    const active = enrichmentQueue.filter((q) => q.status === 'pending' || q.status === 'processing');
     if (active.length === 0) return null;
     const total = enrichmentQueue.length;
-    const completed = enrichmentQueue.filter((q: any) => q.status === 'completed').length;
-    const failed = enrichmentQueue.filter((q: any) => q.status === 'failed').length;
+    const completed = enrichmentQueue.filter((q) => q.status === 'completed').length;
+    const failed = enrichmentQueue.filter((q) => q.status === 'failed').length;
     return { total, completed, failed };
   }, [enrichmentQueue]);
 

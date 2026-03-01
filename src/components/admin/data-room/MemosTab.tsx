@@ -233,7 +233,7 @@ function MemoSlotCard({
     setIsDownloadingDocx(true);
     try {
       await generateMemoDocx({
-        sections: draft.content.sections as any,
+        sections: draft.content.sections as { key: string; title: string; content: string }[],
         memoType: slotType,
         dealTitle: dealTitle || 'Deal',
         branding: 'SourceCo',

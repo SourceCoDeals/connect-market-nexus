@@ -39,7 +39,7 @@ interface GPPartnerTableProps {
   handlePushToAllDeals: (dealIds: string[]) => Promise<void>;
   handleEnrichSelected: (dealIds: string[]) => Promise<void>;
   handleAssignOwner: (dealId: string, ownerId: string | null) => Promise<void>;
-  adminProfiles: Record<string, unknown> | undefined;
+  adminProfiles: Record<string, { id: string; displayName: string }> | undefined;
   setAddDealOpen: (open: boolean) => void;
   setCsvUploadOpen: (open: boolean) => void;
   onMarkNotFit?: (dealId: string) => void;
@@ -173,7 +173,7 @@ export function GPPartnerTable({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none"><span className="text-muted-foreground">Unassigned</span></SelectItem>
-                          {adminProfiles && Object.values(adminProfiles).map((admin: any) => (
+                          {adminProfiles && Object.values(adminProfiles).map((admin) => (
                             <SelectItem key={admin.id} value={admin.id}>{admin.displayName}</SelectItem>
                           ))}
                         </SelectContent>
@@ -268,11 +268,11 @@ function DealRowActions({
   deal, navigate, handleEnrichSelected, handlePushToAllDeals, queryClient, toast, onMarkNotFit,
 }: {
   deal: GPPartnerDeal;
-  navigate: (path: string, opts?: any) => void;
+  navigate: (path: string, opts?: { state?: Record<string, unknown> }) => void;
   handleEnrichSelected: (dealIds: string[]) => Promise<void>;
   handlePushToAllDeals: (dealIds: string[]) => Promise<void>;
-  queryClient: any;
-  toast: any;
+  queryClient: { invalidateQueries: (opts: { queryKey: string[] }) => void };
+  toast: { error: (msg: string) => void; success: (msg: string) => void };
   onMarkNotFit?: (dealId: string) => void;
 }) {
   return (

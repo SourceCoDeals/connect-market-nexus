@@ -1,5 +1,6 @@
 
 import { supabase } from "./integrations/supabase/client";
+import type { TablesInsert } from "./integrations/supabase/types";
 import { errorLogger } from "./lib/error-logger";
 
 // Sample data for listings
@@ -80,7 +81,7 @@ export const seedDatabase = async () => {
       // Insert sample listings
       const { error: listingsError } = await supabase
         .from('listings')
-        .insert(sampleListings as any);
+        .insert(sampleListings as TablesInsert<'listings'>[]);
       
       if (listingsError) throw listingsError;
       

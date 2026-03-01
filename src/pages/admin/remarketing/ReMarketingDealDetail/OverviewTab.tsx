@@ -20,9 +20,11 @@ import { format } from "date-fns";
 import { WebsiteActionsCard } from "./WebsiteActionsCard";
 import { FinancialOverviewCard } from "./FinancialOverviewCard";
 import type { DealTranscript } from "../types";
+import type { Tables } from "@/integrations/supabase/types";
+import type { QueryClient } from "@tanstack/react-query";
 
 interface OverviewTabProps {
-  deal: any;
+  deal: Tables<'listings'>['Row'];
   dealId: string;
   scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
   pipelineStats: {
@@ -33,7 +35,7 @@ interface OverviewTabProps {
     closedWon: number;
     closedLost: number;
   } | undefined;
-  transcripts: any[] | undefined;
+  transcripts: DealTranscript[] | undefined;
   transcriptsLoading: boolean;
   effectiveWebsite: string | null;
   isEnriching: boolean;
@@ -45,11 +47,11 @@ interface OverviewTabProps {
   editFinancialsOpen: boolean;
   setEditFinancialsOpen: (v: boolean) => void;
   handleEnrichFromWebsite: () => void;
-  handleAnalyzeNotes: (notes: string) => void;
+  handleAnalyzeNotes: (notes: string) => void | Promise<void>;
   updateDealMutation: { mutateAsync: (updates: Record<string, unknown>) => Promise<void>; isPending: boolean };
   toggleContactOwnerMutation: { mutate: (v: boolean) => void; isPending: boolean };
   toggleUniverseFlagMutation: { mutate: (v: boolean) => void; isPending: boolean };
-  queryClient: any;
+  queryClient: QueryClient;
 }
 
 export function OverviewTab({
@@ -328,7 +330,7 @@ export function OverviewTab({
           await updateDealMutation.mutateAsync({ general_notes: notes });
         }}
         isAnalyzing={isAnalyzingNotes}
-        onAnalyze={handleAnalyzeNotes as any}
+        onAnalyze={handleAnalyzeNotes}
       />
 
       <div className="flex justify-end gap-6 text-xs text-muted-foreground pt-4">

@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { APPROVAL_STATUSES } from '@/constants';
 
 export function useRealtimeAdmin() {
   const { user } = useAuth();
@@ -104,7 +105,7 @@ export function useRealtimeAdmin() {
             const status = payload.new.approval_status;
             const userName = `${payload.new.first_name} ${payload.new.last_name}`;
             toast({
-              title: `👤 User ${status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Updated'}`,
+              title: `👤 User ${status === APPROVAL_STATUSES.APPROVED ? 'Approved' : status === APPROVAL_STATUSES.REJECTED ? 'Rejected' : 'Updated'}`,
               description: `${userName} status changed to ${status}`,
             });
           }

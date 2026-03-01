@@ -19,17 +19,20 @@ import {
 import BuyerTableRow from "./BuyerTableRow";
 import { PAGE_SIZE } from "./constants";
 import type { BuyerTab } from "./constants";
+import type { Tables } from "@/integrations/supabase/types";
+
+type BuyerRow = Tables<'remarketing_buyers'>['Row'] & Record<string, unknown>;
 
 interface BuyersTableProps {
   activeTab: BuyerTab;
   buyersLoading: boolean;
-  filteredBuyers: any[];
-  pagedBuyers: any[];
+  filteredBuyers: BuyerRow[];
+  pagedBuyers: BuyerRow[];
   currentPage: number;
   setCurrentPage: (page: number | ((p: number) => number)) => void;
   totalPages: number;
   selectedIds: Set<string>;
-  buyers: any[] | undefined;
+  buyers: BuyerRow[] | undefined;
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
   sortColumn: string;
@@ -140,7 +143,7 @@ const BuyersTable = ({
                 </TableCell>
               </TableRow>
             ) : (
-              pagedBuyers.map((buyer: any, pageIdx: number) => {
+              pagedBuyers.map((buyer, pageIdx: number) => {
                 const globalIdx = (currentPage - 1) * PAGE_SIZE + pageIdx + 1;
                 return (
                   <BuyerTableRow

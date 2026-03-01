@@ -125,7 +125,7 @@ export async function selfHealProfile(
     const { approval_status: _strip, ...safePayload } = payload;
     const { data: updatedProfile, error: updateError } = await supabase
       .from('profiles')
-      .update(safePayload as any)
+      .update(safePayload as Record<string, unknown>)
       .eq('id', authUser.id)
       .select(selectColumns)
       .single();
@@ -140,7 +140,7 @@ export async function selfHealProfile(
   // Profile truly missing — insert with pending status
   const { data: newProfile, error: insertError } = await supabase
     .from('profiles')
-    .upsert(payload as any, { onConflict: 'id' })
+    .upsert(payload as Record<string, unknown>, { onConflict: 'id' })
     .select(selectColumns)
     .single();
 

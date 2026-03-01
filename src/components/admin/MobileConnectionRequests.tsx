@@ -6,6 +6,7 @@ import { Search } from 'lucide-react';
 import { AdminConnectionRequest } from '@/types/admin';
 import { MobileConnectionRequestsTable } from './MobileConnectionRequestsTable';
 import { ConnectionRequestDialog } from './ConnectionRequestDialog';
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface MobileConnectionRequestsProps {
   requests: AdminConnectionRequest[];
@@ -75,13 +76,13 @@ export function MobileConnectionRequests({
             Total: {requests.length}
           </Badge>
           <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
-            Pending: {requests.filter((r) => r.status === "pending").length}
+            Pending: {requests.filter((r) => r.status === CONNECTION_STATUSES.PENDING).length}
           </Badge>
           <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-            Approved: {requests.filter((r) => r.status === "approved").length}
+            Approved: {requests.filter((r) => r.status === CONNECTION_STATUSES.APPROVED).length}
           </Badge>
           <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-200">
-            Rejected: {requests.filter((r) => r.status === "rejected").length}
+            Rejected: {requests.filter((r) => r.status === CONNECTION_STATUSES.REJECTED).length}
           </Badge>
         </div>
 

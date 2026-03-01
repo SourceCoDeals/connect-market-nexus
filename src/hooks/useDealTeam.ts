@@ -5,10 +5,13 @@
  * per listing (sellside engagement).
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { DealTeamMember, DealTeamRole } from '@/types/daily-tasks';
+
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
 
 const DEAL_TEAM_KEY = 'deal-team';
 
@@ -17,8 +20,7 @@ export function useDealTeam(listingId: string | null) {
     queryKey: [DEAL_TEAM_KEY, listingId],
     enabled: !!listingId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rm_deal_team' as any)
+      const { data, error } = await fromTable('rm_deal_team')
         .select(
           `
           *,
@@ -48,8 +50,7 @@ export function useAddDealTeamMember() {
       userId: string;
       role: DealTeamRole;
     }) => {
-      const { data, error } = await supabase
-        .from('rm_deal_team' as any)
+      const { data, error } = await fromTable('rm_deal_team')
         .insert({ listing_id: listingId, user_id: userId, role })
         .select()
         .single();
@@ -76,8 +77,7 @@ export function useUpdateDealTeamRole() {
       listingId: string;
       role: DealTeamRole;
     }) => {
-      const { error } = await supabase
-        .from('rm_deal_team' as any)
+      const { error } = await fromTable('rm_deal_team')
         .update({ role })
         .eq('id', memberId);
 
@@ -95,8 +95,7 @@ export function useRemoveDealTeamMember() {
 
   return useMutation({
     mutationFn: async ({ memberId, listingId }: { memberId: string; listingId: string }) => {
-      const { error } = await supabase
-        .from('rm_deal_team' as any)
+      const { error } = await fromTable('rm_deal_team')
         .delete()
         .eq('id', memberId);
 

@@ -11,6 +11,7 @@ import { FilterBar, ADMIN_LISTING_FIELDS } from '@/components/filters';
 import { useFilterEngine } from '@/hooks/use-filter-engine';
 import { useTimeframe } from '@/hooks/use-timeframe';
 import { useSavedViews } from '@/hooks/use-saved-views';
+import { LISTING_STATUSES } from '@/constants';
 
 interface ListingsTabContentProps {
   type: ListingType;
@@ -55,16 +56,16 @@ export function ListingsTabContent({
       case 'activate':
         selectedListings.forEach((id) => {
           const listing = listings.find((l) => l.id === id);
-          if (listing && listing.status !== 'active') {
-            toggleStatus({ id, status: 'active' });
+          if (listing && listing.status !== LISTING_STATUSES.ACTIVE) {
+            toggleStatus({ id, status: LISTING_STATUSES.ACTIVE });
           }
         });
         break;
       case 'deactivate':
         selectedListings.forEach((id) => {
           const listing = listings.find((l) => l.id === id);
-          if (listing && listing.status !== 'inactive') {
-            toggleStatus({ id, status: 'inactive' });
+          if (listing && listing.status !== LISTING_STATUSES.INACTIVE) {
+            toggleStatus({ id, status: LISTING_STATUSES.INACTIVE });
           }
         });
         break;
@@ -230,7 +231,7 @@ export function ListingsTabContent({
                 }}
                 onEdit={() => onEdit(listing)}
                 onToggleStatus={() => {
-                  const newStatus = listing.status === 'active' ? 'inactive' : 'active';
+                  const newStatus = listing.status === LISTING_STATUSES.ACTIVE ? LISTING_STATUSES.INACTIVE : LISTING_STATUSES.ACTIVE;
                   toggleStatus({ id: listing.id, status: newStatus });
                 }}
                 onDelete={() => {

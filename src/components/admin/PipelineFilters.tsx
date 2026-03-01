@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { CONNECTION_STATUSES } from '@/constants';
 import { 
   CheckCircle2, 
   Clock, 
@@ -140,10 +141,10 @@ export function PipelineFilters({
   
   const statusCounts = {
     all: requests.length,
-    pending: requests.filter(r => r.status === 'pending').length,
-    approved: requests.filter(r => r.status === 'approved').length,
-    rejected: requests.filter(r => r.status === 'rejected').length,
-    on_hold: requests.filter(r => r.status === 'on_hold').length,
+    pending: requests.filter(r => r.status === CONNECTION_STATUSES.PENDING).length,
+    approved: requests.filter(r => r.status === CONNECTION_STATUSES.APPROVED).length,
+    rejected: requests.filter(r => r.status === CONNECTION_STATUSES.REJECTED).length,
+    on_hold: requests.filter(r => r.status === CONNECTION_STATUSES.ON_HOLD).length,
   };
 
   const buyerTypeOptions = [

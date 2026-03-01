@@ -42,7 +42,7 @@ export function useRealtimeConnections() {
                 title: 'Connection Approved! ✅',
                 description: 'Your connection request has been approved.',
               });
-            } else if (newStatus === 'rejected') {
+            } else if (newStatus === CONNECTION_STATUSES.REJECTED) {
               toast({
                 title: 'Connection Update',
                 description: 'Your connection request status has been updated.',

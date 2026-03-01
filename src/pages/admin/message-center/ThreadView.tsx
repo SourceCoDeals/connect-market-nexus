@@ -37,13 +37,13 @@ function useUpdateConversationState() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ requestId, state, claimedBy }: { requestId: string; state: string; claimedBy?: string | null }) => {
-      const updates: any = { conversation_state: state };
+      const updates: Record<string, string | null> = { conversation_state: state };
       if (claimedBy !== undefined) {
         updates.claimed_by = claimedBy;
         updates.claimed_at = claimedBy ? new Date().toISOString() : null;
       }
-      const { error } = await (supabase
-        .from("connection_requests") as any)
+      const { error } = await supabase
+        .from("connection_requests")
         .update(updates)
         .eq("id", requestId);
       if (error) throw error;
@@ -58,13 +58,13 @@ function useClaimThread() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ requestId, adminId }: { requestId: string; adminId: string | null }) => {
-      const updates: any = {
+      const updates: Record<string, string | null> = {
         claimed_by: adminId,
         claimed_at: adminId ? new Date().toISOString() : null,
         conversation_state: adminId ? "claimed" : "new",
       };
-      const { error } = await (supabase
-        .from("connection_requests") as any)
+      const { error } = await supabase
+        .from("connection_requests")
         .update(updates)
         .eq("id", requestId);
       if (error) throw error;

@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AdminListing } from "@/types/admin";
+import { LISTING_STATUSES } from '@/constants';
 import ListingStatusTag from "@/components/listing/ListingStatusTag";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency-utils";
@@ -107,7 +108,7 @@ export function AdminListingCard({
                     variant="outline"
                     className={cn(
                       "text-[11px] font-medium",
-                      listing.status === "active" 
+                      listing.status === LISTING_STATUSES.ACTIVE 
                         ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" 
                         : "bg-muted text-muted-foreground border-border"
                     )}
@@ -170,7 +171,7 @@ export function AdminListingCard({
                       )}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={onToggleStatus}>
-                      {listing.status === "active" ? (
+                      {listing.status === LISTING_STATUSES.ACTIVE ? (
                         <>
                           <EyeOff className="h-4 w-4 mr-2" />
                           Deactivate
@@ -235,15 +236,15 @@ export function AdminListingCard({
             {/* Active/Inactive dot indicator */}
             <div className={cn(
               "flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium backdrop-blur-sm",
-              listing.status === "active" 
+              listing.status === LISTING_STATUSES.ACTIVE 
                 ? "bg-emerald-500/90 text-white" 
                 : "bg-muted/90 text-muted-foreground"
             )}>
               <span className={cn(
                 "w-1.5 h-1.5 rounded-full",
-                listing.status === "active" ? "bg-white" : "bg-muted-foreground"
+                listing.status === LISTING_STATUSES.ACTIVE ? "bg-white" : "bg-muted-foreground"
               )} />
-              {listing.status === "active" ? "Active" : "Inactive"}
+              {listing.status === LISTING_STATUSES.ACTIVE ? "Active" : "Inactive"}
             </div>
           </div>
           
@@ -413,7 +414,7 @@ export function AdminListingCard({
             onClick={onToggleStatus}
             className="h-9 w-9 p-0"
           >
-            {listing.status === "active" ? (
+            {listing.status === LISTING_STATUSES.ACTIVE ? (
               <EyeOff className="h-4 w-4" />
             ) : (
               <Eye className="h-4 w-4" />

@@ -11,6 +11,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
+
 export interface AlertCounts {
   total: number;
   critical: number;
@@ -37,8 +41,7 @@ async function fetchAlertCounts(): Promise<AlertCounts> {
       .eq('status', 'overdue'),
 
     // Unacknowledged critical/warning signals
-    supabase
-      .from('rm_deal_signals' as any)
+    fromTable('rm_deal_signals')
       .select('id', { count: 'exact', head: true })
       .in('signal_type', ['critical', 'warning'])
       .is('acknowledged_at', null),

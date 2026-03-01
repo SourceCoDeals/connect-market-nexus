@@ -30,7 +30,7 @@ export function useUpdateAgreementViaUser() {
 
   return useMutation({
     mutationFn: async ({ userId, agreementType, action, adminNotes }: UpdateAgreementParams) => {
-      const { data, error } = await (supabase.rpc as any)('update_agreement_via_user', {
+      const { data, error } = await supabase.rpc('update_agreement_via_user', {
         p_user_id: userId,
         p_agreement_type: agreementType,
         p_action: action,

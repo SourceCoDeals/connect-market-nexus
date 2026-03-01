@@ -83,7 +83,7 @@ function useDocumentTracking() {
       if (!firms || firms.length === 0) return [];
 
       // 2. Fetch first connection request per firm for deal title
-      const firmIds = firms.map((f: any) => f.id);
+      const firmIds = firms.map((f) => f.id);
       const { data: requests } = await supabase
         .from("connection_requests")
         .select(`
@@ -96,7 +96,7 @@ function useDocumentTracking() {
 
       // Map firm_id to most recent deal request
       const firmDealMap: Record<string, { id: string; title: string }> = {};
-      (requests || []).forEach((r: any) => {
+      (requests || []).forEach((r) => {
         if (!firmDealMap[r.firm_id]) {
           firmDealMap[r.firm_id] = {
             id: r.id,
@@ -108,9 +108,9 @@ function useDocumentTracking() {
       // 3. Build document rows — one per document type per firm
       const rows: DocumentRow[] = [];
 
-      for (const firm of firms as any[]) {
+      for (const firm of firms) {
         // Find primary contact
-        const primaryMember = firm.firm_members?.find((m: any) => m.is_primary_contact);
+        const primaryMember = firm.firm_members?.find((m) => m.is_primary_contact);
         const anyMember = firm.firm_members?.[0];
         const member = primaryMember || anyMember;
 

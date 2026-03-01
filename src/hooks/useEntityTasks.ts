@@ -6,10 +6,13 @@
  * entity detail pages.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { DailyStandupTaskWithRelations, TaskEntityType } from '@/types/daily-tasks';
+
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
 
 const ENTITY_TASKS_KEY = 'entity-tasks';
 
@@ -28,8 +31,7 @@ export function useEntityTasks({
     queryKey: [ENTITY_TASKS_KEY, entityType, entityId, includeCompleted],
     enabled: !!entityId,
     queryFn: async () => {
-      let query = supabase
-        .from('daily_standup_tasks' as any)
+      let query = fromTable('daily_standup_tasks')
         .select(
           `
           *,
@@ -75,8 +77,7 @@ export function useSecondaryEntityTasks({
     queryKey: [ENTITY_TASKS_KEY, 'secondary', entityType, entityId, includeCompleted],
     enabled: !!entityId,
     queryFn: async () => {
-      let query = supabase
-        .from('daily_standup_tasks' as any)
+      let query = fromTable('daily_standup_tasks')
         .select(
           `
           *,

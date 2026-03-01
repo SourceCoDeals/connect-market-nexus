@@ -158,8 +158,8 @@ export function scheduleIdleWork(
 
   // Fallback: use setTimeout with 1ms delay, simulating idle behavior
   const start = Date.now();
-  const w = window as any;
-  return w.setTimeout(() => {
+  const w = window as unknown as Record<string, unknown>;
+  return (w.setTimeout as typeof setTimeout)(() => {
     callback({
       timeRemaining: () => Math.max(0, 50 - (Date.now() - start)),
       didTimeout: false,

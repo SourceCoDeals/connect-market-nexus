@@ -63,7 +63,7 @@ export function sanitizeHtml(dirty: string, allowLinks = true): string {
   }
 
   // Add noopener noreferrer to all links after sanitization
-  const clean = DOMPurify.sanitize(dirty, config as any);
+  const clean = DOMPurify.sanitize(dirty, config as DOMPurify.Config);
 
   // Post-process: ensure all <a> tags have rel="noopener noreferrer"
   return String(clean).replace(

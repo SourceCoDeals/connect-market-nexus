@@ -21,6 +21,9 @@ import {
 } from '@/hooks/admin/use-document-distribution';
 import { ReleaseModal } from './ReleaseModal';
 import { supabase } from '@/integrations/supabase/client';
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -80,9 +83,8 @@ export function DataRoomFilesTab({ dealId, projectName, buyers = [] }: DataRoomF
   };
 
   const handleDelete = async (docId: string) => {
-    const { error } = await supabase
-      .from('deal_documents' as any)
-      .update({ status: 'deleted', updated_at: new Date().toISOString() } as any)
+    const { error } = await fromTable('deal_documents')
+      .update({ status: 'deleted', updated_at: new Date().toISOString() })
       .eq('id', docId);
     if (error) {
       toast.error('Failed to delete document');

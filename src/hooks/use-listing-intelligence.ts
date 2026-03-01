@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { LISTING_STATUSES, CONNECTION_STATUSES } from '@/constants';
 
 export interface ListingPerformance {
   id: string;
@@ -60,7 +61,7 @@ export function useListingIntelligence(daysBack: number = 30) {
             created_at, user_id, status
           )
         `)
-        .eq('status', 'active')
+        .eq('status', LISTING_STATUSES.ACTIVE)
         .is('deleted_at', null);
       if (listingsError) throw listingsError;
 
@@ -72,7 +73,7 @@ export function useListingIntelligence(daysBack: number = 30) {
       for (const listing of listings) {
         const views = listing.listing_analytics?.filter(a => a.action_type === 'view').length || 0;
         const saves = listing.saved_listings?.length || 0;
-        const connections = listing.connection_requests?.filter(c => c.status === 'approved').length || 0;
+        const connections = listing.connection_requests?.filter(c => c.status === CONNECTION_STATUSES.APPROVED).length || 0;
         
         const totalTimeSpent = listing.listing_analytics
           ?.filter(a => a.time_spent)
@@ -165,7 +166,7 @@ export function useListingJourneys(listingId?: string) {
             user_id, created_at, status
           )
         `)
-        .eq('status', 'active')
+        .eq('status', LISTING_STATUSES.ACTIVE)
         .is('deleted_at', null);
 
       if (listingId) {

@@ -7,6 +7,7 @@ import { AdminConnectionRequest, AdminListing } from '@/types/admin';
 import { MessageSquare, User, Building, MapPin, DollarSign, Clipboard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { InternalCompanyInfoDisplay } from './InternalCompanyInfoDisplay';
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface MobileConnectionRequestsTableProps {
   requests: AdminConnectionRequest[];
@@ -164,7 +165,7 @@ const MobileRequestCard = ({
 
       {/* Actions */}
       <div className="border-t pt-3">
-        {request.status === "pending" ? (
+        {request.status === CONNECTION_STATUSES.PENDING ? (
           <div className="flex gap-2">
             <Button
               size="sm"
@@ -182,7 +183,7 @@ const MobileRequestCard = ({
               Reject
             </Button>
           </div>
-        ) : request.status === "rejected" ? (
+        ) : request.status === CONNECTION_STATUSES.REJECTED ? (
           <Button
             size="sm"
             className="w-full bg-green-500 hover:bg-green-600 text-white"

@@ -19,6 +19,7 @@ import {
 import { AdminConnectionRequest } from "@/types/admin";
 import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
 import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface RequestsGridViewProps {
   requests: AdminConnectionRequest[];
@@ -172,11 +173,11 @@ const BuyerCard = ({
               </Label>
               <Switch
                 id={`approved-${request.id}`}
-                checked={request.status === 'approved'}
+                checked={request.status === CONNECTION_STATUSES.APPROVED}
                 onCheckedChange={(checked) => {
                   updateStatus.mutate({
                     requestId: request.id,
-                    status: checked ? 'approved' : 'pending'
+                    status: checked ? CONNECTION_STATUSES.APPROVED : CONNECTION_STATUSES.PENDING
                   });
                 }}
                 disabled={updateStatus.isPending}
@@ -190,11 +191,11 @@ const BuyerCard = ({
               </Label>
               <Switch
                 id={`rejected-${request.id}`}
-                checked={request.status === 'rejected'}
+                checked={request.status === CONNECTION_STATUSES.REJECTED}
                 onCheckedChange={(checked) => {
                   updateStatus.mutate({
                     requestId: request.id,
-                    status: checked ? 'rejected' : 'pending'
+                    status: checked ? CONNECTION_STATUSES.REJECTED : CONNECTION_STATUSES.PENDING
                   });
                 }}
                 disabled={updateStatus.isPending}
@@ -208,11 +209,11 @@ const BuyerCard = ({
               </Label>
               <Switch
                 id={`on_hold-${request.id}`}
-                checked={request.status === 'on_hold'}
+                checked={request.status === CONNECTION_STATUSES.ON_HOLD}
                 onCheckedChange={(checked) => {
                   updateStatus.mutate({
                     requestId: request.id,
-                    status: checked ? 'on_hold' : 'pending'
+                    status: checked ? CONNECTION_STATUSES.ON_HOLD : CONNECTION_STATUSES.PENDING
                   });
                 }}
                 disabled={updateStatus.isPending}
@@ -221,22 +222,22 @@ const BuyerCard = ({
           </div>
 
           {/* Admin Decision Info */}
-          {request.status !== 'pending' && adminProfiles && (
+          {request.status !== CONNECTION_STATUSES.PENDING && adminProfiles && (
             <div className="text-xs space-y-1 pt-2 border-t border-border/50">
               <div className="font-medium text-muted-foreground">Decision Details:</div>
-              {request.status === 'approved' && (
+              {request.status === CONNECTION_STATUSES.APPROVED && (
                 <div className="text-success">
                   Approved by {adminProfiles[request.approved_by || '']?.displayName || 'Admin'} 
                   {request.approved_at && ` on ${format(new Date(request.approved_at), 'MMM d, yyyy')}`}
                 </div>
               )}
-              {request.status === 'rejected' && (
+              {request.status === CONNECTION_STATUSES.REJECTED && (
                 <div className="text-destructive">
                   Rejected by {adminProfiles[request.rejected_by || '']?.displayName || 'Admin'}
                   {request.rejected_at && ` on ${format(new Date(request.rejected_at), 'MMM d, yyyy')}`}
                 </div>
               )}
-              {request.status === 'on_hold' && (
+              {request.status === CONNECTION_STATUSES.ON_HOLD && (
                 <div className="text-warning">
                   Put on hold by {adminProfiles[request.on_hold_by || '']?.displayName || 'Admin'}
                   {request.on_hold_at && ` on ${format(new Date(request.on_hold_at), 'MMM d, yyyy')}`}

@@ -15,7 +15,7 @@ export function TrackerKPIConfigTab({
     <KPIConfigPanel
       trackerId={trackerId}
       tracker={{
-        kpi_scoring_config: kpiConfig as any,
+        kpi_scoring_config: kpiConfig as { kpis: { name: string; operator: string; threshold: number; points: number; unit?: string }[] } | undefined,
       }}
       onSave={onSave}
     />
