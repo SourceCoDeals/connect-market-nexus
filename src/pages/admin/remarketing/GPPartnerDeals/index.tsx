@@ -25,11 +25,10 @@ import { EnrichmentProgressIndicator } from '@/components/remarketing/Enrichment
 import {
   DealBulkActionBar,
   AddDealsToListDialog,
-  PushToHeyreachModal,
+  PushToOutreachModal,
 } from '@/components/remarketing';
 import type { DealForList } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { useGPPartnerDeals } from './useGPPartnerDeals';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
@@ -364,14 +363,16 @@ export default function GPPartnerDeals() {
         contactCount={hook.selectedIds.size}
         entityType="listings"
       />
-      <PushToSmartleadModal
+      <PushToOutreachModal
+        service="smartlead"
         open={smartleadOpen}
         onOpenChange={setSmartleadOpen}
         contactIds={Array.from(hook.selectedIds)}
         contactCount={hook.selectedIds.size}
         entityType="listings"
       />
-      <PushToHeyreachModal
+      <PushToOutreachModal
+        service="heyreach"
         open={heyreachOpen}
         onOpenChange={setHeyreachOpen}
         contactIds={Array.from(hook.selectedIds)}

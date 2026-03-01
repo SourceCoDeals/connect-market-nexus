@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { FIREFLIES_GRAPHQL_URL } from "../_shared/api-urls.ts";
 
 /**
  * Bulk Sync ALL Fireflies Transcripts
@@ -57,7 +58,7 @@ async function firefliesGraphQL(
       FIREFLIES_API_TIMEOUT_MS,
     );
     try {
-      const response = await fetch("https://api.fireflies.ai/graphql", {
+      const response = await fetch(FIREFLIES_GRAPHQL_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -43,10 +43,9 @@ import { CapTargetTableRow } from '../components/CapTargetTableRow';
 import {
   DealBulkActionBar,
   AddDealsToListDialog,
-  PushToHeyreachModal,
+  PushToOutreachModal,
 } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 
 // Local hooks & types
 import { useCapTargetData } from './useCapTargetData';
@@ -318,14 +317,16 @@ export default function CapTargetDeals() {
         contactCount={data.selectedIds.size}
         entityType="listings"
       />
-      <PushToSmartleadModal
+      <PushToOutreachModal
+        service="smartlead"
         open={actions.smartleadOpen}
         onOpenChange={actions.setSmartleadOpen}
         contactIds={Array.from(data.selectedIds)}
         contactCount={data.selectedIds.size}
         entityType="listings"
       />
-      <PushToHeyreachModal
+      <PushToOutreachModal
+        service="heyreach"
         open={actions.heyreachOpen}
         onOpenChange={actions.setHeyreachOpen}
         contactIds={Array.from(data.selectedIds)}

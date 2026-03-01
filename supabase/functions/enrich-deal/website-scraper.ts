@@ -16,6 +16,7 @@ import {
   DEAL_SCRAPE_TIMEOUT_MS,
   WEBSITE_PLACEHOLDERS,
 } from "../_shared/deal-extraction.ts";
+import { FIRECRAWL_SCRAPE_URL } from "../_shared/api-urls.ts";
 
 export interface ScrapeResult {
   url: string;
@@ -108,7 +109,7 @@ export function validateWebsiteUrl(websiteUrl: string): { valid: boolean; normal
  */
 async function scrapePage(url: string, firecrawlApiKey: string): Promise<ScrapeResult> {
   try {
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const response = await fetch(FIRECRAWL_SCRAPE_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${firecrawlApiKey}`,

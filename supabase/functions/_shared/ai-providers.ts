@@ -7,22 +7,31 @@
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { waitForProviderSlot, withConcurrencyTracking, reportRateLimit } from "./rate-limiter.ts";
+import {
+  GEMINI_API_URL as _GEMINI_API_URL,
+  GEMINI_API_BASE as _GEMINI_API_BASE,
+  ANTHROPIC_API_URL as _ANTHROPIC_API_URL,
+  GEMINI_FLASH_MODEL,
+  GEMINI_25_FLASH_MODEL as _GEMINI_25_FLASH_MODEL,
+  GEMINI_PRO_MODEL,
+  CLAUDE_SONNET_DATED_MODEL,
+} from "./api-urls.ts";
 
 /** Optional rate limit coordination config. When provided, AI calls coordinate with the shared rate limiter. */
 export interface RateLimitConfig {
   supabase: SupabaseClient;
 }
 
-// API Endpoints
-export const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-export const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta";
-export const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+// API Endpoints — re-exported from centralized api-urls.ts
+export const GEMINI_API_URL = _GEMINI_API_URL;
+export const GEMINI_API_BASE = _GEMINI_API_BASE;
+export const ANTHROPIC_API_URL = _ANTHROPIC_API_URL;
 
-// Default models
-export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash";
-export const GEMINI_25_FLASH_MODEL = "gemini-2.5-flash";
-export const DEFAULT_GEMINI_PRO_MODEL = "gemini-2.0-pro-exp";
-export const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514";
+// Default models — re-exported from centralized api-urls.ts
+export const DEFAULT_GEMINI_MODEL = GEMINI_FLASH_MODEL;
+export const GEMINI_25_FLASH_MODEL = _GEMINI_25_FLASH_MODEL;
+export const DEFAULT_GEMINI_PRO_MODEL = GEMINI_PRO_MODEL;
+export const DEFAULT_CLAUDE_MODEL = CLAUDE_SONNET_DATED_MODEL;
 
 /**
  * Build Gemini API request headers

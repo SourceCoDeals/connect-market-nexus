@@ -14,9 +14,8 @@ import { CheckCircle, ChevronDown, ChevronRight, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { UserDataCompleteness } from './UserDataCompleteness';
 import { BuyerTierBadge, BuyerScoreBadge } from './BuyerQualityBadges';
-import { DualFeeAgreementToggle } from './DualFeeAgreementToggle';
+import { DualAgreementToggle } from './DualAgreementToggle';
 import { SimpleFeeAgreementDialog } from './SimpleFeeAgreementDialog';
-import { DualNDAToggle } from './DualNDAToggle';
 import { SimpleNDADialog } from './SimpleNDADialog';
 import { UserFirmBadge } from './UserFirmBadge';
 
@@ -195,15 +194,17 @@ export function UsersTable({
                   <UserDataCompleteness user={user} size="sm" />
                 </TableCell>
                 <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
-                  <DualFeeAgreementToggle
+                  <DualAgreementToggle
                     user={user}
+                    agreementType="fee_agreement"
                     onSendEmail={(user) => setSelectedUserForEmail(user)}
                     size="sm"
                   />
                 </TableCell>
                 <TableCell className="py-2" onClick={(e) => e.stopPropagation()}>
-                  <DualNDAToggle
+                  <DualAgreementToggle
                     user={user}
+                    agreementType="nda"
                     onSendEmail={(user) => setSelectedUserForNDA(user)}
                     size="sm"
                   />

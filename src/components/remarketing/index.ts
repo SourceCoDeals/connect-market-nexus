@@ -93,7 +93,7 @@ export { DealBulkActionBar } from './DealBulkActionBar';
 export { AddBuyersToListDialog } from './AddBuyersToListDialog';
 export { AddDealsToListDialog } from './AddDealsToListDialog';
 export type { DealForList } from './AddDealsToListDialog';
-export { PushToHeyreachModal } from './PushToHeyreachModal';
+export { PushToOutreachModal } from './PushToOutreachModal';
 export { ScoringProgressIndicator } from './ScoringProgressIndicator';
 export { EnrichmentProgressIndicator } from './EnrichmentProgressIndicator';
 export { EnrichmentSummaryDialog } from './EnrichmentSummaryDialog';

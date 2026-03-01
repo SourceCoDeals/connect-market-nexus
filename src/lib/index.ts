@@ -89,10 +89,6 @@ export {
   runPeriodicTasks,
 } from './performance-monitor';
 
-// ─── Session ───
-export { SessionSecurity } from './session-security';
-export type { SessionValidationResult, SessionAnomalyResult } from './session-security';
-
 // ─── GA4 ───
 export {
   GA4_MEASUREMENT_ID,

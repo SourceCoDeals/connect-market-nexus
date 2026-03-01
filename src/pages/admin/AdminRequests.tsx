@@ -9,7 +9,6 @@ import { AdminConnectionRequest } from '@/types/admin';
 import ConnectionRequestsTable from '@/components/admin/ConnectionRequestsTable';
 import { ConnectionRequestDialog } from '@/components/admin/ConnectionRequestDialog';
 import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
-import { PipelineMetricsCard } from '@/components/admin/PipelineMetricsCard';
 import { PipelineFilters } from '@/components/admin/PipelineFilters';
 import { usePipelineFilters, type StatusFilter, type BuyerTypeFilter, type NdaFilter, type FeeAgreementFilter, type SortOption } from '@/hooks/admin/use-pipeline-filters';
 import { toast } from '@/hooks/use-toast';
@@ -401,9 +400,6 @@ const AdminRequests = () => {
           </TabsList>
 
           <TabsContent value="connection-requests" className="space-y-6">
-            {/* Pipeline Metrics */}
-            <PipelineMetricsCard requests={requests} />
-
             {/* Pipeline Filters (includes search and sort) */}
             <PipelineFilters
               requests={requests}

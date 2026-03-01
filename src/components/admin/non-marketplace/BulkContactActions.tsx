@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Phone, Download, X, ListChecks } from 'lucide-react';
 import type { NonMarketplaceUser, NonMarketplaceUserFilters } from '@/types/non-marketplace-user';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { PushToOutreachModal } from '@/components/remarketing/PushToOutreachModal';
 import { SaveAsListModal } from './SaveAsListModal';
 
 interface BulkContactActionsProps {
@@ -157,7 +157,8 @@ export const BulkContactActions = ({
         contactCount={withPhone}
         entityType="buyer_contacts"
       />
-      <PushToSmartleadModal
+      <PushToOutreachModal
+        service="smartlead"
         open={isSmartleadOpen}
         onOpenChange={setIsSmartleadOpen}
         contactIds={contactIds}

@@ -23,7 +23,7 @@ import { OwnerLeadsStats } from '@/components/admin/OwnerLeadsStats';
 import { OwnerLeadsFilters } from '@/components/admin/OwnerLeadsFilters';
 import { OwnerLeadsTableContent } from '@/components/admin/OwnerLeadsTableContent';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { PushToOutreachModal } from '@/components/remarketing/PushToOutreachModal';
 import { OwnerLead } from '@/hooks/admin/use-owner-leads';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -266,7 +266,8 @@ const OwnerLeadsPage = () => {
           contactCount={selectedIds.size}
           entityType="leads"
         />
-        <PushToSmartleadModal
+        <PushToOutreachModal
+          service="smartlead"
           open={smartleadOpen}
           onOpenChange={setSmartleadOpen}
           contactIds={Array.from(selectedIds)}

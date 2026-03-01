@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { FIRECRAWL_SCRAPE_URL, FIRECRAWL_MAP_URL, GEMINI_FLASH_MODEL } from '../_shared/api-urls.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -73,7 +74,7 @@ serve(async (req) => {
         console.log(`[find-buyer-contacts] Processing: ${website}`);
 
         // Step 1: Use Firecrawl Map API to find team pages
-        const mapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
+        const mapResponse = await fetch(FIRECRAWL_MAP_URL, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
@@ -109,7 +110,7 @@ serve(async (req) => {
         // Step 2: Scrape relevant pages
         for (const pageUrl of relevantPages) {
           try {
-            const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            const scrapeResponse = await fetch(FIRECRAWL_SCRAPE_URL, {
               method: 'POST',
               headers: {
                 Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
@@ -258,7 +259,7 @@ Only include people with clear names and titles. Return empty array if no contac
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gemini-2.0-flash',
+          model: GEMINI_FLASH_MODEL,
           messages: [
             { role: 'system', content: systemPrompt },
             {

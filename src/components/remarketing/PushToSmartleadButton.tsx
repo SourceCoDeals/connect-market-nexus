@@ -11,7 +11,7 @@ interface PushToSmartleadButtonProps {
 
 /**
  * Reusable "Push to Smartlead" button for any toolbar.
- * Pair with usePushToSmartleadDialog() hook and PushToSmartleadModal.
+ * Pair with usePushToSmartleadDialog() hook and PushToOutreachModal.
  */
 export function PushToSmartleadButton({
   count,

@@ -31,8 +31,7 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import { useContactList, useRemoveListMember } from '@/hooks/admin/use-contact-lists';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
-import { PushToHeyreachModal } from '@/components/remarketing/PushToHeyreachModal';
+import { PushToOutreachModal } from '@/components/remarketing/PushToOutreachModal';
 import type { ContactListMember } from '@/types/contact-list';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
@@ -368,14 +367,16 @@ const ContactListDetailPage = () => {
         contactCount={dialerContactIds.length}
         entityType="buyer_contacts"
       />
-      <PushToSmartleadModal
+      <PushToOutreachModal
+        service="smartlead"
         open={isSmartleadOpen}
         onOpenChange={setIsSmartleadOpen}
         contactIds={dialerContactIds}
         contactCount={dialerContactIds.length}
         entityType="buyer_contacts"
       />
-      <PushToHeyreachModal
+      <PushToOutreachModal
+        service="heyreach"
         open={isHeyreachOpen}
         onOpenChange={setIsHeyreachOpen}
         contactIds={selectedMembers.map((m) => m.entity_id)}

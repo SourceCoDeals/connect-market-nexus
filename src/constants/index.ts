@@ -3,6 +3,16 @@
 
 // Re-export sibling constant modules
 export { STATUS_TAGS, STATUS_TAG_LABELS, type StatusTagValue } from './statusTags';
+export {
+  DEAL_STATUS,
+  CONNECTION_STATUS,
+  ENRICHMENT_STATUS,
+  BUYER_STATUS,
+  type DealStatus,
+  type ConnectionStatus,
+  type EnrichmentStatus,
+  type BuyerStatus,
+} from './statuses';
 
 // ── Route paths ──────────────────────────────────────────────────────
 

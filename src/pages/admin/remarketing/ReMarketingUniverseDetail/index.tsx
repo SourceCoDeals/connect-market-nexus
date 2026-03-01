@@ -34,7 +34,7 @@ import {
   EnrichmentSummaryDialog,
 } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { PushToOutreachModal } from '@/components/remarketing/PushToOutreachModal';
 import { AddBuyerToUniverseDialog } from '@/components/remarketing/AddBuyerToUniverseDialog';
 import {
   ArrowLeft,
@@ -333,7 +333,8 @@ const ReMarketingUniverseDetail = () => {
               contactCount={selectedBuyerIds.length}
               entityType="buyers"
             />
-            <PushToSmartleadModal
+            <PushToOutreachModal
+              service="smartlead"
               open={smartleadOpen}
               onOpenChange={setSmartleadOpen}
               contactIds={selectedBuyerIds}

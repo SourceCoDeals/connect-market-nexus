@@ -6,9 +6,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { User } from '@/types';
 import { MoreHorizontal, UserCheck, UserPlus, UserMinus, Trash2, Mail, Building, Phone, Globe } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { DualFeeAgreementToggle } from "./DualFeeAgreementToggle";
+import { DualAgreementToggle } from "./DualAgreementToggle";
 import { SimpleFeeAgreementDialog } from "./SimpleFeeAgreementDialog";
-import { DualNDAToggle } from "./DualNDAToggle";
 import { SimpleNDADialog } from "./SimpleNDADialog";
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { supabase } from '@/integrations/supabase/client';
@@ -145,8 +144,9 @@ const MobileUserCard = ({
     <CardContent className="pt-0 space-y-3">
       {/* Fee Agreement Section */}
       <div className="border-b pb-3">
-        <DualFeeAgreementToggle 
+        <DualAgreementToggle
           user={user}
+          agreementType="fee_agreement"
           onSendEmail={onSendFeeAgreement}
           size="default"
         />
@@ -154,8 +154,9 @@ const MobileUserCard = ({
       
       {/* NDA Section */}
       <div className="border-b pb-3">
-        <DualNDAToggle 
+        <DualAgreementToggle
           user={user}
+          agreementType="nda"
           onSendEmail={onSendNDAEmail}
           size="default"
         />

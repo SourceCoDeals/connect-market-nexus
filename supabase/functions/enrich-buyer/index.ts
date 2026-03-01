@@ -30,6 +30,7 @@ import { logEnrichmentEvent } from "../_shared/enrichment-events.ts";
 import { type RateLimitConfig } from "../_shared/ai-providers.ts";
 import { withConcurrencyTracking, reportRateLimit } from "../_shared/rate-limiter.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { FIRECRAWL_SCRAPE_URL, FIRECRAWL_MAP_URL } from "../_shared/api-urls.ts";
 import { type SourceType, validateFieldProvenance } from "../_shared/provenance.ts";
 import {
   // Configuration
@@ -67,7 +68,7 @@ async function scrapeWebsite(url: string, apiKey: string): Promise<{ success: bo
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const response = await fetch(FIRECRAWL_SCRAPE_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -120,7 +121,7 @@ async function firecrawlMap(url: string, apiKey: string, limit = 100): Promise<s
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    const response = await fetch('https://api.firecrawl.dev/v1/map', {
+    const response = await fetch(FIRECRAWL_MAP_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

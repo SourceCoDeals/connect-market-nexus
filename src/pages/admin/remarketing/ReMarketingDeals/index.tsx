@@ -30,11 +30,10 @@ import {
   EnrichmentProgressIndicator,
   DealBulkActionBar,
   AddDealsToListDialog,
-  PushToHeyreachModal,
+  PushToOutreachModal,
 } from '@/components/remarketing';
 import type { DealForList } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { DndContext, closestCorners, MeasuringStrategy } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { cn } from '@/lib/utils';
@@ -706,14 +705,16 @@ const ReMarketingDeals = () => {
         contactCount={h.selectedDeals.size}
         entityType="listings"
       />
-      <PushToSmartleadModal
+      <PushToOutreachModal
+        service="smartlead"
         open={smartleadOpen}
         onOpenChange={setSmartleadOpen}
         contactIds={Array.from(h.selectedDeals)}
         contactCount={h.selectedDeals.size}
         entityType="listings"
       />
-      <PushToHeyreachModal
+      <PushToOutreachModal
+        service="heyreach"
         open={heyreachOpen}
         onOpenChange={setHeyreachOpen}
         contactIds={Array.from(h.selectedDeals)}

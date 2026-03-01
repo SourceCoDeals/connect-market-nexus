@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { FIRECRAWL_SCRAPE_URL } from "../_shared/api-urls.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -39,7 +40,7 @@ serve(async (req) => {
 
     console.log(`[firecrawl-scrape] Scraping: ${url}`);
 
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const response = await fetch(FIRECRAWL_SCRAPE_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,

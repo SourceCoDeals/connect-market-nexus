@@ -252,7 +252,7 @@ export default function MAAllBuyers() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {(buyer.has_fee_agreement || buyer.fee_agreement_status === 'Signed') && (
+                        {(buyer.has_fee_agreement || buyer.fee_agreement_status === 'Active') && (
                           <Badge variant="outline" className="text-xs flex items-center gap-1 bg-primary/10 border-primary/20 w-fit mx-auto">
                             <FileCheck className="w-3 h-3" />
                             Signed

@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { callClaude, CLAUDE_MODELS } from '../_shared/claude-client.ts';
+import { FIREFLIES_GRAPHQL_URL } from '../_shared/api-urls.ts';
 
 // ─── Types ───
 
@@ -74,7 +75,7 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
   const timeoutId = setTimeout(() => controller.abort(), FIREFLIES_API_TIMEOUT_MS);
 
   try {
-    const response = await fetch('https://api.fireflies.ai/graphql', {
+    const response = await fetch(FIREFLIES_GRAPHQL_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,7 +88,7 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
 
     if (response.status === 429) {
       await new Promise((r) => setTimeout(r, 3000));
-      const retryResponse = await fetch('https://api.fireflies.ai/graphql', {
+      const retryResponse = await fetch(FIREFLIES_GRAPHQL_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

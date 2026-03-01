@@ -11,7 +11,7 @@ import {
 import { FilterBar, TimeframeSelector, VALUATION_LEAD_FIELDS } from '@/components/filters';
 import { EnrichmentProgressIndicator, DealEnrichmentSummaryDialog, DealBulkActionBar } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { PushToOutreachModal } from '@/components/remarketing/PushToOutreachModal';
 import {
   Loader2,
   BarChart3,
@@ -406,7 +406,8 @@ export default function ValuationLeads() {
         contactCount={selectedIds.size}
         entityType="listings"
       />
-      <PushToSmartleadModal
+      <PushToOutreachModal
+        service="smartlead"
         open={smartleadOpen}
         onOpenChange={setSmartleadOpen}
         contactIds={Array.from(selectedIds)}

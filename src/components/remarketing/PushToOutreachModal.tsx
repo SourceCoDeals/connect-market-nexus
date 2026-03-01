@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import type { HeyReachCampaign, HeyReachEntityType } from '@/types/heyreach';
+import type { SmartleadEntityType } from '@/types/smartlead';
 import { usePushToHeyReach } from '@/hooks/heyreach/use-heyreach-leads';
 import { useHeyReachCampaigns } from '@/hooks/heyreach/use-heyreach-campaigns';
+import { usePushToSmartlead, useSmartleadCampaigns } from '@/hooks/smartlead';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,23 +21,68 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Send, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Send, Mail, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-interface PushToHeyreachModalProps {
+// ---------------------------------------------------------------------------
+// Service configuration
+// ---------------------------------------------------------------------------
+
+type OutreachService = 'heyreach' | 'smartlead';
+
+interface ServiceConfig {
+  label: string;
+  channelLabel: string;
+  icon: typeof Send;
+  errorHint: string;
+  /** Status values that count as "active" when filtering campaigns */
+  activeStatuses: string[];
+}
+
+const SERVICE_CONFIG: Record<OutreachService, ServiceConfig> = {
+  heyreach: {
+    label: 'HeyReach',
+    channelLabel: 'LinkedIn',
+    icon: Send,
+    errorHint: 'Check HeyReach API key in settings.',
+    activeStatuses: ['ACTIVE', 'DRAFT'],
+  },
+  smartlead: {
+    label: 'Smartlead',
+    channelLabel: 'email',
+    icon: Mail,
+    errorHint: 'Check Smartlead API key in settings.',
+    activeStatuses: ['ACTIVE', 'DRAFTED'],
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
+interface PushToOutreachModalProps {
+  service: OutreachService;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contactIds: string[];
   contactCount: number;
-  entityType?: HeyReachEntityType;
+  entityType?: HeyReachEntityType | SmartleadEntityType;
 }
 
-export function PushToHeyreachModal({
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function PushToOutreachModal({
+  service,
   open,
   onOpenChange,
   contactIds,
   contactCount,
-  entityType = 'listings',
-}: PushToHeyreachModalProps) {
+  entityType = service === 'heyreach' ? 'listings' : 'buyer_contacts',
+}: PushToOutreachModalProps) {
+  const cfg = SERVICE_CONFIG[service];
+  const Icon = cfg.icon;
+
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [result, setResult] = useState<{
     success: boolean;
@@ -44,17 +91,40 @@ export function PushToHeyreachModal({
     errors?: string[];
   } | null>(null);
 
-  const { data: campaignsData, isLoading: campaignsLoading } = useHeyReachCampaigns();
-  const pushMutation = usePushToHeyReach();
+  // ── Hooks (both are always called to satisfy Rules of Hooks) ────────────
+  const heyreachCampaigns = useHeyReachCampaigns();
+  const heyreachPush = usePushToHeyReach();
+  const smartleadCampaigns = useSmartleadCampaigns();
+  const smartleadPush = usePushToSmartlead();
 
-  const campaignsPayload = campaignsData?.campaigns as unknown;
-  const campaigns: HeyReachCampaign[] = Array.isArray(campaignsPayload)
-    ? (campaignsPayload as HeyReachCampaign[])
-    : Array.isArray((campaignsPayload as { items?: unknown[] } | null | undefined)?.items)
-      ? ((campaignsPayload as { items: HeyReachCampaign[] }).items)
-      : [];
-  const activeCampaigns = campaigns.filter((c) => c.status === 'ACTIVE' || c.status === 'DRAFT');
+  // ── Derived data ────────────────────────────────────────────────────────
+  const campaignsLoading =
+    service === 'heyreach' ? heyreachCampaigns.isLoading : smartleadCampaigns.isLoading;
 
+  const pushMutation = service === 'heyreach' ? heyreachPush : smartleadPush;
+
+  // Normalise campaign arrays — HeyReach can return { campaigns: [...] } or
+  // { campaigns: { items: [...] } }, whereas Smartlead always returns an array.
+  const campaigns: { id: number | string; name: string; status: string }[] = (() => {
+    if (service === 'heyreach') {
+      const payload = heyreachCampaigns.data?.campaigns as unknown;
+      if (Array.isArray(payload)) return payload as HeyReachCampaign[];
+      if (
+        Array.isArray(
+          (payload as { items?: unknown[] } | null | undefined)?.items,
+        )
+      )
+        return (payload as { items: HeyReachCampaign[] }).items;
+      return [];
+    }
+    return smartleadCampaigns.data?.campaigns ?? [];
+  })();
+
+  const activeCampaigns = campaigns.filter((c) =>
+    cfg.activeStatuses.includes(c.status),
+  );
+
+  // ── Handlers ────────────────────────────────────────────────────────────
   const handlePush = () => {
     if (!selectedCampaignId) return;
     pushMutation.mutate(
@@ -62,9 +132,9 @@ export function PushToHeyreachModal({
         campaign_id: Number(selectedCampaignId),
         entity_type: entityType,
         entity_ids: contactIds,
-      },
+      } as any, // both mutation payloads share the same shape
       {
-        onSuccess: (data) => {
+        onSuccess: (data: any) => {
           if (data) setResult(data);
         },
         onError: () => {
@@ -72,7 +142,7 @@ export function PushToHeyreachModal({
             success: false,
             total_resolved: 0,
             total_pushed: 0,
-            errors: ['Push failed. Check HeyReach API key in settings.'],
+            errors: [`Push failed. ${cfg.errorHint}`],
           });
         },
       },
@@ -85,17 +155,18 @@ export function PushToHeyreachModal({
     onOpenChange(false);
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5" />
-            Push to HeyReach
+            <Icon className="h-5 w-5" />
+            Push to {cfg.label}
           </DialogTitle>
           <DialogDescription>
-            Push {contactCount} selected contact{contactCount !== 1 ? 's' : ''} to a HeyReach
-            LinkedIn campaign
+            Push {contactCount} selected contact{contactCount !== 1 ? 's' : ''} to a {cfg.label}{' '}
+            {cfg.channelLabel} campaign
           </DialogDescription>
         </DialogHeader>
 
@@ -119,7 +190,7 @@ export function PushToHeyreachModal({
                 ) : activeCampaigns.length === 0 ? (
                   <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4" />
-                    No active campaigns found. Create one in HeyReach first.
+                    No active campaigns found. Create one in {cfg.label} first.
                   </div>
                 ) : (
                   <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
@@ -158,8 +229,8 @@ export function PushToHeyreachModal({
                   </>
                 ) : (
                   <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Push to HeyReach
+                    <Icon className="mr-2 h-4 w-4" />
+                    Push to {cfg.label}
                   </>
                 )}
               </Button>
@@ -209,3 +280,4 @@ export function PushToHeyreachModal({
     </Dialog>
   );
 }
+

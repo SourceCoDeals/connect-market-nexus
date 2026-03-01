@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { FIRECRAWL_SCRAPE_URL } from "../_shared/api-urls.ts";
 
 interface WebsiteClassification {
   url: string;
@@ -40,7 +41,7 @@ serve(async (req) => {
       try {
         console.log(`[verify-platform-website] Checking: ${url}`);
 
-        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        const scrapeResponse = await fetch(FIRECRAWL_SCRAPE_URL, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,

@@ -6,7 +6,7 @@
  * via domain inference.
  */
 
-const APIFY_API_BASE = 'https://api.apify.com/v2';
+import { APIFY_API_BASE } from './api-urls.ts';
 const LINKEDIN_SCRAPER_ACTOR = 'curious_coder/linkedin-company-employees-scraper';
 
 interface ApifyRunResult {

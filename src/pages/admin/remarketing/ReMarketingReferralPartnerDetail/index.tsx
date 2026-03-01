@@ -48,11 +48,10 @@ import { AddPartnerDialog } from '@/components/remarketing/AddPartnerDialog';
 import { AddDealDialog } from '@/components/remarketing/AddDealDialog';
 import { DealImportDialog } from '@/components/remarketing/DealImportDialog';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
-import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import {
   DealBulkActionBar,
   AddDealsToListDialog,
-  PushToHeyreachModal,
+  PushToOutreachModal,
 } from '@/components/remarketing';
 import type { DealForList } from '@/components/remarketing';
 import { SubmissionReviewQueue } from '@/components/remarketing/SubmissionReviewQueue';
@@ -512,14 +511,16 @@ export default function ReMarketingReferralPartnerDetail() {
           contactCount={actions.selectedDealIds.size}
           entityType="listings"
         />
-        <PushToSmartleadModal
+        <PushToOutreachModal
+          service="smartlead"
           open={smartleadOpen}
           onOpenChange={setSmartleadOpen}
           contactIds={Array.from(actions.selectedDealIds)}
           contactCount={actions.selectedDealIds.size}
           entityType="listings"
         />
-        <PushToHeyreachModal
+        <PushToOutreachModal
+          service="heyreach"
           open={heyreachOpen}
           onOpenChange={setHeyreachOpen}
           contactIds={Array.from(actions.selectedDealIds)}

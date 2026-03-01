@@ -6,64 +6,71 @@ interface DealsKPICardsProps {
   priorityDeals: number;
   avgScore: number;
   needsScoring: number;
+  /** Accent color for the "Total Deals" icon. Defaults to "blue". */
+  accent?: "blue" | "orange";
 }
 
-export const DealsKPICards = ({ totalDeals, priorityDeals, avgScore, needsScoring }: DealsKPICardsProps) => (
-  <div className="grid grid-cols-4 gap-4">
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <Building2 className="h-5 w-5 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Total Deals</p>
-            <p className="text-2xl font-bold">{totalDeals}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+export const DealsKPICards = ({ totalDeals, priorityDeals, avgScore, needsScoring, accent = "blue" }: DealsKPICardsProps) => {
+  const accentBg = accent === "orange" ? "bg-orange-100" : "bg-blue-100";
+  const accentText = accent === "orange" ? "text-orange-600" : "text-blue-600";
 
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-100 rounded-lg">
-            <Star className="h-5 w-5 text-amber-600" />
+  return (
+    <div className="grid grid-cols-4 gap-4">
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 ${accentBg} rounded-lg`}>
+              <Building2 className={`h-5 w-5 ${accentText}`} />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Deals</p>
+              <p className="text-2xl font-bold">{totalDeals}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Priority Deals</p>
-            <p className="text-2xl font-bold text-amber-600">{priorityDeals}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
 
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-100 rounded-lg">
-            <Target className="h-5 w-5 text-amber-600" />
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <Star className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Priority Deals</p>
+              <p className="text-2xl font-bold text-amber-600">{priorityDeals}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Avg Quality Score</p>
-            <p className="text-2xl font-bold">{avgScore}<span className="text-base font-normal text-muted-foreground">/100</span></p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
 
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-orange-100 rounded-lg">
-            <Calculator className="h-5 w-5 text-orange-600" />
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg">
+              <Target className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Avg Quality Score</p>
+              <p className="text-2xl font-bold">{avgScore}<span className="text-base font-normal text-muted-foreground">/100</span></p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Needs Scoring</p>
-            <p className="text-2xl font-bold text-orange-600">{needsScoring}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Calculator className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Needs Scoring</p>
+              <p className="text-2xl font-bold text-orange-600">{needsScoring}</p>
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  </div>
-);
+        </CardContent>
+      </Card>
+    </div>
+  );
+};

@@ -5,6 +5,8 @@
  * duplicate the fetch logic, headers, and error handling.
  */
 
+import { BREVO_SMTP_URL } from './api-urls.ts';
+
 export interface BrevoEmailOptions {
   /** Recipient email address */
   to: string;
@@ -85,7 +87,7 @@ export async function sendViaBervo(
   let lastError = "";
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      const response = await fetch(BREVO_SMTP_URL, {
         method: "POST",
         headers: {
           "Accept": "application/json",
