@@ -36,7 +36,7 @@ const listingFormSchema = z.object({
   part_time_employees: z.number().int().min(0).optional(),
   description: z.string().min(20, "Description must be at least 20 characters"),
   description_html: z.string().optional(),
-  description_json: z.any().optional(),
+  description_json: z.unknown().optional(),
   hero_description: z.string().max(500, "Hero description must be 500 characters or less").nullable().optional(),
   owner_notes: z.string().nullable().optional(),
   status: z.enum(["active", "inactive"]).default("active"),
@@ -80,9 +80,9 @@ const listingFormSchema = z.object({
 
   // Landing page content fields
   investment_thesis: z.string().nullable().optional(),
-  custom_sections: z.any().nullable().optional(),
+  custom_sections: z.unknown().nullable().optional(),
   services: z.array(z.string()).nullable().optional(),
-  growth_drivers: z.any().nullable().optional(),
+  growth_drivers: z.unknown().nullable().optional(),
   competitive_position: z.string().nullable().optional(),
   ownership_structure: z.string().nullable().optional(),
   seller_motivation: z.string().nullable().optional(),

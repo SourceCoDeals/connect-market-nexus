@@ -1,12 +1,22 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import type {
   TaskType,
   TaskAnalyticsSummary,
   TeamMemberScorecard,
   MeetingQualityMetrics,
 } from '@/types/daily-tasks';
+
+type TaskRow = Tables<'daily_standup_tasks'>;
+type MeetingRow = Tables<'standup_meetings'>;
+
+/** Task row with joined assignee profile for scorecard queries. */
+interface TaskWithAssignee extends TaskRow {
+  assignee: { id: string; first_name: string | null; last_name: string | null } | null;
+}
+
+type TaskTypeBreakdown = Record<TaskType, { assigned: number; completed: number; overdue: number }>;
 
 // ─── Team-wide analytics ───
 
@@ -15,7 +25,7 @@ export function useTaskAnalytics(dateFrom: string | null, dateTo: string | null)
     queryKey: ['task-analytics', 'team', dateFrom, dateTo],
     queryFn: async () => {
       let query = supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .select(
           'id, status, task_type, assignee_id, created_at, completed_at, due_date, priority_rank',
         );
@@ -26,7 +36,7 @@ export function useTaskAnalytics(dateFrom: string | null, dateTo: string | null)
       const { data: tasks, error } = await query;
       if (error) throw error;
 
-      const all = (tasks || []) as any[];
+      const all = (tasks ?? []) as TaskRow[];
       const completed = all.filter((t) => t.status === 'completed');
       const overdue = all.filter((t) => t.status === 'overdue');
 
@@ -60,7 +70,7 @@ export function useTaskAnalytics(dateFrom: string | null, dateTo: string | null)
         total_overdue: overdue.length,
         completion_rate: all.length > 0 ? (completed.length / all.length) * 100 : 0,
         avg_time_to_complete_hours: avgTimeToComplete,
-        by_task_type: byTaskType as any,
+        by_task_type: byTaskType as TaskTypeBreakdown,
       };
 
       return summary;
@@ -76,7 +86,7 @@ export function useTeamScorecards(dateFrom: string | null, dateTo: string | null
     queryKey: ['task-analytics', 'scorecards', dateFrom, dateTo],
     queryFn: async () => {
       // Get all tasks with assignee info
-      let query = supabase.from('daily_standup_tasks' as any).select(`
+      let query = supabase.from('daily_standup_tasks').select(`
           id, status, task_type, assignee_id, created_at, completed_at, due_date, priority_rank,
           assignee:profiles!daily_standup_tasks_assignee_id_fkey(id, first_name, last_name)
         `);
@@ -87,10 +97,10 @@ export function useTeamScorecards(dateFrom: string | null, dateTo: string | null
       const { data: tasks, error } = await query;
       if (error) throw error;
 
-      const all = (tasks || []) as any[];
+      const all = (tasks ?? []) as TaskWithAssignee[];
 
       // Group by assignee
-      const byMember = new Map<string, { name: string; tasks: any[] }>();
+      const byMember = new Map<string, { name: string; tasks: TaskWithAssignee[] }>();
 
       for (const t of all) {
         if (!t.assignee_id) continue;
@@ -106,27 +116,27 @@ export function useTeamScorecards(dateFrom: string | null, dateTo: string | null
       const scorecards: TeamMemberScorecard[] = [];
 
       for (const [memberId, { name, tasks: memberTasks }] of byMember) {
-        const completed = memberTasks.filter((t: any) => t.status === 'completed');
-        const overdue = memberTasks.filter((t: any) => t.status === 'overdue');
+        const completed = memberTasks.filter((t) => t.status === 'completed');
+        const overdue = memberTasks.filter((t) => t.status === 'overdue');
 
         const completionTimes = completed
-          .filter((t: any) => t.completed_at && t.created_at)
-          .map((t: any) => {
-            const diff = new Date(t.completed_at).getTime() - new Date(t.created_at).getTime();
+          .filter((t) => t.completed_at && t.created_at)
+          .map((t) => {
+            const diff = new Date(t.completed_at!).getTime() - new Date(t.created_at!).getTime();
             return diff / (1000 * 60 * 60);
           });
 
         const avgTime =
           completionTimes.length > 0
-            ? completionTimes.reduce((s: number, v: number) => s + v, 0) / completionTimes.length
+            ? completionTimes.reduce((s, v) => s + v, 0) / completionTimes.length
             : null;
 
         // Priority discipline: did they complete tasks in rank order?
         const completedWithRanks = completed
-          .filter((t: any) => t.priority_rank != null && t.completed_at)
+          .filter((t) => t.priority_rank != null && t.completed_at)
           .sort(
-            (a: any, b: any) =>
-              new Date(a.completed_at).getTime() - new Date(b.completed_at).getTime(),
+            (a, b) =>
+              new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime(),
           );
 
         let inOrderCount = 0;
@@ -177,7 +187,7 @@ export function useTeamScorecards(dateFrom: string | null, dateTo: string | null
           avg_time_to_complete_hours: avgTime,
           priority_discipline_score: priorityDiscipline,
           completion_trend: completionTrend,
-          by_task_type: byType as any,
+          by_task_type: byType as TaskTypeBreakdown,
         });
       }
 
@@ -197,7 +207,7 @@ export function useMeetingQualityMetrics(dateFrom: string | null, dateTo: string
     queryKey: ['task-analytics', 'meeting-quality', dateFrom, dateTo],
     queryFn: async () => {
       let query = supabase
-        .from('standup_meetings' as any)
+        .from('standup_meetings')
         .select('*')
         .order('meeting_date', { ascending: false });
 
@@ -207,22 +217,22 @@ export function useMeetingQualityMetrics(dateFrom: string | null, dateTo: string
       const { data: meetings, error: meetingsError } = await query;
       if (meetingsError) throw meetingsError;
 
-      const meetingList = (meetings || []) as any[];
+      const meetingList: MeetingRow[] = meetings ?? [];
       if (meetingList.length === 0) return [];
 
       // Fetch all tasks for these meetings in a single query (avoid N+1)
-      const meetingIds = meetingList.map((m: any) => m.id);
+      const meetingIds = meetingList.map((m) => m.id);
       const { data: allTasks } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .select('id, source_meeting_id, assignee_id, extraction_confidence, needs_review')
         .in('source_meeting_id', meetingIds);
 
       // Group tasks by meeting
-      const tasksByMeeting = new Map<string, any[]>();
-      for (const t of (allTasks || []) as any[]) {
-        const list = tasksByMeeting.get(t.source_meeting_id) || [];
+      const tasksByMeeting = new Map<string, TaskRow[]>();
+      for (const t of ((allTasks ?? []) as TaskRow[])) {
+        const list = tasksByMeeting.get(t.source_meeting_id!) || [];
         list.push(t);
-        tasksByMeeting.set(t.source_meeting_id, list);
+        tasksByMeeting.set(t.source_meeting_id!, list);
       }
 
       const metrics: MeetingQualityMetrics[] = [];
@@ -245,10 +255,10 @@ export function useMeetingQualityMetrics(dateFrom: string | null, dateTo: string
         }
 
         const highConfidence = taskList.filter(
-          (t: any) => t.extraction_confidence === 'high',
+          (t) => t.extraction_confidence === 'high',
         ).length;
-        const needsReview = taskList.filter((t: any) => t.needs_review).length;
-        const assigned = taskList.filter((t: any) => t.assignee_id != null).length;
+        const needsReview = taskList.filter((t) => t.needs_review).length;
+        const assigned = taskList.filter((t) => t.assignee_id != null).length;
 
         metrics.push({
           meeting_id: meeting.id,
@@ -274,13 +284,13 @@ export function useStandupMeetings(limit = 30) {
     queryKey: ['standup-meetings', limit],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('standup_meetings' as any)
+        .from('standup_meetings')
         .select('*')
         .order('meeting_date', { ascending: false })
         .limit(limit);
 
       if (error) throw error;
-      return (data || []) as any[];
+      return (data ?? []) as MeetingRow[];
     },
     staleTime: 60_000,
   });
@@ -293,7 +303,7 @@ export function useTaskVolumeTrend(dateFrom: string | null, dateTo: string | nul
     queryKey: ['task-analytics', 'volume-trend', dateFrom, dateTo],
     queryFn: async () => {
       let query = supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .select('id, created_at, status')
         .order('created_at', { ascending: true });
 
@@ -304,7 +314,7 @@ export function useTaskVolumeTrend(dateFrom: string | null, dateTo: string | nul
       if (error) throw error;
 
       const byDate = new Map<string, { created: number; completed: number }>();
-      for (const t of (data || []) as any[]) {
+      for (const t of ((data ?? []) as TaskRow[])) {
         const date = t.created_at?.split('T')[0];
         if (!date) continue;
         if (!byDate.has(date)) byDate.set(date, { created: 0, completed: 0 });

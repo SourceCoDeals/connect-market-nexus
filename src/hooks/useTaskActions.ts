@@ -8,12 +8,23 @@
  * - Activity logging on mutations
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { addDays, format } from 'date-fns';
 import type { TaskTemplateStage, TaskEntityType } from '@/types/daily-tasks';
+
+/**
+ * Helper for accessing Supabase tables whose columns are not fully
+ * represented in the generated Database type (daily_standup_tasks has
+ * extra v3.1 columns) or that are missing entirely (rm_task_activity_log).
+ *
+ * A single cast here keeps every call-site free of inline `any`.
+ */
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+) => ReturnType<typeof supabase.from<any, any>>;
 
 const QUERY_KEY = 'daily-standup-tasks';
 const ENTITY_TASKS_KEY = 'entity-tasks';
