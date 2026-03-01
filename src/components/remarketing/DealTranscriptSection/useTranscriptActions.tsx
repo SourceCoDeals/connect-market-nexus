@@ -333,8 +333,8 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
         </div>
       );
       if (skippedFields.length > 0) toast.info(`${skippedFields.length} fields added to notes: ${skippedFields.join(', ')}`);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to apply data");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to apply data");
     } finally {
       setApplyingId(null);
     }
@@ -350,8 +350,8 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       setEnrichmentPollingEnabled(true);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
-    } catch (error: any) {
-      const errorMessage = error?.message || String(error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const isNetworkError = errorMessage.includes('Failed to send') || errorMessage.includes('Failed to fetch') || errorMessage.includes('timeout') || errorMessage.includes('aborted') || errorMessage.includes('network') || errorMessage.includes('FetchError');
       if (isNetworkError) {
         // Queue insert may have succeeded even if the worker trigger failed
@@ -382,7 +382,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       const domain = input.includes('@') ? input.split('@')[1].toLowerCase() : input.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].toLowerCase();
       const genericDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com'];
       const isCompanyDomain = domain && !genericDomains.includes(domain);
-      const allResults: any[] = [];
+      const allResults: FirefliesSearchResult[] = [];
 
       if (isCompanyDomain) {
         setFirefliesSearchInfo(`Finding all contacts at @${domain}...`);
@@ -390,7 +390,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
         if (domainContactsError) throw domainContactsError;
         const emailSet = new Set<string>();
         if (input.includes('@')) emailSet.add(input.toLowerCase());
-        if (domainContacts) domainContacts.forEach((c: any) => { if (c.email) emailSet.add(c.email.toLowerCase()); });
+        if (domainContacts) domainContacts.forEach((c) => { if (c.email) emailSet.add(c.email.toLowerCase()); });
         const allEmails = Array.from(emailSet);
         if (allEmails.length > 0) {
           setFirefliesSearchInfo(`Searching Fireflies for ${allEmails.length} contact${allEmails.length !== 1 ? 's' : ''} at @${domain}...`);
@@ -410,10 +410,10 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       }
 
       const seen = new Set<string>();
-      const uniqueResults = allResults.filter((r: any) => { if (!r.id || seen.has(r.id)) return false; seen.add(r.id); return true; });
-      const existingIds = new Set(transcripts.filter((t: any) => t.fireflies_transcript_id).map((t: any) => t.fireflies_transcript_id));
-      const newResults = uniqueResults.filter((r: any) => !existingIds.has(r.id));
-      newResults.sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+      const uniqueResults = allResults.filter((r) => { if (!r.id || seen.has(r.id)) return false; seen.add(r.id); return true; });
+      const existingIds = new Set(transcripts.filter((t): t is DealTranscript & { fireflies_transcript_id: string } => !!(t as Record<string, unknown>).fireflies_transcript_id).map((t) => (t as Record<string, unknown>).fireflies_transcript_id as string));
+      const newResults = uniqueResults.filter((r) => !existingIds.has(r.id));
+      newResults.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
       setFirefliesResults(newResults);
 
       if (newResults.length === 0 && uniqueResults.length > 0) toast.info('All found transcripts are already linked to this deal');
@@ -436,14 +436,14 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       let imported = 0;
       let failed = 0;
       for (const ffId of selectedFirefliesIds) {
-        const result = firefliesResults.find((r: any) => r.id === ffId);
+        const result = firefliesResults.find((r) => r.id === ffId);
         if (!result) continue;
         try {
           const { error: insertError } = await supabase.from('deal_transcripts').insert({
             listing_id: dealId, fireflies_transcript_id: result.id, fireflies_meeting_id: result.id,
             transcript_url: result.meeting_url || null, title: result.title || `Call - ${new Date(result.date).toLocaleDateString()}`,
             call_date: result.date || null, participants: result.participants || [],
-            meeting_attendees: Array.isArray(result.participants) ? result.participants.map((p: any) => typeof p === 'string' ? p : p.email).filter(Boolean) : [],
+            meeting_attendees: Array.isArray(result.participants) ? result.participants.map((p) => typeof p === 'string' ? p : p.email).filter(Boolean) : [],
             duration_minutes: result.duration_minutes || null, source: 'fireflies', auto_linked: false, transcript_text: '',
             has_content: result.has_content !== false,
             match_type: result.match_type || 'email',
