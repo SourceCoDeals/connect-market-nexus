@@ -23,4 +23,3 @@ export { AddBuyerIntroductionDialog } from './AddBuyerIntroductionDialog';
 export { UpdateIntroductionStatusDialog } from './UpdateIntroductionStatusDialog';
 export { ContactHistoryTracker } from './ContactHistoryTracker';
 export { RecommendedBuyersSection } from './RecommendedBuyersSection';
-export { MeetingTranscriptSummaries } from './MeetingTranscriptSummaries';
