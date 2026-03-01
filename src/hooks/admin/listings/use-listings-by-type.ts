@@ -71,11 +71,11 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
           }));
           
           return mappedData as unknown as AdminListing[];
-        } catch (error: any) {
+        } catch (error: unknown) {
           toast({
             variant: 'destructive',
             title: 'Error fetching listings',
-            description: error.message,
+            description: error instanceof Error ? error.message : 'Unknown error',
           });
           return [];
         }

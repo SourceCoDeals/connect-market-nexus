@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import { createUserObject } from '@/lib/auth-helpers';
 import { ListingStatus } from '@/types';
 import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
+import { CONNECTION_STATUSES } from '@/constants';
 
 /**
  * Hook for managing connection request mutations in admin dashboard
@@ -100,7 +101,7 @@ export function useConnectionRequestsMutation() {
         } as AdminConnectionRequest;
         
         // Send rejection email when a connection request is rejected
-        if (status === 'rejected') {
+        if (status === CONNECTION_STATUSES.REJECTED) {
           const buyerEmail = user?.email || requestData.lead_email;
           const buyerName = user
             ? `${user.first_name || ''} ${user.last_name || ''}`.trim()

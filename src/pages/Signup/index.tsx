@@ -149,14 +149,15 @@ const Signup = () => {
     try {
       await doSubmit();
       clearDraft();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup error:', error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
-      if (error.message?.includes('User already registered'))
+      const errMsg = error instanceof Error ? error.message : undefined;
+      if (errMsg?.includes('User already registered'))
         errorMessage = 'An account with this email already exists.';
-      else if (error.message?.includes('Password')) errorMessage = 'Password requirements not met.';
-      else if (error.message?.includes('Email')) errorMessage = 'Invalid email address.';
-      else if (error.message) errorMessage = error.message;
+      else if (errMsg?.includes('Password')) errorMessage = 'Password requirements not met.';
+      else if (errMsg?.includes('Email')) errorMessage = 'Invalid email address.';
+      else if (errMsg) errorMessage = errMsg;
       toast({ variant: 'destructive', title: 'Signup failed', description: errorMessage });
     } finally {
       setIsSubmitting(false);

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { APPROVAL_STATUSES } from '@/constants';
 
 /**
  * Parse arrays safely from auth metadata (handles JSON strings, arrays, and fallback).
@@ -94,7 +95,7 @@ export function buildProfileFromMetadata(authUser: SupabaseUser) {
     backers_summary: meta(m, 'backers_summary', 'backersSummary', ''),
     anchor_investors_summary: meta(m, 'anchor_investors_summary', 'anchorInvestorsSummary', ''),
     deal_intent: meta(m, 'deal_intent', 'dealIntent', ''),
-    approval_status: 'pending',
+    approval_status: APPROVAL_STATUSES.PENDING,
     email_verified: !!authUser.email_confirmed_at,
   };
 }

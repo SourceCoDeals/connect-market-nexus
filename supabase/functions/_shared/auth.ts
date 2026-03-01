@@ -11,6 +11,7 @@ interface AuthResult {
   authenticated: boolean;
   isAdmin: boolean;
   userId?: string;
+  isServiceRole?: boolean;
   error?: string;
 }
 
@@ -55,6 +56,37 @@ export async function requireAdmin(
   }
 
   return { authenticated: true, isAdmin: true, userId: auth.userId };
+}
+
+/**
+ * Verify the request has a valid admin user OR is an internal service-to-service call.
+ * Internal calls are identified by the Authorization bearer token matching the service role key,
+ * or the x-internal-secret header matching the service role key.
+ *
+ * Use this for functions that are called both from the admin UI and from queue workers
+ * (e.g., enrich-deal called by process-enrichment-queue).
+ */
+export async function requireAdminOrServiceRole(
+  req: Request,
+  supabaseAdmin: any
+): Promise<AuthResult> {
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // Check x-internal-secret header first (queue workers)
+  const internalSecret = req.headers.get("x-internal-secret") || "";
+  if (internalSecret === supabaseServiceKey) {
+    return { authenticated: true, isAdmin: true, isServiceRole: true };
+  }
+
+  // Check if bearer token is the service role key (internal function-to-function calls)
+  const authHeader = req.headers.get("Authorization") || "";
+  const token = authHeader.replace("Bearer ", "").trim();
+  if (token === supabaseServiceKey) {
+    return { authenticated: true, isAdmin: true, isServiceRole: true };
+  }
+
+  // Fall back to normal admin auth check
+  return await requireAdmin(req, supabaseAdmin);
 }
 
 /**

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { UserPlus, Search, Users, History, Loader2 } from 'lucide-react';
 import type { User } from '@/types';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
+import { APPROVAL_STATUSES } from '@/constants';
 
 const InternalTeamPage = () => {
   const { allUserRoles, isLoadingRoles, auditLog, isLoadingAudit } = useRoleManagement();
@@ -60,7 +61,7 @@ const InternalTeamPage = () => {
       created_at: now,
       updated_at: now,
       is_admin: true,
-      approval_status: 'approved' as const,
+      approval_status: APPROVAL_STATUSES.APPROVED as const,
       email_verified: true,
       get firstName() { return firstName; },
       get lastName() { return lastName; },

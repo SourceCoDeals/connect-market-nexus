@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { APPROVAL_STATUSES } from '@/constants';
 
 const ONBOARDING_KEY = 'onboarding_completed';
 
@@ -12,7 +13,7 @@ export const useOnboarding = () => {
   useEffect(() => {
     const checkOnboardingStatus = () => {
       // Don't check anything if auth isn't ready or no user
-      if (!authChecked || !user || !user.email_verified || user.approval_status !== 'approved') {
+      if (!authChecked || !user || !user.email_verified || user.approval_status !== APPROVAL_STATUSES.APPROVED) {
         setShowOnboarding(false);
         return;
       }
@@ -64,7 +65,7 @@ export const useOnboarding = () => {
     }
   };
 
-  const shouldShowOnboarding = showOnboarding && user && user.email_verified && user.approval_status === 'approved';
+  const shouldShowOnboarding = showOnboarding && user && user.email_verified && user.approval_status === APPROVAL_STATUSES.APPROVED;
 
   return {
     showOnboarding,

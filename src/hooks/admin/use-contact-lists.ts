@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import type { ContactList, CreateContactListInput, ContactListMember, CreateContactListMemberInput } from '@/types/contact-list';
 import { useToast } from '@/hooks/use-toast';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 const QUERY_KEY = ['admin', 'contact-lists'];
 
@@ -19,22 +20,22 @@ export function useContactLists() {
       if (error) throw error;
 
       // Fetch creator names separately (FK points to auth.users, not profiles)
-      const creatorIds = [...new Set((data ?? []).map((r: any) => r.created_by).filter(Boolean))];
+      const creatorIds = [...new Set((data ?? []).map((r) => r.created_by).filter(Boolean))] as string[];
       let profileMap: Record<string, string> = {};
       if (creatorIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, first_name, last_name')
           .in('id', creatorIds);
-        for (const p of (profiles ?? []) as any[]) {
+        for (const p of (profiles ?? [])) {
           profileMap[p.id] = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
         }
       }
 
-      return (data ?? []).map((row: any) => ({
+      return (data ?? []).map((row) => ({
         ...row,
         tags: row.tags ?? [],
-        created_by_name: profileMap[row.created_by] || null,
+        created_by_name: profileMap[row.created_by ?? ''] || null,
       })) as ContactList[];
     },
     staleTime: 30000,
@@ -63,7 +64,7 @@ export function useContactList(listId: string | undefined) {
           .eq('id', list.created_by)
           .single();
         if (profile) {
-          creatorName = `${(profile as any).first_name ?? ''} ${(profile as any).last_name ?? ''}`.trim();
+          creatorName = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
         }
       }
 
@@ -77,7 +78,7 @@ export function useContactList(listId: string | undefined) {
       if (membersError) throw membersError;
 
       // Fetch call tracking data for these contacts
-      const emails = (members ?? []).map((m: any) => m.contact_email).filter(Boolean);
+      const emails = (members ?? []).map((m) => m.contact_email).filter(Boolean) as string[];
       let callData: Record<string, { last_call: string | null; total_calls: number; last_disposition: string | null }> = {};
 
       if (emails.length > 0) {
@@ -88,7 +89,7 @@ export function useContactList(listId: string | undefined) {
           .order('call_started_at', { ascending: false });
 
         if (activities) {
-          for (const a of activities as any[]) {
+          for (const a of activities) {
             const email = a.contact_email;
             if (!email) continue;
             if (!callData[email]) {
@@ -99,12 +100,12 @@ export function useContactList(listId: string | undefined) {
         }
       }
 
-      const enrichedMembers: ContactListMember[] = (members ?? []).map((m: any) => ({
+      const enrichedMembers: ContactListMember[] = (members ?? []).map((m) => ({
         ...m,
-        last_call_date: callData[m.contact_email]?.last_call ?? null,
-        total_calls: callData[m.contact_email]?.total_calls ?? 0,
-        last_disposition: callData[m.contact_email]?.last_disposition ?? null,
-      }));
+        last_call_date: callData[m.contact_email ?? '']?.last_call ?? null,
+        total_calls: callData[m.contact_email ?? '']?.total_calls ?? 0,
+        last_disposition: callData[m.contact_email ?? '']?.last_disposition ?? null,
+      })) as unknown as ContactListMember[];
 
       return {
         ...list,
@@ -128,7 +129,7 @@ export function useCreateContactList() {
       if (!user) throw new Error('Authentication required');
 
       // Create the list
-      const insertData: Record<string, unknown> = {
+      const insertData: TablesInsert<'contact_lists'> = {
           name: input.name,
           description: input.description || null,
           list_type: input.list_type,
@@ -139,7 +140,7 @@ export function useCreateContactList() {
         };
       const { data: list, error: listError } = await supabase
         .from('contact_lists')
-        .insert(insertData as any)
+        .insert(insertData)
         .select()
         .single();
 
@@ -174,7 +175,7 @@ export function useCreateContactList() {
         description: `"${data.name}" saved with ${data.contact_count} contacts. You can now push them to PhoneBurner.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Failed to create list',
         description: error.message,
@@ -202,7 +203,7 @@ export function useAddMembersToList() {
         contact_role: m.contact_role,
         entity_type: m.entity_type,
         entity_id: m.entity_id,
-        removed_at: null,
+        removed_at: null as string | null,
       }));
 
       const { error: membersError } = await supabase
@@ -223,7 +224,7 @@ export function useAddMembersToList() {
         description: `${addedCount} contact${addedCount !== 1 ? 's' : ''} added to list.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Failed to add contacts',
         description: error.message,
@@ -250,7 +251,7 @@ export function useDeleteContactList() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
       toast({ title: 'List archived' });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Failed to archive list',
         description: error.message,
@@ -339,7 +340,7 @@ export function useEnrichListContacts() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Enrichment failed',
         description: error.message,

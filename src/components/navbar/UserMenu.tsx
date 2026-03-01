@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { User as AuthUser } from "@/types";
 import MobileNavItems from "./MobileNavItems";
 import { useAuth } from "@/context/AuthContext";
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface UserMenuProps {
   user: AuthUser;
@@ -73,10 +74,10 @@ const UserMenu = ({ user, isAdmin, isMobile, handleLogout: _handleLogout, onNavi
           <>
             <MobileNavItems 
               isAdmin={isAdmin} 
-              isApproved={user.approval_status === 'approved'} 
+              isApproved={user.approval_status === APPROVAL_STATUSES.APPROVED} 
               onNavigateToAdmin={onNavigateToAdmin} 
             />
-            {user.approval_status === 'approved' && <DropdownMenuSeparator />}
+            {user.approval_status === APPROVAL_STATUSES.APPROVED && <DropdownMenuSeparator />}
           </>
         )}
         

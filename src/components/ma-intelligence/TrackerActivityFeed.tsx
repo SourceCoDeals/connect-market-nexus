@@ -22,7 +22,7 @@ interface ActivityItem {
   id: string;
   type: 'buyer_added' | 'buyer_enriched' | 'buyer_deleted' | 'deal_added' | 'deal_enriched' | 'deal_scored' | 'criteria_updated' | 'tracker_archived' | 'tracker_restored';
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   created_by?: string;
   entity_id?: string;

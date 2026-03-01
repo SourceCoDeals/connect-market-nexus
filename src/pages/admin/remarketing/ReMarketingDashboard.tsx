@@ -145,7 +145,7 @@ const ReMarketingDashboard = () => {
   });
 
   // ── Extract metrics from RPC result ──
-  const cards = stats?.cards as Record<string, any> | undefined;
+  const cards = stats?.cards as Record<string, unknown> | undefined;
   const newBySource = stats?.new_by_source || {};
   const allBySource = stats?.all_by_source || {};
   const teamData = stats?.team || [];

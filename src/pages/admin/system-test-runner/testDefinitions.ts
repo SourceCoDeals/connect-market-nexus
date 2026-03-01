@@ -809,8 +809,8 @@ export function buildTests(): TestDef[] {
     if (error) throw new Error(error.message);
     const validSources = ['fireflies', 'upload', 'file_upload', 'manual', null];
     const invalidSources = (data || [])
-      .filter((t: any) => t.source && !validSources.includes(t.source))
-      .map((t: any) => t.source);
+      .filter((t) => t.source && !validSources.includes(t.source))
+      .map((t) => t.source);
     if (invalidSources.length > 0) {
       throw new Error(`Found unexpected source values: ${[...new Set(invalidSources)].join(', ')}`);
     }
@@ -825,8 +825,8 @@ export function buildTests(): TestDef[] {
     if (error) throw new Error(error.message);
     const validTypes = ['email', 'keyword'];
     const invalid = (data || [])
-      .filter((t: any) => !validTypes.includes(t.match_type))
-      .map((t: any) => t.match_type);
+      .filter((t) => !validTypes.includes(t.match_type))
+      .map((t) => t.match_type);
     if (invalid.length > 0) {
       throw new Error(`Found unexpected match_type values: ${[...new Set(invalid)].join(', ')}`);
     }
@@ -854,14 +854,14 @@ export function buildTests(): TestDef[] {
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) return; // No transcripts to check
 
-    const listingIds = [...new Set(data.map((t: any) => t.listing_id))];
+    const listingIds = [...new Set(data.map((t) => t.listing_id))];
     const { data: listings, error: listingsError } = await supabase
       .from('listings')
       .select('id')
       .in('id', listingIds.slice(0, 20));
     if (listingsError) throw new Error(listingsError.message);
 
-    const existingIds = new Set((listings || []).map((l: any) => l.id));
+    const existingIds = new Set((listings || []).map((l) => l.id));
     const orphaned = listingIds.filter((id) => !existingIds.has(id));
     if (orphaned.length > 0) {
       throw new Error(`${orphaned.length} deal_transcript(s) reference non-existent listings`);
@@ -1111,18 +1111,20 @@ export function buildTests(): TestDef[] {
       throw new Error('Unexpected response format from docuseal-integration-test');
     }
 
-    const failed = data.results.filter((r: any) => r.status === 'fail');
-    const warned = data.results.filter((r: any) => r.status === 'warn');
-    const passed = data.results.filter((r: any) => r.status === 'pass');
+    interface SubTestResult { status: string; name: string; detail: string }
+    const results = data.results as SubTestResult[];
+    const failed = results.filter((r) => r.status === 'fail');
+    const warned = results.filter((r) => r.status === 'warn');
+    const passed = results.filter((r) => r.status === 'pass');
 
     if (failed.length > 0) {
-      const details = failed.map((r: any) => `${r.name}: ${r.detail}`).join('; ');
-      throw new Error(`${failed.length}/${data.results.length} sub-tests failed — ${details}`);
+      const details = failed.map((r) => `${r.name}: ${r.detail}`).join('; ');
+      throw new Error(`${failed.length}/${results.length} sub-tests failed — ${details}`);
     }
 
     if (warned.length > 0 && passed.length === 0) {
       throw new Error(
-        `All sub-tests returned warnings: ${warned.map((r: any) => r.detail).join('; ')}`,
+        `All sub-tests returned warnings: ${warned.map((r) => r.detail).join('; ')}`,
       );
     }
     // Success: all passed (warnings are acceptable if passes also exist)

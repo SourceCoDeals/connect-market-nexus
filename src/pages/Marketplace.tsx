@@ -13,6 +13,7 @@ import { LayoutGrid, LayoutList, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { APPROVAL_STATUSES } from '@/constants';
 import { useAllSavedListingIds } from '@/hooks/marketplace/use-saved-listings';
 import { useAllConnectionStatuses } from '@/hooks/marketplace/use-connections';
 import { PendingSigningBanner } from '@/components/marketplace/PendingSigningBanner';
@@ -85,7 +86,7 @@ const MarketplaceContent = () => {
 
   // Welcome toast on first visit after approval
   useEffect(() => {
-    if (user && authChecked && user.approval_status === 'approved') {
+    if (user && authChecked && user.approval_status === APPROVAL_STATUSES.APPROVED) {
       const hasSeenWelcome = localStorage.getItem('sourceco_shown_welcome');
       if (!hasSeenWelcome) {
         toast({

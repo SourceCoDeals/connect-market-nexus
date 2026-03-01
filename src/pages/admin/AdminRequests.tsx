@@ -293,13 +293,12 @@ const AdminRequests = () => {
           description: 'Connection request has been rejected',
         });
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[AdminRequests] handleAction failed:`, error);
       toast({
         variant: 'destructive',
         title: 'Update failed',
-        description: error?.message || 'Could not update connection request status',
+        description: error instanceof Error ? error.message : 'Could not update connection request status',
       });
     }
   };
@@ -338,13 +337,12 @@ const AdminRequests = () => {
         setIsDialogOpen(false);
         setSelectedRequest(null);
         setActionType(null);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`[AdminRequests] confirmAction failed:`, error);
         toast({
           variant: 'destructive',
           title: 'Update failed',
-          description: error?.message || 'Could not update connection request status',
+          description: error instanceof Error ? error.message : 'Could not update connection request status',
         });
       }
     }

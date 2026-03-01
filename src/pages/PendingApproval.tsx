@@ -27,6 +27,7 @@ import { cleanupAuthState } from '@/lib/auth-helpers';
 import { APP_CONFIG } from '@/config/app';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
 import { DocuSealSigningPanel } from '@/components/docuseal/DocuSealSigningPanel';
+import { APPROVAL_STATUSES } from '@/constants';
 
 const PendingApproval = () => {
   const navigate = useNavigate();
@@ -107,7 +108,7 @@ const PendingApproval = () => {
 
   // Auto-poll approval status every 30s
   useEffect(() => {
-    if (user?.approval_status === 'approved' || user?.approval_status === 'rejected') return;
+    if (user?.approval_status === APPROVAL_STATUSES.APPROVED || user?.approval_status === APPROVAL_STATUSES.REJECTED) return;
     const interval = setInterval(() => {
       refreshUserProfile().catch(() => {});
     }, 30000);
@@ -116,7 +117,7 @@ const PendingApproval = () => {
 
   // Handle navigation for approved users (skip redirect if NDA signing is pending)
   useEffect(() => {
-    if (user?.approval_status === 'approved') {
+    if (user?.approval_status === APPROVAL_STATUSES.APPROVED) {
       if (ndaStatus?.hasFirm && !ndaStatus?.ndaSigned && !ndaSigned) {
         return; // Stay on page for NDA signing
       }
@@ -222,7 +223,7 @@ const PendingApproval = () => {
   };
 
   const getUIState = () => {
-    if (user?.approval_status === 'rejected') {
+    if (user?.approval_status === APPROVAL_STATUSES.REJECTED) {
       return 'rejected';
     } else if (user?.email_verified) {
       return 'approved_pending';

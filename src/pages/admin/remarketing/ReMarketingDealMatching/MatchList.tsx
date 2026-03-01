@@ -18,12 +18,56 @@ import {
 import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
 import type { SortOption, FilterTab } from "./types";
 
+/** Score record shape (remarketing_scores + joined buyer/universe). */
+interface ScoreRecord {
+  id: string;
+  buyer_id: string;
+  composite_score: number;
+  geography_score: number;
+  size_score: number;
+  service_score: number;
+  owner_goals_score: number;
+  size_multiplier?: number | null;
+  service_multiplier?: number | null;
+  status: string;
+  tier: string | null;
+  fit_reasoning: string | null;
+  buyer?: {
+    id: string;
+    company_name?: string | null;
+    company_website?: string | null;
+    pe_firm_name?: string | null;
+    hq_city?: string | null;
+    hq_state?: string | null;
+  } | null;
+  universe?: { id: string; name: string } | null;
+  [key: string]: unknown;
+}
+
+/** Listing shape as returned by Supabase .from('listings').select('*'). */
+interface ListingRecord {
+  id: string;
+  title: string | null;
+  location?: string | null;
+  category?: string | null;
+  [key: string]: unknown;
+}
+
+/** Outreach record shape. */
+interface OutreachRecord {
+  id: string;
+  score_id: string;
+  status: string;
+  contacted_at?: string | null;
+  notes?: string | null;
+}
+
 interface MatchListProps {
-  listing: any;
+  listing: ListingRecord | undefined | null;
   listingId: string | undefined;
-  scores: any[] | undefined;
-  allScores: any[] | undefined;
-  filteredScores: any[];
+  scores: ScoreRecord[] | undefined;
+  allScores: ScoreRecord[] | undefined;
+  filteredScores: ScoreRecord[];
   scoresLoading: boolean;
   linkedUniverses: Array<{ id: string; name: string }> | undefined;
   selectedUniverse: string;
@@ -33,7 +77,7 @@ interface MatchListProps {
     passed: number;
   };
   outreachCount: number;
-  outreachRecords: any[] | undefined;
+  outreachRecords: OutreachRecord[] | undefined;
   feeAgreementLookup: Map<string, { signed: boolean; signedAt: string | null }>;
   pipelineDealByBuyer: Map<string, string>;
   activeTab: FilterTab;
@@ -47,9 +91,9 @@ interface MatchListProps {
   selectedIds: Set<string>;
   highlightedBuyerIds: string[];
   handleSelect: (id: string, selected: boolean) => void;
-  handleApprove: (scoreId: string, scoreData?: any) => Promise<void>;
-  handleOpenPassDialog: (scoreId: string, buyerName: string, scoreData?: any) => void;
-  handleToggleInterested: (scoreId: string, interested: boolean, scoreData?: any) => Promise<void>;
+  handleApprove: (scoreId: string, scoreData?: ScoreRecord) => Promise<void>;
+  handleOpenPassDialog: (scoreId: string, buyerName: string, scoreData?: ScoreRecord) => void;
+  handleToggleInterested: (scoreId: string, interested: boolean, scoreData?: ScoreRecord) => Promise<void>;
   handleOutreachUpdate: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   handleScoreViewed: (scoreId: string) => Promise<void>;
   handleMoveToPipeline: (scoreId: string, buyerId: string, targetListingId: string) => Promise<void>;
@@ -205,7 +249,7 @@ export function MatchList({
           </Card>
         ) : (
           <div className="space-y-3">
-            {filteredScores.map((score: any) => {
+            {filteredScores.map((score) => {
               const outreach = outreachRecords?.find(o => o.score_id === score.id);
               return (
                 <BuyerMatchCard

@@ -14,7 +14,7 @@ interface EditDialogsProps {
   activeEditDialog: EditDialogType;
   setActiveEditDialog: (dialog: EditDialogType) => void;
   buyer: BuyerData | null | undefined;
-  onSave: (data: Record<string, any>) => void;
+  onSave: (data: Record<string, unknown>) => void;
   isSaving: boolean;
 }
 

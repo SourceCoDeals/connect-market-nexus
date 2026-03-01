@@ -57,10 +57,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
       setDeals((data || []) as unknown as MADeal[]);
       onDealCountChange?.(data?.length || 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading deals",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {
@@ -122,13 +122,13 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         loadDeals();
         setSelectedDeals(new Set());
       }, 5000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (activityItem) {
         completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
       }
       toast({
         title: "Error enriching deals",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -190,7 +190,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
           // Save progress to localStorage
           saveSessionState(trackerId, "Bulk Scoring", progress.current, progress.total);
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error(`Error scoring deal ${dealId}:`, error);
         }
       }
@@ -208,13 +208,13 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
         title: "Scoring complete",
         description: `Successfully scored ${progress.completedIds.length} of ${dealIds.length} deals`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (activityItem) {
         completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
       }
       toast({
         title: "Error during scoring",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -242,10 +242,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       });
 
       setTimeout(loadDeals, 5000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Scoring failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -262,10 +262,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
       });
 
       setTimeout(loadDeals, 5000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Enrichment failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -281,10 +281,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
       toast({ title: "Deal archived" });
       loadDeals();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Archive failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -303,10 +303,10 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
 
       toast({ title: "Deal deleted" });
       loadDeals();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -333,7 +333,7 @@ export function TrackerDealsTab({ trackerId, onDealCountChange }: TrackerDealsTa
     return true;
   }), [deals, searchQuery, filterStatus, filterScore]);
 
-  const orderedIds = useMemo(() => filteredDeals.map((d: any) => d.id), [filteredDeals]);
+  const orderedIds = useMemo(() => filteredDeals.map((d) => d.id), [filteredDeals]);
   const { handleToggle: handleToggleSelect } = useShiftSelect(orderedIds, selectedDeals, setSelectedDeals);
 
   const handleSelectAll = () => {

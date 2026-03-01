@@ -5,6 +5,7 @@ import { FilterOptions, Listing, ListingStatus } from '@/types';
 import { withPerformanceMonitoring } from '@/lib/performance-monitor';
 import { useAuth } from '@/context/AuthContext';
 import { toStandardCategory, toStandardLocation } from '@/lib/standardization';
+import { APPROVAL_STATUSES, LISTING_STATUSES } from '@/constants';
 
 // N02 FIX: Explicit safe columns for marketplace queries.
 // SELECT * was returning all 170 columns including confidential data
@@ -68,7 +69,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           }
 
           // Allow admin users to always see listings, require approval for regular users
-          if (!user.is_admin && user.approval_status !== 'approved') {
+          if (!user.is_admin && user.approval_status !== APPROVAL_STATUSES.APPROVED) {
             // User not approved (and not admin)
             throw new Error('User approval required');
           }
@@ -80,7 +81,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           
           // Always filter to only show active, non-deleted listings in the marketplace
           query = query
-            .eq('status', 'active')
+            .eq('status', LISTING_STATUSES.ACTIVE)
             .is('deleted_at', null)
             .eq('is_internal_deal', false); // Only show marketplace deals, not internal/research deals
           
@@ -211,7 +212,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           };
       });
     },
-    enabled: !!(user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)), // Remove authChecked dependency
+    enabled: !!(user && user.email_verified && (user.approval_status === APPROVAL_STATUSES.APPROVED || user.is_admin)), // Remove authChecked dependency
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
@@ -289,7 +290,7 @@ export const useListing = (id: string | undefined) => {
           return listing as Listing;
       });
     },
-    enabled: !!(id && user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)), // Remove authChecked dependency
+    enabled: !!(id && user && user.email_verified && (user.approval_status === APPROVAL_STATUSES.APPROVED || user.is_admin)), // Remove authChecked dependency
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
     retry: 1,
@@ -313,17 +314,17 @@ export const useListingMetadata = () => {
             categories: STANDARDIZED_CATEGORIES, 
             locations: STANDARDIZED_LOCATIONS 
           };
-        } catch (error: any) {
-          console.error('💥 Error in useListingMetadata:', error);
+        } catch (error: unknown) {
+          console.error('Error in useListingMetadata:', error);
           // Fallback to hardcoded arrays if import fails
-          return { 
-            categories: ['Technology', 'Healthcare', 'Manufacturing', 'Retail', 'Financial Services'], 
-            locations: ['United States', 'Canada', 'United Kingdom', 'Germany', 'France'] 
+          return {
+            categories: ['Technology', 'Healthcare', 'Manufacturing', 'Retail', 'Financial Services'],
+            locations: ['United States', 'Canada', 'United Kingdom', 'Germany', 'France']
           };
         }
       });
     },
-    enabled: !!(user && user.email_verified && (user.approval_status === 'approved' || user.is_admin)),
+    enabled: !!(user && user.email_verified && (user.approval_status === APPROVAL_STATUSES.APPROVED || user.is_admin)),
     staleTime: 1000 * 60 * 60, // 1 hour - these are static constants
     refetchOnWindowFocus: false,
     retry: 1,

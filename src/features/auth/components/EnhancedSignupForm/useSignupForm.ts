@@ -15,7 +15,7 @@ export const useSignupForm = () => {
   const [currentStep, setCurrentStep] = useState(0);
 
   const form = useForm<SignupFormData>({
-    resolver: zodResolver(signupFormSchema as any),
+    resolver: zodResolver(signupFormSchema as unknown as Parameters<typeof zodResolver>[0]),
     defaultValues: {
       email: '',
       password: '',

@@ -13,6 +13,7 @@ import { RoleSelector } from '../permissions/RoleSelector';
 import { AppRole } from '@/hooks/permissions/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface UserActionButtonsProps {
   user: User;
@@ -74,7 +75,7 @@ export function UserActionButtons({
             <DropdownMenuLabel>User Actions</DropdownMenuLabel>
             <DropdownMenuSeparator />
 
-            {user.approval_status === "pending" && (
+            {user.approval_status === APPROVAL_STATUSES.PENDING && (
               <DropdownMenuItem
                 onClick={() => onApprove(user)}
                 className="text-green-600"
@@ -84,7 +85,7 @@ export function UserActionButtons({
               </DropdownMenuItem>
             )}
 
-            {user.approval_status === "rejected" && (
+            {user.approval_status === APPROVAL_STATUSES.REJECTED && (
               <DropdownMenuItem
                 onClick={() => onApprove(user)}
                 className="text-green-600"

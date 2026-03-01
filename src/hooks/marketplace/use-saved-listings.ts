@@ -56,11 +56,11 @@ export const useSaveListingMutation = () => {
           : 'The listing has been removed from your favorites.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to update saved listing',
+        description: (error instanceof Error ? error.message : undefined) || 'Failed to update saved listing',
       });
     },
   });
@@ -84,7 +84,7 @@ export const useAllSavedListingIds = () => {
         if (error) throw error;
         
         return new Set((data || []).map(r => r.listing_id));
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching saved listing ids:', error);
         return new Set<string>();
       }
@@ -117,7 +117,7 @@ export const useSavedStatus = (listingId: string | undefined, savedIds?: Set<str
         if (error) throw error;
         
         return !!data;
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error checking saved status:', error);
         return false;
       }

@@ -104,7 +104,7 @@ type ListingFormInput = {
   part_time_employees?: number;
   description: string;
   description_html?: string;
-  description_json?: any;
+  description_json?: Record<string, unknown>;
   hero_description?: string | null;
   owner_notes?: string;
   status: "active" | "inactive";
@@ -132,9 +132,9 @@ type ListingFormInput = {
   internal_notes?: string;
   // Landing page content
   investment_thesis?: string | null;
-  custom_sections?: any;
+  custom_sections?: Array<{ title: string; description: string }> | null;
   services?: string[] | null;
-  growth_drivers?: any;
+  growth_drivers?: string[] | null;
   competitive_position?: string | null;
   ownership_structure?: string | null;
   seller_motivation?: string | null;
@@ -148,7 +148,7 @@ type ListingFormInput = {
 type ListingFormValues = z.infer<typeof listingFormSchema>;
 
 interface ImprovedListingEditorProps {
-  onSubmit: (data: ListingFormValues & { description_html?: string; description_json?: any }, image?: File | null) => Promise<void>;
+  onSubmit: (data: ListingFormValues & { description_html?: string; description_json?: Record<string, unknown> }, image?: File | null) => Promise<void>;
   listing?: AdminListing;
   isLoading?: boolean;
   targetType?: 'marketplace' | 'research';
@@ -193,18 +193,18 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     internal_contact_info: listing?.internal_contact_info || "",
     internal_notes: listing?.internal_notes || "",
     // Landing page content
-    investment_thesis: (listing as any)?.investment_thesis || null,
-    custom_sections: (listing as any)?.custom_sections || null,
-    services: (listing as any)?.services || null,
-    growth_drivers: (listing as any)?.growth_drivers || null,
-    competitive_position: (listing as any)?.competitive_position || null,
+    investment_thesis: listing?.investment_thesis || null,
+    custom_sections: listing?.custom_sections || null,
+    services: listing?.services || null,
+    growth_drivers: listing?.growth_drivers || null,
+    competitive_position: listing?.competitive_position || null,
     ownership_structure: listing?.ownership_structure || null,
     seller_motivation: listing?.seller_motivation || null,
-    business_model: (listing as any)?.business_model || null,
-    customer_geography: (listing as any)?.customer_geography || null,
-    customer_types: (listing as any)?.customer_types || null,
-    revenue_model: (listing as any)?.revenue_model || null,
-    end_market_description: (listing as any)?.end_market_description || null,
+    business_model: listing?.business_model || null,
+    customer_geography: listing?.customer_geography || null,
+    customer_types: listing?.customer_types || null,
+    revenue_model: listing?.revenue_model || null,
+    end_market_description: listing?.end_market_description || null,
   };
 };
 
@@ -278,7 +278,7 @@ export function ImprovedListingEditor({
     defaultValues: convertListingToFormInput(listing),
   });
 
-  // Cast for child components that accept UseFormReturn<any>
+  // Cast for child components that accept UseFormReturn<Record<string, unknown>>
   const formForSections = form as unknown as import('react-hook-form').UseFormReturn<Record<string, unknown>>;
 
   const handleImageSelect = (file: File | null) => {
@@ -365,7 +365,7 @@ export function ImprovedListingEditor({
         return;
       }
       
-      const transformedData: ListingFormValues & { description_html?: string; description_json?: any } = {
+      const transformedData: ListingFormValues & { description_html?: string; description_json?: Record<string, unknown> } = {
         ...formData,
         acquisition_type: (formData.acquisition_type === 'add_on' || formData.acquisition_type === 'platform') ? formData.acquisition_type : null,
         part_time_employees: formData.part_time_employees,
@@ -420,11 +420,11 @@ export function ImprovedListingEditor({
         setImagePreview(null);
         setIsImageChanged(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to save listing",
+        description: error instanceof Error ? error.message : "Failed to save listing",
       });
     }
   };

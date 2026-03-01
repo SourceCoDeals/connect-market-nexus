@@ -102,10 +102,11 @@ export const InboundLeadsTable = ({
         listingId,
         listingTitle
       }, {
-        onError: (error: any) => {
-          if (error.isDuplicateError) {
+        onError: (error: unknown) => {
+          const err = error as Record<string, unknown>;
+          if (err.isDuplicateError) {
             // Handle duplicate detection
-            setDuplicateResult(error.duplicateResult);
+            setDuplicateResult(err.duplicateResult as DuplicateCheckResult);
             setPendingMappingData({ listingId, listingTitle });
             setIsDuplicateWarningOpen(true);
             setIsMappingDialogOpen(false);
@@ -214,11 +215,11 @@ export const InboundLeadsTable = ({
           description: `Successfully mapped ${successCount} of ${pendingLeads.length} leads`,
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: "Mapping failed",
-        description: error.message || 'Failed to map leads',
+        description: (error instanceof Error ? error.message : undefined) || 'Failed to map leads',
       });
     }
   };
@@ -238,9 +239,9 @@ export const InboundLeadsTable = ({
               successCount++;
               resolve(null);
             },
-            onError: (error: any) => {
+            onError: (error: unknown) => {
               errorCount++;
-              errors.push(`${lead.name}: ${error.message}`);
+              errors.push(`${lead.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
               reject(error);
             }
           });

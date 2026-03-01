@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,24 +23,27 @@ export function TeamMemberRegistry() {
         .select('user_id, role, profiles!inner(id, first_name, last_name, email)')
         .in('role', ['owner', 'admin', 'moderator']);
 
-      const { data: aliases } = await supabase.from('team_member_aliases' as any).select('*');
+      const { data: aliases } = await supabase.from('team_member_aliases').select('*');
 
       const aliasMap = new Map<string, { id: string; alias: string }[]>();
-      for (const a of (aliases || []) as any[]) {
+      for (const a of (aliases || [])) {
         const existing = aliasMap.get(a.profile_id) || [];
         existing.push({ id: a.id, alias: a.alias });
         aliasMap.set(a.profile_id, existing);
       }
 
-      return (roles || []).map((r: any) => ({
-        // Use user_id directly from user_roles (matches auth.uid()) to ensure
-        // consistent IDs with the assignee_id filter in useDailyTasks.
-        id: r.user_id,
-        name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
-        email: r.profiles.email,
-        role: r.role,
-        aliases: aliasMap.get(r.user_id) || [],
-      }));
+      return (roles || []).map((r) => {
+        const profile = r.profiles as unknown as { id: string; first_name: string | null; last_name: string | null; email: string };
+        return {
+          // Use user_id directly from user_roles (matches auth.uid()) to ensure
+          // consistent IDs with the assignee_id filter in useDailyTasks.
+          id: r.user_id,
+          name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+          email: profile.email,
+          role: r.role,
+          aliases: aliasMap.get(r.user_id) || [],
+        };
+      });
     },
     staleTime: 60_000,
   });
@@ -49,7 +51,7 @@ export function TeamMemberRegistry() {
   // Add alias mutation
   const addAlias = useMutation({
     mutationFn: async ({ profileId, alias }: { profileId: string; alias: string }) => {
-      const { error } = await supabase.from('team_member_aliases' as any).insert({
+      const { error } = await supabase.from('team_member_aliases').insert({
         profile_id: profileId,
         alias: alias.trim(),
         created_by: user?.id,
@@ -69,7 +71,7 @@ export function TeamMemberRegistry() {
   const removeAlias = useMutation({
     mutationFn: async (aliasId: string) => {
       const { error } = await supabase
-        .from('team_member_aliases' as any)
+        .from('team_member_aliases')
         .delete()
         .eq('id', aliasId);
       if (error) throw error;

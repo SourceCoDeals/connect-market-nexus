@@ -214,8 +214,8 @@ export function AddTranscriptDialog({
             // Upload file (optional - if this fails we still save a placeholder)
             try {
               fileUrl = await uploadFileToStorage(sf.file);
-            } catch (uploadError: any) {
-              console.warn('[AddTranscriptDialog] File upload failed:', uploadError?.message || uploadError);
+            } catch (uploadError: unknown) {
+              console.warn('[AddTranscriptDialog] File upload failed:', uploadError instanceof Error ? uploadError.message : uploadError);
             }
 
             // Read text content for text-based files
@@ -258,10 +258,10 @@ export function AddTranscriptDialog({
               prev.map((item, idx) => (idx === i ? { ...item, status: 'success' } : item))
             );
             successCount++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             setSelectedFiles((prev) =>
               prev.map((item, idx) =>
-                idx === i ? { ...item, status: 'error', error: err?.message || 'Unknown error' } : item
+                idx === i ? { ...item, status: 'error', error: err instanceof Error ? err.message : 'Unknown error' } : item
               )
             );
             errorCount++;
@@ -355,10 +355,10 @@ export function AddTranscriptDialog({
         onAdd();
         onClose();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error adding transcript',
-        description: error?.message || 'Unknown error',
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive',
       });
     } finally {

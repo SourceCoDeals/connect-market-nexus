@@ -47,7 +47,7 @@ interface Transcript {
   transcript_url: string | null;
   call_date: string | null;
   transcript_text: string;
-  extracted_data: Record<string, any> | null;
+  extracted_data: Record<string, unknown> | null;
   applied_to_deal: boolean | null;
   processed_at: string | null;
   created_at: string;

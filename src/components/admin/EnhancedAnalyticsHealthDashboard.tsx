@@ -71,12 +71,12 @@ export function EnhancedAnalyticsHealthDashboard() {
             recordCount,
             lastInsert,
           };
-        } catch (error: any) {
+        } catch (error: unknown) {
           return {
             table,
             status: 'error' as const,
             recordCount: 0,
-            errorMessage: error.message,
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
           };
         }
       });
@@ -98,10 +98,10 @@ export function EnhancedAnalyticsHealthDashboard() {
       
       setLiveStats(stats);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Health Check Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {
@@ -158,8 +158,8 @@ export function EnhancedAnalyticsHealthDashboard() {
         title: "Comprehensive Test Completed",
         description: "Check results below",
       });
-    } catch (error: any) {
-      logTestResult('Test Suite Execution', false, error.message);
+    } catch (error: unknown) {
+      logTestResult('Test Suite Execution', false, error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsTestingRunning(false);
     }
@@ -185,10 +185,10 @@ export function EnhancedAnalyticsHealthDashboard() {
       });
 
       checkAnalyticsHealth();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Clear Failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

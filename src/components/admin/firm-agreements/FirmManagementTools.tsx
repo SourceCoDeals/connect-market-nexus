@@ -118,10 +118,10 @@ export function FirmManagementTools() {
       setIsMergeDialogOpen(false);
       setSourceFirmId('');
       setTargetFirmId('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to merge firms',
+        description: (error instanceof Error ? error.message : undefined) || 'Failed to merge firms',
         variant: 'destructive',
       });
     }
@@ -214,10 +214,10 @@ export function FirmManagementTools() {
       setIsLinkDialogOpen(false);
       setUserEmail('');
       setSelectedFirmId('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to link user to firm',
+        description: (error instanceof Error ? error.message : undefined) || 'Failed to link user to firm',
         variant: 'destructive',
       });
     }

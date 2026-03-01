@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { requireAuth } from '../_shared/auth.ts';
 
 /**
  * auto-create-firm-on-signup
@@ -24,29 +25,16 @@ serve(async (req: Request) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Authenticate from JWT — no body fallback to prevent impersonation
-    let userId: string | null = null;
-
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
-      const {
-        data: { user },
-        error: authError,
-      } = await anonClient.auth.getUser(token);
-      if (!authError && user) {
-        userId = user.id;
-      }
-    }
-
-    const body = await req.json().catch(() => ({}));
-
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+    const auth = await requireAuth(req);
+    if (!auth.authenticated) {
+      return new Response(JSON.stringify({ error: auth.error || 'Authentication required' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
+    const userId = auth.userId!;
+
+    const body = await req.json().catch(() => ({}));
 
     // Fetch the user's profile to get email and company
     const { data: profile, error: profileError } = await supabaseAdmin

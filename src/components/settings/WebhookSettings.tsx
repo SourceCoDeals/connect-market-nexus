@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+
+// webhook_configs is not in generated Supabase types yet
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fromTable = supabase.from.bind(supabase) as (table: string) => ReturnType<typeof supabase.from<any, any>>;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,8 +49,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
     queryKey: ['webhooks', universeId],
     queryFn: async () => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
-      let query = supabase
-        .from('webhook_configs' as never)
+      let query = fromTable('webhook_configs')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -64,8 +67,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const addMutation = useMutation({
     mutationFn: async () => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
-      const { error } = await supabase
-        .from('webhook_configs' as any)
+      const { error } = await fromTable('webhook_configs')
         .insert({
           universe_id: universeId || null,
           name: formData.name,
@@ -73,7 +75,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
           secret: formData.secret || null,
           event_types: formData.event_types,
           enabled: true
-        } as any);
+        });
 
       if (error) throw error;
     },
@@ -92,8 +94,7 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
-      const { error } = await supabase
-        .from('webhook_configs' as never)
+      const { error } = await fromTable('webhook_configs')
         .delete()
         .eq('id', id);
 
@@ -112,9 +113,8 @@ export function WebhookSettings({ universeId }: WebhookSettingsProps) {
   const toggleMutation = useMutation({
     mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
       // webhook_configs may not be in generated types yet - using 'as never' for table name
-      const { error } = await supabase
-        .from('webhook_configs' as any)
-        .update({ enabled } as any)
+      const { error } = await fromTable('webhook_configs')
+        .update({ enabled })
         .eq('id', id);
 
       if (error) throw error;

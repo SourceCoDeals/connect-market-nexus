@@ -17,6 +17,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 import {
   listCampaigns,
   getCampaign,
@@ -45,31 +46,10 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: jsonHeaders,
-    });
-  }
-
-  const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
-  const token = authHeader.replace('Bearer ', '');
-  const {
-    data: { user },
-    error: authError,
-  } = await anonClient.auth.getUser(token);
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), {
-      status: 401,
-      headers: jsonHeaders,
-    });
-  }
-
-  const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id });
-  if (!isAdmin) {
-    return new Response(JSON.stringify({ error: 'Admin access required' }), {
-      status: 403,
+  const auth = await requireAdmin(req, supabase);
+  if (!auth.authenticated || !auth.isAdmin) {
+    return new Response(JSON.stringify({ error: auth.error || 'Admin access required' }), {
+      status: auth.authenticated ? 403 : 401,
       headers: jsonHeaders,
     });
   }

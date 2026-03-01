@@ -5,6 +5,7 @@ import { useAdminEmail } from '@/hooks/admin/use-admin-email';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
 import { ApprovalEmailOptions } from '@/types/admin-users';
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface UserActionsProps {
   onUserStatusUpdated?: () => void;
@@ -153,7 +154,7 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
     // Step 1: Approve user FIRST
     try {
-      await updateUserStatusMutation.mutateAsync({ userId: user.id, status: 'approved' });
+      await updateUserStatusMutation.mutateAsync({ userId: user.id, status: APPROVAL_STATUSES.APPROVED });
 
       // Store approved user for success dialog
       setApprovedUser(user);

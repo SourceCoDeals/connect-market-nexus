@@ -67,7 +67,7 @@ export const useBuyersData = () => {
 
   // Fetch buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel"
   // Scoped to current buyer set to avoid full table scan
-  const buyerIds = useMemo(() => (buyers || []).map((b: any) => b.id), [buyers]);
+  const buyerIds = useMemo(() => (buyers || []).map((b) => b.id), [buyers]);
   const { data: buyerIdsWithTranscripts } = useQuery({
     queryKey: ['remarketing', 'buyer-transcript-ids', buyerIds.slice(0, 5)],
     queryFn: async () => {
@@ -85,7 +85,7 @@ export const useBuyersData = () => {
           // Error fetching transcripts — skipping this chunk
           continue;
         }
-        allIds.push(...(data || []).map((t: any) => t.buyer_id));
+        allIds.push(...(data || []).map((t) => t.buyer_id));
       }
 
       return new Set(allIds);
@@ -112,7 +112,7 @@ export const useBuyersData = () => {
   const tabCounts = useMemo(() => {
     if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0 };
     let pe_firm = 0, platform = 0, needs_agreements = 0;
-    buyers.forEach((b: any) => {
+    buyers.forEach((b) => {
       if (isSponsorType(b.buyer_type)) pe_firm++;
       if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
       if (!b.has_fee_agreement) needs_agreements++;
@@ -124,7 +124,7 @@ export const useBuyersData = () => {
   const platformCountsByFirm = useMemo(() => {
     if (!buyers) return new Map<string, number>();
     const counts = new Map<string, number>();
-    buyers.forEach((b: any) => {
+    buyers.forEach((b) => {
       if (b.pe_firm_name && !isSponsorType(b.buyer_type)) {
         counts.set(b.pe_firm_name, (counts.get(b.pe_firm_name) || 0) + 1);
       }
@@ -237,7 +237,7 @@ export const useBuyersData = () => {
 
     // Sort
     result = [...result].sort((a, b) => {
-      let valA: any, valB: any;
+      let valA: string, valB: string;
       switch (sortColumn) {
         case 'company_name':
           valA = a.company_name?.toLowerCase() || '';
@@ -288,8 +288,8 @@ export const useBuyersData = () => {
       if (error) throw error;
       toast.success('Enrichment started');
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
-    } catch (err: any) {
-      toast.error(err.message || 'Enrichment failed');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Enrichment failed');
     } finally {
       setEnrichingIds(prev => {
         const next = new Set(prev);
@@ -322,23 +322,23 @@ export const useBuyersData = () => {
   };
 
   // Selection helpers (shift-click multi-select)
-  const orderedIds = useMemo(() => pagedBuyers.map((b: any) => b.id), [pagedBuyers]);
+  const orderedIds = useMemo(() => pagedBuyers.map((b) => b.id), [pagedBuyers]);
   const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredBuyers.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredBuyers.map((b: any) => b.id)));
+      setSelectedIds(new Set(filteredBuyers.map((b) => b.id)));
     }
   };
 
   // Export CSV
   const handleExportCSV = () => {
-    const rows = filteredBuyers.filter((b: any) => selectedIds.size === 0 || selectedIds.has(b.id));
+    const rows = filteredBuyers.filter((b) => selectedIds.size === 0 || selectedIds.has(b.id));
     const headers = ['Company Name', 'Buyer Type', 'PE Firm', 'Website', 'Location', 'Thesis', 'Fee Agreement', 'NDA'];
     const csv = [
       headers.join(','),
-      ...rows.map((b: any) => [
+      ...rows.map((b) => [
         `"${(b.company_name || '').replace(/"/g, '""')}"`,
         b.buyer_type || '',
         `"${(b.pe_firm_name || '').replace(/"/g, '""')}"`,

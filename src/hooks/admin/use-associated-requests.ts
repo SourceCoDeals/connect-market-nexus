@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 export interface AssociatedRequest {
   id: string;
@@ -11,7 +12,7 @@ export interface AssociatedRequest {
   lead_email: string | null;
   lead_company: string | null;
   relationship_type: string;
-  relationship_metadata: any;
+  relationship_metadata: Record<string, unknown> | null;
   listing?: {
     id: string;
     title: string;
@@ -24,6 +25,73 @@ export interface AssociatedRequest {
     first_name: string | null;
     last_name: string | null;
     company: string | null;
+  } | null;
+}
+
+interface ProfileRecord {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+}
+
+interface RelatedRequestRow {
+  relationship_type: string;
+  relationship_metadata: Json | null;
+  related_request: {
+    id: string;
+    user_id: string | null;
+    listing_id: string;
+    status: string;
+    created_at: string;
+    lead_name: string | null;
+    lead_email: string | null;
+    lead_company: string | null;
+    listing: {
+      id: string;
+      title: string;
+      revenue: number | null;
+      location: string | null;
+      internal_company_name: string | null;
+    } | null;
+  } | null;
+}
+
+interface ConnectionRequestRow {
+  id: string;
+  user_id: string | null;
+  listing_id: string;
+  status: string;
+  created_at: string;
+  lead_name: string | null;
+  lead_email: string | null;
+  lead_company: string | null;
+  listing: {
+    id: string;
+    title: string;
+    revenue: number | null;
+    location: string | null;
+    internal_company_name: string | null;
+  } | null;
+}
+
+interface DealRow {
+  id: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_company: string | null;
+  contact_phone: string | null;
+  contact_role: string | null;
+  created_at: string;
+  title: string | null;
+  listing_id: string;
+  listing: {
+    id: string;
+    title: string;
+    revenue: number | null;
+    location: string | null;
+    internal_company_name: string | null;
   } | null;
 }
 
@@ -62,20 +130,20 @@ export function useAssociatedRequests(
         if (data && data.length > 0) {
           // Enrich with user profiles for proper colleague names
           const userIds = Array.from(new Set(
-            (data || []).map((item: any) => item.related_request?.user_id).filter(Boolean)
-          ));
+            (data || []).map((item) => (item as unknown as RelatedRequestRow).related_request?.user_id).filter(Boolean)
+          )) as string[];
 
-          const profileMap = new Map<string, any>();
+          const profileMap = new Map<string, ProfileRecord>();
           if (userIds.length > 0) {
             const { data: profs, error: profsError } = await supabase
               .from('profiles')
               .select('id,email,first_name,last_name,company')
-              .in('id', userIds as string[]);
+              .in('id', userIds);
             if (profsError) throw profsError;
-            (profs || []).forEach((p: any) => profileMap.set(p.id, p));
+            (profs || []).forEach((p) => profileMap.set(p.id, p as ProfileRecord));
           }
 
-          const associated: AssociatedRequest[] = data.map((item: any) => {
+          const associated: AssociatedRequest[] = (data as unknown as RelatedRequestRow[]).map((item) => {
             const related = item.related_request;
             const p = related?.user_id ? profileMap.get(related.user_id) : null;
             return {
@@ -88,7 +156,7 @@ export function useAssociatedRequests(
               lead_email: related?.lead_email || null,
               lead_company: related?.lead_company || null,
               relationship_type: item.relationship_type,
-              relationship_metadata: item.relationship_metadata,
+              relationship_metadata: item.relationship_metadata as Record<string, unknown> | null,
               listing: related?.listing || null,
               user: p ? { email: p.email, first_name: p.first_name, last_name: p.last_name, company: p.company } : null,
             } as AssociatedRequest;
@@ -98,7 +166,7 @@ export function useAssociatedRequests(
         }
         // If no associations found, fall through to company matching below
       }
-      
+
       // If no connection request but we have a company, find colleagues by company name
       if (contactCompany) {
         // Step 1: Find profiles with this company
@@ -163,39 +231,39 @@ export function useAssociatedRequests(
         if (dealsError) throw dealsError;
 
         // Step 4: Enrich connection requests with user profiles FIRST (before filtering)
-        const userIds = Array.from(new Set((crData || []).map((r: any) => r.user_id).filter(Boolean)));
-        const profileMap = new Map<string, any>();
+        const userIds = Array.from(new Set((crData || []).map((r) => r.user_id).filter(Boolean))) as string[];
+        const profileMap = new Map<string, ProfileRecord>();
         if (userIds.length > 0) {
           const { data: profs, error: profsError } = await supabase
             .from('profiles')
             .select('id,email,first_name,last_name,company')
-            .in('id', userIds as string[]);
+            .in('id', userIds);
           if (profsError) throw profsError;
-          (profs || []).forEach((p: any) => profileMap.set(p.id, p));
+          (profs || []).forEach((p) => profileMap.set(p.id, p as ProfileRecord));
         }
 
         // Step 5: Filter out the current contact's email from both sources
         // IMPORTANT: Check both lead_email AND user email from profile
-        const filteredCR = (crData || []).filter((req: any) => {
+        const filteredCR = ((crData || []) as unknown as ConnectionRequestRow[]).filter((req) => {
           if (primaryRequestId && req.id === primaryRequestId) return false;
           if (!contactEmail) return true;
-          
+
           const reqLeadEmail = (req.lead_email || '').toLowerCase();
           const reqUserEmail = req.user_id && profileMap.get(req.user_id)?.email?.toLowerCase();
           const currentEmail = contactEmail.toLowerCase();
-          
+
           // Exclude if EITHER the lead_email OR the user's profile email matches the current contact
           return reqLeadEmail !== currentEmail && reqUserEmail !== currentEmail;
         });
 
-        const filteredDeals = (dealsData || []).filter((deal: any) => {
+        const filteredDeals = ((dealsData || []) as unknown as DealRow[]).filter((deal) => {
           if (!contactEmail) return true;
           const dealEmail = (deal.contact_email || '').toLowerCase();
           return dealEmail !== contactEmail.toLowerCase();
         });
 
         // Map connection requests
-        const associatedFromCR: AssociatedRequest[] = filteredCR.map((req: any) => {
+        const associatedFromCR: AssociatedRequest[] = filteredCR.map((req) => {
           const p = req.user_id ? profileMap.get(req.user_id) : null;
           return {
             id: req.id,
@@ -214,7 +282,7 @@ export function useAssociatedRequests(
         });
 
         // Map manually created deals
-        const associatedFromDeals: AssociatedRequest[] = filteredDeals.map((deal: any) => {
+        const associatedFromDeals: AssociatedRequest[] = filteredDeals.map((deal) => {
           return {
             id: deal.id,
             user_id: null,

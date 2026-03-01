@@ -50,10 +50,10 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
 
       setBuyers((data || []) as unknown as MABuyer[]);
       onBuyerCountChange?.(data?.length || 0);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading buyers",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     } finally {
@@ -125,13 +125,13 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
         title: "Enrichment queued",
         description: `Queued ${buyerIds.length} buyers for background enrichment`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (activityItem) {
         completeOperation.mutate({ id: activityItem.id, finalStatus: "failed" });
       }
       toast({
         title: "Error during enrichment",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -157,10 +157,10 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
       });
 
       setTimeout(loadBuyers, 5000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Enrichment failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -176,10 +176,10 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
 
       toast({ title: "Buyer archived" });
       loadBuyers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Archive failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -198,10 +198,10 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
 
       toast({ title: "Buyer deleted" });
       loadBuyers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Delete failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -230,10 +230,10 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
       });
 
       setSelectedBuyers(new Set());
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error scoring buyers",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
     }
@@ -260,7 +260,7 @@ export function TrackerBuyersTab({ trackerId, onBuyerCountChange }: TrackerBuyer
     return true;
   }), [buyers, searchQuery, filterCoverage]);
 
-  const orderedIds = useMemo(() => filteredBuyers.map((b: any) => b.id), [filteredBuyers]);
+  const orderedIds = useMemo(() => filteredBuyers.map((b) => b.id), [filteredBuyers]);
   const { handleToggle: handleToggleSelect } = useShiftSelect(orderedIds, selectedBuyers, setSelectedBuyers);
 
   const handleSelectAll = () => {

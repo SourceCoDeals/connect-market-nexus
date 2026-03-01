@@ -12,6 +12,7 @@ import { SimpleNDADialog } from "./SimpleNDADialog";
 import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
 import { supabase } from '@/integrations/supabase/client';
 import { formatFinancialRange } from '@/lib/buyer-metrics';
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface MobileUsersTableProps {
   users: User[];
@@ -88,7 +89,7 @@ const MobileUserCard = ({
             <DropdownMenuLabel>User Actions</DropdownMenuLabel>
             <DropdownMenuSeparator />
             
-            {user.approval_status === "pending" && (
+            {user.approval_status === APPROVAL_STATUSES.PENDING && (
               <DropdownMenuItem 
                 onClick={() => onApprove(user)}
                 className="text-green-600"
@@ -98,7 +99,7 @@ const MobileUserCard = ({
               </DropdownMenuItem>
             )}
             
-            {user.approval_status === "rejected" && (
+            {user.approval_status === APPROVAL_STATUSES.REJECTED && (
               <DropdownMenuItem 
                 onClick={() => onApprove(user)}
                 className="text-green-600"
@@ -355,7 +356,7 @@ export const MobileUsersTable = ({
         notes: emailData.useTemplate ? 'Template fee agreement email sent' : 'Custom fee agreement email sent'
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Mobile: Error in handleSendEmail:', error);
       // Error handling is done by the hook
     }

@@ -24,6 +24,7 @@
  * AUDIT REF: CTO Audit February 2026
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAdminOrServiceRole } from "../_shared/auth.ts";
 import { validateUrl, ssrfErrorResponse } from "../_shared/security.ts";
 import { logAICallCost } from "../_shared/cost-tracker.ts";
 import { logEnrichmentEvent } from "../_shared/enrichment-events.ts";
@@ -172,16 +173,6 @@ Deno.serve(async (req) => {
   try {
     console.log('[enrich-buyer] request received');
 
-    // ── Auth guard: require valid JWT + admin role, OR internal service call ──
-    const authHeader = req.headers.get('Authorization') || '';
-    const callerToken = authHeader.replace('Bearer ', '').trim();
-    if (!callerToken) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -192,29 +183,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Allow internal service-to-service calls (e.g., from process-buyer-enrichment-queue)
-    const isInternalCall = callerToken === supabaseServiceKey;
+    // ── Auth guard: require valid JWT + admin role, OR internal service call ──
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-    if (!isInternalCall) {
-      const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-        global: { headers: { Authorization: `Bearer ${callerToken}` } },
-      });
-      const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
-      if (callerError || !callerUser) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: callerUser.id });
-      if (!isAdmin) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Forbidden: admin access required' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    const auth = await requireAdminOrServiceRole(req, supabaseAdmin);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ success: false, error: auth.error || 'Admin access required' }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     // ── End auth guard ──
 

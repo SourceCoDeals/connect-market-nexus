@@ -229,11 +229,11 @@ export function useBulkDealImport() {
             userCompany: profile?.company || undefined,
           });
 
-        } catch (error: any) {
+        } catch (error: unknown) {
           result.errors++;
           result.details.errors.push({
             deal,
-            error: error.message,
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -273,9 +273,9 @@ export function useBulkDealImport() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error('Bulk import failed', {
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
       });
     },
   });

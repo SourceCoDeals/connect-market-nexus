@@ -23,7 +23,7 @@ interface BuyerTranscriptLinkPanelProps {
   buyerId: string;
   companyName?: string;
   onTranscriptLinked?: () => void;
-  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<any> | void;
+  onAddTranscript: (text: string, source: string, fileName?: string, fileUrl?: string, triggerExtract?: boolean) => Promise<unknown> | void;
 }
 
 interface SearchResult {
@@ -31,11 +31,11 @@ interface SearchResult {
   title: string;
   date: string;
   duration_minutes: number | null;
-  participants: any[];
+  participants: { name: string; email?: string }[];
   summary: string;
   meeting_url: string;
   keywords: string[];
-  external_participants?: any[];
+  external_participants?: { name: string; email?: string }[];
   has_content?: boolean;
   match_type?: string;
 }
@@ -293,7 +293,7 @@ export function BuyerTranscriptLinkPanel({
                       {r.external_participants && r.external_participants.length > 0 && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          With: {r.external_participants.map((p: any) => p.name).join(', ')}
+                          With: {r.external_participants.map((p) => p.name).join(', ')}
                         </span>
                       )}
                     </div>
@@ -301,7 +301,7 @@ export function BuyerTranscriptLinkPanel({
                     {/* Summary preview */}
                     {r.summary && (
                       <p className="text-xs text-muted-foreground line-clamp-2 italic">
-                        {typeof r.summary === 'string' ? r.summary : (r.summary as any)?.short_summary}
+                        {typeof r.summary === 'string' ? r.summary : (r.summary as unknown as { short_summary?: string })?.short_summary}
                       </p>
                     )}
 

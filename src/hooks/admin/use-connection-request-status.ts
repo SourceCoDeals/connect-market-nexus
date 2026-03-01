@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { invalidateConnectionRequests } from '@/lib/query-client-helpers';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { useAuth } from '@/context/AuthContext';
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface UpdateConnectionRequestStatusParams {
   requestId: string;
@@ -25,7 +26,7 @@ export const useUpdateConnectionRequestStatus = () => {
       const base: any = {
         status,
         updated_at: now,
-        decision_at: status === 'pending' ? null : now,
+        decision_at: status === CONNECTION_STATUSES.PENDING ? null : now,
         admin_comment: notes ?? null,
       };
 
@@ -39,9 +40,9 @@ export const useUpdateConnectionRequestStatus = () => {
         on_hold_at: null,
       });
 
-      if (status === 'approved') {
+      if (status === CONNECTION_STATUSES.APPROVED) {
         Object.assign(base, { approved_by: adminId ?? null, approved_at: now });
-      } else if (status === 'rejected') {
+      } else if (status === CONNECTION_STATUSES.REJECTED) {
         Object.assign(base, { rejected_by: adminId ?? null, rejected_at: now });
       } else if (status === 'on_hold') {
         Object.assign(base, { on_hold_by: adminId ?? null, on_hold_at: now });
@@ -78,11 +79,11 @@ export const useUpdateConnectionRequestStatus = () => {
                 ...req,
                 status,
                 updated_at: now,
-                decision_at: status === 'pending' ? null : now,
-                approved_by: status === 'approved' ? adminId : null,
-                approved_at: status === 'approved' ? now : null,
-                rejected_by: status === 'rejected' ? adminId : null,
-                rejected_at: status === 'rejected' ? now : null,
+                decision_at: status === CONNECTION_STATUSES.PENDING ? null : now,
+                approved_by: status === CONNECTION_STATUSES.APPROVED ? adminId : null,
+                approved_at: status === CONNECTION_STATUSES.APPROVED ? now : null,
+                rejected_by: status === CONNECTION_STATUSES.REJECTED ? adminId : null,
+                rejected_at: status === CONNECTION_STATUSES.REJECTED ? now : null,
                 on_hold_by: status === 'on_hold' ? adminId : null,
                 on_hold_at: status === 'on_hold' ? now : null,
               }

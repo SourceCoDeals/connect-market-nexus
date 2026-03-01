@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useVerificationSuccessEmail } from '@/hooks/auth/use-verification-success-email';
 import { selfHealProfile } from '@/lib/profile-self-heal';
+import { APPROVAL_STATUSES } from '@/constants';
 
 export default function AuthCallback() {
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +55,7 @@ export default function AuthCallback() {
             }
           }
 
-          if (profile?.email_verified && profile?.approval_status === 'approved') {
+          if (profile?.email_verified && profile?.approval_status === APPROVAL_STATUSES.APPROVED) {
             // Fully approved user - go to app
             navigate(profile.is_admin ? '/admin' : '/');
           } else {

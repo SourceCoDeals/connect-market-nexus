@@ -45,7 +45,7 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
   const { data: notes = [], isLoading } = useQuery<ListingNote[]>({
     queryKey: ["listing-notes", listingId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("listing_notes")
         .select(`*, admin:admin_id(email, first_name, last_name)`)
         .eq("listing_id", listingId)
@@ -60,7 +60,7 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
   const addNoteMutation = useMutation({
     mutationFn: async (noteText: string) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from("listing_notes").insert({
+      const { error } = await supabase.from("listing_notes").insert({
         listing_id: listingId,
         admin_id: user?.id,
         note: noteText,
@@ -79,7 +79,7 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
 
   const deleteNoteMutation = useMutation({
     mutationFn: async (noteId: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("listing_notes")
         .delete()
         .eq("id", noteId);

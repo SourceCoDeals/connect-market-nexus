@@ -118,7 +118,7 @@ export function AddBuyersToListDialog({
         contactMap[buyer.buyerId] = [];
       }
       for (const c of contacts || []) {
-        const buyerId = (c as any).remarketing_buyer_id;
+        const buyerId = c.remarketing_buyer_id;
         if (buyerId && contactMap[buyerId]) {
           contactMap[buyerId].push(c as BuyerContactInfo);
         }

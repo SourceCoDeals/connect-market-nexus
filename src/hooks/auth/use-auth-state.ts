@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { User, ApprovalStatus } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { createUserObject } from "@/lib/auth-helpers";
+import { APPROVAL_STATUSES } from '@/constants';
 
 export function useAuthState() {
   const [user, setUser] = useState<User | null>(null);
@@ -66,7 +67,7 @@ export function useAuthState() {
                     first_name: session.user.user_metadata?.first_name || '',
                     last_name: session.user.user_metadata?.last_name || '',
                     email_verified: session.user.email_confirmed_at !== null,
-                    approval_status: 'pending' as ApprovalStatus,
+                    approval_status: APPROVAL_STATUSES.PENDING as ApprovalStatus,
                     is_admin: false,
                     role: 'buyer' as const,
                     created_at: session.user.created_at,
@@ -172,7 +173,7 @@ export function useAuthState() {
               first_name: session.user.user_metadata?.first_name || '',
               last_name: session.user.user_metadata?.last_name || '',
               email_verified: session.user.email_confirmed_at !== null,
-              approval_status: 'pending' as ApprovalStatus,
+              approval_status: APPROVAL_STATUSES.PENDING as ApprovalStatus,
               is_admin: false,
               role: 'buyer' as const,
               created_at: session.user.created_at,

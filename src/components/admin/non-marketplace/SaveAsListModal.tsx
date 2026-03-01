@@ -143,7 +143,7 @@ export function SaveAsListModal({
           {/* List Type */}
           <div className="space-y-2">
             <Label>List Type</Label>
-            <Select value={listType} onValueChange={(v) => setListType(v as any)}>
+            <Select value={listType} onValueChange={(v) => setListType(v as "buyer" | "seller" | "mixed")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

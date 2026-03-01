@@ -4,14 +4,14 @@ import { Transcript } from "./types";
 export function useExtractionHandlers(
   transcripts: Transcript[],
   extractTranscriptMutation: {
-    mutateAsync: (params: { transcriptId: string }) => Promise<any>;
+    mutateAsync: (params: { transcriptId: string }) => Promise<unknown>;
     isPending: boolean;
   },
 ) {
   const [extractionProgress, setExtractionProgress] = useState<{ current: number; total: number; isRunning: boolean }>({ current: 0, total: 0, isRunning: false });
   const [extractionSummary, setExtractionSummary] = useState<{
     open: boolean;
-    results: Array<{ fileName?: string; insights?: any; error?: string }>;
+    results: Array<{ fileName?: string; insights?: Record<string, unknown>; error?: string }>;
     totalCount: number;
     successCount: number;
     errorCount: number;
@@ -23,11 +23,11 @@ export function useExtractionHandlers(
     setExtractionProgress({ current: 0, total: transcripts.length, isRunning: true });
     let successCount = 0;
     let errorCount = 0;
-    const results: Array<{ fileName?: string; insights?: any; error?: string }> = [];
+    const results: Array<{ fileName?: string; insights?: Record<string, unknown>; error?: string }> = [];
 
     for (let i = 0; i < transcripts.length; i++) {
       try {
-        const data = await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id });
+        const data = await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id }) as { insights?: { buyer?: Record<string, unknown> } } | null;
         successCount++;
         results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, insights: data?.insights?.buyer });
       } catch (e: any) {
@@ -45,7 +45,7 @@ export function useExtractionHandlers(
   const handleSingleExtractWithSummary = async (transcriptId: string) => {
     try {
       const transcript = transcripts.find(t => t.id === transcriptId);
-      const data = await extractTranscriptMutation.mutateAsync({ transcriptId });
+      const data = await extractTranscriptMutation.mutateAsync({ transcriptId }) as { insights?: { buyer?: Record<string, unknown> } } | null;
       setExtractionSummary({
         open: true,
         results: [{ fileName: transcript?.file_name || 'Transcript', insights: data?.insights?.buyer }],

@@ -10,7 +10,6 @@
  * Tables: daily_standup_tasks, standup_meetings, task_pin_log, profiles, deals
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -45,10 +44,10 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
     enabled: !isMyView || !!user?.id,
     queryFn: async () => {
       // Mark overdue tasks first
-      await supabase.rpc('mark_overdue_standup_tasks' as any);
+      await supabase.rpc('mark_overdue_standup_tasks');
 
       let query = supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .select(
           `
           *,
@@ -105,7 +104,7 @@ export function useToggleTaskComplete() {
           };
 
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .update(updates)
         .eq('id', taskId);
 
@@ -129,7 +128,7 @@ export function useApproveTask() {
   return useMutation({
     mutationFn: async (taskId: string) => {
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .update({
           status: 'pending' as TaskStatus,
           approved_by: user?.id,
@@ -156,7 +155,7 @@ export function useApproveAllTasks() {
   return useMutation({
     mutationFn: async () => {
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .update({
           status: 'pending' as TaskStatus,
           approved_by: user?.id,
@@ -181,7 +180,7 @@ export function useReassignTask() {
   return useMutation({
     mutationFn: async ({ taskId, newAssigneeId }: { taskId: string; newAssigneeId: string }) => {
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .update({ assignee_id: newAssigneeId, needs_review: false })
         .eq('id', taskId);
       if (error) throw error;
@@ -211,7 +210,7 @@ export function useEditTask() {
       >;
     }) => {
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .update(updates)
         .eq('id', taskId);
       if (error) throw error;
@@ -241,7 +240,7 @@ export function useAddManualTask() {
       >,
     ) => {
       const { data, error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .insert({
           ...task,
           is_manual: true,
@@ -274,7 +273,7 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: async (taskId: string) => {
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .delete()
         .eq('id', taskId);
       if (error) throw error;
@@ -306,7 +305,7 @@ export function usePinTask() {
 
       // Update the task
       const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks')
         .update({
           is_pinned: isPinning,
           pinned_rank: rank,
@@ -318,7 +317,7 @@ export function usePinTask() {
       if (error) throw error;
 
       // Log the action
-      await supabase.from('task_pin_log' as any).insert({
+      await supabase.from('task_pin_log').insert({
         task_id: taskId,
         action: isPinning ? 'pinned' : 'unpinned',
         pinned_rank: rank,
@@ -360,9 +359,17 @@ export function useTriggerExtraction() {
 
 // ─── Recompute ranks (client helper) ───
 
+interface RankableTask {
+  id: string;
+  priority_score: number | null;
+  is_pinned: boolean | null;
+  pinned_rank: number | null;
+  created_at: string | null;
+}
+
 async function recomputeRanks() {
   const { data: tasks } = await supabase
-    .from('daily_standup_tasks' as any)
+    .from('daily_standup_tasks')
     .select('id, priority_score, is_pinned, pinned_rank, created_at')
     .in('status', ['pending_approval', 'pending', 'overdue'])
     .order('priority_score', { ascending: false })
@@ -373,21 +380,21 @@ async function recomputeRanks() {
   const totalTasks = tasks.length;
 
   // Separate pinned (with valid ranks within range) and unpinned
-  const validPinned = (tasks as any[]).filter(
+  const validPinned = (tasks as RankableTask[]).filter(
     (t) => t.is_pinned && t.pinned_rank && t.pinned_rank <= totalTasks,
   );
   // Deduplicate: if two tasks have the same pinned_rank, only the first keeps the slot
   const pinnedSlots = new Map<number, string>();
   const pinnedTaskIds = new Set<string>();
   for (const p of validPinned) {
-    if (!pinnedSlots.has(p.pinned_rank)) {
-      pinnedSlots.set(p.pinned_rank, p.id);
+    if (!pinnedSlots.has(p.pinned_rank!)) {
+      pinnedSlots.set(p.pinned_rank!, p.id);
       pinnedTaskIds.add(p.id);
     }
   }
 
   // Everyone not occupying a pinned slot goes into the unpinned pool (in score order)
-  const unpinned = (tasks as any[]).filter((t: any) => !pinnedTaskIds.has(t.id));
+  const unpinned = (tasks as RankableTask[]).filter((t) => !pinnedTaskIds.has(t.id));
 
   const ranked: { id: string; rank: number }[] = [];
   let unpinnedIdx = 0;
@@ -396,7 +403,7 @@ async function recomputeRanks() {
     if (pinnedSlots.has(rank)) {
       ranked.push({ id: pinnedSlots.get(rank)!, rank });
     } else if (unpinnedIdx < unpinned.length) {
-      ranked.push({ id: (unpinned[unpinnedIdx] as any).id, rank });
+      ranked.push({ id: unpinned[unpinnedIdx].id, rank });
       unpinnedIdx++;
     }
   }
@@ -404,7 +411,7 @@ async function recomputeRanks() {
   // Batch update ranks
   for (const { id, rank } of ranked) {
     await supabase
-      .from('daily_standup_tasks' as any)
+      .from('daily_standup_tasks')
       .update({ priority_rank: rank })
       .eq('id', id);
   }

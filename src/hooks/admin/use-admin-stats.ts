@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { AdminStats, AdminActivity } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
+import { APPROVAL_STATUSES, CONNECTION_STATUSES } from '@/constants';
 
 /**
  * Hook for fetching admin dashboard statistics and activities
@@ -28,15 +29,15 @@ export function useAdminStats() {
           const { count: pendingUsers, error: pendingError } = await supabase
             .from('profiles')
             .select('id', { count: 'exact', head: true })
-            .eq('approval_status', 'pending');
-          
+            .eq('approval_status', APPROVAL_STATUSES.PENDING);
+
           if (pendingError) throw pendingError;
-          
+
           // Get approved users count
           const { count: approvedUsers, error: approvedError } = await supabase
             .from('profiles')
             .select('id', { count: 'exact', head: true })
-            .eq('approval_status', 'approved');
+            .eq('approval_status', APPROVAL_STATUSES.APPROVED);
             
           if (approvedError) throw approvedError;
           
@@ -51,15 +52,15 @@ export function useAdminStats() {
           const { count: pendingConnections, error: pendingConnError } = await supabase
             .from('connection_requests')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'pending');
-          
+            .eq('status', CONNECTION_STATUSES.PENDING);
+
           if (pendingConnError) throw pendingConnError;
-          
+
           // Get approved connection requests count
           const { count: approvedConnections, error: approvedConnError } = await supabase
             .from('connection_requests')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'approved');
+            .eq('status', CONNECTION_STATUSES.APPROVED);
           
           if (approvedConnError) throw approvedConnError;
           
@@ -71,13 +72,13 @@ export function useAdminStats() {
             pendingConnections: pendingConnections || 0,
             approvedConnections: approvedConnections || 0,
           } as AdminStats;
-        } catch (error: any) {
+        } catch (error: unknown) {
           toast({
             variant: 'destructive',
             title: 'Error loading stats',
-            description: error.message,
+            description: error instanceof Error ? error.message : 'Unknown error',
           });
-          
+
           return {
             totalUsers: 0,
             pendingUsers: 0,
@@ -181,11 +182,11 @@ export function useAdminStats() {
           activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
           
           return activities.slice(0, 10); // Return 10 most recent activities
-        } catch (error: any) {
+        } catch (error: unknown) {
           toast({
             variant: 'destructive',
             title: 'Error loading activities',
-            description: error.message,
+            description: error instanceof Error ? error.message : 'Unknown error',
           });
           return [];
         }

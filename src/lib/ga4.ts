@@ -21,7 +21,7 @@ export const GA4_MEASUREMENT_ID = 'G-N5T31YT52K';
  */
 export function trackGA4Event(
   eventName: string,
-  params: Record<string, any> = {}
+  params: Record<string, unknown> = {}
 ): void {
   if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
     window.gtag('event', eventName, params);

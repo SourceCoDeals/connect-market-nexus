@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL, callGeminiWithTool } from "../_shared/ai-providers.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdminOrServiceRole } from "../_shared/auth.ts";
 
 // Phase definitions for the 13-phase SSE streaming generator
 const GENERATION_PHASES = [
@@ -1076,42 +1077,17 @@ serve(async (req) => {
   const FUNCTION_START = Date.now(); // Track when the function started
 
   try {
-    // ── Auth guard: require valid JWT + admin role, OR internal service call ──
-    const authHeader = req.headers.get('Authorization') || '';
-    const callerToken = authHeader.replace('Bearer ', '').trim();
-    if (!callerToken) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    // Allow internal service-to-service calls (e.g., from process-ma-guide-queue)
-    const isInternalCall = callerToken === supabaseServiceKey;
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (!isInternalCall) {
-      const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-        global: { headers: { Authorization: `Bearer ${callerToken}` } },
-      });
-      const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
-      if (callerError || !callerUser) {
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: callerUser.id });
-      if (!isAdmin) {
-        return new Response(
-          JSON.stringify({ error: 'Forbidden: admin access required' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    // ── Auth guard: require valid JWT + admin role, OR internal service call ──
+    const auth = await requireAdminOrServiceRole(req, supabaseAdmin);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || 'Admin access required' }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     // ── End auth guard ──
 

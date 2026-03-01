@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Users, UserCheck, Clock, BarChart3 } from 'lucide-react';
 import { StripeStatsSection } from '../analytics/StripeStatsSection';
 import { User } from '@/types';
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface UserOverviewTabProps {
   users: User[];
@@ -36,12 +37,12 @@ export function UserOverviewTab({
     
     const approvedThisWeek = users.filter(u => {
       const createdAt = new Date(u.created_at);
-      return createdAt >= weekAgo && u.approval_status === 'approved';
+      return createdAt >= weekAgo && u.approval_status === APPROVAL_STATUSES.APPROVED;
     }).length;
     
     const approvedLastWeek = users.filter(u => {
       const createdAt = new Date(u.created_at);
-      return createdAt >= twoWeeksAgo && createdAt < weekAgo && u.approval_status === 'approved';
+      return createdAt >= twoWeeksAgo && createdAt < weekAgo && u.approval_status === APPROVAL_STATUSES.APPROVED;
     }).length;
     
     // Calculate profile completion

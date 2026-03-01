@@ -52,30 +52,30 @@ export const useUpdateNDA = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+      queryClient.setQueryData(['admin-users'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((user: Record<string, unknown>) =>
+          user.id === userId
+            ? {
+                ...user,
                 nda_signed: isSigned,
-                nda_signed_at: isSigned ? new Date().toISOString() : null 
+                nda_signed_at: isSigned ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) =>
+          (request.user as Record<string, unknown> | null)?.id === userId
+            ? {
+                ...request,
                 user: {
-                  ...request.user,
+                  ...(request.user as Record<string, unknown>),
                   nda_signed: isSigned,
-                  nda_signed_at: isSigned ? new Date().toISOString() : null 
+                  nda_signed_at: isSigned ? new Date().toISOString() : null
                 }
               }
             : request
@@ -133,30 +133,30 @@ export const useUpdateNDAEmailSent = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
-        if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+      queryClient.setQueryData(['admin-users'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((user: Record<string, unknown>) =>
+          user.id === userId
+            ? {
+                ...user,
                 nda_email_sent: isSent,
-                nda_email_sent_at: isSent ? new Date().toISOString() : null 
+                nda_email_sent_at: isSent ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+      queryClient.setQueryData(['connection-requests'], (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((request: Record<string, unknown>) =>
+          (request.user as Record<string, unknown> | null)?.id === userId
+            ? {
+                ...request,
                 user: {
-                  ...request.user,
+                  ...(request.user as Record<string, unknown>),
                   nda_email_sent: isSent,
-                  nda_email_sent_at: isSent ? new Date().toISOString() : null 
+                  nda_email_sent_at: isSent ? new Date().toISOString() : null
                 }
               }
             : request
@@ -194,17 +194,17 @@ export const useLogNDAEmail = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       userId,
       userEmail,
       notes: _notes,
       customSubject,
-      customMessage, 
-      customSignatureText, 
-      adminId, 
-      adminEmail, 
-      adminName, 
-      listingTitle 
+      customMessage,
+      customSignatureText,
+      adminId,
+      adminEmail,
+      adminName,
+      listingTitle
     }: LogNDAEmailParams) => {
       // Send email via edge function (which also handles database logging)
       const { data, error } = await supabase.functions.invoke('send-nda-email', {
@@ -245,7 +245,7 @@ export const useLogNDAEmail = () => {
         queryClient.invalidateQueries({ queryKey: ['admin-users'] });
         queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       }, 1000);
-      
+
       toast({
         title: "NDA email sent successfully",
         description: "The NDA email has been sent and logged.",

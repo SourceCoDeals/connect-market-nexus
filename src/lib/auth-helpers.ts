@@ -1,4 +1,5 @@
 import { User, ApprovalStatus, BuyerType } from '@/types';
+import { APPROVAL_STATUSES } from '@/constants';
 
 // Extended User type with data quality flag
 export interface UserWithDataIssues extends User {
@@ -222,7 +223,7 @@ export function createUserObject(profile: any): UserWithDataIssues {
       return this.email_verified;
     },
     get isApproved() {
-      return this.approval_status === 'approved';
+      return this.approval_status === APPROVAL_STATUSES.APPROVED;
     },
     get createdAt() {
       return this.created_at;
@@ -249,7 +250,7 @@ function createMinimalUser(id: string, email: string, issues: string[]): UserWit
     phone_number: '',
     role: 'buyer' as const,
     email_verified: false,
-    approval_status: 'pending' as ApprovalStatus,
+    approval_status: APPROVAL_STATUSES.PENDING as ApprovalStatus,
     is_admin: false,
     buyer_type: 'individual' as BuyerType,
     created_at: new Date().toISOString(),
@@ -275,7 +276,7 @@ function createMinimalUser(id: string, email: string, issues: string[]): UserWit
       return this.email_verified;
     },
     get isApproved() {
-      return this.approval_status === 'approved';
+      return this.approval_status === APPROVAL_STATUSES.APPROVED;
     },
     get createdAt() {
       return this.created_at;

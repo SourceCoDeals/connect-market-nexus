@@ -18,7 +18,7 @@ interface UseDealsActionsParams {
   setLocalOrder: React.Dispatch<React.SetStateAction<DealListing[]>>;
   sortedListingsRef: React.MutableRefObject<DealListing[]>;
   refetchListings: () => void;
-  adminProfiles: Record<string, any> | undefined;
+  adminProfiles: Record<string, { id: string; email: string; first_name: string; last_name: string; displayName: string }> | undefined;
 }
 
 export function useDealsActions({
@@ -75,7 +75,7 @@ export function useDealsActions({
   const handleRetryFailedEnrichment = useCallback(async () => {
     dismissSummary();
     if (!enrichmentSummary?.errors.length) return;
-    const failedIds = enrichmentSummary.errors.map((e: any) => e.listingId);
+    const failedIds = enrichmentSummary.errors.map((e: { listingId: string }) => e.listingId);
     const nowIso = new Date().toISOString();
     await supabase
       .from('enrichment_queue')
@@ -175,7 +175,7 @@ export function useDealsActions({
         }
         await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
         toast({ title: 'Position updated', description: `Deal moved to position ${targetPos}` });
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Failed to update rank — toast shown to user
         await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
         toast({ title: 'Failed to update rank', variant: 'destructive' });
@@ -203,7 +203,7 @@ export function useDealsActions({
         .update({ remarketing_status: 'archived' })
         .eq('id', dealId);
       if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
         return;
       }
       toast({ title: 'Deal archived', description: `${dealName} has been archived` });
@@ -228,8 +228,8 @@ export function useDealsActions({
         description: `${singleDeleteTarget.name} has been permanently deleted`,
       });
       refetchListings();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     } finally {
       setSingleDeleteTarget(null);
     }
@@ -249,7 +249,7 @@ export function useDealsActions({
         setLocalOrder((prev) =>
           prev.map((d) => (d.id === dealId ? { ...d, is_priority_target: currentStatus } : d)),
         );
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
         return;
       }
       toast({
@@ -283,7 +283,7 @@ export function useDealsActions({
         setLocalOrder((prev) =>
           prev.map((d) => (d.id === dealId ? { ...d, universe_build_flagged: currentStatus } : d)),
         );
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
         return;
       }
       toast({
@@ -322,7 +322,7 @@ export function useDealsActions({
         .update({ deal_owner_id: ownerId })
         .eq('id', dealId);
       if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
         await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
         return;
       }
@@ -361,7 +361,7 @@ export function useDealsActions({
         .update({ deal_owner_id: ownerId })
         .in('id', dealIds);
       if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
         await queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
         return;
       }
@@ -390,8 +390,8 @@ export function useDealsActions({
       setSelectedDeals(new Set());
       setShowArchiveDialog(false);
       refetchListings();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     } finally {
       setIsArchiving(false);
     }
@@ -434,8 +434,8 @@ export function useDealsActions({
       setSelectedDeals(new Set());
       setShowDeleteDialog(false);
       refetchListings();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     } finally {
       setIsDeleting(false);
     }
@@ -468,8 +468,8 @@ export function useDealsActions({
         });
       }
       refetchListings();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     } finally {
       setIsCalculating(false);
     }
@@ -543,8 +543,8 @@ export function useDealsActions({
           /* non-blocking */
         });
       refetchListings();
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } catch (error: unknown) {
+      toast({ title: 'Error', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     } finally {
       setIsEnrichingAll(false);
     }

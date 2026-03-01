@@ -56,13 +56,13 @@ export function ProfileSecurity({
 
       setDeactivateDialogOpen(false);
       setDeactivateReason('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Deactivation request error:', error);
       toast({
         variant: 'destructive',
         title: 'Request failed',
         description:
-          error.message ||
+          (error instanceof Error ? error.message : undefined) ||
           'Something went wrong while submitting your deactivation request. Please try again.',
       });
     } finally {

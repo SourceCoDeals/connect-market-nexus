@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import SessionEventsDialog from "./SessionEventsDialog";
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface UserDetailsSidePanelProps {
   userId: string | null;
@@ -342,9 +343,9 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                     <span className="text-xs text-muted-foreground">Approval Status</span>
                     <Badge
                       variant={
-                        userDetails.approval_status === "approved"
+                        userDetails.approval_status === APPROVAL_STATUSES.APPROVED
                           ? "default"
-                          : userDetails.approval_status === "rejected"
+                          : userDetails.approval_status === APPROVAL_STATUSES.REJECTED
                           ? "destructive"
                           : "secondary"
                       }

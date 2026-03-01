@@ -164,14 +164,14 @@ const ScoreBuyersButton = ({ requests, onRefresh }: { requests: AdminConnectionR
   const handleScore = useCallback(async (unscoredOnly: boolean) => {
     const profileIds = [...new Set(
       requests
-        .map(r => (r.user as any)?.id)
+        .map(r => r.user?.id)
         .filter(Boolean) as string[]
     )];
 
     const toScore = unscoredOnly
       ? profileIds.filter(id => {
-          const req = requests.find(r => (r.user as any)?.id === id);
-          return req && (req.user as any)?.buyer_quality_score == null;
+          const req = requests.find(r => r.user?.id === id);
+          return req && req.user?.buyer_quality_score == null;
         })
       : profileIds;
 
@@ -621,7 +621,7 @@ function ReactiveRequestCard({
                 <ConnectionRequestFirmBadge requestId={request.id} compact={true} />
                 <FlagForReviewButton request={request} />
                 {request.user && (
-                  <BuyerTierBadge tier={(request.user as any).buyer_tier} />
+                  <BuyerTierBadge tier={request.user?.buyer_tier} />
                 )}
               </div>
                <div className="text-sm text-muted-foreground space-y-1">
@@ -655,7 +655,7 @@ function ReactiveRequestCard({
             
             <div className="flex items-center gap-4">
               {request.user && (
-                <BuyerScoreBadge score={(request.user as any).buyer_quality_score} size="lg" showLabel />
+                <BuyerScoreBadge score={request.user?.buyer_quality_score} size="lg" showLabel />
               )}
               <div className="text-right">
                 <span className="text-xs uppercase tracking-wider text-muted-foreground/70 font-semibold block leading-none mb-0.5">Submitted</span>

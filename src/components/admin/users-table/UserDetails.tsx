@@ -6,6 +6,7 @@ import { UserActivityTimeline } from '../UserActivityTimeline';
 import { BuyerQualityScorePanel } from '../BuyerQualityScorePanel';
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { formatFieldValue } from '@/lib/field-formatting';
+import { APPROVAL_STATUSES } from '@/constants';
 
 // Helper function to render user detail with proper field filtering
 export const UserDetails = ({ user }: { user: User }) => {
@@ -42,9 +43,9 @@ export const UserDetails = ({ user }: { user: User }) => {
                 <span className="text-muted-foreground">Status:</span>
                 <span
                   className={`capitalize ml-1 ${
-                    user.approval_status === 'approved'
+                    user.approval_status === APPROVAL_STATUSES.APPROVED
                       ? 'text-green-600'
-                      : user.approval_status === 'rejected'
+                      : user.approval_status === APPROVAL_STATUSES.REJECTED
                         ? 'text-red-600'
                         : 'text-yellow-600'
                   }`}

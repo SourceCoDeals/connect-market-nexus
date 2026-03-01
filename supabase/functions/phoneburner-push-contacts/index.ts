@@ -15,6 +15,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 
 const PB_API_BASE = 'https://www.phoneburner.com/rest/1';
 
@@ -271,31 +272,14 @@ Deno.serve(async (req: Request) => {
   // deno-lint-ignore no-explicit-any
   const supabase: any = createClient(supabaseUrl, serviceRoleKey);
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
+  const auth = await requireAdmin(req, supabase);
+  if (!auth.authenticated || !auth.isAdmin) {
+    return new Response(JSON.stringify({ error: auth.error || 'Admin access required' }), {
+      status: auth.authenticated ? 403 : 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-
-  const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
-  const token = authHeader.replace('Bearer ', '');
-  const { data: { user }, error: authError } = await anonClient.auth.getUser(token);
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id });
-  if (!isAdmin) {
-    return new Response(JSON.stringify({ error: 'Admin access required' }), {
-      status: 403,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  const user = { id: auth.userId! };
 
   const body: PushRequest = await req.json();
   const { session_name, skip_recent_days = 7 } = body;

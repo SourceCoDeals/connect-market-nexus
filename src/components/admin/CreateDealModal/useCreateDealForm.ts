@@ -42,7 +42,7 @@ export function useCreateDealForm(
   } | null>(null);
 
   const form = useForm<CreateDealFormData>({
-    resolver: zodResolver(createDealSchema as any),
+    resolver: zodResolver(createDealSchema as unknown as Parameters<typeof zodResolver>[0]),
     defaultValues: {
       title: '',
       description: '',

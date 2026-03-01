@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { meetsRole, type TeamRole } from "@/config/role-permissions";
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -34,7 +35,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Buyer approval check
-  if (requireApproved && user.approval_status !== "approved") {
+  if (requireApproved && user.approval_status !== APPROVAL_STATUSES.APPROVED) {
     return <Navigate to="/pending-approval" replace />;
   }
 

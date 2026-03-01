@@ -142,7 +142,7 @@ const ReMarketingIntroductions = () => {
         .single();
       if (existingError) throw existingError;
 
-      const updates: Record<string, any> = {
+      const updates: Record<string, unknown> = {
         [field]: value,
         updated_at: new Date().toISOString(),
       };

@@ -10,6 +10,7 @@ import UserMenu from "./navbar/UserMenu";
 import AuthButtons from "./navbar/AuthButtons";
 import { AdminNotificationBell } from "./admin/AdminNotificationBell";
 import { BuyerNotificationBell } from "./buyer/BuyerNotificationBell";
+import { APPROVAL_STATUSES } from '@/constants';
 
 const Navbar = () => {
   const { user, isLoading, logout, isAdmin } = useAuth();
@@ -28,7 +29,7 @@ const Navbar = () => {
   // Determine where the logo should navigate to
   const getLogoDestination = () => {
     if (!user) return "/login";
-    if (user.approval_status !== 'approved') return "/pending-approval";
+    if (user.approval_status !== APPROVAL_STATUSES.APPROVED) return "/pending-approval";
     return "/";
   };
 
@@ -59,7 +60,7 @@ const Navbar = () => {
                 {!isMobile && (
                   <DesktopNavItems 
                     isAdmin={isAdmin} 
-                    isApproved={user.approval_status === 'approved'} 
+                    isApproved={user.approval_status === APPROVAL_STATUSES.APPROVED} 
                     onNavigateToAdmin={handleNavigateToAdmin}
                   />
                 )}

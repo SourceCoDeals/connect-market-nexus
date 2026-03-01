@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { createQueryKey } from '@/lib/query-keys';
+import { APPROVAL_STATUSES } from '@/constants';
 
 export interface UserTimelineActivity {
   id: string;
@@ -61,7 +62,7 @@ export function useUserCompleteActivity(userId: string) {
         }
 
         // Account approval (if approved)
-        if (userProfile.approval_status === 'approved') {
+        if (userProfile.approval_status === APPROVAL_STATUSES.APPROVED) {
           activities.push({
             id: `approved-${userId}`,
             timestamp: userProfile.updated_at ?? new Date().toISOString(),

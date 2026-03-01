@@ -5,7 +5,7 @@ interface ErrorLogEntry {
   level: 'error' | 'warning' | 'info';
   message: string;
   stack?: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
   timestamp: string;
   userId?: string;
   url?: string;
@@ -39,7 +39,7 @@ class ErrorLogger {
 
   async logError(
     error: Error | string,
-    context: Record<string, any> = {},
+    context: Record<string, unknown> = {},
     level: 'error' | 'warning' | 'info' = 'error'
   ): Promise<void> {
     if (!this.isEnabled) return;
@@ -120,20 +120,20 @@ class ErrorLogger {
   }
 
   // Convenience methods
-  async error(message: string | Error, context?: Record<string, any>): Promise<void> {
+  async error(message: string | Error, context?: Record<string, unknown>): Promise<void> {
     await this.logError(message, context, 'error');
   }
 
-  async warning(message: string | Error, context?: Record<string, any>): Promise<void> {
+  async warning(message: string | Error, context?: Record<string, unknown>): Promise<void> {
     await this.logError(message, context, 'warning');
   }
 
-  async info(message: string | Error, context?: Record<string, any>): Promise<void> {
+  async info(message: string | Error, context?: Record<string, unknown>): Promise<void> {
     await this.logError(message, context, 'info');
   }
 
   // Performance tracking
-  async trackPerformance(metricName: string, value: number, context?: Record<string, any>): Promise<void> {
+  async trackPerformance(metricName: string, value: number, context?: Record<string, unknown>): Promise<void> {
     await this.info(`Performance: ${metricName}`, {
       metric: metricName,
       value,

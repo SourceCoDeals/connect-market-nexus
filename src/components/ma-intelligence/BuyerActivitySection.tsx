@@ -29,7 +29,7 @@ interface ActivityEvent {
   title: string;
   description: string;
   timestamp: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface BuyerActivitySectionProps {
@@ -139,10 +139,10 @@ export function BuyerActivitySection({ buyerId }: BuyerActivitySectionProps) {
       );
 
       setActivities(activityEvents);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading activity",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

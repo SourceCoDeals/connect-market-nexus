@@ -39,7 +39,7 @@ interface GPPartnerTableProps {
   handlePushToAllDeals: (dealIds: string[]) => Promise<void>;
   handleEnrichSelected: (dealIds: string[]) => Promise<void>;
   handleAssignOwner: (dealId: string, ownerId: string | null) => Promise<void>;
-  adminProfiles: Record<string, any> | undefined;
+  adminProfiles: Record<string, unknown> | undefined;
   setAddDealOpen: (open: boolean) => void;
   setCsvUploadOpen: (open: boolean) => void;
   onMarkNotFit?: (dealId: string) => void;

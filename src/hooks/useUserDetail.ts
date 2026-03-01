@@ -9,7 +9,7 @@ export interface UserEvent {
   title: string;
   description?: string;
   path?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface UserActivityDay {

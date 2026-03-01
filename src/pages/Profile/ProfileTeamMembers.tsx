@@ -98,11 +98,11 @@ export function ProfileTeamMembers() {
         description: 'Our team will add them within 1 business day.',
       });
       setInviteEmail('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: 'destructive',
         title: 'Failed to send invite',
-        description: error.message || 'Something went wrong. Please try again.',
+        description: (error instanceof Error ? error.message : undefined) || 'Something went wrong. Please try again.',
       });
     } finally {
       setIsSending(false);

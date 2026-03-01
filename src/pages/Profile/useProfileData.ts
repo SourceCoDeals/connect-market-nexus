@@ -128,8 +128,8 @@ export function useProfileData() {
 
       await updateUserProfile(normalizedData as Partial<User>);
       toast({ title: "Profile updated", description: "Your profile information has been successfully updated." });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Update failed", description: error.message || "Something went wrong while updating your profile." });
+    } catch (error: unknown) {
+      toast({ variant: "destructive", title: "Update failed", description: (error instanceof Error ? error.message : undefined) || "Something went wrong while updating your profile." });
     } finally {
       setIsLoading(false);
     }
@@ -157,10 +157,11 @@ export function useProfileData() {
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setPasswordSuccess("Password updated successfully. Other sessions have been signed out.");
       toast({ title: "Password updated", description: "Your password has been changed. All other sessions have been signed out." });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Password update error:", error);
-      setPasswordError(error.message || "Failed to update password");
-      toast({ variant: "destructive", title: "Password update failed", description: error.message || "Something went wrong while updating your password." });
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      setPasswordError(message || "Failed to update password");
+      toast({ variant: "destructive", title: "Password update failed", description: message || "Something went wrong while updating your password." });
     } finally {
       setIsLoading(false);
     }

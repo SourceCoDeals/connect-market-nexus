@@ -27,8 +27,8 @@ export function useBuyerDetail() {
       const buyerData = data as unknown as MABuyer;
       setBuyer(buyerData);
       setFormData(buyerData);
-    } catch (error: any) {
-      toast({ title: "Error loading buyer", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error loading buyer", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
       navigate("/admin/ma-intelligence/buyers");
     } finally {
       setIsLoading(false);
@@ -44,8 +44,8 @@ export function useBuyerDetail() {
       await queueBuyerEnrichment([buyer.id]);
       toast({ title: "Enrichment started", description: "Buyer enrichment is running in the background" });
       setTimeout(loadBuyer, 5000);
-    } catch (error: any) {
-      toast({ title: "Error enriching buyer", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error enriching buyer", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -56,8 +56,8 @@ export function useBuyerDetail() {
       if (error) throw error;
       toast({ title: "Buyer archived", description: "The buyer has been archived successfully" });
       navigate("/admin/ma-intelligence/buyers");
-    } catch (error: any) {
-      toast({ title: "Error archiving buyer", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error archiving buyer", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -68,8 +68,8 @@ export function useBuyerDetail() {
       if (error) throw error;
       toast({ title: "Buyer deleted", description: "The buyer has been deleted successfully" });
       navigate("/admin/ma-intelligence/buyers");
-    } catch (error: any) {
-      toast({ title: "Error deleting buyer", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error deleting buyer", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -86,8 +86,8 @@ export function useBuyerDetail() {
         if (error) throw error;
       }
       toast({ title: "Buyer approved", description: "This buyer has been approved for the deal" });
-    } catch (error: any) {
-      toast({ title: "Error approving buyer", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error approving buyer", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -117,8 +117,8 @@ export function useBuyerDetail() {
       toast({ title: "Changes saved", description: "Buyer information has been updated successfully" });
       setEditingSection(null);
       loadBuyer();
-    } catch (error: any) {
-      toast({ title: "Error saving changes", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error saving changes", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -141,8 +141,8 @@ export function useBuyerDetail() {
         toast({ title: "Notes analyzed successfully", description: `Extracted ${data.fieldsUpdated?.length || 0} fields from notes` });
         loadBuyer();
       } else { throw new Error(data?.error || "Failed to analyze notes"); }
-    } catch (error: any) {
-      toast({ title: "Error analyzing notes", description: error.message || "Failed to analyze notes", variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error analyzing notes", description: error instanceof Error ? error.message : "Failed to analyze notes", variant: "destructive" });
     } finally { setIsAnalyzingNotes(false); }
   };
 

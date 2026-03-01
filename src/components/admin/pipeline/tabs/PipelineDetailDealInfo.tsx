@@ -43,7 +43,7 @@ export function PipelineDetailDealInfo({ deal }: PipelineDetailDealInfoProps) {
   });
 
   const updateListing = useMutation({
-    mutationFn: async (updates: Record<string, any>) => {
+    mutationFn: async (updates: Record<string, unknown>) => {
       const { error } = await supabase
         .from('listings')
         .update(updates)

@@ -320,8 +320,8 @@ export interface DealTranscript {
   notes?: string;
   call_date?: string;
   created_at: string;
-  extracted_data?: Record<string, any>;
-  extraction_evidence?: Record<string, any>;
+  extracted_data?: Record<string, unknown>;
+  extraction_evidence?: Record<string, unknown>;
   processed_at?: string;
 }
 
@@ -334,8 +334,8 @@ export interface BuyerTranscript {
   notes?: string;
   call_date?: string;
   created_at: string;
-  extracted_data?: Record<string, any>;
-  extraction_evidence?: Record<string, any>;
+  extracted_data?: Record<string, unknown>;
+  extraction_evidence?: Record<string, unknown>;
   processed_at?: string;
 }
 

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { subDays, format } from "date-fns";
 import type { AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
-import type { UnifiedAnalyticsData, FirstSessionData } from "./types";
+import type { UnifiedAnalyticsData, FirstSessionData, AnalyticsSession, AnalyticsConnection, AnalyticsProfile, AnalyticsPageView, DailyMetricRow } from "./types";
 import { getFirstMeaningfulSession } from "./analyticsHelpers";
 import {
   filterAndDeduplicateSessions,
@@ -164,10 +164,10 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         .sort((a, b) => b.signups - a.signups);
 
       // Filter sessions
-      const { sessionMap: currentSessionMap } = filterAndDeduplicateSessions(rawSessions);
-      const { sessions: prevFilteredSessions } = filterAndDeduplicateSessions(rawPrevSessions as any);
-      let { uniqueSessions } = filterAndDeduplicateSessions(rawSessions);
-      uniqueSessions = applySessionFilters(uniqueSessions, filters, pageViews);
+      const { sessionMap: currentSessionMap } = filterAndDeduplicateSessions(rawSessions as AnalyticsSession[]);
+      const { sessions: prevFilteredSessions } = filterAndDeduplicateSessions(rawPrevSessions as AnalyticsSession[]);
+      let { uniqueSessions } = filterAndDeduplicateSessions(rawSessions as AnalyticsSession[]);
+      uniqueSessions = applySessionFilters(uniqueSessions, filters, pageViews as AnalyticsPageView[]);
 
       // Filter propagation
       const filteredSessionIds = new Set(uniqueSessions.map(s => s.session_id));
@@ -178,7 +178,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
         ? connections.filter(c => c.user_id && filteredUserIds.has(c.user_id)) : connections;
       const filteredConnectionsWithMilestones = filters.length > 0
         ? allConnectionsWithMilestones.filter(c => c.user_id && filteredUserIds.has(c.user_id)) : allConnectionsWithMilestones;
-      const filteredProfiles = filterProfiles(profiles, filters, profileToFirstSession);
+      const filteredProfiles = filterProfiles(profiles as AnalyticsProfile[], filters, profileToFirstSession);
 
       // Smart attribution for connection users
       const connectionUserIds = new Set<string>();
@@ -212,18 +212,18 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       });
 
       // Compute all analytics sections
-      const kpiData = computeKPIs(uniqueSessions, prevFilteredSessions, filteredConnections as any, prevConnections as any, filteredPageViews, activeSessions.length, endDate);
-      const channels = computeChannels(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
-      const referrers = computeReferrers(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
-      const campaigns = computeCampaigns(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
-      const keywords = computeKeywords(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
-      const { countries, regions, cities, geoCoverage } = computeGeography(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
-      const { browsers, operatingSystems, devices } = computeTechBreakdown(uniqueSessions, filteredProfiles as any, profileToFirstSession, kpiData.currentVisitors);
-      const funnel = computeFunnel(kpiData.currentVisitors, uniqueSessions, filteredPageViews, filteredConnections as any, filteredConnectionsWithMilestones as any, kpiData.conversionRate);
-      const { topPages, entryPages, exitPages } = computePages(filteredPageViews);
+      const kpiData = computeKPIs(uniqueSessions, prevFilteredSessions, filteredConnections as AnalyticsConnection[], prevConnections as AnalyticsConnection[], filteredPageViews as AnalyticsPageView[], activeSessions.length, endDate);
+      const channels = computeChannels(uniqueSessions, filteredConnections as AnalyticsConnection[], filteredProfiles, profileToFirstSession, userToAttributionSession as Map<string, AnalyticsSession>);
+      const referrers = computeReferrers(uniqueSessions, filteredConnections as AnalyticsConnection[], filteredProfiles, profileToFirstSession, userToAttributionSession as Map<string, AnalyticsSession>);
+      const campaigns = computeCampaigns(uniqueSessions, filteredConnections as AnalyticsConnection[], filteredProfiles, profileToFirstSession, userToAttributionSession as Map<string, AnalyticsSession>);
+      const keywords = computeKeywords(uniqueSessions, filteredConnections as AnalyticsConnection[], filteredProfiles, profileToFirstSession, userToAttributionSession as Map<string, AnalyticsSession>);
+      const { countries, regions, cities, geoCoverage } = computeGeography(uniqueSessions, filteredConnections as AnalyticsConnection[], filteredProfiles, profileToFirstSession, userToAttributionSession as Map<string, AnalyticsSession>);
+      const { browsers, operatingSystems, devices } = computeTechBreakdown(uniqueSessions, filteredProfiles, profileToFirstSession, kpiData.currentVisitors);
+      const funnel = computeFunnel(kpiData.currentVisitors, uniqueSessions, filteredPageViews as AnalyticsPageView[], filteredConnections as AnalyticsConnection[], filteredConnectionsWithMilestones as AnalyticsConnection[], kpiData.conversionRate);
+      const { topPages, entryPages, exitPages } = computePages(filteredPageViews as AnalyticsPageView[]);
       const blogEntryPages = computeBlogEntryPages(uniqueSessions);
-      const topUsers = computeTopUsers(uniqueSessions, filteredConnectionsWithMilestones as any, filteredPageViews, currentSessionMap, allProfilesMap as any, filters, kpiData.last7Days);
-      const formattedDailyMetrics = formatDailyMetrics(filters, dailyMetrics as any, kpiData.dailyVisitorSets, kpiData.dailySessionCounts, kpiData.dailyConnectionCounts, startDate, endDate);
+      const topUsers = computeTopUsers(uniqueSessions, filteredConnectionsWithMilestones as AnalyticsConnection[], filteredPageViews as AnalyticsPageView[], currentSessionMap, allProfilesMap as Map<string, AnalyticsProfile>, filters, kpiData.last7Days);
+      const formattedDailyMetrics = formatDailyMetrics(filters, dailyMetrics as DailyMetricRow[], kpiData.dailyVisitorSets, kpiData.dailySessionCounts, kpiData.dailyConnectionCounts, startDate, endDate);
 
       return {
         kpis: {

@@ -80,7 +80,7 @@ export default function CreateListingFromDeal() {
 
   useEffect(() => {
     if (deal && !prefilled) {
-      const anonymized = anonymizeDealToListing(deal as any);
+      const anonymized = anonymizeDealToListing(deal as Parameters<typeof anonymizeDealToListing>[0]);
       setPrefilled({
         id: '', // New listing, no ID yet
         title: anonymized.title,
@@ -94,7 +94,7 @@ export default function CreateListingFromDeal() {
         full_time_employees: anonymized.full_time_employees,
         internal_company_name: anonymized.internal_company_name,
         internal_notes: anonymized.internal_notes,
-        internal_deal_memo_link: (deal as any).website || '',
+        internal_deal_memo_link: deal.website || '',
         // Landing page content fields (GAPs 4+7)
         investment_thesis: anonymized.investment_thesis,
         custom_sections: anonymized.custom_sections,
@@ -125,7 +125,7 @@ export default function CreateListingFromDeal() {
     }
   }, [deal, prefilled]);
 
-  const handleSubmit = async (data: any, image?: File | null) => {
+  const handleSubmit = async (data: Partial<AdminListing>, image?: File | null) => {
     try {
       const listingData = {
         ...data,
@@ -156,8 +156,8 @@ export default function CreateListingFromDeal() {
 
       toast.success('Marketing listing created from deal');
       navigate('/admin/marketplace/queue');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create listing');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create listing');
     }
   };
 
@@ -235,7 +235,7 @@ export default function CreateListingFromDeal() {
           </Button>
           <div className="text-sm text-muted-foreground">
             Creating anonymous listing from:{' '}
-            <strong>{(deal as any)?.internal_company_name || 'Unknown Deal'}</strong>
+            <strong>{deal?.internal_company_name || 'Unknown Deal'}</strong>
           </div>
         </div>
       </div>

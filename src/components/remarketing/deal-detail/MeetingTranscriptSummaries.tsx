@@ -52,7 +52,7 @@ export function MeetingTranscriptSummaries({
   >({
     queryKey: ["deal-meeting-summaries", listingId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("deal_transcripts")
         .select(
           "id, title, call_date, duration_minutes, transcript_url, source, has_content, external_participants, extracted_data, created_at"

@@ -10,6 +10,22 @@ import { formatDistanceToNow } from "date-fns";
 
 type AgreementType = "nda" | "fee_agreement";
 
+/** Shape returned by useUserFirm hook (firm_agreements fields). */
+interface FirmData {
+  id: string;
+  primary_company_name: string | null;
+  nda_signed: boolean | null;
+  nda_signed_at: string | null;
+  nda_signed_by_name: string | null;
+  nda_email_sent: boolean | null;
+  nda_email_sent_at: string | null;
+  fee_agreement_signed: boolean | null;
+  fee_agreement_signed_at: string | null;
+  fee_agreement_signed_by_name: string | null;
+  fee_agreement_email_sent: boolean | null;
+  fee_agreement_email_sent_at: string | null;
+}
+
 const AGREEMENT_CONFIG = {
   nda: {
     label: "NDA",
@@ -21,11 +37,11 @@ const AGREEMENT_CONFIG = {
     signedAccent: "data-[state=checked]:bg-emerald-600",
     tooltipEmailPrefix: "NDA Email",
     tooltipSignedPrefix: "NDA",
-    getIsSigned: (firm: any, user: User) => firm?.nda_signed ?? Boolean(user.nda_signed),
-    getSignedAt: (firm: any, user: User) => firm?.nda_signed_at ?? user.nda_signed_at,
-    getSignedByName: (firm: any) => firm?.nda_signed_by_name,
-    getEmailSent: (firm: any, user: User) => firm?.nda_email_sent ?? Boolean(user.nda_email_sent),
-    getEmailSentAt: (firm: any, user: User) => firm?.nda_email_sent_at ?? user.nda_email_sent_at,
+    getIsSigned: (firm: FirmData | null | undefined, user: User) => firm?.nda_signed ?? Boolean(user.nda_signed),
+    getSignedAt: (firm: FirmData | null | undefined, user: User) => firm?.nda_signed_at ?? user.nda_signed_at,
+    getSignedByName: (firm: FirmData | null | undefined) => firm?.nda_signed_by_name,
+    getEmailSent: (firm: FirmData | null | undefined, user: User) => firm?.nda_email_sent ?? Boolean(user.nda_email_sent),
+    getEmailSentAt: (firm: FirmData | null | undefined, user: User) => firm?.nda_email_sent_at ?? user.nda_email_sent_at,
   },
   fee_agreement: {
     label: "Fee Agreement",
@@ -37,11 +53,11 @@ const AGREEMENT_CONFIG = {
     signedAccent: "data-[state=checked]:bg-green-600",
     tooltipEmailPrefix: "Email",
     tooltipSignedPrefix: "Agreement",
-    getIsSigned: (firm: any, user: User) => firm?.fee_agreement_signed ?? (user.fee_agreement_signed || false),
-    getSignedAt: (firm: any, user: User) => firm?.fee_agreement_signed_at ?? user.fee_agreement_signed_at,
-    getSignedByName: (firm: any) => firm?.fee_agreement_signed_by_name,
-    getEmailSent: (firm: any, user: User) => firm?.fee_agreement_email_sent ?? (user.fee_agreement_email_sent || false),
-    getEmailSentAt: (firm: any, user: User) => firm?.fee_agreement_email_sent_at ?? user.fee_agreement_email_sent_at,
+    getIsSigned: (firm: FirmData | null | undefined, user: User) => firm?.fee_agreement_signed ?? (user.fee_agreement_signed || false),
+    getSignedAt: (firm: FirmData | null | undefined, user: User) => firm?.fee_agreement_signed_at ?? user.fee_agreement_signed_at,
+    getSignedByName: (firm: FirmData | null | undefined) => firm?.fee_agreement_signed_by_name,
+    getEmailSent: (firm: FirmData | null | undefined, user: User) => firm?.fee_agreement_email_sent ?? (user.fee_agreement_email_sent || false),
+    getEmailSentAt: (firm: FirmData | null | undefined, user: User) => firm?.fee_agreement_email_sent_at ?? user.fee_agreement_email_sent_at,
   },
 } as const;
 

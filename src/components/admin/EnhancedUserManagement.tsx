@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { UserOverviewTab } from './user-overview/UserOverviewTab';
 import { formatFieldValueForExport } from '@/lib/field-formatting';
 import { getProfileCompletionDetails } from '@/lib/buyer-metrics';
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface EnhancedUserManagementProps {
   users: User[];
@@ -184,9 +185,9 @@ export function EnhancedUserManagement({
   // Analytics calculations
   const analytics = useMemo(() => {
     const total = users.length;
-    const pending = users.filter((u) => u.approval_status === 'pending').length;
-    const approved = users.filter((u) => u.approval_status === 'approved').length;
-    const rejected = users.filter((u) => u.approval_status === 'rejected').length;
+    const pending = users.filter((u) => u.approval_status === APPROVAL_STATUSES.PENDING).length;
+    const approved = users.filter((u) => u.approval_status === APPROVAL_STATUSES.APPROVED).length;
+    const rejected = users.filter((u) => u.approval_status === APPROVAL_STATUSES.REJECTED).length;
 
     const avgCompletion =
       users.reduce((acc, user) => acc + calculateProfileCompletion(user), 0) / total;
@@ -212,7 +213,7 @@ export function EnhancedUserManagement({
   // Bulk actions
   const handleBulkApprove = () => {
     const usersToApprove = users.filter(
-      (u) => selectedUsers.includes(u.id) && u.approval_status === 'pending',
+      (u) => selectedUsers.includes(u.id) && u.approval_status === APPROVAL_STATUSES.PENDING,
     );
     usersToApprove.forEach(onApprove);
     setSelectedUsers([]);

@@ -100,10 +100,10 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
       
       // Refresh email history
       setTimeout(() => refetchEmails(), 1000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: `Failed to send email: ${error.message}`,
+        description: `Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     } finally {

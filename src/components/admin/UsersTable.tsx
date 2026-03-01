@@ -27,6 +27,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
 import { RoleBadge } from './permissions/RoleBadge';
 import { AppRole } from '@/hooks/permissions/usePermissions';
+import { APPROVAL_STATUSES } from '@/constants';
 
 import { supabase } from '@/integrations/supabase/client';
 
@@ -210,17 +211,17 @@ export function UsersTable({
                   />
                 </TableCell>
                 <TableCell className="py-2">
-                  {user.approval_status === 'approved' && (
+                  {user.approval_status === APPROVAL_STATUSES.APPROVED && (
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs px-2 py-1">
                       ✓
                     </Badge>
                   )}
-                  {user.approval_status === 'pending' && (
+                  {user.approval_status === APPROVAL_STATUSES.PENDING && (
                     <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-xs px-2 py-1">
                       ⏳
                     </Badge>
                   )}
-                  {user.approval_status === 'rejected' && (
+                  {user.approval_status === APPROVAL_STATUSES.REJECTED && (
                     <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-xs px-2 py-1">
                       ✗
                     </Badge>

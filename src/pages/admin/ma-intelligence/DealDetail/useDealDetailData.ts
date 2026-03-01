@@ -49,10 +49,10 @@ export function useDealDetailData(id: string | undefined) {
       setDeal(dealData);
       setTracker(dealData.tracker);
       setFormData(dealData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error loading deal",
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
       navigate("/admin/ma-intelligence/deals");
@@ -81,7 +81,7 @@ export function useDealDetailData(id: string | undefined) {
           customScoringInstructions: data.reason || "",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading scoring adjustments:", error);
     }
   };
@@ -93,8 +93,8 @@ export function useDealDetailData(id: string | undefined) {
       await queueDealEnrichment([deal.id]);
       toast({ title: "Enrichment started", description: "Deal enrichment is running in the background" });
       setTimeout(loadDeal, 5000);
-    } catch (error: any) {
-      toast({ title: "Error enriching deal", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error enriching deal", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -104,8 +104,8 @@ export function useDealDetailData(id: string | undefined) {
       await supabase.functions.invoke("score-deal-buyers", { body: { dealId: deal.id } });
       toast({ title: "Score calculation started", description: "Deal scoring is running in the background" });
       setTimeout(loadDeal, 5000);
-    } catch (error: any) {
-      toast({ title: "Error calculating score", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error calculating score", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -117,8 +117,8 @@ export function useDealDetailData(id: string | undefined) {
       if (error) throw error;
       toast({ title: "Deal archived", description: "The deal has been archived successfully" });
       navigate("/admin/ma-intelligence/deals");
-    } catch (error: any) {
-      toast({ title: "Error archiving deal", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error archiving deal", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -130,8 +130,8 @@ export function useDealDetailData(id: string | undefined) {
       if (error) throw error;
       toast({ title: "Deal deleted", description: "The deal has been deleted successfully" });
       navigate("/admin/ma-intelligence/deals");
-    } catch (error: any) {
-      toast({ title: "Error deleting deal", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error deleting deal", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -159,8 +159,8 @@ export function useDealDetailData(id: string | undefined) {
       toast({ title: "Changes saved", description: "Deal information has been updated successfully" });
       setEditingSection(null);
       loadDeal();
-    } catch (error: any) {
-      toast({ title: "Error saving changes", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error saving changes", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 
@@ -180,8 +180,8 @@ export function useDealDetailData(id: string | undefined) {
       });
       if (error) throw error;
       toast({ title: "Scoring adjustments saved", description: "Custom scoring weights have been updated" });
-    } catch (error: any) {
-      toast({ title: "Error saving scoring adjustments", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error saving scoring adjustments", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
   };
 

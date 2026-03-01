@@ -27,7 +27,7 @@ import {
 interface BulkDealImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (data: any) => Promise<ImportResult | void>;
+  onConfirm: (data: { listingId: string; deals: ParsedDeal[]; fileName: string; batchId: string }) => Promise<ImportResult | void>;
   isLoading: boolean;
 }
 
@@ -83,8 +83,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     try {
       const text = await readSpreadsheetAsText(file);
       setCsvText(text);
-    } catch (err: any) {
-      toast.error('Failed to read file', { description: err.message });
+    } catch (err: unknown) {
+      toast.error('Failed to read file', { description: err instanceof Error ? err.message : 'Unknown error' });
       event.target.value = '';
     }
   };
@@ -180,7 +180,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             return;
           }
 
-          results.data.forEach((row: any, index) => {
+          results.data.forEach((row: Record<string, string>, index) => {
             const rowNumber = index + 2;
             const dealErrors: string[] = [];
             

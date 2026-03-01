@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { APPROVAL_STATUSES } from '@/constants';
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ const Login = () => {
       let redirectPath = "/marketplace";
       if (user.is_admin) {
         redirectPath = "/admin";
-      } else if (user.approval_status !== 'approved') {
+      } else if (user.approval_status !== APPROVAL_STATUSES.APPROVED) {
         redirectPath = "/pending-approval";
       }
       navigate(redirectPath, { replace: true });

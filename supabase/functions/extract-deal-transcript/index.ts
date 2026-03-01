@@ -6,6 +6,7 @@ import { isPlaceholder } from "../_shared/deal-extraction.ts";
 import { GEMINI_25_FLASH_MODEL } from "../_shared/ai-providers.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdminOrServiceRole } from "../_shared/auth.ts";
 
 interface FinancialExtraction {
   value?: number;
@@ -86,35 +87,15 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Auth: Allow either:
-    // 1. Internal service calls via x-internal-secret header (matches service role key)
-    // 2. End-user calls with a valid Supabase JWT in Authorization header
-    const internalSecret = req.headers.get('x-internal-secret') || '';
-    const authHeader = req.headers.get('authorization') || '';
-    const bearer = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : '';
-
-    const isInternalCall = internalSecret === supabaseKey;
-
-    if (!isInternalCall) {
-      // Not an internal call — require a valid user JWT
-      if (!bearer) {
-        return new Response(JSON.stringify({ error: 'Missing Authorization bearer token' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Also accept service role key directly in Authorization (legacy/fallback)
-      if (bearer !== supabaseKey) {
-        const { data: userData, error: userErr } = await supabase.auth.getUser(bearer);
-        if (userErr || !userData?.user) {
-          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-      }
+    // ── Auth guard: require valid JWT + admin role, OR internal service call ──
+    const auth = await requireAdminOrServiceRole(req, supabase);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(
+        JSON.stringify({ error: auth.error || 'Admin access required' }),
+        { status: auth.authenticated ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+    // ── End auth guard ──
 
     const { transcriptId, transcriptText: providedText, dealInfo, applyToDeal = true } = await req.json();
 
