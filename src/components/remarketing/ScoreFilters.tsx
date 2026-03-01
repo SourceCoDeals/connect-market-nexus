@@ -208,10 +208,22 @@ export const ScoreFilters = ({
 
 // Helper to filter scores based on filter state
 // eslint-disable-next-line react-refresh/only-export-components
-export const filterScores = (
-  scores: any[],
+
+interface FilterableScore {
+  status?: string;
+  tier?: string;
+  composite_score?: number | null;
+  buyer?: {
+    buyer_type?: string;
+    company_name?: string;
+    thesis_summary?: string;
+  };
+}
+
+export const filterScores = <T extends FilterableScore>(
+  scores: T[],
   filters: ScoreFiltersState
-): any[] => {
+): T[] => {
   return scores.filter(score => {
     // Status filter
     if (filters.status !== 'all' && score.status !== filters.status) {

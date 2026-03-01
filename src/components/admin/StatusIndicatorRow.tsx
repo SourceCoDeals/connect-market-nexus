@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Shield, FileText, MessageSquare, Clock, Send, CheckCheck, XCircle, AlertTriangle } from "lucide-react";
 import { User } from "@/types";
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface StatusIndicatorRowProps {
   user?: User | null; // Now optional for lead-only requests
@@ -50,7 +51,7 @@ export const StatusIndicatorRow = memo(function StatusIndicatorRow({
     const Icon = icons[type];
     
     // Rejected state (red)
-    if (type === 'rejected' && requestStatus === 'rejected') {
+    if (type === 'rejected' && requestStatus === CONNECTION_STATUSES.REJECTED) {
       return (
         <div className="flex items-center gap-2 px-3 py-1.5 bg-destructive/10 border border-destructive/20 rounded-lg transition-all hover:bg-destructive/15">
           <Icon className="h-4 w-4 text-destructive" />
@@ -61,7 +62,7 @@ export const StatusIndicatorRow = memo(function StatusIndicatorRow({
     }
     
     // Don't show rejected status if not rejected
-    if (type === 'rejected' && requestStatus !== 'rejected') {
+    if (type === 'rejected' && requestStatus !== CONNECTION_STATUSES.REJECTED) {
       return null;
     }
     

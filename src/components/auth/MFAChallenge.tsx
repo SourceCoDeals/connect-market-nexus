@@ -26,7 +26,7 @@ export function MFAChallenge({ onVerified, onCancel }: MFAChallengeProps) {
         return;
       }
       const verified = data?.totp?.find(
-        (f: any) => f.status === "verified"
+        (f) => f.status === "verified"
       );
       if (verified) {
         setFactorId(verified.id);

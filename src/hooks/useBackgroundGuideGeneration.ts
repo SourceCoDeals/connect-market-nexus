@@ -10,7 +10,7 @@ interface GenerationStatus {
   current_phase: string | null;
   phases_completed: number;
   total_phases: number;
-  generated_content: any;
+  generated_content: { content?: string; criteria?: Record<string, unknown> } | null;
   error: string | null;
   started_at: string;
   completed_at: string | null;
@@ -18,7 +18,7 @@ interface GenerationStatus {
 
 interface UseBackgroundGuideGenerationProps {
   universeId: string;
-  onComplete?: (content: string, criteria: any) => void;
+  onComplete?: (content: string, criteria: Record<string, unknown> | null) => void;
   onError?: (error: string) => void;
 }
 

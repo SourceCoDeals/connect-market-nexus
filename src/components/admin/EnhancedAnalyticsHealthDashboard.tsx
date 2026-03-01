@@ -29,7 +29,7 @@ export function EnhancedAnalyticsHealthDashboard() {
   const [liveStats, setLiveStats] = useState<LiveStats>({ pageViews: 0, listingAnalytics: 0, userEvents: 0, searchAnalytics: 0, userSessions: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const [isTestingRunning, setIsTestingRunning] = useState(false);
-  const [testResults, setTestResults] = useState<Array<{ test: string; success: boolean; details?: any }>>([]);
+  const [testResults, setTestResults] = useState<Array<{ test: string; success: boolean; details?: Record<string, unknown> }>>([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
   
   const analytics = useAnalytics();
@@ -113,7 +113,7 @@ export function EnhancedAnalyticsHealthDashboard() {
     setIsTestingRunning(true);
     setTestResults([]);
     
-    const logTestResult = (testName: string, success: boolean, details?: any) => {
+    const logTestResult = (testName: string, success: boolean, details?: Record<string, unknown>) => {
       setTestResults(prev => [...prev, { test: testName, success, details }]);
     };
 

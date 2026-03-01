@@ -82,7 +82,7 @@ export function CreateDealAlertDialog({ trigger }: CreateDealAlertDialogProps) {
     resetForm();
   };
 
-  const updateCriteria = (key: string, value: any) => {
+  const updateCriteria = (key: string, value: string | number | string[] | undefined) => {
     setFormData(prev => ({
       ...prev,
       criteria: {

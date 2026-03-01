@@ -88,6 +88,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { CONNECTION_STATUSES } from '@/constants';
 
 // Enhanced company name formatting with real company in bold and clickable listing
 const formatEnhancedCompanyName = (title: string, companyName?: string | null, listingId?: string) => {
@@ -801,7 +802,7 @@ export default function ConnectionRequestsTable({
     setShowBulkRejectDialog(false);
     setBulkRejectNote("");
 
-    const label = status === "approved" ? "approved" : "rejected";
+    const label = status === CONNECTION_STATUSES.APPROVED ? "approved" : "rejected";
     toast({
       title: `Bulk ${label}`,
       description: `${successCount} request${successCount !== 1 ? "s" : ""} ${label}${errorCount > 0 ? `, ${errorCount} failed` : ""}.`,

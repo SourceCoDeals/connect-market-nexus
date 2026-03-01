@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { CONNECTION_STATUSES } from '@/constants';
 
 export type EngagementSource = 'marketplace' | 'remarketing' | 'pipeline' | 'document';
 
@@ -184,7 +185,7 @@ export function useBuyerEngagementHistory(buyerId: string | undefined, emailDoma
       // Calculate summary
       const summary: EngagementSummary = {
         totalDealsShown: items.filter(i => i.source === 'remarketing').length,
-        interestedCount: items.filter(i => i.status === 'approved' || i.status === 'interested').length,
+        interestedCount: items.filter(i => i.status === CONNECTION_STATUSES.APPROVED || i.status === 'interested').length,
         pipelineActiveCount: items.filter(i => i.source === 'pipeline' && i.status === 'active').length,
         documentsSharedCount: items.filter(i => i.documentsShared && (i.documentsShared.teaser || i.documentsShared.memo || i.documentsShared.dataRoom)).length,
       };

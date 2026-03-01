@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { TablesUpdate } from '@/integrations/supabase/types';
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface UpdateApprovalStatusParams {
   requestId: string;
@@ -38,7 +39,7 @@ export const useUpdateApprovalStatus = () => {
       } else {
         updateData.approved_by = null;
         updateData.approved_at = null;
-        if (updateData.status === 'pending') {
+        if (updateData.status === CONNECTION_STATUSES.PENDING) {
           updateData.decision_at = null;
         }
       }
@@ -113,7 +114,7 @@ export const useUpdateRejectionStatus = () => {
       } else {
         updateData.rejected_by = null;
         updateData.rejected_at = null;
-        if (updateData.status === 'pending') {
+        if (updateData.status === CONNECTION_STATUSES.PENDING) {
           updateData.decision_at = null;
         }
       }

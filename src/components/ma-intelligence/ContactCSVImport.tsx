@@ -58,7 +58,7 @@ export function ContactCSVImport({ trackerId, onImportComplete }: ContactCSVImpo
       const buyers = [];
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i].split(",").map(v => v.trim());
-        const buyer: any = {
+        const buyer: Record<string, string> = {
           industry_tracker_id: trackerId,
         };
 

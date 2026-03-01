@@ -37,6 +37,7 @@ import {
   type ApprovalQueueEntry,
 } from '@/hooks/admin/use-document-distribution';
 import { formatDistanceToNow } from 'date-fns';
+import { APPROVAL_STATUSES } from '@/constants';
 
 interface ApprovalQueuePanelProps {
   dealId?: string;
@@ -62,8 +63,8 @@ export function ApprovalQueuePanel({ dealId }: ApprovalQueuePanelProps) {
   const [sendDeclineEmail, setSendDeclineEmail] = useState(false);
   const [approvedLink, setApprovedLink] = useState<string | null>(null);
 
-  const pendingQueue = queue.filter(e => e.status === 'pending');
-  const recentQueue = queue.filter(e => e.status !== 'pending').slice(0, 5);
+  const pendingQueue = queue.filter(e => e.status === APPROVAL_STATUSES.PENDING);
+  const recentQueue = queue.filter(e => e.status !== APPROVAL_STATUSES.PENDING).slice(0, 5);
 
   const handleApprove = async (entry: ApprovalQueueEntry) => {
     const result = await approveMutation.mutateAsync({
@@ -205,10 +206,10 @@ export function ApprovalQueuePanel({ dealId }: ApprovalQueuePanelProps) {
                 )}
               </div>
               <Badge
-                variant={entry.status === 'approved' ? 'default' : 'destructive'}
-                className={`text-xs ${entry.status === 'approved' ? 'bg-green-100 text-green-800' : ''}`}
+                variant={entry.status === APPROVAL_STATUSES.APPROVED ? 'default' : 'destructive'}
+                className={`text-xs ${entry.status === APPROVAL_STATUSES.APPROVED ? 'bg-green-100 text-green-800' : ''}`}
               >
-                {entry.status === 'approved' ? 'Approved' : 'Declined'}
+                {entry.status === APPROVAL_STATUSES.APPROVED ? 'Approved' : 'Declined'}
               </Badge>
             </div>
           ))}

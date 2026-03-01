@@ -1,5 +1,5 @@
 import React from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Button } from '@/components/ui/button';
 import { 
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
   content?: string;
-  onChange?: (content: string, json: any) => void;
+  onChange?: (content: string, json: JSONContent) => void;
   placeholder?: string;
   className?: string;
 }

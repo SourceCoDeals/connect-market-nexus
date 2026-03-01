@@ -243,7 +243,7 @@ export default function GlobalApprovalsPage() {
       ) : (
         <div className="space-y-4">
           {entries.map(entry => (
-            <Card key={entry.id} className={entry.status === 'pending' ? 'border-amber-200' : ''}>
+            <Card key={entry.id} className={entry.status === APPROVAL_STATUSES.PENDING ? 'border-amber-200' : ''}>
               <CardContent className="py-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
@@ -295,7 +295,7 @@ export default function GlobalApprovalsPage() {
                     )}
                   </div>
 
-                  {entry.status === 'pending' && (
+                  {entry.status === APPROVAL_STATUSES.PENDING && (
                     <div className="flex gap-2 flex-shrink-0 ml-4">
                       <Button
                         size="sm"

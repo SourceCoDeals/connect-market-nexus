@@ -32,7 +32,7 @@ export function TierDistributionChart({ data, className }: TierDistributionChart
 
   const total = data.reduce((sum, d) => sum + d.count, 0);
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: { name: string; label: string; count: number; percentage: number } }[] }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -53,7 +53,7 @@ export function TierDistributionChart({ data, className }: TierDistributionChart
     return null;
   };
 
-  const renderCustomLabel = ({ tier, percentage }: any) => {
+  const renderCustomLabel = ({ tier, percentage }: { tier: string; percentage: number }) => {
     if (percentage < 5) return null;
     return `${tier}: ${percentage.toFixed(0)}%`;
   };

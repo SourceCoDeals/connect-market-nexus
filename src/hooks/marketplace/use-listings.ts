@@ -172,7 +172,7 @@ export const useListings = (filters: FilterOptions = {}) => {
           }
           
           // Transform data to include computed properties
-          const listings = data?.map((item: any) => {
+          const listings = data?.map((item) => {
             const listing: Listing = {
               ...item,
               // Ensure categories is always an array, fallback to single category

@@ -36,7 +36,7 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
       });
       if (error) throw error;
       toast.success(`Password reset link sent to ${user.email}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to send password reset:', err);
       toast.error('Failed to send password reset link');
     } finally {
@@ -63,7 +63,7 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
       setManualResetOpen(false);
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to reset password:', err);
       toast.error('Failed to reset password');
     } finally {

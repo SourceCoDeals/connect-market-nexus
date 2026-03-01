@@ -149,7 +149,7 @@ export const useRequestConnection = () => {
 
       return parsedResult;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { is_duplicate?: boolean; duplicate_type?: string }) => {
       if (data.is_duplicate) {
         if (data.duplicate_type === 'same_user_same_listing') {
           toast({

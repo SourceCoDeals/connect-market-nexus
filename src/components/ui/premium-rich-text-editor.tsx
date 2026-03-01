@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, type JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
@@ -25,7 +25,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 interface PremiumRichTextEditorProps {
   content: string;
-  onChange: (html: string, json: any) => void;
+  onChange: (html: string, json: JSONContent) => void;
 }
 
 export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEditorProps) {
@@ -137,7 +137,7 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
     return null;
   }
 
-  const ToolbarButton = ({ onClick, active, children, title, disabled }: any) => (
+  const ToolbarButton = ({ onClick, active, children, title, disabled }: { onClick: () => void; active?: boolean; children: React.ReactNode; title: string; disabled?: boolean }) => (
     <Button
       type="button"
       variant="ghost"
