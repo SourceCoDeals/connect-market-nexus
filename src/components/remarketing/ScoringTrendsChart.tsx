@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
-  Legend
+  Legend,
 } from 'recharts';
 import { ScoringTrend } from '@/hooks/useReMarketingAnalytics';
 import { TrendingUp } from 'lucide-react';
@@ -25,19 +25,24 @@ type ViewMode = 'volume' | 'tiers' | 'quality';
 
 export function ScoringTrendsChart({ data, className }: ScoringTrendsChartProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('volume');
-  
-  const CustomTooltip = ({ active, payload, label }: any) => {
+
+  const CustomTooltip = ({
+    active,
+    payload,
+    label,
+  }: {
+    active?: boolean;
+    payload?: { name: string; color: string; value: number }[];
+    label?: string;
+  }) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-popover border rounded-lg shadow-lg p-3">
           <p className="font-semibold mb-2">{label}</p>
           <div className="space-y-1">
-            {payload.map((entry: any) => (
+            {payload.map((entry: { name: string; color: string; value: number }) => (
               <div key={entry.name} className="flex items-center gap-2 text-sm">
-                <div 
-                  className="w-2 h-2 rounded-full" 
-                  style={{ backgroundColor: entry.color }}
-                />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
                 <span className="text-muted-foreground">{entry.name}:</span>
                 <span className="font-medium">{entry.value}</span>
               </div>
@@ -49,7 +54,7 @@ export function ScoringTrendsChart({ data, className }: ScoringTrendsChartProps)
     return null;
   };
 
-  const hasData = data.some(d => d.scores > 0);
+  const hasData = data.some((d) => d.scores > 0);
 
   return (
     <Card className={className}>
@@ -60,22 +65,22 @@ export function ScoringTrendsChart({ data, className }: ScoringTrendsChartProps)
             Scoring Trends
           </CardTitle>
           <div className="flex gap-1">
-            <Button 
-              variant={viewMode === 'volume' ? 'secondary' : 'ghost'} 
+            <Button
+              variant={viewMode === 'volume' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('volume')}
             >
               Volume
             </Button>
-            <Button 
-              variant={viewMode === 'tiers' ? 'secondary' : 'ghost'} 
+            <Button
+              variant={viewMode === 'tiers' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('tiers')}
             >
               Tiers
             </Button>
-            <Button 
-              variant={viewMode === 'quality' ? 'secondary' : 'ghost'} 
+            <Button
+              variant={viewMode === 'quality' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('quality')}
             >
@@ -96,22 +101,13 @@ export function ScoringTrendsChart({ data, className }: ScoringTrendsChartProps)
                 <AreaChart data={data}>
                   <defs>
                     <linearGradient id="colorScores" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Area
                     type="monotone"
@@ -126,17 +122,8 @@ export function ScoringTrendsChart({ data, className }: ScoringTrendsChartProps)
               ) : viewMode === 'tiers' ? (
                 <BarChart data={data}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <Bar dataKey="tierA" name="Tier A" stackId="a" fill="hsl(142, 76%, 36%)" />
@@ -148,18 +135,13 @@ export function ScoringTrendsChart({ data, className }: ScoringTrendsChartProps)
                 <AreaChart data={data}>
                   <defs>
                     <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis 
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                  <YAxis
                     domain={[0, 100]}
                     tick={{ fontSize: 12 }}
                     tickLine={false}

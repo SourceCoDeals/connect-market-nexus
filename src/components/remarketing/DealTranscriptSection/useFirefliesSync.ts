@@ -1,7 +1,20 @@
-import { useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import type { DealTranscript } from "./types";
+import { useState, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import type { DealTranscript } from './types';
+
+interface FirefliesSearchResult {
+  id: string;
+  title: string;
+  date: string;
+  meeting_url: string;
+  participants: unknown[];
+  duration_minutes: number | null;
+  summary: string;
+  has_content?: boolean;
+  match_type?: string;
+  external_participants?: unknown[];
+}
 
 interface UseFirefliesSyncProps {
   dealId: string;
@@ -24,29 +37,35 @@ export function useFirefliesSync({
 }: UseFirefliesSyncProps) {
   const [syncLoading, setSyncLoading] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [, setLinkedCount] = useState(transcripts?.filter((t) => t.source === 'fireflies').length || 0);
+  const [, setLinkedCount] = useState(
+    transcripts?.filter((t) => t.source === 'fireflies').length || 0,
+  );
 
   // Manual link state
   const [ffQuery, setFfQuery] = useState(companyName || '');
   const [ffSearchLoading, setFfSearchLoading] = useState(false);
-  const [ffResults, setFfResults] = useState<any[]>([]);
+  const [ffResults, setFfResults] = useState<FirefliesSearchResult[]>([]);
   const [ffLinking, setFfLinking] = useState<string | null>(null);
-  const [firefliesUrl, setFirefliesUrl] = useState("");
+  const [firefliesUrl, setFirefliesUrl] = useState('');
   const [linkingUrl, setLinkingUrl] = useState(false);
   const [ffUploading, setFfUploading] = useState(false);
   const ffFileInputRef = useRef<HTMLInputElement>(null);
 
   // Build the full list of emails to search (deduped)
-  const allContactEmails = Array.from(new Set([
-    ...(contactEmails || []),
-    ...(contactEmail ? [contactEmail] : []),
-  ].filter(Boolean).map(e => e.toLowerCase())));
+  const allContactEmails = Array.from(
+    new Set(
+      [...(contactEmails || []), ...(contactEmail ? [contactEmail] : [])]
+        .filter(Boolean)
+        .map((e) => e.toLowerCase()),
+    ),
+  );
 
   // Fireflies sync handler — sends all contact emails
   const handleFirefliesSync = async () => {
     if (allContactEmails.length === 0) return;
     setSyncLoading(true);
-    const emailDisplay = allContactEmails.length === 1 ? allContactEmails[0] : `${allContactEmails.length} contacts`;
+    const emailDisplay =
+      allContactEmails.length === 1 ? allContactEmails[0] : `${allContactEmails.length} contacts`;
     const toastId = toast.loading(`Searching Fireflies for ${emailDisplay}...`);
     try {
       const { data, error } = await supabase.functions.invoke('sync-fireflies-transcripts', {
@@ -54,20 +73,29 @@ export function useFirefliesSync({
       });
       if (error) throw error;
       if (data.linked > 0) {
-        toast.success(`Linked ${data.linked} new transcript${data.linked !== 1 ? 's' : ''}`, { id: toastId });
-        setLinkedCount(prev => prev + data.linked);
+        toast.success(`Linked ${data.linked} new transcript${data.linked !== 1 ? 's' : ''}`, {
+          id: toastId,
+        });
+        setLinkedCount((prev) => prev + data.linked);
         onSyncComplete?.();
       } else if (data.skipped > 0) {
-        toast.info(`All ${data.skipped} transcript${data.skipped !== 1 ? 's' : ''} already linked`, { id: toastId });
+        toast.info(
+          `All ${data.skipped} transcript${data.skipped !== 1 ? 's' : ''} already linked`,
+          { id: toastId },
+        );
       } else {
         toast.info(`No Fireflies calls found for ${contactEmail}`, { id: toastId });
       }
       setLastSynced(new Date());
       if (data.errors?.length > 0) {
-        toast.warning(`${data.errors.length} transcript${data.errors.length !== 1 ? 's' : ''} failed to link`);
+        toast.warning(
+          `${data.errors.length} transcript${data.errors.length !== 1 ? 's' : ''} failed to link`,
+        );
       }
     } catch (error) {
-      toast.error(error instanceof Error ? `Failed: ${error.message}` : "Failed to sync", { id: toastId });
+      toast.error(error instanceof Error ? `Failed: ${error.message}` : 'Failed to sync', {
+        id: toastId,
+      });
     } finally {
       setSyncLoading(false);
     }
@@ -86,18 +114,20 @@ export function useFirefliesSync({
       if (error) throw error;
       setFfResults(data.results || []);
       toast[data.results?.length ? 'success' : 'info'](
-        data.results?.length ? `Found ${data.results.length} call${data.results.length !== 1 ? 's' : ''}` : `No calls found`,
-        { id: toastId }
+        data.results?.length
+          ? `Found ${data.results.length} call${data.results.length !== 1 ? 's' : ''}`
+          : `No calls found`,
+        { id: toastId },
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Search failed", { id: toastId });
+      toast.error(error instanceof Error ? error.message : 'Search failed', { id: toastId });
     } finally {
       setFfSearchLoading(false);
     }
   };
 
   // Link a search result — includes has_content, match_type, external_participants
-  const handleLinkSearchResult = async (transcript: any) => {
+  const handleLinkSearchResult = async (transcript: FirefliesSearchResult) => {
     setFfLinking(transcript.id);
     try {
       const { error } = await supabase.from('deal_transcripts').insert({
@@ -117,15 +147,15 @@ export function useFirefliesSync({
         external_participants: transcript.external_participants || [],
       });
       if (error) {
-        if (error.code === '23505') toast.info("Already linked");
+        if (error.code === '23505') toast.info('Already linked');
         else throw error;
       } else {
-        toast.success("Transcript linked");
-        setFfResults(prev => prev.filter(r => r.id !== transcript.id));
+        toast.success('Transcript linked');
+        setFfResults((prev) => prev.filter((r) => r.id !== transcript.id));
         onTranscriptLinked?.();
       }
     } catch (error) {
-      toast.error("Failed to link transcript");
+      toast.error('Failed to link transcript');
     } finally {
       setFfLinking(null);
     }
@@ -137,11 +167,17 @@ export function useFirefliesSync({
     try {
       const parsed = new URL(url.trim());
       if (!parsed.hostname.includes('fireflies.ai')) {
-        return { valid: false, error: 'Please enter a valid Fireflies URL (app.fireflies.ai/view/...)' };
+        return {
+          valid: false,
+          error: 'Please enter a valid Fireflies URL (app.fireflies.ai/view/...)',
+        };
       }
       const match = url.match(/fireflies\.ai\/view\/([^/?#]+)/);
       if (!match || !match[1]) {
-        return { valid: false, error: 'URL should contain a transcript ID (app.fireflies.ai/view/your-transcript-id)' };
+        return {
+          valid: false,
+          error: 'URL should contain a transcript ID (app.fireflies.ai/view/your-transcript-id)',
+        };
       }
       return { valid: true };
     } catch {
@@ -174,15 +210,15 @@ export function useFirefliesSync({
         auto_linked: false,
       });
       if (error) {
-        if (error.code === '23505') toast.info("This transcript is already linked to this deal");
+        if (error.code === '23505') toast.info('This transcript is already linked to this deal');
         else throw error;
       } else {
-        toast.success("Transcript linked — content will be fetched when you open it");
-        setFirefliesUrl("");
+        toast.success('Transcript linked — content will be fetched when you open it');
+        setFirefliesUrl('');
         onTranscriptLinked?.();
       }
     } catch (error) {
-      toast.error("Failed to link transcript");
+      toast.error('Failed to link transcript');
     } finally {
       setLinkingUrl(false);
     }
@@ -198,7 +234,7 @@ export function useFirefliesSync({
       const toastId = toast.loading(`Uploading ${file.name}...`);
       try {
         const textTypes = ['.txt', '.vtt', '.srt', '.md'];
-        const isTextFile = textTypes.some(ext => file.name.toLowerCase().endsWith(ext));
+        const isTextFile = textTypes.some((ext) => file.name.toLowerCase().endsWith(ext));
         let transcriptText = '';
         if (isTextFile) {
           transcriptText = await file.text();
@@ -206,14 +242,18 @@ export function useFirefliesSync({
           transcriptText = `Uploaded file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
         }
         const docTypes = ['.pdf', '.doc', '.docx'];
-        if (docTypes.some(ext => file.name.toLowerCase().endsWith(ext))) {
+        if (docTypes.some((ext) => file.name.toLowerCase().endsWith(ext))) {
           try {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('listingId', dealId);
-            const { data, error } = await supabase.functions.invoke('parse-transcript-file', { body: formData });
+            const { data, error } = await supabase.functions.invoke('parse-transcript-file', {
+              body: formData,
+            });
             if (!error && data?.text) transcriptText = data.text;
-          } catch { /* file parse failed, use fallback text */ }
+          } catch {
+            /* file parse failed, use fallback text */
+          }
         }
         const { error } = await supabase.from('deal_transcripts').insert({
           listing_id: dealId,

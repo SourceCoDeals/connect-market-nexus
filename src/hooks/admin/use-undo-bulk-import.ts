@@ -7,7 +7,10 @@ export function useUndoBulkImport() {
 
   const undoImport = useMutation({
     mutationFn: async (batchId: string) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
@@ -22,7 +25,7 @@ export function useUndoBulkImport() {
         throw new Error('No requests found for this import batch');
       }
 
-      const requestIds = requests.map(r => r.id);
+      const requestIds = requests.map((r) => r.id);
 
       // Delete all connection requests from this batch
       const { error: deleteError } = await supabase
@@ -57,16 +60,13 @@ export function useUndoBulkImport() {
         queryClient.invalidateQueries({ queryKey: ['connection-request-stages'] }),
       ]);
 
-      toast.success(
-        `Successfully removed ${result.deletedCount} imported connection requests`,
-        {
-          description: 'The bulk import has been undone',
-        }
-      );
+      toast.success(`Successfully removed ${result.deletedCount} imported connection requests`, {
+        description: 'The bulk import has been undone',
+      });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast.error('Failed to undo import', {
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
       });
     },
   });

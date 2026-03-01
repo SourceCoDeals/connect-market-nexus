@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -31,15 +30,12 @@ export function useCategoriesQuery() {
   return useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-      
+      const { data, error } = await supabase.from('categories').select('*').order('name');
+
       if (error) {
         throw error;
       }
-      
+
       return data as Category[];
     },
   });
@@ -50,7 +46,7 @@ export function useCategoriesQuery() {
  */
 export function useCreateCategory() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (categoryData: CreateCategoryData) => {
       const { data, error } = await supabase
@@ -58,11 +54,11 @@ export function useCreateCategory() {
         .insert([categoryData])
         .select()
         .single();
-      
+
       if (error) {
         throw error;
       }
-      
+
       return data;
     },
     onSuccess: () => {
@@ -72,7 +68,7 @@ export function useCreateCategory() {
         description: 'Category created successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -87,7 +83,7 @@ export function useCreateCategory() {
  */
 export function useUpdateCategory() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateCategoryData }) => {
       const { data: result, error } = await supabase
@@ -96,11 +92,11 @@ export function useUpdateCategory() {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) {
         throw error;
       }
-      
+
       return result;
     },
     onSuccess: () => {
@@ -110,7 +106,7 @@ export function useUpdateCategory() {
         description: 'Category updated successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -125,14 +121,11 @@ export function useUpdateCategory() {
  */
 export function useDeleteCategory() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', id);
-      
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+
       if (error) {
         throw error;
       }
@@ -144,7 +137,7 @@ export function useDeleteCategory() {
         description: 'Category deleted successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error',

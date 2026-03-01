@@ -8,7 +8,7 @@ interface DealActivity {
   activity_type: string;
   title: string;
   description?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   created_at: string;
   admin?: {
     email: string;
@@ -22,18 +22,20 @@ export function useDealActivities(dealId: string) {
     queryKey: ['deal-activities', dealId],
     queryFn: async () => {
       if (!dealId) return [];
-      
+
       const { data, error } = await supabase
         .from('deal_activities')
-        .select(`
+        .select(
+          `
           *,
           admin:admin_id(email, first_name, last_name)
-        `)
+        `,
+        )
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
-      
+
       return data as DealActivity[];
     },
     enabled: !!dealId,

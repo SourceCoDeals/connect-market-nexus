@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Phone,
   Users,
@@ -14,9 +14,9 @@ import {
   FileText,
   Clock,
   Download,
-} from "lucide-react";
-import { useFirefliesAutoPair } from "@/hooks/useFirefliesAutoPair";
-import { useFirefliesBulkSync } from "@/hooks/useFirefliesBulkSync";
+} from 'lucide-react';
+import { useFirefliesAutoPair } from '@/hooks/useFirefliesAutoPair';
+import { useFirefliesBulkSync } from '@/hooks/useFirefliesBulkSync';
 
 // ---------------------------------------------------------------------------
 // Stats hooks
@@ -24,58 +24,56 @@ import { useFirefliesBulkSync } from "@/hooks/useFirefliesBulkSync";
 
 function useFirefliesStats() {
   return useQuery({
-    queryKey: ["fireflies-integration-stats"],
+    queryKey: ['fireflies-integration-stats'],
     queryFn: async () => {
       // Buyer transcripts linked via Fireflies
       const { count: buyerTranscriptCount } = await supabase
-        .from("buyer_transcripts")
-        .select("id", { count: "exact", head: true });
+        .from('buyer_transcripts')
+        .select('id', { count: 'exact', head: true });
 
       // Buyers that have at least one transcript
-      const { data: buyerIds } = await supabase
-        .from("buyer_transcripts")
-        .select("buyer_id");
+      const { data: buyerIds } = await supabase.from('buyer_transcripts').select('buyer_id');
       const uniqueBuyerIds = new Set((buyerIds || []).map((r) => r.buyer_id));
 
       // Deal transcripts from Fireflies
       const { count: dealFirefliesCount } = await supabase
-        .from("deal_transcripts")
-        .select("id", { count: "exact", head: true })
-        .eq("source", "fireflies");
+        .from('deal_transcripts')
+        .select('id', { count: 'exact', head: true })
+        .eq('source', 'fireflies');
 
       // Auto-linked deal transcripts
       const { count: autoLinkedCount } = await supabase
-        .from("deal_transcripts")
-        .select("id", { count: "exact", head: true })
-        .eq("auto_linked", true);
+        .from('deal_transcripts')
+        .select('id', { count: 'exact', head: true })
+        .eq('auto_linked', true);
 
       // Total deals with Fireflies transcripts
       const { data: dealIds } = await supabase
-        .from("deal_transcripts")
-        .select("listing_id")
-        .eq("source", "fireflies");
+        .from('deal_transcripts')
+        .select('listing_id')
+        .eq('source', 'fireflies');
       const uniqueDealIds = new Set((dealIds || []).map((r) => r.listing_id));
 
       // Total active buyers
       const { count: totalBuyers } = await supabase
-        .from("remarketing_buyers")
-        .select("id", { count: "exact", head: true })
-        .eq("archived", false);
+        .from('remarketing_buyers')
+        .select('id', { count: 'exact', head: true })
+        .eq('archived', false);
 
       // Total active deals
       const { count: totalDeals } = await supabase
-        .from("listings")
-        .select("id", { count: "exact", head: true })
-        .is("deleted_at", null);
+        .from('listings')
+        .select('id', { count: 'exact', head: true })
+        .is('deleted_at', null);
 
       // Buyers with contacts (have emails to match against)
       const { data: buyersWithContacts } = await supabase
-        .from("contacts")
-        .select("remarketing_buyer_id")
-        .eq("contact_type", "buyer")
-        .eq("archived", false)
-        .not("email", "is", null)
-        .not("remarketing_buyer_id", "is", null);
+        .from('contacts')
+        .select('remarketing_buyer_id')
+        .eq('contact_type', 'buyer')
+        .eq('archived', false)
+        .not('email', 'is', null)
+        .not('remarketing_buyer_id', 'is', null);
       const buyersWithEmail = new Set(
         (buyersWithContacts || []).map((c) => c.remarketing_buyer_id),
       );
@@ -97,19 +95,21 @@ function useFirefliesStats() {
 
 function useRecentPairings() {
   return useQuery({
-    queryKey: ["fireflies-recent-pairings"],
+    queryKey: ['fireflies-recent-pairings'],
     queryFn: async () => {
       const { data: recentBuyer } = await supabase
-        .from("buyer_transcripts")
-        .select("id, title, call_date, created_at, buyer:remarketing_buyers(company_name)")
-        .order("created_at", { ascending: false })
+        .from('buyer_transcripts')
+        .select('id, title, call_date, created_at, buyer:remarketing_buyers(company_name)')
+        .order('created_at', { ascending: false })
         .limit(5);
 
       const { data: recentDeal } = await supabase
-        .from("deal_transcripts")
-        .select("id, title, call_date, created_at, auto_linked, match_type, listing:listings(title)")
-        .eq("source", "fireflies")
-        .order("created_at", { ascending: false })
+        .from('deal_transcripts')
+        .select(
+          'id, title, call_date, created_at, auto_linked, match_type, listing:listings(title)',
+        )
+        .eq('source', 'fireflies')
+        .order('created_at', { ascending: false })
         .limit(5);
 
       return {
@@ -164,30 +164,25 @@ export default function FirefliesIntegrationPage() {
             Auto-Pair Transcripts
           </CardTitle>
           <CardDescription>
-            Fetches all recent Fireflies transcripts and automatically matches them
-            to buyers and deals. Uses contact email for precise matching, then falls
-            back to company/buyer name search.
+            Fetches all recent Fireflies transcripts and automatically matches them to buyers and
+            deals. Uses contact email for precise matching, then falls back to company/buyer name
+            search.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3">
-            <Button
-              size="lg"
-              disabled={autoPairLoading}
-              onClick={handleAutoPair}
-              className="gap-2"
-            >
+            <Button size="lg" disabled={autoPairLoading} onClick={handleAutoPair} className="gap-2">
               {autoPairLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              {autoPairLoading ? "Syncing Fireflies..." : "Sync All Transcripts"}
+              {autoPairLoading ? 'Syncing Fireflies...' : 'Sync All Transcripts'}
             </Button>
             {stats && (
               <p className="text-sm text-muted-foreground">
-                {stats.buyersWithEmail} buyer{stats.buyersWithEmail !== 1 ? "s" : ""} with
-                contact emails available for matching
+                {stats.buyersWithEmail} buyer{stats.buyersWithEmail !== 1 ? 's' : ''} with contact
+                emails available for matching
               </p>
             )}
           </div>
@@ -221,7 +216,8 @@ export default function FirefliesIntegrationPage() {
               </div>
               {autoPairResult.errors && autoPairResult.errors.length > 0 && (
                 <p className="text-xs text-amber-600">
-                  {autoPairResult.errors.length} error{autoPairResult.errors.length !== 1 ? "s" : ""} occurred
+                  {autoPairResult.errors.length} error
+                  {autoPairResult.errors.length !== 1 ? 's' : ''} occurred
                 </p>
               )}
             </div>
@@ -237,9 +233,9 @@ export default function FirefliesIntegrationPage() {
             Pull All Fireflies Calls Ever
           </CardTitle>
           <CardDescription>
-            Fetches <strong>every</strong> transcript from your Fireflies account (no limit),
-            pairs them to buyers and deals, and downloads the full transcript content.
-            This may take several minutes depending on how many calls you have.
+            Fetches <strong>every</strong> transcript from your Fireflies account (no limit), pairs
+            them to buyers and deals, and downloads the full transcript content. This may take
+            several minutes depending on how many calls you have.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -256,9 +252,7 @@ export default function FirefliesIntegrationPage() {
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              {bulkSyncLoading
-                ? "Pulling all Fireflies..."
-                : "Sync ALL Transcripts + Content"}
+              {bulkSyncLoading ? 'Pulling all Fireflies...' : 'Sync ALL Transcripts + Content'}
             </Button>
             {bulkSyncLoading && (
               <p className="text-sm text-muted-foreground">
@@ -302,13 +296,11 @@ export default function FirefliesIntegrationPage() {
                   </p>
                 </div>
               </div>
-              {typeof bulkSyncResult.content === "object" && (
+              {typeof bulkSyncResult.content === 'object' && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm pt-2 border-t">
                   <div>
                     <span className="text-muted-foreground">Content downloaded</span>
-                    <p className="font-medium text-green-600">
-                      {bulkSyncResult.content.fetched}
-                    </p>
+                    <p className="font-medium text-green-600">{bulkSyncResult.content.fetched}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Empty/silent</span>
@@ -318,16 +310,14 @@ export default function FirefliesIntegrationPage() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Failed</span>
-                    <p className="font-medium text-red-600">
-                      {bulkSyncResult.content.failed}
-                    </p>
+                    <p className="font-medium text-red-600">{bulkSyncResult.content.failed}</p>
                   </div>
                 </div>
               )}
               {bulkSyncResult.errors && bulkSyncResult.errors.length > 0 && (
                 <p className="text-xs text-amber-600">
                   {bulkSyncResult.errors.length} error
-                  {bulkSyncResult.errors.length !== 1 ? "s" : ""} occurred
+                  {bulkSyncResult.errors.length !== 1 ? 's' : ''} occurred
                 </p>
               )}
             </div>
@@ -380,7 +370,9 @@ export default function FirefliesIntegrationPage() {
           <CardContent>
             {recentLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
               </div>
             ) : recent?.recentBuyer.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
@@ -388,19 +380,29 @@ export default function FirefliesIntegrationPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {recent?.recentBuyer.map((t: any) => (
-                  <div key={t.id} className="flex items-center justify-between border rounded-lg px-3 py-2 text-sm">
+                {recent?.recentBuyer.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between border rounded-lg px-3 py-2 text-sm"
+                  >
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{t.title || "Untitled"}</p>
+                      <p className="font-medium truncate">{t.title || 'Untitled'}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {(t.buyer as any)?.company_name || "Unknown buyer"}
+                        {(t.buyer as { company_name: string } | null)?.company_name ||
+                          'Unknown buyer'}
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 ml-2">
                       <Clock className="h-3 w-3" />
                       {t.call_date
-                        ? new Date(t.call_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                        : new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        ? new Date(t.call_date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        : new Date(t.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
                     </div>
                   </div>
                 ))}
@@ -420,7 +422,9 @@ export default function FirefliesIntegrationPage() {
           <CardContent>
             {recentLoading ? (
               <div className="space-y-3">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
               </div>
             ) : recent?.recentDeal.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
@@ -428,22 +432,27 @@ export default function FirefliesIntegrationPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {recent?.recentDeal.map((t: any) => (
-                  <div key={t.id} className="flex items-center justify-between border rounded-lg px-3 py-2 text-sm">
+                {recent?.recentDeal.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between border rounded-lg px-3 py-2 text-sm"
+                  >
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{t.title || "Untitled"}</p>
+                      <p className="font-medium truncate">{t.title || 'Untitled'}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {(t.listing as any)?.title || "Unknown deal"}
+                        {(t.listing as { title: string } | null)?.title || 'Unknown deal'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">
                       {t.auto_linked && (
-                        <Badge variant="outline" className="text-[10px] h-4">auto</Badge>
+                        <Badge variant="outline" className="text-[10px] h-4">
+                          auto
+                        </Badge>
                       )}
                       {t.match_type && (
                         <Badge
                           variant="outline"
-                          className={`text-[10px] h-4 ${t.match_type === "email" ? "text-green-600 border-green-300" : "text-blue-600 border-blue-300"}`}
+                          className={`text-[10px] h-4 ${t.match_type === 'email' ? 'text-green-600 border-green-300' : 'text-blue-600 border-blue-300'}`}
                         >
                           {t.match_type}
                         </Badge>
@@ -451,8 +460,14 @@ export default function FirefliesIntegrationPage() {
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />
                         {t.call_date
-                          ? new Date(t.call_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                          : new Date(t.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          ? new Date(t.call_date).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })
+                          : new Date(t.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
                       </span>
                     </div>
                   </div>
@@ -472,22 +487,29 @@ export default function FirefliesIntegrationPage() {
           <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
             <li>
               <strong>Quick Sync</strong> fetches up to 500 recent transcripts.
-              <strong> Bulk Sync</strong> fetches every transcript in the account (no limit) and also downloads the full call content.
+              <strong> Bulk Sync</strong> fetches every transcript in the account (no limit) and
+              also downloads the full call content.
             </li>
             <li>
-              For each transcript, extracts external participant emails (filters out internal @sourcecodeals.com / @captarget.com)
+              For each transcript, extracts external participant emails (filters out internal
+              @sourcecodeals.com / @captarget.com)
             </li>
             <li>
-              <strong>Email match:</strong> Looks up participant emails in buyer contacts and deal contact emails for direct matches
+              <strong>Email match:</strong> Looks up participant emails in buyer contacts and deal
+              contact emails for direct matches
             </li>
             <li>
-              <strong>Name match (fallback):</strong> If no email match, fuzzy-matches the transcript title against buyer company names and deal titles
+              <strong>Name match (fallback):</strong> If no email match, fuzzy-matches the
+              transcript title against buyer company names and deal titles
             </li>
             <li>
-              Links matches into the buyer_transcripts and deal_transcripts tables, skipping any already linked
+              Links matches into the buyer_transcripts and deal_transcripts tables, skipping any
+              already linked
             </li>
             <li>
-              <strong>Bulk Sync only:</strong> Downloads full transcript text (speaker-labeled sentences) for all matched deal transcripts and caches it in the database for chatbot search
+              <strong>Bulk Sync only:</strong> Downloads full transcript text (speaker-labeled
+              sentences) for all matched deal transcripts and caches it in the database for chatbot
+              search
             </li>
           </ol>
         </CardContent>

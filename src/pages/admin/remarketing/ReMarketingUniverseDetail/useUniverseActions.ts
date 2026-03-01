@@ -1,19 +1,20 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 import {
   SizeCriteria,
   GeographyCriteria,
   ServiceCriteria,
   BuyerTypesCriteria,
   ScoringBehavior,
-} from "@/types/remarketing";
-import { toast } from "sonner";
-import type { UseUniverseDataReturn } from "./useUniverseData";
+} from '@/types/remarketing';
+import { toast } from 'sonner';
+import type { UseUniverseDataReturn } from './useUniverseData';
 
 export function useUniverseActions(data: UseUniverseDataReturn) {
   const {
     id,
     queryClient,
-    formData, setFormData,
+    formData,
+    setFormData,
     setSizeCriteria,
     setGeographyCriteria,
     setServiceCriteria,
@@ -73,20 +74,26 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
       const { data, error } = await supabase.functions.invoke('parse-fit-criteria', {
         body: {
           fit_criteria_text: formData.fit_criteria,
-          universe_name: formData.name
-        }
+          universe_name: formData.name,
+        },
       });
 
       if (error) throw error;
 
       if (data) {
-        if (data.size_criteria) setSizeCriteria(prev => ({ ...prev, ...data.size_criteria }));
-        if (data.geography_criteria) setGeographyCriteria(prev => ({ ...prev, ...data.geography_criteria }));
-        if (data.service_criteria) setServiceCriteria(prev => ({ ...prev, ...data.service_criteria }));
-        if (data.buyer_types_criteria) setBuyerTypesCriteria(prev => ({ ...prev, ...data.buyer_types_criteria }));
-        if (data.scoring_behavior) setScoringBehavior(prev => ({ ...prev, ...data.scoring_behavior }));
+        if (data.size_criteria) setSizeCriteria((prev) => ({ ...prev, ...data.size_criteria }));
+        if (data.geography_criteria)
+          setGeographyCriteria((prev) => ({ ...prev, ...data.geography_criteria }));
+        if (data.service_criteria)
+          setServiceCriteria((prev) => ({ ...prev, ...data.service_criteria }));
+        if (data.buyer_types_criteria)
+          setBuyerTypesCriteria((prev) => ({ ...prev, ...data.buyer_types_criteria }));
+        if (data.scoring_behavior)
+          setScoringBehavior((prev) => ({ ...prev, ...data.scoring_behavior }));
 
-        toast.success(`Parsed criteria with ${Math.round((data.confidence || 0.5) * 100)}% confidence`);
+        toast.success(
+          `Parsed criteria with ${Math.round((data.confidence || 0.5) * 100)}% confidence`,
+        );
       }
     } catch (error) {
       toast.error('Failed to parse criteria');
@@ -110,20 +117,24 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
       throw error;
     }
 
-    toast.success(`Removed ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''} from universe`);
+    toast.success(
+      `Removed ${buyerIds.length} buyer${buyerIds.length > 1 ? 's' : ''} from universe`,
+    );
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers', 'universe', id] });
   };
 
   // Handler for single buyer enrichment via row dropdown
   const handleEnrichSingleBuyer = async (buyerId: string) => {
-    const buyer = buyers?.find(b => b.id === buyerId);
+    const buyer = buyers?.find((b) => b.id === buyerId);
     if (!buyer) return;
-    await queueBuyers([{
-      id: buyer.id,
-      company_website: buyer.company_website ?? null,
-      platform_website: buyer.platform_website ?? null,
-      pe_firm_website: buyer.pe_firm_website ?? null,
-    }]);
+    await queueBuyers([
+      {
+        id: buyer.id,
+        company_website: buyer.company_website ?? null,
+        platform_website: buyer.platform_website ?? null,
+        pe_firm_website: buyer.pe_firm_website ?? null,
+      },
+    ]);
   };
 
   // Handler for single buyer removal from universe via row dropdown
@@ -149,7 +160,9 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
     // Fetch the buyer to get website/firm info for marketplace bridging
     const { data: buyer, error: buyerError } = await supabase
       .from('remarketing_buyers')
-      .select('id, company_name, company_website, pe_firm_name, pe_firm_website, buyer_type')
+      .select(
+        'id, company_name, company_website, pe_firm_name, pe_firm_website, buyer_type, marketplace_firm_id, fee_agreement_source',
+      )
       .eq('id', buyerId)
       .single();
     if (buyerError) throw buyerError;
@@ -161,7 +174,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
 
     if (newStatus) {
       // TURNING ON: Write to both remarketing_buyers AND firm_agreements
-      let firmId = (buyer as any).marketplace_firm_id;
+      let firmId = buyer.marketplace_firm_id;
 
       if (!firmId) {
         // Try to find or create the firm in marketplace via get_or_create_firm()
@@ -169,11 +182,14 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
         const firmWebsite = buyer.pe_firm_website || buyer.company_website;
 
         if (firmName) {
-          const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc('get_or_create_firm', {
-            p_company_name: firmName,
-            p_website: firmWebsite ?? undefined,
-            p_email: undefined,
-          });
+          const { data: createdFirmId, error: createdFirmIdError } = await supabase.rpc(
+            'get_or_create_firm',
+            {
+              p_company_name: firmName,
+              p_website: firmWebsite ?? undefined,
+              p_email: undefined,
+            },
+          );
           if (createdFirmIdError) throw createdFirmIdError;
 
           if (createdFirmId) {
@@ -214,8 +230,13 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
       toast.success('Fee agreement marked — synced to marketplace');
     } else {
       // TURNING OFF: Only allow removal of manual overrides
-      if ((buyer as any).fee_agreement_source === 'marketplace_synced' || (buyer as any).fee_agreement_source === 'pe_firm_inherited') {
-        toast.error('This fee agreement comes from the marketplace. Remove it from the Firm Agreements page instead.');
+      if (
+        buyer.fee_agreement_source === 'marketplace_synced' ||
+        buyer.fee_agreement_source === 'pe_firm_inherited'
+      ) {
+        toast.error(
+          'This fee agreement comes from the marketplace. Remove it from the Firm Agreements page instead.',
+        );
         return;
       }
 
@@ -272,12 +293,14 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
     }
 
     // Queue for background processing (persists even when navigating away)
-    await queueBuyers(buyersToEnrich.map(b => ({
-      id: b.id,
-      company_website: b.company_website,
-      platform_website: b.platform_website,
-      pe_firm_website: b.pe_firm_website
-    })));
+    await queueBuyers(
+      buyersToEnrich.map((b) => ({
+        id: b.id,
+        company_website: b.company_website,
+        platform_website: b.platform_website,
+        pe_firm_website: b.pe_firm_website,
+      })),
+    );
   };
 
   return {

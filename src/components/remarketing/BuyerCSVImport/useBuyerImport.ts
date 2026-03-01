@@ -211,7 +211,10 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
       for (let i = 0; i < dataToImport.length; i++) {
         const { row } = dataToImport[i];
         const buyer = buildBuyerFromRow(row, mappings, universeId);
-        if (!buyer.company_name) { errors += 1; continue; }
+        if (!buyer.company_name) {
+          errors += 1;
+          continue;
+        }
 
         const { data: inserted, error: buyerError } = await supabase
           .from('remarketing_buyers')
@@ -232,7 +235,10 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
               .from('remarketing_buyer_contacts')
               .insert({
                 buyer_id: inserted.id,
-                name: contact.name || `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown',
+                name:
+                  contact.name ||
+                  `${contact.first_name || ''} ${contact.last_name || ''}`.trim() ||
+                  'Unknown',
                 email: contact.email || null,
                 phone: contact.phone || null,
                 role: contact.title || null,
@@ -256,7 +262,9 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
           .filter((b): b is typeof b & { company_name: string } => !!b.company_name);
 
         if (buyersToInsert.length > 0) {
-          const { error } = await supabase.from('remarketing_buyers').insert(buyersToInsert as never);
+          const { error } = await supabase
+            .from('remarketing_buyers')
+            .insert(buyersToInsert as never);
 
           if (error) {
             for (const buyer of buyersToInsert) {
@@ -329,7 +337,9 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
         return;
       }
 
-      const foundDuplicates = (data?.results || []).filter((r: any) => r.isDuplicate);
+      const foundDuplicates = (data?.results || []).filter(
+        (r: { isDuplicate: boolean }) => r.isDuplicate,
+      );
 
       if (foundDuplicates.length > 0) {
         setDuplicates(foundDuplicates);

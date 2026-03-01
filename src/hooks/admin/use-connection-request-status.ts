@@ -22,7 +22,7 @@ export const useUpdateConnectionRequestStatus = () => {
       const now = new Date().toISOString();
 
       // Build mutually exclusive update payload safely on the client
-      const base: any = {
+      const base: Record<string, unknown> = {
         status,
         updated_at: now,
         decision_at: status === 'pending' ? null : now,
@@ -65,30 +65,35 @@ export const useUpdateConnectionRequestStatus = () => {
         queryClient.cancelQueries({ queryKey: QUERY_KEYS.userConnectionRequests }),
       ]);
 
-      const prevAdmin = queryClient.getQueryData<Record<string, unknown>[]>(QUERY_KEYS.admin.connectionRequests);
+      const prevAdmin = queryClient.getQueryData<Record<string, unknown>[]>(
+        QUERY_KEYS.admin.connectionRequests,
+      );
 
       // Optimistic update on admin list
-      queryClient.setQueryData<Record<string, unknown>[]>(QUERY_KEYS.admin.connectionRequests, (old) => {
-        if (!old) return [];
-        const now = new Date().toISOString();
-        const adminId = user?.id;
-        return old.map((req) =>
-          req.id === requestId
-            ? {
-                ...req,
-                status,
-                updated_at: now,
-                decision_at: status === 'pending' ? null : now,
-                approved_by: status === 'approved' ? adminId : null,
-                approved_at: status === 'approved' ? now : null,
-                rejected_by: status === 'rejected' ? adminId : null,
-                rejected_at: status === 'rejected' ? now : null,
-                on_hold_by: status === 'on_hold' ? adminId : null,
-                on_hold_at: status === 'on_hold' ? now : null,
-              }
-            : req
-        );
-      });
+      queryClient.setQueryData<Record<string, unknown>[]>(
+        QUERY_KEYS.admin.connectionRequests,
+        (old) => {
+          if (!old) return [];
+          const now = new Date().toISOString();
+          const adminId = user?.id;
+          return old.map((req) =>
+            req.id === requestId
+              ? {
+                  ...req,
+                  status,
+                  updated_at: now,
+                  decision_at: status === 'pending' ? null : now,
+                  approved_by: status === 'approved' ? adminId : null,
+                  approved_at: status === 'approved' ? now : null,
+                  rejected_by: status === 'rejected' ? adminId : null,
+                  rejected_at: status === 'rejected' ? now : null,
+                  on_hold_by: status === 'on_hold' ? adminId : null,
+                  on_hold_at: status === 'on_hold' ? now : null,
+                }
+              : req,
+          );
+        },
+      );
 
       return { prevAdmin };
     },

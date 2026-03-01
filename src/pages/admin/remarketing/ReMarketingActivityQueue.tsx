@@ -1,17 +1,35 @@
-import { useState } from "react";
-import { Activity, CheckCircle2, XCircle, Clock, Loader2, Pause, Play, X, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useState } from 'react';
+import {
+  Activity,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Loader2,
+  Pause,
+  Play,
+  X,
+  ChevronDown,
+  ChevronRight,
+  AlertTriangle,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   useGlobalActivityQueue,
   useGlobalActivityMutations,
-} from "@/hooks/remarketing/useGlobalActivityQueue";
-import { OPERATION_TYPE_LABELS } from "@/types/remarketing";
-import type { GlobalActivityQueueItem, GlobalActivityErrorEntry } from "@/types/remarketing";
+} from '@/hooks/remarketing/useGlobalActivityQueue';
+import { OPERATION_TYPE_LABELS } from '@/types/remarketing';
+import type { GlobalActivityQueueItem, GlobalActivityErrorEntry } from '@/types/remarketing';
 
 function formatDuration(startStr: string, endStr?: string | null): string {
   const start = new Date(startStr).getTime();
@@ -27,7 +45,10 @@ function formatDuration(startStr: string, endStr?: string | null): string {
 
 function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleString(undefined, {
-    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -39,21 +60,24 @@ function estimateETA(item: GlobalActivityQueueItem): string | null {
   if (rate <= 0 || remaining <= 0) return null;
   const secsLeft = remaining / rate;
   const minsLeft = Math.ceil(secsLeft / 60);
-  return minsLeft < 1 ? "< 1 min" : `~${minsLeft} min`;
+  return minsLeft < 1 ? '< 1 min' : `~${minsLeft} min`;
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-    running: { variant: "default", label: "Running" },
-    queued: { variant: "outline", label: "Queued" },
-    paused: { variant: "secondary", label: "Paused" },
-    completed: { variant: "default", label: "Completed" },
-    failed: { variant: "destructive", label: "Failed" },
-    cancelled: { variant: "secondary", label: "Cancelled" },
+  const variants: Record<
+    string,
+    { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }
+  > = {
+    running: { variant: 'default', label: 'Running' },
+    queued: { variant: 'outline', label: 'Queued' },
+    paused: { variant: 'secondary', label: 'Paused' },
+    completed: { variant: 'default', label: 'Completed' },
+    failed: { variant: 'destructive', label: 'Failed' },
+    cancelled: { variant: 'secondary', label: 'Cancelled' },
   };
-  const v = variants[status] || { variant: "outline" as const, label: status };
+  const v = variants[status] || { variant: 'outline' as const, label: status };
   return (
-    <Badge variant={v.variant} className={status === "completed" ? "bg-emerald-600" : undefined}>
+    <Badge variant={v.variant} className={status === 'completed' ? 'bg-emerald-600' : undefined}>
       {v.label}
     </Badge>
   );
@@ -61,36 +85,58 @@ function StatusBadge({ status }: { status: string }) {
 
 function CurrentOperationCard({ item }: { item: GlobalActivityQueueItem }) {
   const { pauseOperation, resumeOperation, cancelOperation } = useGlobalActivityMutations();
-  const pct = item.total_items > 0
-    ? Math.round(((item.completed_items + item.failed_items) / item.total_items) * 100)
-    : 0;
+  const pct =
+    item.total_items > 0
+      ? Math.round(((item.completed_items + item.failed_items) / item.total_items) * 100)
+      : 0;
   const label = OPERATION_TYPE_LABELS[item.operation_type] || item.operation_type;
-  const userName = (item.profiles as { full_name?: string } | null)?.full_name || "Unknown";
+  const userName = (item.profiles as { full_name?: string } | null)?.full_name || 'Unknown';
   const eta = estimateETA(item);
-  const rate = item.started_at && item.completed_items > 0
-    ? (item.completed_items / ((Date.now() - new Date(item.started_at).getTime()) / 60000)).toFixed(1)
-    : null;
+  const rate =
+    item.started_at && item.completed_items > 0
+      ? (
+          item.completed_items /
+          ((Date.now() - new Date(item.started_at).getTime()) / 60000)
+        ).toFixed(1)
+      : null;
 
   return (
     <Card className="border-blue-500/30 bg-blue-950/10">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Loader2 className={`h-5 w-5 ${item.status === "running" ? "animate-spin text-blue-400" : "text-amber-400"}`} />
+            <Loader2
+              className={`h-5 w-5 ${item.status === 'running' ? 'animate-spin text-blue-400' : 'text-amber-400'}`}
+            />
             <CardTitle className="text-lg">{item.description || label}</CardTitle>
             <StatusBadge status={item.status} />
           </div>
           <div className="flex items-center gap-1">
-            {item.status === "running" ? (
-              <Button variant="outline" size="sm" onClick={() => pauseOperation.mutate(item.id)} disabled={pauseOperation.isPending}>
+            {item.status === 'running' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => pauseOperation.mutate(item.id)}
+                disabled={pauseOperation.isPending}
+              >
                 <Pause className="h-3 w-3 mr-1" /> Pause
               </Button>
-            ) : item.status === "paused" ? (
-              <Button variant="outline" size="sm" onClick={() => resumeOperation.mutate(item.id)} disabled={resumeOperation.isPending}>
+            ) : item.status === 'paused' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => resumeOperation.mutate(item.id)}
+                disabled={resumeOperation.isPending}
+              >
                 <Play className="h-3 w-3 mr-1" /> Resume
               </Button>
             ) : null}
-            <Button variant="destructive" size="sm" onClick={() => cancelOperation.mutate(item.id)} disabled={cancelOperation.isPending}>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => cancelOperation.mutate(item.id)}
+              disabled={cancelOperation.isPending}
+            >
               <X className="h-3 w-3 mr-1" /> Cancel
             </Button>
           </div>
@@ -100,7 +146,9 @@ function CurrentOperationCard({ item }: { item: GlobalActivityQueueItem }) {
         {/* Progress */}
         <div>
           <div className="flex justify-between text-sm mb-1">
-            <span>{item.completed_items} of {item.total_items} completed</span>
+            <span>
+              {item.completed_items} of {item.total_items} completed
+            </span>
             <span className="text-muted-foreground">{pct}%</span>
           </div>
           <Progress value={pct} className="h-2" />
@@ -114,15 +162,17 @@ function CurrentOperationCard({ item }: { item: GlobalActivityQueueItem }) {
           </div>
           <div>
             <span className="text-muted-foreground block">Duration</span>
-            <span className="font-medium">{item.started_at ? formatDuration(item.started_at) : "—"}</span>
+            <span className="font-medium">
+              {item.started_at ? formatDuration(item.started_at) : '—'}
+            </span>
           </div>
           <div>
             <span className="text-muted-foreground block">Rate</span>
-            <span className="font-medium">{rate ? `${rate} items/min` : "—"}</span>
+            <span className="font-medium">{rate ? `${rate} items/min` : '—'}</span>
           </div>
           <div>
             <span className="text-muted-foreground block">ETA</span>
-            <span className="font-medium">{eta || "—"}</span>
+            <span className="font-medium">{eta || '—'}</span>
           </div>
         </div>
 
@@ -135,7 +185,13 @@ function CurrentOperationCard({ item }: { item: GlobalActivityQueueItem }) {
   );
 }
 
-function ErrorLogSection({ errorLog, failedCount }: { errorLog: GlobalActivityErrorEntry[]; failedCount: number }) {
+function ErrorLogSection({
+  errorLog,
+  failedCount,
+}: {
+  errorLog: GlobalActivityErrorEntry[];
+  failedCount: number;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -149,7 +205,10 @@ function ErrorLogSection({ errorLog, failedCount }: { errorLog: GlobalActivityEr
       <CollapsibleContent>
         <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
           {errorLog.map((entry) => (
-            <div key={entry.itemId} className="text-xs bg-destructive/10 text-destructive rounded px-2 py-1 font-mono">
+            <div
+              key={entry.itemId}
+              className="text-xs bg-destructive/10 text-destructive rounded px-2 py-1 font-mono"
+            >
               <span className="text-muted-foreground">{entry.itemId}: </span>
               {entry.error}
             </div>
@@ -165,16 +224,19 @@ function ErrorLogSection({ errorLog, failedCount }: { errorLog: GlobalActivityEr
 
 function HistoryRow({ item }: { item: GlobalActivityQueueItem }) {
   const label = OPERATION_TYPE_LABELS[item.operation_type] || item.operation_type;
-  const userName = (item.profiles as { full_name?: string } | null)?.full_name || "Unknown";
+  const userName = (item.profiles as { full_name?: string } | null)?.full_name || 'Unknown';
   const [open, setOpen] = useState(false);
-  const hasErrors = item.failed_items > 0 && Array.isArray(item.error_log) && item.error_log.length > 0;
+  const hasErrors =
+    item.failed_items > 0 && Array.isArray(item.error_log) && item.error_log.length > 0;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="flex items-center gap-3 py-2 px-3 rounded-md hover:bg-muted/50">
-        {item.status === "completed" && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />}
-        {item.status === "failed" && <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
-        {item.status === "cancelled" && <X className="h-4 w-4 text-muted-foreground shrink-0" />}
+        {item.status === 'completed' && (
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+        )}
+        {item.status === 'failed' && <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
+        {item.status === 'cancelled' && <X className="h-4 w-4 text-muted-foreground shrink-0" />}
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -184,7 +246,9 @@ function HistoryRow({ item }: { item: GlobalActivityQueueItem }) {
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
             <span>{userName}</span>
             <span>&middot;</span>
-            <span>{item.started_at ? formatTime(item.started_at) : formatTime(item.queued_at)}</span>
+            <span>
+              {item.started_at ? formatTime(item.started_at) : formatTime(item.queued_at)}
+            </span>
             {item.started_at && item.completed_at && (
               <>
                 <span>&middot;</span>
@@ -213,7 +277,10 @@ function HistoryRow({ item }: { item: GlobalActivityQueueItem }) {
         <CollapsibleContent>
           <div className="ml-7 mb-2 space-y-1">
             {item.error_log.map((entry) => (
-              <div key={entry.itemId} className="text-xs bg-destructive/10 text-destructive rounded px-2 py-1 font-mono">
+              <div
+                key={entry.itemId}
+                className="text-xs bg-destructive/10 text-destructive rounded px-2 py-1 font-mono"
+              >
                 <span className="text-muted-foreground">{entry.itemId}: </span>
                 {entry.error}
               </div>
@@ -228,17 +295,17 @@ function HistoryRow({ item }: { item: GlobalActivityQueueItem }) {
 export default function ReMarketingActivityQueue() {
   const { runningOp, pausedOp, queuedOps, recentHistory } = useGlobalActivityQueue();
   const { cancelOperation } = useGlobalActivityMutations();
-  const [historyFilter, setHistoryFilter] = useState<"all" | "today" | "week">("all");
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'today' | 'week'>('all');
 
   const activeOp = runningOp || pausedOp;
 
   const filteredHistory = recentHistory.filter((item) => {
-    if (historyFilter === "all") return true;
+    if (historyFilter === 'all') return true;
     const completedAt = item.completed_at ? new Date(item.completed_at) : null;
     if (!completedAt) return false;
     const now = Date.now();
-    if (historyFilter === "today") return now - completedAt.getTime() < 86400000;
-    if (historyFilter === "week") return now - completedAt.getTime() < 604800000;
+    if (historyFilter === 'today') return now - completedAt.getTime() < 86400000;
+    if (historyFilter === 'week') return now - completedAt.getTime() < 604800000;
     return true;
   });
 
@@ -250,7 +317,7 @@ export default function ReMarketingActivityQueue() {
         <h1 className="text-2xl font-bold">Activity Queue</h1>
         {activeOp && (
           <Badge variant="default" className="bg-blue-600">
-            {activeOp.status === "running" ? "Operation Running" : "Operation Paused"}
+            {activeOp.status === 'running' ? 'Operation Running' : 'Operation Paused'}
           </Badge>
         )}
       </div>
@@ -280,9 +347,13 @@ export default function ReMarketingActivityQueue() {
           <CardContent className="space-y-2">
             {queuedOps.map((op, i) => {
               const label = OPERATION_TYPE_LABELS[op.operation_type] || op.operation_type;
-              const userName = (op.profiles as { full_name?: string } | null)?.full_name || "Unknown";
+              const userName =
+                (op.profiles as { full_name?: string } | null)?.full_name || 'Unknown';
               return (
-                <div key={op.id} className="flex items-center gap-3 py-2 px-3 rounded-md bg-muted/30">
+                <div
+                  key={op.id}
+                  className="flex items-center gap-3 py-2 px-3 rounded-md bg-muted/30"
+                >
                   <span className="text-sm font-mono text-muted-foreground w-6">#{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-medium">{op.description || label}</span>
@@ -310,7 +381,10 @@ export default function ReMarketingActivityQueue() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Recent History</CardTitle>
-            <Select value={historyFilter} onValueChange={(v: any) => setHistoryFilter(v)}>
+            <Select
+              value={historyFilter}
+              onValueChange={(v: 'all' | 'today' | 'week') => setHistoryFilter(v)}
+            >
               <SelectTrigger className="w-32 h-8">
                 <SelectValue />
               </SelectTrigger>

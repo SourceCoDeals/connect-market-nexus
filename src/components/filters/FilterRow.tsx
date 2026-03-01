@@ -1,19 +1,25 @@
-import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   type FilterFieldDef,
   type FilterRule,
   type Operator,
   OPERATORS_BY_TYPE,
-} from "./filter-definitions";
-import { TextValueInput, NumberValueInput, SelectValueInput, DateValueInput, UserValueInput } from "./value-inputs";
+} from './filter-definitions';
+import {
+  TextValueInput,
+  NumberValueInput,
+  SelectValueInput,
+  DateValueInput,
+  UserValueInput,
+} from './value-inputs';
 
 interface FilterRowProps {
   rule: FilterRule;
@@ -41,15 +47,15 @@ export function FilterRow({
     onChange({ ...rule, operator: op as Operator, value: null });
   };
 
-  const handleValueChange = (value: any) => {
+  const handleValueChange = (value: FilterRule['value']) => {
     onChange({ ...rule, value });
   };
 
   const isMultiOperator =
-    rule.operator === "is_any_of" ||
-    rule.operator === "includes_any" ||
-    rule.operator === "includes_all" ||
-    rule.operator === "excludes";
+    rule.operator === 'is_any_of' ||
+    rule.operator === 'includes_any' ||
+    rule.operator === 'includes_all' ||
+    rule.operator === 'excludes';
 
   return (
     <div className="flex items-center gap-2 group">
@@ -126,46 +132,39 @@ function ValueInput({
   isMulti?: boolean;
 }) {
   switch (fieldDef.type) {
-    case "text":
-      return <TextValueInput value={value ?? ""} onChange={onChange} />;
-    case "number":
+    case 'text':
+      return <TextValueInput value={value ?? ''} onChange={onChange} />;
+    case 'number':
       return <NumberValueInput value={value} onChange={onChange} dual={isDual} />;
-    case "currency":
-      return (
-        <NumberValueInput value={value} onChange={onChange} dual={isDual} isCurrency />
-      );
-    case "select":
+    case 'currency':
+      return <NumberValueInput value={value} onChange={onChange} dual={isDual} isCurrency />;
+    case 'select':
       return (
         <SelectValueInput
-          value={value ?? (isMulti ? [] : "")}
+          value={value ?? (isMulti ? [] : '')}
           onChange={onChange}
           options={options}
           multi={isMulti}
         />
       );
-    case "multi_select":
-      return (
-        <SelectValueInput
-          value={value ?? []}
-          onChange={onChange}
-          options={options}
-          multi
-        />
-      );
-    case "date":
+    case 'multi_select':
+      return <SelectValueInput value={value ?? []} onChange={onChange} options={options} multi />;
+    case 'date':
       return (
         <DateValueInput
           value={value}
           onChange={onChange}
           dual={isDual}
-          isLastNDays={operator === "last_n_days"}
+          isLastNDays={operator === 'last_n_days'}
         />
       );
-    case "user":
-      return <UserValueInput value={value ?? (isMulti ? [] : "")} onChange={onChange} multi={isMulti} />;
-    case "boolean":
+    case 'user':
+      return (
+        <UserValueInput value={value ?? (isMulti ? [] : '')} onChange={onChange} multi={isMulti} />
+      );
+    case 'boolean':
       return null; // no value needed
     default:
-      return <TextValueInput value={value ?? ""} onChange={onChange} />;
+      return <TextValueInput value={value ?? ''} onChange={onChange} />;
   }
 }

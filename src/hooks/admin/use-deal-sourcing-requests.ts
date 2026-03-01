@@ -58,16 +58,17 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
     async () => {
       if (!isAdminUser) {
         toast({
-          title: "Access Denied",
-          description: "Admin authentication required to view deal sourcing requests.",
-          variant: "destructive",
+          title: 'Access Denied',
+          description: 'Admin authentication required to view deal sourcing requests.',
+          variant: 'destructive',
         });
         throw new Error('Admin authentication required');
       }
 
       let query = supabase
         .from('deal_sourcing_requests')
-        .select(`
+        .select(
+          `
           *,
           profiles:user_id (
             email,
@@ -80,7 +81,8 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
             first_name,
             last_name
           )
-        `)
+        `,
+        )
         .order('created_at', { ascending: false });
 
       // Apply filters
@@ -112,41 +114,51 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
 
       if (error) {
         toast({
-          title: "Error Loading Requests",
-          description: error.message || "Failed to load deal sourcing requests. Please try again.",
-          variant: "destructive",
+          title: 'Error Loading Requests',
+          description: error.message || 'Failed to load deal sourcing requests. Please try again.',
+          variant: 'destructive',
         });
         throw error;
       }
 
       // Transform data to include user info
-      return (data || []).map((request: any) => ({
-        ...request,
-        user_email: request.profiles?.email,
-        user_name: request.profiles?.first_name && request.profiles?.last_name
-          ? `${request.profiles.first_name} ${request.profiles.last_name}`
-          : request.profiles?.email,
-        user_company: request.profiles?.company_name,
-        assigned_admin_name: request.assigned_admin?.first_name && request.assigned_admin?.last_name
-          ? `${request.assigned_admin.first_name} ${request.assigned_admin.last_name}`
-          : request.assigned_admin?.email,
-      })) as DealSourcingRequest[];
+      return (data || []).map(
+        (request: {
+          profiles?: {
+            email?: string;
+            first_name?: string;
+            last_name?: string;
+            company_name?: string;
+          } | null;
+          assigned_admin?: { email?: string; first_name?: string; last_name?: string } | null;
+          [key: string]: unknown;
+        }) => ({
+          ...request,
+          user_email: request.profiles?.email,
+          user_name:
+            request.profiles?.first_name && request.profiles?.last_name
+              ? `${request.profiles.first_name} ${request.profiles.last_name}`
+              : request.profiles?.email,
+          user_company: request.profiles?.company_name,
+          assigned_admin_name:
+            request.assigned_admin?.first_name && request.assigned_admin?.last_name
+              ? `${request.assigned_admin.first_name} ${request.assigned_admin.last_name}`
+              : request.assigned_admin?.email,
+        }),
+      ) as DealSourcingRequest[];
     },
     {
       enabled: shouldEnable,
       staleTime: 30 * 1000, // 30 seconds
       retry: 2,
       refetchOnMount: true,
-    }
+    },
   );
 };
 
 export const useUpdateDealSourcingRequest = () => {
   return async (id: string, updates: Partial<DealSourcingRequest>) => {
-    const { error } = await supabase
-      .from('deal_sourcing_requests')
-      .update(updates)
-      .eq('id', id);
+    const { error } = await supabase.from('deal_sourcing_requests').update(updates).eq('id', id);
 
     if (error) throw error;
   };
