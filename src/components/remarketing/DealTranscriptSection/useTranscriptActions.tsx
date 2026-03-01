@@ -207,8 +207,8 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
       const parts: string[] = [];
       if (data?.count > 0) parts.push(`${data.count} transcript${data.count > 1 ? 's' : ''} added`);
-      if (data?.skipped > 0) parts.push(`${data.skipped} skipped (duplicates)`);
-      if (data?.failed > 0) parts.push(`${data.failed} failed`);
+      if ((data?.skipped ?? 0) > 0) parts.push(`${data.skipped} skipped (duplicates)`);
+      if ((data?.failed ?? 0) > 0) parts.push(`${data.failed} failed`);
       toast.success(parts.join(', ') || 'Transcript added');
       resetForm();
       setIsAddDialogOpen(false);
@@ -245,10 +245,10 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
-      if (data.dealUpdated && data.fieldsUpdated?.length > 0) {
-        toast.success(`Extracted ${data.fieldsExtracted || 0} fields and updated deal with: ${data.fieldsUpdated.slice(0, 3).join(', ')}${data.fieldsUpdated.length > 3 ? ` +${data.fieldsUpdated.length - 3} more` : ''}`);
+      if (data?.dealUpdated && (data?.fieldsUpdated?.length ?? 0) > 0) {
+        toast.success(`Extracted ${data?.fieldsExtracted || 0} fields and updated deal with: ${data!.fieldsUpdated!.slice(0, 3).join(', ')}${data!.fieldsUpdated!.length > 3 ? ` +${data!.fieldsUpdated!.length - 3} more` : ''}`);
       } else {
-        toast.success(`Extracted ${data.fieldsExtracted || 0} fields from transcript`);
+        toast.success(`Extracted ${data?.fieldsExtracted || 0} fields from transcript`);
       }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to extract intelligence");
@@ -411,7 +411,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
 
       const seen = new Set<string>();
       const uniqueResults = allResults.filter((r) => { if (!r.id || seen.has(r.id)) return false; seen.add(r.id); return true; });
-      const existingIds = new Set(transcripts.filter((t): t is DealTranscript & { fireflies_transcript_id: string } => !!(t as Record<string, unknown>).fireflies_transcript_id).map((t) => (t as Record<string, unknown>).fireflies_transcript_id as string));
+      const existingIds = new Set(transcripts.filter((t): t is DealTranscript & { fireflies_transcript_id: string } => !!(t as unknown as Record<string, unknown>).fireflies_transcript_id).map((t) => (t as unknown as Record<string, unknown>).fireflies_transcript_id as string));
       const newResults = uniqueResults.filter((r) => !existingIds.has(r.id));
       newResults.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
       setFirefliesResults(newResults);
@@ -441,7 +441,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
         try {
           const { error: insertError } = await supabase.from('deal_transcripts').insert({
             listing_id: dealId, fireflies_transcript_id: result.id, fireflies_meeting_id: result.id,
-            transcript_url: result.meeting_url || null, title: result.title || `Call - ${new Date(result.date).toLocaleDateString()}`,
+            transcript_url: result.meeting_url || null, title: result.title || `Call - ${new Date(result.date || Date.now()).toLocaleDateString()}`,
             call_date: result.date || null, participants: result.participants || [],
             meeting_attendees: Array.isArray(result.participants) ? result.participants.map((p) => typeof p === 'string' ? p : p.email).filter(Boolean) : [],
             duration_minutes: result.duration_minutes || null, source: 'fireflies', auto_linked: false, transcript_text: '',

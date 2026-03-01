@@ -272,7 +272,7 @@ const AdminRequests = () => {
 
   const handleAction = async (request: AdminConnectionRequest, action: 'approve' | 'reject') => {
     try {
-      const result = await updateRequest({
+      await updateRequest({
         requestId: request.id,
         status: action === 'approve' ? 'approved' : 'rejected',
         adminComment: `Request ${action}d by admin`,

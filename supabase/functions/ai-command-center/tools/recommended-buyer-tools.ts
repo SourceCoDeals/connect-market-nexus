@@ -485,7 +485,8 @@ async function getRecommendedBuyers(
     return { error: `Failed to fetch buyers: ${buyersError.message}` };
   }
 
-  const buyerMap = new Map((buyers || []).map((b: Record<string, unknown>) => [b.id, b]));
+  // deno-lint-ignore no-explicit-any
+  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b as Record<string, any>]));
 
   // ──────────────────────────────────────────────
   // Phase 3: Build enrichment maps

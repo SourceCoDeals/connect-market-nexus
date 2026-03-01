@@ -215,8 +215,8 @@ export default function ReMarketingDealMatching() {
         <BulkEmailDialog
           open={actions.emailDialogOpen}
           onOpenChange={actions.setEmailDialogOpen}
-          scores={data.scores?.filter((s) => actions.selectedIds.has(s.id)) || []}
-          listing={data.listing}
+          scores={(data.scores?.filter((s: any) => actions.selectedIds.has(s.id)) || []) as any}
+          listing={data.listing as any}
           onSent={(buyerIds: string[]) => { actions.setHighlightedBuyerIds(buyerIds); setTimeout(() => actions.setHighlightedBuyerIds([]), 5000); }}
         />
       )}

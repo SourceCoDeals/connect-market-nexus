@@ -336,8 +336,8 @@ export function useDeals() {
       }
 
       mapped.forEach((deal) => {
-        deal.memo_sent = memoSentListings.has(deal.listing_id);
-        deal.has_data_room = dataRoomListings.has(deal.listing_id);
+        deal.memo_sent = memoSentListings.has(deal.listing_id as string);
+        deal.has_data_room = dataRoomListings.has(deal.listing_id as string);
       });
 
       return mapped as unknown as Deal[];

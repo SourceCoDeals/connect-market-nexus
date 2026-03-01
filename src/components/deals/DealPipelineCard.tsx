@@ -161,7 +161,7 @@ function getStageIndex(stageId: PipelineStageId): number {
  * Uses amber for early stages (interest/NDA), blue for mid-stages
  * (review/IOI), green for late stages (LOI/Closed).
  */
-const _stageColors: Record<PipelineStageId, { bg: string; text: string; border: string }> = {
+const stageColors: Record<PipelineStageId, { bg: string; text: string; border: string }> = {
   interested: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
   nda_signed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
   under_review: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
@@ -169,6 +169,7 @@ const _stageColors: Record<PipelineStageId, { bg: string; text: string; border: 
   loi: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   closed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
 };
+void stageColors;
 
 /**
  * Unified connection-request status label + colors.

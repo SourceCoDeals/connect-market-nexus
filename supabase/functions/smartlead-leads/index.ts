@@ -55,16 +55,16 @@ async function resolveFromBuyerContacts(
 
   if (!contacts?.length) return [];
 
-  const buyerIds = [...new Set(contacts.map((c) => c.buyer_id))];
+  const buyerIds = [...new Set(contacts.map((c: any) => c.buyer_id))];
   const { data: buyers } = await supabase
     .from('remarketing_buyers')
     .select('id, company_name')
     .in('id', buyerIds);
-  const buyerMap = new Map((buyers || []).map((b) => [b.id, b]));
+  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
 
   return contacts
-    .filter((c) => c.email)
-    .map((c) => {
+    .filter((c: any) => c.email)
+    .map((c: any) => {
       const parts = (c.name || '').split(' ');
       const buyer = buyerMap.get(c.buyer_id);
       return {
@@ -99,7 +99,7 @@ async function resolveFromBuyers(
     .from('remarketing_buyers')
     .select('id, company_name, contact_name, contact_email, contact_phone')
     .in('id', buyerIds);
-  const buyerMap = new Map((buyers || []).map((b) => [b.id, b]));
+  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
 
   const seen = new Set<string>();
   const result: ResolvedLead[] = [];
@@ -130,7 +130,7 @@ async function resolveFromBuyers(
   }
 
   // Fallback: buyer-level contact info for buyers with no sub-contacts
-  const buyersWithContacts = new Set((contacts || []).map((c) => c.buyer_id));
+  const buyersWithContacts = new Set((contacts || []).map((c: any) => c.buyer_id));
   for (const buyerId of buyerIds) {
     if (buyersWithContacts.has(buyerId)) continue;
     const buyer = buyerMap.get(buyerId);
@@ -171,8 +171,8 @@ async function resolveFromListings(
   if (!listings?.length) return [];
 
   return listings
-    .filter((l) => l.main_contact_email)
-    .map((l) => {
+    .filter((l: any) => l.main_contact_email)
+    .map((l: any) => {
       const parts = (l.main_contact_name || '').split(' ');
       return {
         email: l.main_contact_email!,
@@ -202,8 +202,8 @@ async function resolveFromLeads(
   if (!leads?.length) return [];
 
   return leads
-    .filter((l) => l.email)
-    .map((l) => {
+    .filter((l: any) => l.email)
+    .map((l: any) => {
       const parts = (l.name || '').split(' ');
       return {
         email: l.email!,
