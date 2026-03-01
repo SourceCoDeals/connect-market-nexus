@@ -18,7 +18,6 @@ import {
   Store,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { UniverseAssignmentButton } from '@/components/remarketing/deal-detail';
 
 interface DealForWebsiteActions {
   needs_owner_contact?: boolean | null;
@@ -124,11 +123,6 @@ export function WebsiteActionsCard({
             )}
             Enrich from Website
           </Button>
-          <UniverseAssignmentButton
-            dealId={dealId}
-            dealCategory={deal?.category}
-            scoreCount={scoreStats?.count || 0}
-          />
           <Button variant="outline" className="gap-2" onClick={() => setBuyerHistoryOpen(true)}>
             <History className="h-4 w-4" />
             Buyer History

@@ -13,7 +13,6 @@ export type { ScoreFiltersState } from './ScoreFilters';
 export { EngagementIndicator, getEngagementLevel } from './EngagementIndicator';
 export { StaleScoreWarning } from './StaleScoreWarning';
 export { EngagementHeatmapInsight } from './EngagementHeatmapInsight';
-export { WeightSuggestionsPanel } from './WeightSuggestionsPanel';
 
 // Enrichment Components
 export { EnrichmentButton } from './EnrichmentButton';
@@ -26,7 +25,6 @@ export { UniverseTemplates } from './UniverseTemplates';
 export { ScoringBehaviorPanel } from './ScoringBehaviorPanel';
 export { ScoringBehaviorPanelEnhanced } from './ScoringBehaviorPanelEnhanced';
 export { ScoringInsightsPanel } from './ScoringInsightsPanel';
-export { ScoringInstructionsPanel } from './ScoringInstructionsPanel';
 export { PassConfirmDialog } from './PassConfirmDialog';
 export { BulkEmailDialog } from './BulkEmailDialog';
 export { TargetBuyerTypesPanel } from './TargetBuyerTypesPanel';
@@ -44,9 +42,7 @@ export { AlignmentScoreBadge } from './AlignmentScoreBadge';
 export { UniverseDealsTable } from './UniverseDealsTable';
 export { DealMergePanel } from './DealMergePanel';
 // Deal Management Components
-export { AddDealToUniverseDialog } from './AddDealToUniverseDialog';
 export { AddDealDialog } from './AddDealDialog';
-export { AddToUniverseQuickAction } from './AddToUniverseQuickAction';
 export { DealCSVImport } from './DealCSVImport';
 
 // Analytics Components
@@ -78,7 +74,6 @@ export { OutreachStatusDialog } from './OutreachStatusDialog';
 export type { OutreachStatus } from './OutreachStatusDialog';
 
 // Learning Components
-export { LearningInsightsPanel } from './LearningInsightsPanel';
 export { QuickInsightsWidget } from './QuickInsightsWidget';
 
 // Layout Components

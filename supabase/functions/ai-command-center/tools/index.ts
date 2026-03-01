@@ -18,14 +18,12 @@ import { userTools, executeUserTool } from './user-tools.ts';
 import { actionTools, executeActionTool } from './action-tools.ts';
 import { uiActionTools, executeUIActionTool } from './ui-action-tools.ts';
 import { contentTools, executeContentTool } from './content-tools.ts';
-import { universeTools, executeUniverseTool } from './universe-tools.ts';
 import { signalTools, executeSignalTool } from './signal-tools.ts';
 import { leadTools, executeLeadTool } from './lead-tools.ts';
 import { contactTools, executeContactTool } from './contact-tools.ts';
 import { connectionTools, executeConnectionTool } from './connection-tools.ts';
 import { dealExtraTools, executeDealExtraTool } from './deal-extra-tools.ts';
 import { followupTools, executeFollowupTool } from './followup-tools.ts';
-import { scoringExplainTools, executeScoringExplainTool } from './scoring-explain-tools.ts';
 // cross-deal-analytics-tools is now accessed via analytics-tools.ts (merged into get_analytics)
 import {
   crossDealAnalyticsTools as _crossDealAnalyticsTools,
@@ -41,7 +39,6 @@ import { smartleadTools, executeSmartleadTool } from './smartlead-tools.ts';
 import { knowledgeTools, executeKnowledgeTool } from './knowledge-tools.ts';
 import { taskTools, executeTaskTool } from './task-tools.ts';
 import { industryResearchTools, executeIndustryResearchTool } from './industry-research-tools.ts';
-import { recommendedBuyerTools, executeRecommendedBuyerTool } from './recommended-buyer-tools.ts';
 import { firefliesSummaryTools, executeFirefliesSummaryTool } from './fireflies-summary-tools.ts';
 import { alertTools, executeAlertTool } from './alert-tools.ts';
 
@@ -66,14 +63,12 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...actionTools,
   ...uiActionTools,
   ...contentTools,
-  ...universeTools,
   ...signalTools,
   ...leadTools,
   ...contactTools,
   ...connectionTools,
   ...dealExtraTools,
   ...followupTools,
-  ...scoringExplainTools,
   // crossDealAnalyticsTools removed — merged into analyticsTools
   ...semanticSearchTools,
   ...integrationActionTools,
@@ -82,7 +77,6 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...knowledgeTools,
   ...taskTools,
   ...industryResearchTools,
-  ...recommendedBuyerTools,
   ...firefliesSummaryTools,
   ...alertTools,
 ];
@@ -102,8 +96,6 @@ const LEGACY_TOOL_ROUTING: Record<
   // Transcript merges
   search_buyer_transcripts: (sb, name, args) => executeTranscriptTool(sb, name, args),
   search_fireflies: (sb, name, args) => executeTranscriptTool(sb, name, args),
-  // Outreach merge
-  get_remarketing_outreach: (sb, name, args) => executeUniverseTool(sb, name, args),
   // Contact enrichment merges
   enrich_buyer_contacts: (sb, name, args, uid) => executeIntegrationActionTool(sb, name, args, uid),
   enrich_linkedin_contact: (sb, name, args, uid) =>
@@ -134,7 +126,6 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_deal_memos',
     'get_deal_documents',
     'get_deal_communication', // merged: was get_deal_comments
-    'get_deal_scoring_adjustments',
     'search_contacts',
     'get_connection_requests',
   ],
@@ -167,30 +158,13 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'search_buyers',
     'query_deals',
     'get_buyer_profile',
-    'get_score_breakdown',
-    'explain_buyer_score',
     'get_top_buyers_for_deal',
-    'get_recommended_buyers',
     'generate_buyer_narrative',
     'get_buyer_signals', // merged: was get_buyer_decisions
     'get_buyer_history', // merged: was get_score_history + get_buyer_learning_history
     'search_pe_contacts',
     'search_contacts',
     'select_table_rows',
-  ],
-
-  // Universe & outreach
-  BUYER_UNIVERSE: [
-    'search_buyer_universes',
-    'get_universe_details',
-    'get_universe_buyer_fits',
-    'get_outreach_records', // merged: includes remarketing_outreach
-    'get_top_buyers_for_deal',
-    'search_buyers',
-    'select_table_rows',
-    'apply_table_filter',
-    'sort_table_column',
-    'trigger_page_action',
   ],
 
   // Meeting intelligence
@@ -270,9 +244,6 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
   REMARKETING: [
     'search_buyers',
     'get_top_buyers_for_deal',
-    'get_score_breakdown',
-    'explain_buyer_score',
-    'get_universe_buyer_fits',
     'select_table_rows',
     'apply_table_filter',
     'sort_table_column',
@@ -343,8 +314,6 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'google_search_companies',
     'semantic_transcript_search',
     'search_buyers',
-    'search_buyer_universes',
-    'get_universe_details',
     'query_deals',
     'get_industry_trackers',
     'retrieve_knowledge',
@@ -411,18 +380,15 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'convert_to_pipeline_deal',
     'get_deal_details',
     'search_buyers',
-    'get_score_breakdown',
     'get_firm_agreements',
   ],
 
   // Recommended buyers & strategy narrative (Feature 1)
   RECOMMENDED_BUYERS: [
-    'get_recommended_buyers',
     'generate_buyer_narrative',
     'get_deal_details',
     'get_buyer_profile',
-    'get_score_breakdown',
-    'explain_buyer_score',
+    'get_top_buyers_for_deal',
     'get_buyer_signals',
     'add_deal_note',
     'draft_outreach_email',
@@ -611,8 +577,6 @@ async function _executeToolInternal(
     return executeUIActionTool(supabase, toolName, resolvedArgs);
   if (contentTools.some((t) => t.name === toolName))
     return executeContentTool(supabase, toolName, resolvedArgs);
-  if (universeTools.some((t) => t.name === toolName))
-    return executeUniverseTool(supabase, toolName, resolvedArgs);
   if (signalTools.some((t) => t.name === toolName))
     return executeSignalTool(supabase, toolName, resolvedArgs);
   if (leadTools.some((t) => t.name === toolName))
@@ -625,8 +589,6 @@ async function _executeToolInternal(
     return executeDealExtraTool(supabase, toolName, resolvedArgs);
   if (followupTools.some((t) => t.name === toolName))
     return executeFollowupTool(supabase, toolName, resolvedArgs, userId);
-  if (scoringExplainTools.some((t) => t.name === toolName))
-    return executeScoringExplainTool(supabase, toolName, resolvedArgs);
   if (semanticSearchTools.some((t) => t.name === toolName))
     return executeSemanticSearchTool(supabase, toolName, resolvedArgs);
   if (integrationActionTools.some((t) => t.name === toolName))
@@ -641,8 +603,6 @@ async function _executeToolInternal(
     return executeTaskTool(supabase, toolName, resolvedArgs, userId);
   if (industryResearchTools.some((t) => t.name === toolName))
     return executeIndustryResearchTool(supabase, toolName, resolvedArgs);
-  if (recommendedBuyerTools.some((t) => t.name === toolName))
-    return executeRecommendedBuyerTool(supabase, toolName, resolvedArgs);
   if (firefliesSummaryTools.some((t) => t.name === toolName))
     return executeFirefliesSummaryTool(supabase, toolName, resolvedArgs, userId);
   if (alertTools.some((t) => t.name === toolName))

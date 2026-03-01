@@ -12,7 +12,6 @@ import {
   ScoringTrendsChart,
   CategoryPerformanceChart,
   UniversePerformanceTable,
-  LearningInsightsPanel,
   DecisionHistoryChart,
   ScoreCalibrationChart
 } from '@/components/remarketing';
@@ -251,10 +250,6 @@ const ReMarketingAnalytics = () => {
             daysBack={daysBack}
           />
 
-          {/* Learning Insights Panel */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <LearningInsightsPanel className="lg:col-span-2" />
-          </div>
         </TabsContent>
 
         <TabsContent value="calibration" className="space-y-6 mt-6">

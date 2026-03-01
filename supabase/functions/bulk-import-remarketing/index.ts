@@ -357,10 +357,8 @@ serve(async (req) => {
       console.log(`Importing ${data.buyers?.length || 0} buyers...`);
       for (const row of (data.buyers || [])) {
         try {
-          const mappedUniverseId = universeIdMap[row.tracker_id] || null;
-
           const buyerData = {
-            universe_id: mappedUniverseId,
+            universe_id: null,
             company_name: row.platform_company_name || row.company_name || 'Unknown',
             company_website: normalizeDomainUrl(row.platform_website) || null,
             buyer_type: row.pe_firm_name ? 'platform' : 'strategic',

@@ -118,32 +118,6 @@ serve(async (req) => {
       console.warn("Failed to calculate total engagement score:", scoreError);
     }
 
-    // Update the remarketing_scores table with engagement bonus if score exists
-    if (!scoreError && totalScore !== null) {
-      // Check if score exists
-      const { data: existingScore } = await supabase
-        .from('remarketing_scores')
-        .select('id, composite_score')
-        .eq('listing_id', listing_id)
-        .eq('buyer_id', buyer_id)
-        .single();
-
-      if (existingScore) {
-        // Update composite score with engagement bonus
-        const { error: updateError } = await supabase
-          .from('remarketing_scores')
-          .update({
-            composite_score: Math.min(100, existingScore.composite_score + totalScore),
-            fit_reasoning: `${existingScore.fit_reasoning || ''}\n\nEngagement Bonus: +${totalScore} points from ${signal_type}`,
-          })
-          .eq('id', existingScore.id);
-
-        if (updateError) {
-          console.warn("Failed to update remarketing score with engagement bonus:", updateError);
-        }
-      }
-    }
-
     return new Response(
       JSON.stringify({
         success: true,
