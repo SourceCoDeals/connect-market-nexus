@@ -114,7 +114,7 @@ export const TranscriptSection = ({ buyerId, buyerName: _buyerName }: Transcript
       });
       setTranscriptText("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error('Failed to process transcript', {
         description: error.message,
       });

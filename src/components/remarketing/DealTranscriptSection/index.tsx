@@ -84,7 +84,7 @@ export function DealTranscriptSection({ dealId, transcripts, isLoading, dealInfo
         }}
         onToggleAllFireflies={() => {
           if (actions.selectedFirefliesIds.size === actions.firefliesResults.length) actions.setSelectedFirefliesIds(new Set());
-          else actions.setSelectedFirefliesIds(new Set(actions.firefliesResults.map((r: any) => r.id)));
+          else actions.setSelectedFirefliesIds(new Set(actions.firefliesResults.map((r) => r.id)));
         }}
         firefliesImporting={actions.firefliesImporting} onFirefliesImport={actions.handleFirefliesImport}
         firefliesSearchInfo={actions.firefliesSearchInfo}

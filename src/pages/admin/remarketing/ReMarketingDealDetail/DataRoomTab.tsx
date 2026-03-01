@@ -20,9 +20,10 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface DataRoomTabProps {
-  deal: any;
+  deal: Tables<'listings'>;
   dealId: string;
   scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
 }

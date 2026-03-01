@@ -35,7 +35,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
 
   const [followedUp, setFollowedUp] = React.useState(deal.followed_up || false);
   const [negativeFollowedUp, setNegativeFollowedUp] = React.useState(deal.negative_followed_up || false);
-  const [buyerProfile, setBuyerProfile] = React.useState<any>(null);
+  const [buyerProfile, setBuyerProfile] = React.useState<{ first_name?: string; last_name?: string; company?: string; buyer_type?: string; phone_number?: string; linkedin_url?: string } | null>(null);
 
   // Messaging
   const connectionRequestId = deal.connection_request_id;

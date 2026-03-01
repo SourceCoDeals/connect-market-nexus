@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Building2, MapPin, DollarSign, Sparkles, Loader2 } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface MatchingHeaderProps {
-  listing: any;
+  listing: Tables<'listings'> | null;
   listingLoading: boolean;
   listingId: string;
   totalScores: number;

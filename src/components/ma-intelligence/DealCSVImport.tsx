@@ -74,7 +74,7 @@ export function DealCSVImport({ open, onOpenChange, trackerId, onDealsImported }
       const deals = [];
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i].split(",").map(v => v.trim());
-        const deal: any = {
+        const deal: Record<string, string> = {
           listing_id: trackerId,
         };
 

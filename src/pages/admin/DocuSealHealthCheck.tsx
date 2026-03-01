@@ -127,9 +127,9 @@ export default function DocuSealHealthCheck() {
         if (r.status === "fail" || r.status === "warn") autoExpand.add(r.id);
       }
       setExpanded(autoExpand);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setRunState("error");
-      setErrorMsg(e.message || "Unexpected error");
+      setErrorMsg(e instanceof Error ? e.message : "Unexpected error");
     }
   }, []);
 

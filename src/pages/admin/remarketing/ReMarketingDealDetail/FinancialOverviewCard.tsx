@@ -5,9 +5,10 @@ import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DollarSign, Pencil } from "lucide-react";
 import { formatCurrency } from "./helpers";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface FinancialOverviewCardProps {
-  deal: any;
+  deal: Tables<'listings'>;
   onEditClick: () => void;
 }
 

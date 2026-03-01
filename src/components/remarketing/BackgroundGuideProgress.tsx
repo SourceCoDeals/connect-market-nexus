@@ -7,7 +7,7 @@ import { useBackgroundGuideGeneration } from "@/hooks/useBackgroundGuideGenerati
 
 interface BackgroundGuideProgressProps {
   universeId: string;
-  onComplete?: (content: string, criteria: any) => void;
+  onComplete?: (content: string, criteria: Record<string, unknown>) => void;
   onError?: (error: string) => void;
 }
 

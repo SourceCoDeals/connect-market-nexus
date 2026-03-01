@@ -216,7 +216,7 @@ export function useDealsData() {
     if (!filteredListings) return [];
     return [...filteredListings].sort((a, b) => {
       const stats_a = scoreStats?.[a.id]; const stats_b = scoreStats?.[b.id];
-      let aVal: any, bVal: any;
+      let aVal: string | number, bVal: string | number;
       switch (sortColumn) {
         case "rank": aVal = a.manual_rank_override ?? 9999; bVal = b.manual_rank_override ?? 9999; break;
         case "deal_name": aVal = (a.internal_company_name || a.title || "").toLowerCase(); bVal = (b.internal_company_name || b.title || "").toLowerCase(); break;

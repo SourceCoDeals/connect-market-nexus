@@ -89,10 +89,11 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
         sources: sourceMap,
       });
       addLog(`provenance test for ${dealId.slice(0, 8)}…`, dur);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`provenance test — ${e.message}`, dur, false);
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      addLog(`provenance test — ${message}`, dur, false);
     } finally {
       setLoading(false);
     }

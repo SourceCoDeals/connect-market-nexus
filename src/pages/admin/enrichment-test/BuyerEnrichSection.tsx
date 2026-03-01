@@ -77,10 +77,11 @@ export default function BuyerEnrichSection({ addLog, buyerId, onBuyerIdChange }:
         `enrich-buyer for ${buyerId.slice(0, 8)}… (${data?.fieldsExtracted ?? '?'} fields, ${data?.dataCompleteness ?? '?'})`,
         dur,
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`enrich-buyer for ${buyerId.slice(0, 8)}… — ${e.message}`, dur, false);
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      setError(msg);
+      addLog(`enrich-buyer for ${buyerId.slice(0, 8)}… — ${msg}`, dur, false);
     } finally {
       setLoading(false);
     }

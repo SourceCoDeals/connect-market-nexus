@@ -331,7 +331,7 @@ const ReMarketingBuyerDetail = () => {
                 companyName={buyer?.company_name || buyer?.pe_firm_name || ''}
                 peFirmName={buyer?.pe_firm_name}
                 platformWebsite={buyer?.platform_website || buyer?.company_website}
-                contacts={contacts?.map((c: any) => ({ email: c.email })) || []}
+                contacts={contacts?.map((c) => ({ email: c.email })) || []}
                 onTranscriptLinked={() => {
                   queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
                 }}

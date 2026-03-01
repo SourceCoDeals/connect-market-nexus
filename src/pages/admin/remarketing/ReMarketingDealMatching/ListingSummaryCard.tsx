@@ -7,9 +7,10 @@ import {
   DollarSign,
   Briefcase,
 } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface ListingSummaryCardProps {
-  listing: any;
+  listing: Tables<'listings'>;
   formatCurrency: (value: number | null) => string;
 }
 

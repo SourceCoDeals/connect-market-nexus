@@ -57,7 +57,7 @@ const TIER_COLORS = {
 
 const formatCurrency = (value: number) => _formatCurrency(value);
 
-const CustomTooltip = ({ active, payload, label: _label }: any) => {
+const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: { segment: string; winRate: number; wins: number; losses: number; total: number; avgDealSize: number } }[] }) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (

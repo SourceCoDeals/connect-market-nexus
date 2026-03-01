@@ -97,7 +97,7 @@ export function useFirefliesSync({
   };
 
   // Link a search result — includes has_content, match_type, external_participants
-  const handleLinkSearchResult = async (transcript: any) => {
+  const handleLinkSearchResult = async (transcript: { id: string; title?: string; date?: string; meeting_url?: string; participants?: unknown[]; duration_minutes?: number; summary?: string; has_content?: boolean; match_type?: string; external_participants?: { name: string; email: string }[] }) => {
     setFfLinking(transcript.id);
     try {
       const { error } = await supabase.from('deal_transcripts').insert({

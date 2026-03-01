@@ -190,8 +190,7 @@ const DailyTaskDashboard = () => {
         .from('user_roles')
         .select('user_id, profiles!inner(id, first_name, last_name)')
         .in('role', ['owner', 'admin', 'moderator']);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (data || []).map((r: any) => ({
+      return (data || []).map((r: { user_id: string; profiles: { id: string; first_name: string | null; last_name: string | null } }) => ({
         // Use user_id directly from user_roles (matches auth.uid()) to ensure
         // consistent IDs with what useDailyTasks uses for the "My Tasks" filter.
         id: r.user_id,

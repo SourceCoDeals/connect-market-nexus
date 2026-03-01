@@ -6,9 +6,10 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface CapTargetInfoCardProps {
-  deal: any;
+  deal: Tables<'listings'>;
   dealId: string;
 }
 

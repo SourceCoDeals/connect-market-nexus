@@ -743,7 +743,7 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           ) : (
-            allMessages.map((msg: any) => (
+            allMessages.map((msg) => (
               <div
                 key={msg.id}
                 className={cn(

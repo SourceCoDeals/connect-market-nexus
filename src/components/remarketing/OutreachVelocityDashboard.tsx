@@ -65,7 +65,7 @@ const DEFAULT_BENCHMARKS = {
   total: 44
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; payload: { deals: number } }[]; label?: string }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-popover border rounded-lg shadow-lg p-3">

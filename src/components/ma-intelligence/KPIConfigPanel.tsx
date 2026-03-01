@@ -130,7 +130,7 @@ export function KPIConfigPanel({ trackerId, tracker, onSave }: KPIConfigPanelPro
     setHasChanges(true);
   };
 
-  const handleUpdateKPI = (index: number, field: keyof KPI, value: any) => {
+  const handleUpdateKPI = (index: number, field: keyof KPI, value: KPI[keyof KPI]) => {
     const updated = [...kpis];
     updated[index] = { ...updated[index], [field]: value };
     setKpis(updated);

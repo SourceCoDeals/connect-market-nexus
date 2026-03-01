@@ -84,7 +84,7 @@ const MarketplaceQueue = () => {
       if (error) throw error;
       // Build a map: dealId -> listing info
       const map: Record<string, { id: string; title: string }> = {};
-      data?.forEach((listing: any) => {
+      data?.forEach((listing) => {
         if (listing.source_deal_id) {
           map[listing.source_deal_id] = { id: listing.id, title: listing.title };
         }

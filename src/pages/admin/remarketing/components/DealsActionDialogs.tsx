@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Calculator, Zap } from "lucide-react";
 import { DealImportDialog, AddDealDialog, DealEnrichmentSummaryDialog } from "@/components/remarketing";
+import type { DealEnrichmentSummary } from "@/hooks/useEnrichmentProgress";
 import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
 
 interface DealsActionDialogsProps {
@@ -65,7 +66,7 @@ interface DealsActionDialogsProps {
   // Enrichment summary
   showEnrichmentSummary: boolean;
   dismissSummary: () => void;
-  enrichmentSummary: any;
+  enrichmentSummary: DealEnrichmentSummary | null;
   handleRetryFailedEnrichment: () => void;
 }
 

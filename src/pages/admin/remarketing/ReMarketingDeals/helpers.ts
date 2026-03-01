@@ -11,7 +11,7 @@ export const extractWebsiteFromMemo = (memoLink: string | null): string | null =
   return null;
 };
 
-export const getEffectiveWebsite = (listing: any): string | null => {
+export const getEffectiveWebsite = (listing: { website: string | null; internal_deal_memo_link: string | null }): string | null => {
   if (listing.website) return listing.website;
   return extractWebsiteFromMemo(listing.internal_deal_memo_link);
 };

@@ -79,7 +79,7 @@ export function DealContactHistoryTab({
 
       if (error) throw error;
 
-      return (data || []).map((d: any) => ({
+      return (data || []).map((d) => ({
         id: d.id,
         dealId: d.id,
         buyerName: d.remarketing_buyers?.company_name || d.contact_name || 'Unknown',

@@ -29,7 +29,7 @@ interface Props {
 
 export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [before, setBefore] = useState<Record<string, unknown> | null>(null);
   const [after, setAfter] = useState<Record<string, unknown> | null>(null);
@@ -75,10 +75,11 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
 
       const fieldsUpdated = data?.fieldsUpdated?.length ?? 0;
       addLog(`enrich-deal for ${dealId.slice(0, 8)}… (${fieldsUpdated} fields updated)`, dur);
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`enrich-deal for ${dealId.slice(0, 8)}… — ${e.message}`, dur, false);
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      addLog(`enrich-deal for ${dealId.slice(0, 8)}… — ${message}`, dur, false);
     } finally {
       setLoading(false);
     }

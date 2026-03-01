@@ -95,7 +95,7 @@ export function TrackerDealsTable({
 
   // Sort deals
   const sortedDeals = [...deals].sort((a, b) => {
-    let aVal: any, bVal: any;
+    let aVal: string | number, bVal: string | number;
 
     switch (sortColumn) {
       case "name":

@@ -670,7 +670,7 @@ const ReMarketingUniverseDetail = () => {
           onOpenChange={setAddDealDialogOpen}
           universeId={id}
           defaultTab={addDealDefaultTab}
-          existingDealIds={universeDeals?.map((d: any) => d.listing?.id).filter(Boolean) || []}
+          existingDealIds={universeDeals?.map((d) => d.listing?.id).filter(Boolean) || []}
           onDealAdded={() => {
             refetchDeals();
             setAddDealDialogOpen(false);

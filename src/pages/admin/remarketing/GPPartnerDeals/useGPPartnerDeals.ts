@@ -168,8 +168,7 @@ export function useGPPartnerDeals() {
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
     if (hideNotFit) items = items.filter((d) => d.remarketing_status !== 'not_a_fit');
     items.sort((a, b) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let valA: any, valB: any;
+      let valA: string | number, valB: string | number;
       switch (sortColumn) {
         case 'company_name':
           valA = (a.internal_company_name || a.title || '').toLowerCase();

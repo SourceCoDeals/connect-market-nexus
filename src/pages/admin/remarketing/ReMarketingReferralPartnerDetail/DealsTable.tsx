@@ -19,11 +19,12 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { DealSourceBadge } from "@/components/remarketing/DealSourceBadge";
 import { useShiftSelect } from "@/hooks/useShiftSelect";
+import type { Tables } from "@/integrations/supabase/types";
 import type { SortField } from "./types";
 import { formatCurrency, normalizeCompanyName, getDomain } from "./helpers";
 
 interface DealsTableProps {
-  deals: any[];
+  deals: Tables<'listings'>[];
   sortField: SortField;
   sortDir: "asc" | "desc";
   toggleSort: (field: SortField) => void;

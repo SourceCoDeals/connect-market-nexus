@@ -2,9 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Cloud } from "lucide-react";
 import { format } from "date-fns";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface SalesforceInfoCardProps {
-  deal: any;
+  deal: Tables<'listings'>;
 }
 
 export function SalesforceInfoCard({ deal }: SalesforceInfoCardProps) {

@@ -1,7 +1,8 @@
 import { AlertCircle } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
 
 interface DataQualityWarningProps {
-  listing: any;
+  listing: Tables<'listings'>;
 }
 
 export function DataQualityWarning({ listing }: DataQualityWarningProps) {

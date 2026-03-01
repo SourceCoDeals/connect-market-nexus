@@ -14,7 +14,7 @@ interface Props {
 
 export default function ScoringSection({ addLog, dealId, runRef }: Props) {
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<any>(null);
+  const [response, setResponse] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scores, setScores] = useState<{
     deal_total_score: number | null;
@@ -51,10 +51,11 @@ export default function ScoringSection({ addLog, dealId, runRef }: Props) {
         `calculate-deal-quality for ${dealId.slice(0, 8)}… (score: ${listing?.deal_total_score ?? '—'})`,
         dur,
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`scoring — ${e.message}`, dur, false);
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      addLog(`scoring — ${message}`, dur, false);
     } finally {
       setLoading(false);
     }
