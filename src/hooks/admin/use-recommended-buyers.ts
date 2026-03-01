@@ -228,7 +228,7 @@ async function fetchContactBuyers(listingId: string, excludeIds: Set<string>) {
   return contacts.map((c) => c.remarketing_buyer_id as string).filter((id) => !excludeIds.has(id));
 }
 
-export function useRecommendedBuyers(listingId: string | undefined, limit = 25) {
+export function useRecommendedBuyers(listingId: string | null | undefined, limit = 25) {
   return useQuery<RecommendedBuyersResult>({
     queryKey: ['recommended-buyers', listingId, limit],
     queryFn: async () => {
