@@ -381,7 +381,7 @@ export default function ValuationLeads() {
       {/* Bulk Actions */}
       <DealBulkActionBar
         selectedIds={selectedIds}
-        deals={filteredLeads as any}
+        deals={filteredLeads as Array<{ id: string; is_priority_target?: boolean | null }>}
         onClearSelection={() => setSelectedIds(new Set())}
         onRefetch={refetch}
         onApproveToActiveDeals={(ids) => handlePushToAllDeals(ids)}

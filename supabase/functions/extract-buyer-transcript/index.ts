@@ -363,7 +363,7 @@ serve(async (req) => {
     console.log(`[REQUEST] Transcript: ${transcript_id || 'new'}, Universe: ${universe_id}, Buyer: ${buyer_id}`);
 
     let finalTranscriptText = transcript_text;
-    let transcriptRecord: any = null;
+    let transcriptRecord: Record<string, unknown> | null = null;
 
     // If transcript_id provided, load from database
     if (transcript_id) {
@@ -437,7 +437,7 @@ serve(async (req) => {
 
       // If buyer_id provided, update buyer record with insights
       if (buyer_id) {
-        const buyerUpdates: any = {};
+        const buyerUpdates: Record<string, unknown> = {};
 
         // Fetch existing buyer data for source priority checks
         const { data: existingBuyer } = await supabase
@@ -446,11 +446,9 @@ serve(async (req) => {
           .eq('id', buyer_id)
           .single();
 
-        const existingSources = (existingBuyer?.extraction_sources || []) as any[];
+        const existingSources = (existingBuyer?.extraction_sources || []) as Record<string, unknown>[];
 
-        // Helper: only set field if it doesn't already have higher-priority data
-        // Transcripts are highest priority (100), so they can overwrite anything
-        const safeSet = (field: string, value: any) => {
+        const safeSet = (field: string, value: unknown) => {
           if (value === null || value === undefined) return;
           if (Array.isArray(value) && value.length === 0) return;
           if (typeof value === 'string' && value.trim() === '') return;

@@ -206,9 +206,9 @@ describe('sanitizeString', () => {
   });
 
   it('returns empty string for non-string inputs', () => {
-    expect(sanitizeString(null as any)).toBe('');
-    expect(sanitizeString(undefined as any)).toBe('');
-    expect(sanitizeString(123 as any)).toBe('');
+    expect(sanitizeString(null as unknown as string)).toBe('');
+    expect(sanitizeString(undefined as unknown as string)).toBe('');
+    expect(sanitizeString(123 as unknown as string)).toBe('');
   });
 });
 

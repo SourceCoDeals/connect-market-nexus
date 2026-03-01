@@ -33,7 +33,7 @@ function useTeamMembers() {
       if (!user?.id) return [];
 
       // First get the current user's firm_id
-      const { data: membership } = await (supabase.from('firm_members') as any)
+      const { data: membership } = await (supabase.from('firm_members' as never) as unknown as ReturnType<typeof supabase.from>)
         .select('firm_id')
         .eq('user_id', user.id)
         .limit(1)
@@ -42,7 +42,7 @@ function useTeamMembers() {
       if (!membership?.firm_id) return [];
 
       // Then get all members of that firm, joined with profiles
-      const { data: members, error } = await (supabase.from('firm_members') as any)
+      const { data: members, error } = await (supabase.from('firm_members' as never) as unknown as ReturnType<typeof supabase.from>)
         .select(
           `
           id,

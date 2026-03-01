@@ -96,9 +96,8 @@ async function checkProviderAvailability(
   }
 }
 
-// Re-implement reportRateLimit
 async function reportRateLimit(
-  supabase: any,
+  supabase: MockSupabase,
   provider: AIProviderName,
   retryAfterSeconds?: number,
 ): Promise<void> {
@@ -131,9 +130,8 @@ async function reportRateLimit(
   }
 }
 
-// Re-implement withConcurrencyTracking
 async function withConcurrencyTracking<T>(
-  supabase: any,
+  supabase: MockSupabase,
   provider: AIProviderName,
   fn: () => Promise<T>,
 ): Promise<T> {
@@ -153,9 +151,8 @@ function getAdaptiveDelay(provider: AIProviderName, recentErrors: number = 0): n
   return Math.min(idealSpacing * (1 + recentErrors), limits.cooldownMs);
 }
 
-// Re-implement waitForProviderSlot
 async function waitForProviderSlot(
-  supabase: any,
+  supabase: MockSupabase,
   provider: AIProviderName,
   maxWaitMs: number = 30000,
 ): Promise<{ proceeded: boolean; waitedMs: number; rateLimited: boolean }> {
@@ -279,7 +276,7 @@ describe('Rate Limiter Tests', () => {
         }),
       };
 
-      const result = await checkProviderAvailability(supabase as any, 'gemini');
+      const result = await checkProviderAvailability(supabase as MockSupabase, 'gemini');
       expect(result.ok).toBe(true);
     });
   });
@@ -331,8 +328,7 @@ describe('Rate Limiter Tests', () => {
         }),
       };
 
-      // Should not throw
-      await expect(reportRateLimit(supabase as any, 'gemini')).resolves.not.toThrow();
+      await expect(reportRateLimit(supabase as MockSupabase, 'gemini')).resolves.not.toThrow();
 
       // Local state should still be set
       expect(localState['gemini']).toBeDefined();
@@ -502,7 +498,7 @@ describe('Rate Limiter Tests', () => {
         }),
       };
 
-      const result = await checkProviderAvailability(supabase as any, 'gemini');
+      const result = await checkProviderAvailability(supabase as MockSupabase, 'gemini');
       expect(result.ok).toBe(true);
     });
 
@@ -513,7 +509,7 @@ describe('Rate Limiter Tests', () => {
         }),
       };
 
-      await reportRateLimit(supabase as any, 'apify');
+      await reportRateLimit(supabase as MockSupabase, 'apify');
 
       // Local state should be set even though DB failed
       expect(localState['apify']).toBeDefined();

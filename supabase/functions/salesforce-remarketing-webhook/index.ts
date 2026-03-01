@@ -292,6 +292,6 @@ Deno.serve(async (req: Request) => {
     );
   } catch (err: unknown) {
     console.error("salesforce-remarketing-webhook error:", err);
-    return errorResponse(err.message || "Internal server error", 500, corsHeaders);
+    return errorResponse(err instanceof Error ? err.message : "Internal server error", 500, corsHeaders);
   }
 });
