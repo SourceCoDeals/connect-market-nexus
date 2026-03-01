@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
+import { DOCUSEAL_API_BASE, DOCUSEAL_SUBMISSIONS_URL } from "../_shared/api-urls.ts";
 
 /**
  * docuseal-integration-test
@@ -106,7 +107,7 @@ serve(async (req: Request) => {
     // ═══════════════════════════════════════
     results.push(
       await runTest("api_auth", "DocuSeal API Authentication", async () => {
-        const resp = await fetch("https://api.docuseal.com/templates?limit=1", {
+        const resp = await fetch(`${DOCUSEAL_API_BASE}/templates?limit=1`, {
           headers: { "X-Auth-Token": docusealApiKey },
         });
         if (resp.ok) {
@@ -138,7 +139,7 @@ serve(async (req: Request) => {
             allGood = false;
             continue;
           }
-          const resp = await fetch(`https://api.docuseal.com/templates/${id}`, {
+          const resp = await fetch(`${DOCUSEAL_API_BASE}/templates/${id}`, {
             headers: { "X-Auth-Token": docusealApiKey },
           });
           if (resp.ok) {
@@ -167,7 +168,7 @@ serve(async (req: Request) => {
           return { status: "skip", detail: "No template ID configured" };
         }
 
-        const resp = await fetch("https://api.docuseal.com/submissions", {
+        const resp = await fetch(DOCUSEAL_SUBMISSIONS_URL, {
           method: "POST",
           headers: {
             "X-Auth-Token": docusealApiKey,
@@ -214,7 +215,7 @@ serve(async (req: Request) => {
           return { status: "skip", detail: "No submission to retrieve" };
         }
 
-        const resp = await fetch(`https://api.docuseal.com/submissions/${submissionId}`, {
+        const resp = await fetch(`${DOCUSEAL_API_BASE}/submissions/${submissionId}`, {
           headers: { "X-Auth-Token": docusealApiKey },
         });
 
@@ -436,7 +437,7 @@ serve(async (req: Request) => {
     // Archive test submission on DocuSeal
     if (submissionId) {
       try {
-        await fetch(`https://api.docuseal.com/submissions/${submissionId}`, {
+        await fetch(`${DOCUSEAL_API_BASE}/submissions/${submissionId}`, {
           method: "DELETE",
           headers: { "X-Auth-Token": docusealApiKey },
         });

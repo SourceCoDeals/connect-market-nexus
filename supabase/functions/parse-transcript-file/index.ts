@@ -1,11 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { GEMINI_API_BASE, fetchWithAutoRetry } from "../_shared/ai-providers.ts";
+import { GEMINI_FLASH_MODEL } from "../_shared/api-urls.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 // Use Gemini Flash for PDF text extraction — fast, cheap, high output limits
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = GEMINI_FLASH_MODEL;
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);

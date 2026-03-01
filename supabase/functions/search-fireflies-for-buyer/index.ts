@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { FIREFLIES_GRAPHQL_URL } from '../_shared/api-urls.ts';
 
 /** Internal email domains to filter out when extracting external participants.
  * Configure via INTERNAL_EMAIL_DOMAINS env var (comma-separated) for flexibility.
@@ -60,7 +61,7 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
   const timeout = setTimeout(() => controller.abort(), FIREFLIES_API_TIMEOUT_MS);
 
   try {
-    const response = await fetch('https://api.fireflies.ai/graphql', {
+    const response = await fetch(FIREFLIES_GRAPHQL_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -76,7 +77,7 @@ async function firefliesGraphQL(query: string, variables?: Record<string, unknow
         `[fireflies] Rate limited (429), backing off ${FIREFLIES_RATE_LIMIT_BACKOFF_MS}ms`,
       );
       await new Promise((r) => setTimeout(r, FIREFLIES_RATE_LIMIT_BACKOFF_MS));
-      const retryRes = await fetch('https://api.fireflies.ai/graphql', {
+      const retryRes = await fetch(FIREFLIES_GRAPHQL_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

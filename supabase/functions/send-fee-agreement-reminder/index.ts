@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 /**
  * send-fee-agreement-reminder
@@ -131,7 +132,7 @@ serve(async (req: Request) => {
 
         let brevoResponse: Response;
         try {
-          brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+          brevoResponse = await fetch(BREVO_SMTP_URL, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

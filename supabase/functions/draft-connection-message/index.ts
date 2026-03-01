@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { ANTHROPIC_API_URL, CLAUDE_HAIKU_MODEL } from '../_shared/api-urls.ts';
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 
@@ -140,7 +141,7 @@ Write the message now. Do not include any preamble or explanation — just the m
       });
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
       headers: {
         'x-api-key': ANTHROPIC_API_KEY,
@@ -148,7 +149,7 @@ Write the message now. Do not include any preamble or explanation — just the m
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: CLAUDE_HAIKU_MODEL,
         max_tokens: 1024,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],

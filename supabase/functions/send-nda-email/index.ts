@@ -5,6 +5,7 @@ import { getAdminProfile } from "../_shared/admin-profiles.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin, escapeHtmlWithBreaks } from "../_shared/auth.ts";
 import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface SendNDAEmailRequest {
   userId?: string;
@@ -373,7 +374,7 @@ ${adminSignature}
           attachment: processedAttachments
         };
 
-        const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+        const brevoResponse = await fetch(BREVO_SMTP_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

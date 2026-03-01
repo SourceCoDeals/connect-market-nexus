@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
+import { DOCUSEAL_SUBMISSIONS_URL } from '../_shared/api-urls.ts';
 
 /**
  * auto-create-firm-on-approval
@@ -232,7 +233,7 @@ serve(async (req: Request) => {
 
         let docusealResponse: Response;
         try {
-          docusealResponse = await fetch('https://api.docuseal.com/submissions', {
+          docusealResponse = await fetch(DOCUSEAL_SUBMISSIONS_URL, {
             method: 'POST',
             headers: {
               'X-Auth-Token': docusealApiKey,

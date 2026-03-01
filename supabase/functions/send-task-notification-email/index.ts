@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface TaskNotificationRequest {
   assignee_email: string;
@@ -192,7 +193,7 @@ This is an automated notification from your admin task management system.`;
     }
 
     // Send email using Brevo
-    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const brevoResponse = await fetch(BREVO_SMTP_URL, {
       method: 'POST',
       headers: {
         'accept': 'application/json',

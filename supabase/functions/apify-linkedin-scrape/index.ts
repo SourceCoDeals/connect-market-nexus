@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { APIFY_API_BASE } from '../_shared/api-urls.ts';
 
 interface ApifyLinkedInResult {
   name?: string;
@@ -443,12 +444,11 @@ async function scrapeWithApify(
   linkedinUrl: string,
 ): Promise<ApifyLinkedInResult | null> {
   const ACTOR_ID = 'logical_scrapers~linkedin-company-scraper';
-  const API_BASE = 'https://api.apify.com/v2';
 
   try {
     // Start the actor run synchronously (wait for results)
     // SECURITY: Use Authorization header instead of query param to avoid token leaking in logs
-    const runUrl = `${API_BASE}/acts/${ACTOR_ID}/run-sync-get-dataset-items`;
+    const runUrl = `${APIFY_API_BASE}/acts/${ACTOR_ID}/run-sync-get-dataset-items`;
 
     console.log(`Starting Apify actor run for: ${linkedinUrl}`);
 

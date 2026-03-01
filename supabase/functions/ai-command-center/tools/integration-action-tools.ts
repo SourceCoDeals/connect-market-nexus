@@ -26,6 +26,7 @@ import {
 } from '../../_shared/apify-client.ts';
 import { batchEnrich, domainSearchEnrich, enrichContact } from '../../_shared/prospeo-client.ts';
 import { findCompanyLinkedIn, googleSearch } from '../../_shared/serper-client.ts';
+import { DOCUSEAL_SUBMISSIONS_URL } from '../../_shared/api-urls.ts';
 
 // ---------- Tool definitions ----------
 
@@ -2734,7 +2735,7 @@ async function sendDocument(
 
   let docusealResponse: Response;
   try {
-    docusealResponse = await fetch('https://api.docuseal.com/submissions', {
+    docusealResponse = await fetch(DOCUSEAL_SUBMISSIONS_URL, {
       method: 'POST',
       headers: {
         'X-Auth-Token': docusealApiKey,

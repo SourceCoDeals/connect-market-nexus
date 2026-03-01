@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { GEMINI_API_URL, getGeminiHeaders } from "../_shared/ai-providers.ts";
+import { GEMINI_FLASH_MODEL } from "../_shared/api-urls.ts";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 // Gemini API configuration
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = GEMINI_FLASH_MODEL;
 
 interface TranscriptExtractionRequest {
   transcript_id?: string;

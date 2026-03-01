@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin, escapeHtml, escapeHtmlWithBreaks } from "../_shared/auth.ts";
 import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface UserNotificationRequest {
   email: string;
@@ -115,7 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("BREVO_API_KEY not configured");
     }
 
-    const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+    const emailResponse = await fetch(BREVO_SMTP_URL, {
       method: "POST",
       headers: {
         "api-key": brevoApiKey,

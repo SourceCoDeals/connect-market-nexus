@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface DealAlertRequest {
   alert_id: string;
@@ -177,7 +178,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("BREVO_API_KEY not configured");
     }
 
-    const brevoResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+    const brevoResponse = await fetch(BREVO_SMTP_URL, {
       method: "POST",
       headers: {
         "api-key": brevoApiKey,

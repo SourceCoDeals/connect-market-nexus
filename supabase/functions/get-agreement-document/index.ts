@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
+import { DOCUSEAL_API_BASE } from '../_shared/api-urls.ts';
 
 /**
  * get-agreement-document
@@ -114,7 +115,7 @@ serve(async (req: Request) => {
     let docRes: Response;
     try {
       docRes = await fetch(
-        `https://api.docuseal.com/submissions/${submissionId}/documents`,
+        `${DOCUSEAL_API_BASE}/submissions/${submissionId}/documents`,
         {
           headers: { 'X-Auth-Token': docusealApiKey },
           signal: fetchController.signal,

@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { RESEND_EMAILS_URL, BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface AdminNotificationRequest {
   first_name: string;
@@ -74,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
               break;
             }
             
-            response = await fetch("https://api.resend.com/emails", {
+            response = await fetch(RESEND_EMAILS_URL, {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${resendApiKey}`,
@@ -117,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
               break;
             }
             
-            response = await fetch("https://api.brevo.com/v3/smtp/email", {
+            response = await fetch(BREVO_SMTP_URL, {
               method: "POST",
               headers: {
                 "api-key": brevoApiKey,

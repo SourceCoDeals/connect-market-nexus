@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin } from "../_shared/auth.ts";
 import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface SendApprovalEmailRequest {
   userId: string;
@@ -96,7 +97,7 @@ const handler = async (req: Request): Promise<Response> => {
     const textSignature = customSignatureText || `\n\nQuestions? Reply to this email.\n\n${senderInfo.name}\nSourceCo`;
 
     // Send email using Brevo - plain text only
-    const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const emailResponse = await fetch(BREVO_SMTP_URL, {
       method: 'POST',
       headers: {
         'accept': 'application/json',

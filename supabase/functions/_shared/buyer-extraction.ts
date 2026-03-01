@@ -13,6 +13,7 @@
  */
 
 import { callGeminiWithTool, type RateLimitConfig } from "./ai-providers.ts";
+import { GEMINI_FLASH_MODEL } from "./api-urls.ts";
 import {
   type SourceType,
   TRANSCRIPT_PROTECTED_FIELDS,
@@ -28,7 +29,7 @@ import { normalizeState, VALID_US_STATE_CODES } from "./geography.ts";
 // ============================================================================
 
 export const BUYER_AI_CONFIG = {
-  model: 'gemini-2.0-flash',
+  model: GEMINI_FLASH_MODEL,
   max_tokens: 4096,
   temperature: 0, // Deterministic extraction
 };

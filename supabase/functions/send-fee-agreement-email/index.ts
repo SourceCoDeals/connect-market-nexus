@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin, escapeHtmlWithBreaks } from "../_shared/auth.ts";
 import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface AdminProfile {
   email: string;
@@ -385,7 +386,7 @@ ${adminSignature}
           brevoPayload.attachment = processedAttachments;
         }
 
-        const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+        const emailResponse = await fetch(BREVO_SMTP_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface OwnerInquiryNotification {
   name: string;
@@ -123,7 +124,7 @@ const handler = async (req: Request): Promise<Response> => {
     const recipientEmail = Deno.env.get('OWNER_INQUIRY_RECIPIENT_EMAIL') || "adam.haile@sourcecodeals.com";
     const correlationId = crypto.randomUUID();
 
-    const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
+    const emailResponse = await fetch(BREVO_SMTP_URL, {
       method: "POST",
       headers: {
         "api-key": brevoApiKey,

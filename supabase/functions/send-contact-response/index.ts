@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { logEmailDelivery } from "../_shared/email-logger.ts";
+import { BREVO_SMTP_URL } from "../_shared/api-urls.ts";
 
 interface ContactResponseData {
   to: string;
@@ -130,7 +131,7 @@ This is an automated response. Please do not reply to this email.`;
     console.log('📬 Sending email via Brevo API...');
 
     // Send email using Brevo API
-    const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const emailResponse = await fetch(BREVO_SMTP_URL, {
       method: 'POST',
       headers: {
         'accept': 'application/json',
