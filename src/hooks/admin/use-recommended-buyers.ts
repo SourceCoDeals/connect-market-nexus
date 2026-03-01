@@ -398,7 +398,7 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
         ),
       ]);
 
-      const buyerMap = new Map(buyersData.map((b) => [b.id as string, b]));
+      const buyerMap = new Map(buyersData.map((b: any) => [b.id as string, b as any]));
 
       // Build engagement map from connection requests
       const engagementMap = new Map<string, { last_date: string; type: string }>();

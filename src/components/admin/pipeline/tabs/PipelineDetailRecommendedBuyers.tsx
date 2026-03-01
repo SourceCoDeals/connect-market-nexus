@@ -51,7 +51,7 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
   const autoScore = useAutoScoreDeal(deal.listing_id || undefined, hasScores);
 
-  const { createIntroduction, isCreating } = useBuyerIntroductions(deal.listing_id || undefined);
+  const { createIntroduction } = useBuyerIntroductions(deal.listing_id || undefined);
 
   // Auto-trigger scoring for active deals (not lead sources)
   useEffect(() => {
