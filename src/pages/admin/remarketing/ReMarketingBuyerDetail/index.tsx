@@ -19,9 +19,10 @@ import {
   Phone,
   PhoneCall,
   Users,
-} from "lucide-react";
+} from 'lucide-react';
 import { EntityTasksTab } from '@/components/daily-tasks';
-import { BuyerAgreementsPanel } from "@/components/ma-intelligence/BuyerAgreementsPanel";
+import { BuyerAgreementsPanel } from '@/components/ma-intelligence/BuyerAgreementsPanel';
+import { SmartleadEmailHistory } from '@/components/remarketing/SmartleadEmailHistory';
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -37,15 +38,15 @@ import {
   BuyerServicesBusinessModelCard,
 } from '@/components/remarketing/buyer-detail';
 
-import { EditDialogType } from "./types";
-import { useBuyerData } from "./useBuyerData";
-import { useBuyerMutations } from "./useBuyerMutations";
-import { useExtractionHandlers } from "./useExtractionHandlers";
-import { ContactsTab } from "./ContactsTab";
-import { DealHistoryTab } from "./DealHistoryTab";
-import { AddContactDialog } from "./AddContactDialog";
-import { EditDialogs } from "./EditDialogs";
-import { CallActivityTab } from "./CallActivityTab";
+import { EditDialogType } from './types';
+import { useBuyerData } from './useBuyerData';
+import { useBuyerMutations } from './useBuyerMutations';
+import { useExtractionHandlers } from './useExtractionHandlers';
+import { ContactsTab } from './ContactsTab';
+import { DealHistoryTab } from './DealHistoryTab';
+import { AddContactDialog } from './AddContactDialog';
+import { EditDialogs } from './EditDialogs';
+import { CallActivityTab } from './CallActivityTab';
 
 const ReMarketingBuyerDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -340,9 +341,10 @@ const ReMarketingBuyerDetail = () => {
           </Card>
         </TabsContent>
 
-        {/* Call Activity Tab (PhoneBurner) */}
+        {/* Call Activity Tab (PhoneBurner + Smartlead) */}
         <TabsContent value="call-activity" className="space-y-4">
           <CallActivityTab buyerId={buyer?.id || ''} />
+          <SmartleadEmailHistory buyerId={buyer?.id || ''} />
         </TabsContent>
 
         {/* Deal History Tab */}

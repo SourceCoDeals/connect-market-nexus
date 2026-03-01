@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -18,12 +19,18 @@ import {
   Phone,
   UserCheck,
   Mail as MailIcon,
+  ChevronDown,
+  XCircle,
 } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useRecommendedBuyers } from '@/hooks/admin/use-recommended-buyers';
-import { useQueryClient } from '@tanstack/react-query';
+import { useRejectBuyer } from '@/hooks/admin/use-reject-buyer';
+import { useSetScoreOverride } from '@/hooks/admin/use-set-score-override';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { BuyerRecommendationCard } from './recommended-buyers/BuyerRecommendationCard';
 import { BuyerNarrativePanel } from './recommended-buyers/BuyerNarrativePanel';
+import { RejectBuyerDialog } from './recommended-buyers/RejectBuyerDialog';
 
 interface PipelineDetailRecommendedBuyersProps {
   deal: Deal;
@@ -35,11 +42,40 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const [sortBy, setSortBy] = useState<SortOption>('score');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAll, setShowAll] = useState(false);
+  const [rejectTarget, setRejectTarget] = useState<{ buyerId: string; buyerName: string } | null>(
+    null,
+  );
+  const [rejectionHistoryOpen, setRejectionHistoryOpen] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const limit = showAll ? 100 : 25;
   const { data, isLoading, isFetching } = useRecommendedBuyers(deal.listing_id, limit);
+  const rejectMutation = useRejectBuyer(deal.listing_id);
+  const overrideMutation = useSetScoreOverride();
+
+  // Rejection history query
+  const { data: rejectedBuyers } = useQuery({
+    queryKey: ['rejected-buyers', deal.listing_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_scores')
+        .select(
+          'buyer_id, rejection_reason, rejected_at, buyer:remarketing_buyers!inner(company_name)',
+        )
+        .eq('listing_id', deal.listing_id!)
+        .eq('is_disqualified', true)
+        .order('rejected_at', { ascending: false });
+      if (error) throw error;
+      return data as Array<{
+        buyer_id: string;
+        rejection_reason: string | null;
+        rejected_at: string | null;
+        buyer: { company_name: string };
+      }>;
+    },
+    enabled: !!deal.listing_id,
+  });
 
   const filteredAndSorted = useMemo(() => {
     if (!data?.buyers) return [];
@@ -109,6 +145,33 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
 
   const handleViewProfile = (buyerId: string) => {
     navigate(`/admin/buyers/${buyerId}`);
+  };
+
+  const handleReject = (buyerId: string, buyerName: string) => {
+    setRejectTarget({ buyerId, buyerName });
+  };
+
+  const handleSetOverride = (buyerId: string, score: number) => {
+    if (!deal.listing_id) return;
+    overrideMutation.mutate({ buyer_id: buyerId, listing_id: deal.listing_id, score });
+  };
+
+  const handleConfirmReject = (reason: string, notes?: string) => {
+    if (!rejectTarget || !deal.listing_id) return;
+    rejectMutation.mutate(
+      {
+        listing_id: deal.listing_id,
+        buyer_id: rejectTarget.buyerId,
+        rejection_reason: reason,
+        rejection_notes: notes,
+      },
+      {
+        onSuccess: () => {
+          setRejectTarget(null);
+          queryClient.invalidateQueries({ queryKey: ['rejected-buyers', deal.listing_id] });
+        },
+      },
+    );
   };
 
   if (!deal.listing_id) {
@@ -266,6 +329,8 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
               rank={idx + 1}
               onDraftEmail={handleDraftEmail}
               onViewProfile={handleViewProfile}
+              onReject={handleReject}
+              onSetOverride={handleSetOverride}
             />
           ))}
         </div>
@@ -290,11 +355,65 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
           </div>
         )}
 
+        {/* Rejection History */}
+        {rejectedBuyers && rejectedBuyers.length > 0 && (
+          <Collapsible open={rejectionHistoryOpen} onOpenChange={setRejectionHistoryOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-between text-xs text-muted-foreground"
+              >
+                <span className="flex items-center gap-1.5">
+                  <XCircle className="h-3.5 w-3.5" />
+                  Rejection History ({rejectedBuyers.length})
+                </span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${rejectionHistoryOpen ? 'rotate-180' : ''}`}
+                />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="space-y-1.5 pt-2">
+                {rejectedBuyers.map((rb) => (
+                  <div
+                    key={rb.buyer_id}
+                    className="flex items-center justify-between px-3 py-2 rounded-md bg-muted/30 text-xs"
+                  >
+                    <div>
+                      <span className="font-medium">{rb.buyer?.company_name || 'Unknown'}</span>
+                      {rb.rejection_reason && (
+                        <span className="text-muted-foreground ml-2">— {rb.rejection_reason}</span>
+                      )}
+                    </div>
+                    {rb.rejected_at && (
+                      <span className="text-muted-foreground/60">
+                        {new Date(rb.rejected_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
         {/* Cache indicator */}
         <div className="text-center text-[10px] text-muted-foreground/40">
           Last updated: {new Date(data.cachedAt).toLocaleString()}
         </div>
       </div>
+
+      {/* Reject Dialog */}
+      <RejectBuyerDialog
+        open={!!rejectTarget}
+        onOpenChange={(open) => {
+          if (!open) setRejectTarget(null);
+        }}
+        buyerName={rejectTarget?.buyerName || ''}
+        onConfirm={handleConfirmReject}
+        isLoading={rejectMutation.isPending}
+      />
     </ScrollArea>
   );
 }

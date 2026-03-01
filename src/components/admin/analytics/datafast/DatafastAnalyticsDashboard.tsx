@@ -1,23 +1,29 @@
-import { useState } from "react";
-import { format } from "date-fns";
-import { CalendarIcon, RefreshCw } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useUnifiedAnalytics } from "@/hooks/useUnifiedAnalytics";
-import { AnalyticsFiltersProvider, useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
-import { KPIStrip } from "./KPIStrip";
-import { DailyVisitorsChart } from "./DailyVisitorsChart";
-import { SourcesCard } from "./SourcesCard";
-import { GeographyCard } from "./GeographyCard";
-import { PagesCard } from "./PagesCard";
-import { TechStackCard } from "./TechStackCard";
-import { ConversionCard } from "./ConversionCard";
-import { FloatingGlobeToggle } from "./FloatingGlobeToggle";
-import { FloatingFilterBar } from "./FloatingFilterBar";
-import { cn } from "@/lib/utils";
+import { useState } from 'react';
+import { format } from 'date-fns';
+import { CalendarIcon, RefreshCw } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useUnifiedAnalytics } from '@/hooks/useUnifiedAnalytics';
+import { AnalyticsFiltersProvider, useAnalyticsFilters } from '@/context/AnalyticsFiltersContext';
+import { KPIStrip } from './KPIStrip';
+import { DailyVisitorsChart } from './DailyVisitorsChart';
+import { SourcesCard } from './SourcesCard';
+import { GeographyCard } from './GeographyCard';
+import { PagesCard } from './PagesCard';
+import { TechStackCard } from './TechStackCard';
+import { ConversionCard } from './ConversionCard';
+import { FloatingGlobeToggle } from './FloatingGlobeToggle';
+import { FloatingFilterBar } from './FloatingFilterBar';
+import { cn } from '@/lib/utils';
 
 export function DatafastAnalyticsDashboard() {
   return (
@@ -28,13 +34,13 @@ export function DatafastAnalyticsDashboard() {
 }
 
 function DashboardContent() {
-  const [timeRange, setTimeRange] = useState("30");
+  const [timeRange, setTimeRange] = useState('30');
   const [customDateRange, setCustomDateRange] = useState<{ from: Date; to: Date } | null>(null);
   const [isCustomMode, setIsCustomMode] = useState(false);
   const { filters } = useAnalyticsFilters();
-  
+
   const handleTimeRangeChange = (value: string) => {
-    if (value === "custom") {
+    if (value === 'custom') {
       setIsCustomMode(true);
     } else {
       setIsCustomMode(false);
@@ -43,8 +49,10 @@ function DashboardContent() {
     }
   };
 
-  const timeRangeDays = customDateRange 
-    ? Math.ceil((customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24))
+  const timeRangeDays = customDateRange
+    ? Math.ceil(
+        (customDateRange.to.getTime() - customDateRange.from.getTime()) / (1000 * 60 * 60 * 24),
+      )
     : parseInt(timeRange);
 
   const { data, isLoading, refetch, isRefetching } = useUnifiedAnalytics(timeRangeDays, filters);
@@ -53,10 +61,10 @@ function DashboardContent() {
     <div className="space-y-6 pb-24">
       {/* Floating Filter Bar at top */}
       <FloatingFilterBar />
-      
+
       {/* Compact Header - just controls */}
       <div className="flex items-center justify-end gap-2">
-        <Select value={isCustomMode ? "custom" : timeRange} onValueChange={handleTimeRangeChange}>
+        <Select value={isCustomMode ? 'custom' : timeRange} onValueChange={handleTimeRangeChange}>
           <SelectTrigger className="w-[140px] h-9 rounded-lg border-border/50 bg-card text-sm">
             <SelectValue />
           </SelectTrigger>
@@ -74,18 +82,19 @@ function DashboardContent() {
               <Button
                 variant="outline"
                 className={cn(
-                  "h-9 px-3 rounded-lg border-border/50 bg-card justify-start text-left font-normal text-sm",
-                  !customDateRange && "text-muted-foreground"
+                  'h-9 px-3 rounded-lg border-border/50 bg-card justify-start text-left font-normal text-sm',
+                  !customDateRange && 'text-muted-foreground',
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {customDateRange?.from ? (
                   customDateRange.to ? (
                     <>
-                      {format(customDateRange.from, "MMM d")} - {format(customDateRange.to, "MMM d")}
+                      {format(customDateRange.from, 'MMM d')} -{' '}
+                      {format(customDateRange.to, 'MMM d')}
                     </>
                   ) : (
-                    format(customDateRange.from, "MMM d, yyyy")
+                    format(customDateRange.from, 'MMM d, yyyy')
                   )
                 ) : (
                   <span>Pick dates</span>
@@ -97,7 +106,11 @@ function DashboardContent() {
                 initialFocus
                 mode="range"
                 defaultMonth={customDateRange?.from}
-                selected={customDateRange ? { from: customDateRange.from, to: customDateRange.to } : undefined}
+                selected={
+                  customDateRange
+                    ? { from: customDateRange.from, to: customDateRange.to }
+                    : undefined
+                }
                 onSelect={(range) => {
                   if (range?.from && range?.to) {
                     setCustomDateRange({ from: range.from, to: range.to });
@@ -117,7 +130,7 @@ function DashboardContent() {
           onClick={() => refetch()}
           disabled={isRefetching}
         >
-          <RefreshCw className={cn("h-4 w-4", isRefetching && "animate-spin")} />
+          <RefreshCw className={cn('h-4 w-4', isRefetching && 'animate-spin')} />
         </Button>
       </div>
 
@@ -127,51 +140,46 @@ function DashboardContent() {
         <>
           {/* KPI Strip */}
           <KPIStrip data={data.kpis} />
-          
+
           {/* Daily Chart */}
           <DailyVisitorsChart data={data.dailyMetrics} />
-          
+
           {/* Sources & Geography Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <SourcesCard 
+            <SourcesCard
               channels={data.channels}
               referrers={data.referrers}
               campaigns={data.campaigns}
               keywords={data.keywords}
             />
-            <GeographyCard 
+            <GeographyCard
               countries={data.countries}
               regions={data.regions}
               cities={data.cities}
               geoCoverage={data.geoCoverage}
             />
           </div>
-          
+
           {/* Pages & Tech Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <PagesCard 
+            <PagesCard
               topPages={data.topPages}
               entryPages={data.entryPages}
               exitPages={data.exitPages}
               blogEntryPages={data.blogEntryPages}
             />
-            <TechStackCard 
+            <TechStackCard
               browsers={data.browsers}
               operatingSystems={data.operatingSystems}
               devices={data.devices}
             />
           </div>
-          
+
           {/* Conversion Card */}
-          <ConversionCard 
-            funnel={data.funnel}
-            topUsers={data.topUsers}
-          />
+          <ConversionCard funnel={data.funnel} topUsers={data.topUsers} />
         </>
       ) : (
-        <div className="text-center py-12 text-muted-foreground">
-          No data available
-        </div>
+        <div className="text-center py-12 text-muted-foreground">No data available</div>
       )}
 
       {/* Floating Globe Toggle */}
@@ -192,21 +200,21 @@ function LoadingSkeleton() {
           </div>
         ))}
       </div>
-      
+
       {/* Chart Skeleton */}
       <Skeleton className="h-[340px] rounded-2xl" />
-      
+
       {/* Two Column Skeleton */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Skeleton className="h-[300px] rounded-2xl" />
         <Skeleton className="h-[300px] rounded-2xl" />
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Skeleton className="h-[280px] rounded-2xl" />
         <Skeleton className="h-[280px] rounded-2xl" />
       </div>
-      
+
       <Skeleton className="h-[250px] rounded-2xl" />
     </div>
   );

@@ -1,8 +1,8 @@
-import { ReactNode } from "react";
-import { Filter } from "lucide-react";
-import { useAnalyticsFilters, AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
-import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ReactNode } from 'react';
+import { Filter } from 'lucide-react';
+import { useAnalyticsFilters, AnalyticsFilter } from '@/context/AnalyticsFiltersContext';
+import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ClickableRowProps {
   children: ReactNode;
@@ -12,7 +12,7 @@ interface ClickableRowProps {
 
 export function ClickableRow({ children, filter, className }: ClickableRowProps) {
   const { addFilter, hasFilter } = useAnalyticsFilters();
-  
+
   const isActive = hasFilter(filter.type, filter.value);
 
   const handleClick = () => {
@@ -28,13 +28,13 @@ export function ClickableRow({ children, filter, className }: ClickableRowProps)
           <div
             onClick={handleClick}
             className={cn(
-              "relative group cursor-pointer transition-all",
-              isActive && "opacity-60",
-              className
+              'relative group cursor-pointer transition-all',
+              isActive && 'opacity-60',
+              className,
             )}
           >
             {children}
-            
+
             {/* Filter indicator on hover */}
             {!isActive && (
               <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">

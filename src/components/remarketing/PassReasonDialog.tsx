@@ -1,4 +1,13 @@
-import { useState } from "react";
+/**
+ * PassReasonDialog — Remarketing variant.
+ *
+ * Purely presentational: emits the selected reason via onConfirm callback.
+ * The parent component handles the mutation to remarketing_scores.
+ * A separate PassReasonDialog exists at src/components/ma-intelligence/PassReasonDialog.tsx
+ * for the M&A Intelligence flow. That variant handles its own Supabase mutation to
+ * buyer_deal_scores and uses a different UI (Select dropdown vs RadioGroup).
+ */
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,12 +15,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { X } from 'lucide-react';
 
 interface PassReasonDialogProps {
   open: boolean;
@@ -22,10 +31,26 @@ interface PassReasonDialogProps {
 }
 
 const PASS_REASONS = [
-  { value: 'not_a_fit', label: 'Not a fit', description: 'Buyer criteria don\'t align with this deal' },
-  { value: 'size_mismatch', label: 'Size mismatch', description: 'Deal size outside buyer\'s target range' },
-  { value: 'geography', label: 'Geography issue', description: 'Location doesn\'t match buyer targets' },
-  { value: 'already_contacted', label: 'Already contacted', description: 'Buyer has been approached before' },
+  {
+    value: 'not_a_fit',
+    label: 'Not a fit',
+    description: "Buyer criteria don't align with this deal",
+  },
+  {
+    value: 'size_mismatch',
+    label: 'Size mismatch',
+    description: "Deal size outside buyer's target range",
+  },
+  {
+    value: 'geography',
+    label: 'Geography issue',
+    description: "Location doesn't match buyer targets",
+  },
+  {
+    value: 'already_contacted',
+    label: 'Already contacted',
+    description: 'Buyer has been approached before',
+  },
   { value: 'timing', label: 'Timing issue', description: 'Buyer not actively looking right now' },
   { value: 'other', label: 'Other', description: 'Specify reason in notes' },
 ] as const;
@@ -41,7 +66,7 @@ export const PassReasonDialog = ({
   const [notes, setNotes] = useState('');
 
   const handleConfirm = () => {
-    const reason = PASS_REASONS.find(r => r.value === selectedReason);
+    const reason = PASS_REASONS.find((r) => r.value === selectedReason);
     onConfirm(reason?.label || 'Other', selectedReason, notes || undefined);
     setSelectedReason('not_a_fit');
     setNotes('');
@@ -69,7 +94,7 @@ export const PassReasonDialog = ({
         <div className="py-4 space-y-4">
           <RadioGroup value={selectedReason} onValueChange={setSelectedReason}>
             {PASS_REASONS.map((reason) => (
-              <div 
+              <div
                 key={reason.value}
                 className="flex items-start space-x-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
                 onClick={() => setSelectedReason(reason.value)}
@@ -102,8 +127,8 @@ export const PassReasonDialog = ({
           <Button variant="outline" onClick={handleClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleConfirm} 
+          <Button
+            onClick={handleConfirm}
             disabled={isLoading}
             className="bg-red-600 hover:bg-red-700"
           >

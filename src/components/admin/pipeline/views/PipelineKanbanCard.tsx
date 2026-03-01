@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useUnreadMessageCounts } from '@/hooks/use-connection-messages';
+import { getScoreBadgeVariant } from '@/components/shared/ReMarketingScoreBadge';
 
 interface PipelineKanbanCardProps {
   deal: Deal;
@@ -29,7 +30,10 @@ const BUYER_TYPE_LABELS: Record<string, string> = {
 
 const TIER_CONFIG: Record<number, { label: string; style: React.CSSProperties }> = {
   1: { label: 'T1', style: { backgroundColor: '#DEC76B', color: '#0E101A' } },
-  2: { label: 'T2', style: { backgroundColor: '#F7F4DD', color: '#0E101A', border: '1px solid #DEC76B' } },
+  2: {
+    label: 'T2',
+    style: { backgroundColor: '#F7F4DD', color: '#0E101A', border: '1px solid #DEC76B' },
+  },
   3: { label: 'T3', style: { backgroundColor: '#F0EDE4', color: '#5A5A5A' } },
   4: { label: 'T4', style: { backgroundColor: '#E8E8E8', color: '#7A7A7A' } },
 };
@@ -37,7 +41,11 @@ const TIER_CONFIG: Record<number, { label: string; style: React.CSSProperties }>
 export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKanbanCardProps) {
   const queryClient = useQueryClient();
   const {
-    attributes, listeners, setNodeRef, transform, transition,
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
     isDragging: isSortableDragging,
   } = useSortable({ id: `deal:${deal.deal_id}` });
 
@@ -45,12 +53,16 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
   const isBeingDragged = isDragging || isSortableDragging;
   const assignedAdmin = useAdminProfile(deal.assigned_to);
   const { data: unreadCounts } = useUnreadMessageCounts();
-  const unreadCount = deal.connection_request_id ? (unreadCounts?.byRequest[deal.connection_request_id] || 0) : 0;
+  const unreadCount = deal.connection_request_id
+    ? unreadCounts?.byRequest[deal.connection_request_id] || 0
+    : 0;
 
   const companyName = deal.listing_real_company_name || deal.listing_title || 'Unnamed Company';
   const contactName = deal.contact_name || deal.buyer_name || 'Unknown';
   const buyerCompany = deal.contact_company || deal.buyer_company;
-  const buyerTypeLabel = deal.buyer_type ? (BUYER_TYPE_LABELS[deal.buyer_type] || deal.buyer_type) : null;
+  const buyerTypeLabel = deal.buyer_type
+    ? BUYER_TYPE_LABELS[deal.buyer_type] || deal.buyer_type
+    : null;
 
   const fmt = (val: number) => {
     if (!val) return '—';
@@ -66,7 +78,6 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return `${d}d`;
   })();
 
-
   const ownerDisplayName = (() => {
     const name = assignedAdmin?.displayName;
     if (!name || name === 'Unassigned') return 'Unassigned';
@@ -75,13 +86,21 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return parts[0];
   })();
 
-  const handleCardClick = () => { if (!isBeingDragged) onDealClick(deal); };
+  const handleCardClick = () => {
+    if (!isBeingDragged) onDealClick(deal);
+  };
 
   const handleMeetingToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const next = !deal.meeting_scheduled;
-    const { error } = await supabase.from('deals').update({ meeting_scheduled: next }).eq('id', deal.deal_id);
-    if (error) { toast.error('Failed to update'); return; }
+    const { error } = await supabase
+      .from('deals')
+      .update({ meeting_scheduled: next })
+      .eq('id', deal.deal_id);
+    if (error) {
+      toast.error('Failed to update');
+      return;
+    }
     toast.success(next ? 'Meeting scheduled' : 'Meeting unscheduled');
     queryClient.invalidateQueries({ queryKey: ['deals'] });
   };
@@ -93,12 +112,14 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
     return 'bg-muted-foreground/30';
   };
 
-  // Score badge color - SourceCo brand: gold for high, charcoal for mid, dark for low
+  // Score badge color - uses shared variant for colour classification, then
+  // maps to SourceCo brand palette for the Kanban card context.
   const scoreStyle = (() => {
     const s = deal.deal_score;
     if (s == null) return null;
-    if (s >= 70) return { backgroundColor: '#DEC76B', color: '#0E101A' };
-    if (s >= 40) return { backgroundColor: '#0E101A', color: '#FFFFFF' };
+    const variant = getScoreBadgeVariant(s);
+    if (variant === 'emerald') return { backgroundColor: '#DEC76B', color: '#0E101A' };
+    if (variant === 'amber') return { backgroundColor: '#0E101A', color: '#FFFFFF' };
     return { backgroundColor: '#8B0000', color: '#FFFFFF' };
   })();
 
@@ -107,12 +128,14 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
 
   return (
     <div
-      ref={setNodeRef} {...listeners} {...attributes}
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
       style={{ ...style, fontFamily: 'Montserrat, Inter, sans-serif', borderColor: '#CBCBCB' }}
       className={cn(
-        "group relative mb-3 cursor-pointer rounded-[10px] overflow-hidden transition-all duration-200 border-2",
-        isBeingDragged && "shadow-2xl scale-[1.02] z-50 opacity-95",
-        !isBeingDragged && "hover:shadow-[0_4px_16px_rgba(222,199,107,0.25)] hover:-translate-y-px"
+        'group relative mb-3 cursor-pointer rounded-[10px] overflow-hidden transition-all duration-200 border-2',
+        isBeingDragged && 'shadow-2xl scale-[1.02] z-50 opacity-95',
+        !isBeingDragged && 'hover:shadow-[0_4px_16px_rgba(222,199,107,0.25)] hover:-translate-y-px',
       )}
       onClick={handleCardClick}
     >
@@ -125,9 +148,7 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         }}
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 style={{ color: '#0E101A' }} className={cn(
-            "text-[15px] font-bold leading-snug",
-          )}>
+          <h3 style={{ color: '#0E101A' }} className={cn('text-[15px] font-bold leading-snug')}>
             {companyName}
           </h3>
           {deal.deal_score != null && scoreStyle && (
@@ -149,11 +170,15 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
             {buyerCompany || contactName}
           </div>
           {buyerCompany && (
-            <div className="text-xs truncate" style={{ color: '#5A5A5A' }}>{contactName}</div>
+            <div className="text-xs truncate" style={{ color: '#5A5A5A' }}>
+              {contactName}
+            </div>
           )}
           <div className="flex items-center gap-1.5 mt-1">
             {buyerTypeLabel && (
-              <span className="text-[11px] font-semibold" style={{ color: '#5A5A5A' }}>{buyerTypeLabel}</span>
+              <span className="text-[11px] font-semibold" style={{ color: '#5A5A5A' }}>
+                {buyerTypeLabel}
+              </span>
             )}
             {tierConfig && (
               <span
@@ -169,32 +194,51 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         {/* Tags Row: Industry + NDA + Fee */}
         <div className="flex flex-wrap gap-1.5">
           {deal.listing_category && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded" style={{ backgroundColor: '#F7F4DD', color: '#0E101A', border: '1px solid #DEC76B' }}>
+            <span
+              className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded"
+              style={{ backgroundColor: '#F7F4DD', color: '#0E101A', border: '1px solid #DEC76B' }}
+            >
               {deal.listing_category}
             </span>
           )}
           {deal.nda_status === 'signed' && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded" style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}>
+            <span
+              className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded"
+              style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}
+            >
               NDA
             </span>
           )}
           {deal.fee_agreement_status === 'signed' && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded" style={{ backgroundColor: '#DEC76B', color: '#0E101A' }}>
+            <span
+              className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded"
+              style={{ backgroundColor: '#DEC76B', color: '#0E101A' }}
+            >
               Fee
             </span>
           )}
         </div>
 
-      {/* Financials */}
+        {/* Financials */}
         <div className="space-y-1.5">
           <div className="flex items-baseline justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#5A5A5A' }}>EBITDA</span>
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wider"
+              style={{ color: '#5A5A5A' }}
+            >
+              EBITDA
+            </span>
             <span className="text-base font-extrabold tabular-nums" style={{ color: '#0E101A' }}>
               {fmt(deal.listing_ebitda)}
             </span>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#9A9A9A' }}>Revenue</span>
+            <span
+              className="text-[11px] font-semibold uppercase tracking-wider"
+              style={{ color: '#9A9A9A' }}
+            >
+              Revenue
+            </span>
             <span className="text-base font-extrabold tabular-nums" style={{ color: '#0E101A' }}>
               {fmt(deal.listing_revenue)}
             </span>
@@ -202,36 +246,93 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         </div>
 
         {/* Footer: Owner + Source + Days */}
-        <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid #E5DDD0' }}>
-          <span className="text-[13px] font-bold" style={{ color: '#0E101A' }}>{ownerDisplayName}</span>
+        <div
+          className="flex items-center justify-between pt-3"
+          style={{ borderTop: '1px solid #E5DDD0' }}
+        >
+          <span className="text-[13px] font-bold" style={{ color: '#0E101A' }}>
+            {ownerDisplayName}
+          </span>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold" style={{ backgroundColor: '#8B0000', color: '#FFFFFF' }}>
+              <span
+                className="flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold"
+                style={{ backgroundColor: '#8B0000', color: '#FFFFFF' }}
+              >
                 {unreadCount}
               </span>
             )}
             <DealSourceBadge source={deal.deal_source} />
-            <span className="text-[11px] tabular-nums" style={{ color: '#9A9A9A' }}>{daysInStage}</span>
+            <span className="text-[11px] tabular-nums" style={{ color: '#9A9A9A' }}>
+              {daysInStage}
+            </span>
           </div>
         </div>
       </div>
 
       {/* ── Compact status dots row ── */}
-      <div className="px-4 py-1.5 flex items-center gap-3 text-[10px]" style={{ borderTop: '1px solid #E5DDD0', backgroundColor: '#FCF9F0', color: '#5A5A5A' }}>
-        <span className="inline-flex items-center gap-1" title={`NDA: ${deal.nda_status || 'none'}`}>
-          NDA <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))} />
+      <div
+        className="px-4 py-1.5 flex items-center gap-3 text-[10px]"
+        style={{ borderTop: '1px solid #E5DDD0', backgroundColor: '#FCF9F0', color: '#5A5A5A' }}
+      >
+        <span
+          className="inline-flex items-center gap-1"
+          title={`NDA: ${deal.nda_status || 'none'}`}
+        >
+          NDA{' '}
+          <span
+            className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.nda_status))}
+          />
         </span>
-        <span className="inline-flex items-center gap-1" title={`Fee: ${deal.fee_agreement_status || 'none'}`}>
-          Fee <span className={cn('inline-block w-1.5 h-1.5 rounded-full', statusDot(deal.fee_agreement_status))} />
+        <span
+          className="inline-flex items-center gap-1"
+          title={`Fee: ${deal.fee_agreement_status || 'none'}`}
+        >
+          Fee{' '}
+          <span
+            className={cn(
+              'inline-block w-1.5 h-1.5 rounded-full',
+              statusDot(deal.fee_agreement_status),
+            )}
+          />
         </span>
-        <span className="inline-flex items-center gap-1" title={`Memo: ${deal.memo_sent ? 'Sent' : 'No'}`}>
-          Memo <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+        <span
+          className="inline-flex items-center gap-1"
+          title={`Memo: ${deal.memo_sent ? 'Sent' : 'No'}`}
+        >
+          Memo{' '}
+          <span
+            className={cn(
+              'inline-block w-1.5 h-1.5 rounded-full',
+              deal.memo_sent ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+            )}
+          />
         </span>
-        <span className="inline-flex items-center gap-1" title={`Data Room: ${deal.has_data_room ? 'Yes' : 'No'}`}>
-          DR <span className={cn('inline-block w-1.5 h-1.5 rounded-full', deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+        <span
+          className="inline-flex items-center gap-1"
+          title={`Data Room: ${deal.has_data_room ? 'Yes' : 'No'}`}
+        >
+          DR{' '}
+          <span
+            className={cn(
+              'inline-block w-1.5 h-1.5 rounded-full',
+              deal.has_data_room ? 'bg-emerald-500' : 'bg-muted-foreground/30',
+            )}
+          />
         </span>
-        <button type="button" onClick={handleMeetingToggle} className="inline-flex items-center gap-1 rounded transition-colors hover:bg-accent p-0.5 -ml-0.5" title={`Meeting: ${deal.meeting_scheduled ? 'Yes' : 'No'}`}>
-          Mtg <CalendarCheck className={cn('w-3 h-3', deal.meeting_scheduled ? 'text-emerald-500' : 'text-muted-foreground/30')} />
+        <button
+          type="button"
+          onClick={handleMeetingToggle}
+          className="inline-flex items-center gap-1 rounded transition-colors hover:bg-accent p-0.5 -ml-0.5"
+          title={`Meeting: ${deal.meeting_scheduled ? 'Yes' : 'No'}`}
+        >
+          Mtg{' '}
+          <CalendarCheck
+            className={cn(
+              'w-3 h-3',
+              deal.meeting_scheduled ? 'text-emerald-500' : 'text-muted-foreground/30',
+            )}
+          />
         </button>
       </div>
     </div>

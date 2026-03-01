@@ -21,13 +21,27 @@ import { DeleteDealDialog } from '@/components/admin/deals/DeleteDealDialog';
 
 interface PipelineDetailPanelProps {
   pipeline: ReturnType<typeof usePipelineCore>;
+  /** Tab to auto-select on mount (from URL deep link). */
+  initialTab?: string | null;
+  /** Called when the user switches tabs so the parent can sync the URL. */
+  onTabChange?: (tab: string) => void;
 }
 
-export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
+export function PipelineDetailPanel({
+  pipeline,
+  initialTab,
+  onTabChange,
+}: PipelineDetailPanelProps) {
   const { selectedDeal } = pipeline;
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialTab || 'overview');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Sync active tab with URL when it changes
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
   if (!selectedDeal) {
     return (
@@ -133,7 +147,11 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       />
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex-1 flex flex-col min-h-0"
+      >
         <div className="px-8 mb-6">
           <TabsList className="grid w-full grid-cols-6 bg-muted/30 h-10 rounded-lg p-1">
             <TabsTrigger
@@ -181,7 +199,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             value="overview"
             className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
           >
-            <PipelineDetailOverview deal={selectedDeal} onSwitchTab={setActiveTab} />
+            <PipelineDetailOverview deal={selectedDeal} onSwitchTab={handleTabChange} />
           </TabsContent>
           <TabsContent
             value="dealinfo"

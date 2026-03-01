@@ -1,9 +1,30 @@
 /**
- * Shared utility to queue scoring tasks into remarketing_scoring_queue
- * and trigger the background worker.
+ * queueScoring
+ *
+ * Shared utility for queuing scoring tasks into `remarketing_scoring_queue`
+ * and triggering the `process-scoring-queue` edge function as a fire-and-forget
+ * background worker.
+ *
+ * Provides two entry points:
+ *
+ * - {@link queueDealScoring} — queues one or more listings (deals) for scoring
+ *   against all buyers in a universe. Deduplicates against already-pending /
+ *   processing rows using a partial unique index via RPC
+ *   (`upsert_deal_scoring_queue`).
+ *
+ * - {@link queueAlignmentScoring} — queues one or more buyers for alignment
+ *   scoring within a universe. Uses RPC (`upsert_alignment_scoring_queue`)
+ *   for the same dedup strategy.
+ *
+ * Both functions return the number of newly queued items and display toast
+ * feedback to the user. Errors during queue insertion are aggregated and
+ * thrown so callers can handle them.
+ *
+ * Tables: remarketing_scoring_queue (read + write)
+ * Edge functions: process-scoring-queue (invoked fire-and-forget)
  */
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface QueueDealScoringParams {
   universeId: string;
@@ -19,32 +40,35 @@ interface QueueAlignmentScoringParams {
  * Queue deal scoring for one or more listings against all buyers in a universe.
  * Each listing gets one queue entry.
  */
-export async function queueDealScoring({ universeId, listingIds }: QueueDealScoringParams): Promise<number> {
+export async function queueDealScoring({
+  universeId,
+  listingIds,
+}: QueueDealScoringParams): Promise<number> {
   if (listingIds.length === 0) return 0;
 
   // Check which listings are already queued/processing to avoid duplicates
   const { data: existing, error: existingError } = await supabase
-    .from("remarketing_scoring_queue")
-    .select("listing_id")
-    .eq("universe_id", universeId)
-    .eq("score_type", "deal")
-    .in("status", ["pending", "processing"])
-    .in("listing_id", listingIds);
+    .from('remarketing_scoring_queue')
+    .select('listing_id')
+    .eq('universe_id', universeId)
+    .eq('score_type', 'deal')
+    .in('status', ['pending', 'processing'])
+    .in('listing_id', listingIds);
   if (existingError) throw existingError;
 
-  const existingSet = new Set((existing || []).map(e => e.listing_id));
-  const newIds = listingIds.filter(id => !existingSet.has(id));
+  const existingSet = new Set((existing || []).map((e) => e.listing_id));
+  const newIds = listingIds.filter((id) => !existingSet.has(id));
 
   if (newIds.length === 0) {
-    toast.info("Scoring already in progress for these deals");
+    toast.info('Scoring already in progress for these deals');
     return 0;
   }
 
-  const rows = newIds.map(listingId => ({
+  const rows = newIds.map((listingId) => ({
     universe_id: universeId,
     listing_id: listingId,
-    score_type: "deal" as const,
-    status: "pending" as const,
+    score_type: 'deal' as const,
+    status: 'pending' as const,
   }));
 
   // Use RPC to handle partial unique index (PostgREST .upsert() can't target partial indexes)
@@ -58,18 +82,20 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
         p_status: row.status,
       });
       if (error) upsertErrors.push(error.message);
-    })
+    }),
   );
   if (upsertErrors.length > 0) {
-    console.error("Failed to queue deal scoring:", upsertErrors);
-    toast.error("Failed to queue scoring");
+    console.error('Failed to queue deal scoring:', upsertErrors);
+    toast.error('Failed to queue scoring');
     throw new Error(upsertErrors.join('; '));
   }
 
   // Fire-and-forget worker invocation
-  supabase.functions.invoke("process-scoring-queue", {
-    body: { trigger: "deal-scoring" },
-  }).catch(err => console.warn("Worker trigger failed:", err));
+  supabase.functions
+    .invoke('process-scoring-queue', {
+      body: { trigger: 'deal-scoring' },
+    })
+    .catch((err) => console.warn('Worker trigger failed:', err));
 
   toast.info(`Queued ${newIds.length} deal(s) for background scoring`);
   return newIds.length;
@@ -78,31 +104,34 @@ export async function queueDealScoring({ universeId, listingIds }: QueueDealScor
 /**
  * Queue alignment scoring for one or more buyers in a universe.
  */
-export async function queueAlignmentScoring({ universeId, buyerIds }: QueueAlignmentScoringParams): Promise<number> {
+export async function queueAlignmentScoring({
+  universeId,
+  buyerIds,
+}: QueueAlignmentScoringParams): Promise<number> {
   if (buyerIds.length === 0) return 0;
 
   const { data: existing, error: existingError } = await supabase
-    .from("remarketing_scoring_queue")
-    .select("buyer_id")
-    .eq("universe_id", universeId)
-    .eq("score_type", "alignment")
-    .in("status", ["pending", "processing"])
-    .in("buyer_id", buyerIds);
+    .from('remarketing_scoring_queue')
+    .select('buyer_id')
+    .eq('universe_id', universeId)
+    .eq('score_type', 'alignment')
+    .in('status', ['pending', 'processing'])
+    .in('buyer_id', buyerIds);
   if (existingError) throw existingError;
 
-  const existingSet = new Set((existing || []).map(e => e.buyer_id));
-  const newIds = buyerIds.filter(id => !existingSet.has(id));
+  const existingSet = new Set((existing || []).map((e) => e.buyer_id));
+  const newIds = buyerIds.filter((id) => !existingSet.has(id));
 
   if (newIds.length === 0) {
-    toast.info("Alignment scoring already in progress");
+    toast.info('Alignment scoring already in progress');
     return 0;
   }
 
-  const rows = newIds.map(buyerId => ({
+  const rows = newIds.map((buyerId) => ({
     universe_id: universeId,
     buyer_id: buyerId,
-    score_type: "alignment" as const,
-    status: "pending" as const,
+    score_type: 'alignment' as const,
+    status: 'pending' as const,
   }));
 
   // Use RPC to handle partial unique index (PostgREST .upsert() can't target partial indexes)
@@ -116,17 +145,19 @@ export async function queueAlignmentScoring({ universeId, buyerIds }: QueueAlign
         p_status: row.status,
       });
       if (error) upsertErrors.push(error.message);
-    })
+    }),
   );
   if (upsertErrors.length > 0) {
-    console.error("Failed to queue alignment scoring:", upsertErrors);
-    toast.error("Failed to queue scoring");
+    console.error('Failed to queue alignment scoring:', upsertErrors);
+    toast.error('Failed to queue scoring');
     throw new Error(upsertErrors.join('; '));
   }
 
-  supabase.functions.invoke("process-scoring-queue", {
-    body: { trigger: "alignment-scoring" },
-  }).catch(err => console.warn("Worker trigger failed:", err));
+  supabase.functions
+    .invoke('process-scoring-queue', {
+      body: { trigger: 'alignment-scoring' },
+    })
+    .catch((err) => console.warn('Worker trigger failed:', err));
 
   toast.info(`Queued ${newIds.length} buyer(s) for alignment scoring`);
   return newIds.length;

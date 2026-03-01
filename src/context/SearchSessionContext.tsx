@@ -21,9 +21,7 @@ export const SearchSessionProvider: React.FC<{ children: ReactNode }> = ({ child
   const searchSession = useSearchSession();
 
   return (
-    <SearchSessionContext.Provider value={searchSession}>
-      {children}
-    </SearchSessionContext.Provider>
+    <SearchSessionContext.Provider value={searchSession}>{children}</SearchSessionContext.Provider>
   );
 };
 

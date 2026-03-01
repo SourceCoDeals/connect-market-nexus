@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { Globe } from "lucide-react";
-import { AnalyticsCard } from "./AnalyticsCard";
-import { AnalyticsTooltip } from "./AnalyticsTooltip";
-import { cn } from "@/lib/utils";
-import { ProportionalBar } from "./ProportionalBar";
-import { useAnalyticsFilters } from "@/contexts/AnalyticsFiltersContext";
-import { FilterModal } from "./FilterModal";
+import { useState } from 'react';
+import { Globe } from 'lucide-react';
+import { AnalyticsCard } from './AnalyticsCard';
+import { AnalyticsTooltip } from './AnalyticsTooltip';
+import { cn } from '@/lib/utils';
+import { ProportionalBar } from './ProportionalBar';
+import { useAnalyticsFilters } from '@/context/AnalyticsFiltersContext';
+import { FilterModal } from './FilterModal';
 
 interface PagesCardProps {
   topPages: Array<{ path: string; visitors: number; avgTime: number; bounceRate: number }>;
@@ -26,7 +26,7 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTab, setModalTab] = useState<string>('');
   const { hasFilter } = useAnalyticsFilters();
-  
+
   const tabs = [
     { id: 'page', label: 'Page' },
     { id: 'entry', label: 'Entry page' },
@@ -35,18 +35,18 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
 
   // Merge blog entry pages into entry pages for unified view
   const mergedEntryPages = [
-    ...entryPages.map(p => ({ ...p, isExternal: false })),
-    ...blogEntryPages.map(p => ({ 
-      path: p.path, 
-      visitors: p.visitors, 
-      bounceRate: 0, 
-      isExternal: true 
-    }))
+    ...entryPages.map((p) => ({ ...p, isExternal: false })),
+    ...blogEntryPages.map((p) => ({
+      path: p.path,
+      visitors: p.visitors,
+      bounceRate: 0,
+      isExternal: true,
+    })),
   ].sort((a, b) => b.visitors - a.visitors);
 
-  const maxPageVisitors = Math.max(...topPages.map(p => p.visitors), 1);
-  const maxEntryVisitors = Math.max(...mergedEntryPages.map(p => p.visitors), 1);
-  const maxExitVisitors = Math.max(...exitPages.map(p => p.exits), 1);
+  const maxPageVisitors = Math.max(...topPages.map((p) => p.visitors), 1);
+  const maxEntryVisitors = Math.max(...mergedEntryPages.map((p) => p.visitors), 1);
+  const maxExitVisitors = Math.max(...exitPages.map((p) => p.exits), 1);
 
   // Removed - filtering now only via Details modal
 
@@ -58,19 +58,19 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
   const getModalItems = () => {
     switch (modalTab) {
       case 'page':
-        return topPages.map(p => ({
+        return topPages.map((p) => ({
           id: p.path,
           label: p.path,
           visitors: p.visitors,
         }));
       case 'entry':
-        return mergedEntryPages.map(p => ({
+        return mergedEntryPages.map((p) => ({
           id: p.path,
           label: p.path,
           visitors: p.visitors,
         }));
       case 'exit':
-        return exitPages.map(p => ({
+        return exitPages.map((p) => ({
           id: p.path,
           label: p.path,
           visitors: p.exits,
@@ -82,20 +82,20 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
 
   const getModalTitle = () => {
     switch (modalTab) {
-      case 'page': return 'Pages';
-      case 'entry': return 'Entry Pages';
-      case 'exit': return 'Exit Pages';
-      default: return 'Details';
+      case 'page':
+        return 'Pages';
+      case 'entry':
+        return 'Entry Pages';
+      case 'exit':
+        return 'Exit Pages';
+      default:
+        return 'Details';
     }
   };
 
   return (
     <>
-      <AnalyticsCard
-        tabs={tabs}
-        defaultTab="page"
-        onDetailsClick={handleDetailsClick}
-      >
+      <AnalyticsCard tabs={tabs} defaultTab="page" onDetailsClick={handleDetailsClick}>
         {(activeTab) => (
           <div className="space-y-1">
             {activeTab === 'page' && (
@@ -112,10 +112,10 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                       ]}
                     >
                       <ProportionalBar value={page.visitors} maxValue={maxPageVisitors}>
-                        <div 
+                        <div
                           className={cn(
-                            "flex items-center justify-between",
-                            isActive && "opacity-50"
+                            'flex items-center justify-between',
+                            isActive && 'opacity-50',
                           )}
                         >
                           <div className="flex items-center gap-2 min-w-0">
@@ -136,7 +136,7 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                 )}
               </>
             )}
-            
+
             {activeTab === 'entry' && (
               <>
                 {mergedEntryPages.slice(0, 8).map((page) => {
@@ -147,14 +147,16 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                       title={page.path}
                       rows={[
                         { label: 'Entries', value: page.visitors.toLocaleString() },
-                        ...(!page.isExternal ? [{ label: 'Bounce Rate', value: `${page.bounceRate.toFixed(0)}%` }] : []),
+                        ...(!page.isExternal
+                          ? [{ label: 'Bounce Rate', value: `${page.bounceRate.toFixed(0)}%` }]
+                          : []),
                       ]}
                     >
                       <ProportionalBar value={page.visitors} maxValue={maxEntryVisitors}>
-                        <div 
+                        <div
                           className={cn(
-                            "flex items-center justify-between",
-                            isActive && "opacity-50"
+                            'flex items-center justify-between',
+                            isActive && 'opacity-50',
                           )}
                         >
                           <div className="flex items-center gap-2 min-w-0">
@@ -181,11 +183,13 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                   );
                 })}
                 {mergedEntryPages.length === 0 && (
-                  <div className="text-sm text-muted-foreground text-center py-4">No entry page data</div>
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    No entry page data
+                  </div>
                 )}
               </>
             )}
-            
+
             {activeTab === 'exit' && (
               <>
                 {exitPages.slice(0, 8).map((page) => {
@@ -200,10 +204,10 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                       ]}
                     >
                       <ProportionalBar value={page.exits} maxValue={maxExitVisitors}>
-                        <div 
+                        <div
                           className={cn(
-                            "flex items-center justify-between",
-                            isActive && "opacity-50"
+                            'flex items-center justify-between',
+                            isActive && 'opacity-50',
                           )}
                         >
                           <code className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded font-mono truncate max-w-[200px]">
@@ -223,7 +227,9 @@ export function PagesCard({ topPages, entryPages, exitPages, blogEntryPages }: P
                   );
                 })}
                 {exitPages.length === 0 && (
-                  <div className="text-sm text-muted-foreground text-center py-4">No exit page data</div>
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    No exit page data
+                  </div>
                 )}
               </>
             )}

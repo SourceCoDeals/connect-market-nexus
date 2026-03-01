@@ -133,6 +133,11 @@ export function BuyerNarrativePanel({
     });
   }, [narrative, toast]);
 
+  // Hide the panel entirely when there are no scored buyers
+  if (buyers.length === 0) {
+    return null;
+  }
+
   return (
     <div className="border border-border/40 rounded-lg overflow-hidden">
       {/* Header */}

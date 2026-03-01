@@ -136,4 +136,71 @@ describe('AgreementPanel', () => {
     // The dialog should open — look for dialog-specific content (e.g. "Signing Method" radio group)
     expect(await screen.findByText(/Signing Method/i)).toBeInTheDocument();
   });
+
+  // --------------------------------------------------------------------------
+  // Signed status hides send buttons completely
+  // --------------------------------------------------------------------------
+  describe('when NDA status is "signed"', () => {
+    it('hides Send NDA button and shows Signed badge', () => {
+      const signedFirm = {
+        ...baseFirm,
+        nda_signed: true,
+        nda_signed_at: '2026-01-15T00:00:00Z',
+        nda_docuseal_status: 'signed',
+      };
+      render(<AgreementPanel firm={signedFirm} />);
+      expect(screen.queryByText('Send NDA')).not.toBeInTheDocument();
+      expect(screen.getByText('Signed')).toBeInTheDocument();
+    });
+
+    it('hides Send Fee Agreement button when fee agreement is signed', () => {
+      const signedFirm = {
+        ...baseFirm,
+        fee_agreement_signed: true,
+        fee_agreement_signed_at: '2026-01-15T00:00:00Z',
+        fee_docuseal_status: 'signed',
+      };
+      render(<AgreementPanel firm={signedFirm} />);
+      expect(screen.queryByText('Send Fee Agreement')).not.toBeInTheDocument();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Pending status shows send buttons and correct badge
+  // --------------------------------------------------------------------------
+  describe('when status is "pending" (not_sent)', () => {
+    it('shows Send NDA button when NDA is not signed', () => {
+      const pendingFirm = {
+        ...baseFirm,
+        nda_signed: false,
+        nda_docuseal_status: null,
+      };
+      render(<AgreementPanel firm={pendingFirm} />);
+      expect(screen.getByText('Send NDA')).toBeInTheDocument();
+      // Badge shows "Not Sent" for null status
+      expect(screen.getAllByText('Not Sent').length).toBeGreaterThan(0);
+    });
+
+    it('shows Send Fee Agreement button when fee agreement is pending', () => {
+      const pendingFirm = {
+        ...baseFirm,
+        fee_agreement_signed: false,
+        fee_docuseal_status: null,
+      };
+      render(<AgreementPanel firm={pendingFirm} />);
+      expect(screen.getByText('Send Fee Agreement')).toBeInTheDocument();
+    });
+
+    it('shows "Sent" badge when NDA has been sent but not yet signed', () => {
+      const sentFirm = {
+        ...baseFirm,
+        nda_signed: false,
+        nda_docuseal_status: 'sent',
+      };
+      render(<AgreementPanel firm={sentFirm} />);
+      expect(screen.getByText('Sent')).toBeInTheDocument();
+      // Send NDA button should still be present (as resend)
+      expect(screen.getByText('Send NDA')).toBeInTheDocument();
+    });
+  });
 });

@@ -3,39 +3,41 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  AlertTriangle, 
-  CheckCircle2, 
-  Users, 
-  TrendingDown, 
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Users,
+  TrendingDown,
   TrendingUp,
   Database,
   UserCheck,
   Mail,
-  X
+  X,
 } from 'lucide-react';
 import { useDataQualityMonitor } from '@/hooks/use-data-quality-monitor';
 import { toast } from '@/hooks/use-toast';
+import { getScoreBadgeVariant as getSharedScoreBadgeVariant } from '@/components/shared/ReMarketingScoreBadge';
 
 export function DataQualityDashboard() {
-  const { metrics, alerts, isLoading, dismissAlert, triggerDataRecoveryCampaign } = useDataQualityMonitor();
+  const { metrics, alerts, isLoading, dismissAlert, triggerDataRecoveryCampaign } =
+    useDataQualityMonitor();
 
   const handleTriggerRecovery = async () => {
     try {
       const result = await triggerDataRecoveryCampaign([]);
       if (result.success) {
         toast({
-          title: "Recovery Campaign Launched",
-          description: "Data recovery emails have been sent to users with incomplete profiles.",
+          title: 'Recovery Campaign Launched',
+          description: 'Data recovery emails have been sent to users with incomplete profiles.',
         });
       } else {
         throw new Error('Campaign failed');
       }
     } catch (error) {
       toast({
-        variant: "destructive",
-        title: "Campaign Failed",
-        description: "Failed to launch data recovery campaign. Please try again.",
+        variant: 'destructive',
+        title: 'Campaign Failed',
+        description: 'Failed to launch data recovery campaign. Please try again.',
       });
     }
   };
@@ -57,10 +59,13 @@ export function DataQualityDashboard() {
     return 'text-red-600';
   };
 
-  const getScoreBadgeVariant = (score: number): "default" | "secondary" | "destructive" => {
-    if (score >= 90) return 'default';
-    if (score >= 70) return 'secondary';
-    return 'destructive';
+  const VARIANT_TO_BADGE: Record<string, 'default' | 'secondary' | 'destructive'> = {
+    emerald: 'default',
+    amber: 'secondary',
+    muted: 'destructive',
+  };
+  const getScoreBadgeVariant = (score: number): 'default' | 'secondary' | 'destructive' => {
+    return VARIANT_TO_BADGE[getSharedScoreBadgeVariant(score)] ?? 'destructive';
   };
 
   return (
@@ -69,7 +74,9 @@ export function DataQualityDashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Data Quality Monitor</h2>
-          <p className="text-muted-foreground">Real-time monitoring of user data completeness and quality</p>
+          <p className="text-muted-foreground">
+            Real-time monitoring of user data completeness and quality
+          </p>
         </div>
         <Button onClick={handleTriggerRecovery} className="flex items-center gap-2">
           <Mail className="h-4 w-4" />
@@ -80,27 +87,40 @@ export function DataQualityDashboard() {
       {/* Alerts */}
       {alerts.length > 0 && (
         <div className="space-y-3">
-          {alerts.map(alert => (
-            <Alert key={alert.id} className={
-              alert.type === 'error' ? 'border-red-200 bg-red-50' :
-              alert.type === 'warning' ? 'border-yellow-200 bg-yellow-50' :
-              'border-blue-200 bg-blue-50'
-            }>
+          {alerts.map((alert) => (
+            <Alert
+              key={alert.id}
+              className={
+                alert.type === 'error'
+                  ? 'border-red-200 bg-red-50'
+                  : alert.type === 'warning'
+                    ? 'border-yellow-200 bg-yellow-50'
+                    : 'border-blue-200 bg-blue-50'
+              }
+            >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className={`h-4 w-4 mt-0.5 ${
-                    alert.type === 'error' ? 'text-red-600' :
-                    alert.type === 'warning' ? 'text-yellow-600' :
-                    'text-blue-600'
-                  }`} />
+                  <AlertTriangle
+                    className={`h-4 w-4 mt-0.5 ${
+                      alert.type === 'error'
+                        ? 'text-red-600'
+                        : alert.type === 'warning'
+                          ? 'text-yellow-600'
+                          : 'text-blue-600'
+                    }`}
+                  />
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-medium">{alert.title}</h4>
-                      <Badge variant={
-                        alert.priority === 'high' ? 'destructive' :
-                        alert.priority === 'medium' ? 'secondary' :
-                        'outline'
-                      }>
+                      <Badge
+                        variant={
+                          alert.priority === 'high'
+                            ? 'destructive'
+                            : alert.priority === 'medium'
+                              ? 'secondary'
+                              : 'outline'
+                        }
+                      >
                         {alert.priority}
                       </Badge>
                     </div>
@@ -148,7 +168,9 @@ export function DataQualityDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Onboarding Rate</p>
-                <p className={`text-2xl font-bold ${getScoreColor(metrics.onboardingCompletionRate)}`}>
+                <p
+                  className={`text-2xl font-bold ${getScoreColor(metrics.onboardingCompletionRate)}`}
+                >
                   {Math.round(metrics.onboardingCompletionRate)}%
                 </p>
               </div>
@@ -200,17 +222,25 @@ export function DataQualityDashboard() {
                 <span className="text-sm">Total Users</span>
                 <Badge variant="outline">{metrics.totalUsers}</Badge>
               </div>
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-sm">Complete Profiles</span>
                 <div className="flex items-center gap-2">
-                  <Badge variant={getScoreBadgeVariant(
-                    ((metrics.totalUsers - metrics.incompleteProfiles) / metrics.totalUsers) * 100
-                  )}>
+                  <Badge
+                    variant={getScoreBadgeVariant(
+                      ((metrics.totalUsers - metrics.incompleteProfiles) / metrics.totalUsers) *
+                        100,
+                    )}
+                  >
                     {metrics.totalUsers - metrics.incompleteProfiles}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    ({Math.round(((metrics.totalUsers - metrics.incompleteProfiles) / metrics.totalUsers) * 100)}%)
+                    (
+                    {Math.round(
+                      ((metrics.totalUsers - metrics.incompleteProfiles) / metrics.totalUsers) *
+                        100,
+                    )}
+                    %)
                   </span>
                 </div>
               </div>
@@ -241,7 +271,7 @@ export function DataQualityDashboard() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-sm">Recent Signups with Issues</span>
-                <Badge variant={metrics.recentSignupsWithIssues > 5 ? "destructive" : "secondary"}>
+                <Badge variant={metrics.recentSignupsWithIssues > 5 ? 'destructive' : 'secondary'}>
                   {metrics.recentSignupsWithIssues}
                 </Badge>
               </div>
@@ -249,7 +279,7 @@ export function DataQualityDashboard() {
               <div className="flex justify-between items-center">
                 <span className="text-sm">Form Drop-off Rate</span>
                 <div className="flex items-center gap-2">
-                  <Badge variant={metrics.formDropOffRate > 30 ? "destructive" : "secondary"}>
+                  <Badge variant={metrics.formDropOffRate > 30 ? 'destructive' : 'secondary'}>
                     {Math.round(metrics.formDropOffRate)}%
                   </Badge>
                   {metrics.formDropOffRate > 30 ? (
@@ -262,7 +292,7 @@ export function DataQualityDashboard() {
 
               <div className="flex justify-between items-center">
                 <span className="text-sm">Validation Error Rate</span>
-                <Badge variant={metrics.validationErrorRate > 10 ? "destructive" : "default"}>
+                <Badge variant={metrics.validationErrorRate > 10 ? 'destructive' : 'default'}>
                   {Math.round(metrics.validationErrorRate)}%
                 </Badge>
               </div>

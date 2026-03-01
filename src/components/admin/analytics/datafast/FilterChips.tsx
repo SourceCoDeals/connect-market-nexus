@@ -1,7 +1,7 @@
-import { X } from "lucide-react";
-import { useAnalyticsFilters, FilterType } from "@/contexts/AnalyticsFiltersContext";
-import { cn } from "@/lib/utils";
-import { ReferrerLogo } from "./ReferrerLogo";
+import { X } from 'lucide-react';
+import { useAnalyticsFilters, FilterType } from '@/context/AnalyticsFiltersContext';
+import { cn } from '@/lib/utils';
+import { ReferrerLogo } from './ReferrerLogo';
 
 const FILTER_TYPE_LABELS: Record<FilterType, string> = {
   channel: 'Channel',
@@ -28,23 +28,23 @@ export function FilterChips() {
         <div
           key={`${filter.type}-${filter.value}`}
           className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg",
-            "bg-muted/80 border border-border/50",
-            "text-sm",
-            "transition-all hover:border-border"
+            'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg',
+            'bg-muted/80 border border-border/50',
+            'text-sm',
+            'transition-all hover:border-border',
           )}
         >
           {/* Icon */}
           {filter.type === 'referrer' && filter.icon && (
             <ReferrerLogo domain={filter.value} className="w-4 h-4" />
           )}
-          
+
           {/* Label */}
           <span className="text-muted-foreground text-xs">
             {FILTER_TYPE_LABELS[filter.type]} is
           </span>
           <span className="text-foreground font-medium">{filter.label}</span>
-          
+
           {/* Remove button */}
           <button
             onClick={() => removeFilter(filter.type, filter.value)}
@@ -55,7 +55,7 @@ export function FilterChips() {
           </button>
         </div>
       ))}
-      
+
       {filters.length > 1 && (
         <button
           onClick={clearFilters}

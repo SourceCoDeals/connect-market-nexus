@@ -323,6 +323,12 @@ export function UnifiedAdminSidebar({
                   separator: 'Fireflies',
                 },
                 {
+                  label: 'DocuSeal Health',
+                  href: '/admin/testing?tab=docuseal',
+                  icon: <FileCheck className="h-4 w-4" />,
+                  separator: 'DocuSeal',
+                },
+                {
                   label: 'Webhook Settings',
                   href: '/admin/settings/webhooks',
                   icon: <Webhook className="h-4 w-4" />,
@@ -657,9 +663,7 @@ export function UnifiedAdminSidebar({
                   <p className="text-sm font-medium leading-none">
                     {user?.first_name} {user?.last_name}
                   </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email}
-                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -668,13 +672,15 @@ export function UnifiedAdminSidebar({
                 Profile
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={async () => {
-                try {
-                  await logout();
-                } catch {
-                  window.location.href = '/login';
-                }
-              }}>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    await logout();
+                  } catch {
+                    window.location.href = '/login';
+                  }
+                }}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Log Out
               </DropdownMenuItem>
