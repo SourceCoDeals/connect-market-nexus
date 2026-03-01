@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
@@ -18,8 +19,12 @@ import {
   Phone,
   UserCheck,
   Mail as MailIcon,
+  Zap,
+  AlertCircle,
+  Globe,
 } from 'lucide-react';
 import { useRecommendedBuyers } from '@/hooks/admin/use-recommended-buyers';
+import { useAutoScoreDeal } from '@/hooks/admin/use-auto-score-deal';
 import { useQueryClient } from '@tanstack/react-query';
 import { BuyerRecommendationCard } from '@/components/admin/pipeline/tabs/recommended-buyers/BuyerRecommendationCard';
 import { BuyerNarrativePanel } from '@/components/admin/pipeline/tabs/recommended-buyers/BuyerNarrativePanel';
@@ -43,6 +48,17 @@ export function RecommendedBuyersSection({
 
   const limit = showAll ? 100 : 25;
   const { data, isLoading, isFetching } = useRecommendedBuyers(listingId, limit);
+
+  const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
+
+  const autoScore = useAutoScoreDeal(listingId, hasScores);
+
+  // Auto-trigger scoring when we detect no scores exist
+  useEffect(() => {
+    if (hasScores === false && autoScore.status === 'idle') {
+      autoScore.triggerAutoScore();
+    }
+  }, [hasScores, autoScore.status, autoScore.triggerAutoScore]);
 
   const filteredAndSorted = useMemo(() => {
     if (!data?.buyers) return [];
@@ -109,6 +125,7 @@ export function RecommendedBuyersSection({
     navigate(`/admin/buyers/${buyerId}`);
   };
 
+  // Loading state
   if (isLoading) {
     return (
       <Card>
@@ -122,6 +139,73 @@ export function RecommendedBuyersSection({
     );
   }
 
+  // Auto-scoring in progress
+  if (autoScore.isAutoScoring) {
+    const isDiscovering = autoScore.status === 'discovering';
+    return (
+      <Card>
+        <CardContent className="py-10 space-y-4">
+          <div className="flex items-center justify-center gap-2">
+            {isDiscovering ? (
+              <Globe className="h-5 w-5 text-blue-500 animate-pulse" />
+            ) : (
+              <Zap className="h-5 w-5 text-primary animate-pulse" />
+            )}
+            <span className="text-sm font-medium text-foreground">
+              {isDiscovering ? 'Discovering Buyers via Google' : 'Auto-Scoring Buyers'}
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground text-center">{autoScore.message}</p>
+          <Progress value={autoScore.progress} className="h-1.5 max-w-xs mx-auto" />
+          <p className="text-[10px] text-muted-foreground/50 text-center">
+            {isDiscovering
+              ? 'Searching Google for potential acquisition buyers matching this deal profile.'
+              : 'Scoring all buyers across every universe. This runs in the background — you can navigate away and come back.'}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Error state
+  if (autoScore.status === 'error') {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center space-y-3">
+          <AlertCircle className="h-6 w-6 text-destructive/60 mx-auto" />
+          <p className="text-sm text-muted-foreground">Auto-scoring failed: {autoScore.message}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/admin/remarketing/matching/${listingId}`)}
+          >
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+            Score Manually
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // No universes exist at all
+  if (autoScore.status === 'no_universes') {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center space-y-3">
+          <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+          <p className="text-sm text-muted-foreground">No buyer universes configured yet</p>
+          <p className="text-xs text-muted-foreground/60">
+            Create a buyer universe and import buyers to enable recommendations.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => navigate('/admin/buyers/universes')}>
+            Go to Universes
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // No data after scoring completed (edge case — universe has no buyers)
   if (!data || data.buyers.length === 0) {
     return (
       <Card>
@@ -129,17 +213,22 @@ export function RecommendedBuyersSection({
           <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">No scored buyers for this deal yet</p>
           <p className="text-xs text-muted-foreground/60 mt-1">
-            Run buyer matching in Remarketing to generate recommendations.
+            Scoring may still be running in the background. Refresh in a moment.
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() => navigate(`/admin/remarketing/matching/${listingId}`)}
-          >
-            <Sparkles className="h-3.5 w-3.5 mr-1" />
-            Match Buyers
-          </Button>
+          <div className="flex items-center justify-center gap-2 mt-3">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/admin/remarketing/matching/${listingId}`)}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              View Matching
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );

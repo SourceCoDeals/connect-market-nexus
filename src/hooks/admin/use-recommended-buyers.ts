@@ -48,6 +48,8 @@ export interface RecommendedBuyer {
   transcript_insights: TranscriptInsight;
   // Outreach status
   outreach_info: OutreachInfo;
+  // Source indicator
+  source: 'scored' | 'marketplace' | 'pipeline' | 'contact';
 }
 
 export interface RecommendedBuyersResult {
@@ -154,6 +156,78 @@ const EMPTY_OUTREACH: OutreachInfo = {
   outcome: null,
 };
 
+/**
+ * Fetch marketplace buyers who submitted connection requests for this listing.
+ * Returns remarketing_buyer_ids for buyers that have a linked profile.
+ */
+async function fetchMarketplaceBuyers(listingId: string, excludeIds: Set<string>) {
+  // Get connection requests with user profiles that have a remarketing_buyer_id
+  const { data: connections } = await supabase
+    .from('connection_requests')
+    .select('user_id, lead_company, lead_name, lead_email, status, updated_at, created_at')
+    .eq('listing_id', listingId)
+    .in('status', ['approved', 'converted', 'pending', 'followed_up']);
+
+  if (!connections || connections.length === 0) return [];
+
+  // Get profiles for these users to find remarketing_buyer_id links
+  const userIds = connections.map((c) => c.user_id).filter((id): id is string => !!id);
+
+  if (userIds.length === 0) return [];
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select(
+      'id, remarketing_buyer_id, company_name, buyer_type, buyer_quality_score, first_name, last_name',
+    )
+    .in('id', userIds);
+
+  if (!profiles) return [];
+
+  // Collect remarketing_buyer_ids that aren't already scored
+  const buyerIds: string[] = [];
+  const profileMap = new Map<string, (typeof profiles)[0]>();
+
+  for (const profile of profiles) {
+    if (profile.remarketing_buyer_id && !excludeIds.has(profile.remarketing_buyer_id)) {
+      buyerIds.push(profile.remarketing_buyer_id);
+      profileMap.set(profile.remarketing_buyer_id, profile);
+    }
+  }
+
+  return { buyerIds, profileMap, connections };
+}
+
+/**
+ * Fetch buyers from pipeline deals (deals table) for this listing.
+ */
+async function fetchPipelineBuyers(listingId: string, excludeIds: Set<string>) {
+  const { data: deals } = await supabase
+    .from('deals')
+    .select('remarketing_buyer_id, stage_name, updated_at')
+    .eq('listing_id', listingId)
+    .not('remarketing_buyer_id', 'is', null);
+
+  if (!deals) return [];
+
+  return deals.map((d) => d.remarketing_buyer_id as string).filter((id) => !excludeIds.has(id));
+}
+
+/**
+ * Fetch buyers from contacts table linked to this listing.
+ */
+async function fetchContactBuyers(listingId: string, excludeIds: Set<string>) {
+  const { data: contacts } = await supabase
+    .from('contacts')
+    .select('remarketing_buyer_id')
+    .eq('listing_id', listingId)
+    .not('remarketing_buyer_id', 'is', null);
+
+  if (!contacts) return [];
+
+  return contacts.map((c) => c.remarketing_buyer_id as string).filter((id) => !excludeIds.has(id));
+}
+
 export function useRecommendedBuyers(listingId: string | undefined, limit = 25) {
   return useQuery<RecommendedBuyersResult>({
     queryKey: ['recommended-buyers', listingId, limit],
@@ -173,7 +247,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
         };
       }
 
-      // 1. Fetch scores for this listing
+      // 1. Fetch scored buyers (from remarketing_scores — universe-based)
       const { data: scores, error: scoresError } = await supabase
         .from('remarketing_scores')
         .select(
@@ -186,7 +260,47 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
         .limit(limit * 2);
 
       if (scoresError) throw scoresError;
-      if (!scores || scores.length === 0) {
+
+      const scoredBuyerIds = new Set((scores || []).map((s) => s.buyer_id));
+
+      // 2. Fetch additional buyers from engagement sources (in parallel)
+      const [marketplaceResult, pipelineBuyerIds, contactBuyerIds] = await Promise.all([
+        fetchMarketplaceBuyers(listingId, scoredBuyerIds),
+        fetchPipelineBuyers(listingId, scoredBuyerIds),
+        fetchContactBuyers(listingId, scoredBuyerIds),
+      ]);
+
+      // Deduplicate engagement-sourced buyer IDs
+      const engagementBuyerIds = new Set<string>();
+      const engagementSourceMap = new Map<string, 'marketplace' | 'pipeline' | 'contact'>();
+
+      if (
+        marketplaceResult &&
+        Array.isArray(marketplaceResult) === false &&
+        marketplaceResult.buyerIds
+      ) {
+        for (const id of marketplaceResult.buyerIds) {
+          engagementBuyerIds.add(id);
+          engagementSourceMap.set(id, 'marketplace');
+        }
+      }
+      for (const id of pipelineBuyerIds) {
+        if (!engagementBuyerIds.has(id)) {
+          engagementBuyerIds.add(id);
+          engagementSourceMap.set(id, 'pipeline');
+        }
+      }
+      for (const id of contactBuyerIds) {
+        if (!engagementBuyerIds.has(id)) {
+          engagementBuyerIds.add(id);
+          engagementSourceMap.set(id, 'contact');
+        }
+      }
+
+      // Combine all buyer IDs
+      const allBuyerIds = [...scoredBuyerIds, ...engagementBuyerIds];
+
+      if (allBuyerIds.length === 0) {
         return {
           buyers: [],
           total: 0,
@@ -201,10 +315,9 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
         };
       }
 
-      const totalScored = scores.length;
-      const buyerIds = scores.map((s) => s.buyer_id);
+      const totalScored = (scores || []).length;
 
-      // 2. Fetch all enrichment data in parallel
+      // 3. Fetch all enrichment data in parallel
       const [buyersResult, connectionsResult, callTranscriptsResult, outreachResult] =
         await Promise.all([
           // Buyer profiles
@@ -214,18 +327,17 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
               `id, company_name, pe_firm_name, buyer_type, hq_state, hq_city,
                acquisition_appetite, has_fee_agreement, thesis_summary, total_acquisitions, archived`,
             )
-            .in('id', buyerIds)
+            .in('id', allBuyerIds)
             .eq('archived', false),
 
           // Connection requests (engagement)
           supabase
             .from('connection_requests')
-            .select('buyer_profile_id, status, updated_at, created_at')
+            .select('user_id, status, updated_at, created_at')
             .eq('listing_id', listingId)
-            .in('buyer_profile_id', buyerIds)
             .order('updated_at', { ascending: false }),
 
-          // Call transcripts (buyer-specific calls)
+          // Buyer transcripts
           supabase
             .from('call_transcripts' as any)
             .select('buyer_id, call_date, ceo_detected')
@@ -240,7 +352,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
               'buyer_id, contacted_at, nda_sent_at, nda_signed_at, cim_sent_at, meeting_scheduled_at, outcome',
             )
             .eq('listing_id', listingId)
-            .in('buyer_id', buyerIds)
+            .in('buyer_id', allBuyerIds)
             .order('updated_at', { ascending: false }),
         ]);
 
@@ -248,7 +360,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
 
       const buyerMap = new Map((buyersResult.data || []).map((b) => [b.id, b]));
 
-      // Build engagement map
+      // Build engagement map from connection requests
       const engagementMap = new Map<string, { last_date: string; type: string }>();
       if (connectionsResult.data) {
         for (const conn of connectionsResult.data as any[]) {
@@ -269,7 +381,6 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
           const buyerId = ct.buyer_id as string;
           const existing = transcriptMap.get(buyerId) || { ...EMPTY_TRANSCRIPT };
           existing.call_count++;
-          if (ct.ceo_detected) existing.ceo_detected = true;
           if (
             ct.call_date &&
             (!existing.latest_call_date || ct.call_date > existing.latest_call_date)
@@ -297,11 +408,12 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
         }
       }
 
-      // 3. Build ranked list
+      // 4. Build ranked list — scored buyers first
       const now = Date.now();
       const ranked: RecommendedBuyer[] = [];
 
-      for (const score of scores) {
+      // 4a. Scored buyers (from remarketing_scores)
+      for (const score of scores || []) {
         const buyer = buyerMap.get(score.buyer_id);
         if (!buyer) continue;
 
@@ -319,14 +431,10 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
           outreach,
         );
 
-        // Combine engagement from connection requests, outreach, and transcripts
         const engagement = engagementMap.get(score.buyer_id);
         let lastEngDate = engagement?.last_date || null;
         let lastEngType = engagement?.type || null;
 
-        if (outreach.contacted && outreach.outcome) {
-          // Outreach data may have more recent info
-        }
         if (
           transcript.latest_call_date &&
           (!lastEngDate || transcript.latest_call_date > lastEngDate)
@@ -369,6 +477,90 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
           engagement_cold: daysSinceEngagement !== null ? daysSinceEngagement > 90 : true,
           transcript_insights: transcript,
           outreach_info: outreach,
+          source: 'scored',
+        });
+      }
+
+      // 4b. Engagement-sourced buyers (not in remarketing_scores)
+      for (const buyerId of engagementBuyerIds) {
+        const buyer = buyerMap.get(buyerId);
+        if (!buyer) continue;
+
+        const transcript = transcriptMap.get(buyerId) || EMPTY_TRANSCRIPT;
+        const outreach = outreachMap.get(buyerId) || EMPTY_OUTREACH;
+        const appetite = (buyer.acquisition_appetite as string) || '';
+        const hasFee = !!buyer.has_fee_agreement;
+
+        // Compute a lightweight engagement-based score for sorting
+        let engagementScore = 30; // Base score for being engaged with this deal
+        if (transcript.call_count > 0) engagementScore += 15;
+        if (transcript.ceo_detected) engagementScore += 10;
+        if (outreach.contacted) engagementScore += 5;
+        if (outreach.nda_signed) engagementScore += 10;
+        if (outreach.meeting_scheduled) engagementScore += 10;
+        if (hasFee) engagementScore += 10;
+        if (['aggressive', 'active'].includes(appetite.toLowerCase())) engagementScore += 10;
+        engagementScore = Math.min(engagementScore, 100);
+
+        const { tier, label } = classifyTier(engagementScore, hasFee, appetite);
+        const source = engagementSourceMap.get(buyerId) || 'contact';
+
+        // Build fit signals based on engagement
+        const fitSignals: string[] = [];
+        if (source === 'marketplace') fitSignals.push('Marketplace buyer — expressed interest');
+        if (source === 'pipeline') fitSignals.push('Active in deal pipeline');
+        if (source === 'contact') fitSignals.push('Deal contact on record');
+        if (transcript.call_count > 0)
+          fitSignals.push(`${transcript.call_count} call(s) on record`);
+        if (transcript.ceo_detected) fitSignals.push('CEO/owner participated in call');
+        if (hasFee) fitSignals.push('Fee agreement signed');
+        if (outreach.nda_signed) fitSignals.push('NDA executed');
+
+        const lastEngDate: string | null = transcript.latest_call_date;
+        let lastEngType: string | null = transcript.latest_call_date ? 'Call recording' : null;
+
+        if (outreach.contacted) {
+          lastEngType = lastEngType || 'Outreach';
+        }
+        if (source === 'marketplace') {
+          lastEngType = lastEngType || 'Marketplace inquiry';
+        }
+
+        let daysSinceEngagement: number | null = null;
+        if (lastEngDate) {
+          daysSinceEngagement = Math.floor(
+            (now - new Date(lastEngDate).getTime()) / (1000 * 60 * 60 * 24),
+          );
+        }
+
+        ranked.push({
+          buyer_id: buyerId,
+          company_name: buyer.company_name,
+          pe_firm_name: buyer.pe_firm_name || null,
+          buyer_type: buyer.buyer_type || null,
+          hq_state: buyer.hq_state || null,
+          hq_city: buyer.hq_city || null,
+          has_fee_agreement: hasFee,
+          acquisition_appetite: buyer.acquisition_appetite || null,
+          thesis_summary: buyer.thesis_summary || null,
+          total_acquisitions: Number(buyer.total_acquisitions || 0),
+          composite_fit_score: engagementScore,
+          geography_score: 0,
+          size_score: 0,
+          service_score: 0,
+          owner_goals_score: 0,
+          fit_reasoning: `Engagement-based recommendation (${source}). Not yet formally scored.`,
+          score_status: null,
+          tier,
+          tier_label: label,
+          fit_signals: fitSignals.slice(0, 5),
+          last_engagement: lastEngDate,
+          last_engagement_type: lastEngType,
+          days_since_engagement: daysSinceEngagement,
+          engagement_cold: daysSinceEngagement !== null ? daysSinceEngagement > 90 : true,
+          transcript_insights: transcript,
+          outreach_info: outreach,
+          source,
         });
       }
 
