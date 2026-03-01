@@ -44,8 +44,8 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const queryClient = useQueryClient();
 
   // Only auto-score for active deals (NDA Sent and beyond, not closed)
-  // Lead sources like CapTarget and GP Partners are excluded — use manual button instead
-  const LEAD_SOURCES = ['captarget', 'gp_partners', 'valuation_calculator'];
+  // All lead sources are excluded from auto-scoring — use manual button instead
+  const LEAD_SOURCES = ['captarget', 'gp_partners', 'valuation_calculator', 'referral'];
   const isLeadSource = LEAD_SOURCES.includes((deal.deal_source || '').toLowerCase());
   const isActiveDeal = deal.stage_position >= 3 && deal.stage_position <= 9 && !isLeadSource;
   const isClosedDeal = deal.stage_position >= 10;
