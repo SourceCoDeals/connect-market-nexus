@@ -9,7 +9,7 @@ import { formatCurrency } from "@/lib/currency-utils";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface EditorLivePreviewProps {
-  formValues: any;
+  formValues: Record<string, unknown>;
   imagePreview: string | null;
 }
 

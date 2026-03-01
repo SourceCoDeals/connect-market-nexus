@@ -9,7 +9,7 @@ import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { useState } from "react";
 
 interface EditorLandingPageContentSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
 }
 
 export function EditorLandingPageContentSection({ form }: EditorLandingPageContentSectionProps) {
@@ -24,7 +24,7 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
 
   const removeCustomSection = (index: number) => {
     const current = form.getValues('custom_sections') || [];
-    form.setValue('custom_sections', current.filter((_: any, i: number) => i !== index));
+    form.setValue('custom_sections', current.filter((_: unknown, i: number) => i !== index));
   };
 
   const updateCustomSection = (index: number, field: 'title' | 'description', value: string) => {
@@ -40,7 +40,7 @@ export function EditorLandingPageContentSection({ form }: EditorLandingPageConte
 
   const removeService = (index: number) => {
     const current = form.getValues('services') || [];
-    form.setValue('services', current.filter((_: any, i: number) => i !== index));
+    form.setValue('services', current.filter((_: unknown, i: number) => i !== index));
   };
 
   const updateService = (index: number, value: string) => {

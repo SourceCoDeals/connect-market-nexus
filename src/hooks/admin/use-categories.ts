@@ -72,7 +72,7 @@ export function useCreateCategory() {
         description: 'Category created successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -110,7 +110,7 @@ export function useUpdateCategory() {
         description: 'Category updated successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -144,7 +144,7 @@ export function useDeleteCategory() {
         description: 'Category deleted successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Error',

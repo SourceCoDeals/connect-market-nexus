@@ -19,6 +19,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface DealDocumentsTabProps {
   requestId: string;
@@ -41,8 +42,8 @@ export function DealDocumentsTab({ requestId: _requestId, requestStatus, dealId 
   const { user } = useAuth();
   const [loadingDoc, setLoadingDoc] = useState<string | null>(null);
 
-  const isPending = requestStatus === "pending";
-  const isRejected = requestStatus === "rejected";
+  const isPending = requestStatus === CONNECTION_STATUSES.PENDING;
+  const isRejected = requestStatus === CONNECTION_STATUSES.REJECTED;
 
   // Check buyer's data room access
   const { data: access } = useQuery({

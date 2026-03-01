@@ -34,8 +34,16 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+interface ExclusionLogEntry {
+  id: string;
+  company_name: string | null;
+  exclusion_reason: string;
+  source: string;
+  excluded_at: string | null;
+}
+
 interface CapTargetExclusionLogProps {
-  exclusionLog: any[];
+  exclusionLog: ExclusionLogEntry[];
   showExclusionLog: boolean;
   setShowExclusionLog: (v: boolean) => void;
   isCleaningUp: boolean;
@@ -101,7 +109,7 @@ export function CapTargetExclusionLog({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {exclusionLog.map((ex: any) => (
+                    {exclusionLog.map((ex) => (
                       <TableRow key={ex.id}>
                         <TableCell className="text-xs font-medium">{ex.company_name || "—"}</TableCell>
                         <TableCell className="text-xs">{ex.exclusion_reason}</TableCell>
@@ -164,7 +172,7 @@ export function CapTargetExclusionLog({
             {cleanupResult?.sample && cleanupResult.sample.length > 0 && (
               <div className="max-h-48 overflow-y-auto text-xs space-y-1">
                 <p className="font-medium text-muted-foreground">Sample of removed companies:</p>
-                {cleanupResult.sample.map((s: any) => (
+                {cleanupResult.sample.map((s) => (
                   <p key={s.company} className="text-muted-foreground">
                     <span className="font-medium text-foreground">{s.company}</span> — {s.reason}
                   </p>

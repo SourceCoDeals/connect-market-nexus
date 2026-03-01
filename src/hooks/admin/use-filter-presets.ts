@@ -58,7 +58,7 @@ export function useCreateFilterPreset() {
         description: 'Your filter preset has been saved successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error saving preset',
         description: error.message,
@@ -91,7 +91,7 @@ export function useUpdateFilterPreset() {
         description: 'Filter preset updated successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error updating preset',
         description: error.message,
@@ -121,7 +121,7 @@ export function useDeleteFilterPreset() {
         description: 'Filter preset deleted successfully.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: 'Error deleting preset',
         description: error.message,

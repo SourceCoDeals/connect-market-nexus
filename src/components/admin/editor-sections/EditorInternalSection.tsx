@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { useSourceCoAdmins } from "@/hooks/admin/use-source-co-admins";
 
 interface EditorInternalSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
   dealIdentifier?: string;
 }
 

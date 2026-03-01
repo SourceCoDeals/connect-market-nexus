@@ -38,6 +38,7 @@ import { DndContext, closestCorners, MeasuringStrategy } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { cn } from '@/lib/utils';
 import { FilterBar, DEAL_LISTING_FIELDS } from '@/components/filters';
+import type { Operator } from '@/components/filters/filter-definitions/types';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { useAICommandCenterContext } from '@/components/ai-command-center';
 
@@ -106,7 +107,7 @@ const ReMarketingDeals = () => {
       const rules = filters.map((f, idx) => ({
         id: `ai-filter-${idx}`,
         field: f.field,
-        operator: f.operator as any,
+        operator: f.operator as Operator,
         value: f.value,
       }));
       if (clearExisting) {

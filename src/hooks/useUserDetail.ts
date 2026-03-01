@@ -207,7 +207,7 @@ export function useUserDetail(visitorId: string | null) {
       const sessions = sessionsResult.data || [];
       
       // Fetch page views - for anonymous users, query by session_id
-      let pageViews: any[] = [];
+      let pageViews: PageViewRow[] = [];
       if (isUserId) {
         const { data, error: pageViewsError } = await supabase
           .from('page_views')
@@ -233,7 +233,7 @@ export function useUserDetail(visitorId: string | null) {
       }
       
       // Only fetch connections for registered users
-      let connections: any[] = [];
+      let connections: ConnectionRequestRow[] = [];
       if (isUserId) {
         const { data, error: connectionsError } = await supabase
           .from('connection_requests')

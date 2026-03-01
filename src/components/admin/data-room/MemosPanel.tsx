@@ -107,7 +107,7 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
           <p class="memo-type">${isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}</p>
           <p class="date">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
-        ${sections.map((s: any) => `
+        ${sections.map((s) => `
           <div class="section">
             <h2>${s.title}</h2>
             <div>${s.content.replace(/\n/g, '<br>')}</div>
@@ -161,7 +161,7 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
           <div className="flex items-end gap-3">
             <div className="flex-1">
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Memo Type</label>
-              <Select value={generateType} onValueChange={(v: any) => setGenerateType(v)}>
+              <Select value={generateType} onValueChange={(v: string) => setGenerateType(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

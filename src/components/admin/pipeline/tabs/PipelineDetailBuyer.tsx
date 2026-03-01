@@ -8,8 +8,35 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getRelevantFieldsForBuyerType, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import type { BuyerType } from '@/types';
-import { useAssociatedRequests } from '@/hooks/admin/use-associated-requests';
+import { useAssociatedRequests, type AssociatedRequest } from '@/hooks/admin/use-associated-requests';
 import { Label } from '@/components/ui/label';
+
+interface ConnectionRequestRow {
+  id: string;
+  status: string;
+  created_at: string;
+  listings?: {
+    title?: string;
+    id?: string;
+    revenue?: number;
+    location?: string;
+    internal_company_name?: string;
+  } | null;
+  [key: string]: unknown;
+}
+
+interface SavedListingRow {
+  id: string;
+  created_at: string;
+  listings?: {
+    title?: string;
+    id?: string;
+    revenue?: number;
+    location?: string;
+    internal_company_name?: string;
+  } | null;
+  [key: string]: unknown;
+}
 
 interface PipelineDetailBuyerProps {
   deal: Deal;
@@ -339,7 +366,7 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
             <Tabs defaultValue="direct" className="w-full">
               <TabsList className="w-full grid grid-cols-3">
                 <TabsTrigger value="direct" className="text-xs">
-                  Direct ({connectionRequests.filter((r: any) => !associatedRequests.some((a: any) => a.id === r.id)).length})
+                  Direct ({connectionRequests.filter((r: ConnectionRequestRow) => !associatedRequests.some((a: AssociatedRequest) => a.id === r.id)).length})
                 </TabsTrigger>
                 <TabsTrigger value="colleagues" className="text-xs flex items-center gap-1">
                   <Users className="w-3 h-3" />

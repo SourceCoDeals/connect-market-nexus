@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { stripHtml } from "@/lib/sanitize";
 
 interface EditorDescriptionSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
   onAiGenerate?: (field: string) => void;
   isGenerating?: boolean;
   generatingField?: string | null;

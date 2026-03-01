@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminConnectionRequest } from '@/types/admin';
+import { CONNECTION_STATUSES } from '@/constants';
 
 export type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'on_hold';
 export type BuyerTypeFilter =

@@ -310,7 +310,7 @@ export default function ReMarketingActivityQueue() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Recent History</CardTitle>
-            <Select value={historyFilter} onValueChange={(v: any) => setHistoryFilter(v)}>
+            <Select value={historyFilter} onValueChange=((v: string) => setHistoryFilter(v)}>
               <SelectTrigger className="w-32 h-8">
                 <SelectValue />
               </SelectTrigger>

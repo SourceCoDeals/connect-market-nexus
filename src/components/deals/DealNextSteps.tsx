@@ -36,6 +36,7 @@ import { Check, Lock, FileText, Shield, FileSignature, ArrowRight } from 'lucide
 import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { CONNECTION_STATUSES } from '@/constants';
 
 /* ─── Props ────────────────────────────────────────────────────────────── */
 
@@ -141,7 +142,7 @@ export function DealNextSteps({
   }
 
   // Deal memo access step — locked until NDA signed AND request approved
-  const memoUnlocked = ndaSigned && requestStatus === 'approved';
+  const memoUnlocked = ndaSigned && requestStatus === CONNECTION_STATUSES.APPROVED;
   steps.push({
     id: 'deal_memo',
     icon: FileText,

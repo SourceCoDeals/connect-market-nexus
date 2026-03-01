@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 interface EditorMetricsSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
 }
 
 export function EditorMetricsSection({ form }: EditorMetricsSectionProps) {

@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSmartleadCampaigns } from '@/hooks/smartlead';
-import type { SmartleadCampaign } from '@/types/smartlead';
+import type { SmartleadCampaign, ListCampaignsResponse } from '@/types/smartlead';
 import { SectionCard, JsonBlock, ts } from './enrichment-test/shared';
 import type { LogEntry, AddLogFn } from './enrichment-test/shared';
 
@@ -297,9 +297,9 @@ function PushToSmartleadTest() {
     [],
   );
 
-  const campaignsList = (campaigns as unknown as { campaigns?: SmartleadCampaign[] })?.campaigns || (campaigns as SmartleadCampaign[] | undefined) || [];
+  const campaignsList = (campaigns as ListCampaignsResponse | undefined)?.campaigns || [];
   const activeCampaigns = campaignsList.filter(
-    (c: SmartleadCampaign) => c.status === 'ACTIVE' || c.status === 'DRAFTED',
+    (c) => c.status === 'ACTIVE' || c.status === 'DRAFTED',
   );
 
   const runTest = async () => {
@@ -502,9 +502,9 @@ function CampaignLeadsTest() {
               <SelectValue placeholder="Select campaign..." />
             </SelectTrigger>
             <SelectContent>
-              {((campaigns as unknown as { campaigns?: SmartleadCampaign[] })?.campaigns || (campaigns as SmartleadCampaign[] | undefined) || []).map((c: SmartleadCampaign) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name} ({c.lead_count || 0} leads)
+              {((campaigns as ListCampaignsResponse | undefined)?.campaigns || []).map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>
+                  {c.name} ({(c as SmartleadCampaign & { lead_count?: number }).lead_count || 0} leads)
                 </SelectItem>
               ))}
             </SelectContent>

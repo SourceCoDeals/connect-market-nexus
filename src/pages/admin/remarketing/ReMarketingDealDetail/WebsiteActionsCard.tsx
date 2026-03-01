@@ -19,9 +19,10 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UniverseAssignmentButton } from '@/components/remarketing/deal-detail';
+import type { DealListing } from '../types';
 
 interface WebsiteActionsCardProps {
-  deal: any;
+  deal: DealListing;
   dealId: string;
   effectiveWebsite: string | null;
   scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
@@ -197,7 +198,7 @@ export function WebsiteActionsCard({
  * Check deal data quality before allowing push to marketplace.
  * Returns array of missing field names, empty if all good.
  */
-function getMarketplaceQualityGaps(deal: any): string[] {
+function getMarketplaceQualityGaps(deal: DealListing | null): string[] {
   const missing: string[] = [];
   if (!deal?.website) missing.push('Website');
   if (!deal?.revenue && !deal?.ebitda) missing.push('Revenue or EBITDA');
@@ -208,7 +209,7 @@ function getMarketplaceQualityGaps(deal: any): string[] {
   return missing;
 }
 
-function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }) {
+function PushToMarketplaceButton({ deal, dealId }: { deal: DealListing; dealId: string }) {
   const queryClient = useQueryClient();
 
   if (deal?.pushed_to_marketplace) {

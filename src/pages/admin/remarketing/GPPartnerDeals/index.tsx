@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { DealImportDialog } from '@/components/remarketing/DealImportDialog';
 import { FilterBar, TimeframeSelector, GP_PARTNER_FIELDS } from '@/components/filters';
+import type { Operator } from '@/components/filters/filter-definitions/types';
+import type { SortColumn } from './types';
 import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
 import {
   DealBulkActionBar,
@@ -171,7 +173,7 @@ export default function GPPartnerDeals() {
       const rules = filters.map((f, idx) => ({
         id: `ai-filter-${idx}`,
         field: f.field,
-        operator: f.operator as any,
+        operator: f.operator as Operator,
         value: f.value,
       }));
       if (clearExisting) hook.setFilterState({ rules, conjunction: 'and', search: '' });
@@ -184,7 +186,7 @@ export default function GPPartnerDeals() {
         created_at: 'created_at',
         priority: 'priority',
       };
-      hook.handleSort((fieldMap[field] || field) as any);
+      hook.handleSort((fieldMap[field] || field) as SortColumn);
     },
     onTriggerAction: (action) => {
       if (action === 'push_to_dialer') setDialerOpen(true);

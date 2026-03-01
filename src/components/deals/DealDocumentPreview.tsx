@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface DealDocumentPreviewProps {
   requestId: string;
@@ -15,7 +16,7 @@ interface DealDocumentPreviewProps {
 export function DealDocumentPreview({ requestId: _requestId, requestStatus, dealId, onViewAll }: DealDocumentPreviewProps) {
   const { user } = useAuth();
 
-  const isPending = requestStatus === "pending";
+  const isPending = requestStatus === CONNECTION_STATUSES.PENDING;
 
   // Check buyer's data room access
   const { data: access } = useQuery({

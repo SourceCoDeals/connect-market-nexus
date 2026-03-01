@@ -161,7 +161,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
 
     if (newStatus) {
       // TURNING ON: Write to both remarketing_buyers AND firm_agreements
-      let firmId = (buyer as any).marketplace_firm_id;
+      let firmId = (buyer as unknown as { marketplace_firm_id?: string }).marketplace_firm_id;
 
       if (!firmId) {
         // Try to find or create the firm in marketplace via get_or_create_firm()
@@ -214,7 +214,8 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
       toast.success('Fee agreement marked — synced to marketplace');
     } else {
       // TURNING OFF: Only allow removal of manual overrides
-      if ((buyer as any).fee_agreement_source === 'marketplace_synced' || (buyer as any).fee_agreement_source === 'pe_firm_inherited') {
+      const feeSource = (buyer as unknown as { fee_agreement_source?: string }).fee_agreement_source;
+      if (feeSource === 'marketplace_synced' || feeSource === 'pe_firm_inherited') {
         toast.error('This fee agreement comes from the marketplace. Remove it from the Firm Agreements page instead.');
         return;
       }

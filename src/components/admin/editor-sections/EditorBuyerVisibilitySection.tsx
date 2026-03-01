@@ -8,7 +8,7 @@ import { BUYER_TYPE_OPTIONS } from "@/lib/signup-field-options";
 import { useState } from "react";
 
 interface EditorBuyerVisibilitySectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
 }
 
 export function EditorBuyerVisibilitySection({ form }: EditorBuyerVisibilitySectionProps) {

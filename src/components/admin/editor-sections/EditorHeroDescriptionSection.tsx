@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Sparkles, Loader2 } from "lucide-react";
 
 interface EditorHeroDescriptionSectionProps {
-  form: UseFormReturn<any>;
+  form: UseFormReturn<Record<string, unknown>>;
   onAiGenerate?: (field: string) => void;
   isGenerating?: boolean;
   generatingField?: string | null;

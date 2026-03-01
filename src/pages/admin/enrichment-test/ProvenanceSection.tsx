@@ -1,5 +1,9 @@
 import { useState, useEffect, MutableRefObject } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+
+const fromTable = supabase.from.bind(supabase) as (
+  table: string,
+) => ReturnType<typeof supabase.from>;
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -48,9 +52,7 @@ export default function ProvenanceSection({ addLog, dealId, runRef }: Props) {
       if (!bData) throw new Error('Deal not found');
 
       // Fetch extraction sources
-      const { data: srcData, error: srcDataError } = await (
-        supabase.from('extraction_sources' as any) as any
-      )
+      const { data: srcData, error: srcDataError } = await fromTable('extraction_sources')
         .select('*')
         .eq('listing_id', dealId);
       if (srcDataError) throw srcDataError;

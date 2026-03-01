@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
 import { ScoreTierBadge, DealSourceBadge } from "@/components/remarketing";
+import type { ScoreTier } from "@/types/remarketing";
 
 interface DealHeaderProps {
   deal: any;
@@ -166,7 +167,7 @@ export function DealHeader({
         ) : null}
       </div>
       <div className="flex items-center gap-2">
-        {tier && <ScoreTierBadge tier={tier as any} size="lg" />}
+        {tier && <ScoreTierBadge tier={tier as ScoreTier} size="lg" />}
       </div>
     </div>
   );

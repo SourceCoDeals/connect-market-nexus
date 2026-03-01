@@ -5,8 +5,10 @@ import { toast } from "sonner";
 import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
 import { useAuth } from "@/context/AuthContext";
 import type { SingleDealEnrichmentResult } from "./types";
+import type { ReferralPartner } from "@/types/remarketing";
+import type { DealListing } from "../types";
 
-export function usePartnerActions(partnerId: string | undefined, partner: any, deals: any[] | undefined) {
+export function usePartnerActions(partnerId: string | undefined, partner: ReferralPartner | undefined, deals: DealListing[] | undefined) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
@@ -151,7 +153,7 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
       const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
       await queueDealEnrichment([dealId]);
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
-    } catch (err: any) { toast.error(`Enrichment failed: ${err.message}`); }
+    } catch (err: unknown) { toast.error(`Enrichment failed: ${err instanceof Error ? err.message : String(err)}`); }
   };
 
   // Bulk approve
@@ -201,7 +203,7 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId] });
       queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
       queryClient.invalidateQueries({ queryKey: ["remarketing", "deals"] });
-    } catch (err: any) { toast.error(`Delete failed: ${err.message}`); }
+    } catch (err: unknown) { toast.error(`Delete failed: ${err instanceof Error ? err.message : String(err)}`); }
     setConfirmAction(null);
   };
 
@@ -222,8 +224,8 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
         setSelectedDealIds(new Set());
         queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
       }
-    } catch (err: any) {
-      toast.error(`Failed: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsMarkingNotFit(false);
     }

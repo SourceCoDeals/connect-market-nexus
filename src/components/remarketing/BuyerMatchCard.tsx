@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 import { IntelligenceBadge } from "./IntelligenceBadge";
 import { OutreachStatusDialog, type OutreachStatus } from "./OutreachStatusDialog";
-import type { ScoreTier, ReMarketingBuyer } from "@/types/remarketing";
+import type { ScoreTier, ReMarketingBuyer, ExtractionSource, ReMarketingBuyerContact } from "@/types/remarketing";
 
 interface OutreachData {
   status: OutreachStatus;
@@ -121,7 +121,7 @@ const isDisqualified = (scoreData: { composite_score: number; is_disqualified?: 
 
 // Get disqualification reason from reasoning text
 // Uses specific patterns to avoid over-triggering (e.g., "size mismatch" just because reasoning mentions revenue)
-const getDisqualificationReason = (reasoning: string | null, score?: any): string => {
+const getDisqualificationReason = (reasoning: string | null, score?: { size_score?: number; geography_score?: number; service_score?: number; owner_goals_score?: number }): string => {
   if (!reasoning) return 'criteria mismatch';
   const lower = reasoning.toLowerCase();
 
@@ -544,7 +544,7 @@ export const BuyerMatchCard = ({
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Intelligence Badge with missing fields */}
             <IntelligenceBadge
-              hasTranscript={!!buyer?.extraction_sources?.some((s: any) => s.type === 'transcript')}
+              hasTranscript={!!buyer?.extraction_sources?.some((s: ExtractionSource) => s.type === 'transcript')}
               missingFields={missingData}
               size="sm"
             />
@@ -744,7 +744,7 @@ export const BuyerMatchCard = ({
         <Collapsible open={isExpanded} onOpenChange={handleExpand}>
           <CollapsibleContent className="pt-4">
             {(() => {
-              const primaryContact = buyer?.contacts?.find((c: any) => c.is_primary_contact || c.is_primary) || buyer?.contacts?.[0];
+              const primaryContact = buyer?.contacts?.find((c: ReMarketingBuyerContact) => c.is_primary) || buyer?.contacts?.[0];
               if (!primaryContact) return null;
               return (
                 <div className="border-t pt-3 pb-1">

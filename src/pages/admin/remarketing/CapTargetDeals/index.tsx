@@ -10,6 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { FilterBar, TimeframeSelector, CAPTARGET_FIELDS } from '@/components/filters';
+import type { Operator } from '@/components/filters/filter-definitions/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,8 +90,7 @@ export default function CapTargetDeals() {
       const rules = filters.map((f, idx) => ({
         id: `ai-filter-${idx}`,
         field: f.field,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        operator: f.operator as any,
+        operator: f.operator as Operator,
         value: f.value,
       }));
       if (clearExisting) data.setFilterState({ rules, conjunction: 'and', search: '' });
@@ -105,8 +105,7 @@ export default function CapTargetDeals() {
         interest_type: 'interest_type',
         priority: 'priority',
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      data.handleSort((fieldMap[field] || field) as any);
+      data.handleSort((fieldMap[field] || field) as SortColumn);
     },
     onTriggerAction: (action) => {
       if (action === 'push_to_dialer') actions.setDialerOpen(true);

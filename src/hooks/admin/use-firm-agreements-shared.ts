@@ -50,14 +50,14 @@ export function useFirmAgreements() {
 
       // Count leads per firm
       const leadCounts: Record<string, number> = {};
-      (leadsRes.data || []).forEach((l: any) => {
+      (leadsRes.data || []).forEach((l) => {
         leadCounts[l.firm_id] = (leadCounts[l.firm_id] || 0) + 1;
       });
 
       // Count requests per firm & collect request IDs for deal lookup
       const requestCounts: Record<string, number> = {};
       const requestToFirm: Record<string, string> = {};
-      (requestsRes.data || []).forEach((r: any) => {
+      (requestsRes.data || []).forEach((r) => {
         requestCounts[r.firm_id] = (requestCounts[r.firm_id] || 0) + 1;
         requestToFirm[r.id] = r.firm_id;
       });
@@ -72,8 +72,8 @@ export function useFirmAgreements() {
           .in('connection_request_id', allRequestIds);
         if (dealsDataError) throw dealsDataError;
 
-        (dealsData || []).forEach((d: any) => {
-          const firmId = requestToFirm[d.connection_request_id as string];
+        (dealsData || []).forEach((d) => {
+          const firmId = d.connection_request_id ? requestToFirm[d.connection_request_id] : undefined;
           if (firmId) {
             dealCounts[firmId] = (dealCounts[firmId] || 0) + 1;
           }

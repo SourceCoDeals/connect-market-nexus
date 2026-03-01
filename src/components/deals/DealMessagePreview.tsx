@@ -1,6 +1,7 @@
 import { MessageSquare, ArrowRight, Lock } from "lucide-react";
 import { useConnectionMessages } from "@/hooks/use-connection-messages";
 import { formatDistanceToNow } from "date-fns";
+import { CONNECTION_STATUSES } from '@/constants';
 
 interface DealMessagePreviewProps {
   requestId: string;
@@ -11,7 +12,7 @@ interface DealMessagePreviewProps {
 export function DealMessagePreview({ requestId, requestStatus, onViewAll }: DealMessagePreviewProps) {
   const { data: messages = [] } = useConnectionMessages(requestId);
 
-  const isPending = requestStatus === "pending";
+  const isPending = requestStatus === CONNECTION_STATUSES.PENDING;
 
   // Filter to actual messages (not system/decision), take last 3
   const recentMessages = messages
