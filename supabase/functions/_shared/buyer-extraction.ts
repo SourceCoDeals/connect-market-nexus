@@ -588,7 +588,7 @@ export function buildBuyerUpdateObject(
 
   // Build per-field source tracking: merge existing field_sources with new ones
   const existingFieldSources: Record<string, { source: string; priority: number; at: string }> =
-    existingSources.find((s: any) => s.type === 'field_sources')?.fields || {};
+    (existingSources.find((s) => (s as Record<string, unknown>).type === 'field_sources') as Record<string, unknown> | undefined)?.fields as Record<string, { source: string; priority: number; at: string }> || {};
   const fieldSources = { ...existingFieldSources };
 
   const updateData: Record<string, unknown> = {
@@ -698,7 +698,7 @@ export function buildBuyerUpdateObject(
   // Finalize extraction_sources: merge evidence records + per-field source tracking
   // Filter out any old field_sources entry, then append the updated one
   const baseEntries = [...existingSources, ...evidenceRecords].filter(
-    (s: any) => s.type !== 'field_sources'
+    (s) => (s as Record<string, unknown>).type !== 'field_sources'
   );
   baseEntries.push({ type: 'field_sources', fields: fieldSources });
   updateData.extraction_sources = baseEntries;

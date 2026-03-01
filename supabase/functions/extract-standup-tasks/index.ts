@@ -1,4 +1,4 @@
-/* eslint-disable no-console, @typescript-eslint/no-explicit-any */
+/* eslint-disable no-console */
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
@@ -365,10 +365,7 @@ serve(async (req) => {
       aliasMap.set(a.profile_id, existing);
     }
 
-    const teamMembers = (teamRoles || []).map((r: any) => ({
-      // Use user_id directly from user_roles (matches auth.uid()) rather than
-      // the joined profiles.id which can be unreliable when PostgREST infers
-      // the FK path through auth.users with multiple candidate FKs.
+    const teamMembers = (teamRoles || []).map((r: { user_id: string; profiles: { id: string; first_name: string; last_name: string } }) => ({
       id: r.user_id,
       name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
       first_name: r.profiles.first_name || '',

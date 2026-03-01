@@ -486,8 +486,8 @@ async function getOutreachRecordsUnified(
 
   // Compute total
   const totalCount =
-    ((results.outreach_records as any)?.total || 0) +
-    ((results.remarketing_outreach as any)?.total || 0);
+    ((results.outreach_records as { total?: number })?.total || 0) +
+    ((results.remarketing_outreach as { total?: number })?.total || 0);
 
   results.total_across_sources = totalCount;
   if (errors.length > 0) results.errors = errors;

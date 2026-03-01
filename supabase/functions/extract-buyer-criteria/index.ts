@@ -18,6 +18,58 @@ interface ExtractionRequest {
   industry_name?: string;
 }
 
+interface ExtractedBuyer {
+  buyer_identity?: {
+    name?: string;
+    type?: string;
+    website?: string;
+    parent_company?: string;
+  };
+  size_criteria?: {
+    revenue_min?: number;
+    revenue_max?: number;
+    ebitda_min?: number;
+    ebitda_max?: number;
+    location_range?: string;
+    confidence?: number;
+    source?: string;
+  };
+  service_criteria?: {
+    target_services?: string[];
+    service_exclusions?: string[];
+    service_notes?: string;
+    confidence?: number;
+  };
+  geography_criteria?: {
+    target_regions?: string[];
+    target_states?: string[];
+    geographic_exclusions?: string[];
+    geographic_flexibility?: string;
+    confidence?: number;
+    source?: string;
+  };
+  buyer_profile?: {
+    typical_size_range?: string;
+    geographic_focus?: string;
+    service_preferences?: string[];
+    strategic_rationale?: string;
+    typical_structure?: string;
+    growth_strategies?: string[];
+  };
+  deal_history?: {
+    company_name: string;
+    location?: string;
+    approximate_size?: string;
+    year?: number;
+    services?: string[];
+  }[];
+}
+
+interface ExtractionResult {
+  buyers: ExtractedBuyer[];
+  overall_confidence: number;
+}
+
 /**
  * Extract buyer fit criteria from AI-generated M&A guide
  * SOURCE PRIORITY: 60 (Document — lower than Transcript at 100)
@@ -345,13 +397,13 @@ serve(async (req) => {
             overall: overallConfidence,
             buyer_count: buyers.length,
             avg_size_confidence: buyers.length > 0
-              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.size_criteria?.confidence || 0), 0) / buyers.length)
+              ? Math.round(buyers.reduce((sum: number, b: ExtractedBuyer) => sum + (b.size_criteria?.confidence || 0), 0) / buyers.length)
               : 0,
             avg_service_confidence: buyers.length > 0
-              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.service_criteria?.confidence || 0), 0) / buyers.length)
+              ? Math.round(buyers.reduce((sum: number, b: ExtractedBuyer) => sum + (b.service_criteria?.confidence || 0), 0) / buyers.length)
               : 0,
             avg_geography_confidence: buyers.length > 0
-              ? Math.round(buyers.reduce((sum: number, b: any) => sum + (b.geography_criteria?.confidence || 0), 0) / buyers.length)
+              ? Math.round(buyers.reduce((sum: number, b: ExtractedBuyer) => sum + (b.geography_criteria?.confidence || 0), 0) / buyers.length)
               : 0,
           }
         })

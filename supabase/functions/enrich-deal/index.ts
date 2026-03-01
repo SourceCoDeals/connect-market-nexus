@@ -52,6 +52,18 @@ import { resolveWebsiteUrl, validateWebsiteUrl, scrapeWebsite } from "./website-
 import { enrichLinkedIn, enrichGoogleReviews } from "./external-enrichment.ts";
 
 // Financial confidence levels per spec
+interface DealTranscriptRow {
+  id: string;
+  title: string | null;
+  transcript_text: string | null;
+  processed_at: string | null;
+  extracted_data: Record<string, unknown> | null;
+  applied_to_deal: boolean;
+  source: string | null;
+  fireflies_transcript_id: string | null;
+  transcript_url: string | null;
+}
+
 type FinancialConfidence = 'high' | 'medium' | 'low';
 
 interface ExtractedFinancial {
@@ -81,11 +93,11 @@ const getErrorMessage = (error: unknown): string => {
 async function inferIndustryFromContext(
   deal: Record<string, unknown>,
   geminiApiKey: string,
-  supabase: any,
+  supabase: ReturnType<typeof createClient>,
   dealId: string,
 ): Promise<string | null> {
   if (!geminiApiKey) return null;
-  if (deal.industry) return deal.industry;
+  if (deal.industry) return deal.industry as string;
 
   const context = [
     deal.title && `Company: ${deal.title}`,
@@ -218,7 +230,7 @@ serve(async (req) => {
     };
 
     if (!transcriptsError && allTranscripts?.length) {
-      const sample = allTranscripts.slice(0, 5).map((t: any) => ({
+      const sample = allTranscripts.slice(0, 5).map((t: DealTranscriptRow) => ({
         id: t.id,
         processed_at: t.processed_at,
         text_len: t.transcript_text ? t.transcript_text.length : 0,
@@ -230,7 +242,7 @@ serve(async (req) => {
 
     // 0A) Apply existing extracted_data from previously-processed transcripts
     if (!transcriptsError && allTranscripts && allTranscripts.length > 0) {
-      const transcriptsWithExtracted = allTranscripts.filter((t: any) => t.extracted_data && typeof t.extracted_data === 'object');
+      const transcriptsWithExtracted = allTranscripts.filter((t: DealTranscriptRow) => t.extracted_data && typeof t.extracted_data === 'object');
 
       if (transcriptsWithExtracted.length > 0) {
         const existingResult = await applyExistingTranscriptData(
@@ -251,7 +263,7 @@ serve(async (req) => {
         console.log(`[Transcripts] forceReExtract=true: Re-processing ALL ${allTranscripts.length} transcripts with new prompts`);
         needsExtraction = allTranscripts;
 
-        const allTranscriptIds = allTranscripts.map((t: any) => t.id);
+        const allTranscriptIds = allTranscripts.map((t: DealTranscriptRow) => t.id);
         if (allTranscriptIds.length > 0) {
           console.log(`[Transcripts] Clearing extracted_data for ${allTranscriptIds.length} transcripts`);
           const { error: clearError } = await supabase
@@ -263,7 +275,7 @@ serve(async (req) => {
           }
         }
       } else {
-        needsExtraction = allTranscripts.filter((t: any) => {
+        needsExtraction = allTranscripts.filter((t: DealTranscriptRow) => {
           const hasExtracted = t.extracted_data && typeof t.extracted_data === 'object' && Object.keys(t.extracted_data).length > 0;
           if (hasExtracted) return false;
           return true;

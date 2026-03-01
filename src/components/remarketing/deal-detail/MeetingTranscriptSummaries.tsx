@@ -52,8 +52,8 @@ export function MeetingTranscriptSummaries({
   >({
     queryKey: ["deal-meeting-summaries", listingId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("deal_transcripts")
+      const { data, error } = await (supabase
+        .from("deal_transcripts" as never) as unknown as ReturnType<typeof supabase.from>)
         .select(
           "id, title, call_date, duration_minutes, transcript_url, source, has_content, external_participants, extracted_data, created_at"
         )

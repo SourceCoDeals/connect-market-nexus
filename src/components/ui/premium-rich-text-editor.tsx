@@ -25,7 +25,7 @@ import { useState, useEffect, useCallback } from 'react';
 
 interface PremiumRichTextEditorProps {
   content: string;
-  onChange: (html: string, json: any) => void;
+  onChange: (html: string, json: Record<string, unknown>) => void;
 }
 
 export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEditorProps) {
@@ -137,7 +137,7 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
     return null;
   }
 
-  const ToolbarButton = ({ onClick, active, children, title, disabled }: any) => (
+  const ToolbarButton = ({ onClick, active, children, title, disabled }: { onClick: () => void; active?: boolean; children: React.ReactNode; title: string; disabled?: boolean }) => (
     <Button
       type="button"
       variant="ghost"
