@@ -491,7 +491,11 @@ ${adminSignature}
       } catch (error: unknown) {
         console.error(`❌ Error sending to ${recipient.email}:`, error);
         failCount++;
-        emailResults.push({ email: recipient.email, success: false, error: error.message });
+        emailResults.push({
+          email: recipient.email,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -517,7 +521,7 @@ ${adminSignature}
     console.error('❌ Error in send-fee-agreement-email function:', error);
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         success: false,
       }),
       {

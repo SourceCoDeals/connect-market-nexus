@@ -2,10 +2,21 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +53,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
   const [isSavePresetOpen, setIsSavePresetOpen] = useReactState(false);
   const { data: presets = [] } = useFilterPresets();
   const deletePreset = useDeleteFilterPreset();
-  
+
   if (!pipeline.isFilterPanelOpen) return null;
 
   const activeFiltersCount = [
@@ -81,10 +92,13 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     sortOption: pipeline.sortOption, // Added: Include sort option in saved presets
   });
 
-  const loadPreset = (preset: any) => {
+  const loadPreset = (preset: {
+    filters: Record<string, string | string[] | [string, string]>;
+  }) => {
     const filters = preset.filters;
     if (filters.statusFilter) pipeline.setStatusFilter(filters.statusFilter);
-    if (filters.documentStatusFilter) pipeline.setDocumentStatusFilter(filters.documentStatusFilter);
+    if (filters.documentStatusFilter)
+      pipeline.setDocumentStatusFilter(filters.documentStatusFilter);
     if (filters.buyerTypeFilter) pipeline.setBuyerTypeFilter(filters.buyerTypeFilter);
     if (filters.companyFilter) pipeline.setCompanyFilter(filters.companyFilter);
     if (filters.adminFilter) pipeline.setAdminFilter(filters.adminFilter);
@@ -143,7 +157,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            
+
             {/* Save Current Filters */}
             <Button
               variant="ghost"
@@ -154,7 +168,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
             >
               <Save className="h-4 w-4" />
             </Button>
-            
+
             <Button
               variant="ghost"
               size="sm"
@@ -181,7 +195,11 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
             </div>
 
             {/* Collapsible Filter Sections */}
-            <Accordion type="multiple" defaultValue={['stage', 'company', 'admin']} className="space-y-2">
+            <Accordion
+              type="multiple"
+              defaultValue={['stage', 'company', 'admin']}
+              className="space-y-2"
+            >
               {/* Stage Status */}
               <AccordionItem value="stage" className="border rounded-lg px-4">
                 <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
@@ -216,7 +234,11 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                       <CheckCircle2 className="h-4 w-4 mr-2" />
                       <span className="flex-1 text-left">Active Only</span>
                       <Badge variant="secondary" className="ml-auto">
-                        {pipeline.deals.filter(d => !['Closed Won', 'Closed Lost'].includes(d.stage_name || '')).length}
+                        {
+                          pipeline.deals.filter(
+                            (d) => !['Closed Won', 'Closed Lost'].includes(d.stage_name || ''),
+                          ).length
+                        }
                       </Badge>
                     </Button>
 
@@ -224,10 +246,13 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
 
                     {/* Dynamic stages from database (active stages only) */}
                     {pipeline.stages
-                      .filter(stage => stage.is_active && (stage.stage_type === 'active' || !stage.stage_type))
+                      .filter(
+                        (stage) =>
+                          stage.is_active && (stage.stage_type === 'active' || !stage.stage_type),
+                      )
                       .map((stage) => {
-                        const stageDeals = pipeline.deals.filter(d => d.stage_id === stage.id);
-                        
+                        const stageDeals = pipeline.deals.filter((d) => d.stage_id === stage.id);
+
                         return (
                           <Button
                             key={stage.id}
@@ -236,8 +261,8 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                             className="w-full justify-start gap-2"
                             onClick={() => pipeline.setStatusFilter(stage.id)}
                           >
-                            <div 
-                              className="w-2 h-2 rounded-full flex-shrink-0" 
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
                               style={{ backgroundColor: stage.color }}
                             />
                             <span className="flex-1 text-left">{stage.name}</span>
@@ -260,7 +285,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                       <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
                       <span className="flex-1 text-left">Closed Won</span>
                       <Badge variant="secondary" className="ml-auto">
-                        {pipeline.deals.filter(d => d.stage_name === 'Closed Won').length}
+                        {pipeline.deals.filter((d) => d.stage_name === 'Closed Won').length}
                       </Badge>
                     </Button>
 
@@ -274,7 +299,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                       <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
                       <span className="flex-1 text-left">Closed Lost</span>
                       <Badge variant="secondary" className="ml-auto">
-                        {pipeline.deals.filter(d => d.stage_name === 'Closed Lost').length}
+                        {pipeline.deals.filter((d) => d.stage_name === 'Closed Lost').length}
                       </Badge>
                     </Button>
 
@@ -288,7 +313,11 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                       <XCircle className="h-4 w-4 mr-2" />
                       <span className="flex-1 text-left">Closed (All)</span>
                       <Badge variant="secondary" className="ml-auto">
-                        {pipeline.deals.filter(d => ['Closed Won', 'Closed Lost'].includes(d.stage_name || '')).length}
+                        {
+                          pipeline.deals.filter((d) =>
+                            ['Closed Won', 'Closed Lost'].includes(d.stage_name || ''),
+                          ).length
+                        }
                       </Badge>
                     </Button>
                   </div>
@@ -369,7 +398,18 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                 <AccordionContent className="pb-4">
                   <Select
                     value={pipeline.sortOption}
-                    onValueChange={(value) => pipeline.setSortOption(value as 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered' | 'last_activity')}
+                    onValueChange={(value) =>
+                      pipeline.setSortOption(
+                        value as
+                          | 'newest'
+                          | 'oldest'
+                          | 'priority'
+                          | 'value'
+                          | 'probability'
+                          | 'stage_entered'
+                          | 'last_activity',
+                      )
+                    }
                   >
                     <SelectTrigger className="w-full h-9">
                       <SelectValue placeholder="Sort by" />
@@ -423,7 +463,20 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                     <label className="text-sm font-medium mb-2 block">Buyer Type</label>
                     <Select
                       value={pipeline.buyerTypeFilter}
-                      onValueChange={(value) => pipeline.setBuyerTypeFilter(value as 'all' | 'privateEquity' | 'familyOffice' | 'searchFund' | 'corporate' | 'individual' | 'independentSponsor' | 'advisor' | 'businessOwner')}
+                      onValueChange={(value) =>
+                        pipeline.setBuyerTypeFilter(
+                          value as
+                            | 'all'
+                            | 'privateEquity'
+                            | 'familyOffice'
+                            | 'searchFund'
+                            | 'corporate'
+                            | 'individual'
+                            | 'independentSponsor'
+                            | 'advisor'
+                            | 'businessOwner',
+                        )
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="All buyer types" />
@@ -449,7 +502,17 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                     <label className="text-sm font-medium mb-2 block">Documents</label>
                     <Select
                       value={pipeline.documentStatusFilter}
-                      onValueChange={(value) => pipeline.setDocumentStatusFilter(value as 'all' | 'nda_signed' | 'fee_signed' | 'both_signed' | 'none_signed' | 'overdue_followup')}
+                      onValueChange={(value) =>
+                        pipeline.setDocumentStatusFilter(
+                          value as
+                            | 'all'
+                            | 'nda_signed'
+                            | 'fee_signed'
+                            | 'both_signed'
+                            | 'none_signed'
+                            | 'overdue_followup',
+                        )
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="All documents" />
@@ -484,20 +547,24 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                         />
                       </Badge>
                     )}
-                    {pipeline.companyFilter.length > 0 && 
-                      pipeline.companyFilter.map(company => (
+                    {pipeline.companyFilter.length > 0 &&
+                      pipeline.companyFilter.map((company) => (
                         <Badge key={company} variant="secondary" className="gap-1">
                           Company: {company}
                           <X
                             className="h-3 w-3 cursor-pointer"
-                            onClick={() => pipeline.setCompanyFilter(pipeline.companyFilter.filter(c => c !== company))}
+                            onClick={() =>
+                              pipeline.setCompanyFilter(
+                                pipeline.companyFilter.filter((c) => c !== company),
+                              )
+                            }
                           />
                         </Badge>
-                      ))
-                    }
+                      ))}
                     {pipeline.adminFilter !== 'all' && (
                       <Badge variant="secondary" className="gap-1">
-                        Admin: {pipeline.adminFilter === 'assigned_to_me' ? 'Me' : pipeline.adminFilter}
+                        Admin:{' '}
+                        {pipeline.adminFilter === 'assigned_to_me' ? 'Me' : pipeline.adminFilter}
                         <X
                           className="h-3 w-3 cursor-pointer"
                           onClick={() => pipeline.setAdminFilter('all')}
@@ -510,7 +577,10 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                         <X
                           className="h-3 w-3 cursor-pointer"
                           onClick={() =>
-                            pipeline.setCreatedDateRange({ ...pipeline.createdDateRange, start: null })
+                            pipeline.setCreatedDateRange({
+                              ...pipeline.createdDateRange,
+                              start: null,
+                            })
                           }
                         />
                       </Badge>
@@ -521,7 +591,10 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
                         <X
                           className="h-3 w-3 cursor-pointer"
                           onClick={() =>
-                            pipeline.setLastActivityRange({ ...pipeline.lastActivityRange, start: null })
+                            pipeline.setLastActivityRange({
+                              ...pipeline.lastActivityRange,
+                              start: null,
+                            })
                           }
                         />
                       </Badge>
@@ -545,7 +618,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
           </div>
         </div>
       </div>
-      
+
       {/* Save Preset Dialog */}
       <SaveFilterPresetDialog
         open={isSavePresetOpen}

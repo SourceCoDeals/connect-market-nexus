@@ -297,25 +297,37 @@ export function FirmSyncTestingPanel() {
       if (error) throw error;
 
       // Validate deal status matches connection request for lead-based requests
-      const syncIssues = deals?.filter((d: any) => {
-        const cr = d.connection_requests;
-        if (!cr || cr.user_id !== null) return false; // Skip user-based requests
+      const syncIssues = deals?.filter(
+        (d: {
+          connection_requests?: {
+            user_id?: string | null;
+            lead_fee_agreement_signed?: boolean;
+            lead_fee_agreement_email_sent?: boolean;
+            lead_nda_signed?: boolean;
+            lead_nda_email_sent?: boolean;
+          } | null;
+          fee_agreement_status?: string;
+          nda_status?: string;
+        }) => {
+          const cr = d.connection_requests;
+          if (!cr || cr.user_id !== null) return false; // Skip user-based requests
 
-        // Check fee agreement sync
-        const expectedFeeStatus = cr.lead_fee_agreement_signed
-          ? 'signed'
-          : cr.lead_fee_agreement_email_sent
-            ? 'sent'
-            : 'not_sent';
+          // Check fee agreement sync
+          const expectedFeeStatus = cr.lead_fee_agreement_signed
+            ? 'signed'
+            : cr.lead_fee_agreement_email_sent
+              ? 'sent'
+              : 'not_sent';
 
-        const expectedNdaStatus = cr.lead_nda_signed
-          ? 'signed'
-          : cr.lead_nda_email_sent
-            ? 'sent'
-            : 'not_sent';
+          const expectedNdaStatus = cr.lead_nda_signed
+            ? 'signed'
+            : cr.lead_nda_email_sent
+              ? 'sent'
+              : 'not_sent';
 
-        return d.fee_agreement_status !== expectedFeeStatus || d.nda_status !== expectedNdaStatus;
-      });
+          return d.fee_agreement_status !== expectedFeeStatus || d.nda_status !== expectedNdaStatus;
+        },
+      );
 
       if (syncIssues && syncIssues.length > 0) {
         updateTestResult(5, {

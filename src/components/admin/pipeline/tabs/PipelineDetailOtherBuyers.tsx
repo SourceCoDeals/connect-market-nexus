@@ -34,7 +34,8 @@ export function PipelineDetailOtherBuyers({ deal }: PipelineDetailOtherBuyersPro
 
       const { data, error } = await supabase
         .from('deals')
-        .select(`
+        .select(
+          `
           id,
           title,
           contact_name,
@@ -47,7 +48,8 @@ export function PipelineDetailOtherBuyers({ deal }: PipelineDetailOtherBuyersPro
           created_at,
           deal_stages!deals_stage_id_fkey ( name, color ),
           profiles!deals_assigned_to_fkey ( first_name, last_name )
-        `)
+        `,
+        )
         .eq('listing_id', deal.listing_id)
         .neq('id', deal.deal_id)
         .is('deleted_at', null)
@@ -56,23 +58,37 @@ export function PipelineDetailOtherBuyers({ deal }: PipelineDetailOtherBuyersPro
 
       if (error) throw error;
 
-      return (data || []).map((d: any) => ({
-        id: d.id,
-        title: d.title,
-        contact_name: d.contact_name,
-        contact_company: d.contact_company,
-        contact_email: d.contact_email,
-        nda_status: d.nda_status,
-        fee_agreement_status: d.fee_agreement_status,
-        assigned_to: d.assigned_to,
-        updated_at: d.updated_at,
-        created_at: d.created_at,
-        stage_name: d.deal_stages?.name || null,
-        stage_color: d.deal_stages?.color || null,
-        owner_name: d.profiles
-          ? `${d.profiles.first_name || ''} ${d.profiles.last_name || ''}`.trim() || null
-          : null,
-      })) as OtherBuyerDeal[];
+      return (data || []).map(
+        (d: {
+          id: string;
+          title: string;
+          contact_name?: string;
+          contact_company?: string;
+          contact_email?: string;
+          nda_status?: string;
+          fee_agreement_status?: string;
+          assigned_to?: string;
+          updated_at?: string;
+          created_at?: string;
+          deal_stages?: { name?: string; color?: string } | null;
+        }) => ({
+          id: d.id,
+          title: d.title,
+          contact_name: d.contact_name,
+          contact_company: d.contact_company,
+          contact_email: d.contact_email,
+          nda_status: d.nda_status,
+          fee_agreement_status: d.fee_agreement_status,
+          assigned_to: d.assigned_to,
+          updated_at: d.updated_at,
+          created_at: d.created_at,
+          stage_name: d.deal_stages?.name || null,
+          stage_color: d.deal_stages?.color || null,
+          owner_name: d.profiles
+            ? `${d.profiles.first_name || ''} ${d.profiles.last_name || ''}`.trim() || null
+            : null,
+        }),
+      ) as OtherBuyerDeal[];
     },
     enabled: !!deal.listing_id,
     staleTime: 30_000,
@@ -99,13 +115,18 @@ export function PipelineDetailOtherBuyers({ deal }: PipelineDetailOtherBuyersPro
 
   const StatusDot = ({ status, label }: { status: string | null; label: string }) => (
     <div className="flex items-center gap-1.5">
-      <div className={cn(
-        'w-2 h-2 rounded-full',
-        status === 'signed' ? 'bg-emerald-500' :
-        status === 'sent' ? 'bg-amber-500' :
-        status === 'declined' ? 'bg-destructive' :
-        'bg-muted-foreground/30'
-      )} />
+      <div
+        className={cn(
+          'w-2 h-2 rounded-full',
+          status === 'signed'
+            ? 'bg-emerald-500'
+            : status === 'sent'
+              ? 'bg-amber-500'
+              : status === 'declined'
+                ? 'bg-destructive'
+                : 'bg-muted-foreground/30',
+        )}
+      />
       <span className="text-[11px] text-muted-foreground">{label}</span>
     </div>
   );
@@ -134,7 +155,9 @@ export function PipelineDetailOtherBuyers({ deal }: PipelineDetailOtherBuyersPro
                   <p className="text-xs text-muted-foreground truncate">{buyer.contact_name}</p>
                 )}
                 {buyer.contact_email && (
-                  <p className="text-xs text-muted-foreground font-mono truncate">{buyer.contact_email}</p>
+                  <p className="text-xs text-muted-foreground font-mono truncate">
+                    {buyer.contact_email}
+                  </p>
                 )}
               </div>
               {buyer.stage_name && (
@@ -154,12 +177,12 @@ export function PipelineDetailOtherBuyers({ deal }: PipelineDetailOtherBuyersPro
               <StatusDot status={buyer.nda_status} label="NDA" />
               <StatusDot status={buyer.fee_agreement_status} label="Fee" />
               {buyer.owner_name && (
-                <span className="text-[11px] text-muted-foreground">
-                  Owner: {buyer.owner_name}
-                </span>
+                <span className="text-[11px] text-muted-foreground">Owner: {buyer.owner_name}</span>
               )}
               <span className="text-[11px] text-muted-foreground ml-auto">
-                {formatDistanceToNow(new Date(buyer.updated_at || buyer.created_at), { addSuffix: true })}
+                {formatDistanceToNow(new Date(buyer.updated_at || buyer.created_at), {
+                  addSuffix: true,
+                })}
               </span>
             </div>
           </div>
