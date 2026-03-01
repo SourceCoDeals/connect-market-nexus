@@ -558,13 +558,12 @@ serve(async (req) => {
         }
       );
 
-    } catch (extractionError) {
-      // Mark extraction as failed
+    } catch (extractionError: unknown) {
       await supabase
         .from('buyer_transcripts')
         .update({
           extraction_status: 'failed',
-          extraction_error: extractionError.message,
+          extraction_error: extractionError instanceof Error ? extractionError.message : String(extractionError),
           processed_at: new Date().toISOString()
         })
         .eq('id', transcriptRecord.id);
@@ -572,12 +571,12 @@ serve(async (req) => {
       throw extractionError;
     }
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[ERROR]', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -95,9 +95,9 @@ Deno.serve(async (req: Request) => {
         .single();
 
       if (memo?.content) {
-        const sections = (memo.content as any).sections || [];
+        const sections = (memo.content as { sections?: { title: string; content: string }[] }).sections || [];
         memoContent = sections
-          .map((s: any) => `${s.title}:\n${s.content}`)
+          .map((s) => `${s.title}:\n${s.content}`)
           .join("\n\n");
       }
     }
@@ -165,7 +165,7 @@ Write the email now. Return a JSON object with "subject" and "body" fields.`;
     const result = await response.json();
     const content = result.choices?.[0]?.message?.content;
 
-    let parsed: any;
+    let parsed: { subject?: string; body?: string };
     try {
       parsed = JSON.parse(content);
     } catch {
@@ -189,10 +189,10 @@ Write the email now. Return a JSON object with "subject" and "body" fields.`;
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Draft email error:", error);
     return new Response(
-      JSON.stringify({ error: "Failed to draft email", details: (error as Error).message }),
+      JSON.stringify({ error: "Failed to draft email", details: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

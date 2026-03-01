@@ -328,7 +328,7 @@ export function OverviewTab({
           await updateDealMutation.mutateAsync({ general_notes: notes });
         }}
         isAnalyzing={isAnalyzingNotes}
-        onAnalyze={handleAnalyzeNotes as any}
+        onAnalyze={async (notes: string) => { handleAnalyzeNotes(notes); }}
       />
 
       <div className="flex justify-end gap-6 text-xs text-muted-foreground pt-4">
