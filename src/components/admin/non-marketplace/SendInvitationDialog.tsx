@@ -1,11 +1,18 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useMutation } from "@tanstack/react-query";
-import type { NonMarketplaceUser } from "@/types/non-marketplace-user";
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useMutation } from '@tanstack/react-query';
+import type { NonMarketplaceUser } from '@/types/non-marketplace-user';
 
 interface SendInvitationDialogProps {
   user: NonMarketplaceUser | null;
@@ -15,7 +22,7 @@ interface SendInvitationDialogProps {
 
 export const SendInvitationDialog = ({ user, open, onOpenChange }: SendInvitationDialogProps) => {
   const { toast } = useToast();
-  const [customMessage, setCustomMessage] = useState("");
+  const [customMessage, setCustomMessage] = useState('');
 
   const sendInvitationMutation = useMutation({
     mutationFn: async () => {
@@ -26,24 +33,24 @@ export const SendInvitationDialog = ({ user, open, onOpenChange }: SendInvitatio
           to: user.email,
           name: user.name,
           customMessage: customMessage || undefined,
-        }
+        },
       });
 
       if (error) throw error;
     },
     onSuccess: () => {
       toast({
-        title: "Invitation sent",
+        title: 'Invitation sent',
         description: `Marketplace invitation sent to ${user?.email}`,
       });
       onOpenChange(false);
-      setCustomMessage("");
+      setCustomMessage('');
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: "Failed to send invitation",
+        title: 'Failed to send invitation',
         description: error.message,
-        variant: "destructive",
+        variant: 'destructive',
       });
     },
   });
@@ -86,11 +93,11 @@ export const SendInvitationDialog = ({ user, open, onOpenChange }: SendInvitatio
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={() => sendInvitationMutation.mutate()}
             disabled={sendInvitationMutation.isPending}
           >
-            {sendInvitationMutation.isPending ? "Sending..." : "Send Invitation"}
+            {sendInvitationMutation.isPending ? 'Sending...' : 'Send Invitation'}
           </Button>
         </DialogFooter>
       </DialogContent>

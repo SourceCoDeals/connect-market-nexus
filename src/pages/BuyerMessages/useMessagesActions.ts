@@ -23,7 +23,8 @@ export function useSendDocumentQuestion() {
       const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
       const messageBody = `\u{1F4C4} Question about ${docLabel}:\n\n${question}`;
 
-      const { data: activeRequest } = await (supabase.from('connection_requests') as any)
+      const { data: activeRequest } = await supabase
+        .from('connection_requests')
         .select('id')
         .eq('user_id', userId)
         .in('status', ['approved', 'on_hold', 'pending'])
@@ -34,7 +35,7 @@ export function useSendDocumentQuestion() {
       const { OZ_ADMIN_ID } = await import('@/constants');
 
       if (activeRequest) {
-        const { error } = await (supabase.from('connection_messages') as any).insert({
+        const { error } = await supabase.from('connection_messages').insert({
           connection_request_id: activeRequest.id,
           sender_id: userId,
           body: messageBody,

@@ -3,7 +3,13 @@
  */
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -54,10 +60,17 @@ export function SendMemoDialog({ memo, dealId, onClose }: SendMemoDialogProps) {
     },
   });
 
-  const handleSelectBuyer = (buyer: any) => {
+  const handleSelectBuyer = (buyer: {
+    id: string;
+    email_domain: string | null;
+    company_name: string | null;
+    pe_firm_name: string | null;
+  }) => {
     setSelectedBuyerId(buyer.id);
     setEmailAddress(buyer.email_domain ? `contact@${buyer.email_domain}` : '');
-    setEmailSubject(`Deal Opportunity: ${memo.memo_type === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Lead Memo'}`);
+    setEmailSubject(
+      `Deal Opportunity: ${memo.memo_type === 'anonymous_teaser' ? 'Anonymous Teaser' : 'Lead Memo'}`,
+    );
   };
 
   const handleDraftWithAI = async () => {
@@ -76,16 +89,19 @@ export function SendMemoDialog({ memo, dealId, onClose }: SendMemoDialogProps) {
   const handleSend = () => {
     if (!selectedBuyerId || !emailAddress || !emailSubject || !emailBody) return;
 
-    sendEmail.mutate({
-      memo_id: memo.id,
-      buyer_id: selectedBuyerId,
-      email_address: emailAddress,
-      email_subject: emailSubject,
-      email_body: emailBody,
-      deal_id: dealId,
-    }, {
-      onSuccess: () => onClose(),
-    });
+    sendEmail.mutate(
+      {
+        memo_id: memo.id,
+        buyer_id: selectedBuyerId,
+        email_address: emailAddress,
+        email_subject: emailSubject,
+        email_body: emailBody,
+        deal_id: dealId,
+      },
+      {
+        onSuccess: () => onClose(),
+      },
+    );
   };
 
   return (
@@ -106,7 +122,7 @@ export function SendMemoDialog({ memo, dealId, onClose }: SendMemoDialogProps) {
                 onChange={(e) => setBuyerSearch(e.target.value)}
               />
               <div className="max-h-48 overflow-y-auto space-y-1 border rounded-md p-2">
-                {buyers.map(buyer => (
+                {buyers.map((buyer) => (
                   <button
                     key={buyer.id}
                     className="w-full text-left px-3 py-2 rounded text-sm hover:bg-accent"
@@ -134,10 +150,7 @@ export function SendMemoDialog({ memo, dealId, onClose }: SendMemoDialogProps) {
                 </div>
                 <div>
                   <Label>Subject</Label>
-                  <Input
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                  />
+                  <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">

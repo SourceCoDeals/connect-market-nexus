@@ -1,13 +1,21 @@
-import { Users, Store, MessageSquare, Activity, UserPlus, Link as LinkIcon, Eye } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
-import { useAdmin } from "@/hooks/use-admin";
-import { useRecentUserActivity } from "@/hooks/use-recent-user-activity";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useMemo } from "react";
-import { ActivityDetailsDropdown } from "./ActivityDetailsDropdown";
-import UserDetailsSidePanel from "./UserDetailsSidePanel";
+import {
+  Users,
+  Store,
+  MessageSquare,
+  Activity,
+  UserPlus,
+  Link as LinkIcon,
+  Eye,
+} from 'lucide-react';
+import { formatDistanceToNow, format } from 'date-fns';
+import { useAdmin } from '@/hooks/use-admin';
+import { useRecentUserActivity } from '@/hooks/use-recent-user-activity';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useState, useMemo } from 'react';
+import { ActivityDetailsDropdown } from './ActivityDetailsDropdown';
+import UserDetailsSidePanel from './UserDetailsSidePanel';
 
 interface GroupedUserActivity {
   user_id: string;
@@ -30,7 +38,7 @@ export function StripeOverviewTab() {
   const { useStats } = useAdmin();
   const { data: stats, isLoading: isLoadingStats } = useStats();
   const { data: activities = [], isLoading: isLoadingActivities } = useRecentUserActivity();
-  const [activityFilter, setActivityFilter] = useState<string>("all");
+  const [activityFilter, setActivityFilter] = useState<string>('all');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
 
@@ -43,49 +51,69 @@ export function StripeOverviewTab() {
 
   const businessMetrics = [
     {
-      title: "Total users",
+      title: 'Total users',
       value: stats?.totalUsers || 0,
       change: 12,
       isPositive: true,
       icon: Users,
-      description: "Active marketplace users"
+      description: 'Active marketplace users',
     },
     {
-      title: "Active listings",
+      title: 'Active listings',
       value: stats?.totalListings || 0,
       change: 8,
       isPositive: true,
       icon: Store,
-      description: "Live business listings"
+      description: 'Live business listings',
     },
     {
-      title: "Connections made",
+      title: 'Connections made',
       value: stats?.approvedConnections || 0,
       change: 15,
       isPositive: true,
       icon: Activity,
-      description: "Successful connections"
+      description: 'Successful connections',
     },
     {
-      title: "Pending actions",
+      title: 'Pending actions',
       value: (stats?.pendingUsers || 0) + (stats?.pendingConnections || 0),
       change: 5,
       isPositive: false,
       icon: MessageSquare,
-      description: "Requires admin attention"
-    }
+      description: 'Requires admin attention',
+    },
   ];
 
   // Helper function to parse referrer into a friendly source name
   const parseReferrerSource = (
-    activity: any,
-    preferCurrent: boolean = false
+    activity: {
+      current_utm_source?: string;
+      current_utm_medium?: string;
+      current_utm_campaign?: string;
+      current_referrer?: string;
+      utm_source?: string;
+      utm_medium?: string;
+      utm_campaign?: string;
+      referrer?: string;
+      marketing_channel?: string;
+    } | null,
+    preferCurrent: boolean = false,
   ): string => {
     // Use current session data if preferCurrent is true and available
-    const utmSource = preferCurrent && activity?.current_utm_source ? activity.current_utm_source : activity?.utm_source;
-    const utmMedium = preferCurrent && activity?.current_utm_medium ? activity.current_utm_medium : activity?.utm_medium;
-    const utmCampaign = preferCurrent && activity?.current_utm_campaign ? activity.current_utm_campaign : activity?.utm_campaign;
-    const referrer = preferCurrent && activity?.current_referrer ? activity.current_referrer : activity?.referrer;
+    const utmSource =
+      preferCurrent && activity?.current_utm_source
+        ? activity.current_utm_source
+        : activity?.utm_source;
+    const utmMedium =
+      preferCurrent && activity?.current_utm_medium
+        ? activity.current_utm_medium
+        : activity?.utm_medium;
+    const utmCampaign =
+      preferCurrent && activity?.current_utm_campaign
+        ? activity.current_utm_campaign
+        : activity?.utm_campaign;
+    const referrer =
+      preferCurrent && activity?.current_referrer ? activity.current_referrer : activity?.referrer;
     const marketingChannel = activity?.marketing_channel;
 
     if (!referrer && !utmSource && !marketingChannel) return 'Direct';
@@ -94,14 +122,19 @@ export function StripeOverviewTab() {
     if (!preferCurrent && marketingChannel && marketingChannel !== 'Direct') {
       return marketingChannel;
     }
-    
+
     // Priority 2: UTM source with medium context
     if (utmSource) {
       const source = utmSource.toLowerCase();
       const medium = utmMedium?.toLowerCase();
       const campaign = utmCampaign?.toLowerCase();
-      
-      if (medium === 'email' || source.includes('newsletter') || source.includes('email') || campaign?.includes('newsletter')) {
+
+      if (
+        medium === 'email' ||
+        source.includes('newsletter') ||
+        source.includes('email') ||
+        campaign?.includes('newsletter')
+      ) {
         return 'Email/Newsletter';
       }
       if (medium === 'social' || ['linkedin', 'twitter', 'facebook'].includes(source)) {
@@ -118,13 +151,13 @@ export function StripeOverviewTab() {
       try {
         const url = new URL(referrer);
         const hostname = url.hostname.replace('www.', '');
-        
+
         if (hostname.includes('brevo') || hostname.includes('sendinblue')) return 'Brevo/Email';
         if (hostname.includes('google')) return 'Google';
         if (hostname.includes('facebook')) return 'Facebook';
         if (hostname.includes('linkedin')) return 'LinkedIn';
         if (hostname.includes('t.co') || hostname.includes('twitter')) return 'Twitter/X';
-        
+
         return hostname.split('.')[0].charAt(0).toUpperCase() + hostname.split('.')[0].slice(1);
       } catch {
         return 'External Link';
@@ -138,13 +171,16 @@ export function StripeOverviewTab() {
   const groupedByUser = useMemo(() => {
     if (!activities || activities.length === 0) return [];
 
-    const userMap = new Map<string, GroupedUserActivity & { 
-      mostRecentSession: any;
-      dateFirstSeen: string;
-      sessionReferrer: string;
-    }>();
+    const userMap = new Map<
+      string,
+      GroupedUserActivity & {
+        mostRecentSession: Record<string, unknown> | null;
+        dateFirstSeen: string;
+        sessionReferrer: string;
+      }
+    >();
 
-    activities.forEach(activity => {
+    activities.forEach((activity) => {
       const userId = activity.user_id;
       if (!userId) return;
 
@@ -154,7 +190,10 @@ export function StripeOverviewTab() {
           email: activity.email,
           first_name: activity.first_name,
           last_name: activity.last_name,
-          user_name: activity.user_name || `${activity.first_name || ''} ${activity.last_name || ''}`.trim() || activity.email,
+          user_name:
+            activity.user_name ||
+            `${activity.first_name || ''} ${activity.last_name || ''}`.trim() ||
+            activity.email,
           activities: [],
           lastActivityTime: activity.created_at,
           totalActivities: 0,
@@ -185,7 +224,7 @@ export function StripeOverviewTab() {
       if (activity.user_created_at) {
         userGroup.dateFirstSeen = activity.user_created_at;
       }
-      
+
       // Update session referrer from the most recent activity
       userGroup.sessionReferrer = parseReferrerSource(userGroup.mostRecentSession, true);
 
@@ -193,33 +232,34 @@ export function StripeOverviewTab() {
       if (activity.activity_type === 'listing_action') {
         if (activity.action_type === 'view') userGroup.actionCounts.views++;
         else if (activity.action_type === 'save') userGroup.actionCounts.saves++;
-        else if (activity.action_type === 'request_connection') userGroup.actionCounts.connections++;
+        else if (activity.action_type === 'request_connection')
+          userGroup.actionCounts.connections++;
       } else if (activity.activity_type === 'page_view') {
         userGroup.actionCounts.pageViews++;
       }
     });
 
     // Convert to array and sort by last activity time
-    return Array.from(userMap.values())
-      .sort((a, b) => new Date(b.lastActivityTime).getTime() - new Date(a.lastActivityTime).getTime());
+    return Array.from(userMap.values()).sort(
+      (a, b) => new Date(b.lastActivityTime).getTime() - new Date(a.lastActivityTime).getTime(),
+    );
   }, [activities]);
 
   // Filter grouped activities based on selected tab
-  const filteredActivities = groupedByUser.filter(userGroup => {
-    if (activityFilter === "all") return true;
-    if (activityFilter === "users") {
-      return userGroup.activities.some(a => 
-        a.activity_type === 'user_event' || 
-        a.description.toLowerCase().includes('signup')
+  const filteredActivities = groupedByUser.filter((userGroup) => {
+    if (activityFilter === 'all') return true;
+    if (activityFilter === 'users') {
+      return userGroup.activities.some(
+        (a) => a.activity_type === 'user_event' || a.description.toLowerCase().includes('signup'),
       );
     }
-    if (activityFilter === "listings") {
+    if (activityFilter === 'listings') {
       return userGroup.actionCounts.views > 0 || userGroup.actionCounts.saves > 0;
     }
-    if (activityFilter === "connections") {
+    if (activityFilter === 'connections') {
       return userGroup.actionCounts.connections > 0;
     }
-    if (activityFilter === "views") {
+    if (activityFilter === 'views') {
       return userGroup.actionCounts.pageViews > 0;
     }
     return true;
@@ -247,7 +287,7 @@ export function StripeOverviewTab() {
       <div className="grid gap-4 md:grid-cols-4">
         {businessMetrics.map((metric) => {
           const Icon = metric.icon;
-          
+
           return (
             <div key={metric.title} className="group relative">
               <div className="border border-border/50 rounded-lg p-6 bg-card hover:border-border transition-all">
@@ -266,17 +306,22 @@ export function StripeOverviewTab() {
                   </span>
                   {metric.change > 0 && (
                     <div className="flex items-center gap-1 text-sm">
-                      <span className={metric.isPositive ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-red-600 dark:text-red-400 font-medium'}>
-                        {metric.isPositive ? '+' : '-'}{metric.change}%
+                      <span
+                        className={
+                          metric.isPositive
+                            ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                            : 'text-red-600 dark:text-red-400 font-medium'
+                        }
+                      >
+                        {metric.isPositive ? '+' : '-'}
+                        {metric.change}%
                       </span>
                     </div>
                   )}
                 </div>
 
                 {/* Description */}
-                <p className="text-xs text-muted-foreground/70">
-                  {metric.description}
-                </p>
+                <p className="text-xs text-muted-foreground/70">{metric.description}</p>
               </div>
             </div>
           );
@@ -289,42 +334,44 @@ export function StripeOverviewTab() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold">Activity feed</h3>
-              <p className="text-xs text-muted-foreground/70 mt-0.5">Real-time updates from your marketplace</p>
+              <p className="text-xs text-muted-foreground/70 mt-0.5">
+                Real-time updates from your marketplace
+              </p>
             </div>
           </div>
 
           {/* Activity Filter Tabs */}
           <Tabs value={activityFilter} onValueChange={setActivityFilter} className="w-full">
             <TabsList className="inline-flex h-9 items-center justify-start rounded-md bg-muted/30 p-1 gap-1">
-              <TabsTrigger 
+              <TabsTrigger
                 value="all"
                 className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
               >
                 <Activity className="h-3 w-3 mr-1.5" />
                 All activity
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="users"
                 className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
               >
                 <UserPlus className="h-3 w-3 mr-1.5" />
                 Users
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="listings"
                 className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
               >
                 <Store className="h-3 w-3 mr-1.5" />
                 Listings
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="connections"
                 className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
               >
                 <LinkIcon className="h-3 w-3 mr-1.5" />
                 Connections
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="views"
                 className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
               >
@@ -334,7 +381,7 @@ export function StripeOverviewTab() {
             </TabsList>
           </Tabs>
         </div>
-        
+
         <div className="divide-y divide-border/50">
           {isLoadingActivities ? (
             <div className="p-6 space-y-4">
@@ -352,7 +399,7 @@ export function StripeOverviewTab() {
                 const currentSessionSource = parseReferrerSource(userGroup.mostRecentSession, true);
 
                 return (
-                  <div 
+                  <div
                     key={userGroup.user_id}
                     className="flex items-start gap-3 px-6 py-4 hover:bg-muted/10 transition-colors border-b border-border/30 last:border-b-0"
                   >
@@ -361,7 +408,7 @@ export function StripeOverviewTab() {
                         {userGroup.first_name?.charAt(0) || userGroup.email.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    
+
                     <div className="flex-1 min-w-0 flex items-start justify-between gap-6">
                       <div className="flex-1 min-w-0">
                         <button
@@ -371,11 +418,14 @@ export function StripeOverviewTab() {
                           {userGroup.user_name}
                         </button>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {userGroup.totalActivities} event{userGroup.totalActivities !== 1 ? 's' : ''} • {currentSessionSource}
+                          {userGroup.totalActivities} event
+                          {userGroup.totalActivities !== 1 ? 's' : ''} • {currentSessionSource}
                         </p>
                         <div className="flex items-center gap-3 mt-2">
                           <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(userGroup.lastActivityTime), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(userGroup.lastActivityTime), {
+                              addSuffix: true,
+                            })}
                           </p>
                           <ActivityDetailsDropdown
                             session_id={userGroup.mostRecentSession?.session_id}
@@ -400,24 +450,36 @@ export function StripeOverviewTab() {
                       {/* Right side metadata */}
                       <div className="flex-shrink-0 space-y-2 text-right">
                         <div>
-                          <div className="text-xs font-medium text-muted-foreground/70">Date First Seen</div>
-                          <div className="text-xs text-foreground mt-0.5">{format(new Date(userGroup.dateFirstSeen), 'MMM d, yyyy')}</div>
+                          <div className="text-xs font-medium text-muted-foreground/70">
+                            Date First Seen
+                          </div>
+                          <div className="text-xs text-foreground mt-0.5">
+                            {format(new Date(userGroup.dateFirstSeen), 'MMM d, yyyy')}
+                          </div>
                         </div>
                         {userGroup.mostRecentSession?.location && (
                           <div>
-                            <div className="text-xs font-medium text-muted-foreground/70">Initial Location</div>
+                            <div className="text-xs font-medium text-muted-foreground/70">
+                              Initial Location
+                            </div>
                             <div className="text-xs text-foreground mt-0.5">
                               {[
                                 userGroup.mostRecentSession.location.city,
                                 userGroup.mostRecentSession.location.region,
-                                userGroup.mostRecentSession.location.country
-                              ].filter(Boolean).join(', ') || 'Unknown'}
+                                userGroup.mostRecentSession.location.country,
+                              ]
+                                .filter(Boolean)
+                                .join(', ') || 'Unknown'}
                             </div>
                           </div>
                         )}
                         <div>
-                          <div className="text-xs font-medium text-muted-foreground/70">Current Session</div>
-                          <div className="text-xs text-foreground mt-0.5">{currentSessionSource}</div>
+                          <div className="text-xs font-medium text-muted-foreground/70">
+                            Current Session
+                          </div>
+                          <div className="text-xs text-foreground mt-0.5">
+                            {currentSessionSource}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -429,7 +491,7 @@ export function StripeOverviewTab() {
             <div className="p-12 text-center">
               <Activity className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground/70">
-                {activityFilter === "all" ? "No recent activity" : `No ${activityFilter} activity`}
+                {activityFilter === 'all' ? 'No recent activity' : `No ${activityFilter} activity`}
               </p>
             </div>
           )}

@@ -56,13 +56,13 @@ function calculateScoresFromData(deal: Record<string, unknown>): DealQualityScor
     employeeSource = 'website';
   }
   if (!employeeCount && deal.team_page_employee_count) {
-    employeeCount = deal.team_page_employee_count;
+    employeeCount = Number(deal.team_page_employee_count);
     employeeSource = 'team_page';
   }
   if (!employeeCount) {
     employeeSource = 'none';
   }
-  const locationCount = deal.number_of_locations || 0;
+  const locationCount = Number(deal.number_of_locations) || 0;
 
   let revenueScore = 0;
   let ebitdaScore = 0;

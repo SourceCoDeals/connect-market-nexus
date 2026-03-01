@@ -1,5 +1,20 @@
 import { useState, useMemo } from 'react';
-import { ChevronRight, Building2, Users, Globe, Check, X, Circle, MoreHorizontal, Download, Filter as FilterIcon, FileCheck, Shield, FileText, MessageSquare } from 'lucide-react';
+import {
+  ChevronRight,
+  Building2,
+  Users,
+  Globe,
+  Check,
+  X,
+  Circle,
+  MoreHorizontal,
+  Download,
+  Filter as FilterIcon,
+  FileCheck,
+  Shield,
+  FileText,
+  MessageSquare,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -9,15 +24,21 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import { useFirmAgreements, useFirmMembers, useAllFirmMembersForSearch, type FirmAgreement, type AgreementStatus } from '@/hooks/admin/use-firm-agreements';
+} from '@/components/ui/dropdown-menu';
+import {
+  useFirmAgreements,
+  useFirmMembers,
+  useAllFirmMembersForSearch,
+  type FirmAgreement,
+  type AgreementStatus,
+} from '@/hooks/admin/use-firm-agreements';
 import { AgreementStatusDropdown } from './AgreementStatusDropdown';
 import { FirmManagementTools } from './FirmManagementTools';
 import { FirmMembersTable } from './FirmMembersTable';
@@ -47,13 +68,14 @@ export function FirmAgreementsTable() {
   const memberIndex = useMemo(() => {
     const map = new Map<string, string>();
     (membersForSearch || []).forEach((m) => {
-      const chunk = `${m.user?.first_name || ''} ${m.user?.last_name || ''} ${m.user?.email || ''}`.toLowerCase();
+      const chunk =
+        `${m.user?.first_name || ''} ${m.user?.last_name || ''} ${m.user?.email || ''}`.toLowerCase();
       map.set(m.firm_id, `${map.get(m.firm_id) || ''} ${chunk}`.trim());
     });
     return map;
   }, [membersForSearch]);
 
-  const filteredFirms = firms?.filter(firm => {
+  const filteredFirms = firms?.filter((firm) => {
     const s = searchTerm.toLowerCase().trim();
 
     // Firm fields
@@ -63,66 +85,94 @@ export function FirmAgreementsTable() {
       firm.email_domain?.toLowerCase().includes(s);
 
     // Member fields from embedded (if available)
-    const embeddedMemberMatch = firm.firm_members?.some((member) => {
-      const firstName = member.user?.first_name?.toLowerCase() || '';
-      const lastName = member.user?.last_name?.toLowerCase() || '';
-      const email = member.user?.email?.toLowerCase() || '';
-      const fullName = `${firstName} ${lastName}`.trim();
-      return fullName.includes(s) || email.includes(s);
-    }) || false;
+    const embeddedMemberMatch =
+      firm.firm_members?.some((member) => {
+        const firstName = member.user?.first_name?.toLowerCase() || '';
+        const lastName = member.user?.last_name?.toLowerCase() || '';
+        const email = member.user?.email?.toLowerCase() || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+        return fullName.includes(s) || email.includes(s);
+      }) || false;
 
     // Member fields via index map (reliable)
     const indexedMemberMatch = (memberIndex.get(firm.id) || '').includes(s);
 
     const matchesSearch = firmMatch || embeddedMemberMatch || indexedMemberMatch;
 
-    const ndaStatus = (firm.nda_status || (firm.nda_signed ? 'signed' : 'not_started')) as AgreementStatus;
-    const feeStatus = (firm.fee_agreement_status || (firm.fee_agreement_signed ? 'signed' : 'not_started')) as AgreementStatus;
+    const ndaStatus = (firm.nda_status ||
+      (firm.nda_signed ? 'signed' : 'not_started')) as AgreementStatus;
+    const feeStatus = (firm.fee_agreement_status ||
+      (firm.fee_agreement_signed ? 'signed' : 'not_started')) as AgreementStatus;
 
     const matchesFilter =
       activeTab === 'all' ||
       (activeTab === 'both_signed' && ndaStatus === 'signed' && feeStatus === 'signed') ||
       (activeTab === 'partial' && (ndaStatus === 'signed') !== (feeStatus === 'signed')) ||
       (activeTab === 'none' && ndaStatus === 'not_started' && feeStatus === 'not_started') ||
-      (activeTab === 'redlined' && (ndaStatus === 'redlined' || feeStatus === 'redlined' || ndaStatus === 'under_review' || feeStatus === 'under_review')) ||
+      (activeTab === 'redlined' &&
+        (ndaStatus === 'redlined' ||
+          feeStatus === 'redlined' ||
+          ndaStatus === 'under_review' ||
+          feeStatus === 'under_review')) ||
       (activeTab === 'sent' && (ndaStatus === 'sent' || feeStatus === 'sent'));
 
     // Firm type filter - check if any member has the selected buyer_type
-    const matchesFirmType = firmTypeFilter === 'all' || 
-      (membersForSearch || []).some(m => 
-        m.firm_id === firm.id && 
-        (m.user as { buyer_type?: string } | null)?.buyer_type === firmTypeFilter
+    const matchesFirmType =
+      firmTypeFilter === 'all' ||
+      (membersForSearch || []).some(
+        (m) =>
+          m.firm_id === firm.id &&
+          (m.user as { buyer_type?: string } | null)?.buyer_type === firmTypeFilter,
       );
 
     return matchesSearch && matchesFilter && matchesFirmType;
   });
 
   const getStatus = (f: FirmAgreement, type: 'nda' | 'fee'): AgreementStatus => {
-    if (type === 'nda') return (f.nda_status || (f.nda_signed ? 'signed' : 'not_started')) as AgreementStatus;
-    return (f.fee_agreement_status || (f.fee_agreement_signed ? 'signed' : 'not_started')) as AgreementStatus;
+    if (type === 'nda')
+      return (f.nda_status || (f.nda_signed ? 'signed' : 'not_started')) as AgreementStatus;
+    return (f.fee_agreement_status ||
+      (f.fee_agreement_signed ? 'signed' : 'not_started')) as AgreementStatus;
   };
 
   const stats = {
     total: firms?.length || 0,
-    bothSigned: firms?.filter(f => getStatus(f, 'nda') === 'signed' && getStatus(f, 'fee') === 'signed').length || 0,
-    partial: firms?.filter(f => (getStatus(f, 'nda') === 'signed') !== (getStatus(f, 'fee') === 'signed')).length || 0,
-    none: firms?.filter(f => getStatus(f, 'nda') === 'not_started' && getStatus(f, 'fee') === 'not_started').length || 0,
-    redlined: firms?.filter(f => ['redlined', 'under_review'].includes(getStatus(f, 'nda')) || ['redlined', 'under_review'].includes(getStatus(f, 'fee'))).length || 0,
-    sent: firms?.filter(f => getStatus(f, 'nda') === 'sent' || getStatus(f, 'fee') === 'sent').length || 0,
+    bothSigned:
+      firms?.filter((f) => getStatus(f, 'nda') === 'signed' && getStatus(f, 'fee') === 'signed')
+        .length || 0,
+    partial:
+      firms?.filter(
+        (f) => (getStatus(f, 'nda') === 'signed') !== (getStatus(f, 'fee') === 'signed'),
+      ).length || 0,
+    none:
+      firms?.filter(
+        (f) => getStatus(f, 'nda') === 'not_started' && getStatus(f, 'fee') === 'not_started',
+      ).length || 0,
+    redlined:
+      firms?.filter(
+        (f) =>
+          ['redlined', 'under_review'].includes(getStatus(f, 'nda')) ||
+          ['redlined', 'under_review'].includes(getStatus(f, 'fee')),
+      ).length || 0,
+    sent:
+      firms?.filter((f) => getStatus(f, 'nda') === 'sent' || getStatus(f, 'fee') === 'sent')
+        .length || 0,
   };
 
   const handleExport = () => {
     // Export to CSV
     const csv = [
       ['Firm Name', 'Domain', 'Members', 'Fee Agreement', 'NDA'],
-      ...(firms || []).map(f => [
+      ...(firms || []).map((f) => [
         f.primary_company_name,
         f.website_domain || '',
         f.member_count.toString(),
         f.fee_agreement_signed ? 'Signed' : 'Unsigned',
         f.nda_signed ? 'Signed' : 'Unsigned',
-      ])
-    ].map(row => row.join(',')).join('\n');
+      ]),
+    ]
+      .map((row) => row.join(','))
+      .join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -147,30 +197,10 @@ export function FirmAgreementsTable() {
     <div className="space-y-6">
       {/* Stats Overview */}
       <div className="grid grid-cols-4 gap-4">
-        <StatCard
-          label="Total Firms"
-          value={stats.total}
-          icon={Building2}
-          variant="neutral"
-        />
-        <StatCard
-          label="Fully Signed"
-          value={stats.bothSigned}
-          icon={Check}
-          variant="success"
-        />
-        <StatCard
-          label="Partially Signed"
-          value={stats.partial}
-          icon={Circle}
-          variant="warning"
-        />
-        <StatCard
-          label="No Agreements"
-          value={stats.none}
-          icon={X}
-          variant="muted"
-        />
+        <StatCard label="Total Firms" value={stats.total} icon={Building2} variant="neutral" />
+        <StatCard label="Fully Signed" value={stats.bothSigned} icon={Check} variant="success" />
+        <StatCard label="Partially Signed" value={stats.partial} icon={Circle} variant="warning" />
+        <StatCard label="No Agreements" value={stats.none} icon={X} variant="muted" />
       </div>
 
       {/* Search and Filter Tabs */}
@@ -199,12 +229,7 @@ export function FirmAgreementsTable() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="h-9 gap-2"
-          >
+          <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-2">
             <Download className="h-3.5 w-3.5" />
             Export
           </Button>
@@ -310,54 +335,52 @@ export function FirmAgreementsTable() {
   );
 }
 
-function FilterTab({ 
-  label, 
-  count, 
-  active, 
-  onClick 
-}: { 
-  label: string; 
-  count: number; 
-  active: boolean; 
+function FilterTab({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "px-4 py-2.5 text-sm font-medium transition-all relative group",
-        active
-          ? "text-foreground"
-          : "text-muted-foreground hover:text-foreground"
+        'px-4 py-2.5 text-sm font-medium transition-all relative group',
+        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
       )}
     >
       <span className="flex items-center gap-2">
         {label}
-        <span className={cn(
-          "text-xs px-1.5 py-0.5 rounded-md font-medium transition-colors",
-          active 
-            ? "bg-primary/10 text-primary" 
-            : "bg-muted text-muted-foreground group-hover:bg-muted/80"
-        )}>
+        <span
+          className={cn(
+            'text-xs px-1.5 py-0.5 rounded-md font-medium transition-colors',
+            active
+              ? 'bg-primary/10 text-primary'
+              : 'bg-muted text-muted-foreground group-hover:bg-muted/80',
+          )}
+        >
           {count}
         </span>
       </span>
-      {active && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
-      )}
+      {active && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
     </button>
   );
 }
 
-function StatCard({ 
-  label, 
-  value, 
+function StatCard({
+  label,
+  value,
   icon: Icon,
-  variant 
-}: { 
-  label: string; 
-  value: number; 
-  icon: any;
+  variant,
+}: {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
   variant: 'neutral' | 'success' | 'warning' | 'muted';
 }) {
   const variantStyles = {
@@ -382,22 +405,19 @@ function StatCard({
   );
 }
 
-function FirmRow({ 
-  firm, 
-  isExpanded, 
-  onToggleExpand 
-}: { 
-  firm: FirmAgreement; 
+function FirmRow({
+  firm,
+  isExpanded,
+  onToggleExpand,
+}: {
+  firm: FirmAgreement;
   isExpanded: boolean;
   onToggleExpand: () => void;
 }) {
   const { data: members } = useFirmMembers(isExpanded ? firm.id : null);
 
   return (
-    <div className={cn(
-      "transition-colors",
-      isExpanded && "bg-muted/20"
-    )}>
+    <div className={cn('transition-colors', isExpanded && 'bg-muted/20')}>
       {/* Main Row */}
       <div className="grid grid-cols-12 gap-6 px-6 py-3 items-start hover:bg-muted/20 transition-all duration-200 group border-l-2 border-transparent hover:border-l-primary/20">
         {/* Firm Info */}
@@ -408,20 +428,28 @@ function FirmRow({
             onClick={onToggleExpand}
             className="h-6 w-6 p-0 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <ChevronRight className={cn(
-              "h-4 w-4 transition-transform text-muted-foreground",
-              isExpanded && "rotate-90"
-            )} />
+            <ChevronRight
+              className={cn(
+                'h-4 w-4 transition-transform text-muted-foreground',
+                isExpanded && 'rotate-90',
+              )}
+            />
           </Button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
               <Building2 className="h-4 w-4 text-muted-foreground/60 flex-shrink-0" />
               <h3 className="font-medium text-sm truncate">{firm.primary_company_name}</h3>
-              {firm.member_count === 0 && ((firm.lead_count ?? 0) > 0 || (firm.request_count ?? 0) > 0 || (firm.deal_count ?? 0) > 0) && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200">
-                  Lead-Only
-                </Badge>
-              )}
+              {firm.member_count === 0 &&
+                ((firm.lead_count ?? 0) > 0 ||
+                  (firm.request_count ?? 0) > 0 ||
+                  (firm.deal_count ?? 0) > 0) && (
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-200"
+                  >
+                    Lead-Only
+                  </Badge>
+                )}
             </div>
             {firm.website_domain && (
               <div className="flex items-center gap-1.5">
@@ -440,10 +468,9 @@ function FirmRow({
             <div className="flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5 text-muted-foreground/40" />
               <span className="text-sm text-muted-foreground font-normal">
-                {firm.member_count === 0 
-                  ? 'No marketplace users' 
-                  : `${firm.member_count} ${firm.member_count === 1 ? 'member' : 'members'}`
-                }
+                {firm.member_count === 0
+                  ? 'No marketplace users'
+                  : `${firm.member_count} ${firm.member_count === 1 ? 'member' : 'members'}`}
               </span>
             </div>
             {(firm.lead_count || firm.request_count || firm.deal_count) && (
@@ -467,11 +494,7 @@ function FirmRow({
 
         {/* NDA Status */}
         <div className="col-span-2">
-          <AgreementStatusDropdown
-            firm={firm}
-            members={members || []}
-            agreementType="nda"
-          />
+          <AgreementStatusDropdown firm={firm} members={members || []} agreementType="nda" />
         </div>
 
         {/* Actions */}
@@ -487,22 +510,21 @@ function FirmRow({
                 <span className="sr-only">Open menu</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
+            <DropdownMenuContent
+              align="end"
               className="w-56 bg-popover/95 backdrop-blur-xl border-border/60 shadow-lg"
             >
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={onToggleExpand}
                 className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
               >
-                <ChevronRight className={cn(
-                  "h-4 w-4 mr-2 transition-transform",
-                  isExpanded && "rotate-90"
-                )} />
+                <ChevronRight
+                  className={cn('h-4 w-4 mr-2 transition-transform', isExpanded && 'rotate-90')}
+                />
                 {isExpanded ? 'Collapse' : 'Expand'} details
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-border/60" />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={onToggleExpand}
                 className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
               >
@@ -511,7 +533,7 @@ function FirmRow({
               </DropdownMenuItem>
               {(firm.lead_count ?? 0) > 0 && (
                 <DropdownMenuItem
-                  onClick={() => window.location.href = `/admin/inbound-leads?firm=${firm.id}`}
+                  onClick={() => (window.location.href = `/admin/inbound-leads?firm=${firm.id}`)}
                   className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
                 >
                   <FileText className="h-4 w-4 mr-2" />
@@ -520,7 +542,9 @@ function FirmRow({
               )}
               {(firm.request_count ?? 0) > 0 && (
                 <DropdownMenuItem
-                  onClick={() => window.location.href = `/admin/connection-requests?firm=${firm.id}`}
+                  onClick={() =>
+                    (window.location.href = `/admin/connection-requests?firm=${firm.id}`)
+                  }
                   className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
@@ -529,7 +553,7 @@ function FirmRow({
               )}
               {(firm.deal_count ?? 0) > 0 && (
                 <DropdownMenuItem
-                  onClick={() => window.location.href = `/admin/deals/pipeline?firm=${firm.id}`}
+                  onClick={() => (window.location.href = `/admin/deals/pipeline?firm=${firm.id}`)}
                   className="cursor-pointer focus:bg-muted/80 focus:text-foreground"
                 >
                   <Building2 className="h-4 w-4 mr-2" />

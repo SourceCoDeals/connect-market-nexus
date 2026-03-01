@@ -6,7 +6,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import { FileText, Send, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useBuyerDealHistory } from '@/hooks/admin/data-room/use-data-room';
@@ -34,7 +39,9 @@ export function BuyerDealHistoryPanel({ buyerId }: BuyerDealHistoryPanelProps) {
         <CardTitle className="text-base flex items-center gap-2">
           <FileText className="h-4 w-4" />
           Deal History & Materials
-          <Badge variant="secondary" className="ml-1">{history.length}</Badge>
+          <Badge variant="secondary" className="ml-1">
+            {history.length}
+          </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -58,64 +65,76 @@ export function BuyerDealHistoryPanel({ buyerId }: BuyerDealHistoryPanelProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {history.map((item: any) => (
-                <TableRow key={item.deal_id}>
-                  <TableCell className="font-medium text-sm">
-                    {item.deal_title}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {item.deal_category}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {item.has_teaser_access ? (
-                      <CheckCircle className="h-4 w-4 text-green-500 mx-auto" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-gray-300 mx-auto" />
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {item.has_full_memo_access ? (
-                      <CheckCircle className="h-4 w-4 text-green-500 mx-auto" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-gray-300 mx-auto" />
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {item.has_data_room_access ? (
-                      <CheckCircle className="h-4 w-4 text-green-500 mx-auto" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-gray-300 mx-auto" />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {item.memos_sent > 0 ? (
-                      <div className="flex items-center gap-1 text-sm">
-                        <Send className="h-3 w-3" />
-                        {item.memos_sent}
-                        {item.last_memo_sent_at && (
-                          <span className="text-xs text-muted-foreground ml-1">
-                            ({new Date(item.last_memo_sent_at).toLocaleDateString()})
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {item.pipeline_stage ? (
-                      <Badge variant="outline" className="text-xs">{item.pipeline_stage}</Badge>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {item.last_memo_sent_at
-                      ? new Date(item.last_memo_sent_at).toLocaleDateString()
-                      : '—'}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {history.map(
+                (item: {
+                  deal_id: string;
+                  deal_title: string;
+                  deal_category: string;
+                  has_teaser_access: boolean;
+                  has_full_memo_access: boolean;
+                  has_data_room_access: boolean;
+                  memos_sent: number;
+                  last_memo_sent_at: string | null;
+                  pipeline_stage: string | null;
+                }) => (
+                  <TableRow key={item.deal_id}>
+                    <TableCell className="font-medium text-sm">{item.deal_title}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {item.deal_category}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {item.has_teaser_access ? (
+                        <CheckCircle className="h-4 w-4 text-green-500 mx-auto" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-gray-300 mx-auto" />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {item.has_full_memo_access ? (
+                        <CheckCircle className="h-4 w-4 text-green-500 mx-auto" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-gray-300 mx-auto" />
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {item.has_data_room_access ? (
+                        <CheckCircle className="h-4 w-4 text-green-500 mx-auto" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-gray-300 mx-auto" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {item.memos_sent > 0 ? (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Send className="h-3 w-3" />
+                          {item.memos_sent}
+                          {item.last_memo_sent_at && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                              ({new Date(item.last_memo_sent_at).toLocaleDateString()})
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {item.pipeline_stage ? (
+                        <Badge variant="outline" className="text-xs">
+                          {item.pipeline_stage}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {item.last_memo_sent_at
+                        ? new Date(item.last_memo_sent_at).toLocaleDateString()
+                        : '—'}
+                    </TableCell>
+                  </TableRow>
+                ),
+              )}
             </TableBody>
           </Table>
         )}

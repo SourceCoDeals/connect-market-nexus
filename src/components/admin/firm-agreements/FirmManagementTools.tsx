@@ -1,10 +1,31 @@
 import { useState } from 'react';
-import { GitMerge, Link as LinkIcon, AlertTriangle, Check, X, FileCheck, Shield } from 'lucide-react';
+import {
+  GitMerge,
+  Link as LinkIcon,
+  AlertTriangle,
+  Check,
+  X,
+  FileCheck,
+  Shield,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -25,13 +46,14 @@ export function FirmManagementTools() {
   const [userEmail, setUserEmail] = useState('');
   const [selectedFirmId, setSelectedFirmId] = useState('');
 
-  const sourceFirm = firms?.find(f => f.id === sourceFirmId);
-  const targetFirm = firms?.find(f => f.id === targetFirmId);
-  
-  const agreementsDiffer = sourceFirm && targetFirm && (
-    sourceFirm.fee_agreement_signed !== targetFirm.fee_agreement_signed ||
-    sourceFirm.nda_signed !== targetFirm.nda_signed
-  );
+  const sourceFirm = firms?.find((f) => f.id === sourceFirmId);
+  const targetFirm = firms?.find((f) => f.id === targetFirmId);
+
+  const agreementsDiffer =
+    sourceFirm &&
+    targetFirm &&
+    (sourceFirm.fee_agreement_signed !== targetFirm.fee_agreement_signed ||
+      sourceFirm.nda_signed !== targetFirm.nda_signed);
 
   const handleProceedToMerge = () => {
     if (!sourceFirmId || !targetFirmId) {
@@ -57,7 +79,6 @@ export function FirmManagementTools() {
 
   const handleMergeFirms = async () => {
     try {
-
       // Move all members from source to target
       const { error: memberError } = await supabase
         .from('firm_members')
@@ -72,10 +93,7 @@ export function FirmManagementTools() {
         .update({ firm_id: targetFirmId })
         .eq('firm_id', sourceFirmId);
 
-      await supabase
-        .from('nda_logs')
-        .update({ firm_id: targetFirmId })
-        .eq('firm_id', sourceFirmId);
+      await supabase.from('nda_logs').update({ firm_id: targetFirmId }).eq('firm_id', sourceFirmId);
 
       // Delete source firm (member count will auto-update via trigger)
       const { error: deleteError } = await supabase
@@ -91,7 +109,9 @@ export function FirmManagementTools() {
         p_firm_id: targetFirmId,
         p_is_signed: targetFirm?.fee_agreement_signed || false,
         p_signed_by_user_id: targetFirm?.fee_agreement_signed_by ?? undefined,
-        p_signed_at: targetFirm?.fee_agreement_signed ? (targetFirm?.fee_agreement_signed_at ?? new Date().toISOString()) : undefined,
+        p_signed_at: targetFirm?.fee_agreement_signed
+          ? (targetFirm?.fee_agreement_signed_at ?? new Date().toISOString())
+          : undefined,
       });
 
       if (syncError) console.warn('Warning: Could not sync fee agreements after merge:', syncError);
@@ -100,7 +120,9 @@ export function FirmManagementTools() {
         p_firm_id: targetFirmId,
         p_is_signed: targetFirm?.nda_signed || false,
         p_signed_by_user_id: targetFirm?.nda_signed_by ?? undefined,
-        p_signed_at: targetFirm?.nda_signed ? (targetFirm?.nda_signed_at ?? new Date().toISOString()) : undefined,
+        p_signed_at: targetFirm?.nda_signed
+          ? (targetFirm?.nda_signed_at ?? new Date().toISOString())
+          : undefined,
       });
 
       if (ndaSyncError) console.warn('Warning: Could not sync NDAs after merge:', ndaSyncError);
@@ -121,7 +143,7 @@ export function FirmManagementTools() {
     } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to merge firms',
+        description: error instanceof Error ? error.message : 'Failed to merge firms',
         variant: 'destructive',
       });
     }
@@ -165,25 +187,25 @@ export function FirmManagementTools() {
       }
 
       // Get firm details to sync agreement status
-      const selectedFirm = firms?.find(f => f.id === selectedFirmId);
+      const selectedFirm = firms?.find((f) => f.id === selectedFirmId);
 
       // Link user to firm
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      
-      const { error: linkError } = await supabase
-        .from('firm_members')
-        .insert({
-          firm_id: selectedFirmId,
-          user_id: user.id,
-          is_primary_contact: false,
-          added_by: currentUser?.id,
-        });
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      const { error: linkError } = await supabase.from('firm_members').insert({
+        firm_id: selectedFirmId,
+        user_id: user.id,
+        is_primary_contact: false,
+        added_by: currentUser?.id,
+      });
 
       if (linkError) throw linkError;
 
       // Sync firm's agreement status to the newly linked user
       if (selectedFirm) {
-        const updates: any = {};
+        const updates: Record<string, boolean | string | null> = {};
         if (selectedFirm.fee_agreement_signed) {
           updates.fee_agreement_signed = true;
           updates.fee_agreement_signed_at = selectedFirm.fee_agreement_signed_at;
@@ -196,10 +218,7 @@ export function FirmManagementTools() {
         }
 
         if (Object.keys(updates).length > 0) {
-          await supabase
-            .from('profiles')
-            .update(updates)
-            .eq('id', user.id);
+          await supabase.from('profiles').update(updates).eq('id', user.id);
         }
       }
 
@@ -217,7 +236,7 @@ export function FirmManagementTools() {
     } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to link user to firm',
+        description: error instanceof Error ? error.message : 'Failed to link user to firm',
         variant: 'destructive',
       });
     }
@@ -239,7 +258,7 @@ export function FirmManagementTools() {
               Select the source and target firms. All members will be moved to the target firm.
             </DialogDescription>
           </DialogHeader>
-          
+
           {!showMergeConfirmation ? (
             <div className="space-y-4">
               <div>
@@ -264,11 +283,13 @@ export function FirmManagementTools() {
                     <SelectValue placeholder="Select target firm..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {firms?.filter(f => f.id !== sourceFirmId).map((firm) => (
-                      <SelectItem key={firm.id} value={firm.id}>
-                        {firm.primary_company_name} ({firm.member_count} members)
-                      </SelectItem>
-                    ))}
+                    {firms
+                      ?.filter((f) => f.id !== sourceFirmId)
+                      .map((firm) => (
+                        <SelectItem key={firm.id} value={firm.id}>
+                          {firm.primary_company_name} ({firm.member_count} members)
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -286,16 +307,20 @@ export function FirmManagementTools() {
               {/* Agreement Status Comparison */}
               <div className="rounded-lg border border-border p-4 space-y-4">
                 <h4 className="font-medium text-sm">Agreement Status Comparison</h4>
-                
+
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-xs font-medium text-muted-foreground">Agreement</div>
                   <div className="text-xs font-medium text-muted-foreground">
                     Source Firm
-                    <div className="text-foreground mt-1 font-normal truncate">{sourceFirm?.primary_company_name}</div>
+                    <div className="text-foreground mt-1 font-normal truncate">
+                      {sourceFirm?.primary_company_name}
+                    </div>
                   </div>
                   <div className="text-xs font-medium text-muted-foreground">
                     Target Firm
-                    <div className="text-foreground mt-1 font-normal truncate">{targetFirm?.primary_company_name}</div>
+                    <div className="text-foreground mt-1 font-normal truncate">
+                      {targetFirm?.primary_company_name}
+                    </div>
                   </div>
 
                   {/* Fee Agreement Row */}
@@ -332,8 +357,14 @@ export function FirmManagementTools() {
                   <AlertDescription>
                     The source and target firms have different agreement statuses. After merge:
                     <ul className="list-disc pl-5 mt-2 space-y-1">
-                      <li>All {sourceFirm?.member_count} members from <strong>{sourceFirm?.primary_company_name}</strong> will be moved to <strong>{targetFirm?.primary_company_name}</strong></li>
-                      <li>They will inherit the <strong>target firm's</strong> agreement status</li>
+                      <li>
+                        All {sourceFirm?.member_count} members from{' '}
+                        <strong>{sourceFirm?.primary_company_name}</strong> will be moved to{' '}
+                        <strong>{targetFirm?.primary_company_name}</strong>
+                      </li>
+                      <li>
+                        They will inherit the <strong>target firm's</strong> agreement status
+                      </li>
                       <li>Their connection requests and deals will be updated accordingly</li>
                     </ul>
                   </AlertDescription>
@@ -405,9 +436,7 @@ export function FirmManagementTools() {
               <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleLinkUser}>
-                Link User
-              </Button>
+              <Button onClick={handleLinkUser}>Link User</Button>
             </div>
           </div>
         </DialogContent>
@@ -418,13 +447,13 @@ export function FirmManagementTools() {
 
 function AgreementStatusBadge({ signed }: { signed?: boolean }) {
   return (
-    <Badge 
-      variant={signed ? "default" : "outline"}
+    <Badge
+      variant={signed ? 'default' : 'outline'}
       className={cn(
-        "text-xs font-medium",
-        signed 
-          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20" 
-          : "bg-muted text-muted-foreground"
+        'text-xs font-medium',
+        signed
+          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+          : 'bg-muted text-muted-foreground',
       )}
     >
       {signed ? (

@@ -26,9 +26,9 @@ export function FirmSyncTestingPanel() {
   ]);
 
   const updateTestResult = (index: number, updates: Partial<TestResult>) => {
-    setTestResults(prev => prev.map((result, i) => 
-      i === index ? { ...result, ...updates } : result
-    ));
+    setTestResults((prev) =>
+      prev.map((result, i) => (i === index ? { ...result, ...updates } : result)),
+    );
   };
 
   const runTests = async () => {
@@ -38,29 +38,23 @@ export function FirmSyncTestingPanel() {
     updateTestResult(0, { status: 'running' });
     try {
       // Verify database tables are accessible
-      const { error: firmError } = await supabase
-        .from('firm_members')
-        .select('id')
-        .limit(1);
-      
+      const { error: firmError } = await supabase.from('firm_members').select('id').limit(1);
+
       if (firmError) throw firmError;
 
-      const { error: reqError } = await supabase
-        .from('connection_requests')
-        .select('id')
-        .limit(1);
+      const { error: reqError } = await supabase.from('connection_requests').select('id').limit(1);
 
       if (reqError) throw reqError;
-      
-      updateTestResult(0, { 
-        status: 'passed', 
-        message: 'Database tables accessible and triggers active'
+
+      updateTestResult(0, {
+        status: 'passed',
+        message: 'Database tables accessible and triggers active',
       });
     } catch (error) {
-      updateTestResult(0, { 
-        status: 'failed', 
+      updateTestResult(0, {
+        status: 'failed',
         message: 'Database connection failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -70,18 +64,20 @@ export function FirmSyncTestingPanel() {
       // Check if recent profiles with company_name were properly linked to firms
       const { data: recentProfiles, error } = await supabase
         .from('profiles')
-        .select(`
+        .select(
+          `
           id,
           company_name,
           created_at,
           firm_members!inner(firm_id)
-        `)
+        `,
+        )
         .not('company_name', 'is', null)
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .limit(20);
-      
+
       if (error) throw error;
-      
+
       // Check how many profiles with company names are NOT linked
       const { data: unlinkedProfiles, error: unlinkedError } = await supabase
         .from('profiles')
@@ -93,27 +89,28 @@ export function FirmSyncTestingPanel() {
 
       if (unlinkedError) throw unlinkedError;
 
-      const unlinkedCount = unlinkedProfiles?.filter(p => {
-        return !recentProfiles?.some(rp => rp.id === p.id);
-      }).length || 0;
-      
+      const unlinkedCount =
+        unlinkedProfiles?.filter((p) => {
+          return !recentProfiles?.some((rp) => rp.id === p.id);
+        }).length || 0;
+
       if (unlinkedCount > 5) {
-        updateTestResult(1, { 
-          status: 'failed', 
+        updateTestResult(1, {
+          status: 'failed',
           message: `Found ${unlinkedCount} recent profiles with company names not auto-linked`,
-          details: 'Auto-linking may not be working properly'
+          details: 'Auto-linking may not be working properly',
         });
       } else {
-        updateTestResult(1, { 
-          status: 'passed', 
-          message: `Auto-linking working: ${recentProfiles?.length || 0} recent profiles linked, ${unlinkedCount} unlinked`
+        updateTestResult(1, {
+          status: 'passed',
+          message: `Auto-linking working: ${recentProfiles?.length || 0} recent profiles linked, ${unlinkedCount} unlinked`,
         });
       }
     } catch (error) {
-      updateTestResult(1, { 
-        status: 'failed', 
+      updateTestResult(1, {
+        status: 'failed',
         message: 'Could not verify auto-linking',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -123,13 +120,15 @@ export function FirmSyncTestingPanel() {
       // Check recent lead connection requests for firm sync
       const { data: requests, error: reqError } = await supabase
         .from('connection_requests')
-        .select(`
+        .select(
+          `
           id,
           lead_email,
           lead_fee_agreement_signed,
           lead_nda_signed,
           created_at
-        `)
+        `,
+        )
         .is('user_id', null)
         .not('lead_email', 'is', null)
         .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
@@ -140,12 +139,12 @@ export function FirmSyncTestingPanel() {
       // For each lead, check if email domain matches a firm
       let syncIssues = 0;
       let checkedCount = 0;
-      
+
       for (const req of requests || []) {
         if (!req.lead_email) continue;
         const domain = req.lead_email.split('@')[1];
         if (!domain) continue;
-        
+
         const { data: firm, error: firmError } = await supabase
           .from('firm_agreements')
           .select('fee_agreement_signed, nda_signed')
@@ -155,30 +154,32 @@ export function FirmSyncTestingPanel() {
 
         if (firm) {
           checkedCount++;
-          if ((firm.fee_agreement_signed && !req.lead_fee_agreement_signed) ||
-              (firm.nda_signed && !req.lead_nda_signed)) {
+          if (
+            (firm.fee_agreement_signed && !req.lead_fee_agreement_signed) ||
+            (firm.nda_signed && !req.lead_nda_signed)
+          ) {
             syncIssues++;
           }
         }
       }
 
       if (syncIssues > 0) {
-        updateTestResult(2, { 
-          status: 'failed', 
+        updateTestResult(2, {
+          status: 'failed',
           message: `Found ${syncIssues} of ${checkedCount} leads not synced with firm agreements`,
-          details: 'Lead firm sync trigger may not be working'
+          details: 'Lead firm sync trigger may not be working',
         });
       } else {
-        updateTestResult(2, { 
-          status: 'passed', 
-          message: `Checked ${checkedCount} leads from firm domains - all synced correctly`
+        updateTestResult(2, {
+          status: 'passed',
+          message: `Checked ${checkedCount} leads from firm domains - all synced correctly`,
         });
       }
     } catch (error) {
-      updateTestResult(2, { 
-        status: 'failed', 
+      updateTestResult(2, {
+        status: 'failed',
         message: 'Could not verify lead sync',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -187,41 +188,48 @@ export function FirmSyncTestingPanel() {
     try {
       const { data: members, error } = await supabase
         .from('firm_members')
-        .select(`
+        .select(
+          `
           firm_id,
           user_id,
           firm_agreements!inner(fee_agreement_signed, nda_signed),
           profiles!inner(fee_agreement_signed, nda_signed)
-        `)
+        `,
+        )
         .limit(10);
-      
+
       if (error) throw error;
-      
-      const syncIssues = members?.filter((m: any) => {
-        const firmFee = m.firm_agreements?.fee_agreement_signed;
-        const profileFee = m.profiles?.fee_agreement_signed;
-        const firmNda = m.firm_agreements?.nda_signed;
-        const profileNda = m.profiles?.nda_signed;
-        return firmFee !== profileFee || firmNda !== profileNda;
-      });
-      
+
+      const syncIssues = members?.filter(
+        (m: {
+          firm_agreements: { fee_agreement_signed: boolean; nda_signed: boolean };
+          profiles: { fee_agreement_signed: boolean; nda_signed: boolean };
+        }) => {
+          const firmFee = m.firm_agreements?.fee_agreement_signed;
+          const profileFee = m.profiles?.fee_agreement_signed;
+          const firmNda = m.firm_agreements?.nda_signed;
+          const profileNda = m.profiles?.nda_signed;
+          return firmFee !== profileFee || firmNda !== profileNda;
+        },
+      );
+
       if (syncIssues && syncIssues.length > 0) {
-        updateTestResult(3, { 
-          status: 'failed', 
+        updateTestResult(3, {
+          status: 'failed',
           message: `Found ${syncIssues.length} sync issues`,
-          details: 'Some profiles don\'t match their firm\'s agreement status'
+          details: "Some profiles don't match their firm's agreement status",
         });
       } else {
-        updateTestResult(3, { 
-          status: 'passed', 
-          message: `Verified ${members?.length || 0} profiles in sync`
+        updateTestResult(3, {
+          status: 'passed',
+          message: `Verified ${members?.length || 0} profiles in sync`,
         });
       }
     } catch (error) {
-      updateTestResult(3, { 
-        status: 'failed', 
+      updateTestResult(3, {
+        status: 'failed',
         message: 'Could not verify profile sync',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -231,7 +239,8 @@ export function FirmSyncTestingPanel() {
       // Check if connection requests for registered users match their profile's agreement status
       const { data: requests, error } = await supabase
         .from('connection_requests')
-        .select(`
+        .select(
+          `
           id,
           user_id,
           status,
@@ -239,25 +248,26 @@ export function FirmSyncTestingPanel() {
             fee_agreement_signed,
             nda_signed
           )
-        `)
+        `,
+        )
         .not('user_id', 'is', null)
         .limit(50);
-      
+
       if (error) throw error;
 
       // Note: For registered users, connection_requests don't have lead_* fields
       // The sync should happen when the deal is created from the request
       // This test just verifies the profiles are accessible
-      
-      updateTestResult(4, { 
-        status: 'passed', 
-        message: `Verified ${requests?.length || 0} user-based connection requests`
+
+      updateTestResult(4, {
+        status: 'passed',
+        message: `Verified ${requests?.length || 0} user-based connection requests`,
       });
     } catch (error) {
-      updateTestResult(4, { 
-        status: 'failed', 
+      updateTestResult(4, {
+        status: 'failed',
         message: 'Could not verify connection request sync',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -267,7 +277,8 @@ export function FirmSyncTestingPanel() {
       // Check if deals match their connection request's agreement status
       const { data: deals, error } = await supabase
         .from('deals')
-        .select(`
+        .select(
+          `
           id,
           fee_agreement_status,
           nda_status,
@@ -278,59 +289,59 @@ export function FirmSyncTestingPanel() {
             lead_nda_email_sent,
             user_id
           )
-        `)
+        `,
+        )
         .is('deleted_at', null)
         .limit(50);
-      
+
       if (error) throw error;
 
       // Validate deal status matches connection request for lead-based requests
       const syncIssues = deals?.filter((d: any) => {
         const cr = d.connection_requests;
         if (!cr || cr.user_id !== null) return false; // Skip user-based requests
-        
+
         // Check fee agreement sync
-        const expectedFeeStatus = cr.lead_fee_agreement_signed 
-          ? 'signed' 
-          : cr.lead_fee_agreement_email_sent 
-          ? 'sent' 
-          : 'not_sent';
-        
-        const expectedNdaStatus = cr.lead_nda_signed 
-          ? 'signed' 
-          : cr.lead_nda_email_sent 
-          ? 'sent' 
-          : 'not_sent';
-        
-        return d.fee_agreement_status !== expectedFeeStatus || 
-               d.nda_status !== expectedNdaStatus;
+        const expectedFeeStatus = cr.lead_fee_agreement_signed
+          ? 'signed'
+          : cr.lead_fee_agreement_email_sent
+            ? 'sent'
+            : 'not_sent';
+
+        const expectedNdaStatus = cr.lead_nda_signed
+          ? 'signed'
+          : cr.lead_nda_email_sent
+            ? 'sent'
+            : 'not_sent';
+
+        return d.fee_agreement_status !== expectedFeeStatus || d.nda_status !== expectedNdaStatus;
       });
-      
+
       if (syncIssues && syncIssues.length > 0) {
-        updateTestResult(5, { 
-          status: 'failed', 
+        updateTestResult(5, {
+          status: 'failed',
           message: `Found ${syncIssues.length} deals with mismatched agreement status`,
-          details: 'Deal sync may have issues'
+          details: 'Deal sync may have issues',
         });
       } else {
-        updateTestResult(5, { 
-          status: 'passed', 
-          message: `Verified ${deals?.length || 0} deals - all synced correctly`
+        updateTestResult(5, {
+          status: 'passed',
+          message: `Verified ${deals?.length || 0} deals - all synced correctly`,
         });
       }
     } catch (error) {
-      updateTestResult(5, { 
-        status: 'failed', 
+      updateTestResult(5, {
+        status: 'failed',
         message: 'Could not verify deal sync',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
     setIsRunning(false);
   };
 
-  const allTestsPassed = testResults.every(t => t.status === 'passed');
-  const anyTestFailed = testResults.some(t => t.status === 'failed');
+  const allTestsPassed = testResults.every((t) => t.status === 'passed');
+  const anyTestFailed = testResults.some((t) => t.status === 'failed');
 
   return (
     <Card>
@@ -345,11 +356,7 @@ export function FirmSyncTestingPanel() {
               Verify all firm agreement sync mechanisms are working correctly
             </CardDescription>
           </div>
-          <Button 
-            onClick={runTests} 
-            disabled={isRunning}
-            size="sm"
-          >
+          <Button onClick={runTests} disabled={isRunning} size="sm">
             {isRunning ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -369,7 +376,8 @@ export function FirmSyncTestingPanel() {
           <Alert className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
             <CheckCircle2 className="h-4 w-4" />
             <AlertDescription>
-              All sync systems are functioning correctly! The firm agreement tracking is working as expected.
+              All sync systems are functioning correctly! The firm agreement tracking is working as
+              expected.
             </AlertDescription>
           </Alert>
         )}
@@ -378,7 +386,8 @@ export function FirmSyncTestingPanel() {
           <Alert variant="destructive">
             <XCircle className="h-4 w-4" />
             <AlertDescription>
-              Some tests failed. Please review the details below and contact support if issues persist.
+              Some tests failed. Please review the details below and contact support if issues
+              persist.
             </AlertDescription>
           </Alert>
         )}
@@ -388,19 +397,25 @@ export function FirmSyncTestingPanel() {
             <div
               key={result.name}
               className={cn(
-                "flex items-start justify-between p-3 rounded-lg border transition-colors",
-                result.status === 'passed' && "bg-emerald-500/5 border-emerald-500/20",
-                result.status === 'failed' && "bg-destructive/5 border-destructive/20",
-                result.status === 'running' && "bg-blue-500/5 border-blue-500/20",
-                result.status === 'pending' && "bg-muted/30 border-border"
+                'flex items-start justify-between p-3 rounded-lg border transition-colors',
+                result.status === 'passed' && 'bg-emerald-500/5 border-emerald-500/20',
+                result.status === 'failed' && 'bg-destructive/5 border-destructive/20',
+                result.status === 'running' && 'bg-blue-500/5 border-blue-500/20',
+                result.status === 'pending' && 'bg-muted/30 border-border',
               )}
             >
               <div className="flex items-start gap-3 flex-1">
                 <div className="mt-0.5">
-                  {result.status === 'passed' && <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+                  {result.status === 'passed' && (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  )}
                   {result.status === 'failed' && <XCircle className="h-4 w-4 text-destructive" />}
-                  {result.status === 'running' && <Loader2 className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-spin" />}
-                  {result.status === 'pending' && <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />}
+                  {result.status === 'running' && (
+                    <Loader2 className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-spin" />
+                  )}
+                  {result.status === 'pending' && (
+                    <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">{result.name}</p>
@@ -412,15 +427,18 @@ export function FirmSyncTestingPanel() {
                   )}
                 </div>
               </div>
-              <Badge 
+              <Badge
                 variant={
-                  result.status === 'passed' ? 'default' : 
-                  result.status === 'failed' ? 'destructive' : 
-                  'outline'
+                  result.status === 'passed'
+                    ? 'default'
+                    : result.status === 'failed'
+                      ? 'destructive'
+                      : 'outline'
                 }
                 className={cn(
-                  "ml-2",
-                  result.status === 'passed' && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
+                  'ml-2',
+                  result.status === 'passed' &&
+                    'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
                 )}
               >
                 {result.status}

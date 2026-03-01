@@ -1,6 +1,6 @@
-import { formatCurrency } from "@/lib/currency-utils";
-import { FileDown } from "lucide-react";
-import type { Listing } from "@/types";
+import { formatCurrency } from '@/lib/currency-utils';
+import { FileDown } from 'lucide-react';
+import type { Listing } from '@/types';
 
 interface ExecutiveSummaryGeneratorProps {
   listing: Listing;
@@ -10,7 +10,7 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
   const generatePDF = () => {
     // Create a new window with the executive summary content
     const summaryWindow = window.open('', '_blank', 'width=800,height=1200');
-    
+
     if (!summaryWindow) return;
 
     const content = `
@@ -125,75 +125,115 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
           <div class="section">
             <div class="section-title">Financial Highlights</div>
             <div class="grid">
-              ${listing.revenue ? `
+              ${
+                listing.revenue
+                  ? `
                 <div class="metric">
                   <div class="metric-label">Annual Revenue</div>
                   <div class="metric-value">${formatCurrency(listing.revenue)}</div>
                 </div>
-              ` : ''}
-              ${listing.ebitda ? `
+              `
+                  : ''
+              }
+              ${
+                listing.ebitda
+                  ? `
                 <div class="metric">
                   <div class="metric-label">EBITDA</div>
                   <div class="metric-value">${formatCurrency(listing.ebitda)}</div>
                 </div>
-              ` : ''}
-              ${(listing as any).asking_price ? `
+              `
+                  : ''
+              }
+              ${
+                (listing as unknown as { asking_price?: number }).asking_price
+                  ? `
                 <div class="metric">
                   <div class="metric-label">Asking Price</div>
-                  <div class="metric-value">${formatCurrency((listing as any).asking_price)}</div>
+                  <div class="metric-value">${formatCurrency((listing as unknown as { asking_price?: number }).asking_price!)}</div>
                 </div>
-              ` : ''}
-              ${listing.cash_flow ? `
+              `
+                  : ''
+              }
+              ${
+                listing.cash_flow
+                  ? `
                 <div class="metric">
                   <div class="metric-label">Cash Flow</div>
                   <div class="metric-value">${formatCurrency(listing.cash_flow)}</div>
                 </div>
-              ` : ''}
+              `
+                  : ''
+              }
             </div>
           </div>
 
-          ${listing.ownership_structure || listing.management_depth ? `
+          ${
+            listing.ownership_structure || listing.management_depth
+              ? `
             <div class="section">
               <div class="section-title">Current Structure</div>
-              ${listing.ownership_structure ? `
+              ${
+                listing.ownership_structure
+                  ? `
                 <div class="metric">
                   <div class="metric-label">Ownership Type</div>
                   <div class="metric-value">${listing.ownership_structure}</div>
                 </div>
-              ` : ''}
-              ${listing.management_depth ? `
+              `
+                  : ''
+              }
+              ${
+                listing.management_depth
+                  ? `
                 <div class="metric">
                   <div class="metric-label">Management Depth</div>
                   <div class="metric-value">${listing.management_depth}</div>
                 </div>
-              ` : ''}
+              `
+                  : ''
+              }
             </div>
-          ` : ''}
+          `
+              : ''
+          }
 
-          ${listing.seller_motivation || listing.timeline_preference ? `
+          ${
+            listing.seller_motivation || listing.timeline_preference
+              ? `
             <div class="section">
               <div class="section-title">Transaction Preferences</div>
-              ${listing.seller_motivation ? `
+              ${
+                listing.seller_motivation
+                  ? `
                 <div class="metric">
                   <div class="metric-label">Seller Motivation</div>
                   <div class="metric-value">${listing.seller_motivation}</div>
                 </div>
-              ` : ''}
-              ${listing.timeline_preference ? `
+              `
+                  : ''
+              }
+              ${
+                listing.timeline_preference
+                  ? `
                 <div class="metric">
                   <div class="metric-label">Timeline</div>
                   <div class="metric-value">${listing.timeline_preference}</div>
                 </div>
-              ` : ''}
+              `
+                  : ''
+              }
             </div>
-          ` : ''}
+          `
+              : ''
+          }
 
           <div class="footer">
             <p>This executive summary is confidential and proprietary to SourceCo.</p>
-            <p>Generated on ${new Date().toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            <p>Generated on ${new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
             })}</p>
           </div>
         </body>
@@ -202,7 +242,7 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
 
     summaryWindow.document.write(content);
     summaryWindow.document.close();
-    
+
     // Trigger print dialog after a short delay to ensure content is loaded
     setTimeout(() => {
       summaryWindow.print();
@@ -210,14 +250,14 @@ export const ExecutiveSummaryGenerator = ({ listing }: ExecutiveSummaryGenerator
   };
 
   return (
-      <button
-        onClick={generatePDF}
-        className="group inline-flex items-center gap-1.5 text-[12px] text-slate-500 hover:text-slate-900 transition-colors duration-200"
-      >
-        <FileDown className="h-3 w-3" />
-        <span className="border-b border-slate-300 group-hover:border-slate-600 transition-colors duration-200">
-          Download executive summary
-        </span>
-      </button>
+    <button
+      onClick={generatePDF}
+      className="group inline-flex items-center gap-1.5 text-[12px] text-slate-500 hover:text-slate-900 transition-colors duration-200"
+    >
+      <FileDown className="h-3 w-3" />
+      <span className="border-b border-slate-300 group-hover:border-slate-600 transition-colors duration-200">
+        Download executive summary
+      </span>
+    </button>
   );
 };

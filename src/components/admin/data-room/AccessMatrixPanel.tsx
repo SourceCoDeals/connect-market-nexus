@@ -10,23 +10,50 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import {
-  TooltipProvider,
-} from '@/components/ui/tooltip';
-import {
-  Shield, UserPlus, AlertTriangle, Loader2, Ban, Link2, Mail,
-  Copy, ChevronDown, ChevronRight, Clock, Check,
-  ExternalLink, Send, Building2, User,
+  Shield,
+  UserPlus,
+  AlertTriangle,
+  Loader2,
+  Ban,
+  Link2,
+  Mail,
+  Copy,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Check,
+  ExternalLink,
+  Send,
+  Building2,
+  User,
 } from 'lucide-react';
 import {
   useDataRoomAccess,
@@ -81,27 +108,33 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       // Fetch firms from remarketing_buyers
       let firmsQuery = supabase
         .from('remarketing_buyers')
-        .select(`
+        .select(
+          `
           id, company_name, pe_firm_name, email_domain, buyer_type,
           firm_agreement:firm_agreements!remarketing_buyers_marketplace_firm_id_fkey(
             fee_agreement_signed
           )
-        `)
+        `,
+        )
         .eq('archived', false)
         .order('company_name')
         .limit(100);
 
       if (buyerSearch) {
-        firmsQuery = firmsQuery.or(`company_name.ilike.%${buyerSearch}%,pe_firm_name.ilike.%${buyerSearch}%`);
+        firmsQuery = firmsQuery.or(
+          `company_name.ilike.%${buyerSearch}%,pe_firm_name.ilike.%${buyerSearch}%`,
+        );
       }
 
       // Fetch individual buyer contacts from unified contacts table
       let contactsQuery = supabase
         .from('contacts')
-        .select(`
+        .select(
+          `
           id, first_name, last_name, email, title,
           buyer:remarketing_buyers!contacts_remarketing_buyer_id_fkey(id, company_name, pe_firm_name, buyer_type, archived)
-        `)
+        `,
+        )
         .eq('contact_type', 'buyer')
         .eq('archived', false)
         .not('remarketing_buyer_id', 'is', null)
@@ -109,13 +142,12 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         .limit(100);
 
       if (buyerSearch) {
-        contactsQuery = contactsQuery.or(`first_name.ilike.%${buyerSearch}%,last_name.ilike.%${buyerSearch}%,email.ilike.%${buyerSearch}%`);
+        contactsQuery = contactsQuery.or(
+          `first_name.ilike.%${buyerSearch}%,last_name.ilike.%${buyerSearch}%,email.ilike.%${buyerSearch}%`,
+        );
       }
 
-      const [firmsResult, contactsResult] = await Promise.all([
-        firmsQuery,
-        contactsQuery,
-      ]);
+      const [firmsResult, contactsResult] = await Promise.all([firmsQuery, contactsQuery]);
 
       if (firmsResult.error) throw firmsResult.error;
 
@@ -130,25 +162,51 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         entry_type: 'firm' | 'contact';
       };
 
-      const firms: UnifiedBuyer[] = (firmsResult.data || []).map((b: any) => ({
-        id: b.id,
-        remarketing_buyer_id: b.id,
-        display_name: b.company_name || b.pe_firm_name || 'Unknown',
-        subtitle: b.email_domain || null,
-        buyer_type: b.buyer_type,
-        has_fee_agreement: !!(b.firm_agreement as { fee_agreement_signed?: boolean } | null)?.fee_agreement_signed,
-        entry_type: 'firm' as const,
-      }));
+      const firms: UnifiedBuyer[] = (firmsResult.data || []).map(
+        (b: {
+          id: string;
+          company_name: string | null;
+          pe_firm_name: string | null;
+          email_domain: string | null;
+          buyer_type: string | null;
+          firm_agreement: { fee_agreement_signed?: boolean } | null;
+        }) => ({
+          id: b.id,
+          remarketing_buyer_id: b.id,
+          display_name: b.company_name || b.pe_firm_name || 'Unknown',
+          subtitle: b.email_domain || null,
+          buyer_type: b.buyer_type,
+          has_fee_agreement: !!b.firm_agreement?.fee_agreement_signed,
+          entry_type: 'firm' as const,
+        }),
+      );
 
-      const contacts: UnifiedBuyer[] = (contactsResult.data || []).map((c: any) => ({
-        id: `contact:${c.id}`,
-        remarketing_buyer_id: c.buyer?.id,
-        display_name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
-        subtitle: c.title ? `${c.title} at ${c.buyer?.company_name || c.buyer?.pe_firm_name || ''}` : (c.buyer?.company_name || c.buyer?.pe_firm_name || null),
-        buyer_type: c.buyer?.buyer_type || null,
-        has_fee_agreement: false,
-        entry_type: 'contact' as const,
-      }));
+      const contacts: UnifiedBuyer[] = (contactsResult.data || []).map(
+        (c: {
+          id: string;
+          first_name: string | null;
+          last_name: string | null;
+          email: string | null;
+          title: string | null;
+          buyer: {
+            id: string;
+            company_name: string | null;
+            pe_firm_name: string | null;
+            buyer_type: string | null;
+            archived: boolean;
+          } | null;
+        }) => ({
+          id: `contact:${c.id}`,
+          remarketing_buyer_id: c.buyer?.id,
+          display_name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
+          subtitle: c.title
+            ? `${c.title} at ${c.buyer?.company_name || c.buyer?.pe_firm_name || ''}`
+            : c.buyer?.company_name || c.buyer?.pe_firm_name || null,
+          buyer_type: c.buyer?.buyer_type || null,
+          has_fee_agreement: false,
+          entry_type: 'contact' as const,
+        }),
+      );
 
       // Firms first, then contacts
       return [...firms, ...contacts];
@@ -156,17 +214,18 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
     enabled: showAddBuyer,
   });
 
-  const activeRecords = accessRecords.filter(r => !r.revoked_at);
-  const filteredRecords = activeRecords.filter(r =>
-    !searchQuery ||
-    r.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    r.buyer_company?.toLowerCase().includes(searchQuery.toLowerCase())
+  const activeRecords = accessRecords.filter((r) => !r.revoked_at);
+  const filteredRecords = activeRecords.filter(
+    (r) =>
+      !searchQuery ||
+      r.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      r.buyer_company?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const handleToggle = async (
     record: DataRoomAccessRecord,
     field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
-    newValue: boolean
+    newValue: boolean,
   ) => {
     const updates = {
       deal_id: dealId,
@@ -178,7 +237,11 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
     };
 
     // Full Memo and Data Room require a signed fee agreement — warn
-    if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && newValue && !record.fee_agreement_signed) {
+    if (
+      (field === 'can_view_full_memo' || field === 'can_view_data_room') &&
+      newValue &&
+      !record.fee_agreement_signed
+    ) {
       setPendingUpdate(updates);
       setShowFeeWarning(true);
       return;
@@ -203,14 +266,14 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
   const handleAddBuyers = () => {
     // Resolve selected IDs to remarketing_buyer_ids (contacts map to their parent firm)
     const buyerIdsToAdd = new Set<string>();
-    addBuyerSelected.forEach(selectedId => {
-      const buyer = availableBuyers.find(b => b.id === selectedId);
+    addBuyerSelected.forEach((selectedId) => {
+      const buyer = availableBuyers.find((b) => b.id === selectedId);
       if (buyer?.remarketing_buyer_id) {
         buyerIdsToAdd.add(buyer.remarketing_buyer_id);
       }
     });
 
-    buyerIdsToAdd.forEach(rmBuyerId => {
+    buyerIdsToAdd.forEach((rmBuyerId) => {
       updateAccess.mutate({
         deal_id: dealId,
         remarketing_buyer_id: rmBuyerId,
@@ -267,7 +330,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
     // Open mailto with pre-filled content
     const subject = encodeURIComponent(`${projectName || 'Deal'} — Document Access`);
     const body = encodeURIComponent(
-      `You have been granted access to view documents.\n\nClick here to view: ${link}\n\nPlease do not share this link.`
+      `You have been granted access to view documents.\n\nClick here to view: ${link}\n\nPlease do not share this link.`,
     );
     window.open(`mailto:${sendEmail}?subject=${subject}&body=${body}`, '_blank');
 
@@ -298,12 +361,19 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
     setExpandedRows(next);
   };
 
-  const handleBulkToggle = (field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room', value: boolean) => {
+  const handleBulkToggle = (
+    field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
+    value: boolean,
+  ) => {
     const eligibleRecords = Array.from(selectedBuyers)
-      .map(id => activeRecords.find(r => r.access_id === id))
+      .map((id) => activeRecords.find((r) => r.access_id === id))
       .filter((record): record is DataRoomAccessRecord => {
         if (!record) return false;
-        if ((field === 'can_view_full_memo' || field === 'can_view_data_room') && value && !record.fee_agreement_signed) {
+        if (
+          (field === 'can_view_full_memo' || field === 'can_view_data_room') &&
+          value &&
+          !record.fee_agreement_signed
+        ) {
           return false;
         }
         return true;
@@ -314,7 +384,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       return;
     }
 
-    const buyerIds = eligibleRecords.map(record => ({
+    const buyerIds = eligibleRecords.map((record) => ({
       remarketing_buyer_id: record.remarketing_buyer_id || undefined,
       marketplace_user_id: record.marketplace_user_id || undefined,
     }));
@@ -354,10 +424,18 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
           {selectedBuyers.size > 0 && (
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{selectedBuyers.size} selected</Badge>
-              <Button variant="outline" size="sm" onClick={() => handleBulkToggle('can_view_teaser', true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkToggle('can_view_teaser', true)}
+              >
                 Grant Teaser
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleBulkToggle('can_view_data_room', true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkToggle('can_view_data_room', true)}
+              >
                 Grant Data Room
               </Button>
             </div>
@@ -380,19 +458,25 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         <Card>
           <CardContent className="py-3 px-4">
             <p className="text-xs text-muted-foreground">Links Sent</p>
-            <p className="text-xl font-bold">{activeRecords.filter(r => r.link_sent_at).length}</p>
+            <p className="text-xl font-bold">
+              {activeRecords.filter((r) => r.link_sent_at).length}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-3 px-4">
             <p className="text-xs text-muted-foreground">Fee Agreements</p>
-            <p className="text-xl font-bold">{activeRecords.filter(r => r.fee_agreement_signed).length}</p>
+            <p className="text-xl font-bold">
+              {activeRecords.filter((r) => r.fee_agreement_signed).length}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-3 px-4">
             <p className="text-xs text-muted-foreground">Full Memo Access</p>
-            <p className="text-xl font-bold">{activeRecords.filter(r => r.can_view_full_memo).length}</p>
+            <p className="text-xl font-bold">
+              {activeRecords.filter((r) => r.can_view_full_memo).length}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -407,268 +491,319 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
             </div>
           ) : (
             <TooltipProvider>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8" />
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={selectedBuyers.size === filteredRecords.length && filteredRecords.length > 0}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedBuyers(new Set(filteredRecords.map(r => r.access_id)));
-                        } else {
-                          setSelectedBuyers(new Set());
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8" />
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={
+                          selectedBuyers.size === filteredRecords.length &&
+                          filteredRecords.length > 0
                         }
-                      }}
-                    />
-                  </TableHead>
-                  <TableHead>Buyer</TableHead>
-                  <TableHead className="text-center w-20">Teaser</TableHead>
-                  <TableHead className="text-center w-20">Full Memo</TableHead>
-                  <TableHead className="text-center w-20">Data Room</TableHead>
-                  <TableHead className="text-center w-24">Fee Agmt</TableHead>
-                  <TableHead className="w-28">Link Status</TableHead>
-                  <TableHead className="w-28">Last Access</TableHead>
-                  <TableHead className="w-36">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRecords.map(record => {
-                  const isExpanded = expandedRows.has(record.access_id);
-                  return (
-                    <>
-                      <TableRow key={record.access_id} className="group">
-                        <TableCell className="px-2">
-                          <button
-                            onClick={() => toggleRowExpanded(record.access_id)}
-                            className="p-0.5 rounded hover:bg-accent"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            )}
-                          </button>
-                        </TableCell>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedBuyers.has(record.access_id)}
-                            onCheckedChange={(checked) => {
-                              const next = new Set(selectedBuyers);
-                              if (checked) next.add(record.access_id);
-                              else next.delete(record.access_id);
-                              setSelectedBuyers(next);
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium text-sm">{record.buyer_name}</p>
-                            {record.buyer_company && record.buyer_company !== record.buyer_name && (
-                              <p className="text-xs text-muted-foreground">{record.buyer_company}</p>
-                            )}
-                            {record.contact_title && (
-                              <p className="text-xs text-muted-foreground">{record.contact_title}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={record.can_view_teaser}
-                            onCheckedChange={(checked) =>
-                              handleToggle(record, 'can_view_teaser', !!checked)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={record.can_view_full_memo}
-                            onCheckedChange={(checked) =>
-                              handleToggle(record, 'can_view_full_memo', !!checked)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={record.can_view_data_room}
-                            onCheckedChange={(checked) =>
-                              handleToggle(record, 'can_view_data_room', !!checked)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {record.fee_agreement_signed ? (
-                            <Badge variant="default" className="bg-green-100 text-green-800 text-xs">Signed</Badge>
-                          ) : record.fee_agreement_override ? (
-                            <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
-                              Override
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">None</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {record.link_sent_at ? (
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-1">
-                                {record.link_sent_via === 'email' ? (
-                                  <Mail className="h-3 w-3 text-blue-500" />
-                                ) : (
-                                  <Copy className="h-3 w-3 text-muted-foreground" />
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedBuyers(new Set(filteredRecords.map((r) => r.access_id)));
+                          } else {
+                            setSelectedBuyers(new Set());
+                          }
+                        }}
+                      />
+                    </TableHead>
+                    <TableHead>Buyer</TableHead>
+                    <TableHead className="text-center w-20">Teaser</TableHead>
+                    <TableHead className="text-center w-20">Full Memo</TableHead>
+                    <TableHead className="text-center w-20">Data Room</TableHead>
+                    <TableHead className="text-center w-24">Fee Agmt</TableHead>
+                    <TableHead className="w-28">Link Status</TableHead>
+                    <TableHead className="w-28">Last Access</TableHead>
+                    <TableHead className="w-36">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRecords.map((record) => {
+                    const isExpanded = expandedRows.has(record.access_id);
+                    return (
+                      <>
+                        <TableRow key={record.access_id} className="group">
+                          <TableCell className="px-2">
+                            <button
+                              onClick={() => toggleRowExpanded(record.access_id)}
+                              className="p-0.5 rounded hover:bg-accent"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedBuyers.has(record.access_id)}
+                              onCheckedChange={(checked) => {
+                                const next = new Set(selectedBuyers);
+                                if (checked) next.add(record.access_id);
+                                else next.delete(record.access_id);
+                                setSelectedBuyers(next);
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{record.buyer_name}</p>
+                              {record.buyer_company &&
+                                record.buyer_company !== record.buyer_name && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {record.buyer_company}
+                                  </p>
                                 )}
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDistanceToNow(new Date(record.link_sent_at), { addSuffix: true })}
-                                </span>
-                              </div>
-                              {record.link_sent_to_email && (
-                                <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">
-                                  {record.link_sent_to_email}
+                              {record.contact_title && (
+                                <p className="text-xs text-muted-foreground">
+                                  {record.contact_title}
                                 </p>
                               )}
                             </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Not sent</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {record.last_access_at ? (
-                            <span className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(record.last_access_at), { addSuffix: true })}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Never</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleCopyLink(record)}
-                              title="Copy tracked link"
-                            >
-                              <Link2 className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                setSendLinkRecord(record);
-                                setSendEmail(record.link_sent_to_email || '');
-                              }}
-                              title="Send link via email"
-                            >
-                              <Send className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                setExpirationRecord(record);
-                                setExpirationDate(record.expires_at ? new Date(record.expires_at) : undefined);
-                              }}
-                              title="Set expiration"
-                            >
-                              <Clock className="h-3.5 w-3.5" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive">
-                                  <Ban className="h-3.5 w-3.5" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Revoke access?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will immediately revoke all data room access for {record.buyer_name}.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => revokeAccess.mutate({ accessId: record.access_id, dealId })}
-                                    className="bg-destructive text-destructive-foreground"
-                                  >
-                                    Revoke
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && (
-                        <TableRow key={`${record.access_id}-detail`}>
-                          <TableCell colSpan={10} className="bg-muted/30 py-3 px-6">
-                            <div className="space-y-2">
-                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Access Timeline</p>
-                              <div className="space-y-1.5">
-                                <TimelineItem
-                                  label="Access granted"
-                                  date={record.granted_at}
-                                  icon={<Check className="h-3 w-3 text-green-600" />}
-                                />
-                                {record.link_sent_at && (
-                                  <TimelineItem
-                                    label={`Link ${record.link_sent_via === 'email' ? 'emailed' : 'copied'}${record.link_sent_to_email ? ` to ${record.link_sent_to_email}` : ''}`}
-                                    date={record.link_sent_at}
-                                    icon={record.link_sent_via === 'email' ? <Mail className="h-3 w-3 text-blue-500" /> : <Copy className="h-3 w-3 text-muted-foreground" />}
-                                  />
-                                )}
-                                {record.last_access_at && (
-                                  <TimelineItem
-                                    label="Last viewed documents"
-                                    date={record.last_access_at}
-                                    icon={<ExternalLink className="h-3 w-3 text-primary" />}
-                                  />
-                                )}
-                                {record.expires_at && (
-                                  <TimelineItem
-                                    label={`Access ${new Date(record.expires_at) < new Date() ? 'expired' : 'expires'}`}
-                                    date={record.expires_at}
-                                    icon={<Clock className="h-3 w-3 text-amber-500" />}
-                                  />
-                                )}
-                                {record.fee_agreement_override && (
-                                  <div className="flex items-start gap-2 text-xs">
-                                    <AlertTriangle className="h-3 w-3 text-amber-500 mt-0.5" />
-                                    <div>
-                                      <span className="text-muted-foreground">Fee agreement overridden</span>
-                                      {record.fee_agreement_override_reason && (
-                                        <p className="text-muted-foreground italic">"{record.fee_agreement_override_reason}"</p>
-                                      )}
-                                    </div>
-                                  </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={record.can_view_teaser}
+                              onCheckedChange={(checked) =>
+                                handleToggle(record, 'can_view_teaser', !!checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={record.can_view_full_memo}
+                              onCheckedChange={(checked) =>
+                                handleToggle(record, 'can_view_full_memo', !!checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={record.can_view_data_room}
+                              onCheckedChange={(checked) =>
+                                handleToggle(record, 'can_view_data_room', !!checked)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {record.fee_agreement_signed ? (
+                              <Badge
+                                variant="default"
+                                className="bg-green-100 text-green-800 text-xs"
+                              >
+                                Signed
+                              </Badge>
+                            ) : record.fee_agreement_override ? (
+                              <Badge
+                                variant="outline"
+                                className="text-xs border-amber-300 text-amber-700"
+                              >
+                                Override
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-xs">
+                                None
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {record.link_sent_at ? (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1">
+                                  {record.link_sent_via === 'email' ? (
+                                    <Mail className="h-3 w-3 text-blue-500" />
+                                  ) : (
+                                    <Copy className="h-3 w-3 text-muted-foreground" />
+                                  )}
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDistanceToNow(new Date(record.link_sent_at), {
+                                      addSuffix: true,
+                                    })}
+                                  </span>
+                                </div>
+                                {record.link_sent_to_email && (
+                                  <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                                    {record.link_sent_to_email}
+                                  </p>
                                 )}
                               </div>
-                              {record.access_token && (
-                                <div className="mt-2 pt-2 border-t">
-                                  <p className="text-xs text-muted-foreground">
-                                    Token: <code className="text-[10px] bg-muted px-1 py-0.5 rounded">{record.access_token.slice(0, 12)}…</code>
-                                  </p>
-                                </div>
-                              )}
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Not sent</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {record.last_access_at ? (
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(record.last_access_at), {
+                                  addSuffix: true,
+                                })}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Never</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => handleCopyLink(record)}
+                                title="Copy tracked link"
+                              >
+                                <Link2 className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  setSendLinkRecord(record);
+                                  setSendEmail(record.link_sent_to_email || '');
+                                }}
+                                title="Send link via email"
+                              >
+                                <Send className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  setExpirationRecord(record);
+                                  setExpirationDate(
+                                    record.expires_at ? new Date(record.expires_at) : undefined,
+                                  );
+                                }}
+                                title="Set expiration"
+                              >
+                                <Clock className="h-3.5 w-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive"
+                                  >
+                                    <Ban className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Revoke access?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will immediately revoke all data room access for{' '}
+                                      {record.buyer_name}.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        revokeAccess.mutate({ accessId: record.access_id, dealId })
+                                      }
+                                      className="bg-destructive text-destructive-foreground"
+                                    >
+                                      Revoke
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </TableCell>
                         </TableRow>
-                      )}
-                    </>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        {isExpanded && (
+                          <TableRow key={`${record.access_id}-detail`}>
+                            <TableCell colSpan={10} className="bg-muted/30 py-3 px-6">
+                              <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                  Access Timeline
+                                </p>
+                                <div className="space-y-1.5">
+                                  <TimelineItem
+                                    label="Access granted"
+                                    date={record.granted_at}
+                                    icon={<Check className="h-3 w-3 text-green-600" />}
+                                  />
+                                  {record.link_sent_at && (
+                                    <TimelineItem
+                                      label={`Link ${record.link_sent_via === 'email' ? 'emailed' : 'copied'}${record.link_sent_to_email ? ` to ${record.link_sent_to_email}` : ''}`}
+                                      date={record.link_sent_at}
+                                      icon={
+                                        record.link_sent_via === 'email' ? (
+                                          <Mail className="h-3 w-3 text-blue-500" />
+                                        ) : (
+                                          <Copy className="h-3 w-3 text-muted-foreground" />
+                                        )
+                                      }
+                                    />
+                                  )}
+                                  {record.last_access_at && (
+                                    <TimelineItem
+                                      label="Last viewed documents"
+                                      date={record.last_access_at}
+                                      icon={<ExternalLink className="h-3 w-3 text-primary" />}
+                                    />
+                                  )}
+                                  {record.expires_at && (
+                                    <TimelineItem
+                                      label={`Access ${new Date(record.expires_at) < new Date() ? 'expired' : 'expires'}`}
+                                      date={record.expires_at}
+                                      icon={<Clock className="h-3 w-3 text-amber-500" />}
+                                    />
+                                  )}
+                                  {record.fee_agreement_override && (
+                                    <div className="flex items-start gap-2 text-xs">
+                                      <AlertTriangle className="h-3 w-3 text-amber-500 mt-0.5" />
+                                      <div>
+                                        <span className="text-muted-foreground">
+                                          Fee agreement overridden
+                                        </span>
+                                        {record.fee_agreement_override_reason && (
+                                          <p className="text-muted-foreground italic">
+                                            "{record.fee_agreement_override_reason}"
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                {record.access_token && (
+                                  <div className="mt-2 pt-2 border-t">
+                                    <p className="text-xs text-muted-foreground">
+                                      Token:{' '}
+                                      <code className="text-[10px] bg-muted px-1 py-0.5 rounded">
+                                        {record.access_token.slice(0, 12)}…
+                                      </code>
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </TooltipProvider>
           )}
         </CardContent>
       </Card>
 
       {/* Send Email Dialog */}
-      <Dialog open={!!sendLinkRecord} onOpenChange={(open) => { if (!open) setSendLinkRecord(null); }}>
+      <Dialog
+        open={!!sendLinkRecord}
+        onOpenChange={(open) => {
+          if (!open) setSendLinkRecord(null);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -700,7 +835,9 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSendLinkRecord(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setSendLinkRecord(null)}>
+              Cancel
+            </Button>
             <Button onClick={handleSendEmail} disabled={!sendEmail}>
               <Send className="mr-2 h-4 w-4" />
               Open Email
@@ -710,7 +847,12 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       </Dialog>
 
       {/* Expiration Date Dialog */}
-      <Dialog open={!!expirationRecord} onOpenChange={(open) => { if (!open) setExpirationRecord(null); }}>
+      <Dialog
+        open={!!expirationRecord}
+        onOpenChange={(open) => {
+          if (!open) setExpirationRecord(null);
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -718,7 +860,8 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
               Set Access Expiration
             </DialogTitle>
             <DialogDescription>
-              Set an expiration date for {expirationRecord?.buyer_name}'s access. After this date, they won't be able to view documents.
+              Set an expiration date for {expirationRecord?.buyer_name}'s access. After this date,
+              they won't be able to view documents.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center">
@@ -731,7 +874,9 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setExpirationRecord(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setExpirationRecord(null)}>
+              Cancel
+            </Button>
             <Button onClick={handleSetExpiration} disabled={!expirationDate}>
               Set Expiration
             </Button>
@@ -748,8 +893,8 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
               Fee Agreement Required
             </DialogTitle>
             <DialogDescription>
-              This buyer does not have a signed fee agreement. Releasing the full memo reveals the company name.
-              Do you want to proceed anyway?
+              This buyer does not have a signed fee agreement. Releasing the full memo reveals the
+              company name. Do you want to proceed anyway?
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -757,15 +902,20 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
             <Textarea
               placeholder="Why is it okay to share the full memo without a fee agreement?"
               value={overrideReason}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOverrideReason(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                setOverrideReason(e.target.value)
+              }
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowFeeWarning(false);
-              setPendingUpdate(null);
-              setOverrideReason('');
-            }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowFeeWarning(false);
+                setPendingUpdate(null);
+                setOverrideReason('');
+              }}
+            >
               Cancel
             </Button>
             <Button
@@ -780,18 +930,22 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       </Dialog>
 
       {/* Add Buyer Dialog */}
-      <Dialog open={showAddBuyer} onOpenChange={(open) => {
-        setShowAddBuyer(open);
-        if (!open) {
-          setAddBuyerSelected(new Set());
-          setBuyerSearch('');
-        }
-      }}>
+      <Dialog
+        open={showAddBuyer}
+        onOpenChange={(open) => {
+          setShowAddBuyer(open);
+          if (!open) {
+            setAddBuyerSelected(new Set());
+            setBuyerSearch('');
+          }
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Add Buyers to Data Room</DialogTitle>
             <DialogDescription>
-              Select buyers or contacts to grant initial teaser access. Full memo and data room access requires a signed fee agreement.
+              Select buyers or contacts to grant initial teaser access. Full memo and data room
+              access requires a signed fee agreement.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -801,12 +955,14 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
               onChange={(e) => setBuyerSearch(e.target.value)}
             />
             <div className="max-h-72 overflow-y-auto space-y-1 border rounded-md p-1">
-              {availableBuyers.map(buyer => {
-                const alreadyAdded = activeRecords.some(r =>
-                  r.remarketing_buyer_id === buyer.remarketing_buyer_id
+              {availableBuyers.map((buyer) => {
+                const alreadyAdded = activeRecords.some(
+                  (r) => r.remarketing_buyer_id === buyer.remarketing_buyer_id,
                 );
                 const isSelected = addBuyerSelected.has(buyer.id);
-                const typeLabel = buyer.buyer_type?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || null;
+                const typeLabel =
+                  buyer.buyer_type?.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) ||
+                  null;
                 return (
                   <button
                     key={buyer.id}
@@ -821,7 +977,11 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                     }}
                     disabled={alreadyAdded}
                   >
-                    <Checkbox checked={isSelected || alreadyAdded} disabled={alreadyAdded} className="pointer-events-none" />
+                    <Checkbox
+                      checked={isSelected || alreadyAdded}
+                      disabled={alreadyAdded}
+                      className="pointer-events-none"
+                    />
                     <div className="flex-shrink-0">
                       {buyer.entry_type === 'contact' ? (
                         <User className="h-4 w-4 text-muted-foreground" />
@@ -833,7 +993,12 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                       <div className="flex items-center gap-2">
                         <p className="font-medium truncate">{buyer.display_name}</p>
                         {typeLabel && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex-shrink-0">{typeLabel}</Badge>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 flex-shrink-0"
+                          >
+                            {typeLabel}
+                          </Badge>
                         )}
                       </div>
                       {buyer.subtitle && (
@@ -842,9 +1007,18 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {buyer.has_fee_agreement && (
-                        <Badge variant="default" className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0">Fee Agmt</Badge>
+                        <Badge
+                          variant="default"
+                          className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0"
+                        >
+                          Fee Agmt
+                        </Badge>
                       )}
-                      {alreadyAdded && <Badge variant="secondary" className="text-xs">Added</Badge>}
+                      {alreadyAdded && (
+                        <Badge variant="secondary" className="text-xs">
+                          Added
+                        </Badge>
+                      )}
                     </div>
                   </button>
                 );
@@ -856,11 +1030,15 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
               )}
             </div>
             {addBuyerSelected.size > 0 && (
-              <p className="text-xs text-muted-foreground">{addBuyerSelected.size} buyer(s) selected</p>
+              <p className="text-xs text-muted-foreground">
+                {addBuyerSelected.size} buyer(s) selected
+              </p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddBuyer(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowAddBuyer(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleAddBuyers} disabled={addBuyerSelected.size === 0}>
               <UserPlus className="mr-2 h-4 w-4" />
               Add {addBuyerSelected.size > 0 ? `${addBuyerSelected.size} Buyer(s)` : 'Buyers'}
@@ -874,7 +1052,15 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
 
 // ─── Timeline Item ───
 
-function TimelineItem({ label, date, icon }: { label: string; date: string; icon: React.ReactNode }) {
+function TimelineItem({
+  label,
+  date,
+  icon,
+}: {
+  label: string;
+  date: string;
+  icon: React.ReactNode;
+}) {
   return (
     <div className="flex items-center gap-2 text-xs">
       {icon}
