@@ -446,7 +446,7 @@ export function useMatchingActions({
       queryClient.invalidateQueries({ queryKey: ['deals'] });
     } catch (err: unknown) {
       // Pipeline move failed — toast shown to user
-      toast.error(err?.message || 'Failed to move buyer to pipeline');
+      toast.error(err instanceof Error ? err.message : 'Failed to move buyer to pipeline');
     }
   };
 

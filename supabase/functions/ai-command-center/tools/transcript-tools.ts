@@ -6,11 +6,49 @@
  * → unified search_transcripts with a `source` parameter.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
+
+interface CallTranscriptRow {
+  id: string;
+  created_at: string;
+  call_type: string | null;
+  ceo_detected: boolean | null;
+  key_quotes: string[] | null;
+  extracted_insights: unknown;
+  transcript_text: string | null;
+  listing_id: string | null;
+  buyer_id: string | null;
+}
+
+interface BuyerTranscriptRow {
+  id: string;
+  buyer_id: string;
+  created_at: string;
+  transcript_text: string | null;
+  extracted_data: Record<string, unknown> | null;
+  extracted_insights: Record<string, unknown> | null;
+  extraction_status: string | null;
+  fireflies_transcript_id: string | null;
+  fireflies_url: string | null;
+}
+
+interface DealTranscriptRow {
+  id: string;
+  title: string | null;
+  listing_id: string | null;
+  call_date: string | null;
+  duration_minutes: number | null;
+  source: string | null;
+  meeting_attendees: string[] | null;
+  external_participants: string[] | null;
+  extracted_data: Record<string, unknown> | null;
+  extraction_status: string | null;
+  transcript_text: string | null;
+  fireflies_meeting_id: string | null;
+  created_at: string;
+}
 
 // ---------- Tool definitions ----------
 
@@ -129,15 +167,16 @@ async function searchTranscriptsUnified(
   }
 
   // Compute totals
+  type TranscriptResult = { total?: number; total_before_filtering?: number };
   const totalCount =
-    ((results.call_transcripts as any)?.total || 0) +
-    ((results.buyer_transcripts as any)?.total || 0) +
-    ((results.fireflies as any)?.total || 0);
+    ((results.call_transcripts as TranscriptResult)?.total || 0) +
+    ((results.buyer_transcripts as TranscriptResult)?.total || 0) +
+    ((results.fireflies as TranscriptResult)?.total || 0);
 
   const totalBeforeFiltering =
-    ((results.call_transcripts as any)?.total_before_filtering || 0) +
-    ((results.buyer_transcripts as any)?.total_before_filtering || 0) +
-    ((results.fireflies as any)?.total_before_filtering || 0);
+    ((results.call_transcripts as TranscriptResult)?.total_before_filtering || 0) +
+    ((results.buyer_transcripts as TranscriptResult)?.total_before_filtering || 0) +
+    ((results.fireflies as TranscriptResult)?.total_before_filtering || 0);
 
   const filtersApplied: Record<string, unknown> = { source };
   if (args.keywords) filtersApplied.keywords = args.keywords;
@@ -195,7 +234,7 @@ async function searchCallTranscripts(
   // Client-side keyword search
   if (args.keywords) {
     const term = (args.keywords as string).toLowerCase();
-    results = results.filter((t: any) => {
+    results = results.filter((t: CallTranscriptRow) => {
       const text = (t.transcript_text || '').toLowerCase();
       const quotes = JSON.stringify(t.key_quotes || []).toLowerCase();
       const insights = JSON.stringify(t.extracted_insights || []).toLowerCase();
@@ -203,8 +242,7 @@ async function searchCallTranscripts(
     });
   }
 
-  // Return summaries (truncate transcript_text for response size)
-  const summaries = results.map((t: any) => ({
+  const summaries = results.map((t: CallTranscriptRow) => ({
     id: t.id,
     deal_id: t.listing_id,
     buyer_id: t.buyer_id,
@@ -252,7 +290,7 @@ async function searchBuyerTranscripts(
   // Client-side keyword filter
   if (args.keywords) {
     const term = (args.keywords as string).toLowerCase();
-    results = results.filter((t: any) => {
+    results = results.filter((t: BuyerTranscriptRow) => {
       const text = (t.transcript_text || '').toLowerCase();
       const insights = JSON.stringify(t.extracted_insights || {}).toLowerCase();
       const extractedData = JSON.stringify(t.extracted_data || {}).toLowerCase();
@@ -260,7 +298,7 @@ async function searchBuyerTranscripts(
     });
   }
 
-  const summaries = results.map((t: any) => ({
+  const summaries = results.map((t: BuyerTranscriptRow) => ({
     id: t.id,
     buyer_id: t.buyer_id,
     created_at: t.created_at,
@@ -310,7 +348,7 @@ async function searchFireflies(
   if (searchTerm) {
     const term = (searchTerm as string).toLowerCase();
     results = results.filter(
-      (t: any) =>
+      (t: DealTranscriptRow) =>
         t.title?.toLowerCase().includes(term) ||
         t.transcript_text?.toLowerCase().includes(term) ||
         t.meeting_attendees?.some((a: string) => a.toLowerCase().includes(term)) ||
@@ -322,7 +360,7 @@ async function searchFireflies(
   }
 
   // Truncate transcript for response size
-  const summaries = results.map((t: any) => ({
+  const summaries = results.map((t: DealTranscriptRow) => ({
     id: t.id,
     title: t.title,
     deal_id: t.listing_id,

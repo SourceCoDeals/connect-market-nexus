@@ -342,7 +342,7 @@ Do NOT infer or guess any information.`;
 
 /** AI extraction result type */
 export interface AIExtractionResult {
-  data: any | null;
+  data: Record<string, unknown> | null;
   error?: { code: string; message: string };
   usage?: { inputTokens: number; outputTokens: number };
 }
@@ -351,7 +351,7 @@ export interface AIExtractionResult {
 async function callBuyerGemini(
   systemPrompt: string,
   userPrompt: string,
-  tool: { name: string; description: string; input_schema: any },
+  tool: { name: string; description: string; input_schema: Record<string, unknown> },
   geminiApiKey: string,
   rateLimitConfig?: RateLimitConfig,
 ): Promise<AIExtractionResult> {
@@ -527,8 +527,8 @@ export function validateSizeCriteria(extracted: AIExtractionResult): AIExtractio
  */
 export function shouldOverwrite(
   fieldName: string,
-  existingValue: any,
-  newValue: any,
+  existingValue: unknown,
+  newValue: unknown,
   hasTranscriptSource: boolean,
   existingSources: unknown[],
   newSourceType: SourceType = 'platform_website'
@@ -577,7 +577,7 @@ export function shouldOverwrite(
  * Applies provenance validation, source priority, normalization, and completeness scoring.
  */
 export function buildBuyerUpdateObject(
-  buyer: any,
+  buyer: Record<string, unknown>,
   extractedData: Record<string, unknown>,
   hasTranscriptSource: boolean,
   existingSources: unknown[],

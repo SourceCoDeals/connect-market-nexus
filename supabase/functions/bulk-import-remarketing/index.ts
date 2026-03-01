@@ -10,13 +10,13 @@ function getErrorMessage(e: unknown): string {
 }
 
 interface ImportData {
-  universes: unknown[];
-  buyers: unknown[];
-  contacts: unknown[];
-  transcripts: unknown[];
-  scores: unknown[];
-  learningHistory: unknown[];
-  companies: unknown[];
+  universes: Record<string, unknown>[];
+  buyers: Record<string, unknown>[];
+  contacts: Record<string, unknown>[];
+  transcripts: Record<string, unknown>[];
+  scores: Record<string, unknown>[];
+  learningHistory: Record<string, unknown>[];
+  companies: Record<string, unknown>[];
 }
 
 // ============= INPUT VALIDATION =============
@@ -25,7 +25,7 @@ interface ImportData {
  * Validate the import data structure before processing
  * Returns { valid: true } or { valid: false, errors: string[] }
  */
-function validateImportData(data: any): { valid: boolean; errors: string[] } {
+function validateImportData(data: Record<string, unknown>): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (!data || typeof data !== 'object') {
@@ -573,7 +573,7 @@ serve(async (req) => {
       console.log(`Available deal mappings: ${JSON.stringify(Object.keys(dealIdMap))}`);
       
       // Sample unique deal IDs from scores to understand what we need to map
-      const uniqueDealIds = [...new Set((data.scores || []).map((s: any) => s.deal_id))];
+      const uniqueDealIds = [...new Set((data.scores || []).map((s: { deal_id?: string }) => s.deal_id))];
       console.log(`Unique deal IDs in scores: ${JSON.stringify(uniqueDealIds.slice(0, 10))}...`);
       
       for (const row of (data.scores || [])) {
@@ -723,22 +723,22 @@ function normalizeDomainUrl(url: string | null | undefined): string | null {
 }
 
 // Helper functions
-function parseJson(value: any, fieldName?: string): any {
+function parseJson(value: unknown, fieldName?: string): unknown {
   if (!value) return null;
   if (typeof value === 'object') return value;
   try {
-    return JSON.parse(value);
+    return JSON.parse(String(value));
   } catch (e) {
     console.warn(`Failed to parse JSON${fieldName ? ` in field '${fieldName}'` : ''}: ${e instanceof Error ? e.message : 'unknown error'}`);
     return null;
   }
 }
 
-function parseArray(value: any): string[] {
+function parseArray(value: unknown): string[] {
   if (!value) return [];
   if (Array.isArray(value)) return value;
   try {
-    const parsed = JSON.parse(value);
+    const parsed = JSON.parse(String(value));
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     if (typeof value === 'string') {

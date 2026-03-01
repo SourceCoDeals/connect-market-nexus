@@ -106,9 +106,9 @@ export async function applyExistingTranscriptData(
       }
     } else {
       const result = buildPriorityUpdates(
-        deal as any,
+        deal as Record<string, unknown>,
         cumulativeSources,
-        flat as any,
+        flat as Partial<Record<string, unknown>>,
         'transcript',
         t.id,
         isPlaceholder,
@@ -123,11 +123,11 @@ export async function applyExistingTranscriptData(
     appliedTranscriptCount++;
 
     if (!forceReExtract && updates.geographic_states && Array.isArray(deal.geographic_states) && deal.geographic_states.length > 0) {
-      updates.geographic_states = mergeStates(deal.geographic_states, updates.geographic_states as any);
+      updates.geographic_states = mergeStates(deal.geographic_states, updates.geographic_states as string[]);
     }
 
     cumulativeUpdates = { ...cumulativeUpdates, ...updates };
-    cumulativeSources = updateExtractionSources(cumulativeSources, sourceUpdates as any);
+    cumulativeSources = updateExtractionSources(cumulativeSources, sourceUpdates as Record<string, ReturnType<typeof createFieldSource>>);
 
     Object.assign(deal, updates);
   }
@@ -156,7 +156,7 @@ export async function applyExistingTranscriptData(
       return { appliedFieldCount: 0, appliedTranscriptCount: 0, fieldNames: [], updatedSources: deal.extraction_sources };
     }
 
-    (deal as any).extraction_sources = cumulativeSources;
+    deal.extraction_sources = cumulativeSources;
     return {
       appliedFieldCount: Object.keys(cumulativeUpdates).length,
       appliedTranscriptCount,
@@ -173,9 +173,9 @@ export async function applyExistingTranscriptData(
  * Handles Fireflies URL detection, content fetching, and batch extraction.
  */
 export async function processNewTranscripts(
-  supabase: any,
-  deal: any,
-  needsExtraction: unknown[],
+  supabase: SupabaseClient,
+  deal: DealRecord,
+  needsExtraction: DealTranscript[],
   supabaseUrl: string,
   supabaseServiceKey: string,
   supabaseAnonKey: string,
@@ -188,7 +188,7 @@ export async function processNewTranscripts(
   const firefliesLinkPattern = /fireflies\.ai\/view\/[^:]+::([a-zA-Z0-9]+)/;
   for (const t of needsExtraction) {
     if (t.source === 'link' && !t.fireflies_transcript_id) {
-      const textToCheck = (t.transcript_text || '') + ' ' + ((t as any).transcript_url || '');
+      const textToCheck = (t.transcript_text || '') + ' ' + (t.transcript_url || '');
       const match = textToCheck.match(firefliesLinkPattern);
       if (match) {
         const ffId = match[1];
@@ -213,7 +213,7 @@ export async function processNewTranscripts(
 
   // Fetch Fireflies content for transcripts with empty text
   const firefliesEmpty = needsExtraction.filter(
-    (t: any) => {
+    (t: DealTranscript) => {
       if (t.transcript_text && t.transcript_text.trim().length >= 100) return false;
       if (t.source === 'fireflies' && t.fireflies_transcript_id) return true;
       if (t.source === 'fireflies') return true;
@@ -240,7 +240,7 @@ export async function processNewTranscripts(
     }
   }
 
-  const validTranscripts = needsExtraction.filter((t: any) =>
+  const validTranscripts = needsExtraction.filter((t: DealTranscript) =>
     t.transcript_text && t.transcript_text.trim().length >= 100
   );
 
@@ -254,8 +254,8 @@ export async function processNewTranscripts(
   console.log(`[Transcripts] Processing ${validTranscripts.length} transcripts in batches...`);
 
   const failedTranscriptIds = validTranscripts
-    .filter((t: any) => t.processed_at)
-    .map((t: any) => t.id);
+    .filter((t: DealTranscript) => t.processed_at)
+    .map((t: DealTranscript) => t.id);
 
   if (failedTranscriptIds.length > 0) {
     console.log(`[Transcripts] Resetting processed_at for ${failedTranscriptIds.length} previously-failed transcripts`);
@@ -273,7 +273,7 @@ export async function processNewTranscripts(
     const batch = validTranscripts.slice(i, i + BATCH_SIZE);
 
     const batchResults = await Promise.allSettled(
-      batch.map(async (transcript: any) => {
+      batch.map(async (transcript: DealTranscript) => {
         const MAX_RETRIES = 1;
         let lastError: Error | null = null;
 

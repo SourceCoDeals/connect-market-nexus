@@ -12,10 +12,10 @@ export function useExistingTags() {
     queryFn: async () => {
       // Fetch all non-empty tag arrays from active tasks
       const { data, error } = await (supabase
-        .from('daily_standup_tasks' as any)
+        .from('daily_standup_tasks' as never)
         .select('tags')
         .not('tags', 'eq', '{}')
-        .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue']) as any);
+        .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue']) as unknown as Promise<{ data: { tags: string[] }[] | null; error: Error | null }>);
 
       if (error) throw error;
 

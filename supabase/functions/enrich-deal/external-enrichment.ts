@@ -19,7 +19,7 @@ export async function enrichLinkedIn(
   supabaseServiceKey: string,
   dealId: string,
   extracted: Record<string, unknown>,
-  deal: any,
+  deal: Record<string, unknown>,
   websiteUrl: string | null,
 ): Promise<void> {
   const linkedinUrl = extracted.linkedin_url as string | undefined;
@@ -104,7 +104,7 @@ export async function enrichGoogleReviews(
   supabaseServiceKey: string,
   dealId: string,
   extracted: Record<string, unknown>,
-  deal: any,
+  deal: Record<string, unknown>,
 ): Promise<void> {
   const companyName = (extracted.internal_company_name ||
     deal.internal_company_name ||

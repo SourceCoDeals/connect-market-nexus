@@ -32,7 +32,7 @@ async function callFn(
   fnName: string,
   body: Record<string, unknown>,
   timeoutMs: number
-): Promise<{ ok: boolean; status: number; json: any }> {
+): Promise<{ ok: boolean; status: number; json: Record<string, unknown> | null }> {
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   if (!anonKey) throw new Error('SUPABASE_ANON_KEY not set');
 
@@ -48,7 +48,7 @@ async function callFn(
     signal: AbortSignal.timeout(timeoutMs),
   });
 
-  let json: any = null;
+  let json: Record<string, unknown> | null = null;
   try { json = await res.json(); } catch { /* ignore */ }
   return { ok: res.ok, status: res.status, json };
 }
@@ -84,7 +84,7 @@ serve(async (req) => {
     }
 
     // Fetch in batches to avoid the 1000-row limit
-    const allDeals: unknown[] = [];
+    const allDeals: Record<string, unknown>[] = [];
     let offset = 0;
     const fetchBatch = 1000;
     let hasMore = true;
@@ -154,7 +154,7 @@ serve(async (req) => {
       chunkIdx++;
 
       const chunkResults = await Promise.allSettled(
-        chunk.map(async (deal: any) => {
+        chunk.map(async (deal: Record<string, unknown>) => {
           const companyName = deal.internal_company_name || deal.title;
 
           const [liResult, googleResult] = await Promise.allSettled([

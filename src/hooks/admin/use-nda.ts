@@ -52,30 +52,33 @@ export const useUpdateNDA = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
+      type AdminUser = { id: string; nda_signed: boolean; nda_signed_at: string | null };
+      type ConnectionRequestEntry = { user?: { id: string; nda_signed: boolean; nda_signed_at: string | null } };
+
+      queryClient.setQueryData(['admin-users'], (old: AdminUser[] | undefined) => {
         if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+        return old.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
                 nda_signed: isSigned,
-                nda_signed_at: isSigned ? new Date().toISOString() : null 
+                nda_signed_at: isSigned ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      queryClient.setQueryData(['connection-requests'], (old: ConnectionRequestEntry[] | undefined) => {
         if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+        return old.map((request) =>
+          request.user?.id === userId
+            ? {
+                ...request,
                 user: {
                   ...request.user,
                   nda_signed: isSigned,
-                  nda_signed_at: isSigned ? new Date().toISOString() : null 
+                  nda_signed_at: isSigned ? new Date().toISOString() : null
                 }
               }
             : request
@@ -85,7 +88,6 @@ export const useUpdateNDA = () => {
       return { previousUsers, previousRequests };
     },
     onSuccess: () => {
-      // Invalidate queries to get fresh data from backend
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
@@ -133,30 +135,33 @@ export const useUpdateNDAEmailSent = () => {
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
       // Update admin users
-      queryClient.setQueryData(['admin-users'], (old: any) => {
+      type AdminUser = { id: string; nda_email_sent: boolean; nda_email_sent_at: string | null };
+      type ConnectionRequestEntry = { user?: { id: string; nda_email_sent: boolean; nda_email_sent_at: string | null } };
+
+      queryClient.setQueryData(['admin-users'], (old: AdminUser[] | undefined) => {
         if (!old) return old;
-        return old.map((user: any) => 
-          user.id === userId 
-            ? { 
-                ...user, 
+        return old.map((user) =>
+          user.id === userId
+            ? {
+                ...user,
                 nda_email_sent: isSent,
-                nda_email_sent_at: isSent ? new Date().toISOString() : null 
+                nda_email_sent_at: isSent ? new Date().toISOString() : null
               }
             : user
         );
       });
 
       // Update connection requests
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      queryClient.setQueryData(['connection-requests'], (old: ConnectionRequestEntry[] | undefined) => {
         if (!old) return old;
-        return old.map((request: any) => 
-          request.user?.id === userId 
-            ? { 
-                ...request, 
+        return old.map((request) =>
+          request.user?.id === userId
+            ? {
+                ...request,
                 user: {
                   ...request.user,
                   nda_email_sent: isSent,
-                  nda_email_sent_at: isSent ? new Date().toISOString() : null 
+                  nda_email_sent_at: isSent ? new Date().toISOString() : null
                 }
               }
             : request

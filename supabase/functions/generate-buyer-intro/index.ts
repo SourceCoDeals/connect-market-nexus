@@ -165,21 +165,21 @@ Respond with JSON in this exact format:
 function generateFallbackEmail(
   buyerName: string,
   peFirmName: string | undefined,
-  deal: any,
+  deal: Record<string, unknown> | undefined,
   contactName: string | undefined,
   fitReasoning: string | undefined
 ): string {
   const greeting = contactName ? `Dear ${contactName},` : `Dear ${buyerName} Team,`;
-  const firmRef = peFirmName ? ` at ${peFirmName}` : '';
-  const dealTitle = deal?.title || 'a compelling acquisition opportunity';
+  const dealTitle = (deal?.title as string) || 'a compelling acquisition opportunity';
   const location = deal?.location ? ` based in ${deal.location}` : '';
-  const revenue = deal?.revenue ? `$${(deal.revenue / 1000000).toFixed(1)}M in revenue` : '';
-  
+  const revenueVal = deal?.revenue as number | undefined;
+  const revenue = revenueVal ? `$${(revenueVal / 1000000).toFixed(1)}M in revenue` : '';
+
   return `${greeting}
 
 I hope this message finds you well. I wanted to reach out regarding ${dealTitle}${location} that I believe aligns closely with your investment criteria.
 
-${revenue ? `The business generates ${revenue} and ` : 'The business '}represents a strong platform opportunity in the ${deal?.category || 'industry'}.
+${revenue ? `The business generates ${revenue} and ` : 'The business '}represents a strong platform opportunity in the ${(deal?.category as string) || 'industry'}.
 
 ${fitReasoning ? `Based on our analysis, this opportunity stands out because: ${fitReasoning}` : 'We believe this would be an excellent addition to your portfolio.'}
 

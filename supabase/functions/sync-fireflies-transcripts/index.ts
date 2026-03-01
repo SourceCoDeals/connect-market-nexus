@@ -295,7 +295,7 @@ serve(async (req) => {
     console.log(`Syncing Fireflies transcripts for [${validEmails.join(', ')}] on deal ${listingId}`);
 
     // === Phase 1: Email-based participant search ===
-    const matchingTranscripts: unknown[] = [];
+    const matchingTranscripts: FirefliesTranscript[] = [];
     const transcriptMatchType = new Map<string, 'email' | 'keyword'>();
     const seenIds = new Set<string>();
 
@@ -436,7 +436,7 @@ serve(async (req) => {
 
         // Extract participant emails
         const attendeeEmails = (transcript.meeting_attendees || [])
-          .map((a: any) => a.email)
+          .map((a: { email?: string }) => a.email)
           .filter(Boolean);
 
         // Convert Fireflies date (Unix ms) to ISO string

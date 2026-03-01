@@ -3,8 +3,7 @@
  * Fetch current user profile and context for personalized responses.
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -78,7 +77,7 @@ async function getCurrentUserContext(
   if (profileResult.error) return { error: profileResult.error.message };
 
   const tasks = tasksResult.data || [];
-  const overdueTasks = tasks.filter((t: any) => t.due_date && new Date(t.due_date) < new Date());
+  const overdueTasks = tasks.filter((t: { due_date?: string }) => t.due_date && new Date(t.due_date) < new Date());
 
   return {
     data: {

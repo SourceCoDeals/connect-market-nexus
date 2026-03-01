@@ -131,7 +131,7 @@ const getBuyerTypeAbbreviation = (buyerType: string): string => {
 };
 
 // Clean Tier Display Component (Apple/Stripe style)
-const CleanTierDisplay = ({ user, leadRole }: { user: any; leadRole?: string }) => {
+const CleanTierDisplay = ({ user, leadRole }: { user: UserType | null | undefined; leadRole?: string }) => {
   const tierInfo = user 
     ? getBuyerTier(user)
     : getLeadTierInfo(leadRole);

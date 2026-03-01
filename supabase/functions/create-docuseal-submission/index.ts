@@ -70,7 +70,7 @@ serve(async (req: Request) => {
       });
     }
 
-    if (!VALID_DOC_TYPES.includes(documentType as any)) {
+    if (!VALID_DOC_TYPES.includes(documentType as typeof VALID_DOC_TYPES[number])) {
       return new Response(
         JSON.stringify({ error: "Invalid documentType. Must be 'nda' or 'fee_agreement'" }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
@@ -161,7 +161,7 @@ serve(async (req: Request) => {
     }
 
     // Build DocuSeal submission payload (use sanitizedMetadata to prevent XSS)
-    const submissionPayload: any = {
+    const submissionPayload: Record<string, unknown> = {
       template_id: parseInt(templateId),
       send_email: deliveryMode === 'email',
       submitters: [
@@ -197,9 +197,9 @@ serve(async (req: Request) => {
         body: JSON.stringify(submissionPayload),
         signal: controller.signal,
       });
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
       clearTimeout(timeout);
-      if (fetchError.name === 'AbortError') {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         return new Response(JSON.stringify({ error: 'DocuSeal API timeout' }), {
           status: 504,
           headers: { 'Content-Type': 'application/json', ...corsHeaders },

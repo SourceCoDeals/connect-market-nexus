@@ -6,9 +6,7 @@
  * → unified get_analytics with expanded analysis_type including cross-deal modes.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -159,7 +157,7 @@ async function getIndustryTrackers(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(
-      (t: any) =>
+      (t: { name?: string; description?: string; service_criteria?: string; geography_criteria?: string; size_criteria?: string }) =>
         t.name?.toLowerCase().includes(term) ||
         t.description?.toLowerCase().includes(term) ||
         t.service_criteria?.toLowerCase().includes(term) ||
@@ -178,8 +176,8 @@ async function getIndustryTrackers(
       trackers: results,
       total: results.length,
       total_before_filtering: totalFromDb,
-      total_deals: results.reduce((s: number, t: any) => s + (t.deal_count || 0), 0),
-      total_buyers: results.reduce((s: number, t: any) => s + (t.buyer_count || 0), 0),
+      total_deals: results.reduce((s: number, t: { deal_count?: number }) => s + (t.deal_count || 0), 0),
+      total_buyers: results.reduce((s: number, t: { buyer_count?: number }) => s + (t.buyer_count || 0), 0),
       filters_applied: filtersApplied,
       ...(results.length === 0
         ? {
@@ -325,11 +323,11 @@ async function pipelineHealth(supabase: SupabaseClient): Promise<ToolResult> {
       metric: 'pipeline_health',
       total_deals: d.length,
       by_status: byStatus,
-      priority_count: d.filter((x: any) => x.is_priority_target).length,
+      priority_count: d.filter((x: { is_priority_target?: boolean }) => x.is_priority_target).length,
       total_revenue: totalRevenue,
       total_ebitda: totalEbitda,
       avg_deal_score: scoredCount > 0 ? Math.round(scoreSum / scoredCount) : null,
-      by_source: d.reduce((acc: Record<string, number>, x: any) => {
+      by_source: d.reduce((acc: Record<string, number>, x: { deal_source?: string }) => {
         const src = x.deal_source || 'unknown';
         acc[src] = (acc[src] || 0) + 1;
         return acc;
@@ -375,7 +373,7 @@ async function scoringDistribution(supabase: SupabaseClient): Promise<ToolResult
       avg_score:
         scores.length > 0
           ? Math.round(
-              scores.reduce((s: number, x: any) => s + x.composite_score, 0) / scores.length,
+              scores.reduce((s: number, x: { composite_score: number }) => s + x.composite_score, 0) / scores.length,
             )
           : null,
     },
@@ -438,7 +436,7 @@ async function activitySummary(supabase: SupabaseClient, cutoffDate: string): Pr
     data: {
       metric: 'activity_summary',
       total_activities: activities.length,
-      unique_deals: new Set(activities.map((a: any) => a.deal_id)).size,
+      unique_deals: new Set(activities.map((a: { deal_id: string }) => a.deal_id)).size,
       by_type: byType,
       by_day: byDay,
     },
@@ -471,10 +469,10 @@ async function buyerEngagement(supabase: SupabaseClient, cutoffDate: string): Pr
     data: {
       metric: 'buyer_engagement',
       data_room_grants: access.length,
-      active_access: access.filter((a: any) => a.is_active).length,
-      nda_signed: access.filter((a: any) => a.nda_signed_at).length,
+      active_access: access.filter((a: { is_active?: boolean }) => a.is_active).length,
+      nda_signed: access.filter((a: { nda_signed_at?: string | null }) => a.nda_signed_at).length,
       score_status_changes: statusChanges,
-      unique_buyers_engaged: new Set(access.map((a: any) => a.buyer_id)).size,
+      unique_buyers_engaged: new Set(access.map((a: { buyer_id: string }) => a.buyer_id)).size,
     },
   };
 }

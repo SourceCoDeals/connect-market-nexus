@@ -299,7 +299,7 @@ Use the tool to return structured data.`;
         tool_choice: { type: 'function', function: { name: 'extract_notes_intelligence' } }
       };
 
-      const parseToolResponse = (aiData: any): Record<string, unknown> | null => {
+      const parseToolResponse = (aiData: { choices?: { message?: { tool_calls?: { function?: { arguments?: string | Record<string, unknown> } }[] } }[] }): Record<string, unknown> | null => {
         const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
         if (toolCall?.function?.arguments) {
           return JSON.parse(typeof toolCall.function.arguments === 'string' ? toolCall.function.arguments : JSON.stringify(toolCall.function.arguments));

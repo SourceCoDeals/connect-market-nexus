@@ -65,8 +65,8 @@ interface ExtractedFinancial {
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
-  if (error && typeof error === 'object' && 'message' in error && typeof (error as any).message === 'string') {
-    return String((error as any).message);
+  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
+    return String((error as { message: string }).message);
   }
   try {
     return JSON.stringify(error);

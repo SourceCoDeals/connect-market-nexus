@@ -65,7 +65,16 @@ export function validateNumericRange(
 /**
  * Validate revenue/EBITDA ranges are realistic
  */
-export function validateSizeCriteria(criteria: any): { valid: boolean; errors: string[] } {
+interface SizeCriteriaInput {
+  revenue_min?: number;
+  revenue_max?: number;
+  ebitda_min?: number;
+  ebitda_max?: number;
+  location_count_min?: number;
+  location_count_max?: number;
+}
+
+export function validateSizeCriteria(criteria: SizeCriteriaInput): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   // Revenue validations
@@ -178,8 +187,8 @@ export function normalizeRegion(region: string): string | null {
 
 export interface ConflictDetection {
   field: string;
-  existing_value: any;
-  new_value: any;
+  existing_value: unknown;
+  new_value: unknown;
   conflict_type: 'numeric_discrepancy' | 'array_difference' | 'text_mismatch';
   severity: 'high' | 'medium' | 'low';
   resolution_suggestion: string;
@@ -189,9 +198,9 @@ export interface ConflictDetection {
  * Detect conflicts when merging size criteria from multiple sources
  */
 export function detectSizeCriteriaConflicts(
-  existing: any,
-  incoming: any,
-  threshold: number = 0.2 // 20% difference threshold
+  existing: SizeCriteriaInput,
+  incoming: SizeCriteriaInput,
+  threshold: number = 0.2
 ): ConflictDetection[] {
   const conflicts: ConflictDetection[] = [];
 
@@ -294,10 +303,16 @@ export function detectArrayConflicts(
  * Merge size criteria from multiple sources
  * Strategy: Take min of minimums, max of maximums, weighted average for sweet spots
  */
-export function synthesizeSizeCriteria(sources: unknown[]): any {
+interface SizeCriteriaSource extends SizeCriteriaInput {
+  confidence_score?: number;
+  revenue_sweet_spot?: number;
+  ebitda_sweet_spot?: number;
+}
+
+export function synthesizeSizeCriteria(sources: SizeCriteriaSource[]): SizeCriteriaSource {
   if (!sources || sources.length === 0) return {};
 
-  const merged: any = {
+  const merged: SizeCriteriaSource = {
     confidence_score: Math.round(sources.reduce((sum, s) => sum + (s.confidence_score || 0), 0) / sources.length)
   };
 
@@ -379,11 +394,11 @@ export function synthesizeSizeCriteria(sources: unknown[]): any {
  * Merge array-based criteria (services, geographies)
  * Strategy: Union of all values, normalized
  */
-export function synthesizeArrayCriteria(sources: unknown[], fieldName: string): string[] {
+export function synthesizeArrayCriteria(sources: Record<string, unknown>[], fieldName: string): string[] {
   if (!sources || sources.length === 0) return [];
 
   const allValues = sources
-    .flatMap(s => s[fieldName] || [])
+    .flatMap(s => (s[fieldName] as string[] | undefined) || [])
     .filter(v => v && typeof v === 'string')
     .map(v => v.trim());
 

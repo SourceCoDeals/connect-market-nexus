@@ -39,7 +39,12 @@ const INSERT_CHUNK = 25; // Insert in small batches to avoid cascading failures
 
 // ── Google Sheets auth via service account JWT ──────────────────────
 
-async function getAccessToken(serviceAccountKey: any): Promise<string> {
+interface GoogleServiceAccountKey {
+  client_email: string;
+  private_key: string;
+}
+
+async function getAccessToken(serviceAccountKey: GoogleServiceAccountKey): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const payload = {
@@ -201,7 +206,7 @@ function rowHasData(row: string[]): boolean {
 
 // ── Parse service account key with resilient JSON handling ──────────
 
-function parseServiceAccountKey(raw: string): any {
+function parseServiceAccountKey(raw: string): GoogleServiceAccountKey {
   const cleaned = raw
     .trim()
     .replace(/^\uFEFF/, '')
@@ -376,9 +381,10 @@ serve(async (req) => {
       let tabRows: string[][];
       try {
         tabRows = await fetchSheetRows(accessToken, sheetId, tab.name);
-      } catch (tabErr: any) {
-        console.error(`Failed to fetch tab "${tab.name}":`, tabErr.message);
-        syncErrors.push({ tab: tab.name, error: tabErr.message });
+      } catch (tabErr: unknown) {
+        const tabErrMsg = tabErr instanceof Error ? tabErr.message : String(tabErr);
+        console.error(`Failed to fetch tab "${tab.name}":`, tabErrMsg);
+        syncErrors.push({ tab: tab.name, error: tabErrMsg });
         continue;
       }
 
@@ -609,7 +615,7 @@ serve(async (req) => {
           for (let u = 0; u < toUpdate.length; u += UPDATE_CHUNK) {
             const chunk = toUpdate.slice(u, u + UPDATE_CHUNK);
             const updateResults = await Promise.allSettled(
-              chunk.map(({ id, ...fields }: any) =>
+              chunk.map(({ id, ...fields }: { id: string; [key: string]: unknown }) =>
                 supabase.from("listings").update(fields).eq("id", id)
               )
             );
@@ -644,9 +650,10 @@ serve(async (req) => {
       tabsProcessed.push(tab.name);
     }
   } catch (err: unknown) {
-    console.error("Sync failed:", err.message);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error("Sync failed:", errMsg);
     syncStatus = "failed";
-    syncErrors.push({ fatal: true, error: err.message });
+    syncErrors.push({ fatal: true, error: errMsg });
   }
 
   const durationMs = Date.now() - startTime;

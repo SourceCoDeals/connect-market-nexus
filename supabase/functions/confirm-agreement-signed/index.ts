@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
 
@@ -158,7 +158,7 @@ serve(async (req: Request) => {
       .select('email')
       .eq('id', userId)
       .single();
-    const submitter = data.find((s: any) => s.email === profile?.email) || data[0];
+    const submitter = data.find((s: { email?: string; status?: string; documents?: { url?: string }[] }) => s.email === profile?.email) || data[0];
 
     if (!submitter || submitter.status !== 'completed') {
       return new Response(
@@ -210,7 +210,7 @@ serve(async (req: Request) => {
       external_id: firmId,
       raw_payload: { confirmed_by_frontend: userId, document_type: documentType },
       processed_at: now,
-    }).then(({ error: logErr }: { error: any }) => {
+    }).then(({ error: logErr }: { error: { code?: string; message?: string } | null }) => {
       if (logErr && logErr.code !== '23505') {
         console.warn('Failed to write dedup log entry:', logErr);
       }
@@ -260,7 +260,7 @@ serve(async (req: Request) => {
  * Send buyer notification + system messages (same pattern as webhook handler).
  */
 async function sendBuyerSignedDocNotification(
-  supabase: any,
+  supabase: SupabaseClient,
   members: { user_id: string }[],
   firmId: string,
   docLabel: string,
@@ -347,7 +347,7 @@ async function sendBuyerSignedDocNotification(
  * Create admin_notifications for all admins.
  */
 async function createAdminNotification(
-  supabase: any,
+  supabase: SupabaseClient,
   firmId: string,
   firmName: string,
   docLabel: string,
@@ -359,11 +359,11 @@ async function createAdminNotification(
       .select('user_id')
       .in('role', ['admin', 'owner']);
 
-    const admins = adminRoles?.map((r: any) => ({ id: r.user_id })) || [];
+    const admins = adminRoles?.map((r: { user_id: string }) => ({ id: r.user_id })) || [];
 
     if (!admins?.length) return;
 
-    const notifications = admins.map((admin: any) => ({
+    const notifications = admins.map((admin: { id: string }) => ({
       admin_id: admin.id,
       title: `${docLabel} Signed`,
       message: `${firmName} has signed the ${docLabel}.`,
