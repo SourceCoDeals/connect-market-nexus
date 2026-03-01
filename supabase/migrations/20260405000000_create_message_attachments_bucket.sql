@@ -20,12 +20,14 @@ VALUES (
 ON CONFLICT (id) DO NOTHING;
 
 -- Authenticated users can upload attachments.
+DROP POLICY IF EXISTS "Authenticated users can upload message attachments" ON storage.objects;
 CREATE POLICY "Authenticated users can upload message attachments"
   ON storage.objects FOR INSERT
   TO authenticated
   WITH CHECK (bucket_id = 'message-attachments');
 
 -- Attachments are publicly readable (bucket is public) so both parties can download.
+DROP POLICY IF EXISTS "Anyone can read message attachments" ON storage.objects;
 CREATE POLICY "Anyone can read message attachments"
   ON storage.objects FOR SELECT
   TO public
