@@ -264,19 +264,19 @@ DATA SOURCES (all fetched in parallel for speed):
 4. call_transcripts — buyer-specific call recordings with CEO detection, key quotes, extracted buyer criteria
 5. buyer_transcripts — Fireflies calls buyers manually attached (thesis context)
 6. deal_transcripts — deal meeting recordings, extracted data (financials, services, buyer criteria)
-7. outreach_records — full outreach funnel (NDA sent/signed, CIM sent, meeting scheduled, outcome)
+7. outreach_records — full outreach funnel (NDA sent/signed, memo sent, meeting scheduled, outcome)
 8. connection_requests — engagement tracking
 9. listings — full deal context (investment thesis, owner goals, business model, key risks, growth trajectory)
 
 RESPONSE FORMAT:
-Each buyer card includes: fit score, tier, fit signals (up to 5), transcript_insights (call count, CEO detected, key quotes, buyer thesis from calls), outreach_status (NDA/CIM/meeting status), and universe_name.
+Each buyer card includes: fit score, tier, fit signals (up to 5), transcript_insights (call count, CEO detected, key quotes, buyer thesis from calls), outreach_status (NDA/memo/meeting status), and universe_name.
 The response also includes: full deal context (thesis, owner goals, business model), universe criteria, deal transcript summary, and data source stats.
 
 PRESENTATION RULES:
 - Lead with "Move Now" tier buyers (score 80+, active mandate or agreement)
 - Highlight buyers with CEO engagement from transcripts — these show strongest interest
 - Reference buyer quotes from call_transcripts when explaining fit
-- Show outreach funnel status (NDA → CIM → meeting → outcome) for context
+- Show outreach funnel status (NDA → memo → meeting → outcome) for context
 - Mention universe context when relevant (e.g., "Part of the HVAC Services universe")
 - When thesis_from_calls differs from the buyer's stated thesis, note the discrepancy
 - Include deal investment thesis and owner goals context when explaining recommendations

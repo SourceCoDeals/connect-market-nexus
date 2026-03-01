@@ -8,17 +8,17 @@
  *     acquisition type), and the EBITDA figure displayed prominently in gold.
  *
  *  2. **Pipeline progress**  — a horizontal 6-stage checklist
- *     (Interested → Sign Docs → CIM → IOI → LOI → Closed) that gives
- *     buyers an at-a-glance view of where this deal sits in the full M&A
- *     lifecycle.  Completed stages show a check mark; the current stage is
- *     highlighted in gold; future stages are dimmed.
+ *     (Interested → Sign Docs → Under Review → IOI → LOI → Closed) that
+ *     gives buyers an at-a-glance view of where this deal sits in the
+ *     full deal lifecycle.  Completed stages show a check mark; the
+ *     current stage is highlighted in gold; future stages are dimmed.
  *
  *  3. **Status awareness** — rejected deals are rendered with muted
  *     styling so the buyer immediately understands the deal is inactive.
  *
  * The stage is derived from the combination of request status, NDA signing
- * state, and CIM availability, matching the same logic used by the sidebar
- * DealPipelineCard so the two always stay in sync.
+ * state, and deal memo availability, matching the same logic used by the
+ * sidebar DealPipelineCard so the two always stay in sync.
  *
  * Props are intentionally flat (no nested objects) to keep the component
  * easy to test and free of coupling to specific query shapes.
@@ -62,9 +62,9 @@ const PIPELINE_STAGES = [
     description: 'Sign NDA and Fee Agreement to unlock deal materials',
   },
   {
-    id: 'cim',
-    label: 'CIM',
-    description: 'Review the Confidential Information Memorandum',
+    id: 'under_review',
+    label: 'Under Review',
+    description: 'Deal owner is reviewing your profile and interest',
   },
   {
     id: 'ioi',
@@ -92,7 +92,7 @@ interface DealDetailHeaderProps {
   requestStatus: 'pending' | 'approved' | 'rejected';
   /** Whether the buyer's firm has signed the platform NDA */
   ndaSigned?: boolean;
-  /** Whether a CIM is available / has been received */
+  /** Whether the deal is under review by the owner */
   hasCim?: boolean;
 }
 
@@ -135,8 +135,8 @@ function getCategoryIcon(category?: string) {
  */
 function getCurrentStage(status: string, ndaSigned?: boolean, hasCim?: boolean): PipelineStageId {
   if (status === 'rejected') return 'interested';
-  if (hasCim) return 'cim';
-  if (ndaSigned) return 'sign_docs'; // docs done, waiting for CIM
+  if (hasCim) return 'under_review';
+  if (ndaSigned) return 'sign_docs'; // docs done, waiting for review
   return 'interested';
 }
 

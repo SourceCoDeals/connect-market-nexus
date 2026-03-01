@@ -37,7 +37,7 @@ export function DataRoomOrientation({
     // Find recommended starting docs
     const recommended: { name: string; reason: string }[] = [];
 
-    // Look for CIM/memo docs first
+    // Look for memo docs first
     if (memoCount > 0) {
       recommended.push({ name: 'Lead Memo', reason: 'Start here for a business overview' });
     }
@@ -50,10 +50,10 @@ export function DataRoomOrientation({
       recommended.push({ name: financialDoc.file_name, reason: 'Detailed financial projections' });
     }
 
-    // Look for CIM
-    const cimDoc = documents.find((d) => /cim|confidential.*info|memorandum/i.test(d.file_name));
-    if (cimDoc && !recommended.some((r) => r.name === cimDoc.file_name)) {
-      recommended.push({ name: cimDoc.file_name, reason: 'Comprehensive deal overview' });
+    // Look for deal memo / overview docs
+    const memoDoc = documents.find((d) => /memo|overview|summary|deal.*doc/i.test(d.file_name));
+    if (memoDoc && !recommended.some((r) => r.name === memoDoc.file_name)) {
+      recommended.push({ name: memoDoc.file_name, reason: 'Comprehensive deal overview' });
     }
 
     // Recently uploaded docs

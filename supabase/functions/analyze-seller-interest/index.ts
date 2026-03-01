@@ -36,7 +36,7 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
  *    - Signed NDA/engagement letter: +5 (capped at 20)
  *
  * 4. DEAL READINESS (0-20 points)
- *    - Has CIM/teaser prepared: +5
+ *    - Has deal memo/teaser prepared: +5
  *    - Financial statements audited: +5
  *    - Working with advisor/broker: +5
  *    - Clear asking price/expectations: +5
@@ -84,7 +84,7 @@ SCORING FRAMEWORK:
    - Signed NDA or engagement letter: +5
 
 4. DEAL READINESS (0-20 points):
-   - Has prepared CIM/teaser: +5
+   - Has prepared deal memo/teaser: +5
    - Audited or reviewed financials: +5
    - Working with advisor/investment banker: +5
    - Has clear price expectations: +5

@@ -52,7 +52,7 @@ serve(async (req) => {
     const system_prompt = `You are a document analysis assistant specialized in analyzing M&A documents.
 
 Your task is to extract key information from documents such as:
-- CIMs (Confidential Information Memorandums)
+- Deal memos and investment memorandums
 - Investment presentations
 - Company profiles
 - Deal teaser documents

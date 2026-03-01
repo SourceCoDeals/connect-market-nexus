@@ -461,17 +461,17 @@ export const DEAL_PROCESS_TEMPLATES: TaskTemplateStage[] = [
     ],
   },
   {
-    name: 'CIM Phase',
-    description: 'Deliver CIM and manage buyer engagement',
+    name: 'Deal Memo Phase',
+    description: 'Share deal memo and manage buyer engagement',
     tasks: [
       {
-        title: 'Deliver CIM to all NDA-signed buyers',
+        title: 'Share deal memo with all NDA-signed buyers',
         task_type: 'send_materials',
         due_offset_days: 1,
         depends_on_index: 0,
       },
       {
-        title: 'Follow up on CIM receipt and interest',
+        title: 'Follow up on deal memo review and interest',
         task_type: 'follow_up_with_buyer',
         due_offset_days: 5,
       },
