@@ -1,4 +1,4 @@
-import type { FirstSessionData } from "./types";
+import type { FirstSessionData, AnalyticsSession, AnalyticsConnection, AnalyticsProfile, AnalyticsPageView } from "./types";
 import {
   categorizeChannel,
   extractDomain,
@@ -10,11 +10,11 @@ import {
 
 /** Compute channel breakdown with unique visitors, sessions, signups, connections */
 export function computeChannels(
-  uniqueSessions: any[],
-  filteredConnections: any[],
-  filteredProfiles: any[],
+  uniqueSessions: AnalyticsSession[],
+  filteredConnections: AnalyticsConnection[],
+  filteredProfiles: AnalyticsProfile[],
   profileToFirstSession: Map<string, FirstSessionData>,
-  userToAttributionSession: Map<string, any>
+  userToAttributionSession: Map<string, AnalyticsSession>
 ) {
   const channelVisitors: Record<string, Set<string>> = {};
   const channelSessions: Record<string, number> = {};
@@ -76,11 +76,11 @@ export function computeChannels(
 
 /** Compute referrer breakdown */
 export function computeReferrers(
-  uniqueSessions: any[],
-  filteredConnections: any[],
-  filteredProfiles: any[],
+  uniqueSessions: AnalyticsSession[],
+  filteredConnections: AnalyticsConnection[],
+  filteredProfiles: AnalyticsProfile[],
   profileToFirstSession: Map<string, FirstSessionData>,
-  userToAttributionSession: Map<string, any>
+  userToAttributionSession: Map<string, AnalyticsSession>
 ) {
   const referrerVisitors: Record<string, Set<string>> = {};
   const referrerSessions: Record<string, number> = {};
@@ -143,11 +143,11 @@ export function computeReferrers(
 
 /** Compute campaign breakdown */
 export function computeCampaigns(
-  uniqueSessions: any[],
-  filteredConnections: any[],
-  filteredProfiles: any[],
+  uniqueSessions: AnalyticsSession[],
+  filteredConnections: AnalyticsConnection[],
+  filteredProfiles: AnalyticsProfile[],
   profileToFirstSession: Map<string, FirstSessionData>,
-  userToAttributionSession: Map<string, any>
+  userToAttributionSession: Map<string, AnalyticsSession>
 ) {
   const campaignVisitors: Record<string, Set<string>> = {};
   const campaignSessions: Record<string, number> = {};
@@ -195,11 +195,11 @@ export function computeCampaigns(
 
 /** Compute keyword breakdown */
 export function computeKeywords(
-  uniqueSessions: any[],
-  filteredConnections: any[],
-  filteredProfiles: any[],
+  uniqueSessions: AnalyticsSession[],
+  filteredConnections: AnalyticsConnection[],
+  filteredProfiles: AnalyticsProfile[],
   profileToFirstSession: Map<string, FirstSessionData>,
-  userToAttributionSession: Map<string, any>
+  userToAttributionSession: Map<string, AnalyticsSession>
 ) {
   const keywordVisitors: Record<string, Set<string>> = {};
   const keywordSessions: Record<string, number> = {};
@@ -247,11 +247,11 @@ export function computeKeywords(
 
 /** Compute geography breakdown (countries, regions, cities) */
 export function computeGeography(
-  uniqueSessions: any[],
-  filteredConnections: any[],
-  filteredProfiles: any[],
+  uniqueSessions: AnalyticsSession[],
+  filteredConnections: AnalyticsConnection[],
+  filteredProfiles: AnalyticsProfile[],
   profileToFirstSession: Map<string, FirstSessionData>,
-  userToAttributionSession: Map<string, any>
+  userToAttributionSession: Map<string, AnalyticsSession>
 ) {
   const countryVisitors: Record<string, Set<string>> = {};
   const countrySessions: Record<string, number> = {};
@@ -370,8 +370,8 @@ export function computeGeography(
 
 /** Compute tech breakdown (browsers, OS, devices) */
 export function computeTechBreakdown(
-  uniqueSessions: any[],
-  filteredProfiles: any[],
+  uniqueSessions: AnalyticsSession[],
+  filteredProfiles: AnalyticsProfile[],
   profileToFirstSession: Map<string, FirstSessionData>,
   currentVisitors: number
 ) {
@@ -434,10 +434,10 @@ export function computeTechBreakdown(
 /** Compute funnel stages */
 export function computeFunnel(
   currentVisitors: number,
-  uniqueSessions: any[],
-  filteredPageViews: any[],
-  filteredConnections: any[],
-  filteredConnectionsWithMilestones: any[],
+  uniqueSessions: AnalyticsSession[],
+  filteredPageViews: AnalyticsPageView[],
+  filteredConnections: AnalyticsConnection[],
+  filteredConnectionsWithMilestones: AnalyticsConnection[],
   conversionRate: number
 ) {
   const registeredUsers = new Set(uniqueSessions.filter(s => s.user_id).map(s => s.user_id));

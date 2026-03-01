@@ -34,7 +34,7 @@ export const BUYER_AI_CONFIG = {
 };
 
 export const BUYER_MIN_CONTENT_LENGTH = 200;
-export const BUYER_SCRAPE_TIMEOUT_MS = 10000;
+export const BUYER_SCRAPE_TIMEOUT_MS = 30000; // 30s — aligned with deal scraping timeout
 export const BUYER_AI_TIMEOUT_MS = 30000;
 
 // Max parallel Gemini calls per buyer

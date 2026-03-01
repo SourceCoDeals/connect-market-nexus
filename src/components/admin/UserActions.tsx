@@ -55,12 +55,10 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   };
 
   const handleUserApproval = (user: User) => {
-    console.log('[UserActions] handleUserApproval called for:', user.email);
     setSelectedUser(user);
     // Use setTimeout to avoid Radix DropdownMenu/Dialog portal race condition
     // The dropdown's cleanup can interfere with the dialog opening if they happen simultaneously
     setTimeout(() => {
-      console.log('[UserActions] Opening approval dialog (deferred)');
       setDialogState((prev) => ({ ...prev, approval: true }));
     }, 50);
   };
@@ -153,13 +151,9 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
   };
 
   const handleCustomApprovalEmail = async (user: User, options: ApprovalEmailOptions) => {
-    console.log('[UserActions] handleCustomApprovalEmail called for:', user.email, user.id);
-
     // Step 1: Approve user FIRST
     try {
-      console.log('[UserActions] Step 1: Approving user...');
       await updateUserStatusMutation.mutateAsync({ userId: user.id, status: 'approved' });
-      console.log('[UserActions] Step 1 SUCCESS: User approved');
 
       // Store approved user for success dialog
       setApprovedUser(user);
@@ -169,17 +163,14 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
         .invoke('calculate-buyer-quality-score', { body: { profile_id: user.id } })
         .then((res) => {
           if (res.error) console.error('[UserActions] Quality score calc failed:', res.error);
-          else console.log('[UserActions] Quality score calculated:', res.data?.total_score);
         })
         .catch((err) => console.error('[UserActions] Quality score calc error:', err));
 
       // Step 3: Send email
       let emailSuccess = false;
       try {
-        console.log('[UserActions] Step 3: Sending email...');
         await sendCustomApprovalEmail(user, options);
         emailSuccess = true;
-        console.log('[UserActions] Step 3 SUCCESS');
       } catch (emailError) {
         console.error('[UserActions] Step 3 FAILED:', emailError);
       }
@@ -187,7 +178,6 @@ export function UserActions({ onUserStatusUpdated }: UserActionsProps) {
       // Close approval dialog and show success dialog
       setEmailSent(emailSuccess);
       setDialogState((prev) => ({ ...prev, approval: false, approvalSuccess: true }));
-      console.log('[UserActions] Approval flow complete');
 
       if (onUserStatusUpdated) onUserStatusUpdated();
     } catch (approvalError) {

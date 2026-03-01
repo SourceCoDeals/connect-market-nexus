@@ -91,3 +91,65 @@ export type FirstSessionData = {
   started_at: string | null;
   user_agent: string | null;
 };
+
+/** A raw analytics session row from the sessions table */
+export interface AnalyticsSession {
+  id?: string;
+  session_id: string;
+  user_id: string | null;
+  visitor_id: string | null;
+  referrer: string | null;
+  original_external_referrer?: string | null;
+  blog_landing_page?: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_term: string | null;
+  country: string | null;
+  city: string | null;
+  region: string | null;
+  browser: string | null;
+  os: string | null;
+  device_type: string | null;
+  started_at: string | null;
+  user_agent: string | null;
+  session_duration_seconds?: number | null;
+}
+
+/** A connection request record used in analytics */
+export interface AnalyticsConnection {
+  id: string;
+  user_id: string | null;
+  created_at: string;
+  lead_nda_signed?: boolean | null;
+  lead_fee_agreement_signed?: boolean | null;
+}
+
+/** A profile record used in analytics */
+export interface AnalyticsProfile {
+  id: string;
+  referral_source: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  company?: string | null;
+  email?: string | null;
+  buyer_type?: string | null;
+}
+
+/** A page view record used in analytics */
+export interface AnalyticsPageView {
+  id?: string;
+  session_id: string | null;
+  page_path: string;
+  created_at: string | null;
+  exit_page?: boolean | null;
+}
+
+/** A daily metrics aggregate row */
+export interface DailyMetricRow {
+  date: string;
+  unique_visitors?: number;
+  total_sessions?: number;
+  connection_requests?: number;
+  bounce_rate?: number;
+}

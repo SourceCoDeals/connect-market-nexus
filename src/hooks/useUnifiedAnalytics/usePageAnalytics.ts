@@ -1,4 +1,6 @@
 import { format, parseISO } from "date-fns";
+import type { AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
+import type { AnalyticsSession, AnalyticsConnection, AnalyticsPageView, AnalyticsProfile, DailyMetricRow } from "./types";
 import {
   categorizeChannel,
   extractDomain,
@@ -7,7 +9,7 @@ import {
 } from "./analyticsHelpers";
 
 /** Compute page breakdown: topPages, entryPages, exitPages */
-export function computePages(filteredPageViews: any[]) {
+export function computePages(filteredPageViews: AnalyticsPageView[]) {
   const pageCounts: Record<string, { visitors: number; views: number }> = {};
   const entryPageCounts: Record<string, { visitors: number; bounces: number }> = {};
   const exitPageCounts: Record<string, number> = {};
@@ -72,7 +74,7 @@ export function computePages(filteredPageViews: any[]) {
 }
 
 /** Compute blog entry pages from session cross-domain tracking */
-export function computeBlogEntryPages(uniqueSessions: any[]) {
+export function computeBlogEntryPages(uniqueSessions: AnalyticsSession[]) {
   const blogEntryPageCounts: Record<string, { visitors: Set<string>; sessions: number }> = {};
   uniqueSessions.forEach(s => {
     if (s.blog_landing_page) {
@@ -98,12 +100,12 @@ export function computeBlogEntryPages(uniqueSessions: any[]) {
 
 /** Compute top users with enhanced data, including anonymous visitors */
 export function computeTopUsers(
-  uniqueSessions: any[],
-  filteredConnectionsWithMilestones: any[],
-  filteredPageViews: any[],
-  sessionMap: Map<string, any>,
-  allProfilesMap: Map<string, any>,
-  filters: any[],
+  uniqueSessions: AnalyticsSession[],
+  filteredConnectionsWithMilestones: AnalyticsConnection[],
+  filteredPageViews: AnalyticsPageView[],
+  sessionMap: Map<string, AnalyticsSession>,
+  allProfilesMap: Map<string, AnalyticsProfile>,
+  filters: AnalyticsFilter[],
   last7Days: string[]
 ) {
   const userConnectionCounts = new Map<string, number>();
@@ -245,8 +247,8 @@ export function computeTopUsers(
 
 /** Format daily metrics from either aggregated table or computed session data */
 export function formatDailyMetrics(
-  filters: any[],
-  dailyMetrics: any[],
+  filters: AnalyticsFilter[],
+  dailyMetrics: DailyMetricRow[],
   dailyVisitorSets: Map<string, Set<string>>,
   dailySessionCounts: Map<string, number>,
   dailyConnectionCounts: Map<string, number>,
@@ -274,7 +276,7 @@ export function formatDailyMetrics(
   if (dailyMetrics.length > 0) {
     return dailyMetrics.map(m => ({
       date: m.date,
-      visitors: (m as Record<string, unknown>).unique_visitors as number || 0,
+      visitors: m.unique_visitors || 0,
       sessions: m.total_sessions || 0,
       connections: m.connection_requests || 0,
       bounceRate: m.bounce_rate || 0,

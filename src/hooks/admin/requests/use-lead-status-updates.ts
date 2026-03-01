@@ -3,6 +3,31 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { logDealActivity } from '@/lib/deal-activity-logger';
 
+/** Cached connection request shape used for optimistic updates */
+interface CachedConnectionRequest {
+  id: string;
+  user_id?: string | null;
+  lead_nda_signed?: boolean;
+  lead_nda_signed_at?: string | null;
+  lead_nda_email_sent?: boolean;
+  lead_nda_email_sent_at?: string | null;
+  lead_fee_agreement_signed?: boolean;
+  lead_fee_agreement_signed_at?: string | null;
+  lead_fee_agreement_email_sent?: boolean;
+  lead_fee_agreement_email_sent_at?: string | null;
+  connection_request_id?: string;
+  [key: string]: unknown;
+}
+
+/** Cached deal shape used for optimistic updates */
+interface CachedDeal {
+  id: string;
+  connection_request_id?: string;
+  nda_status?: string;
+  fee_agreement_status?: string;
+  [key: string]: unknown;
+}
+
 // Helper to get visitor ID for milestone tracking
 const getVisitorIdForRequest = async (requestId: string): Promise<string | null> => {
   try {
@@ -51,23 +76,23 @@ export const useUpdateLeadNDAStatus = () => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
       await queryClient.cancelQueries({ queryKey: ['deals'] });
       
-      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
-      const previousDeals = queryClient.getQueryData<any>(['deals']);
-      
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      const previousRequests = queryClient.getQueryData<CachedConnectionRequest[]>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<CachedDeal[]>(['deals']);
+
+      queryClient.setQueryData<CachedConnectionRequest[] | undefined>(['connection-requests'], (old) => {
         if (!old) return old;
-        return old.map((r: any) => r.id === requestId ? { ...r, lead_nda_signed: value, lead_nda_signed_at: value ? new Date().toISOString() : null } : r);
+        return old.map((r) => r.id === requestId ? { ...r, lead_nda_signed: value, lead_nda_signed_at: value ? new Date().toISOString() : null } : r);
       });
-      
-      queryClient.setQueryData(['deals'], (old: any) => {
+
+      queryClient.setQueryData<CachedDeal[] | undefined>(['deals'], (old) => {
         if (!old) return old;
-        return old.map((deal: any) => 
-          deal.connection_request_id === requestId 
+        return old.map((deal) =>
+          deal.connection_request_id === requestId
             ? { ...deal, nda_status: value ? 'signed' : 'not_sent' }
             : deal
         );
       });
-      
+
       return { previousRequests, previousDeals };
     },
     onError: (_err, _vars, ctx) => {
@@ -137,23 +162,23 @@ export const useUpdateLeadNDAEmailStatus = () => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
       await queryClient.cancelQueries({ queryKey: ['deals'] });
       
-      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
-      const previousDeals = queryClient.getQueryData<any>(['deals']);
-      
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      const previousRequests = queryClient.getQueryData<CachedConnectionRequest[]>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<CachedDeal[]>(['deals']);
+
+      queryClient.setQueryData<CachedConnectionRequest[] | undefined>(['connection-requests'], (old) => {
         if (!old) return old;
-        return old.map((r: any) => r.id === requestId ? { ...r, lead_nda_email_sent: value, lead_nda_email_sent_at: value ? new Date().toISOString() : null } : r);
+        return old.map((r) => r.id === requestId ? { ...r, lead_nda_email_sent: value, lead_nda_email_sent_at: value ? new Date().toISOString() : null } : r);
       });
-      
-      queryClient.setQueryData(['deals'], (old: any) => {
+
+      queryClient.setQueryData<CachedDeal[] | undefined>(['deals'], (old) => {
         if (!old) return old;
-        return old.map((deal: any) => 
-          deal.connection_request_id === requestId 
+        return old.map((deal) =>
+          deal.connection_request_id === requestId
             ? { ...deal, nda_status: value ? 'sent' : 'not_sent' }
             : deal
         );
       });
-      
+
       return { previousRequests, previousDeals };
     },
     onError: (_err, _vars, ctx) => {
@@ -210,23 +235,23 @@ export const useUpdateLeadFeeAgreementStatus = () => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
       await queryClient.cancelQueries({ queryKey: ['deals'] });
       
-      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
-      const previousDeals = queryClient.getQueryData<any>(['deals']);
-      
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      const previousRequests = queryClient.getQueryData<CachedConnectionRequest[]>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<CachedDeal[]>(['deals']);
+
+      queryClient.setQueryData<CachedConnectionRequest[] | undefined>(['connection-requests'], (old) => {
         if (!old) return old;
-        return old.map((r: any) => r.id === requestId ? { ...r, lead_fee_agreement_signed: value, lead_fee_agreement_signed_at: value ? new Date().toISOString() : null } : r);
+        return old.map((r) => r.id === requestId ? { ...r, lead_fee_agreement_signed: value, lead_fee_agreement_signed_at: value ? new Date().toISOString() : null } : r);
       });
-      
-      queryClient.setQueryData(['deals'], (old: any) => {
+
+      queryClient.setQueryData<CachedDeal[] | undefined>(['deals'], (old) => {
         if (!old) return old;
-        return old.map((deal: any) => 
-          deal.connection_request_id === requestId 
+        return old.map((deal) =>
+          deal.connection_request_id === requestId
             ? { ...deal, fee_agreement_status: value ? 'signed' : 'not_sent' }
             : deal
         );
       });
-      
+
       return { previousRequests, previousDeals };
     },
     onError: (_err, _vars, ctx) => {
@@ -296,23 +321,23 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
       await queryClient.cancelQueries({ queryKey: ['connection-requests'] });
       await queryClient.cancelQueries({ queryKey: ['deals'] });
       
-      const previousRequests = queryClient.getQueryData<any>(['connection-requests']);
-      const previousDeals = queryClient.getQueryData<any>(['deals']);
-      
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
+      const previousRequests = queryClient.getQueryData<CachedConnectionRequest[]>(['connection-requests']);
+      const previousDeals = queryClient.getQueryData<CachedDeal[]>(['deals']);
+
+      queryClient.setQueryData<CachedConnectionRequest[] | undefined>(['connection-requests'], (old) => {
         if (!old) return old;
-        return old.map((r: any) => r.id === requestId ? { ...r, lead_fee_agreement_email_sent: value, lead_fee_agreement_email_sent_at: value ? new Date().toISOString() : null } : r);
+        return old.map((r) => r.id === requestId ? { ...r, lead_fee_agreement_email_sent: value, lead_fee_agreement_email_sent_at: value ? new Date().toISOString() : null } : r);
       });
-      
-      queryClient.setQueryData(['deals'], (old: any) => {
+
+      queryClient.setQueryData<CachedDeal[] | undefined>(['deals'], (old) => {
         if (!old) return old;
-        return old.map((deal: any) => 
-          deal.connection_request_id === requestId 
+        return old.map((deal) =>
+          deal.connection_request_id === requestId
             ? { ...deal, fee_agreement_status: value ? 'sent' : 'not_sent' }
             : deal
         );
       });
-      
+
       return { previousRequests, previousDeals };
     },
     onError: (_err, _vars, ctx) => {

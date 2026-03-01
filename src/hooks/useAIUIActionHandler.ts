@@ -55,7 +55,6 @@ export function useAIUIActionHandler(handlers: AIUIActionHandlers) {
     // Only handle actions targeting this page's table
     const expectedTarget = `${handlers.table}_table`;
     if (target !== expectedTarget) {
-      console.log(`[ai-ui-action] Ignoring action for ${target} (this page handles ${expectedTarget})`);
       return;
     }
 

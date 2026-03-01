@@ -75,7 +75,6 @@ export function ApprovalEmailDialog({
       return;
     }
 
-    console.log('[ApprovalDialog] handleSend triggered for user:', user.email);
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -87,9 +86,7 @@ export function ApprovalEmailDialog({
     };
 
     try {
-      console.log('[ApprovalDialog] Calling onSendApprovalEmail for:', user.email);
       await onSendApprovalEmail(user, payload);
-      console.log('[ApprovalDialog] Approval flow completed successfully');
       // Reset form after successful approval - dialog closure is handled by parent (UserActions)
       setCustomSubject('');
       setCustomMessage('');

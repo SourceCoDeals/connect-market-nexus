@@ -1,6 +1,6 @@
 import { format, parseISO, subDays } from "date-fns";
 import type { AnalyticsFilter } from "@/contexts/AnalyticsFiltersContext";
-import type { FirstSessionData } from "./types";
+import type { FirstSessionData, AnalyticsSession, AnalyticsConnection, AnalyticsProfile, AnalyticsPageView } from "./types";
 import {
   isDevTraffic,
   categorizeChannel,
@@ -11,7 +11,7 @@ import {
 } from "./analyticsHelpers";
 
 /** Filter raw sessions to remove dev/bot traffic and deduplicate */
-export function filterAndDeduplicateSessions(rawSessions: any[]) {
+export function filterAndDeduplicateSessions(rawSessions: AnalyticsSession[]) {
   const filtered = rawSessions.filter(s =>
     !isDevTraffic(s.referrer) &&
     !s.user_agent?.includes('Chrome/119.') &&
@@ -32,10 +32,10 @@ export function filterAndDeduplicateSessions(rawSessions: any[]) {
 
 /** Apply global filters to unique sessions */
 export function applySessionFilters(
-  uniqueSessions: any[],
+  uniqueSessions: AnalyticsSession[],
   filters: AnalyticsFilter[],
-  pageViews: any[]
-): any[] {
+  pageViews: AnalyticsPageView[]
+): AnalyticsSession[] {
   let result = [...uniqueSessions];
 
   if (filters.length > 0) {
@@ -81,10 +81,10 @@ export function applySessionFilters(
 
 /** Filter profiles (signups) to match active filters */
 export function filterProfiles(
-  profiles: any[],
+  profiles: AnalyticsProfile[],
   filters: AnalyticsFilter[],
   profileToFirstSession: Map<string, FirstSessionData>
-): any[] {
+): AnalyticsProfile[] {
   if (filters.length === 0) return profiles;
 
   return profiles.filter(p => {
@@ -129,11 +129,11 @@ export function filterProfiles(
 
 /** Compute KPI metrics from session data */
 export function computeKPIs(
-  uniqueSessions: any[],
-  prevSessions: any[],
-  filteredConnections: any[],
-  prevConnections: any[],
-  filteredPageViews: any[],
+  uniqueSessions: AnalyticsSession[],
+  prevSessions: AnalyticsSession[],
+  filteredConnections: AnalyticsConnection[],
+  prevConnections: AnalyticsConnection[],
+  filteredPageViews: AnalyticsPageView[],
   activeSessionCount: number,
   endDate: Date
 ) {
@@ -147,7 +147,7 @@ export function computeKPIs(
   const currentSessionCount = uniqueSessions.length;
 
   // Previous period
-  const prevSessionMap = new Map<string, any>();
+  const prevSessionMap = new Map<string, AnalyticsSession>();
   prevSessions.forEach(s => {
     if (!prevSessionMap.has(s.session_id)) {
       prevSessionMap.set(s.session_id, s);
@@ -188,7 +188,7 @@ export function computeKPIs(
   // Avg session time
   const sessionsWithDuration = uniqueSessions.filter(s => s.session_duration_seconds && s.session_duration_seconds > 0);
   const avgSessionTime = sessionsWithDuration.length > 0
-    ? sessionsWithDuration.reduce((sum: number, s: any) => sum + (s.session_duration_seconds || 0), 0) / sessionsWithDuration.length
+    ? sessionsWithDuration.reduce((sum: number, s: AnalyticsSession) => sum + (s.session_duration_seconds || 0), 0) / sessionsWithDuration.length
     : 0;
 
   // Sparklines (last 7 days)
@@ -210,7 +210,7 @@ export function computeKPIs(
     } catch { /* ignore parse errors */ }
   });
 
-  filteredConnections.forEach((c: any) => {
+  filteredConnections.forEach((c: AnalyticsConnection) => {
     try {
       const dateStr = format(parseISO(c.created_at), 'yyyy-MM-dd');
       dailyConnectionCounts.set(dateStr, (dailyConnectionCounts.get(dateStr) || 0) + 1);

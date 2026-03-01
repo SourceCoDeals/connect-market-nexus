@@ -44,6 +44,14 @@ function validateListingQuality(listing: any): ValidationResult {
     errors.push('An image is required for marketplace listings');
   }
 
+  if (!listing.teaser_pdf_url || listing.teaser_pdf_url.trim().length === 0) {
+    errors.push('A Teaser PDF is required for marketplace listings');
+  }
+
+  if (!listing.lead_memo_pdf_url || listing.lead_memo_pdf_url.trim().length === 0) {
+    errors.push('A Lead Memo PDF is required for marketplace listings');
+  }
+
   return {
     valid: errors.length === 0,
     errors,
