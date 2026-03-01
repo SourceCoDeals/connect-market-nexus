@@ -95,6 +95,7 @@ export function RejectBuyerDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
+              maxLength={1000}
             />
           </div>
         </div>

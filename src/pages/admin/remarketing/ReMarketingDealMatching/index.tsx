@@ -84,7 +84,7 @@ export default function ReMarketingDealMatching() {
       )}
 
       {/* Background scoring progress */}
-      {(data.backgroundScoring as any).isActive && (
+      {data.backgroundScoring.isScoring && (
         <Card className="border-blue-200 bg-blue-50/50">
           <CardContent className="p-4 flex items-center gap-4">
             <Activity className="h-5 w-5 text-blue-600 animate-pulse" />
@@ -92,18 +92,10 @@ export default function ReMarketingDealMatching() {
               <div className="flex items-center justify-between mb-1">
                 <p className="text-sm font-medium">Scoring in progress...</p>
                 <span className="text-xs text-muted-foreground">
-                  {(data.backgroundScoring as any).completed}/
-                  {(data.backgroundScoring as any).total}
+                  {data.backgroundScoring.currentCount}/{data.backgroundScoring.expectedCount}
                 </span>
               </div>
-              <Progress
-                value={
-                  ((data.backgroundScoring as any).completed /
-                    Math.max((data.backgroundScoring as any).total, 1)) *
-                  100
-                }
-                className="h-2"
-              />
+              <Progress value={data.backgroundScoring.progress} className="h-2" />
             </div>
           </CardContent>
         </Card>
