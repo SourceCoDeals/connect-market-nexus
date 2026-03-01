@@ -445,28 +445,12 @@ export function useDealsActions({
     setShowCalculateDialog(false);
     setIsCalculating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('calculate-deal-quality', {
-        body:
-          mode === 'all'
-            ? { forceRecalculate: true, triggerEnrichment: true }
-            : { calculateAll: true },
-      });
-      if (error) throw new Error(error.message || 'Failed to calculate scores');
-      if (data?.scored === 0 && !data?.enrichmentQueued) {
-        toast({
-          title: 'All deals scored',
-          description: 'All deals already have quality scores calculated',
-        });
-      } else {
-        const enrichMsg =
-          data?.enrichmentQueued > 0
-            ? `. Queued ${data.enrichmentQueued} deals for enrichment.`
-            : '';
-        toast({
-          title: 'Scoring complete',
-          description: `Calculated quality scores for ${data?.scored || 0} deals${data?.errors > 0 ? ` (${data.errors} errors)` : ''}${enrichMsg}`,
-        });
-      }
+      const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
+      await queueDealQualityScoring(
+        mode === 'all'
+          ? { mode: 'all', forceRecalculate: true, triggerEnrichment: true }
+          : { mode: 'unscored' }
+      );
       refetchListings();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });

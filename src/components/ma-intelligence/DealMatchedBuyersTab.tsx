@@ -117,20 +117,17 @@ export function DealMatchedBuyersTab({ dealId }: DealMatchedBuyersTabProps) {
 
   const handleRecalculateScores = async () => {
     try {
-      const { error } = await supabase.functions.invoke("score-deal-buyers", {
-        body: { dealId },
-      });
-
-      if (error) throw error;
+      const { queueDealScoringAllUniverses } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoringAllUniverses(dealId);
 
       toast({
-        title: "Recalculation started",
+        title: "Recalculation queued",
         description: "Buyer scores are being recalculated in the background",
       });
 
       setTimeout(() => {
         loadBuyerScores();
-      }, 3000);
+      }, 5000);
     } catch (error: any) {
       toast({
         title: "Error recalculating scores",

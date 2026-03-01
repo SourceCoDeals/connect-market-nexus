@@ -101,8 +101,9 @@ export function useDealDetailData(id: string | undefined) {
   const handleCalculateScore = async () => {
     if (!deal) return;
     try {
-      await supabase.functions.invoke("score-deal-buyers", { body: { dealId: deal.id } });
-      toast({ title: "Score calculation started", description: "Deal scoring is running in the background" });
+      const { queueDealScoringAllUniverses } = await import("@/lib/remarketing/queueScoring");
+      await queueDealScoringAllUniverses(deal.id);
+      toast({ title: "Score calculation queued", description: "Deal scoring is running in the background" });
       setTimeout(loadDeal, 5000);
     } catch (error: any) {
       toast({ title: "Error calculating score", description: error.message, variant: "destructive" });

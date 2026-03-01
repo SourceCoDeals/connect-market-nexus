@@ -277,16 +277,13 @@ export const useBuyersData = () => {
     setCurrentPage(1);
   };
 
-  // Enrich single buyer
+  // Enrich single buyer via enrichment queue
   const handleEnrichBuyer = async (e: React.MouseEvent, buyerId: string) => {
     e.stopPropagation();
     setEnrichingIds(prev => new Set(prev).add(buyerId));
     try {
-      const { error } = await supabase.functions.invoke('enrich-buyer', {
-        body: { buyerId, force: false },
-      });
-      if (error) throw error;
-      toast.success('Enrichment started');
+      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      await queueBuyerEnrichment([buyerId]);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
     } catch (err: any) {
       toast.error(err.message || 'Enrichment failed');

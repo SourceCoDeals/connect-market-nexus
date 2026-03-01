@@ -134,12 +134,11 @@ export function usePartnerActions(partnerId: string | undefined, partner: any, d
     } catch { /* Non-blocking */ }
 
     toast.info(`Scoring ${targets.length} deals...`);
-    let successCount = 0;
-    for (const deal of targets) {
-      try { await supabase.functions.invoke("calculate-deal-quality", { body: { listingId: deal.id } }); successCount++; if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: successCount }); }
-      catch { /* continue */ }
-    }
-    toast.success(`Scored ${successCount} of ${targets.length} deals`);
+    try {
+      const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
+      const result = await queueDealQualityScoring({ listingIds: targets.map(d => d.id) });
+      if (activityItem) updateProgress.mutate({ id: activityItem.id, completedItems: result.scored });
+    } catch { /* continue */ }
     queryClient.invalidateQueries({ queryKey: ["referral-partners", partnerId, "deals"] });
     if (activityItem) completeOperation.mutate({ id: activityItem.id, finalStatus: "completed" });
   };

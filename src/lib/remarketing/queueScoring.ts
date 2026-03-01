@@ -131,3 +131,106 @@ export async function queueAlignmentScoring({ universeId, buyerIds }: QueueAlign
   toast.info(`Queued ${newIds.length} buyer(s) for alignment scoring`);
   return newIds.length;
 }
+
+/**
+ * Queue deal scoring across ALL active universes for a given listing.
+ * Use this when universe context is unknown (e.g. MA Intelligence module).
+ */
+export async function queueDealScoringAllUniverses(listingId: string): Promise<number> {
+  // Find universes the deal is already assigned to
+  const { data: universeLinks } = await supabase
+    .from("remarketing_universe_deals")
+    .select("universe_id")
+    .eq("listing_id", listingId)
+    .eq("status", "active");
+
+  let universeIds = (universeLinks || []).map(l => l.universe_id);
+
+  // Fall back to all active universes if not assigned to any
+  if (universeIds.length === 0) {
+    const { data: allUniverses } = await supabase
+      .from("remarketing_buyer_universes")
+      .select("id")
+      .eq("archived", false);
+    universeIds = (allUniverses || []).map(u => u.id);
+  }
+
+  if (universeIds.length === 0) {
+    toast.info("No buyer universes available for scoring");
+    return 0;
+  }
+
+  let totalQueued = 0;
+  for (const uid of universeIds) {
+    try {
+      totalQueued += await queueDealScoring({ universeId: uid, listingIds: [listingId] });
+    } catch (err) {
+      console.warn(`[queueDealScoringAllUniverses] Failed for universe ${uid}:`, err);
+    }
+  }
+  return totalQueued;
+}
+
+/**
+ * Queue deal quality scoring via the calculate-deal-quality edge function.
+ * Consolidates all callers into a single utility with proper toast feedback.
+ */
+export async function queueDealQualityScoring(
+  options:
+    | { listingIds: string[] }
+    | { mode: "all" | "unscored"; forceRecalculate?: boolean; triggerEnrichment?: boolean }
+    | { batchSource: string; unscoredOnly?: boolean; globalQueueId?: string }
+): Promise<{ scored: number; errors: number; enrichmentQueued?: number }> {
+  let body: Record<string, unknown>;
+
+  if ("listingIds" in options) {
+    const { listingIds } = options;
+    if (listingIds.length === 0) return { scored: 0, errors: 0 };
+
+    // Process multiple deals sequentially through the edge function
+    let scored = 0;
+    let errors = 0;
+    for (const listingId of listingIds) {
+      try {
+        const { error } = await supabase.functions.invoke("calculate-deal-quality", {
+          body: { listingId },
+        });
+        if (error) { errors++; } else { scored++; }
+      } catch {
+        errors++;
+      }
+    }
+    toast.info(`Scored ${scored} deal(s)${errors > 0 ? ` (${errors} failed)` : ""}`);
+    return { scored, errors };
+  }
+
+  if ("batchSource" in options) {
+    body = {
+      batchSource: options.batchSource,
+      unscoredOnly: options.unscoredOnly ?? false,
+      globalQueueId: options.globalQueueId,
+    };
+  } else {
+    body = options.forceRecalculate
+      ? { forceRecalculate: true, triggerEnrichment: options.triggerEnrichment ?? false }
+      : { calculateAll: true };
+  }
+
+  const { data, error } = await supabase.functions.invoke("calculate-deal-quality", { body });
+  if (error) {
+    toast.error("Failed to calculate scores");
+    throw error;
+  }
+
+  const scored = data?.scored ?? 0;
+  const errors = data?.errors ?? 0;
+  const enrichmentQueued = data?.enrichmentQueued ?? 0;
+
+  if (scored === 0 && !enrichmentQueued) {
+    toast.info("All deals already have quality scores");
+  } else {
+    const enrichMsg = enrichmentQueued > 0 ? `. Queued ${enrichmentQueued} deals for enrichment.` : "";
+    toast.success(`Scored ${scored} deal(s)${errors > 0 ? ` (${errors} errors)` : ""}${enrichMsg}`);
+  }
+  return { scored, errors, enrichmentQueued };
+}

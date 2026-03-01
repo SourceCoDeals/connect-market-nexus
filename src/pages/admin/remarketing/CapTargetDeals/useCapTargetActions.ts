@@ -235,12 +235,11 @@ export function useCapTargetActions(
 
       sonnerToast.info(`Scoring ${totalCount} deals in background...`);
       try {
-        await supabase.functions.invoke('calculate-deal-quality', {
-          body: {
-            batchSource: 'captarget',
-            unscoredOnly: mode === 'unscored',
-            globalQueueId: activityItem?.id,
-          },
+        const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
+        await queueDealQualityScoring({
+          batchSource: 'captarget',
+          unscoredOnly: mode === 'unscored',
+          globalQueueId: activityItem?.id,
         });
       } catch (err) {
         sonnerToast.error('Failed to start scoring');
