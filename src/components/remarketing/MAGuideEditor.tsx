@@ -55,7 +55,7 @@ const MA_GUIDE_TEMPLATES = {
 <ol>
 <li>Send teaser to qualified buyers</li>
 <li>Execute NDAs with interested parties</li>
-<li>Share Confidential Information Memorandum (CIM)</li>
+<li>Share deal memo with qualified buyers</li>
 </ol>
 
 <h3>Phase 2: Due Diligence</h3>

@@ -28,7 +28,7 @@
  * Key design decisions:
  *
  *   • The Overview tab layers THREE information types:
- *     1. DealNextSteps — the per-deal action checklist (Sign NDA, Fee, CIM)
+ *     1. DealNextSteps — the per-deal action checklist (Sign NDA, Fee, Deal Memo)
  *     2. DealMetricsCard — financial summary and key stats
  *     3. DealProcessSteps — request lifecycle progress + DealReviewPanel +
  *        WhileYouWaitChecklist + PostRejectionPanel

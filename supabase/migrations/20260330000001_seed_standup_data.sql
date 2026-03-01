@@ -125,8 +125,8 @@ BEGIN
     source_meeting_id, source_timestamp, deal_reference,
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
-    'Send Clear Choice Windows CIM to Comfort Systems USA buyer contact',
-    'Email the Clear Choice Windows & Doors CIM to the Comfort Systems USA contact that Bill introduced last week. CC Bill on the email.',
+    'Send Clear Choice Windows deal memo to Comfort Systems USA buyer contact',
+    'Email the Clear Choice Windows & Doors deal memo to the Comfort Systems USA contact that Bill introduced last week. CC Bill on the email.',
     v_oz_id, 'send_materials', 'pending_approval', CURRENT_DATE,
     v_meeting_today, '11:45', 'Clear Choice Windows & Doors',
     75.00, 4, 'high', v_oz_id IS NULL, false
@@ -194,7 +194,7 @@ BEGIN
     priority_score, priority_rank, extraction_confidence, needs_review, is_manual
   ) VALUES (
     'Send Threefold buyer shortlist to 3 collision repair PE groups',
-    'Email the Threefold deal teaser and CIM to Service King, Caliber Collision, and Classic Collision PE contacts. Track sends in the CRM.',
+    'Email the Threefold deal teaser and memo to Service King, Caliber Collision, and Classic Collision PE contacts. Track sends in the CRM.',
     v_tom_id, 'send_materials', 'pending_approval', CURRENT_DATE,
     v_meeting_today, '24:00', 'Threefold',
     68.00, 9, 'high', v_tom_id IS NULL, false

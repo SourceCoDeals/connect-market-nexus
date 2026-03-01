@@ -79,7 +79,7 @@ Score Modifiers:
 2. ioi_submitted: Indication of Interest — strong buying signal.
 3. management_presentation: buyer met seller's management — deep diligence.
 4. nda_signed: buyer executed NDA — committed to evaluating.
-5. financial_request: buyer asked for teaser/CIM/financials — serious interest.
+5. financial_request: buyer asked for teaser/memo/financials — serious interest.
 6. ceo_involvement: CEO/owner in a call/meeting — decision-maker level.
 7. data_room_access: buyer accessed data room documents.
 8. site_visit: buyer viewed data room or deal page.`,
@@ -321,9 +321,9 @@ Track via connection_requests (NDA/fee status) and firm_agreements.`,
 - get_outreach_records(source: "remarketing_outreach"): campaign-level status per buyer.
 - get_document_engagement: who viewed teasers, memos, data room docs.
 
-Key milestones: contacted_at, nda_sent_at, nda_signed_at, cim_sent_at, meeting_scheduled_at, next_action, next_action_date, outcome.
+Key milestones: contacted_at, nda_sent_at, nda_signed_at, memo_sent (cim_sent_at in DB), meeting_scheduled_at, next_action, next_action_date, outcome.
 
-Reporting format: "Buyer X: NDA signed Jan 15, CIM sent Jan 20, meeting pending."
+Reporting format: "Buyer X: NDA signed Jan 15, memo sent Jan 20, meeting pending."
 Flag stale outreach (no activity in 5+ business days) and overdue next actions.`,
   },
 
@@ -402,7 +402,7 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
 - Running Email Campaign: set up in SmartLead (Settings > SmartLead). Link to deals/universes. Track in Admin > Campaigns.
 - Scoring Buyers: automatic when added to universe. Geography, size, service, owner goals (all 0-100). Tiers: A (80+), B (60-79), C (40-59), D (<40).
 - Uploading Documents: deal > Data Room > Upload. Categories: anonymous teaser, full memo, data room. Access controlled per buyer.
-- Tracking Outreach: deal detail > Outreach tab. Shows contacted, NDA sent/signed, CIM sent, meeting scheduled, outcome. Overdue flagged.
+- Tracking Outreach: deal detail > Outreach tab. Shows contacted, NDA sent/signed, memo sent, meeting scheduled, outcome. Overdue flagged.
 
 **What AI Can Do:** Search/analyze deals across all sources. Find/enrich contacts via LinkedIn+Prospeo. Build calling lists. Search transcripts. Score/rank buyers. Track outreach, tasks, pipeline health. Push to PhoneBurner/Smartlead. Generate memos/emails. Navigate/filter/sort UI.
 
@@ -436,7 +436,7 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
 - buyer_outreach: Initial buyer contact, introduction, follow-up calls
 - nda_execution: NDA/fee agreement preparation, send, follow-up on signature
 - meeting_prep: Prepare for buyer meetings, management presentations
-- document_request: CIM distribution, data room setup, financial package
+- document_request: Deal memo distribution, data room setup, financial package
 - ioi_loi_process: IOI/LOI review, negotiation, counter-offer tracking
 - due_diligence: Due diligence coordination, Q&A management
 - buyer_qualification: Buyer screening, fit assessment, scoring review
@@ -453,7 +453,7 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
 - Only "high" or "medium" confidence tasks are saved; low confidence is discarded
 
 **Deal Process Templates:**
-Pre-built task sets for M&A stages: Intake, Build Buyer Universe, NDA Execution, CIM Distribution, IOI Phase, LOI Negotiation. Each creates 3-5 linked tasks with dependencies and due date offsets.
+Pre-built task sets for deal stages: Intake, Build Buyer Universe, NDA Execution, Deal Memo Distribution, IOI Phase, LOI Negotiation. Each creates 3-5 linked tasks with dependencies and due date offsets.
 
 **Snooze:** Tasks can be snoozed for 1-30 days. A nightly pg_cron job wakes them up. Use for tasks that are valid but not actionable yet.
 

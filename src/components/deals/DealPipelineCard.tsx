@@ -20,11 +20,11 @@
  *
  *   • **Per-deal CTA button** — the biggest UX win of the redesign.
  *     Instead of just showing a status pill, the card includes a
- *     contextual action: "Sign NDA →", "Sign Agreement →", "View CIM →",
+ *     contextual action: "Sign NDA →", "Sign Agreement →", "View Deal Memo →",
  *     etc.  This reduces clicks-to-action from 3 (click card → find tab
  *     → find action) to 1.
  *
- *   • **Pipeline progress bar** — 6 colored segments for the M&A stages.
+ *   • **Pipeline progress bar** — 6 colored segments for the deal stages.
  *     Navy for completed, gold for current, light gray for future.
  *     Each segment has a tooltip explaining the stage.
  *
@@ -38,8 +38,8 @@
  *
  * Stage derivation:
  *   The current pipeline stage is computed from `request.status` +
- *   `ndaSigned` + `hasCim`.  This ensures the card always reflects
- *   the real deal state rather than stale cached data.
+ *   `ndaSigned` + `hasCim` (deal memo access).  This ensures the card
+ *   always reflects the real deal state rather than stale cached data.
  */
 
 import { formatDistanceToNow } from 'date-fns';
@@ -80,9 +80,9 @@ const PIPELINE_STAGES = [
     description: 'Non-disclosure agreement has been signed',
   },
   {
-    id: 'cim_received',
-    label: 'CIM Received',
-    description: 'Confidential Information Memorandum received',
+    id: 'under_review',
+    label: 'Under Review',
+    description: 'Deal owner is reviewing your profile and interest',
   },
   {
     id: 'ioi_submitted',
@@ -141,12 +141,12 @@ function getCategoryIcon(category?: string) {
 /**
  * Derive the current pipeline stage from deal state signals.
  *
- * Priority order: hasCim > ndaSigned > interested.
+ * Priority order: hasCim (deal memo access) > ndaSigned > interested.
  * Rejected deals always show as 'interested' (first stage).
  */
 function getCurrentStage(status: string, ndaSigned?: boolean, hasCim?: boolean): PipelineStageId {
   if (status === 'rejected') return 'interested';
-  if (hasCim) return 'cim_received';
+  if (hasCim) return 'under_review';
   if (ndaSigned) return 'nda_signed';
   return 'interested';
 }
@@ -159,12 +159,12 @@ function getStageIndex(stageId: PipelineStageId): number {
  * Stage pill styling — color-coded badge for the current stage.
  *
  * Uses amber for early stages (interest/NDA), blue for mid-stages
- * (CIM/IOI), green for late stages (LOI/Closed).
+ * (review/IOI), green for late stages (LOI/Closed).
  */
 const stageColors: Record<PipelineStageId, { bg: string; text: string; border: string }> = {
   interested: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
   nda_signed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-  cim_received: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+  under_review: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
   ioi_submitted: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
   loi: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   closed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
@@ -180,8 +180,8 @@ const stageColors: Record<PipelineStageId, { bg: string; text: string; border: s
 function getCtaLabel(status: string, ndaSigned?: boolean, hasCim?: boolean): string | null {
   if (status === 'rejected') return null;
   if (!ndaSigned) return 'Sign NDA';
-  if (hasCim) return 'View CIM';
-  // NDA signed but no CIM yet — deal is likely under review
+  if (hasCim) return 'View Deal Memo';
+  // NDA signed but not yet under review
   return null;
 }
 

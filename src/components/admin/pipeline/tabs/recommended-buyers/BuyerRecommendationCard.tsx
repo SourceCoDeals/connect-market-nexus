@@ -198,10 +198,10 @@ export function BuyerRecommendationCard({
               <TooltipTrigger asChild>
                 <span className="flex items-center gap-1 text-blue-600">
                   <FileText className="h-3 w-3" />
-                  CIM
+                  Memo
                 </span>
               </TooltipTrigger>
-              <TooltipContent>CIM sent to buyer</TooltipContent>
+              <TooltipContent>Deal memo sent to buyer</TooltipContent>
             </Tooltip>
           )}
           {buyer.outreach_info.meeting_scheduled && (
@@ -311,7 +311,7 @@ export function BuyerRecommendationCard({
                 {[
                   { done: buyer.outreach_info.contacted, label: 'Contacted' },
                   { done: buyer.outreach_info.nda_signed, label: 'NDA Signed' },
-                  { done: buyer.outreach_info.cim_sent, label: 'CIM Sent' },
+                  { done: buyer.outreach_info.cim_sent, label: 'Memo Sent' },
                   { done: buyer.outreach_info.meeting_scheduled, label: 'Meeting' },
                 ].map((step, i) => (
                   <span key={i} className="flex items-center gap-1">

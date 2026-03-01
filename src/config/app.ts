@@ -11,13 +11,13 @@
 
 export const APP_CONFIG = {
   /** Display name shown in headers, emails, etc. */
-  name: 'Connect Market Nexus',
+  name: 'SourceCo Marketplace',
 
   /** Semantic version — keep in sync with package.json */
   version: '0.0.0',
 
   /** Support / contact email */
-  supportEmail: 'support@connectmarketnexus.com',
+  supportEmail: 'support@sourcecodeals.com',
 
   /** Default admin email (used for mailto links, reply-to, etc.) */
   adminEmail: 'adam.haile@sourcecodeals.com',

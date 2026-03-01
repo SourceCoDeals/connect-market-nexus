@@ -105,7 +105,7 @@ export function ManualLogDialog({ memo, dealId, onClose }: ManualLogDialogProps)
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g., Sent via Gmail, included CIM attachment"
+              placeholder="e.g., Sent via Gmail, included deal memo attachment"
             />
           </div>
         </div>

@@ -339,12 +339,13 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
 
           // Buyer transcripts
           supabase
-            .from('buyer_transcripts')
-            .select('buyer_id, call_date')
-            .in('buyer_id', allBuyerIds)
+            .from('call_transcripts' as any)
+            .select('buyer_id, call_date, ceo_detected')
+            .eq('listing_id', listingId)
+            .in('buyer_id', buyerIds)
             .order('call_date', { ascending: false }),
 
-          // Outreach records (NDA/CIM/meeting funnel)
+          // Outreach records (NDA/memo/meeting funnel)
           supabase
             .from('outreach_records')
             .select(
@@ -362,11 +363,13 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       // Build engagement map from connection requests
       const engagementMap = new Map<string, { last_date: string; type: string }>();
       if (connectionsResult.data) {
-        // Need to map user_id → remarketing_buyer_id via profiles
-        // For simplicity, just track dates per user_id (already have marketplace data)
-        for (const conn of connectionsResult.data) {
-          if (conn.user_id) {
-            // We'll match this later if needed
+        for (const conn of connectionsResult.data as any[]) {
+          const buyerId = conn.buyer_profile_id as string;
+          if (!engagementMap.has(buyerId)) {
+            engagementMap.set(buyerId, {
+              last_date: conn.updated_at || conn.created_at,
+              type: `Connection request (${conn.status})`,
+            });
           }
         }
       }
@@ -374,7 +377,7 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
       // Build transcript insights map
       const transcriptMap = new Map<string, TranscriptInsight>();
       if (callTranscriptsResult.data) {
-        for (const ct of callTranscriptsResult.data) {
+        for (const ct of callTranscriptsResult.data as any[]) {
           const buyerId = ct.buyer_id as string;
           const existing = transcriptMap.get(buyerId) || { ...EMPTY_TRANSCRIPT };
           existing.call_count++;

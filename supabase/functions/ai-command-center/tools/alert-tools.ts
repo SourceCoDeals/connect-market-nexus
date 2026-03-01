@@ -367,7 +367,7 @@ async function getProactiveAlerts(
         entity_id: scorer.buyer_id as string,
         entity_name: buyer.company_name as string,
         suggested_action: buyer.has_fee_agreement
-          ? 'Send CIM or schedule introduction call'
+          ? 'Send deal memo or schedule introduction call'
           : 'Initiate fee agreement and introductory outreach',
         data: {
           buyer_id: scorer.buyer_id,
@@ -432,7 +432,7 @@ async function getProactiveAlerts(
         entity_type: 'buyer',
         entity_id: scorer.buyer_id as string,
         entity_name: buyer.company_name as string,
-        suggested_action: 'Initiate fee agreement to unlock CIM access',
+        suggested_action: 'Initiate fee agreement to unlock deal materials access',
         data: {
           buyer_id: scorer.buyer_id,
           listing_id: scorer.listing_id,

@@ -184,7 +184,7 @@ CRITICAL: Every task MUST be linked to an entity (deal, listing, buyer, or conta
             'other',
           ],
           description:
-            'Task type (default "follow_up_with_buyer"). contact_owner=reach out to seller, follow_up_with_buyer=buyer follow-up, send_materials=CIM/teaser/docs, schedule_call=calls, nda_execution=NDA, ioi_loi_process=IOI/LOI, due_diligence=DD, buyer_qualification=qualify buyers, seller_relationship=seller rapport, buyer_ic_followup=IC committee',
+            'Task type (default "follow_up_with_buyer"). contact_owner=reach out to seller, follow_up_with_buyer=buyer follow-up, send_materials=memo/teaser/docs, schedule_call=calls, nda_execution=NDA, ioi_loi_process=IOI/LOI, due_diligence=DD, buyer_qualification=qualify buyers, seller_relationship=seller rapport, buyer_ic_followup=IC committee',
         },
         entity_type: {
           type: 'string',

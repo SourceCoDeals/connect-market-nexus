@@ -38,7 +38,7 @@ async function fetchAlertCounts(): Promise<AlertCounts> {
 
     // Unacknowledged critical/warning signals
     supabase
-      .from('rm_deal_signals')
+      .from('rm_deal_signals' as any)
       .select('id', { count: 'exact', head: true })
       .in('signal_type', ['critical', 'warning'])
       .is('acknowledged_at', null),

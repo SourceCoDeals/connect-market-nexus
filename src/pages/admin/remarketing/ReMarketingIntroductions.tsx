@@ -342,7 +342,7 @@ const ReMarketingIntroductions = () => {
                   <TableHead className="text-center">
                     <div className="flex items-center justify-center gap-1">
                       <FileText className="h-3.5 w-3.5" />
-                      <span>CIM Sent</span>
+                      <span>Memo Sent</span>
                     </div>
                   </TableHead>
                   <TableHead className="text-center">

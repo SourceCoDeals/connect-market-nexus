@@ -432,7 +432,7 @@ function buildInvestmentThesis(deal: DealData): string {
  */
 function buildCustomSections(deal: DealData): Array<{ title: string; description: string }> {
   const sections: Array<{ title: string; description: string }> = [];
-  const industry = deal.industry || deal.category || 'services';
+  // const industry = deal.industry || deal.category || 'services';
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
 
   // Revenue quality section if we have financial data
