@@ -7,6 +7,7 @@ import {
   useNewRecommendedBuyers,
   type BuyerScore,
 } from '@/hooks/admin/use-new-recommended-buyers';
+import { useSeedBuyers, type SeedBuyerResult } from '@/hooks/admin/use-seed-buyers';
 import {
   RefreshCw,
   Users,
@@ -19,6 +20,10 @@ import {
   Building2,
   MapPin,
   FileCheck,
+  Sparkles,
+  Plus,
+  Check,
+  Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -129,10 +134,63 @@ function BuyerCard({ buyer }: { buyer: BuyerScore }) {
   );
 }
 
+const ACTION_CONFIG: Record<string, { label: string; color: string; icon: typeof Plus }> = {
+  inserted: { label: 'New', color: 'bg-green-100 text-green-800', icon: Plus },
+  enriched_existing: { label: 'Updated', color: 'bg-blue-100 text-blue-800', icon: Check },
+  probable_duplicate: { label: 'Duplicate', color: 'bg-gray-100 text-gray-600', icon: Copy },
+  cached: { label: 'Cached', color: 'bg-purple-100 text-purple-800', icon: Check },
+};
+
+function SeedResultsSummary({ results }: { results: SeedBuyerResult[] }) {
+  const inserted = results.filter(r => r.action === 'inserted').length;
+  const enriched = results.filter(r => r.action === 'enriched_existing').length;
+  const dupes = results.filter(r => r.action === 'probable_duplicate').length;
+
+  return (
+    <div className="border rounded-lg bg-muted/30 p-3 space-y-2">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <Sparkles className="h-4 w-4 text-purple-600" />
+        AI Seeding Results
+      </div>
+      <div className="flex items-center gap-3 text-xs">
+        {inserted > 0 && (
+          <span className="text-green-700">{inserted} new buyers added</span>
+        )}
+        {enriched > 0 && (
+          <span className="text-blue-700">{enriched} existing updated</span>
+        )}
+        {dupes > 0 && (
+          <span className="text-gray-500">{dupes} duplicates skipped</span>
+        )}
+      </div>
+      <div className="space-y-1 max-h-40 overflow-y-auto">
+        {results.slice(0, 10).map((result) => {
+          const config = ACTION_CONFIG[result.action] || ACTION_CONFIG.inserted;
+          const Icon = config.icon;
+          return (
+            <div key={result.buyer_id} className="flex items-center gap-2 text-xs">
+              <Badge variant="outline" className={cn('text-[10px] shrink-0', config.color)}>
+                <Icon className="h-2.5 w-2.5 mr-0.5" />
+                {config.label}
+              </Badge>
+              <span className="truncate font-medium">{result.company_name}</span>
+            </div>
+          );
+        })}
+        {results.length > 10 && (
+          <p className="text-[10px] text-muted-foreground">+{results.length - 10} more</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProps) {
   const { data, isLoading, isError, error, refresh } = useNewRecommendedBuyers(listingId);
+  const seedMutation = useSeedBuyers();
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [seedResults, setSeedResults] = useState<SeedBuyerResult[] | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -143,6 +201,23 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
       toast.error('Failed to refresh recommendations');
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleSeedBuyers = async () => {
+    setSeedResults(null);
+    try {
+      const result = await seedMutation.mutateAsync({ listingId, forceRefresh: false });
+      setSeedResults(result.seeded_buyers);
+      if (result.cached) {
+        toast.info(`Found ${result.total} cached AI-seeded buyers`);
+      } else {
+        toast.success(
+          `AI seeded ${result.total} buyers: ${result.inserted || 0} new, ${result.enriched_existing || 0} updated`,
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to seed buyers');
     }
   };
 
@@ -208,17 +283,33 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           </CardTitle>
           {buyers.length > 0 && <TierSummary buyers={buyers} />}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', refreshing && 'animate-spin')} />
-          {refreshing ? 'Refreshing...' : 'Refresh'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSeedBuyers}
+            disabled={seedMutation.isPending}
+          >
+            <Sparkles className={cn('h-3.5 w-3.5 mr-1.5', seedMutation.isPending && 'animate-pulse')} />
+            {seedMutation.isPending ? 'Seeding...' : 'AI Seed'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', refreshing && 'animate-spin')} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
+        {seedResults && seedResults.length > 0 && (
+          <div className="mb-4">
+            <SeedResultsSummary results={seedResults} />
+          </div>
+        )}
         {buyers.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <Users className="h-8 w-8 text-muted-foreground/40" />
