@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
 import { uploadListingImage } from '@/lib/storage-utils';
+import { parseCurrency } from '@/lib/currency-utils';
 
 // Validation and sanitization utilities
 const sanitizeArrayField = (field: unknown): string[] => {
@@ -19,6 +20,8 @@ const sanitizeStringField = (field: unknown, defaultValue: string = ''): string 
 };
 
 const sanitizeNumericField = (field: unknown): number => {
+  // Use parseCurrency to handle formatted strings like "$1.5M", "1,500,000", etc.
+  if (typeof field === 'string') return parseCurrency(field);
   const num = Number(field);
   return isNaN(num) ? 0 : num;
 };

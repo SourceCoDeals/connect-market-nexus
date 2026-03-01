@@ -294,9 +294,10 @@ function buildDataContext(
 
   // General Notes (separate data source)
   let notesExcerpt = '';
-  if (deal.internal_notes && deal.internal_notes.trim()) {
+  const rawNotes = typeof deal.internal_notes === 'string' ? deal.internal_notes : '';
+  if (rawNotes.trim()) {
     sources.push('general_notes');
-    notesExcerpt = deal.internal_notes;
+    notesExcerpt = rawNotes;
   }
 
   // Enrichment data (website scrape + LinkedIn)
@@ -412,7 +413,8 @@ async function generateListingContent(
   context: DataContext,
   singleField: string | null,
 ): Promise<Partial<ListingContent>> {
-  const dealState = context.deal.address_state || '';
+  const dealState =
+    typeof context.deal.address_state === 'string' ? context.deal.address_state : '';
   const regionName = STATE_TO_REGION[dealState.toUpperCase()] || 'Central';
   const projectCodename = `Project ${regionName}`;
 

@@ -257,9 +257,10 @@ function buildDataContext(
 
   // General Notes (separate data source — broker notes, call summaries, etc.)
   let notesExcerpt = '';
-  if (deal.internal_notes && deal.internal_notes.trim()) {
+  const rawNotes = typeof deal.internal_notes === 'string' ? deal.internal_notes : '';
+  if (rawNotes.trim()) {
     sources.push('general_notes');
-    notesExcerpt = deal.internal_notes;
+    notesExcerpt = rawNotes;
   }
 
   // Enrichment data (website scrape + LinkedIn)
@@ -383,7 +384,8 @@ async function generateMemo(
   const isAnonymous = memoType === 'anonymous_teaser';
 
   // Derive the actual region/state for anonymous codename
-  const dealState = context.deal.address_state || '';
+  const dealState =
+    typeof context.deal.address_state === 'string' ? context.deal.address_state : '';
   const stateToRegion: Record<string, string> = {
     AL: 'Southeast',
     AK: 'Pacific Northwest',
