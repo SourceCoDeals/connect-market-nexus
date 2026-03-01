@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ImprovedListingEditor } from '@/components/admin/ImprovedListingEditor';
 import { useRobustListingCreation } from '@/hooks/admin/listings/use-robust-listing-creation';
 import { useGenerateListingContent } from '@/hooks/admin/listings/use-generate-listing-content';
-import { anonymizeDealToListing } from '@/lib/deal-to-listing-anonymizer';
+import { anonymizeDealToListing, type DealData as DealForAnonymizer } from '@/lib/deal-to-listing-anonymizer';
 import { AdminListing } from '@/types/admin';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
@@ -83,7 +83,7 @@ export default function CreateListingFromDeal() {
 
   useEffect(() => {
     if (deal && !prefilled) {
-      const anonymized = anonymizeDealToListing(deal as any);
+      const anonymized = anonymizeDealToListing(deal as DealForAnonymizer);
       setPrefilled({
         id: '', // New listing, no ID yet
         title: anonymized.title,
@@ -93,11 +93,11 @@ export default function CreateListingFromDeal() {
         location: anonymized.location,
         revenue: anonymized.revenue,
         ebitda: anonymized.ebitda,
-        ebitda_margin: anonymized.ebitda_margin,
         full_time_employees: anonymized.full_time_employees,
         internal_company_name: anonymized.internal_company_name,
         internal_notes: anonymized.internal_notes,
-        internal_deal_memo_link: (deal as any).website || '',
+        internal_deal_memo_link: deal.internal_deal_memo_link || '',
+        company_website: anonymized.company_website || null,
         // Landing page content fields (GAPs 4+7)
         investment_thesis: anonymized.investment_thesis,
         custom_sections: anonymized.custom_sections,
@@ -124,7 +124,7 @@ export default function CreateListingFromDeal() {
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } as AdminListing);
+      });
     }
   }, [deal, prefilled]);
 

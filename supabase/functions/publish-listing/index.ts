@@ -12,7 +12,9 @@ interface ValidationResult {
   errors: string[];
 }
 
-// Minimum quality requirements for marketplace publishing
+// Minimum quality requirements for marketplace publishing.
+// PDF memos are stored in data_room_documents, not on the listing itself,
+// so they must be checked separately via checkMemoPdfs().
 function validateListingQuality(listing: any): ValidationResult {
   const errors: string[] = [];
 
@@ -44,18 +46,44 @@ function validateListingQuality(listing: any): ValidationResult {
     errors.push('An image is required for marketplace listings');
   }
 
-  if (!listing.teaser_pdf_url || listing.teaser_pdf_url.trim().length === 0) {
-    errors.push('A Teaser PDF is required for marketplace listings');
-  }
-
-  if (!listing.lead_memo_pdf_url || listing.lead_memo_pdf_url.trim().length === 0) {
-    errors.push('A Lead Memo PDF is required for marketplace listings');
-  }
-
   return {
     valid: errors.length === 0,
     errors,
   };
+}
+
+// Check that the source deal (or the listing itself) has both memo PDFs
+// uploaded in data_room_documents.
+async function checkMemoPdfs(
+  supabaseAdmin: any,
+  listingId: string,
+  sourceDealId: string | null,
+): Promise<string[]> {
+  const errors: string[] = [];
+  // PDFs may be attached to the source deal or to the listing itself
+  const dealId = sourceDealId || listingId;
+
+  const { data: docs } = await supabaseAdmin
+    .from('data_room_documents')
+    .select('document_category, storage_path')
+    .eq('deal_id', dealId)
+    .in('document_category', ['full_memo', 'anonymous_teaser']);
+
+  const hasLeadMemo = docs?.some(
+    (d: any) => d.document_category === 'full_memo' && d.storage_path,
+  );
+  const hasTeaser = docs?.some(
+    (d: any) => d.document_category === 'anonymous_teaser' && d.storage_path,
+  );
+
+  if (!hasLeadMemo) {
+    errors.push('A Lead Memo PDF is required for marketplace listings');
+  }
+  if (!hasTeaser) {
+    errors.push('A Teaser PDF is required for marketplace listings');
+  }
+
+  return errors;
 }
 
 Deno.serve(async (req) => {
@@ -142,14 +170,17 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Validate quality requirements
+      // Validate quality requirements (listing fields + memo PDFs)
       const validation = validateListingQuality(listing);
-      if (!validation.valid) {
+      const pdfErrors = await checkMemoPdfs(supabaseAdmin, listingId, listing.source_deal_id);
+      const allErrors = [...validation.errors, ...pdfErrors];
+
+      if (allErrors.length > 0) {
         return new Response(
-          JSON.stringify({ 
+          JSON.stringify({
             success: false,
             error: 'Listing does not meet quality requirements',
-            validationErrors: validation.errors 
+            validationErrors: allErrors
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );

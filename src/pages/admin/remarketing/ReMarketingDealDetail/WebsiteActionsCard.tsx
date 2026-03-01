@@ -196,14 +196,16 @@ export function WebsiteActionsCard({
 function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }) {
   const queryClient = useQueryClient();
 
-  // Check whether this deal has both memo types generated
-  const { data: memos, isLoading: memosLoading } = useQuery({
-    queryKey: ['deal-memos-check', dealId],
+  // Check whether this deal has both memo PDF types uploaded.
+  // Final PDFs live in data_room_documents (not lead_memos which only holds AI drafts).
+  const { data: memoDocs, isLoading: memosLoading } = useQuery({
+    queryKey: ['deal-memo-docs-check', dealId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('lead_memos')
-        .select('id, memo_type, pdf_storage_path, status')
-        .eq('deal_id', dealId);
+        .from('data_room_documents')
+        .select('id, document_category, storage_path')
+        .eq('deal_id', dealId)
+        .in('document_category', ['full_memo', 'anonymous_teaser']);
       if (error) throw error;
       return data || [];
     },
@@ -266,11 +268,11 @@ function PushToMarketplaceButton({ deal, dealId }: { deal: any; dealId: string }
   if (!deal?.main_contact_email)
     gaps.push('Main contact email');
 
-  const hasLeadMemo = memos?.some(
-    (m) => m.memo_type === 'full_memo' && m.pdf_storage_path,
+  const hasLeadMemo = memoDocs?.some(
+    (d) => d.document_category === 'full_memo' && d.storage_path,
   );
-  const hasTeaser = memos?.some(
-    (m) => m.memo_type === 'anonymous_teaser' && m.pdf_storage_path,
+  const hasTeaser = memoDocs?.some(
+    (d) => d.document_category === 'anonymous_teaser' && d.storage_path,
   );
 
   if (!hasLeadMemo)
