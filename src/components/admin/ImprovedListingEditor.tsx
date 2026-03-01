@@ -118,7 +118,7 @@ type ListingFormInput = {
   part_time_employees?: number;
   description: string;
   description_html?: string;
-  description_json?: any;
+  description_json?: unknown;
   hero_description?: string | null;
   owner_notes?: string;
   status: 'active' | 'inactive';
@@ -146,9 +146,9 @@ type ListingFormInput = {
   internal_notes?: string;
   // Landing page content
   investment_thesis?: string | null;
-  custom_sections?: any;
+  custom_sections?: unknown;
   services?: string[] | null;
-  growth_drivers?: any;
+  growth_drivers?: unknown;
   competitive_position?: string | null;
   ownership_structure?: string | null;
   seller_motivation?: string | null;
@@ -163,7 +163,7 @@ type ListingFormValues = z.infer<typeof listingFormSchema>;
 
 interface ImprovedListingEditorProps {
   onSubmit: (
-    data: ListingFormValues & { description_html?: string; description_json?: any },
+    data: ListingFormValues & { description_html?: string; description_json?: unknown },
     image?: File | null,
   ) => Promise<void>;
   listing?: AdminListing;
@@ -407,7 +407,7 @@ export function ImprovedListingEditor({
 
       const transformedData: ListingFormValues & {
         description_html?: string;
-        description_json?: any;
+        description_json?: unknown;
       } = {
         ...formData,
         acquisition_type:

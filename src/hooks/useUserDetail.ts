@@ -368,10 +368,10 @@ export function useUserDetail(visitorId: string | null) {
         events.push({
           id: pv.id,
           type: 'page_view',
-          timestamp: pv.created_at,
+          timestamp: pv.created_at ?? '',
           title: `Viewed page`,
-          path: pv.page_path,
-          description: pv.page_path,
+          path: pv.page_path ?? undefined,
+          description: pv.page_path ?? undefined,
         });
       });
 
@@ -380,7 +380,7 @@ export function useUserDetail(visitorId: string | null) {
         events.push({
           id: c.id,
           type: 'event',
-          timestamp: c.created_at,
+          timestamp: c.created_at ?? '',
           title: 'Sent connection request',
           description: `Connection request submitted`,
           metadata: { listingId: c.listing_id },
