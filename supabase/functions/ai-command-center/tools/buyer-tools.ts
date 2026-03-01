@@ -529,8 +529,7 @@ async function searchBuyers(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     const searchWords = term.split(/\s+/).filter((w) => w.length > 2);
-    results = results.filter((b: any) => {
-      // Match by universe name/description
+    results = results.filter((b: BuyerRecord) => {
       if (matchingUniverseIds.size > 0 && matchingUniverseIds.has(b.universe_id)) return true;
 
       const compName = (b.company_name || '').toLowerCase();
@@ -580,8 +579,7 @@ async function searchBuyers(
 
   // CapTarget exclusion filter — remove PE/VC/investment banks when requested
   if (args.exclude_financial_buyers === true) {
-    // deno-lint-ignore no-explicit-any
-    results = results.filter((b: any) => {
+    results = results.filter((b: BuyerRecord) => {
       const exclusion = checkCompanyExclusion({
         companyName: b.company_name || b.pe_firm_name || '',
         description: b.business_summary || b.thesis_summary || '',
@@ -737,7 +735,7 @@ async function getTopBuyersForDeal(
   }
 
   // Fetch buyer details for the scored buyer IDs
-  const buyerIds = scores.map((s: any) => s.buyer_id);
+  const buyerIds = scores.map((s: { buyer_id: string }) => s.buyer_id);
   let buyerQuery = supabase
     .from('remarketing_buyers')
     .select(
@@ -755,15 +753,14 @@ async function getTopBuyersForDeal(
 
   const { data: buyers } = await buyerQuery;
 
-  const buyerMap = new Map((buyers || []).map((b: any) => [b.id, b]));
+  const buyerMap = new Map((buyers || []).map((b: { id: string }) => [b.id, b]));
 
-  // When state filter is active, only include buyers that matched the state filter
   const enriched = scores
-    .map((s: any) => ({
+    .map((s: { buyer_id: string }) => ({
       ...s,
       buyer: buyerMap.get(s.buyer_id) || null,
     }))
-    .filter((s: any) => !args.state || s.buyer !== null); // filter out non-matching buyers when state is specified
+    .filter((s: { buyer: unknown }) => !args.state || s.buyer !== null); // filter out non-matching buyers when state is specified
 
   return {
     data: {
@@ -940,7 +937,7 @@ async function searchValuationLeads(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     leads = leads.filter(
-      (l: any) =>
+      (l: { business_name?: string; display_name?: string; industry?: string; region?: string; location?: string }) =>
         l.business_name?.toLowerCase().includes(term) ||
         l.display_name?.toLowerCase().includes(term) ||
         l.industry?.toLowerCase().includes(term) ||
@@ -949,11 +946,10 @@ async function searchValuationLeads(
     );
   }
 
-  // Client-side state/region filter
   if (args.state) {
     const term = (args.state as string).toLowerCase();
     leads = leads.filter(
-      (l: any) =>
+      (l: { region?: string; location?: string }) =>
         l.region?.toLowerCase().includes(term) || l.location?.toLowerCase().includes(term),
     );
   }

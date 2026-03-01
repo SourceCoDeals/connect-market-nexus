@@ -115,24 +115,58 @@ function getDiscoverySource(session: {
 // Find the first session with meaningful attribution data
 // Priority: original_external_referrer > utm_source > referrer > any session
 // This handles race conditions where the chronologically first session may have no referrer
-function getFirstMeaningfulSession(sessions: unknown[]): any | null {
+interface SessionRecord {
+  session_id: string;
+  started_at: string | null;
+  last_active_at: string | null;
+  session_duration_seconds: number | null;
+  referrer: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  original_external_referrer: string | null;
+  blog_landing_page: string | null;
+  first_touch_landing_page: string | null;
+  country: string | null;
+  city: string | null;
+  device_type: string | null;
+  os: string | null;
+  browser: string | null;
+  [key: string]: unknown;
+}
+
+interface PageViewRecord {
+  id: string;
+  created_at: string;
+  page_path: string | null;
+  [key: string]: unknown;
+}
+
+interface ConnectionRecord {
+  id: string;
+  created_at: string;
+  listing_id: string;
+  [key: string]: unknown;
+}
+
+function getFirstMeaningfulSession(sessions: SessionRecord[]): SessionRecord | null {
   if (!sessions || sessions.length === 0) return null;
-  
+
   // Sessions come sorted DESC (most recent first), reverse for chronological
   const chronological = [...sessions].reverse();
-  
+
   // Priority 1: First session with cross-domain tracking
   const withCrossDomain = chronological.find(s => s.original_external_referrer);
   if (withCrossDomain) return withCrossDomain;
-  
+
   // Priority 2: First session with UTM source
   const withUtm = chronological.find(s => s.utm_source);
   if (withUtm) return withUtm;
-  
+
   // Priority 3: First session with any referrer
   const withReferrer = chronological.find(s => s.referrer);
   if (withReferrer) return withReferrer;
-  
+
   // Fallback: actual first session (truly direct)
   return chronological[0];
 }
@@ -202,7 +236,7 @@ export function useUserDetail(visitorId: string | null) {
       const sessions = sessionsResult.data || [];
       
       // Fetch page views - for anonymous users, query by session_id
-      let pageViews: unknown[] = [];
+      let pageViews: PageViewRecord[] = [];
       if (isUserId) {
         const { data, error: pageViewsError } = await supabase
           .from('page_views')
@@ -228,7 +262,7 @@ export function useUserDetail(visitorId: string | null) {
       }
       
       // Only fetch connections for registered users
-      let connections: unknown[] = [];
+      let connections: ConnectionRecord[] = [];
       if (isUserId) {
         const { data, error: connectionsError } = await supabase
           .from('connection_requests')

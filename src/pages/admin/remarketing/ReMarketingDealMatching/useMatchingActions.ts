@@ -261,7 +261,7 @@ export function useMatchingActions({
   };
 
   // Handle toggle interested (approve/revert to pending)
-  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: any) => {
+  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: ScoreData) => {
     if (interested) {
       // Toggling ON -> approve
       await handleApprove(scoreId, scoreData);
@@ -273,7 +273,7 @@ export function useMatchingActions({
   };
 
   // Handle approve - auto-creates outreach record + triggers contact discovery
-  const handleApprove = async (scoreId: string, scoreData?: any) => {
+  const handleApprove = async (scoreId: string, scoreData?: ScoreData) => {
     // First update the score status
     await updateScoreMutation.mutateAsync({ id: scoreId, status: 'approved', scoreData });
 

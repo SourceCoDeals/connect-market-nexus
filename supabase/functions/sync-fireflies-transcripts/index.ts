@@ -172,7 +172,20 @@ const KEYWORD_SEARCH_QUERY = `
 /**
  * Check if a transcript has actual content (not a silent/skipped meeting).
  */
-function transcriptHasContent(t: any): boolean {
+interface FirefliesTranscript {
+  id: string;
+  title?: string;
+  date?: number | string;
+  duration?: number;
+  organizer_email?: string;
+  participants?: string[];
+  meeting_attendees?: { displayName?: string; email?: string; name?: string }[];
+  transcript_url?: string;
+  summary?: { short_summary?: string; keywords?: string[] };
+  meeting_info?: { silent_meeting?: boolean; summary_status?: string };
+}
+
+function transcriptHasContent(t: FirefliesTranscript): boolean {
   const info = t.meeting_info || {};
   const isSilent = info.silent_meeting === true;
   const isSkipped = info.summary_status === 'skipped';
@@ -187,16 +200,16 @@ function transcriptHasContent(t: any): boolean {
 /**
  * Extract external participants — filters out internal domains.
  */
-function extractExternalParticipants(attendees: unknown[]): { name: string; email: string }[] {
+function extractExternalParticipants(attendees: { displayName?: string; email?: string; name?: string }[]): { name: string; email: string }[] {
   if (!Array.isArray(attendees)) return [];
 
   return attendees
-    .filter((a: any) => {
+    .filter((a) => {
       const email = (a.email || '').toLowerCase();
       if (!email) return false;
       return !INTERNAL_DOMAINS.some(domain => email.endsWith(`@${domain}`));
     })
-    .map((a: any) => ({
+    .map((a) => ({
       name: a.displayName || a.name || a.email?.split('@')[0] || 'Unknown',
       email: a.email || '',
     }));
@@ -205,8 +218,8 @@ function extractExternalParticipants(attendees: unknown[]): { name: string; emai
 /**
  * Paginated participant email search helper.
  */
-async function paginatedSearchEmails(emails: string[], batchSize: number, maxPages: number): Promise<any[]> {
-  const results: unknown[] = [];
+async function paginatedSearchEmails(emails: string[], batchSize: number, maxPages: number): Promise<FirefliesTranscript[]> {
+  const results: FirefliesTranscript[] = [];
   let skip = 0;
   for (let page = 0; page < maxPages; page++) {
     const data = await firefliesGraphQL(PARTICIPANT_SEARCH_QUERY, {

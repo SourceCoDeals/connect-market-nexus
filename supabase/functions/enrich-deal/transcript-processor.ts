@@ -11,12 +11,38 @@
 
 import { mergeStates } from "../_shared/geography.ts";
 import { buildPriorityUpdates, updateExtractionSources, createFieldSource } from "../_shared/source-priority.ts";
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import type { ExtractionSources } from "../_shared/source-priority.ts";
 import {
   NUMERIC_LISTING_FIELDS,
   mapTranscriptToListing,
   sanitizeListingUpdates,
   isPlaceholder,
 } from "../_shared/deal-extraction.ts";
+
+interface DealTranscript {
+  id: string;
+  title?: string;
+  source?: string;
+  transcript_text?: string;
+  transcript_url?: string;
+  fireflies_transcript_id?: string;
+  extracted_data?: Record<string, unknown>;
+  processed_at?: string | null;
+}
+
+interface DealRecord {
+  [key: string]: unknown;
+  title?: string;
+  internal_company_name?: string;
+  industry?: string;
+  location?: string;
+  address_city?: string;
+  revenue?: number;
+  ebitda?: number;
+  geographic_states?: string[];
+  extraction_sources?: ExtractionSources | null;
+}
 
 export interface TranscriptReport {
   totalTranscripts: number;
@@ -38,8 +64,8 @@ export interface TranscriptProcessingResult {
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
-  if (error && typeof error === 'object' && 'message' in error && typeof (error as any).message === 'string') {
-    return String((error as any).message);
+  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
+    return String((error as { message: string }).message);
   }
   try {
     return JSON.stringify(error);
@@ -53,19 +79,19 @@ const getErrorMessage = (error: unknown): string => {
  * Returns the cumulative updates and source records applied.
  */
 export async function applyExistingTranscriptData(
-  supabase: any,
-  deal: any,
+  supabase: SupabaseClient,
+  deal: DealRecord,
   dealId: string,
-  transcriptsWithExtracted: unknown[],
+  transcriptsWithExtracted: DealTranscript[],
   forceReExtract: boolean,
-): Promise<{ appliedFieldCount: number; appliedTranscriptCount: number; fieldNames: string[]; updatedSources: any }> {
-  const listingKeys = new Set(Object.keys(deal as Record<string, unknown>));
+): Promise<{ appliedFieldCount: number; appliedTranscriptCount: number; fieldNames: string[]; updatedSources: ExtractionSources | null | undefined }> {
+  const listingKeys = new Set(Object.keys(deal));
   let cumulativeUpdates: Record<string, unknown> = {};
   let cumulativeSources = deal.extraction_sources;
   let appliedTranscriptCount = 0;
 
   for (const t of transcriptsWithExtracted) {
-    const extracted = t.extracted_data as any;
+    const extracted = (t.extracted_data ?? {}) as Record<string, unknown>;
     const flat = mapTranscriptToListing(extracted, listingKeys);
     if (Object.keys(flat).length === 0) continue;
 

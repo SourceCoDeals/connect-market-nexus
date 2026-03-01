@@ -148,7 +148,7 @@ export const useRequestConnection = () => {
 
       return parsedResult;
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: { is_duplicate?: boolean; duplicate_type?: string; request_id?: string }) => {
       if (data.is_duplicate) {
         if (data.duplicate_type === 'same_user_same_listing') {
           toast({
@@ -174,11 +174,11 @@ export const useRequestConnection = () => {
       // PHASE 2: Use centralized cache invalidation
       invalidateConnectionRequests(queryClient);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to request connection',
+        description: error instanceof Error ? error.message : 'Failed to request connection',
       });
     },
   });

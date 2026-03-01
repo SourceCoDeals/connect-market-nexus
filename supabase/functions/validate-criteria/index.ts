@@ -60,13 +60,13 @@ serve(async (req) => {
   } catch (error: unknown) {
     console.error('Error in validate-criteria:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
 
-function validateCriteria(criteria: any): ValidationResult {
+function validateCriteria(criteria: Record<string, unknown>): ValidationResult {
   const missingFields: string[] = [];
   const warnings: string[] = [];
   const fieldScores: Record<string, { score: number; present: boolean; quality: string }> = {};
@@ -80,28 +80,28 @@ function validateCriteria(criteria: any): ValidationResult {
   };
 
   // Validate size criteria (40 points)
-  const sizeScore = validateSizeCriteria(criteria.size_criteria);
+  const sizeScore = validateSizeCriteria(criteria.size_criteria as Record<string, unknown> | undefined);
   fieldScores['size_criteria'] = sizeScore;
   totalScore += sizeScore.score * (weights.size_criteria / 100);
   if (!sizeScore.present) missingFields.push('Size criteria (revenue/EBITDA ranges)');
   if (sizeScore.quality === 'low') warnings.push('Size criteria may be too broad or missing key ranges');
 
   // Validate service criteria (25 points)
-  const serviceScore = validateServiceCriteria(criteria.service_criteria);
+  const serviceScore = validateServiceCriteria(criteria.service_criteria as Record<string, unknown> | undefined);
   fieldScores['service_criteria'] = serviceScore;
   totalScore += serviceScore.score * (weights.service_criteria / 100);
   if (!serviceScore.present) missingFields.push('Service/industry criteria');
   if (serviceScore.quality === 'low') warnings.push('Service criteria lacks specific keywords or categories');
 
   // Validate geography criteria (20 points)
-  const geoScore = validateGeographyCriteria(criteria.geography_criteria);
+  const geoScore = validateGeographyCriteria(criteria.geography_criteria as Record<string, unknown> | undefined);
   fieldScores['geography_criteria'] = geoScore;
   totalScore += geoScore.score * (weights.geography_criteria / 100);
   if (!geoScore.present) missingFields.push('Geographic preferences');
   if (geoScore.quality === 'low') warnings.push('Geographic criteria is vague (e.g., just "USA")');
 
   // Validate buyer types criteria (15 points)
-  const buyerScore = validateBuyerTypesCriteria(criteria.buyer_types_criteria);
+  const buyerScore = validateBuyerTypesCriteria(criteria.buyer_types_criteria as Record<string, unknown> | undefined);
   fieldScores['buyer_types_criteria'] = buyerScore;
   totalScore += buyerScore.score * (weights.buyer_types_criteria / 100);
   if (!buyerScore.present) missingFields.push('Buyer type preferences (PE, Strategic, etc.)');
@@ -126,7 +126,7 @@ function validateCriteria(criteria: any): ValidationResult {
   };
 }
 
-function validateSizeCriteria(criteria: any): { score: number; present: boolean; quality: string } {
+function validateSizeCriteria(criteria: Record<string, unknown> | undefined): { score: number; present: boolean; quality: string } {
   if (!criteria || typeof criteria !== 'object') {
     return { score: 0, present: false, quality: 'none' };
   }
@@ -152,7 +152,7 @@ function validateSizeCriteria(criteria: any): { score: number; present: boolean;
   };
 }
 
-function validateServiceCriteria(criteria: any): { score: number; present: boolean; quality: string } {
+function validateServiceCriteria(criteria: Record<string, unknown> | undefined): { score: number; present: boolean; quality: string } {
   if (!criteria || typeof criteria !== 'object') {
     return { score: 0, present: false, quality: 'none' };
   }
@@ -181,7 +181,7 @@ function validateServiceCriteria(criteria: any): { score: number; present: boole
   };
 }
 
-function validateGeographyCriteria(criteria: any): { score: number; present: boolean; quality: string } {
+function validateGeographyCriteria(criteria: Record<string, unknown> | undefined): { score: number; present: boolean; quality: string } {
   if (!criteria || typeof criteria !== 'object') {
     return { score: 0, present: false, quality: 'none' };
   }
@@ -212,7 +212,7 @@ function validateGeographyCriteria(criteria: any): { score: number; present: boo
   };
 }
 
-function validateBuyerTypesCriteria(criteria: any): { score: number; present: boolean; quality: string } {
+function validateBuyerTypesCriteria(criteria: Record<string, unknown> | undefined): { score: number; present: boolean; quality: string } {
   if (!criteria || typeof criteria !== 'object') {
     return { score: 0, present: false, quality: 'none' };
   }

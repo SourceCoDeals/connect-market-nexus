@@ -5,11 +5,54 @@
  * internal transcripts, buyer data, and deal data.
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 import { googleSearch } from '../../_shared/serper-client.ts';
+
+interface UniverseRow {
+  id: string;
+  name: string;
+  ma_guide_content: string | null;
+  ma_guide_generated_at: string | null;
+  description: string | null;
+  fit_criteria: string | null;
+  service_criteria: string | null;
+}
+
+interface BuyerRow {
+  id: string;
+  company_name: string;
+  pe_firm_name: string | null;
+  buyer_type: string | null;
+  hq_state: string | null;
+  target_services: string | null;
+  thesis_summary: string | null;
+  acquisition_appetite: string | null;
+  alignment_score: number | null;
+}
+
+interface DealRow {
+  id: string;
+  title: string;
+  industry: string | null;
+  services: string | null;
+  address_state: string | null;
+  reported_revenue: number | null;
+  reported_ebitda: number | null;
+  status: string | null;
+  deal_total_score: number | null;
+}
+
+interface TranscriptMatch {
+  source: string;
+  id: string;
+  buyer_id?: string;
+  listing_id?: string;
+  title: string | null;
+  summary_preview?: string;
+  call_date: string | null;
+}
 
 // ---------- Tool definitions ----------
 
@@ -165,7 +208,7 @@ async function searchMAGuides(
   if (error || !data) return [];
 
   // Filter universes whose name, description, or criteria mention the industry
-  const matches = data.filter((u: any) => {
+  const matches = data.filter((u: UniverseRow) => {
     const searchText = [
       u.name || '',
       u.description || '',
@@ -175,8 +218,7 @@ async function searchMAGuides(
     return searchText.includes(term);
   });
 
-  // Return guide excerpts (truncated to save tokens)
-  return matches.map((u: any) => ({
+  return matches.map((u: UniverseRow) => ({
     universe_name: u.name,
     universe_id: u.id,
     guide_excerpt: (u.ma_guide_content || '').substring(0, 4000),
@@ -236,16 +278,14 @@ async function searchWeb(
 async function searchTranscripts(
   supabase: SupabaseClient,
   term: string,
-): Promise<{ matches: unknown[]; count: number }> {
+): Promise<{ matches: TranscriptMatch[]; count: number }> {
   const [buyerResult, dealResult] = await Promise.allSettled([
-    // Search buyer transcripts by title and summary
     supabase
       .from('buyer_transcripts')
       .select('id, buyer_id, title, summary, call_date')
       .or(`title.ilike.%${term}%,summary.ilike.%${term}%`)
       .order('call_date', { ascending: false })
       .limit(5),
-    // Search deal transcripts by title and transcript_text
     supabase
       .from('deal_transcripts')
       .select('id, listing_id, title, call_date')
@@ -254,7 +294,7 @@ async function searchTranscripts(
       .limit(5),
   ]);
 
-  const matches: unknown[] = [];
+  const matches: TranscriptMatch[] = [];
 
   if (buyerResult.status === 'fulfilled' && buyerResult.value.data) {
     for (const t of buyerResult.value.data) {
@@ -290,8 +330,7 @@ async function searchTranscripts(
 async function searchBuyers(
   supabase: SupabaseClient,
   term: string,
-): Promise<{ matches: unknown[]; count: number }> {
-  // Search across multiple buyer fields
+): Promise<{ matches: Record<string, unknown>[]; count: number }> {
   const { data, error } = await supabase
     .from('remarketing_buyers')
     .select(
@@ -306,7 +345,7 @@ async function searchBuyers(
 
   if (error || !data) return { matches: [], count: 0 };
 
-  const matches = data.map((b: any) => ({
+  const matches = data.map((b: BuyerRow) => ({
     id: b.id,
     name: b.pe_firm_name || b.company_name,
     buyer_type: b.buyer_type,
@@ -326,7 +365,7 @@ async function searchBuyers(
 async function searchDeals(
   supabase: SupabaseClient,
   term: string,
-): Promise<{ matches: unknown[]; count: number }> {
+): Promise<{ matches: Record<string, unknown>[]; count: number }> {
   const { data, error } = await supabase
     .from('listings')
     .select(
@@ -340,7 +379,7 @@ async function searchDeals(
 
   if (error || !data) return { matches: [], count: 0 };
 
-  const matches = data.map((d: any) => ({
+  const matches = data.map((d: DealRow) => ({
     id: d.id,
     title: d.title,
     industry: d.industry,
