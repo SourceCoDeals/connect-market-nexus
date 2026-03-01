@@ -28,6 +28,7 @@ export interface RecommendedBuyer {
   total_acquisitions: number;
   // Scores
   composite_fit_score: number;
+  human_override_score: number | null;
   geography_score: number;
   size_score: number;
   service_score: number;
@@ -354,6 +355,8 @@ export function useRecommendedBuyers(listingId: string | undefined, limit = 25) 
           thesis_summary: buyer.thesis_summary || null,
           total_acquisitions: Number(buyer.total_acquisitions || 0),
           composite_fit_score: compositeScore,
+          human_override_score:
+            score.human_override_score != null ? Number(score.human_override_score) : null,
           geography_score: Number(score.geography_score || 0),
           size_score: Number(score.size_score || 0),
           service_score: Number(score.service_score || 0),

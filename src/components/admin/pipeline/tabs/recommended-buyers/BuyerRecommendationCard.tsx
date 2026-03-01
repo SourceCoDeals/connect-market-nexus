@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
@@ -15,6 +16,7 @@ import {
   FileText,
   CalendarCheck,
   XCircle,
+  Pencil,
 } from 'lucide-react';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,6 +28,7 @@ interface BuyerRecommendationCardProps {
   onDraftEmail?: (buyerId: string) => void;
   onViewProfile?: (buyerId: string) => void;
   onReject?: (buyerId: string, buyerName: string) => void;
+  onSetOverride?: (buyerId: string, score: number) => void;
 }
 
 const BUYER_TYPE_LABELS: Record<string, string> = {
@@ -39,11 +42,11 @@ const BUYER_TYPE_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
-function ScoreBadge({ score }: { score: number }) {
+function ScoreBadge({ score, isOverridden }: { score: number; isOverridden?: boolean }) {
   return (
     <div
       className={cn(
-        'inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums min-w-[44px]',
+        'inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums min-w-[44px]',
         score >= 80
           ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
           : score >= 60
@@ -52,6 +55,7 @@ function ScoreBadge({ score }: { score: number }) {
       )}
     >
       {score}
+      {isOverridden && <Pencil className="h-2.5 w-2.5" />}
     </div>
   );
 }
@@ -80,8 +84,12 @@ export function BuyerRecommendationCard({
   onDraftEmail,
   onViewProfile,
   onReject,
+  onSetOverride,
 }: BuyerRecommendationCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [overrideValue, setOverrideValue] = useState<string>(
+    buyer.human_override_score != null ? String(buyer.human_override_score) : '',
+  );
 
   const displayName = buyer.pe_firm_name
     ? `${buyer.company_name} (${buyer.pe_firm_name})`
@@ -102,7 +110,10 @@ export function BuyerRecommendationCard({
             <p className="text-sm font-medium text-foreground truncate max-w-[300px]">
               {displayName}
             </p>
-            <ScoreBadge score={buyer.composite_fit_score} />
+            <ScoreBadge
+              score={buyer.composite_fit_score}
+              isOverridden={buyer.human_override_score != null}
+            />
             <TierBadge tier={buyer.tier} label={buyer.tier_label} />
           </div>
           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -316,6 +327,39 @@ export function BuyerRecommendationCard({
               <div className="font-medium mt-0.5">{buyer.owner_goals_score}/100</div>
             </div>
           </div>
+
+          {/* Score Override */}
+          {onSetOverride && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Override Score:</span>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={overrideValue}
+                onChange={(e) => setOverrideValue(e.target.value)}
+                className="h-7 w-20 text-xs"
+                placeholder="0–100"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={
+                  !overrideValue || Number(overrideValue) < 0 || Number(overrideValue) > 100
+                }
+                onClick={() => onSetOverride(buyer.buyer_id, Number(overrideValue))}
+              >
+                Set Override
+              </Button>
+              {buyer.human_override_score != null && (
+                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                  <Pencil className="h-2.5 w-2.5" />
+                  Currently overridden
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Outreach funnel progress */}
           {buyer.outreach_info.contacted && (

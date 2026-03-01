@@ -25,6 +25,7 @@ import {
 import { Deal } from '@/hooks/admin/use-deals';
 import { useRecommendedBuyers } from '@/hooks/admin/use-recommended-buyers';
 import { useRejectBuyer } from '@/hooks/admin/use-reject-buyer';
+import { useSetScoreOverride } from '@/hooks/admin/use-set-score-override';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { BuyerRecommendationCard } from './recommended-buyers/BuyerRecommendationCard';
@@ -51,6 +52,7 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const limit = showAll ? 100 : 25;
   const { data, isLoading, isFetching } = useRecommendedBuyers(deal.listing_id, limit);
   const rejectMutation = useRejectBuyer(deal.listing_id);
+  const overrideMutation = useSetScoreOverride();
 
   // Rejection history query
   const { data: rejectedBuyers } = useQuery({
@@ -147,6 +149,11 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
 
   const handleReject = (buyerId: string, buyerName: string) => {
     setRejectTarget({ buyerId, buyerName });
+  };
+
+  const handleSetOverride = (buyerId: string, score: number) => {
+    if (!deal.listing_id) return;
+    overrideMutation.mutate({ buyer_id: buyerId, listing_id: deal.listing_id, score });
   };
 
   const handleConfirmReject = (reason: string, notes?: string) => {
@@ -323,6 +330,7 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
               onDraftEmail={handleDraftEmail}
               onViewProfile={handleViewProfile}
               onReject={handleReject}
+              onSetOverride={handleSetOverride}
             />
           ))}
         </div>
