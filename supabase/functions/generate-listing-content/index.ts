@@ -294,9 +294,10 @@ function buildDataContext(
 
   // General Notes (separate data source)
   let notesExcerpt = '';
-  if (deal.internal_notes && deal.internal_notes.trim()) {
+  const rawNotes = typeof deal.internal_notes === 'string' ? deal.internal_notes : '';
+  if (rawNotes.trim()) {
     sources.push('general_notes');
-    notesExcerpt = deal.internal_notes;
+    notesExcerpt = rawNotes;
   }
 
   // Enrichment data (website scrape + LinkedIn)
@@ -338,9 +339,6 @@ function buildDataContext(
     'seller_motivation',
     'owner_goals',
     'transition_preferences',
-    'revenue_breakdown',
-    'asking_price',
-    'valuation_multiple',
   ];
   const manualEntries = manualFields
     .filter((f) => deal[f] != null && deal[f] !== '')
@@ -356,10 +354,10 @@ function buildDataContext(
       'revenue',
       'ebitda',
       'industry',
-      'state',
-      'years_in_business',
-      'growth_rate',
-      'recurring_revenue_percentage',
+      'region',
+      'growth_trend',
+      'revenue_model',
+      'locations_count',
     ];
     valuationStr = valFields
       .filter((f) => valuationData[f] != null)
@@ -415,7 +413,8 @@ async function generateListingContent(
   context: DataContext,
   singleField: string | null,
 ): Promise<Partial<ListingContent>> {
-  const dealState = context.deal.address_state || '';
+  const dealState =
+    typeof context.deal.address_state === 'string' ? context.deal.address_state : '';
   const regionName = STATE_TO_REGION[dealState.toUpperCase()] || 'Central';
   const projectCodename = `Project ${regionName}`;
 

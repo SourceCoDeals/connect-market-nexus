@@ -18,7 +18,8 @@ export interface DealData {
   address_city: string | null;
   category: string | null;
   industry: string | null;
-  service_mix: string[] | null;
+  // DB stores as text (string), but may also arrive as string[] from other sources
+  service_mix: string | string[] | null;
   services?: string[] | null;
   website: string | null;
   full_time_employees: number | null;
@@ -40,10 +41,28 @@ export interface DealData {
   seller_motivation?: string | null;
   owner_goals?: string | null;
   transition_preferences?: string | null;
-  growth_drivers?: string[] | null;
+  // DB stores as Json, but expected to be string[] at runtime
+  growth_drivers?: unknown[] | string[] | null;
   investment_thesis?: string | null;
   founded_year?: number | null;
   number_of_locations?: number | null;
+}
+
+/**
+ * Safely coerce a value that may be a string, string[], or null into a string[].
+ * Handles DB columns like service_mix (text) that the code treats as arrays.
+ */
+function toStringArray(value: unknown): string[] {
+  if (!value) return [];
+  if (Array.isArray(value))
+    return value.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  if (typeof value === 'string') {
+    return value
+      .split(/[,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+  return [];
 }
 
 export interface AnonymizedListingData {
@@ -234,7 +253,8 @@ const TITLE_GENERATORS: Array<(industry: string, state: string, deal: DealData) 
  * Uses varied templates instead of a single formulaic pattern.
  */
 function generateAnonymousTitle(deal: DealData): string {
-  const industry = deal.industry || deal.category || deal.service_mix?.[0] || 'Services';
+  const smArr = toStringArray(deal.service_mix);
+  const industry = deal.industry || deal.category || smArr[0] || 'Services';
   const state = deal.address_state || deal.location || '';
 
   // Pick the best template based on available data
@@ -280,8 +300,9 @@ function generateAnonymousDescription(deal: DealData): string {
   if (state) p1 += ` headquartered in ${state}`;
   if (years > 0) p1 += `, operating for over ${years} years`;
   p1 += '.';
-  if (deal.service_mix && deal.service_mix.length > 0) {
-    p1 += ` Core capabilities include ${deal.service_mix.slice(0, 4).join(', ')}.`;
+  const descSmArr = toStringArray(deal.service_mix);
+  if (descSmArr.length > 0) {
+    p1 += ` Core capabilities include ${descSmArr.slice(0, 4).join(', ')}.`;
   }
   paragraphs.push(p1);
 
@@ -370,8 +391,9 @@ function generateHeroDescription(deal: DealData): string {
   hero += '. ';
 
   // Add a value proposition line if we have the data
-  if (deal.service_mix && deal.service_mix.length > 2) {
-    hero += `Diversified across ${deal.service_mix.length} service lines.`;
+  const heroSmArr = toStringArray(deal.service_mix);
+  if (heroSmArr.length > 2) {
+    hero += `Diversified across ${heroSmArr.length} service lines.`;
   } else if (deal.customer_geography) {
     hero += `Serving ${deal.customer_geography.toLowerCase()} markets.`;
   } else if (deal.geographic_states && deal.geographic_states.length > 1) {
@@ -402,24 +424,35 @@ function buildInvestmentThesis(deal: DealData): string {
 
   // Build from available signals
   if (margin > 20) {
-    points.push(`The Company operates at attractive ${margin}% EBITDA margins, reflecting operational efficiency and pricing power in its ${industry.toLowerCase()} end market.`);
+    points.push(
+      `The Company operates at attractive ${margin}% EBITDA margins, reflecting operational efficiency and pricing power in its ${industry.toLowerCase()} end market.`,
+    );
   }
 
-  if (deal.service_mix && deal.service_mix.length > 2) {
-    points.push(`Revenue is diversified across ${deal.service_mix.length} service lines, reducing concentration risk and providing cross-sell opportunities for a new owner.`);
+  const thesisSmArr = toStringArray(deal.service_mix);
+  if (thesisSmArr.length > 2) {
+    points.push(
+      `Revenue is diversified across ${thesisSmArr.length} service lines, reducing concentration risk and providing cross-sell opportunities for a new owner.`,
+    );
   }
 
   if (deal.geographic_states && deal.geographic_states.length > 1) {
-    points.push(`Multi-state operations provide a platform for continued geographic expansion through organic growth and bolt-on acquisitions.`);
+    points.push(
+      `Multi-state operations provide a platform for continued geographic expansion through organic growth and bolt-on acquisitions.`,
+    );
   }
 
   const employees = deal.full_time_employees || deal.linkedin_employee_count;
   if (employees && employees > 20) {
-    points.push(`A team of ${employees}+ employees provides operational depth and reduces key-person dependency, facilitating an ownership transition.`);
+    points.push(
+      `A team of ${employees}+ employees provides operational depth and reduces key-person dependency, facilitating an ownership transition.`,
+    );
   }
 
   if (points.length === 0) {
-    points.push(`The Company represents an acquisition opportunity in the ${industry.toLowerCase()} sector, offering a platform for operational improvement and growth.`);
+    points.push(
+      `The Company represents an acquisition opportunity in the ${industry.toLowerCase()} sector, offering a platform for operational improvement and growth.`,
+    );
   }
 
   return points.join('\n\n');
@@ -438,14 +471,16 @@ function buildCustomSections(deal: DealData): Array<{ title: string; description
     let revDesc = `The Company generates ${formatRevenue(deal.revenue)} in annual revenue`;
     if (deal.ebitda) revDesc += ` with ${formatRevenue(deal.ebitda)} in EBITDA (${margin}% margin)`;
     revDesc += '.';
-    if (deal.business_model) revDesc += ` Revenue is driven by a ${deal.business_model.toLowerCase()} model.`;
+    if (deal.business_model)
+      revDesc += ` Revenue is driven by a ${deal.business_model.toLowerCase()} model.`;
     if (deal.revenue_model) revDesc += ` ${stripIdentifyingInfo(deal.revenue_model, deal)}`;
     sections.push({ title: 'Revenue Quality & Financial Profile', description: revDesc });
   }
 
   // Services & operations section
-  if (deal.service_mix && deal.service_mix.length > 0) {
-    const serviceList = deal.service_mix.map(s => `- ${s}`).join('\n');
+  const sectionSmArr = toStringArray(deal.service_mix);
+  if (sectionSmArr.length > 0) {
+    const serviceList = sectionSmArr.map((s) => `- ${s}`).join('\n');
     let svcDesc = `Core service offerings include:\n${serviceList}`;
     if (deal.number_of_locations && deal.number_of_locations > 1) {
       svcDesc += `\n\nOperations span ${deal.number_of_locations} locations.`;
@@ -454,8 +489,9 @@ function buildCustomSections(deal: DealData): Array<{ title: string; description
   }
 
   // Growth section
-  if (deal.growth_drivers && deal.growth_drivers.length > 0) {
-    const growthList = deal.growth_drivers.map(g => `- ${stripIdentifyingInfo(g, deal)}`).join('\n');
+  const sectionGdArr = toStringArray(deal.growth_drivers);
+  if (sectionGdArr.length > 0) {
+    const growthList = sectionGdArr.map((g) => `- ${stripIdentifyingInfo(g, deal)}`).join('\n');
     sections.push({ title: 'Growth Acceleration Opportunity', description: growthList });
   } else if (deal.geographic_states && deal.geographic_states.length > 0) {
     sections.push({
@@ -482,38 +518,40 @@ function buildCustomSections(deal: DealData): Array<{ title: string; description
  * Maps all available enrichment data to landing page content fields.
  */
 export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
+  // Normalize fields that may arrive as strings from the DB but are used as arrays
+  const serviceMix = toStringArray(deal.service_mix);
+  const growthDriversRaw = toStringArray(deal.growth_drivers);
+
   const categories: string[] = [];
   if (deal.category) categories.push(deal.category);
   if (deal.industry && deal.industry !== deal.category) categories.push(deal.industry);
-  if (deal.service_mix) {
-    deal.service_mix.forEach((s) => {
-      if (!categories.includes(s)) categories.push(s);
-    });
+  for (const s of serviceMix) {
+    if (!categories.includes(s)) categories.push(s);
   }
 
   const location = deal.address_state || deal.location || '';
   const employees = deal.full_time_employees || deal.linkedin_employee_count || 0;
-  const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : null;
+  const margin =
+    deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : null;
 
   // Build services list from service_mix + services
-  const services: string[] = [];
-  if (deal.service_mix) services.push(...deal.service_mix);
+  const services: string[] = [...serviceMix];
   if (deal.services) {
-    deal.services.forEach(s => { if (!services.includes(s)) services.push(s); });
+    deal.services.forEach((s) => {
+      if (!services.includes(s)) services.push(s);
+    });
   }
 
   // Build growth drivers
-  const growthDrivers: string[] = [];
-  if (deal.growth_drivers) {
-    growthDrivers.push(...deal.growth_drivers.map(g => stripIdentifyingInfo(g, deal)));
-  }
+  const growthDrivers: string[] = growthDriversRaw.map((g) => stripIdentifyingInfo(g, deal));
 
   // Determine customer geography
   let customerGeo = deal.customer_geography || '';
   if (!customerGeo && deal.geographic_states && deal.geographic_states.length > 0) {
-    customerGeo = deal.geographic_states.length > 3
-      ? `Multi-State — ${deal.geographic_states.length} states`
-      : deal.geographic_states.join(', ');
+    customerGeo =
+      deal.geographic_states.length > 3
+        ? `Multi-State — ${deal.geographic_states.length} states`
+        : deal.geographic_states.join(', ');
   }
 
   return {
@@ -545,9 +583,7 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
     business_model: deal.business_model || '',
     customer_geography: customerGeo,
     customer_types: deal.customer_types || '',
-    revenue_model: deal.revenue_model
-      ? stripIdentifyingInfo(deal.revenue_model, deal)
-      : '',
+    revenue_model: deal.revenue_model ? stripIdentifyingInfo(deal.revenue_model, deal) : '',
     end_market_description: deal.end_market_description
       ? stripIdentifyingInfo(deal.end_market_description, deal)
       : '',
