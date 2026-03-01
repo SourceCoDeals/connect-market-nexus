@@ -1,3 +1,14 @@
+/**
+ * @deprecated This file is deprecated. All deal task functionality has been unified
+ * into the daily_standup_tasks system. Use the following hooks instead:
+ * - useEntityTasks (from @/hooks/useEntityTasks) for querying deal tasks
+ * - useAddEntityTask (from @/hooks/useTaskActions) for creating tasks
+ * - useToggleTaskComplete (from @/hooks/useDailyTasks) for completing tasks
+ * - useReassignTask (from @/hooks/useDailyTasks) for reassigning tasks
+ * - useDeleteTask (from @/hooks/useDailyTasks) for deleting tasks
+ *
+ * This file will be removed in a future release.
+ */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -59,7 +70,7 @@ export function useCreateDealTask() {
     }) => {
       const { data: userData, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
-      
+
       const { data, error } = await supabase
         .from('deal_tasks')
         .insert({
@@ -134,8 +145,12 @@ export function useCreateDealTask() {
           await supabase.functions.invoke('send-task-notification-email', {
             body: {
               assignee_email: assigneeProfile.email,
-              assignee_name: `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() || assigneeProfile.email,
-              assigner_name: assignerProfile ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim() : 'Admin',
+              assignee_name:
+                `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() ||
+                assigneeProfile.email,
+              assigner_name: assignerProfile
+                ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim()
+                : 'Admin',
               task_title: taskData.title,
               task_description: taskData.description,
               task_priority: taskData.priority || 'medium',
@@ -252,8 +267,12 @@ export function useUpdateDealTask() {
           await supabase.functions.invoke('send-task-notification-email', {
             body: {
               assignee_email: assigneeProfile.email,
-              assignee_name: `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() || assigneeProfile.email,
-              assigner_name: assignerProfile ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim() : 'Admin',
+              assignee_name:
+                `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() ||
+                assigneeProfile.email,
+              assigner_name: assignerProfile
+                ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim()
+                : 'Admin',
               task_title: currentTask.title,
               task_description: currentTask.description,
               task_priority: currentTask.priority || 'medium',
@@ -277,8 +296,8 @@ export function useUpdateDealTask() {
         if (reviewers && reviewers.length > 0) {
           // Send notification to each reviewer (except the person who resolved it)
           const notifications = reviewers
-            .filter(r => r.admin_id !== userData?.user?.id)
-            .map(reviewer => ({
+            .filter((r) => r.admin_id !== userData?.user?.id)
+            .map((reviewer) => ({
               admin_id: reviewer.admin_id,
               notification_type: 'task_resolved',
               title: 'Task Ready for Review',
@@ -328,7 +347,7 @@ export function useCompleteDealTask() {
     mutationFn: async (taskId: string) => {
       const { data: userData, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
-      
+
       const { data: currentTask, error: currentTaskError } = await supabase
         .from('deal_tasks')
         .select('*')
@@ -413,10 +432,7 @@ export function useDeleteDealTask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase
-        .from('deal_tasks')
-        .delete()
-        .eq('id', taskId);
+      const { error } = await supabase.from('deal_tasks').delete().eq('id', taskId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -462,14 +478,12 @@ export function useAddTaskReviewer() {
     mutationFn: async ({ taskId, adminId }: { taskId: string; adminId: string }) => {
       const { data: userData, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
-      
-      const { error } = await supabase
-        .from('deal_task_reviewers')
-        .insert({
-          task_id: taskId,
-          admin_id: adminId,
-          added_by: userData?.user?.id,
-        });
+
+      const { error } = await supabase.from('deal_task_reviewers').insert({
+        task_id: taskId,
+        admin_id: adminId,
+        added_by: userData?.user?.id,
+      });
       if (error) throw error;
     },
     onSuccess: () => {

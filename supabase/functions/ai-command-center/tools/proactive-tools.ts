@@ -487,9 +487,10 @@ async function getDealHealth(
       .order('created_at', { ascending: false })
       .limit(2000),
     supabase
-      .from('deal_tasks')
-      .select('deal_id, status, due_date, completed_at')
-      .in('deal_id', dealIds),
+      .from('daily_standup_tasks')
+      .select('entity_id, status, due_date, completed_at')
+      .eq('entity_type', 'deal')
+      .in('entity_id', dealIds),
     supabase
       .from('outreach_records')
       .select('deal_id, last_action_date, stage')
@@ -512,8 +513,8 @@ async function getDealHealth(
     Array<{ status: string; due_date: string | null; completed_at: string | null }>
   >();
   for (const t of tasks) {
-    if (!tasksByDeal.has(t.deal_id)) tasksByDeal.set(t.deal_id, []);
-    tasksByDeal.get(t.deal_id)!.push(t);
+    if (!tasksByDeal.has(t.entity_id)) tasksByDeal.set(t.entity_id, []);
+    tasksByDeal.get(t.entity_id)!.push(t);
   }
 
   const outreachByDeal = new Map<string, Array<{ last_action_date: string; stage: string }>>();

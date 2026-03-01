@@ -5,15 +5,16 @@
 
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
-import type { ClaudeTool } from "../../_shared/claude-client.ts";
-import type { ToolResult } from "./index.ts";
+import type { ClaudeTool } from '../../_shared/claude-client.ts';
+import type { ToolResult } from './index.ts';
 
 // ---------- Tool definitions ----------
 
 export const userTools: ClaudeTool[] = [
   {
     name: 'get_current_user_context',
-    description: 'Get the current user\'s profile, role, recent notifications, and assigned tasks. Used to personalize responses and understand the user\'s responsibilities.',
+    description:
+      "Get the current user's profile, role, recent notifications, and assigned tasks. Used to personalize responses and understand the user's responsibilities.",
     input_schema: {
       type: 'object',
       properties: {},
@@ -31,8 +32,10 @@ export async function executeUserTool(
   userId: string,
 ): Promise<ToolResult> {
   switch (toolName) {
-    case 'get_current_user_context': return getCurrentUserContext(supabase, userId);
-    default: return { error: `Unknown user tool: ${toolName}` };
+    case 'get_current_user_context':
+      return getCurrentUserContext(supabase, userId);
+    default:
+      return { error: `Unknown user tool: ${toolName}` };
   }
 }
 
@@ -50,10 +53,10 @@ async function getCurrentUserContext(
       .eq('id', userId)
       .single(),
     supabase
-      .from('deal_tasks')
-      .select('id, title, deal_id, status, priority, due_date')
-      .eq('assigned_to', userId)
-      .in('status', ['pending', 'in_progress'])
+      .from('daily_standup_tasks')
+      .select('id, title, entity_id, status, priority, due_date')
+      .eq('assignee_id', userId)
+      .in('status', ['pending', 'in_progress', 'pending_approval', 'overdue'])
       .order('due_date', { ascending: true, nullsFirst: false })
       .limit(10),
     supabase

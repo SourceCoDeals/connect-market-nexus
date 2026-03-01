@@ -29,7 +29,7 @@ export function useRealtimeAdmin() {
     }
 
     // Setting up consolidated realtime admin notifications
-    
+
     const channel = supabase
       .channel('admin-notifications-realtime')
       .on(
@@ -37,7 +37,7 @@ export function useRealtimeAdmin() {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'profiles'
+          table: 'profiles',
         },
         (payload) => {
           toast({
@@ -45,14 +45,14 @@ export function useRealtimeAdmin() {
             description: `${payload.new.first_name} ${payload.new.last_name} has registered`,
           });
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'connection_requests'
+          table: 'connection_requests',
         },
         () => {
           toast({
@@ -61,27 +61,27 @@ export function useRealtimeAdmin() {
           });
           queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
           queryClient.refetchQueries({ queryKey: ['connection-requests'], type: 'active' });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'connection_requests'
+          table: 'connection_requests',
         },
         (_payload) => {
           queryClient.refetchQueries({ queryKey: ['connection-requests'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['connection-request-details'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'listings'
+          table: 'listings',
         },
         (payload) => {
           toast({
@@ -89,14 +89,14 @@ export function useRealtimeAdmin() {
             description: `"${payload.new.title}" has been added`,
           });
           queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'profiles'
+          table: 'profiles',
         },
         (payload) => {
           // Enhanced status change notifications (consolidated from enhanced hook)
@@ -108,24 +108,26 @@ export function useRealtimeAdmin() {
               description: `${userName} status changed to ${status}`,
             });
           }
-          
+
           // Admin privilege changes (consolidated from enhanced hook)
           if (payload.old?.is_admin !== payload.new?.is_admin) {
             const userName = `${payload.new.first_name} ${payload.new.last_name}`;
             toast({
-              title: payload.new.is_admin ? '👑 User Promoted to Admin' : '👤 Admin Privileges Revoked',
+              title: payload.new.is_admin
+                ? '👑 User Promoted to Admin'
+                : '👤 Admin Privileges Revoked',
               description: `${userName} ${payload.new.is_admin ? 'is now an admin' : 'is no longer an admin'}`,
             });
           }
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: 'DELETE',
           schema: 'public',
-          table: 'profiles'
+          table: 'profiles',
         },
         (payload) => {
           const userName = `${payload.old.first_name} ${payload.old.last_name}`;
@@ -134,49 +136,50 @@ export function useRealtimeAdmin() {
             description: `${userName} has been removed from the system`,
           });
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'deals'
+          table: 'deals',
         },
         (_payload) => {
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['deal-activities'] });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'deal_tasks'
+          table: 'daily_standup_tasks',
         },
         (_payload) => {
-          queryClient.refetchQueries({ queryKey: ['deal-tasks'], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['daily-standup-tasks'], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['entity-tasks'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['deals'], type: 'active' });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'connection_request_stages'
+          table: 'connection_request_stages',
         },
         (_payload) => {
           queryClient.refetchQueries({ queryKey: ['connection-request-stages'], type: 'active' });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'firm_agreements'
+          table: 'firm_agreements',
         },
         (_payload) => {
           queryClient.refetchQueries({ queryKey: ['firm-agreements'], type: 'active' });
@@ -184,20 +187,20 @@ export function useRealtimeAdmin() {
           queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
           queryClient.invalidateQueries({ queryKey: ['inbound-leads'] });
           queryClient.invalidateQueries({ queryKey: ['deals'] });
-        }
+        },
       )
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'firm_members'
+          table: 'firm_members',
         },
         (_payload) => {
           queryClient.refetchQueries({ queryKey: ['firm-members'], type: 'active' });
           queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
           queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-        }
+        },
       )
       .subscribe((status) => {
         setIsConnected(status === 'SUBSCRIBED');

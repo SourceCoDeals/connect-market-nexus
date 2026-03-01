@@ -7,14 +7,18 @@ export function useUpdateFollowupStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ dealId, followed_up, notes }: { 
-      dealId: string; 
+    mutationFn: async ({
+      dealId,
+      followed_up,
+      notes,
+    }: {
+      dealId: string;
       followed_up: boolean;
       notes?: string;
     }) => {
       const updateData: any = {
         followed_up,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       if (followed_up) {
@@ -31,21 +35,19 @@ export function useUpdateFollowupStatus() {
         .eq('id', dealId)
         .select()
         .single();
-      
+
       if (error) throw error;
 
       // Add activity log if notes provided
       if (notes && notes.trim()) {
-        await supabase
-          .from('deal_activities')
-          .insert({
-            deal_id: dealId,
-            admin_id: (await supabase.auth.getUser()).data.user?.id,
-            activity_type: 'follow_up',
-            title: followed_up ? 'Follow-up completed' : 'Follow-up status reset',
-            description: notes,
-            metadata: { followed_up }
-          });
+        await supabase.from('deal_activities').insert({
+          deal_id: dealId,
+          admin_id: (await supabase.auth.getUser()).data.user?.id,
+          activity_type: 'follow_up',
+          title: followed_up ? 'Follow-up completed' : 'Follow-up status reset',
+          description: notes,
+          metadata: { followed_up },
+        });
       }
 
       return data;
@@ -76,13 +78,13 @@ export function useMarkFollowupOverdue() {
       // This would be used for batch operations to mark overdue deals
       const { data, error } = await supabase
         .from('deals')
-        .update({ 
-          updated_at: new Date().toISOString()
+        .update({
+          updated_at: new Date().toISOString(),
         })
         .eq('id', dealId)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -97,12 +99,12 @@ export function useCreateStageTask() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ 
+    mutationFn: async ({
       dealId,
       stageId: _stageId,
-      taskTemplate
-    }: { 
-      dealId: string; 
+      taskTemplate,
+    }: {
+      dealId: string;
       stageId: string;
       taskTemplate: {
         title: string;
@@ -112,32 +114,41 @@ export function useCreateStageTask() {
       };
     }) => {
       const currentUser = await supabase.auth.getUser();
-      
+
       const taskData = {
-        deal_id: dealId,
         title: taskTemplate.title,
         description: taskTemplate.description,
         priority: taskTemplate.priority,
         status: 'pending' as const,
-        assigned_to: currentUser.data.user?.id,
-        assigned_by: currentUser.data.user?.id,
-        due_date: taskTemplate.due_days 
+        task_type: 'other' as const,
+        entity_type: 'deal' as const,
+        entity_id: dealId,
+        deal_id: dealId,
+        assignee_id: currentUser.data.user?.id,
+        created_by: currentUser.data.user?.id,
+        source: 'manual' as const,
+        is_manual: true,
+        priority_score: 50,
+        extraction_confidence: 'high' as const,
+        needs_review: false,
+        due_date: taskTemplate.due_days
           ? new Date(Date.now() + taskTemplate.due_days * 24 * 60 * 60 * 1000).toISOString()
-          : null
+          : null,
       };
 
       const { data, error } = await supabase
-        .from('deal_tasks')
+        .from('daily_standup_tasks')
         .insert(taskData)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
-      queryClient.invalidateQueries({ queryKey: ['deal-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-standup-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['entity-tasks'] });
       toast({
         title: 'Task Created',
         description: 'Stage-specific task has been created successfully.',

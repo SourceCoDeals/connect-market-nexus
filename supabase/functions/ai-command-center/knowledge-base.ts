@@ -347,7 +347,7 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
 - remarketing_buyer_universes: named universes with criteria and weights.
 - call_transcripts + deal_transcripts + buyer_transcripts: meeting recordings.
 - valuation_leads: HVAC, collision, auto shop, general calculator leads.
-- deal_activities + deal_tasks: activity log and task tracking.
+- deal_activities: deal activity log. daily_standup_tasks: unified task system (entity_type='deal' for deal tasks).
 - contacts: UNIFIED buyer+seller+advisor+internal table. Source of truth since Feb 28, 2026.
 - data_room_access: data room access and NDA tracking.
 - outreach_records: comprehensive outreach pipeline.

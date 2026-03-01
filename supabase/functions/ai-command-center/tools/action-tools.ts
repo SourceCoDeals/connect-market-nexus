@@ -193,42 +193,32 @@ async function createDealTask(
   const dealId = args.deal_id as string;
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
+  // Write to the unified daily_standup_tasks table (single source of truth)
   const { data, error } = await supabase
-    .from('deal_tasks')
+    .from('daily_standup_tasks')
     .insert({
-      deal_id: dealId,
       title: args.title as string,
       description: (args.description as string) || null,
+      task_type: 'other',
+      entity_type: 'deal',
+      entity_id: dealId,
+      deal_id: dealId,
+      deal_reference: (args.title as string) || null,
+      due_date: (args.due_date as string) || tomorrow,
       priority: (args.priority as string) || 'medium',
-      due_date: (args.due_date as string) || null,
-      assigned_to: (args.assigned_to as string) || userId,
-      assigned_by: userId,
-      status: 'pending',
+      assignee_id: (args.assigned_to as string) || userId,
+      source: 'chatbot',
+      status: 'pending_approval',
+      is_manual: false,
+      priority_score: 50,
+      extraction_confidence: 'high',
+      needs_review: true,
+      created_by: userId,
     })
-    .select('id, title, status, priority, due_date, assigned_to')
+    .select('id, title, status, priority, due_date, assignee_id')
     .single();
 
   if (error) return { error: error.message };
-
-  // Mirror into daily_standup_tasks with pending_approval so it goes through human approval
-  await supabase.from('daily_standup_tasks').insert({
-    title: args.title as string,
-    description: (args.description as string) || null,
-    task_type: 'follow_up',
-    entity_type: 'deal',
-    entity_id: dealId,
-    deal_reference: (args.title as string) || null,
-    due_date: (args.due_date as string) || tomorrow,
-    priority: (args.priority as string) || 'medium',
-    assignee_id: (args.assigned_to as string) || userId,
-    source: 'chatbot',
-    status: 'pending_approval',
-    is_manual: false,
-    priority_score: 50,
-    extraction_confidence: 'high',
-    needs_review: true,
-    created_by: userId,
-  });
 
   // Log the activity
   await supabase.from('deal_activities').insert({
@@ -242,7 +232,7 @@ async function createDealTask(
 
   return {
     data: {
-      task: data,
+      task: { ...data, assigned_to: data.assignee_id },
       message: `Task "${data.title}" created and sent for approval. A team member must review it in the task dashboard.`,
       requires_approval: true,
     },
@@ -255,30 +245,32 @@ async function completeDealTask(
   userId: string,
 ): Promise<ToolResult> {
   const { data, error } = await supabase
-    .from('deal_tasks')
+    .from('daily_standup_tasks')
     .update({
       status: 'completed',
       completed_at: new Date().toISOString(),
       completed_by: userId,
     })
     .eq('id', args.task_id as string)
-    .select('id, title, deal_id, status, completed_at')
+    .select('id, title, entity_id, status, completed_at')
     .single();
 
   if (error) return { error: error.message };
 
-  // Log the activity
-  await supabase.from('deal_activities').insert({
-    deal_id: data.deal_id,
-    activity_type: 'task_completed',
-    title: `Task completed: ${data.title}`,
-    admin_id: userId,
-    metadata: { source: 'ai_command_center', task_id: data.id },
-  });
+  // Log the activity (entity_id is the deal_id for deal tasks)
+  if (data.entity_id) {
+    await supabase.from('deal_activities').insert({
+      deal_id: data.entity_id,
+      activity_type: 'task_completed',
+      title: `Task completed: ${data.title}`,
+      admin_id: userId,
+      metadata: { source: 'ai_command_center', task_id: data.id },
+    });
+  }
 
   return {
     data: {
-      task: data,
+      task: { ...data, deal_id: data.entity_id },
       message: `Task "${data.title}" marked as completed`,
     },
   };
@@ -570,10 +562,10 @@ async function reassignDealTask(
 
   if (!newAssigneeId) return { error: 'Either new_assignee_id or new_assignee_email is required' };
 
-  // Get the task
+  // Get the task from unified table
   const { data: task, error: taskError } = await supabase
-    .from('deal_tasks')
-    .select('id, title, deal_id, assigned_to')
+    .from('daily_standup_tasks')
+    .select('id, title, entity_id, entity_type, assignee_id')
     .eq('id', taskId)
     .single();
 
@@ -581,11 +573,11 @@ async function reassignDealTask(
 
   // Get old assignee name
   let oldAssigneeName = 'unassigned';
-  if (task.assigned_to) {
+  if (task.assignee_id) {
     const { data: oldUser } = await supabase
       .from('profiles')
       .select('full_name')
-      .eq('id', task.assigned_to)
+      .eq('id', task.assignee_id)
       .single();
     if (oldUser) oldAssigneeName = oldUser.full_name || 'Unknown';
   }
@@ -600,29 +592,30 @@ async function reassignDealTask(
 
   // Update the task
   const { error: updateError } = await supabase
-    .from('deal_tasks')
+    .from('daily_standup_tasks')
     .update({
-      assigned_to: newAssigneeId,
-      updated_at: new Date().toISOString(),
+      assignee_id: newAssigneeId,
     })
     .eq('id', taskId);
 
   if (updateError) return { error: updateError.message };
 
-  // Log activity
-  await supabase.from('deal_activities').insert({
-    deal_id: task.deal_id,
-    activity_type: 'task_reassigned',
-    title: `Task reassigned: "${task.title}"`,
-    description: `Reassigned from ${oldAssigneeName} to ${newAssigneeName}${args.reason ? `. Reason: ${args.reason}` : ''}`,
-    admin_id: userId,
-    metadata: {
-      source: 'ai_command_center',
-      task_id: taskId,
-      old_assignee: task.assigned_to,
-      new_assignee: newAssigneeId,
-    },
-  });
+  // Log activity if this is a deal task
+  if (task.entity_type === 'deal' && task.entity_id) {
+    await supabase.from('deal_activities').insert({
+      deal_id: task.entity_id,
+      activity_type: 'task_reassigned',
+      title: `Task reassigned: "${task.title}"`,
+      description: `Reassigned from ${oldAssigneeName} to ${newAssigneeName}${args.reason ? `. Reason: ${args.reason}` : ''}`,
+      admin_id: userId,
+      metadata: {
+        source: 'ai_command_center',
+        task_id: taskId,
+        old_assignee: task.assignee_id,
+        new_assignee: newAssigneeId,
+      },
+    });
+  }
 
   return {
     data: {

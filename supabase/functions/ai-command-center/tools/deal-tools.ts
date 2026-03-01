@@ -265,11 +265,7 @@ export async function executeDealTool(
 // ---------- Retry helper ----------
 
 /** Execute an async function with exponential backoff retries. */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 2,
-  baseDelayMs = 500,
-): Promise<T> {
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2, baseDelayMs = 500): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -349,7 +345,10 @@ async function queryDeals(
     } catch (primaryError) {
       // If we were using full fields, fall back to quick fields and retry
       if (fields === DEAL_FIELDS_FULL) {
-        console.warn('[deal-tools] Full-field query failed, falling back to quick fields:', primaryError);
+        console.warn(
+          '[deal-tools] Full-field query failed, falling back to quick fields:',
+          primaryError,
+        );
         fields = DEAL_FIELDS_QUICK;
         usedFallback = true;
         // Reset and start over with lighter query
@@ -358,7 +357,8 @@ async function queryDeals(
         try {
           batch = await withRetry(() => fetchPage(0, batchSize));
         } catch (fallbackError) {
-          const errMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          const errMsg =
+            fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
           return {
             error: `Database query failed after retries: ${errMsg}. This is likely a transient issue — please try again in a moment.`,
           };
@@ -595,9 +595,10 @@ async function getDealDetails(
     await Promise.all([
       supabase.from('listings').select(DEAL_FIELDS_FULL).eq('id', dealId).single(),
       supabase
-        .from('deal_tasks')
-        .select('id, title, status, priority, due_date, assigned_to, completed_at')
-        .eq('deal_id', dealId)
+        .from('daily_standup_tasks')
+        .select('id, title, status, priority, due_date, assignee_id, completed_at')
+        .eq('entity_type', 'deal')
+        .eq('entity_id', dealId)
         .order('created_at', { ascending: false })
         .limit(10),
       supabase
@@ -707,23 +708,28 @@ async function getDealTasks(
   const status = (args.status as string) || 'all';
 
   let query = supabase
-    .from('deal_tasks')
+    .from('daily_standup_tasks')
     .select(
-      'id, title, description, status, priority, due_date, assigned_to, assigned_by, completed_at, completed_by, created_at, updated_at',
+      'id, title, description, status, priority, due_date, assignee_id, created_by, completed_at, completed_by, created_at',
     )
-    .eq('deal_id', dealId)
+    .eq('entity_type', 'deal')
+    .eq('entity_id', dealId)
     .order('due_date', { ascending: true, nullsFirst: false });
 
   if (status !== 'all') query = query.eq('status', status);
-  if (args.assigned_to) query = query.eq('assigned_to', args.assigned_to as string);
+  if (args.assigned_to) query = query.eq('assignee_id', args.assigned_to as string);
 
   const { data, error } = await query;
   if (error) return { error: error.message };
 
-  // Group by status for easier consumption
-  const tasks = data || [];
+  // Map field names for backward compatibility with consumers
+  const tasks = (data || []).map((t: any) => ({
+    ...t,
+    assigned_to: t.assignee_id,
+    assigned_by: t.created_by,
+  }));
   const grouped = {
-    pending: tasks.filter((t: any) => t.status === 'pending'),
+    pending: tasks.filter((t: any) => t.status === 'pending' || t.status === 'pending_approval'),
     in_progress: tasks.filter((t: any) => t.status === 'in_progress'),
     completed: tasks.filter((t: any) => t.status === 'completed'),
   };
