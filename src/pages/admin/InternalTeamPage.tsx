@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Search, Users, History, Loader2 } from 'lucide-react';
-import type { User } from '@/types';
+import type { User, BuyerType } from '@/types';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { APPROVAL_STATUSES } from '@/constants';
 
@@ -44,7 +44,7 @@ const InternalTeamPage = () => {
   }, [teamMembers, search]);
 
   // Convert role data to User-compatible shape for TeamMemberCard
-  const toUserShape = (member: any): User => {
+  const toUserShape = (member: typeof filteredMembers[number]): User => {
     const firstName = member.user_first_name || '';
     const lastName = member.user_last_name || '';
     const now = member.granted_at || new Date().toISOString();
@@ -67,7 +67,7 @@ const InternalTeamPage = () => {
       get lastName() { return lastName; },
       get phoneNumber() { return ''; },
       get isAdmin() { return true; },
-      get buyerType(): any { return 'individual'; },
+      get buyerType(): BuyerType { return 'individual'; },
       get emailVerified() { return true; },
       get isApproved() { return true; },
       get createdAt() { return now; },

@@ -565,7 +565,7 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
 
   return (
     <div className="space-y-4">
-      {sections.map((section: any) => (
+      {sections.map((section: { heading?: string; body?: string; bullets?: string[] }) => (
         <div key={section.heading || section.body?.slice(0, 40)}>
           {section.heading && (
             <h3 className="text-sm font-semibold mb-1">{section.heading}</h3>

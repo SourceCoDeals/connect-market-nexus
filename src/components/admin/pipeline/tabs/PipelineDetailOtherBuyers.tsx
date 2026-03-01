@@ -56,7 +56,7 @@ export function PipelineDetailOtherBuyers({ deal }: PipelineDetailOtherBuyersPro
 
       if (error) throw error;
 
-      return (data || []).map((d: any) => ({
+      return (data || []).map((d) => ({
         id: d.id,
         title: d.title,
         contact_name: d.contact_name,

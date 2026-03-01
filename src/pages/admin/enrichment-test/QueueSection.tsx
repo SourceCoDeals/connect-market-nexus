@@ -38,9 +38,10 @@ export default function QueueSection({ addLog }: { addLog: AddLogFn }) {
       setQueue(data);
       setCount(c);
       addLog(`Fetched queue \u2014 ${c ?? 0} total items`);
-    } catch (e: any) {
-      setError(e.message);
-      addLog(`Queue fetch \u2014 ${e.message}`, undefined, false);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      addLog(`Queue fetch \u2014 ${message}`, undefined, false);
     } finally {
       setLoading(false);
     }
@@ -59,8 +60,8 @@ export default function QueueSection({ addLog }: { addLog: AddLogFn }) {
       } else {
         addLog(`process-enrichment-queue triggered`, dur);
       }
-    } catch (e: any) {
-      addLog(`process-enrichment-queue \u2014 ${e.message}`, Date.now() - t0, false);
+    } catch (e: unknown) {
+      addLog(`process-enrichment-queue \u2014 ${e instanceof Error ? e.message : String(e)}`, Date.now() - t0, false);
     } finally {
       setTriggerLoading(false);
     }

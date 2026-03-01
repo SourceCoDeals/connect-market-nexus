@@ -164,7 +164,7 @@ export function useCreateDealForm(
         }
       }
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         ...data,
         source: 'manual',
         nda_status: 'not_sent',

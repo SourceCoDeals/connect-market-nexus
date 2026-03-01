@@ -10,7 +10,7 @@ import {
   Search,
   CheckSquare
 } from "lucide-react";
-import { InboundLead, useCreateInboundLead, useMapLeadToListing, useConvertLeadToRequest, DuplicateCheckResult } from "@/hooks/admin/use-inbound-leads";
+import { InboundLead, useCreateInboundLead, useMapLeadToListing, useConvertLeadToRequest, DuplicateCheckResult, CreateInboundLeadData } from "@/hooks/admin/use-inbound-leads";
 import { useEnhancedBulkLeadOperations } from "@/hooks/admin/use-enhanced-bulk-lead-operations";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -167,9 +167,9 @@ export const InboundLeadsTable = ({
   const selectedLeads = filteredLeads.filter(lead => selectedLeadIds.has(lead.id));
 
   const handleBulkCreate = async (
-    leadsData: any[], 
-    listingId?: string, 
-    listingTitle?: string, 
+    leadsData: CreateInboundLeadData[],
+    listingId?: string,
+    listingTitle?: string,
     shouldConvert?: boolean
   ) => {
     bulkImportWithMapping.mutate({

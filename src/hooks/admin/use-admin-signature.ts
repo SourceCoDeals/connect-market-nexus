@@ -104,7 +104,7 @@ export function useAdminSignature() {
       });
       queryClient.invalidateQueries({ queryKey: ['admin-signature'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         variant: 'destructive',
         title: 'Update Failed',

@@ -39,7 +39,7 @@ export const SendInvitationDialog = ({ user, open, onOpenChange }: SendInvitatio
       onOpenChange(false);
       setCustomMessage("");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Failed to send invitation",
         description: error.message,

@@ -20,8 +20,8 @@ import { CreateDealFormData } from './schema';
 
 interface BasicInfoSectionProps {
   form: UseFormReturn<CreateDealFormData>;
-  listings: any[] | undefined;
-  stages: any[] | undefined;
+  listings: Array<{ id: string; title: string; internal_company_name?: string | null }> | undefined;
+  stages: Array<{ id: string; name: string; color: string }> | undefined;
 }
 
 export function BasicInfoSection({ form, listings, stages }: BasicInfoSectionProps) {

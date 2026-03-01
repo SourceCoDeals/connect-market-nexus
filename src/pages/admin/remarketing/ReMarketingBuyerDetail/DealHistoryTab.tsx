@@ -11,8 +11,17 @@ import {
 } from "@/components/ui/table";
 import { BarChart3 } from "lucide-react";
 
+interface RecentScore {
+  id: string;
+  composite_score: number;
+  tier: string;
+  status: string;
+  created_at: string;
+  listing: { id: string; title: string } | null;
+}
+
 interface DealHistoryTabProps {
-  recentScores: any[];
+  recentScores: RecentScore[];
 }
 
 export const DealHistoryTab = ({ recentScores }: DealHistoryTabProps) => {
@@ -40,7 +49,7 @@ export const DealHistoryTab = ({ recentScores }: DealHistoryTabProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentScores?.map((score: any) => (
+              {recentScores?.map((score) => (
                 <TableRow key={score.id}>
                   <TableCell>
                     <Link

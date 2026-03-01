@@ -63,7 +63,7 @@ export function PipelineDetailNotes({ deal }: PipelineDetailNotesProps) {
     } else setShowMentionsList(false);
   };
 
-  const insertMention = (admin: any) => {
+  const insertMention = (admin: { id: string; displayName: string; email: string }) => {
     const cursorPos = textareaRef.current?.selectionStart || 0;
     const before = newCommentText.substring(0, cursorPos);
     const after = newCommentText.substring(cursorPos);

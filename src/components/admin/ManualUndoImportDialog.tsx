@@ -30,7 +30,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
   const [selectedBatch, setSelectedBatch] = useState<ImportBatch | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [requestsToDelete, setRequestsToDelete] = useState<any[]>([]);
+  const [requestsToDelete, setRequestsToDelete] = useState<{ id: string; lead_email: string | null; lead_name: string | null; lead_company: string | null; created_at: string; source_metadata: unknown }[]>([]);
   const [strictMode, setStrictMode] = useState(true); // when more matches than expected, trim to expected by time proximity
   
   const queryClient = useQueryClient();

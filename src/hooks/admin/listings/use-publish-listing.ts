@@ -5,7 +5,7 @@ import { toast } from '@/hooks/use-toast';
 interface PublishResponse {
   success: boolean;
   message: string;
-  listing?: any;
+  listing?: Record<string, unknown>;
   error?: string;
   validationErrors?: string[];
   remarketingLinked?: boolean;

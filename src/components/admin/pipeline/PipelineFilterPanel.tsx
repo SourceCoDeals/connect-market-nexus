@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
-import { useFilterPresets, useDeleteFilterPreset } from '@/hooks/admin/use-filter-presets';
+import { useFilterPresets, useDeleteFilterPreset, type FilterPreset } from '@/hooks/admin/use-filter-presets';
 import { SaveFilterPresetDialog } from './SaveFilterPresetDialog';
 import { DateRangeFilter } from './DateRangeFilter';
 import { useState as useReactState } from 'react';
@@ -81,7 +81,7 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     sortOption: pipeline.sortOption, // Added: Include sort option in saved presets
   });
 
-  const loadPreset = (preset: any) => {
+  const loadPreset = (preset: FilterPreset) => {
     const filters = preset.filters;
     if (filters.statusFilter) pipeline.setStatusFilter(filters.statusFilter);
     if (filters.documentStatusFilter) pipeline.setDocumentStatusFilter(filters.documentStatusFilter);

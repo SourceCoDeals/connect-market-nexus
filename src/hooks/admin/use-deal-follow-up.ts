@@ -12,7 +12,7 @@ export function useUpdateFollowupStatus() {
       followed_up: boolean;
       notes?: string;
     }) => {
-      const updateData: any = {
+      const updateData: Record<string, boolean | string | null> = {
         followed_up,
         updated_at: new Date().toISOString()
       };

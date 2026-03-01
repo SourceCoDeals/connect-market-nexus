@@ -30,10 +30,10 @@ export function useExtractionHandlers(
         const data = await extractTranscriptMutation.mutateAsync({ transcriptId: transcripts[i].id }) as { insights?: { buyer?: Record<string, unknown> } } | null;
         successCount++;
         results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, insights: data?.insights?.buyer });
-      } catch (e: any) {
+      } catch (e: unknown) {
         // Extraction failed — tracked in results
         errorCount++;
-        results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, error: e?.message || 'Failed' });
+        results.push({ fileName: transcripts[i].file_name || `Transcript ${i + 1}`, error: e instanceof Error ? e.message : 'Failed' });
       }
       setExtractionProgress({ current: i + 1, total: transcripts.length, isRunning: i < transcripts.length - 1 });
     }
@@ -53,11 +53,11 @@ export function useExtractionHandlers(
         successCount: 1,
         errorCount: 0,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       const transcript = transcripts.find(t => t.id === transcriptId);
       setExtractionSummary({
         open: true,
-        results: [{ fileName: transcript?.file_name || 'Transcript', error: e?.message || 'Failed' }],
+        results: [{ fileName: transcript?.file_name || 'Transcript', error: e instanceof Error ? e.message : 'Failed' }],
         totalCount: 1,
         successCount: 0,
         errorCount: 1,

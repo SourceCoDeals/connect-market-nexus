@@ -73,7 +73,7 @@ export function PipelineViewSwitcher({
 
   // Get current stage IDs for this view
   const currentStageIds = currentView?.stage_config && currentView.stage_config.length > 0
-    ? currentView.stage_config.map((sc: { stageId: string }) => sc.stageId)
+    ? currentView.stage_config.map((sc) => sc.stageId)
     : stages.map(s => s.id);
 
   if (isLoading) {

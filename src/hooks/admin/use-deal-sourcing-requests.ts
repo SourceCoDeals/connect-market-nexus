@@ -120,7 +120,7 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
       }
 
       // Transform data to include user info
-      return (data || []).map((request: any) => ({
+      return (data || []).map((request) => ({
         ...request,
         user_email: request.profiles?.email,
         user_name: request.profiles?.first_name && request.profiles?.last_name

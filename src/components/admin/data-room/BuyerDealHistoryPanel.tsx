@@ -58,7 +58,7 @@ export function BuyerDealHistoryPanel({ buyerId }: BuyerDealHistoryPanelProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {history.map((item: any) => (
+              {history.map((item) => (
                 <TableRow key={item.deal_id}>
                   <TableCell className="font-medium text-sm">
                     {item.deal_title}

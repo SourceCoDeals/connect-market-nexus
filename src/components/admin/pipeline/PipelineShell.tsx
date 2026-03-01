@@ -52,7 +52,7 @@ export function PipelineShell() {
     }
   };
 
-  const handleBulkImport = async (data: any) => {
+  const handleBulkImport = async (data: Parameters<ReturnType<typeof useBulkDealImport>['bulkImport']['mutateAsync']>[0]) => {
     try {
       const result = await bulkImport(data);
       // Only close if there are NO duplicates to resolve

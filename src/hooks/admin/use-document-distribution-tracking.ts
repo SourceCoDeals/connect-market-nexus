@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { ApprovalQueueEntry, DealDataRoomAccess } from './use-document-distribution-types';
+import { APPROVAL_STATUSES } from '@/constants';
 
 // ─── Approval Queue ───
 
@@ -38,7 +39,7 @@ export function usePendingApprovalCount(dealId: string | undefined) {
         .from('marketplace_approval_queue')
         .select('*', { count: 'exact', head: true })
         .eq('deal_id', dealId)
-        .eq('status', 'pending');
+        .eq('status', APPROVAL_STATUSES.PENDING);
 
       if (error) throw error;
       return count || 0;
