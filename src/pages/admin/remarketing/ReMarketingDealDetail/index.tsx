@@ -15,7 +15,7 @@ import { DealHeader } from "./DealHeader";
 import { OverviewTab } from "./OverviewTab";
 import { DataRoomTab } from "./DataRoomTab";
 import { DealCallActivityTab } from "./DealCallActivityTab";
-import { DealContactHistoryTab, DealBuyerHistoryTab, BuyerIntroductionTracker } from "@/components/remarketing/deal-detail";
+import { DealContactHistoryTab, DealBuyerHistoryTab, BuyerIntroductionTracker, RecommendedBuyersSection } from "@/components/remarketing/deal-detail";
 
 const ReMarketingDealDetail = () => {
   const {
@@ -163,6 +163,10 @@ const ReMarketingDealDetail = () => {
         </TabsContent>
 
         <TabsContent value="buyer-introductions" className="space-y-6">
+          <RecommendedBuyersSection
+            listingId={dealId!}
+            listingTitle={displayName}
+          />
           <DealBuyerHistoryTab
             listingId={dealId!}
             listingTitle={displayName}

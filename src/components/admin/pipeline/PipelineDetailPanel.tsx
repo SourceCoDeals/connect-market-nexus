@@ -16,7 +16,6 @@ import { PipelineDetailNotes } from './tabs/PipelineDetailNotes';
 import { PipelineDetailDataRoom } from './tabs/PipelineDetailDataRoom';
 import { PipelineDetailDealInfo } from './tabs/PipelineDetailDealInfo';
 import { PipelineDetailOtherBuyers } from './tabs/PipelineDetailOtherBuyers';
-import { PipelineDetailRecommendedBuyers } from './tabs/PipelineDetailRecommendedBuyers';
 import { DeleteDealDialog } from '@/components/admin/deals/DeleteDealDialog';
 
 interface PipelineDetailPanelProps {
@@ -135,7 +134,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-8 mb-6">
-          <TabsList className="grid w-full grid-cols-6 bg-muted/30 h-10 rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-5 bg-muted/30 h-10 rounded-lg p-1">
             <TabsTrigger
               value="overview"
               className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
@@ -165,13 +164,6 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
               className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
             >
               Other Buyers
-            </TabsTrigger>
-            <TabsTrigger
-              value="recommended"
-              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md flex items-center gap-1"
-            >
-              <Sparkles className="h-3 w-3" />
-              AI Buyers
             </TabsTrigger>
           </TabsList>
         </div>
@@ -206,12 +198,6 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
           >
             <PipelineDetailOtherBuyers deal={selectedDeal} />
-          </TabsContent>
-          <TabsContent
-            value="recommended"
-            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
-          >
-            <PipelineDetailRecommendedBuyers deal={selectedDeal} />
           </TabsContent>
         </div>
       </Tabs>
