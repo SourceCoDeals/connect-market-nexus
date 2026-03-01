@@ -8,12 +8,7 @@ import {
   Quote,
   Sparkles,
 } from "lucide-react";
-
-const formatCurrency = (value: number) => {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
-};
+import { formatCurrency } from "@/lib/currency-utils";
 
 export function ExtractedIntelligenceView({ extractedData }: { extractedData: Record<string, unknown> }) {
   const extracted = extractedData;

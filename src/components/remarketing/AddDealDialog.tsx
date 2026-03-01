@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency as _formatCurrency } from '@/lib/currency-utils';
 import {
   Dialog,
   DialogContent,
@@ -56,9 +57,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const formatCurrency = (value: number | null) => {
   if (!value) return null;
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value}`;
+  return _formatCurrency(value);
 };
 
 export const AddDealDialog = ({

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { formatCurrency as _formatCurrency } from "@/lib/currency-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -95,9 +96,7 @@ interface UniverseDealsTableProps {
 
 const formatCurrency = (value: number | null | undefined) => {
   if (!value) return '—';
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value.toFixed(0)}`;
+  return _formatCurrency(value);
 };
 
 const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (

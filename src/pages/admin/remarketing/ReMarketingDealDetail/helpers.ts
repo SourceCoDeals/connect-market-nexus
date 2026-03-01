@@ -51,9 +51,9 @@ export const calculateDataCompleteness = (deal: any, effectiveWebsite: string | 
   return Math.round((filledFields / fields.length) * 100);
 };
 
+import { formatCurrency as _formatCurrency } from '@/lib/currency-utils';
+
 export const formatCurrency = (value: number | null): string => {
   if (!value) return "Not specified";
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value}`;
+  return _formatCurrency(value);
 };

@@ -2,6 +2,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, TrendingUp, TrendingDown, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatCurrency as _formatCurrency } from '@/lib/currency-utils';
 
 interface DealSnapshot {
   revenue?: number;
@@ -36,9 +37,7 @@ interface Change {
 
 const formatCurrency = (value: number | undefined) => {
   if (!value) return 'N/A';
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
+  return _formatCurrency(value);
 };
 
 const detectChanges = (snapshot: DealSnapshot | null, current: CurrentDeal): Change[] => {

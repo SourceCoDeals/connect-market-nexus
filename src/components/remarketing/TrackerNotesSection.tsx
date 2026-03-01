@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency as _formatCurrency } from "@/lib/currency-utils";
 import { 
   FileText, 
   Sparkles, 
@@ -91,9 +92,7 @@ export const TrackerNotesSection = ({
 
   const formatCurrency = (value?: number) => {
     if (!value) return null;
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-    return `$${value}`;
+    return _formatCurrency(value);
   };
 
   return (

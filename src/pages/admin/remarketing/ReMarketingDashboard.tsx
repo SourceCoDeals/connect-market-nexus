@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency as _formatCurrency } from "@/lib/currency-utils";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -30,10 +31,7 @@ function getFromDate(tf: Timeframe): string | null {
 
 function formatCurrency(value: number | null | undefined): string {
   if (value == null || isNaN(value)) return "—";
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
+  return _formatCurrency(value);
 }
 
 function scorePillClass(score: number | null): string {

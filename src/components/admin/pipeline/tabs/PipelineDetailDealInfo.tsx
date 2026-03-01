@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { formatCurrency as _formatCurrency } from '@/lib/currency-utils';
 import { Deal } from '@/hooks/admin/use-deals';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, DollarSign } from 'lucide-react';
@@ -20,9 +21,7 @@ interface PipelineDetailDealInfoProps {
 
 const formatCurrency = (value: number | null | undefined) => {
   if (!value) return '–';
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
+  return _formatCurrency(value);
 };
 
 export function PipelineDetailDealInfo({ deal }: PipelineDetailDealInfoProps) {

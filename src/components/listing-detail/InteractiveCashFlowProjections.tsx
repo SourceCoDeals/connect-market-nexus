@@ -6,6 +6,7 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Calculator, Download, Zap } from 'lucide-react';
+import { formatCompactCurrency } from '@/lib/utils';
 
 interface InteractiveCashFlowProjectionsProps {
   revenue: number;
@@ -145,16 +146,6 @@ export const InteractiveCashFlowProjections: React.FC<InteractiveCashFlowProject
     };
   }, [projectionData, exitMultiple, discountRate, revenue]);
 
-
-  const formatCompactCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    }
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return formatCurrency(value);
-  };
 
   return (
     <Card className="border-sourceco-form bg-white shadow-sm hover:shadow-md transition-shadow duration-300">

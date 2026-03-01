@@ -45,8 +45,6 @@ interface MarketplaceQueueDeal {
   deal_source: string | null;
 }
 
-/* formatCurrency imported from @/lib/currency-utils */
-
 const MarketplaceQueue = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();

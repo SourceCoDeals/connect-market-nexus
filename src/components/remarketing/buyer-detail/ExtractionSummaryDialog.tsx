@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, AlertTriangle, FileText, MapPin, Briefcase, TrendingUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { formatCurrency as _formatCurrency } from "@/lib/currency-utils";
 
 interface ExtractionResult {
   thesis_summary?: string;
@@ -35,9 +36,7 @@ interface ExtractionSummaryDialogProps {
 
 const formatCurrency = (val?: number) => {
   if (!val) return null;
-  if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
-  if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
-  return `$${val}`;
+  return _formatCurrency(val);
 };
 
 const Section = ({ icon: Icon, label, children }: { icon: React.ElementType; label: string; children: React.ReactNode }) => (

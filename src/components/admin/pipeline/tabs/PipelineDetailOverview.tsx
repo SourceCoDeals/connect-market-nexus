@@ -10,6 +10,7 @@ import {
   CalendarDays, Clock, Star, FileText,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { formatCurrency as _formatCurrency } from '@/lib/currency-utils';
 import { Deal } from '@/hooks/admin/use-deals';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useUpdateDeal } from '@/hooks/admin/use-deals';
@@ -113,9 +114,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   // Format currency helper
   const formatCurrency = (val?: number | null) => {
     if (val == null) return '—';
-    if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
-    if (val >= 1_000) return `$${(val / 1_000).toFixed(0)}K`;
-    return `$${val.toLocaleString()}`;
+    return _formatCurrency(val);
   };
 
   // Build combined messages

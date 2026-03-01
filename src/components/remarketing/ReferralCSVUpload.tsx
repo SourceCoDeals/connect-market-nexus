@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency as _formatCurrency } from "@/lib/currency-utils";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -179,9 +180,7 @@ export function ReferralCSVUpload({
 
   const formatCurrency = (value: number | null) => {
     if (!value) return "-";
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-    return `$${value.toLocaleString()}`;
+    return _formatCurrency(value);
   };
 
   if (showPreview && parsedRows.length > 0) {

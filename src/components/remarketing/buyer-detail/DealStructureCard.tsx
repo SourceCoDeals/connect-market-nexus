@@ -2,6 +2,7 @@ import { DollarSign, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { formatCurrency as _formatCurrency } from "@/lib/currency-utils";
 
 interface DealStructureCardProps {
   minRevenue?: number | null;
@@ -16,13 +17,7 @@ interface DealStructureCardProps {
 
 const formatCurrency = (value: number | null | undefined): string => {
   if (value === null || value === undefined) return "—";
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
-  }
-  if (value >= 1_000) {
-    return `$${(value / 1_000).toFixed(0)}K`;
-  }
-  return `$${value}`;
+  return _formatCurrency(value);
 };
 
 export const DealStructureCard = ({

@@ -15,6 +15,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { formatCurrency as _formatCurrency } from "@/lib/currency-utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -240,13 +241,7 @@ const getScoreDescription = (score: number, disqualified: boolean): string => {
 
 const formatCurrency = (value: number | null | undefined) => {
   if (!value) return null;
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(0)}M`;
-  }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
-  return `$${value}`;
+  return _formatCurrency(value);
 };
 
 // Get fit label based on score (aligned with spec tier bands)

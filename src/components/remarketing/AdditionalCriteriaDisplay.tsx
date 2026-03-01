@@ -11,6 +11,7 @@ import {
   Ruler
 } from "lucide-react";
 import { SizeCriteria, GeographyCriteria, ServiceCriteria } from "@/types/remarketing";
+import { formatCurrency as _formatCurrency } from "@/lib/currency-utils";
 
 interface AdditionalCriteriaDisplayProps {
   sizeCriteria: SizeCriteria;
@@ -22,13 +23,7 @@ interface AdditionalCriteriaDisplayProps {
 
 const formatCurrency = (value: number | undefined) => {
   if (!value) return '-';
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
-  return `$${value.toLocaleString()}`;
+  return _formatCurrency(value);
 };
 
 export const AdditionalCriteriaDisplay = ({
