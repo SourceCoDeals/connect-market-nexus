@@ -14,16 +14,14 @@
  *   Embedded within ConnectionRequestsTable on the admin requests page
  *   (/admin/requests)
  */
-import { useState, useEffect, useRef } from "react";
-import { useConnectionRequestFirm } from "@/hooks/admin/use-connection-request-firm";
-import { SendAgreementDialog } from "@/components/docuseal/SendAgreementDialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useState, useEffect, useRef } from 'react';
+import { useConnectionRequestFirm } from '@/hooks/admin/use-connection-request-firm';
+import { SendAgreementDialog } from '@/components/docuseal/SendAgreementDialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   FileText,
   Shield,
@@ -36,32 +34,28 @@ import {
   Scale,
   Link2,
   Flag,
-} from "lucide-react";
-import { UserNotesSection } from "./UserNotesSection";
-import { User as UserType, Listing } from "@/types";
+} from 'lucide-react';
+import { UserNotesSection } from './UserNotesSection';
+import { User as UserType, Listing } from '@/types';
 
-import { useUpdateConnectionRequestStatus } from "@/hooks/admin/use-connection-request-status";
-import { useFlagConnectionRequest } from "@/hooks/admin/use-flag-connection-request";
-import { useAdminProfiles } from "@/hooks/admin/use-admin-profiles";
-import { useAddManualTask } from "@/hooks/useDailyTasks";
-import { useUserConnectionRequests } from "@/hooks/admin/use-user-connection-requests";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { useUpdateAccess } from "@/hooks/admin/data-room/use-data-room";
+import { useUpdateConnectionRequestStatus } from '@/hooks/admin/use-connection-request-status';
+import { useFlagConnectionRequest } from '@/hooks/admin/use-flag-connection-request';
+import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { useAddManualTask } from '@/hooks/useDailyTasks';
+import { useUserConnectionRequests } from '@/hooks/admin/use-user-connection-requests';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useUpdateAccess } from '@/hooks/admin/data-room/use-data-room';
 import {
   useConnectionMessages,
   useSendMessage,
   useMarkMessagesReadByAdmin,
-} from "@/hooks/use-connection-messages";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow, format } from "date-fns";
-import { getBuyerTier } from "@/lib/buyer-metrics";
-import { processUrl } from "@/lib/url-utils";
+} from '@/hooks/use-connection-messages';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { formatDistanceToNow, format } from 'date-fns';
+import { getBuyerTier } from '@/lib/buyer-metrics';
+import { processUrl } from '@/lib/url-utils';
 import {
   Dialog,
   DialogContent,
@@ -69,13 +63,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 
 interface ConnectionRequestActionsProps {
   user: UserType;
   listing?: Listing;
   requestId?: string;
-  requestStatus?: "pending" | "approved" | "rejected" | "on_hold";
+  requestStatus?: 'pending' | 'approved' | 'rejected' | 'on_hold';
   userMessage?: string;
   createdAt?: string;
   // Flag for review
@@ -89,7 +83,7 @@ interface ConnectionRequestActionsProps {
   onLocalStateUpdate?: (
     updatedUser: UserType,
     updatedFollowedUp?: boolean,
-    updatedNegativeFollowedUp?: boolean
+    updatedNegativeFollowedUp?: boolean,
   ) => void;
 }
 
@@ -97,7 +91,7 @@ export function ConnectionRequestActions({
   user,
   listing,
   requestId,
-  requestStatus = "pending",
+  requestStatus = 'pending',
   userMessage,
   createdAt,
   flaggedForReview,
@@ -115,12 +109,13 @@ export function ConnectionRequestActions({
   const { data: firmInfo } = useConnectionRequestFirm(requestId || null);
 
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
   const [sendAgreementOpen, setSendAgreementOpen] = useState(false);
   const [sendAgreementType, setSendAgreementType] = useState<'nda' | 'fee_agreement'>('nda');
-  const [rejectNote, setRejectNote] = useState("");
-  const [activeTab, setActiveTab] = useState<"thread" | "notes">("thread");
+  const [rejectNote, setRejectNote] = useState('');
+  const [activeTab, setActiveTab] = useState<'thread' | 'notes'>('thread');
   const [pendingAccessToggle, setPendingAccessToggle] = useState<{
-    field: "can_view_teaser" | "can_view_full_memo" | "can_view_data_room";
+    field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room';
     newValue: boolean;
     label: string;
   } | null>(null);
@@ -135,15 +130,15 @@ export function ConnectionRequestActions({
 
   // Fetch current data room access for this buyer + listing
   const { data: accessRecord } = useQuery({
-    queryKey: ["buyer-access", listing?.id, user.id],
+    queryKey: ['buyer-access', listing?.id, user.id],
     queryFn: async () => {
       if (!listing?.id) return null;
       const { data, error } = await supabase
-        .from("data_room_access")
-        .select("id, can_view_teaser, can_view_full_memo, can_view_data_room")
-        .eq("deal_id", listing.id)
-        .eq("marketplace_user_id", user.id)
-        .is("revoked_at", null)
+        .from('data_room_access')
+        .select('id, can_view_teaser, can_view_full_memo, can_view_data_room')
+        .eq('deal_id', listing.id)
+        .eq('marketplace_user_id', user.id)
+        .is('revoked_at', null)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -153,79 +148,88 @@ export function ConnectionRequestActions({
 
   const hasFeeAgreement = firmInfo?.fee_agreement_signed || user.fee_agreement_signed || false;
   const hasNDA = firmInfo?.nda_signed || user.nda_signed || false;
-  const ndaStatus = firmInfo?.nda_status || (user.nda_signed ? 'signed' : user.nda_email_sent ? 'sent' : 'not_started');
-  const feeStatus = firmInfo?.fee_agreement_status || (user.fee_agreement_signed ? 'signed' : user.fee_agreement_email_sent ? 'sent' : 'not_started');
+  const ndaStatus =
+    firmInfo?.nda_status ||
+    (user.nda_signed ? 'signed' : user.nda_email_sent ? 'sent' : 'not_started');
+  const feeStatus =
+    firmInfo?.fee_agreement_status ||
+    (user.fee_agreement_signed ? 'signed' : user.fee_agreement_email_sent ? 'sent' : 'not_started');
 
   // ─── Decision Handlers ───
 
   const handleAccept = async () => {
     if (!requestId) return;
     try {
-      await updateStatus.mutateAsync({ requestId, status: "approved" });
+      await updateStatus.mutateAsync({ requestId, status: 'approved' });
       await sendMessage.mutateAsync({
         connection_request_id: requestId,
-        body: "We have sent you a brief overview of the deal. Please let us know if you are still interested.",
-        sender_role: "admin",
-        message_type: "decision",
+        body: 'We have sent you a brief overview of the deal. Please let us know if you are still interested.',
+        sender_role: 'admin',
+        message_type: 'decision',
       });
-      toast({ title: "Request approved", description: "Buyer has been notified." });
+      toast({ title: 'Request approved', description: 'Buyer has been notified.' });
     } catch (err) {
       toast({
-        title: "Action failed",
-        description: err instanceof Error ? err.message : "Could not complete the action.",
-        variant: "destructive",
+        title: 'Action failed',
+        description: err instanceof Error ? err.message : 'Could not complete the action.',
+        variant: 'destructive',
       });
     }
   };
 
   const handleReject = async () => {
-    if (!requestId) return;
+    if (!requestId || isRejecting) return;
+    setIsRejecting(true);
     const note = rejectNote.trim();
     try {
       await updateStatus.mutateAsync({
         requestId,
-        status: "rejected",
+        status: 'rejected',
         notes: note || undefined,
       });
       await sendMessage.mutateAsync({
         connection_request_id: requestId,
-        body: note || "Request declined.",
-        sender_role: "admin",
-        message_type: "decision",
+        body: note || 'Request declined.',
+        sender_role: 'admin',
+        message_type: 'decision',
       });
 
       // Send rejection email to buyer
       const buyerEmail = user.email;
-      const buyerName = `${user.first_name || ""} ${user.last_name || ""}`.trim();
-      const companyName = listing?.title || "the listing";
+      const buyerName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+      const companyName = listing?.title || 'the listing';
       if (buyerEmail) {
-        supabase.functions.invoke("notify-buyer-rejection", {
-          body: {
-            connectionRequestId: requestId,
-            buyerEmail,
-            buyerName: buyerName || buyerEmail,
-            companyName,
-          },
-        }).catch((emailErr) => {
-          console.error("[rejection-email] Failed to send rejection email:", emailErr);
-        });
+        supabase.functions
+          .invoke('notify-buyer-rejection', {
+            body: {
+              connectionRequestId: requestId,
+              buyerEmail,
+              buyerName: buyerName || buyerEmail,
+              companyName,
+            },
+          })
+          .catch((emailErr) => {
+            console.error('[rejection-email] Failed to send rejection email:', emailErr);
+          });
       }
 
       setShowRejectDialog(false);
-      setRejectNote("");
-      toast({ title: "Request declined", description: "Buyer has been notified via email." });
+      setRejectNote('');
+      toast({ title: 'Request declined', description: 'Buyer has been notified via email.' });
     } catch (err) {
       toast({
-        title: "Action failed",
-        description: err instanceof Error ? err.message : "Could not complete the action.",
-        variant: "destructive",
+        title: 'Action failed',
+        description: err instanceof Error ? err.message : 'Could not complete the action.',
+        variant: 'destructive',
       });
+    } finally {
+      setIsRejecting(false);
     }
   };
 
   const handleResetToPending = () => {
     if (!requestId) return;
-    updateStatus.mutate({ requestId, status: "pending" });
+    updateStatus.mutate({ requestId, status: 'pending' });
   };
 
   // ─── Flag for Review ───
@@ -236,8 +240,8 @@ export function ConnectionRequestActions({
 
     const assignedAdmin = adminProfiles?.[assignedToId];
     void assignedAdmin;
-    const buyerLabel = `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Buyer";
-    const dealLabel = listing?.title || "a deal";
+    const buyerLabel = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Buyer';
+    const dealLabel = listing?.title || 'a deal';
 
     // Flag the connection request
     flagMutation.mutate({
@@ -252,8 +256,8 @@ export function ConnectionRequestActions({
         title: `Review flagged request: ${buyerLabel} → ${dealLabel}`,
         description: `A connection request from ${buyerLabel} for "${dealLabel}" has been flagged for your review. Please open the connection request in the admin dashboard to take action.`,
         assignee_id: assignedToId,
-        task_type: "follow_up_with_buyer",
-        due_date: new Date().toISOString().split("T")[0],
+        task_type: 'follow_up_with_buyer',
+        due_date: new Date().toISOString().split('T')[0],
         deal_reference: listing?.title || null,
         deal_id: null,
       });
@@ -270,27 +274,27 @@ export function ConnectionRequestActions({
   // ─── Document Access ───
 
   const requestAccessToggle = (
-    field: "can_view_teaser" | "can_view_full_memo" | "can_view_data_room",
-    newValue: boolean
+    field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
+    newValue: boolean,
   ) => {
     if (!listing?.id) return;
     if (
-      (field === "can_view_full_memo" || field === "can_view_data_room") &&
+      (field === 'can_view_full_memo' || field === 'can_view_data_room') &&
       newValue &&
       !hasFeeAgreement
     ) {
       toast({
-        title: "Fee Agreement Required",
+        title: 'Fee Agreement Required',
         description:
-          "A signed fee agreement is required before releasing the full memo or data room access.",
-        variant: "destructive",
+          'A signed fee agreement is required before releasing the full memo or data room access.',
+        variant: 'destructive',
       });
       return;
     }
     const labels: Record<string, string> = {
-      can_view_teaser: "Teaser",
-      can_view_full_memo: "Full Memo",
-      can_view_data_room: "Data Room",
+      can_view_teaser: 'Teaser',
+      can_view_full_memo: 'Full Memo',
+      can_view_data_room: 'Data Room',
     };
     setPendingAccessToggle({ field, newValue, label: labels[field] });
   };
@@ -303,35 +307,25 @@ export function ConnectionRequestActions({
         deal_id: listing.id,
         marketplace_user_id: user.id,
         can_view_teaser:
-          field === "can_view_teaser"
-            ? newValue
-            : (accessRecord?.can_view_teaser ?? false),
+          field === 'can_view_teaser' ? newValue : (accessRecord?.can_view_teaser ?? false),
         can_view_full_memo:
-          field === "can_view_full_memo"
-            ? newValue
-            : (accessRecord?.can_view_full_memo ?? false),
+          field === 'can_view_full_memo' ? newValue : (accessRecord?.can_view_full_memo ?? false),
         can_view_data_room:
-          field === "can_view_data_room"
-            ? newValue
-            : (accessRecord?.can_view_data_room ?? false),
+          field === 'can_view_data_room' ? newValue : (accessRecord?.can_view_data_room ?? false),
       },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({
-            queryKey: ["buyer-access", listing?.id, user.id],
+            queryKey: ['buyer-access', listing?.id, user.id],
           });
         },
-      }
+      },
     );
     setPendingAccessToggle(null);
   };
 
   const getDocStatusDot = (signed: boolean) => (
-    <div
-      className={`w-2 h-2 rounded-full ${
-        signed ? "bg-emerald-500" : "bg-amber-500"
-      }`}
-    />
+    <div className={`w-2 h-2 rounded-full ${signed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
   );
 
   const tierInfo = getBuyerTier(user);
@@ -343,12 +337,12 @@ export function ConnectionRequestActions({
   const formattedDate = createdAt ? format(new Date(createdAt), 'MMM d, yyyy') : '';
   const aum = user.aum;
 
-  const otherRequests = userRequests.filter(r => r.id !== requestId);
+  const otherRequests = userRequests.filter((r) => r.id !== requestId);
 
   return (
     <div className="space-y-5">
       {/* ── DECISION BANNER ── */}
-       {requestStatus === "pending" && requestId && (
+      {requestStatus === 'pending' && requestId && (
         <div className="bg-sourceco-muted rounded-xl overflow-hidden shadow-md border border-sourceco/30">
           <div className="px-6 py-5 flex items-center justify-between gap-6">
             <div className="flex items-center gap-4 min-w-0">
@@ -356,8 +350,13 @@ export function ConnectionRequestActions({
                 <Scale className="h-6 w-6 text-sourceco" />
               </div>
               <div>
-                <p className="text-lg font-extrabold text-foreground tracking-tight">Decision Required</p>
-                <p className="text-sm text-muted-foreground">Review this connection request — only approved requests advance to the active pipeline</p>
+                <p className="text-lg font-extrabold text-foreground tracking-tight">
+                  Decision Required
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Review this connection request — only approved requests advance to the active
+                  pipeline
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
@@ -389,7 +388,9 @@ export function ConnectionRequestActions({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64 p-2" align="end">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-3 py-2">Assign to team member</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-3 py-2">
+                    Assign to team member
+                  </p>
                   <div className="max-h-56 overflow-y-auto">
                     {adminList.map((admin) => (
                       <button
@@ -401,7 +402,9 @@ export function ConnectionRequestActions({
                       </button>
                     ))}
                     {adminList.length === 0 && (
-                      <p className="text-xs text-muted-foreground px-3 py-2">No team members found</p>
+                      <p className="text-xs text-muted-foreground px-3 py-2">
+                        No team members found
+                      </p>
                     )}
                   </div>
                 </PopoverContent>
@@ -426,7 +429,9 @@ export function ConnectionRequestActions({
                 Flagged for Review
                 {flaggedAssignedToAdmin && (
                   <span className="font-normal text-orange-700">
-                    {" "}— assigned to {flaggedAssignedToAdmin.first_name} {flaggedAssignedToAdmin.last_name}
+                    {' '}
+                    — assigned to {flaggedAssignedToAdmin.first_name}{' '}
+                    {flaggedAssignedToAdmin.last_name}
                   </span>
                 )}
               </p>
@@ -437,14 +442,20 @@ export function ConnectionRequestActions({
               )}
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleUnflag} disabled={flagMutation.isPending} className="text-xs h-7 text-orange-700 hover:text-orange-800 hover:bg-orange-200/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleUnflag}
+            disabled={flagMutation.isPending}
+            className="text-xs h-7 text-orange-700 hover:text-orange-800 hover:bg-orange-200/50"
+          >
             <XCircle className="h-3 w-3 mr-1" /> Remove Flag
           </Button>
         </div>
       )}
 
       {/* Status banner — approved */}
-      {requestStatus === "approved" && requestId && (
+      {requestStatus === 'approved' && requestId && (
         <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center">
@@ -455,14 +466,20 @@ export function ConnectionRequestActions({
               <p className="text-xs text-emerald-700">This buyer has been moved to the pipeline.</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleResetToPending} disabled={updateStatus.isPending} className="text-xs h-7 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-200/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetToPending}
+            disabled={updateStatus.isPending}
+            className="text-xs h-7 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-200/50"
+          >
             <Undo2 className="h-3 w-3 mr-1" /> Undo
           </Button>
         </div>
       )}
 
       {/* Status banner — rejected */}
-      {requestStatus === "rejected" && requestId && (
+      {requestStatus === 'rejected' && requestId && (
         <div className="rounded-xl bg-red-50 border border-red-200 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-red-600 flex items-center justify-center">
@@ -473,14 +490,20 @@ export function ConnectionRequestActions({
               <p className="text-xs text-red-700">This buyer has been notified.</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleResetToPending} disabled={updateStatus.isPending} className="text-xs h-7 text-red-700 hover:text-red-800 hover:bg-red-200/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetToPending}
+            disabled={updateStatus.isPending}
+            className="text-xs h-7 text-red-700 hover:text-red-800 hover:bg-red-200/50"
+          >
             <Undo2 className="h-3 w-3 mr-1" /> Undo
           </Button>
         </div>
       )}
 
       {/* Status banner — on hold */}
-      {requestStatus === "on_hold" && requestId && (
+      {requestStatus === 'on_hold' && requestId && (
         <div className="rounded-xl bg-amber-50 border border-amber-200 px-5 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-full bg-amber-600 flex items-center justify-center">
@@ -491,14 +514,20 @@ export function ConnectionRequestActions({
               <p className="text-xs text-amber-700">This request is paused for review.</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleResetToPending} disabled={updateStatus.isPending} className="text-xs h-7 text-amber-700 hover:text-amber-800 hover:bg-amber-200/50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetToPending}
+            disabled={updateStatus.isPending}
+            className="text-xs h-7 text-amber-700 hover:text-amber-800 hover:bg-amber-200/50"
+          >
             <Undo2 className="h-3 w-3 mr-1" /> Undo
           </Button>
         </div>
       )}
 
       {/* Flag for Review button — for non-pending statuses when not already flagged */}
-      {requestStatus !== "pending" && !flaggedForReview && requestId && (
+      {requestStatus !== 'pending' && !flaggedForReview && requestId && (
         <Popover open={flagPopoverOpen} onOpenChange={setFlagPopoverOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -510,7 +539,9 @@ export function ConnectionRequestActions({
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64 p-2" align="start">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-3 py-2">Assign to team member</p>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-3 py-2">
+              Assign to team member
+            </p>
             <div className="max-h-56 overflow-y-auto">
               {adminList.map((admin) => (
                 <button
@@ -530,7 +561,7 @@ export function ConnectionRequestActions({
       )}
 
       {/* Document status + access for approved */}
-      {requestStatus === "approved" && listing && (
+      {requestStatus === 'approved' && listing && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="bg-card border border-border rounded-lg p-4">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
@@ -539,11 +570,21 @@ export function ConnectionRequestActions({
             <div className="space-y-2">
               <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                 <span className="text-xs font-medium">NDA</span>
-                <div className="flex items-center gap-1.5">{getDocStatusDot(hasNDA)}<span className="text-xs text-muted-foreground">{hasNDA ? "Signed" : "Required"}</span></div>
+                <div className="flex items-center gap-1.5">
+                  {getDocStatusDot(hasNDA)}
+                  <span className="text-xs text-muted-foreground">
+                    {hasNDA ? 'Signed' : 'Required'}
+                  </span>
+                </div>
               </div>
               <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                 <span className="text-xs font-medium">Fee Agreement</span>
-                <div className="flex items-center gap-1.5">{getDocStatusDot(hasFeeAgreement)}<span className="text-xs text-muted-foreground">{hasFeeAgreement ? "Signed" : "Required"}</span></div>
+                <div className="flex items-center gap-1.5">
+                  {getDocStatusDot(hasFeeAgreement)}
+                  <span className="text-xs text-muted-foreground">
+                    {hasFeeAgreement ? 'Signed' : 'Required'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -555,21 +596,58 @@ export function ConnectionRequestActions({
               <div className="space-y-2">
                 <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                   <span className="text-xs font-medium">Teaser</span>
-                  <Switch checked={accessRecord?.can_view_teaser ?? false} onCheckedChange={(checked) => requestAccessToggle("can_view_teaser", checked)} disabled={updateAccess.isPending} className="scale-75" />
+                  <Switch
+                    checked={accessRecord?.can_view_teaser ?? false}
+                    onCheckedChange={(checked) => requestAccessToggle('can_view_teaser', checked)}
+                    disabled={updateAccess.isPending}
+                    className="scale-75"
+                  />
                 </div>
                 <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium">Full Memo</span>
-                    {!hasFeeAgreement && <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-amber-500" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Requires signed fee agreement</TooltipContent></Tooltip>}
+                    {!hasFeeAgreement && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Lock className="h-3 w-3 text-amber-500" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          Requires signed fee agreement
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
-                  <Switch checked={accessRecord?.can_view_full_memo ?? false} onCheckedChange={(checked) => requestAccessToggle("can_view_full_memo", checked)} disabled={updateAccess.isPending || !hasFeeAgreement} className="scale-75" />
+                  <Switch
+                    checked={accessRecord?.can_view_full_memo ?? false}
+                    onCheckedChange={(checked) =>
+                      requestAccessToggle('can_view_full_memo', checked)
+                    }
+                    disabled={updateAccess.isPending || !hasFeeAgreement}
+                    className="scale-75"
+                  />
                 </div>
                 <div className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/30">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium">Data Room</span>
-                    {!hasFeeAgreement && <Tooltip><TooltipTrigger asChild><Lock className="h-3 w-3 text-amber-500" /></TooltipTrigger><TooltipContent side="top" className="text-xs">Requires signed fee agreement</TooltipContent></Tooltip>}
+                    {!hasFeeAgreement && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Lock className="h-3 w-3 text-amber-500" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          Requires signed fee agreement
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
-                  <Switch checked={accessRecord?.can_view_data_room ?? false} onCheckedChange={(checked) => requestAccessToggle("can_view_data_room", checked)} disabled={updateAccess.isPending || !hasFeeAgreement} className="scale-75" />
+                  <Switch
+                    checked={accessRecord?.can_view_data_room ?? false}
+                    onCheckedChange={(checked) =>
+                      requestAccessToggle('can_view_data_room', checked)
+                    }
+                    disabled={updateAccess.isPending || !hasFeeAgreement}
+                    className="scale-75"
+                  />
                 </div>
               </div>
             </div>
@@ -583,46 +661,88 @@ export function ConnectionRequestActions({
         <div className="px-6 py-5 flex items-start gap-5">
           {/* Avatar */}
           <div className="w-[48px] h-[48px] rounded-full bg-sourceco/20 border-2 border-sourceco flex items-center justify-center shrink-0">
-            <span className="text-foreground text-base font-bold" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerInitials}</span>
+            <span
+              className="text-foreground text-base font-bold"
+              style={{ fontFamily: 'Manrope, sans-serif' }}
+            >
+              {buyerInitials}
+            </span>
           </div>
 
           {/* Left: Name + description */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>{buyerName}</h2>
+              <h2
+                className="text-2xl font-extrabold text-foreground tracking-tight"
+                style={{ fontFamily: 'Manrope, sans-serif' }}
+              >
+                {buyerName}
+              </h2>
               {user.linkedin_profile && (
-                <a href={processUrl(user.linkedin_profile)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline">
+                <a
+                  href={processUrl(user.linkedin_profile)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-primary hover:underline"
+                >
                   LinkedIn ↗
                 </a>
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {user.job_title ? `${user.job_title} at ` : ''}{firmName}
-              {buyerEmail && <> · <a href={`mailto:${buyerEmail}`} className="text-foreground hover:underline">{buyerEmail}</a></>}
+              {user.job_title ? `${user.job_title} at ` : ''}
+              {firmName}
+              {buyerEmail && (
+                <>
+                  {' '}
+                  ·{' '}
+                  <a href={`mailto:${buyerEmail}`} className="text-foreground hover:underline">
+                    {buyerEmail}
+                  </a>
+                </>
+              )}
               {user.website && (
-                <> · <a href={processUrl(user.website)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{user.website.replace(/^https?:\/\//, '')}</a></>
+                <>
+                  {' '}
+                  ·{' '}
+                  <a
+                    href={processUrl(user.website)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    {user.website.replace(/^https?:\/\//, '')}
+                  </a>
+                </>
               )}
             </p>
 
             {/* Quick snapshot — the key info for fast decisions */}
             <p className="text-sm text-foreground mt-2 leading-relaxed">
-              {user.bio || `${tierInfo.description || 'Buyer'} ${firmName ? `at ${firmName}` : ''}${user.business_categories && Array.isArray(user.business_categories) && user.business_categories.length > 0 ? `, focused on ${(user.business_categories as string[]).slice(0, 3).join(', ')}` : ''}${aum ? `. AUM: ${aum}` : ''}.`}
+              {user.bio ||
+                `${tierInfo.description || 'Buyer'} ${firmName ? `at ${firmName}` : ''}${user.business_categories && Array.isArray(user.business_categories) && user.business_categories.length > 0 ? `, focused on ${(user.business_categories as string[]).slice(0, 3).join(', ')}` : ''}${aum ? `. AUM: ${aum}` : ''}.`}
             </p>
 
             {/* Tags — no Marketplace badge, no duplicate AUM */}
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               {tierInfo.description && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-foreground">{tierInfo.description}</span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-foreground">
+                  {tierInfo.description}
+                </span>
               )}
               {firmName && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sourceco/10 text-sourceco">{firmName}</span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-sourceco/10 text-sourceco">
+                  {firmName}
+                </span>
               )}
             </div>
           </div>
 
           {/* Right: Key stats — bigger text */}
           <div className="shrink-0 text-right">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Requested</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Requested
+            </p>
             <p className="text-base font-semibold text-foreground">{formattedDate || '—'}</p>
           </div>
         </div>
@@ -639,27 +759,27 @@ export function ConnectionRequestActions({
             <div className="border-b border-border px-5 flex items-center bg-muted/30">
               <button
                 className={`py-3 px-1 text-[13.5px] font-medium border-b-2 transition-colors mr-5 ${
-                  activeTab === "thread"
-                    ? "border-sourceco text-sourceco font-bold"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                  activeTab === 'thread'
+                    ? 'border-sourceco text-sourceco font-bold'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
-                onClick={() => setActiveTab("thread")}
+                onClick={() => setActiveTab('thread')}
               >
                 Conversation Thread
               </button>
               <button
                 className={`py-3 px-1 text-[13.5px] font-medium border-b-2 transition-colors ${
-                  activeTab === "notes"
-                    ? "border-sourceco text-sourceco font-bold"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                  activeTab === 'notes'
+                    ? 'border-sourceco text-sourceco font-bold'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
-                onClick={() => setActiveTab("notes")}
+                onClick={() => setActiveTab('notes')}
               >
                 Internal Notes
               </button>
             </div>
 
-            {activeTab === "thread" && requestId && (
+            {activeTab === 'thread' && requestId && (
               <ConversationThread
                 connectionRequestId={requestId}
                 buyerName={buyerName}
@@ -669,7 +789,7 @@ export function ConnectionRequestActions({
               />
             )}
 
-            {activeTab === "notes" && (
+            {activeTab === 'notes' && (
               <div className="p-5 bg-muted/20">
                 <div className="bg-muted/50 border border-border rounded-lg px-4 py-2.5 mb-4 text-xs text-foreground flex items-center gap-2">
                   <Lock className="h-3.5 w-3.5 shrink-0" />
@@ -683,22 +803,24 @@ export function ConnectionRequestActions({
 
         {/* ── RIGHT SIDEBAR ── */}
         <div className="space-y-4">
-
-
-
           {/* Agreements */}
           <SidebarCard title="Agreements">
             <div className="space-y-0">
               <div className="flex items-center justify-between py-3 border-b border-border/30 last:border-b-0">
                 <span className="text-base text-muted-foreground font-medium">NDA</span>
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-2.5 h-2.5 rounded-full ${hasNDA ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <div
+                    className={`w-2.5 h-2.5 rounded-full ${hasNDA ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                  />
                   <span className="text-base font-semibold text-foreground">
                     {hasNDA ? 'Signed' : ndaStatus === 'sent' ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasNDA && firmInfo?.firm_id && (
                     <button
-                      onClick={() => { setSendAgreementType('nda'); setSendAgreementOpen(true); }}
+                      onClick={() => {
+                        setSendAgreementType('nda');
+                        setSendAgreementOpen(true);
+                      }}
                       className="text-sm font-bold text-sourceco-foreground bg-sourceco border border-sourceco rounded-md px-3 py-1 hover:bg-sourceco/90 transition-colors shadow-sm"
                     >
                       ↗ Send
@@ -709,13 +831,18 @@ export function ConnectionRequestActions({
               <div className="flex items-center justify-between py-3">
                 <span className="text-base text-muted-foreground font-medium">Fee Agreement</span>
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-2.5 h-2.5 rounded-full ${hasFeeAgreement ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <div
+                    className={`w-2.5 h-2.5 rounded-full ${hasFeeAgreement ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                  />
                   <span className="text-base font-semibold text-foreground">
                     {hasFeeAgreement ? 'Signed' : feeStatus === 'sent' ? 'Sent' : 'Not Sent'}
                   </span>
                   {!hasFeeAgreement && firmInfo?.firm_id && (
                     <button
-                      onClick={() => { setSendAgreementType('fee_agreement'); setSendAgreementOpen(true); }}
+                      onClick={() => {
+                        setSendAgreementType('fee_agreement');
+                        setSendAgreementOpen(true);
+                      }}
                       className="text-sm font-bold text-sourceco-foreground bg-sourceco border border-sourceco rounded-md px-3 py-1 hover:bg-sourceco/90 transition-colors shadow-sm"
                     >
                       ↗ Send
@@ -733,10 +860,14 @@ export function ConnectionRequestActions({
                 {/* Tags */}
                 <div className="flex gap-1.5 flex-wrap mb-3">
                   {listing.category && (
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground">{listing.category}</span>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground">
+                      {listing.category}
+                    </span>
                   )}
                   {listing.location && (
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground">{listing.location}</span>
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground">
+                      {listing.location}
+                    </span>
                   )}
                 </div>
                 {/* Title */}
@@ -750,15 +881,27 @@ export function ConnectionRequestActions({
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 gap-2.5 mt-3.5">
                   <div className="bg-muted/40 border border-border rounded-lg px-4 py-3">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">EBITDA</p>
-                    <p className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                      EBITDA
+                    </p>
+                    <p
+                      className="text-xl font-extrabold text-foreground tracking-tight"
+                      style={{ fontFamily: 'Manrope, sans-serif' }}
+                    >
                       {listing.ebitda ? `$${Number(listing.ebitda).toLocaleString()}` : 'TBD'}
                     </p>
                   </div>
                   <div className="bg-muted/40 border border-border rounded-lg px-4 py-3">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">Ask Price</p>
-                    <p className="text-xl font-extrabold text-foreground tracking-tight" style={{ fontFamily: 'Manrope, sans-serif' }}>
-                      {(listing as any).asking_price ? `$${Number((listing as any).asking_price).toLocaleString()}` : 'TBD'}
+                    <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                      Ask Price
+                    </p>
+                    <p
+                      className="text-xl font-extrabold text-foreground tracking-tight"
+                      style={{ fontFamily: 'Manrope, sans-serif' }}
+                    >
+                      {(listing as any).asking_price
+                        ? `$${Number((listing as any).asking_price).toLocaleString()}`
+                        : 'TBD'}
                     </p>
                   </div>
                 </div>
@@ -770,7 +913,9 @@ export function ConnectionRequestActions({
           {otherRequests.length > 0 && (
             <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
               <div className="px-5 py-3.5 border-b border-border bg-muted/30 flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-[1.2px] text-muted-foreground">Other Active Interests</h3>
+                <h3 className="text-xs font-bold uppercase tracking-[1.2px] text-muted-foreground">
+                  Other Active Interests
+                </h3>
                 <span className="text-sm font-bold px-2.5 py-0.5 rounded-full bg-sourceco/10 text-sourceco border border-sourceco/15">
                   {otherRequests.length}
                 </span>
@@ -790,15 +935,26 @@ export function ConnectionRequestActions({
                           {req.listing?.title || 'Unknown Listing'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {req.listing?.revenue ? `$${Number(req.listing.revenue).toLocaleString()}` : 'N/A'} · {req.listing?.location || 'N/A'}
+                          {req.listing?.revenue
+                            ? `$${Number(req.listing.revenue).toLocaleString()}`
+                            : 'N/A'}{' '}
+                          · {req.listing?.location || 'N/A'}
                         </p>
                       </div>
-                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap tracking-wide ${
-                        req.status === 'approved' ? 'bg-emerald-50 text-emerald-600' :
-                        req.status === 'rejected' ? 'bg-red-50 text-red-600' :
-                        'bg-amber-50 text-amber-600'
-                      }`}>
-                        {req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Declined' : 'Pending'}
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap tracking-wide ${
+                          req.status === 'approved'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : req.status === 'rejected'
+                              ? 'bg-red-50 text-red-600'
+                              : 'bg-amber-50 text-amber-600'
+                        }`}
+                      >
+                        {req.status === 'approved'
+                          ? 'Approved'
+                          : req.status === 'rejected'
+                            ? 'Declined'
+                            : 'Pending'}
                       </span>
                     </div>
                   </a>
@@ -818,10 +974,11 @@ export function ConnectionRequestActions({
           <DialogHeader>
             <DialogTitle className="text-lg">Reject this request?</DialogTitle>
             <DialogDescription className="text-sm">
-              <span className="font-medium text-foreground">{buyerName}</span> from{" "}
-              <span className="font-medium text-foreground">{firmName || 'Unknown Firm'}</span>{" "}
-              will be notified that their connection request
-              {listing ? ` for "${listing.title}"` : ''} was not approved. This action can be undone.
+              <span className="font-medium text-foreground">{buyerName}</span> from{' '}
+              <span className="font-medium text-foreground">{firmName || 'Unknown Firm'}</span> will
+              be notified that their connection request
+              {listing ? ` for "${listing.title}"` : ''} was not approved. This action can be
+              undone.
             </DialogDescription>
           </DialogHeader>
           <Textarea
@@ -831,20 +988,39 @@ export function ConnectionRequestActions({
             className="min-h-[80px] resize-none text-sm"
           />
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => { setShowRejectDialog(false); setRejectNote(""); }}>Cancel</Button>
-            <Button variant="destructive" onClick={handleReject} disabled={updateStatus.isPending} className="bg-red-600 hover:bg-red-700">
-              <XCircle className="h-4 w-4 mr-2" /> Reject Request
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRejectDialog(false);
+                setRejectNote('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={updateStatus.isPending || isRejecting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <XCircle className="h-4 w-4 mr-2" /> {isRejecting ? 'Rejecting...' : 'Reject Request'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* ── DOCUMENT ACCESS CONFIRMATION DIALOG ── */}
-      <Dialog open={!!pendingAccessToggle} onOpenChange={(open) => { if (!open) setPendingAccessToggle(null); }}>
+      <Dialog
+        open={!!pendingAccessToggle}
+        onOpenChange={(open) => {
+          if (!open) setPendingAccessToggle(null);
+        }}
+      >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-lg">
-              {pendingAccessToggle?.newValue ? "Grant" : "Revoke"} {pendingAccessToggle?.label} Access?
+              {pendingAccessToggle?.newValue ? 'Grant' : 'Revoke'} {pendingAccessToggle?.label}{' '}
+              Access?
             </DialogTitle>
             <DialogDescription className="text-sm">
               {pendingAccessToggle?.newValue
@@ -853,9 +1029,15 @@ export function ConnectionRequestActions({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setPendingAccessToggle(null)}>Cancel</Button>
-            <Button onClick={confirmAccessToggle} disabled={updateAccess.isPending} className="bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground">
-              {pendingAccessToggle?.newValue ? "Grant Access" : "Revoke Access"}
+            <Button variant="outline" onClick={() => setPendingAccessToggle(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmAccessToggle}
+              disabled={updateAccess.isPending}
+              className="bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground"
+            >
+              {pendingAccessToggle?.newValue ? 'Grant Access' : 'Revoke Access'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -882,7 +1064,9 @@ function SidebarCard({ title, children }: { title: string; children: React.React
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
       <div className="px-5 py-3.5 border-b border-border bg-muted/30">
-        <h3 className="text-xs font-bold uppercase tracking-[1.2px] text-muted-foreground">{title}</h3>
+        <h3 className="text-xs font-bold uppercase tracking-[1.2px] text-muted-foreground">
+          {title}
+        </h3>
       </div>
       <div className="px-5 py-4">{children}</div>
     </div>
@@ -894,7 +1078,11 @@ function SidebarCard({ title, children }: { title: string; children: React.React
 function linkifyText(text: string): string {
   const urlRegex = /(https?:\/\/[^\s<]+)/g;
   return text.replace(urlRegex, (url) => {
-    const escaped = url.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const escaped = url
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
     const display = url.length > 60 ? url.substring(0, 57) + '...' : url;
     return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:text-primary/80 break-all" onclick="event.stopPropagation()">${display}</a>`;
   });
@@ -918,7 +1106,7 @@ function ConversationThread({
   const { data: messages = [] } = useConnectionMessages(connectionRequestId);
   const sendMsg = useSendMessage();
   const markRead = useMarkMessagesReadByAdmin();
-  const [newMessage, setNewMessage] = useState("");
+  const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -929,7 +1117,7 @@ function ConversationThread({
   }, [connectionRequestId, messages.length]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
   const handleSend = () => {
@@ -937,12 +1125,10 @@ function ConversationThread({
     sendMsg.mutate({
       connection_request_id: connectionRequestId,
       body: newMessage.trim(),
-      sender_role: "admin",
+      sender_role: 'admin',
     });
-    setNewMessage("");
+    setNewMessage('');
   };
-
-  
 
   return (
     <div className="flex flex-col h-full">
@@ -961,14 +1147,20 @@ function ConversationThread({
                   {submittedAt ? format(new Date(submittedAt), 'MMM d, yyyy') : ''}
                 </span>
               </div>
-              <Badge variant="outline" className="text-xs bg-sourceco/10 text-sourceco-muted-foreground border-sourceco/30 shrink-0 font-medium px-2.5 py-1">
+              <Badge
+                variant="outline"
+                className="text-xs bg-sourceco/10 text-sourceco-muted-foreground border-sourceco/30 shrink-0 font-medium px-2.5 py-1"
+              >
                 <Link2 className="h-3 w-3 mr-1.5" />
                 Connection Request
               </Badge>
             </div>
             <div className="ml-12">
               <div className="bg-sourceco-muted border border-sourceco/30 text-foreground rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(buyerMessage) }} />
+                <p
+                  className="text-sm leading-relaxed whitespace-pre-wrap break-words"
+                  dangerouslySetInnerHTML={{ __html: linkifyText(buyerMessage) }}
+                />
               </div>
             </div>
           </div>
@@ -995,14 +1187,17 @@ function ConversationThread({
         {/* Subsequent messages */}
         {messages.map((msg) => (
           <div key={msg.id}>
-            {msg.message_type === "decision" || msg.message_type === "system" ? (
+            {msg.message_type === 'decision' || msg.message_type === 'system' ? (
               <div className="bg-sourceco/10 border border-sourceco/30 rounded-lg px-5 py-3 text-center mx-auto max-w-lg">
-                <p className="text-sm text-foreground whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
+                <p
+                  className="text-sm text-foreground whitespace-pre-wrap break-words"
+                  dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }}
+                />
                 <span className="text-xs text-muted-foreground mt-1 block">
                   {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                 </span>
               </div>
-            ) : msg.sender_role === "admin" ? (
+            ) : msg.sender_role === 'admin' ? (
               <div className="flex flex-col items-end">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs text-muted-foreground">
@@ -1014,7 +1209,10 @@ function ConversationThread({
                   </div>
                 </div>
                 <div className="mr-10 bg-sourceco/10 border border-sourceco/20 text-foreground rounded-2xl rounded-tr-sm px-5 py-4 max-w-[85%] shadow-sm">
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
+                  <p
+                    className="text-sm leading-relaxed whitespace-pre-wrap break-words"
+                    dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }}
+                  />
                 </div>
               </div>
             ) : (
@@ -1031,7 +1229,10 @@ function ConversationThread({
                   </span>
                 </div>
                 <div className="ml-10 bg-sourceco-muted/50 border border-sourceco/20 text-foreground rounded-2xl rounded-tl-sm px-5 py-4 max-w-[85%] shadow-sm">
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }} />
+                  <p
+                    className="text-sm leading-relaxed whitespace-pre-wrap break-words"
+                    dangerouslySetInnerHTML={{ __html: linkifyText(msg.body) }}
+                  />
                 </div>
               </div>
             )}
@@ -1049,14 +1250,14 @@ function ConversationThread({
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 handleSend();
               }
             }}
             className="w-full border-none resize-none text-sm text-foreground bg-transparent px-5 py-4 focus:outline-none placeholder:text-muted-foreground/60"
           />
-           <div className="flex items-center justify-between px-4 py-3 border-t border-sourceco/15 bg-sourceco-muted/20">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-sourceco/15 bg-sourceco-muted/20">
             <span className="text-xs text-muted-foreground">⌘ + Enter to send</span>
             <Button
               size="sm"

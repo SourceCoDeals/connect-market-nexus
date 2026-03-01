@@ -6,7 +6,8 @@ import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useAuth } from '@/context/AuthContext';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
-import { Send } from 'lucide-react';
+import { Send, XCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -16,6 +17,7 @@ interface ConnectionButtonProps {
   handleRequestConnection: (message?: string) => void;
   listingTitle?: string;
   listingId: string;
+  listingStatus?: string;
 }
 
 const ConnectionButton = ({
@@ -26,6 +28,7 @@ const ConnectionButton = ({
   handleRequestConnection,
   listingTitle,
   listingId,
+  listingStatus,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showFeeGate, setShowFeeGate] = useState(false);
@@ -109,6 +112,29 @@ const ConnectionButton = ({
           Business owner accounts cannot request deal connections. Visit the Sell page to list your
           business.
         </p>
+      </div>
+    );
+  }
+
+  // Show closed/sold state for inactive or sold listings
+  if (listingStatus === 'inactive' || listingStatus === 'sold') {
+    return (
+      <div className="space-y-3">
+        <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <XCircle className="h-4 w-4 text-slate-400" />
+            <p className="text-sm font-medium text-slate-700">This opportunity has been closed</p>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            This deal is no longer accepting new inquiries.
+          </p>
+        </div>
+        <Link
+          to="/marketplace"
+          className="block w-full text-center text-xs text-sourceco hover:text-sourceco/80 transition-colors py-2 px-3 rounded-md hover:bg-sourceco/5 border border-sourceco/20 hover:border-sourceco/40 font-medium"
+        >
+          Browse other opportunities
+        </Link>
       </div>
     );
   }

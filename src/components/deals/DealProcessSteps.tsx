@@ -88,7 +88,7 @@ export function DealProcessSteps({
           },
           {
             id: 'approved',
-            label: 'Selected',
+            label: 'Connected',
             description:
               'Great news! The owner selected your firm. Expect an email from us in your inbox shortly with next steps and opportunity details.',
             status: 'completed',
@@ -148,7 +148,7 @@ export function DealProcessSteps({
         };
       case 'approved':
         return {
-          title: 'You Were Selected',
+          title: 'Connected',
           message:
             'The owner selected your firm from the pool of qualified buyers. Our team will be in touch with next steps shortly.',
           action: false,

@@ -72,6 +72,8 @@ backend = "postgres"
 verify_jwt = false
 [functions.send-connection-notification]
 verify_jwt = true
+[functions.notify-buyer-new-message]
+verify_jwt = true
 [functions.send-user-notification]
 verify_jwt = false
 [functions.send-verification-email]

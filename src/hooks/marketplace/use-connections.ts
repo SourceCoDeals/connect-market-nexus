@@ -168,7 +168,7 @@ export const useRequestConnection = () => {
         toast({
           title: 'Request sent.',
           description:
-            "We'll review it and be in touch. Specific fit explanations get selected — generic ones don't.",
+            "We'll review your request within 1-2 business days. You'll be notified by email.",
         });
       }
 

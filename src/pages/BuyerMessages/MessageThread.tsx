@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +14,11 @@ import {
   Shield,
   CheckCircle,
   MessageSquarePlus,
+  Paperclip,
+  X,
+  Download,
+  Check,
+  CheckCheck,
 } from 'lucide-react';
 import {
   useConnectionMessages,
@@ -30,48 +35,155 @@ import { supabase } from '@/integrations/supabase/client';
 
 import type { BuyerThread } from './helpers';
 import { getStatusStyle, getStatusLabel } from './helpers';
-import { useBuyerActiveRequest, useFirmAgreementStatus, usePendingNotifications } from './useMessagesData';
+import {
+  useBuyerActiveRequest,
+  useFirmAgreementStatus,
+  usePendingNotifications,
+} from './useMessagesData';
 import { useSendDocumentQuestion, useDownloadDocument } from './useMessagesActions';
 
 // ─── MessageBody ───
 // Renders message text, auto-linking URLs.
 
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_FILE_TYPES = '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg';
+
+function AttachmentChip({
+  fileName,
+  url,
+  variant,
+}: {
+  fileName: string;
+  url: string;
+  variant: 'buyer' | 'admin' | 'system';
+}) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-opacity hover:opacity-80"
+      style={{
+        backgroundColor: variant === 'buyer' ? 'rgba(255,255,255,0.15)' : '#FCF9F0',
+        color: variant === 'buyer' ? '#FFFFFF' : '#0E101A',
+        border: variant === 'buyer' ? '1px solid rgba(255,255,255,0.2)' : '1px solid #E5DDD0',
+      }}
+    >
+      <Download className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate max-w-[200px]">{fileName}</span>
+    </a>
+  );
+}
+
 function MessageBody({ body, variant }: { body: string; variant: 'buyer' | 'admin' | 'system' }) {
-  const parts = body.split(/(https?:\/\/[^\s]+)/g);
+  // Split on attachment link pattern: [📎 filename](url)
+  const attachmentRegex = /\[📎\s+([^\]]+)\]\(([^)]+)\)/g;
+  const segments: Array<
+    { type: 'text'; value: string } | { type: 'attachment'; fileName: string; url: string }
+  > = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = attachmentRegex.exec(body)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: 'text', value: body.slice(lastIndex, match.index) });
+    }
+    segments.push({ type: 'attachment', fileName: match[1], url: match[2] });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < body.length) {
+    segments.push({ type: 'text', value: body.slice(lastIndex) });
+  }
 
   return (
-    <p className="whitespace-pre-wrap break-words" style={{ overflowWrap: 'anywhere' }}>
-      {parts.map((part, i) => {
-        if (/^https?:\/\//.test(part)) {
-          let displayUrl: string;
-          try {
-            const url = new URL(part);
-            const path = url.pathname.length > 30 ? url.pathname.slice(0, 30) + '\u2026' : url.pathname;
-            displayUrl = url.hostname + path;
-          } catch {
-            displayUrl = part.length > 50 ? part.slice(0, 50) + '\u2026' : part;
-          }
-
-          const linkColor =
-            variant === 'buyer'
-              ? 'underline underline-offset-2 opacity-80'
-              : 'underline underline-offset-2';
-
+    <div
+      className="whitespace-pre-wrap break-words space-y-1.5"
+      style={{ overflowWrap: 'anywhere' }}
+    >
+      {segments.map((seg, segIdx) => {
+        if (seg.type === 'attachment') {
           return (
-            <a
-              key={i}
-              href={part}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${linkColor} hover:opacity-80 break-all text-sm`}
-            >
-              {displayUrl}
-            </a>
+            <AttachmentChip key={segIdx} fileName={seg.fileName} url={seg.url} variant={variant} />
           );
         }
-        return <span key={i}>{part}</span>;
+        // Render text segment with URL auto-linking
+        const parts = seg.value.split(/(https?:\/\/[^\s]+)/g);
+        const trimmed = seg.value.trim();
+        if (!trimmed) return null;
+        return (
+          <p
+            key={segIdx}
+            className="whitespace-pre-wrap break-words"
+            style={{ overflowWrap: 'anywhere' }}
+          >
+            {parts.map((part, i) => {
+              if (/^https?:\/\//.test(part)) {
+                let displayUrl: string;
+                try {
+                  const url = new URL(part);
+                  const path =
+                    url.pathname.length > 30 ? url.pathname.slice(0, 30) + '\u2026' : url.pathname;
+                  displayUrl = url.hostname + path;
+                } catch {
+                  displayUrl = part.length > 50 ? part.slice(0, 50) + '\u2026' : part;
+                }
+
+                const linkColor =
+                  variant === 'buyer'
+                    ? 'underline underline-offset-2 opacity-80'
+                    : 'underline underline-offset-2';
+
+                return (
+                  <a
+                    key={i}
+                    href={part}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${linkColor} hover:opacity-80 break-all text-sm`}
+                  >
+                    {displayUrl}
+                  </a>
+                );
+              }
+              return <span key={i}>{part}</span>;
+            })}
+          </p>
+        );
       })}
-    </p>
+    </div>
+  );
+}
+
+// ─── TypingIndicator ───
+// Animated dots shown when the other party is typing.
+
+function TypingIndicator() {
+  return (
+    <div className="flex justify-start">
+      <div
+        className="rounded-xl px-4 py-3 shadow-sm border"
+        style={{
+          backgroundColor: '#FFFFFF',
+          borderColor: '#E5DDD0',
+          color: '#0E101A',
+        }}
+      >
+        <div className="flex items-center gap-1">
+          <span
+            className="w-1.5 h-1.5 rounded-full animate-bounce"
+            style={{ backgroundColor: '#9A9A9A', animationDelay: '0ms', animationDuration: '1s' }}
+          />
+          <span
+            className="w-1.5 h-1.5 rounded-full animate-bounce"
+            style={{ backgroundColor: '#9A9A9A', animationDelay: '150ms', animationDuration: '1s' }}
+          />
+          <span
+            className="w-1.5 h-1.5 rounded-full animate-bounce"
+            style={{ backgroundColor: '#9A9A9A', animationDelay: '300ms', animationDuration: '1s' }}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -82,9 +194,77 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
   const { data: messages = [], isLoading } = useConnectionMessages(thread.connection_request_id);
   const sendMsg = useSendMessage();
   const markRead = useMarkMessagesReadByBuyer();
+  const { toast } = useToast();
   const [newMessage, setNewMessage] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isRejected = thread.request_status === 'rejected';
+
+  // ─── Typing indicator state ───
+  const [isAdminTyping, setIsAdminTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const buyerTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // Subscribe to Supabase broadcast channel for typing events
+  useEffect(() => {
+    const channelName = `typing:${thread.connection_request_id}`;
+    const channel = supabase.channel(channelName);
+
+    channel
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload?.role === 'admin') {
+          setIsAdminTyping(true);
+          // Clear any existing timeout
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          // Auto-hide after 3 seconds of no typing events
+          typingTimeoutRef.current = setTimeout(() => {
+            setIsAdminTyping(false);
+          }, 3000);
+        }
+      })
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (buyerTypingTimeoutRef.current) clearTimeout(buyerTypingTimeoutRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [thread.connection_request_id]);
+
+  // Broadcast buyer typing event (debounced)
+  const broadcastTyping = useCallback(() => {
+    if (!channelRef.current) return;
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { role: 'buyer' },
+    });
+  }, []);
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setNewMessage(e.target.value);
+      // Debounce: only send typing event if we haven't sent one recently
+      if (!buyerTypingTimeoutRef.current) {
+        broadcastTyping();
+      }
+      if (buyerTypingTimeoutRef.current) clearTimeout(buyerTypingTimeoutRef.current);
+      buyerTypingTimeoutRef.current = setTimeout(() => {
+        buyerTypingTimeoutRef.current = null;
+      }, 1000);
+    },
+    [broadcastTyping],
+  );
+
+  // Hide admin typing when new messages arrive
+  useEffect(() => {
+    setIsAdminTyping(false);
+  }, [messages.length]);
 
   useEffect(() => {
     if (thread.connection_request_id && thread.unread_count > 0) {
@@ -95,16 +275,69 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, isAdminTyping]);
 
-  const handleSend = () => {
-    if (!newMessage.trim() || isRejected) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      toast({
+        title: 'File Too Large',
+        description: 'Maximum file size is 10MB.',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
+    setAttachment(file);
+    e.target.value = '';
+  };
+
+  const handleSend = async () => {
+    if ((!newMessage.trim() && !attachment) || isRejected) return;
+
+    let body = newMessage.trim();
+
+    if (attachment) {
+      setUploading(true);
+      try {
+        const filePath = `${thread.connection_request_id}/${Date.now()}-${attachment.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('message-attachments')
+          .upload(filePath, attachment);
+
+        if (uploadError) {
+          // Bucket may not exist -- fall back to inline filename
+          body = body
+            ? `${body}\n[📎 ${attachment.name}](attachment://${attachment.name})`
+            : `[📎 ${attachment.name}](attachment://${attachment.name})`;
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('message-attachments')
+            .getPublicUrl(filePath);
+          const publicUrl = urlData?.publicUrl || `attachment://${attachment.name}`;
+          body = body
+            ? `${body}\n[📎 ${attachment.name}](${publicUrl})`
+            : `[📎 ${attachment.name}](${publicUrl})`;
+        }
+      } catch {
+        body = body
+          ? `${body}\n[📎 ${attachment.name}](attachment://${attachment.name})`
+          : `[📎 ${attachment.name}](attachment://${attachment.name})`;
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    if (!body) return;
+
     sendMsg.mutate({
       connection_request_id: thread.connection_request_id,
-      body: newMessage.trim(),
+      body,
       sender_role: 'buyer',
     });
     setNewMessage('');
+    setAttachment(null);
   };
 
   const statusStyle = getStatusStyle(thread.request_status);
@@ -184,7 +417,10 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
               }
 
               return (
-                <div key={msg.id} className={cn('flex', isBuyer ? 'justify-end' : 'justify-start')}>
+                <div
+                  key={msg.id}
+                  className={cn('flex flex-col', isBuyer ? 'items-end' : 'items-start')}
+                >
                   <div
                     className="max-w-[80%] rounded-xl px-4 py-3 space-y-1 shadow-sm border"
                     style={
@@ -219,10 +455,31 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
                       <MessageBody body={msg.body} variant={isBuyer ? 'buyer' : 'admin'} />
                     </div>
                   </div>
+                  {/* Read receipt for buyer-sent messages */}
+                  {isBuyer && (
+                    <div
+                      className="flex items-center gap-1 mt-0.5 mr-1"
+                      style={{ color: '#9A9A9A' }}
+                    >
+                      {msg.is_read_by_admin ? (
+                        <>
+                          <CheckCheck className="h-3 w-3" />
+                          <span className="text-[10px]">Read</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-3 w-3" />
+                          <span className="text-[10px]">Delivered</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
+          {/* Typing indicator when admin is typing */}
+          {isAdminTyping && <TypingIndicator />}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
@@ -236,14 +493,48 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
         </div>
       ) : (
         <div className="px-5 py-3 flex-shrink-0" style={{ borderTop: '1px solid #E5DDD0' }}>
+          {attachment && (
+            <div
+              className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg text-sm"
+              style={{ backgroundColor: '#FCF9F0', border: '1px solid #E5DDD0', color: '#0E101A' }}
+            >
+              <Paperclip className="h-3.5 w-3.5 shrink-0" style={{ color: '#5A5A5A' }} />
+              <span className="truncate flex-1">{attachment.name}</span>
+              <span className="text-[10px] shrink-0" style={{ color: '#9A9A9A' }}>
+                {(attachment.size / 1024).toFixed(0)}KB
+              </span>
+              <button
+                type="button"
+                onClick={() => setAttachment(null)}
+                className="shrink-0 p-0.5 rounded hover:bg-black/5"
+              >
+                <X className="h-3.5 w-3.5" style={{ color: '#5A5A5A' }} />
+              </button>
+            </div>
+          )}
           <div
             className="flex items-end gap-3 rounded-lg border-2 p-2"
             style={{ borderColor: '#E5DDD0', backgroundColor: '#FFFFFF' }}
           >
             <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_FILE_TYPES}
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="shrink-0 p-1.5 rounded hover:bg-black/5 transition-colors"
+              title="Attach file"
+            >
+              <Paperclip className="h-4 w-4" style={{ color: '#5A5A5A' }} />
+            </button>
+            <input
               type="text"
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -257,12 +548,16 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
             <Button
               size="sm"
               onClick={handleSend}
-              disabled={!newMessage.trim() || sendMsg.isPending}
+              disabled={(!newMessage.trim() && !attachment) || sendMsg.isPending || uploading}
               className="h-9 px-4"
               style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}
             >
-              <Send className="w-3.5 h-3.5 mr-1.5" />
-              Send
+              {uploading ? (
+                <span className="h-3.5 w-3.5 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              {uploading ? 'Uploading...' : 'Send'}
             </Button>
           </div>
           <p className="text-[10px] mt-1" style={{ color: '#9A9A9A' }}>
@@ -283,6 +578,9 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [sentMessages, setSentMessages] = useState<
     Array<{ id: string; body: string; created_at: string }>
   >([]);
@@ -296,16 +594,70 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [existingMessages, sentMessages]);
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      toast({
+        title: 'File Too Large',
+        description: 'Maximum file size is 10MB.',
+        variant: 'destructive',
+      });
+      e.target.value = '';
+      return;
+    }
+    setAttachment(file);
+    e.target.value = '';
+  };
+
   const handleSend = async () => {
-    if (!newMessage.trim() || sending || !user?.id) return;
+    if ((!newMessage.trim() && !attachment) || sending || !user?.id) return;
     setSending(true);
+
+    let body = newMessage.trim();
+
+    // Handle file attachment upload
+    if (attachment) {
+      setUploading(true);
+      try {
+        const bucketPath = `general/${user.id}/${Date.now()}-${attachment.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from('message-attachments')
+          .upload(bucketPath, attachment);
+
+        if (uploadError) {
+          body = body
+            ? `${body}\n[📎 ${attachment.name}](attachment://${attachment.name})`
+            : `[📎 ${attachment.name}](attachment://${attachment.name})`;
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('message-attachments')
+            .getPublicUrl(bucketPath);
+          const publicUrl = urlData?.publicUrl || `attachment://${attachment.name}`;
+          body = body
+            ? `${body}\n[📎 ${attachment.name}](${publicUrl})`
+            : `[📎 ${attachment.name}](${publicUrl})`;
+        }
+      } catch {
+        body = body
+          ? `${body}\n[📎 ${attachment.name}](attachment://${attachment.name})`
+          : `[📎 ${attachment.name}](attachment://${attachment.name})`;
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    if (!body) {
+      setSending(false);
+      return;
+    }
 
     try {
       if (activeRequest?.id) {
         const { error } = await (supabase.from('connection_messages') as any).insert({
           connection_request_id: activeRequest.id,
           sender_id: user.id,
-          body: newMessage.trim(),
+          body,
           sender_role: 'buyer',
         });
         if (error) throw error;
@@ -316,7 +668,7 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
             admin_id: OZ_ADMIN_ID,
             user_id: user.id,
             document_type: 'General Inquiry',
-            question: newMessage.trim(),
+            question: body,
           },
         });
       }
@@ -325,11 +677,12 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
         ...prev,
         {
           id: crypto.randomUUID(),
-          body: newMessage.trim(),
+          body,
           created_at: new Date().toISOString(),
         },
       ]);
       setNewMessage('');
+      setAttachment(null);
       queryClient.invalidateQueries({ queryKey: ['buyer-message-threads'] });
       queryClient.invalidateQueries({ queryKey: ['connection-messages'] });
 
@@ -445,10 +798,44 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
 
       {/* Input */}
       <div className="px-5 py-3 flex-shrink-0" style={{ borderTop: '1px solid #E5DDD0' }}>
+        {attachment && (
+          <div
+            className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-lg text-sm"
+            style={{ backgroundColor: '#FCF9F0', border: '1px solid #E5DDD0', color: '#0E101A' }}
+          >
+            <Paperclip className="h-3.5 w-3.5 shrink-0" style={{ color: '#5A5A5A' }} />
+            <span className="truncate flex-1">{attachment.name}</span>
+            <span className="text-[10px] shrink-0" style={{ color: '#9A9A9A' }}>
+              {(attachment.size / 1024).toFixed(0)}KB
+            </span>
+            <button
+              type="button"
+              onClick={() => setAttachment(null)}
+              className="shrink-0 p-0.5 rounded hover:bg-black/5"
+            >
+              <X className="h-3.5 w-3.5" style={{ color: '#5A5A5A' }} />
+            </button>
+          </div>
+        )}
         <div
           className="flex items-end gap-3 rounded-lg border-2 p-2"
           style={{ borderColor: '#E5DDD0', backgroundColor: '#FFFFFF' }}
         >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_FILE_TYPES}
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="shrink-0 p-1.5 rounded hover:bg-black/5 transition-colors"
+            title="Attach file"
+          >
+            <Paperclip className="h-4 w-4" style={{ color: '#5A5A5A' }} />
+          </button>
           <input
             type="text"
             value={newMessage}
@@ -466,12 +853,16 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
           <Button
             size="sm"
             onClick={handleSend}
-            disabled={!newMessage.trim() || sending}
+            disabled={(!newMessage.trim() && !attachment) || sending || uploading}
             className="h-9 px-4"
             style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}
           >
-            <Send className="w-3.5 h-3.5 mr-1.5" />
-            Send
+            {uploading ? (
+              <span className="h-3.5 w-3.5 mr-1.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <Send className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            {uploading ? 'Uploading...' : 'Send'}
           </Button>
         </div>
         <p className="text-[10px] mt-1" style={{ color: '#9A9A9A' }}>

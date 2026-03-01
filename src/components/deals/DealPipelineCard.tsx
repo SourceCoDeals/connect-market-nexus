@@ -161,7 +161,7 @@ function getStageIndex(stageId: PipelineStageId): number {
  * Uses amber for early stages (interest/NDA), blue for mid-stages
  * (review/IOI), green for late stages (LOI/Closed).
  */
-const stageColors: Record<PipelineStageId, { bg: string; text: string; border: string }> = {
+const _stageColors: Record<PipelineStageId, { bg: string; text: string; border: string }> = {
   interested: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
   nda_signed: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
   under_review: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
@@ -169,6 +169,44 @@ const stageColors: Record<PipelineStageId, { bg: string; text: string; border: s
   loi: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   closed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
 };
+
+/**
+ * Unified connection-request status label + colors.
+ *
+ * These labels match the helpers in BuyerMessages/helpers.ts and the
+ * step labels in DealProcessSteps.tsx so that buyers see consistent
+ * terminology across every surface: message threads, deal cards, and
+ * the pipeline stepper.
+ *
+ *   pending  → "Under Review"  (amber)
+ *   approved → "Connected"     (green)
+ *   rejected → "Not Selected"  (muted)
+ */
+function getRequestStatusLabel(status: string): string {
+  switch (status) {
+    case 'pending':
+      return 'Under Review';
+    case 'approved':
+      return 'Connected';
+    case 'rejected':
+      return 'Not Selected';
+    default:
+      return 'Under Review';
+  }
+}
+
+function getRequestStatusColors(status: string): { bg: string; text: string; border: string } {
+  switch (status) {
+    case 'pending':
+      return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' };
+    case 'approved':
+      return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' };
+    case 'rejected':
+      return { bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200' };
+    default:
+      return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' };
+  }
+}
 
 /**
  * Determine the contextual CTA label shown on the card.
@@ -199,9 +237,11 @@ export function DealPipelineCard({
   const CategoryIcon = getCategoryIcon(request.listing?.category);
   const currentStage = getCurrentStage(request.status, ndaSigned, hasCim);
   const currentStageIndex = getStageIndex(currentStage);
-  const stageLabel = PIPELINE_STAGES.find((s) => s.id === currentStage)?.label || 'Interested';
-  const colors = stageColors[currentStage];
   const isRejected = request.status === 'rejected';
+
+  // Unified connection-request status (shown in the pill at the bottom)
+  const requestStatusLabel = getRequestStatusLabel(request.status);
+  const requestStatusColors = getRequestStatusColors(request.status);
 
   const ebitdaDisplay = request.listing?.ebitda
     ? formatCompactCurrency(request.listing.ebitda)
@@ -301,12 +341,10 @@ export function DealPipelineCard({
           <span
             className={cn(
               'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border',
-              isRejected
-                ? 'bg-slate-50 text-slate-500 border-slate-200'
-                : `${colors.bg} ${colors.text} ${colors.border}`,
+              `${requestStatusColors.bg} ${requestStatusColors.text} ${requestStatusColors.border}`,
             )}
           >
-            {isRejected ? 'Not Selected' : stageLabel}
+            {requestStatusLabel}
           </span>
 
           <span className="flex items-center gap-1 text-[10px] text-slate-400 ml-auto">

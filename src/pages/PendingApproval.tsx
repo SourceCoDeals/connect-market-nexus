@@ -100,7 +100,9 @@ const PendingApproval = () => {
     };
 
     fetchNdaEmbed();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user, ndaStatus, ndaEmbedSrc, ndaLoading]);
 
   // Auto-poll approval status every 30s
@@ -173,9 +175,10 @@ const PendingApproval = () => {
       });
     } catch (error: unknown) {
       toast({
-        variant: "destructive",
-        title: "Failed to resend email",
-        description: error instanceof Error ? error.message : "Please try again later or contact support.",
+        variant: 'destructive',
+        title: 'Failed to resend email',
+        description:
+          error instanceof Error ? error.message : 'Please try again later or contact support.',
       });
     } finally {
       setIsResending(false);
@@ -446,8 +449,31 @@ const PendingApproval = () => {
                       </div>
                     )}
                     {ndaError && (
-                      <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-center">
+                      <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4 text-center space-y-3">
                         <p className="text-xs text-destructive">{ndaError}</p>
+                        <div className="flex flex-col items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setNdaError(null);
+                              setNdaEmbedSrc(null);
+                            }}
+                            className="gap-1.5"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                            Try Again
+                          </Button>
+                          <p className="text-[11px] text-muted-foreground">
+                            Still having trouble?{' '}
+                            <a
+                              href={`mailto:${APP_CONFIG.adminEmail}`}
+                              className="text-primary hover:underline"
+                            >
+                              Contact support
+                            </a>
+                          </p>
+                        </div>
                       </div>
                     )}
                     {ndaEmbedSrc && (
@@ -461,8 +487,14 @@ const PendingApproval = () => {
 
                     <p className="text-[11px] text-muted-foreground text-center">
                       Questions about the NDA? Email{' '}
-                      <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary hover:underline">{APP_CONFIG.adminEmail}</a>
-                      {' '}— a small percentage of buyers request modifications and we're happy to discuss.
+                      <a
+                        href={`mailto:${APP_CONFIG.adminEmail}`}
+                        className="text-primary hover:underline"
+                      >
+                        {APP_CONFIG.adminEmail}
+                      </a>{' '}
+                      — a small percentage of buyers request modifications and we're happy to
+                      discuss.
                     </p>
                   </div>
                 )}

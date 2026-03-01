@@ -59,11 +59,29 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import type { User } from '@/types';
 import { useMarketplace } from '@/hooks/use-marketplace';
-import { AlertCircle, FileText, MessageSquare, FolderOpen, Activity } from 'lucide-react';
+import {
+  AlertCircle,
+  FileText,
+  MessageSquare,
+  FolderOpen,
+  Activity,
+  ArrowUpDown,
+  Sparkles,
+  Bell,
+  Mail,
+} from 'lucide-react';
 import { useUnreadBuyerMessageCounts } from '@/hooks/use-connection-messages';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getProfileCompletionDetails } from '@/lib/buyer-metrics';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DealProcessSteps } from '@/components/deals/DealProcessSteps';
 import { DealDetailsCard } from '@/components/deals/DealDetailsCard';
@@ -106,6 +124,7 @@ const MyRequests = () => {
   const { data: unreadMsgCounts } = useUnreadBuyerMessageCounts();
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
   const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
+  const [sortBy, setSortBy] = useState<'recent' | 'action' | 'status'>('recent');
 
   /** Get the active inner tab for a specific deal (defaults to "overview") */
   const getInnerTab = (requestId: string) => innerTab[requestId] || 'overview';
@@ -146,6 +165,63 @@ const MyRequests = () => {
       company: src.company ?? src.company_name ?? '',
     };
   }, [freshProfile, user]);
+
+  /**
+   * Sorted requests based on the user's chosen sort order.
+   * - "recent": by updated_at (then created_at) descending
+   * - "action": deals needing buyer action first (pending NDA, pending fee, unread messages)
+   * - "status": pending first, then approved, then rejected
+   */
+  const sortedRequests = useMemo(() => {
+    const sorted = [...requests];
+    switch (sortBy) {
+      case 'recent':
+        sorted.sort((a, b) => {
+          const dateA = new Date(a.updated_at || a.created_at).getTime();
+          const dateB = new Date(b.updated_at || b.created_at).getTime();
+          return dateB - dateA;
+        });
+        break;
+      case 'action': {
+        const actionScore = (r: (typeof requests)[number]) => {
+          let score = 0;
+          // Pending NDA adds urgency
+          if (!ndaStatus?.ndaSigned) score += 1;
+          // Pending fee adds urgency
+          if (!coverage?.fee_covered) score += 1;
+          // Unread messages add urgency
+          const unread = (unreadByRequest[r.id] || 0) + (unreadMsgCounts?.byRequest[r.id] || 0);
+          if (unread > 0) score += 1;
+          // Pending status means review needed
+          if (r.status === 'pending') score += 1;
+          return score;
+        };
+        sorted.sort((a, b) => {
+          const diff = actionScore(b) - actionScore(a);
+          if (diff !== 0) return diff;
+          // Tie-break by most recent
+          return (
+            new Date(b.updated_at || b.created_at).getTime() -
+            new Date(a.updated_at || a.created_at).getTime()
+          );
+        });
+        break;
+      }
+      case 'status': {
+        const statusOrder: Record<string, number> = { pending: 0, approved: 1, rejected: 2 };
+        sorted.sort((a, b) => {
+          const diff = (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+          if (diff !== 0) return diff;
+          return (
+            new Date(b.updated_at || b.created_at).getTime() -
+            new Date(a.updated_at || a.created_at).getTime()
+          );
+        });
+        break;
+      }
+    }
+    return sorted;
+  }, [requests, sortBy, ndaStatus, coverage, unreadByRequest, unreadMsgCounts]);
 
   /**
    * Handle deal selection from URL parameters, ActionHub clicks,
@@ -270,6 +346,9 @@ const MyRequests = () => {
           onSelectDeal={handleSelectDeal}
         />
 
+        {/* ─── What's New — compact summary of recent activity ─── */}
+        <WhatsNewSection requests={requests} unreadMsgCounts={unreadMsgCounts} />
+
         {/* ─── Main Grid: Deal Cards (left) + Detail Panel (right) ─── */}
         <div
           className={cn(
@@ -280,15 +359,37 @@ const MyRequests = () => {
           {/* ─── Left Column: Deal Cards ─── */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-[0.08em]">
-                Active Deals
-              </h2>
-              <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#0f1f3d] px-2 text-[11px] font-semibold text-white">
-                {requests.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <h2 className="text-[13px] font-semibold text-slate-500 uppercase tracking-[0.08em]">
+                  Active Deals
+                </h2>
+                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#0f1f3d] px-2 text-[11px] font-semibold text-white">
+                  {requests.length}
+                </span>
+              </div>
+              <Select
+                value={sortBy}
+                onValueChange={(v) => setSortBy(v as 'recent' | 'action' | 'status')}
+              >
+                <SelectTrigger className="h-7 w-[140px] text-[11px] border-slate-200 bg-white">
+                  <ArrowUpDown className="h-3 w-3 mr-1 text-slate-400 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent" className="text-[12px]">
+                    Most Recent
+                  </SelectItem>
+                  <SelectItem value="action" className="text-[12px]">
+                    Action Required
+                  </SelectItem>
+                  <SelectItem value="status" className="text-[12px]">
+                    Status
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2.5">
-              {requests.map((request) => {
+              {sortedRequests.map((request) => {
                 const unreadForRequest =
                   (unreadByRequest[request.id] || 0) +
                   (unreadMsgCounts?.byRequest[request.id] || 0);
@@ -334,6 +435,74 @@ const MyRequests = () => {
     </div>
   );
 };
+
+/* ═══════════════════════════════════════════════════════════════════════
+   What's New Section — compact activity summary between Action Hub and grid
+   ═══════════════════════════════════════════════════════════════════════ */
+
+interface WhatsNewSectionProps {
+  requests: import('@/types').ConnectionRequest[];
+  unreadMsgCounts?: { byRequest: Record<string, number>; total: number };
+}
+
+function WhatsNewSection({ requests, unreadMsgCounts }: WhatsNewSectionProps) {
+  const totalUnreadMessages = unreadMsgCounts?.total || 0;
+
+  // Count deals with "pending" status as deals with recent status updates
+  const pendingDeals = requests.filter((r) => r.status === 'pending').length;
+
+  // Count deals updated in the last 7 days (excluding pending, which we already counted)
+  const recentlyUpdated = requests.filter((r) => {
+    if (r.status === 'pending') return false;
+    const updated = new Date(r.updated_at || r.created_at);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return updated >= sevenDaysAgo;
+  }).length;
+
+  const statusUpdates = recentlyUpdated;
+
+  // Hide the section entirely if there's nothing to report
+  if (totalUnreadMessages === 0 && pendingDeals === 0 && statusUpdates === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 flex-wrap px-1">
+      <div className="flex items-center gap-1.5 text-[13px] font-medium text-slate-500">
+        <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+        What's New
+      </div>
+      {pendingDeals > 0 && (
+        <Badge
+          variant="secondary"
+          className="bg-blue-50 text-blue-700 border-blue-200 text-[11px] font-medium gap-1 px-2 py-0.5"
+        >
+          <Bell className="h-3 w-3" />
+          {pendingDeals} new matched {pendingDeals === 1 ? 'deal' : 'deals'} awaiting review
+        </Badge>
+      )}
+      {statusUpdates > 0 && (
+        <Badge
+          variant="secondary"
+          className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[11px] font-medium gap-1 px-2 py-0.5"
+        >
+          <Activity className="h-3 w-3" />
+          {statusUpdates} status {statusUpdates === 1 ? 'update' : 'updates'} on your deals
+        </Badge>
+      )}
+      {totalUnreadMessages > 0 && (
+        <Badge
+          variant="secondary"
+          className="bg-red-50 text-red-700 border-red-200 text-[11px] font-medium gap-1 px-2 py-0.5"
+        >
+          <Mail className="h-3 w-3" />
+          {totalUnreadMessages} unread {totalUnreadMessages === 1 ? 'message' : 'messages'}
+        </Badge>
+      )}
+    </div>
+  );
+}
 
 /* ═══════════════════════════════════════════════════════════════════════
    Detail Panel — Right-hand side when a deal card is selected

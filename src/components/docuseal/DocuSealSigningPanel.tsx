@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DocusealForm } from '@docuseal/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
@@ -29,7 +29,21 @@ export function DocuSealSigningPanel({
   successMessage = 'Document signed successfully.',
   successDescription = 'Your access has been updated.',
 }: DocuSealSigningPanelProps) {
-  const [status, setStatus] = useState<'loading' | 'ready' | 'signed' | 'declined' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'signed' | 'declined' | 'error'>(
+    'loading',
+  );
+
+  // Warn user before navigating away while signing form is loaded but not yet signed
+  useEffect(() => {
+    if (status !== 'ready') return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [status]);
 
   const handleCompleted = (data: Record<string, unknown>) => {
     setStatus('signed');
@@ -51,9 +65,7 @@ export function DocuSealSigningPanel({
             </div>
             <div>
               <h3 className="text-lg font-semibold text-green-800">{successMessage}</h3>
-              <p className="text-sm text-green-600 mt-1">
-                {successDescription}
-              </p>
+              <p className="text-sm text-green-600 mt-1">{successDescription}</p>
             </div>
           </div>
         </CardContent>
