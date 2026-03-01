@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -123,6 +124,12 @@ function QueueTable({ items, loading }: { items: QueueItem[]; loading: boolean }
 }
 
 export default function EnrichmentQueue() {
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'enrichment_queue', entity_type: 'enrichment' });
+  }, [setPageContext]);
+
   const [dealStats, setDealStats] = useState<QueueStats>(EMPTY_STATS);
   const [buyerStats, setBuyerStats] = useState<QueueStats>(EMPTY_STATS);
   const [scoringStats, setScoringStats] = useState<QueueStats>(EMPTY_STATS);

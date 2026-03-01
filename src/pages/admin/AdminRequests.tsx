@@ -272,16 +272,11 @@ const AdminRequests = () => {
 
   const handleAction = async (request: AdminConnectionRequest, action: 'approve' | 'reject') => {
     try {
-      // eslint-disable-next-line no-console
-      console.log(`[AdminRequests] handleAction called: ${action} for request ${request.id}`);
       const result = await updateRequest({
         requestId: request.id,
         status: action === 'approve' ? 'approved' : 'rejected',
         adminComment: `Request ${action}d by admin`,
       });
-      // eslint-disable-next-line no-console
-      console.log(`[AdminRequests] mutation succeeded:`, result?.status);
-
       // Force refetch to ensure UI updates immediately
       await refetch();
 
@@ -313,10 +308,6 @@ const AdminRequests = () => {
   const confirmAction = async (comment: string) => {
     if (selectedRequest && actionType) {
       try {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[AdminRequests] confirmAction called: ${actionType} for request ${selectedRequest.id}`,
-        );
         await updateRequest({
           requestId: selectedRequest.id,
           status: actionType === 'approve' ? 'approved' : 'rejected',

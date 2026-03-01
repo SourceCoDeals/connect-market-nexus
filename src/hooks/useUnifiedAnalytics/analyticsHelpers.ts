@@ -113,7 +113,7 @@ export function getDiscoverySource(session: {
 }
 
 // Find the first session with meaningful attribution data
-export function getFirstMeaningfulSession(sessions: any[]): any | null {
+export function getFirstMeaningfulSession(sessions: Array<{ original_external_referrer?: string | null; utm_source?: string | null; referrer?: string | null; [key: string]: unknown }>): typeof sessions[number] | null {
   if (!sessions || sessions.length === 0) return null;
 
   const chronological = [...sessions].reverse();

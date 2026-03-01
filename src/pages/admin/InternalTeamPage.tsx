@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
 import { usePermissions, type AppRole } from '@/hooks/permissions/usePermissions';
 import { TeamMemberCard } from '@/components/admin/permissions/TeamMemberCard';
@@ -10,11 +10,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserPlus, Search, Users, History, Loader2 } from 'lucide-react';
 import type { User } from '@/types';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 
 const InternalTeamPage = () => {
   const { allUserRoles, isLoadingRoles, auditLog, isLoadingAudit } = useRoleManagement();
   const { isAdmin, canInviteTeamMembers } = usePermissions();
   const [search, setSearch] = useState('');
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'team', entity_type: 'team' });
+  }, [setPageContext]);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Filter to only show internal team members (owner, admin, moderator)

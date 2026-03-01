@@ -6,7 +6,7 @@
  * sorted newest-first, with approve/decline actions.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -43,6 +43,7 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 
 interface ApprovalEntry {
   id: string;
@@ -69,6 +70,12 @@ interface ApprovalEntry {
 export default function GlobalApprovalsPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'pending' | 'approved' | 'declined' | 'all'>('pending');
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'approvals', entity_type: 'approvals' });
+  }, [setPageContext]);
   const [declineDialogOpen, setDeclineDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<ApprovalEntry | null>(null);
   const [declineCategory, setDeclineCategory] = useState('');

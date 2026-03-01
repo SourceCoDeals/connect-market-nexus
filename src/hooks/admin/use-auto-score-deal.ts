@@ -269,9 +269,6 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
                 }
               }
 
-              console.log(
-                `[useAutoScoreDeal] Inserted ${newCompanies.length} Google-discovered buyers`,
-              );
             }
           }
         }

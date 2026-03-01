@@ -22,10 +22,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAdmin } from '@/hooks/use-admin';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { usePermissions } from '@/hooks/permissions/usePermissions';
 import { PermissionsModal } from '@/components/admin/permissions/PermissionsModal';
 import { useSearchParams } from 'react-router-dom';
+import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 
 // Lazy-load marketplace tab content
 const StripeOverviewTab = lazy(() =>
@@ -85,6 +86,12 @@ const AdminDashboard = () => {
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const { canManagePermissions } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Register AI Command Center context
+  const { setPageContext } = useAICommandCenterContext();
+  useEffect(() => {
+    setPageContext({ page: 'admin_dashboard', entity_type: 'dashboard' });
+  }, [setPageContext]);
 
   const viewParam = searchParams.get('view');
   const activeDashboard =

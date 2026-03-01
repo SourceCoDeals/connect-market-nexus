@@ -7,6 +7,33 @@ import { v4 as uuidv4 } from "uuid";
 import type { DealTranscript, SingleDealEnrichmentResult } from "./types";
 import { processFileText, yieldToUI, mergeArrays, stateNameToCode } from "./helpers";
 
+/** Shape of a Fireflies search result */
+interface FirefliesSearchResult {
+  id: string;
+  title?: string;
+  date?: string;
+  meeting_url?: string;
+  participants?: (string | { email: string; name?: string })[];
+  external_participants?: { name: string; email: string }[];
+  duration_minutes?: number;
+  has_content?: boolean;
+  match_type?: string;
+}
+
+/** Shape of the extract-deal-transcript edge function response */
+interface ExtractTranscriptResponse {
+  fieldsExtracted?: number;
+  dealUpdated?: boolean;
+  fieldsUpdated?: string[];
+}
+
+/** Shape of the add mutation success result */
+interface AddMutationResult {
+  count: number;
+  failed?: number;
+  skipped?: number;
+}
+
 interface UseTranscriptActionsProps {
   dealId: string;
   transcripts: DealTranscript[];
@@ -55,7 +82,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
   const [addMode, setAddMode] = useState<'manual' | 'fireflies'>('manual');
   const [firefliesEmail, setFirefliesEmail] = useState(dealInfo?.main_contact_email || '');
   const [firefliesSearching, setFirefliesSearching] = useState(false);
-  const [firefliesResults, setFirefliesResults] = useState<any[]>([]);
+  const [firefliesResults, setFirefliesResults] = useState<FirefliesSearchResult[]>([]);
   const [selectedFirefliesIds, setSelectedFirefliesIds] = useState<Set<string>>(new Set());
   const [firefliesImporting, setFirefliesImporting] = useState(false);
   const [firefliesSearchInfo, setFirefliesSearchInfo] = useState<string>('');
@@ -138,7 +165,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'processing' as const } : f));
             setProcessingProgress({ current: i + 1, total: totalFiles });
             let transcriptText = '';
-            try { transcriptText = await processFileText(sf.file); } catch (parseErr: any) { /* text extraction failed — will use fallback text */ void parseErr; }
+            try { transcriptText = await processFileText(sf.file); } catch (parseErr: unknown) { /* text extraction failed — will use fallback text */ void parseErr; }
             const filePath = `${dealId}/${uuidv4()}-${sf.file.name}`;
             let fileUrl = null;
             const { error: uploadError } = await supabase.storage.from('deal-transcripts').upload(filePath, sf.file);
@@ -152,7 +179,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
             if (error) throw error;
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'done' as const } : f));
             successCount++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             // Error processing file — status set to 'error' below
             setSelectedFiles(prev => prev.map((f, idx) => idx === i ? { ...f, status: 'error' as const } : f));
           }
@@ -176,7 +203,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       if (error) throw error;
       return { count: 1 };
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: AddMutationResult) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal-transcripts', dealId] });
       const parts: string[] = [];
       if (data?.count > 0) parts.push(`${data.count} transcript${data.count > 1 ? 's' : ''} added`);
@@ -211,7 +238,7 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
   const handleExtract = async (transcript: DealTranscript) => {
     setProcessingId(transcript.id);
     try {
-      const { data, error } = await invokeWithTimeout<any>('extract-deal-transcript', {
+      const { data, error } = await invokeWithTimeout<ExtractTranscriptResponse>('extract-deal-transcript', {
         body: { transcriptId: transcript.id, transcriptText: transcript.transcript_text, dealInfo, applyToDeal: true },
         timeoutMs: 120_000,
       });
@@ -223,8 +250,8 @@ export function useTranscriptActions({ dealId, transcripts, dealInfo }: UseTrans
       } else {
         toast.success(`Extracted ${data.fieldsExtracted || 0} fields from transcript`);
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to extract intelligence");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to extract intelligence");
     } finally {
       setProcessingId(null);
     }

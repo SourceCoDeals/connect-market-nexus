@@ -169,7 +169,7 @@ const ReMarketingUniverseDetail = () => {
     },
     onClearSelection: () => setSelectedBuyerIds([]),
     onSortColumn: (field) => {
-      console.log(`[ai-ui-action] Sort requested for ${field} on universe buyer table`);
+      // Sort not yet implemented for universe buyer table
     },
     onTriggerAction: (action) => {
       if (action === 'push_to_dialer') setDialerOpen(true);
