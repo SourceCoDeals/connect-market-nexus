@@ -255,7 +255,7 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
                     }
                     setIsScoringAllDeals(true);
                     try {
-                      const listingIds = universeDeals.filter((d: any) => d.listing?.id).map((d: any) => d.listing.id);
+                      const listingIds = universeDeals.filter((d) => (d.listing as Record<string, unknown> | null)?.id).map((d) => (d.listing as { id: string }).id);
                       const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
                       await queueDealScoring({ universeId: id!, listingIds });
                       toast.success(`Queued ${listingIds.length} deals for scoring`);
@@ -293,7 +293,10 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
                   </Button>
                 ) : (
                   (() => {
-                    const unenrichedDeals = universeDeals?.filter((d: any) => d.listing?.id && !d.listing.enriched_at) || [];
+                    const unenrichedDeals = universeDeals?.filter((d) => {
+                      const listing = d.listing as Record<string, unknown> | null;
+                      return listing?.id && !listing.enriched_at;
+                    }) || [];
                     return unenrichedDeals.length > 0 ? (
                       <Button
                         variant="outline"
@@ -301,11 +304,14 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
                         onClick={async () => {
                           resetDealEnrichment();
 
-                          const dealsToEnrich = unenrichedDeals.map((d: any) => ({
-                            id: d.id,
-                            listingId: d.listing.id,
-                            enrichedAt: d.listing.enriched_at
-                          }));
+                          const dealsToEnrich = unenrichedDeals.map((d) => {
+                            const listing = d.listing as { id: string; enriched_at: string | null };
+                            return {
+                              id: d.id,
+                              listingId: listing.id,
+                              enrichedAt: listing.enriched_at
+                            };
+                          });
 
                           await enrichDeals(dealsToEnrich);
                           refetchDeals();

@@ -80,7 +80,7 @@ interface SortableStageCardProps {
   onDelete: () => void;
   onSave: (data: StageFormData) => void;
   onCancel: () => void;
-  editForm: any;
+  editForm: UseFormReturn<StageFormData>;
   dealCount?: number;
 }
 
@@ -267,7 +267,7 @@ function StageRow({
   onDelete: (dealCount: number) => void;
   onSave: (data: StageFormData) => void;
   onCancel: () => void;
-  editForm: any;
+  editForm: UseFormReturn<StageFormData>;
 }) {
   const { data: dealCount = 0 } = useStageDealCount(stage.id);
   return (

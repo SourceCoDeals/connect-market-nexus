@@ -27,7 +27,7 @@ async function callFn(
   input: EnrichmentPipelineInput,
   fnName: string,
   body: Record<string, unknown>
-): Promise<{ ok: boolean; status: number; json: any }>
+): Promise<{ ok: boolean; status: number; json: Record<string, unknown> | null }>
 {
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   if (!anonKey) {

@@ -31,6 +31,21 @@ const GENERATION_PHASES = [
   { id: '5a', name: 'References & Sources', focus: 'Industry sources, data citations, research references' },
 ];
 
+interface ClarificationContext {
+  industry_overview?: string;
+  segments?: string[];
+  example_companies?: string;
+  geography_focus?: string;
+  revenue_range?: string;
+  [key: string]: string | string[] | undefined;
+}
+
+interface GeminiRequestBody {
+  model: string;
+  max_tokens: number;
+  messages: Array<{ role: string; content: string }>;
+}
+
 interface QualityResult {
   passed: boolean;
   score: number;
@@ -135,7 +150,7 @@ function validateQuality(content: string): QualityResult {
 }
 
 // Build context string from clarification answers
-function buildClarificationContext(context: any): string {
+function buildClarificationContext(context: ClarificationContext | undefined): string {
   if (!context || Object.keys(context).length === 0) {
     return '';
   }
@@ -178,7 +193,7 @@ async function generatePhaseContent(
   industryName: string,
   existingContent: string,
   apiKey: string,
-  clarificationContext?: any,
+  clarificationContext?: ClarificationContext,
   _retryCount = 0,
   firefliesIntelligence?: string
 ): Promise<string> {
@@ -632,7 +647,7 @@ async function generatePhaseWithTimeout(
   industryName: string,
   existingContent: string,
   apiKey: string,
-  clarificationContext?: any,
+  clarificationContext?: ClarificationContext,
   retryCount = 0,
   firefliesIntelligence?: string
 ): Promise<string> {
