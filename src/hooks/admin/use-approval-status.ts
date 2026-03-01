@@ -25,9 +25,9 @@ export const useUpdateApprovalStatus = () => {
         throw new Error('Admin not authenticated');
       }
 
-      const updateData: any = {
+      const updateData: Record<string, string | null> = {
         status: isApproved ? 'approved' : 'pending',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       if (isApproved) {
@@ -55,35 +55,47 @@ export const useUpdateApprovalStatus = () => {
 
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.id === requestId 
-            ? { 
-                ...request, 
-                status: isApproved ? 'approved' : 'pending',
-                approved_by: isApproved ? 'current-admin' : null,
-                approved_at: isApproved ? new Date().toISOString() : null 
-              }
-            : request
-        );
-      });
+      queryClient.setQueryData(
+        ['connection-requests'],
+        (
+          old:
+            | Array<{
+                id: string;
+                status: string;
+                approved_by: string | null;
+                approved_at: string | null;
+              }>
+            | undefined,
+        ) => {
+          if (!old) return old;
+          return old.map((request) =>
+            request.id === requestId
+              ? {
+                  ...request,
+                  status: isApproved ? 'approved' : 'pending',
+                  approved_by: isApproved ? 'current-admin' : null,
+                  approved_at: isApproved ? new Date().toISOString() : null,
+                }
+              : request,
+          );
+        },
+      );
 
       return { previousRequests };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
-        title: "Approval status updated",
-        description: "The approval status has been successfully updated.",
+        title: 'Approval status updated',
+        description: 'The approval status has been successfully updated.',
       });
     },
     onError: (_err, _variables, context) => {
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
-        variant: "destructive",
-        title: "Update failed",
-        description: "Could not update approval status",
+        variant: 'destructive',
+        title: 'Update failed',
+        description: 'Could not update approval status',
       });
     },
   });
@@ -100,9 +112,9 @@ export const useUpdateRejectionStatus = () => {
         throw new Error('Admin not authenticated');
       }
 
-      const updateData: any = {
+      const updateData: Record<string, string | null> = {
         status: isRejected ? 'rejected' : 'pending',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       if (isRejected) {
@@ -130,35 +142,47 @@ export const useUpdateRejectionStatus = () => {
 
       const previousRequests = queryClient.getQueryData(['connection-requests']);
 
-      queryClient.setQueryData(['connection-requests'], (old: any) => {
-        if (!old) return old;
-        return old.map((request: any) => 
-          request.id === requestId 
-            ? { 
-                ...request, 
-                status: isRejected ? 'rejected' : 'pending',
-                rejected_by: isRejected ? 'current-admin' : null,
-                rejected_at: isRejected ? new Date().toISOString() : null 
-              }
-            : request
-        );
-      });
+      queryClient.setQueryData(
+        ['connection-requests'],
+        (
+          old:
+            | Array<{
+                id: string;
+                status: string;
+                rejected_by: string | null;
+                rejected_at: string | null;
+              }>
+            | undefined,
+        ) => {
+          if (!old) return old;
+          return old.map((request) =>
+            request.id === requestId
+              ? {
+                  ...request,
+                  status: isRejected ? 'rejected' : 'pending',
+                  rejected_by: isRejected ? 'current-admin' : null,
+                  rejected_at: isRejected ? new Date().toISOString() : null,
+                }
+              : request,
+          );
+        },
+      );
 
       return { previousRequests };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
       toast({
-        title: "Rejection status updated",
-        description: "The rejection status has been successfully updated.",
+        title: 'Rejection status updated',
+        description: 'The rejection status has been successfully updated.',
       });
     },
     onError: (_err, _variables, context) => {
       queryClient.setQueryData(['connection-requests'], context?.previousRequests);
       toast({
-        variant: "destructive",
-        title: "Update failed",
-        description: "Could not update rejection status",
+        variant: 'destructive',
+        title: 'Update failed',
+        description: 'Could not update rejection status',
       });
     },
   });

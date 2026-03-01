@@ -3,9 +3,8 @@
  * Inbound leads, referral partners, referral submissions.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+type SupabaseClient = ReturnType<typeof createClient>;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -128,7 +127,16 @@ async function searchInboundLeads(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     results = results.filter(
-      (l: any) =>
+      (l: {
+        name?: string;
+        email?: string;
+        company_name?: string;
+        role?: string;
+        message?: string;
+        source_form_name?: string;
+        mapped_to_listing_title?: string;
+        phone_number?: string;
+      }) =>
         l.name?.toLowerCase().includes(term) ||
         l.email?.toLowerCase().includes(term) ||
         l.company_name?.toLowerCase().includes(term) ||
@@ -161,7 +169,9 @@ async function searchInboundLeads(
       total_before_filtering: totalFromDb,
       by_status: byStatus,
       by_source: bySource,
-      converted: results.filter((l: any) => l.converted_to_request_id).length,
+      converted: results.filter(
+        (l: { converted_to_request_id?: string }) => l.converted_to_request_id,
+      ).length,
       filters_applied: filtersApplied,
       ...(results.length === 0
         ? {
@@ -198,7 +208,7 @@ async function getReferralData(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     filteredPartners = filteredPartners.filter(
-      (p: any) =>
+      (p: { name?: string; company?: string; email?: string }) =>
         p.name?.toLowerCase().includes(term) ||
         p.company?.toLowerCase().includes(term) ||
         p.email?.toLowerCase().includes(term),
@@ -207,7 +217,7 @@ async function getReferralData(
 
   let submissions: unknown[] = [];
   if (includeSubmissions && filteredPartners.length > 0) {
-    const partnerIds = filteredPartners.map((p: any) => p.id);
+    const partnerIds = filteredPartners.map((p: { id: string }) => p.id);
     let subQuery = supabase
       .from('referral_submissions')
       .select(

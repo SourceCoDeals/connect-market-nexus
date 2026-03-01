@@ -22,12 +22,14 @@ interface GoogleSearchItem {
  */
 function extractSerperResults(serperResponse: { organic?: unknown[] }): GoogleSearchItem[] {
   const organic = serperResponse.organic || [];
-  return organic.map((r: any) => ({
-    title: r.title || '',
-    url: r.link || '',
-    description: r.snippet || '',
-    position: r.position || 0,
-  }));
+  return organic.map(
+    (r: { title?: string; link?: string; snippet?: string; position?: number }) => ({
+      title: r.title || '',
+      url: r.link || '',
+      description: r.snippet || '',
+      position: r.position || 0,
+    }),
+  );
 }
 
 describe('extractSerperResults', () => {

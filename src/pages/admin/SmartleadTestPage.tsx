@@ -394,8 +394,8 @@ function PushToSmartleadTest() {
               <SelectValue placeholder="Select campaign..." />
             </SelectTrigger>
             <SelectContent>
-              {activeCampaigns.map((c: any) => (
-                <SelectItem key={c.id} value={c.id}>
+              {activeCampaigns.map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>
                   {c.name} ({c.status})
                 </SelectItem>
               ))}

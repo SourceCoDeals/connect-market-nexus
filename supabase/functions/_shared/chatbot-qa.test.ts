@@ -368,7 +368,7 @@ describe('PART 3: Conversation Context', () => {
     interface WorkflowStep {
       name: string;
       status: 'pending' | 'running' | 'complete' | 'failed';
-      result?: any;
+      result?: unknown;
     }
 
     function advanceWorkflow(steps: WorkflowStep[]): { current: number; complete: boolean } {

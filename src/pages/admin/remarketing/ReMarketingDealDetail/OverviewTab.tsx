@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PipelineSummaryCard } from "@/components/remarketing";
-import { DealTranscriptSection } from "@/components/remarketing/DealTranscriptSection";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PipelineSummaryCard } from '@/components/remarketing';
+import { DealTranscriptSection } from '@/components/remarketing/DealTranscriptSection';
 import {
   GeneralNotesSection,
   OwnerResponseSection,
@@ -15,24 +15,27 @@ import {
   KeyQuotesCard,
   BuyerHistoryDialog,
   EditFinancialsDialog,
-} from "@/components/remarketing/deal-detail";
-import { format } from "date-fns";
-import { WebsiteActionsCard } from "./WebsiteActionsCard";
-import { FinancialOverviewCard } from "./FinancialOverviewCard";
-import type { DealTranscript } from "../types";
+} from '@/components/remarketing/deal-detail';
+import { format } from 'date-fns';
+import type { QueryClient } from '@tanstack/react-query';
+import { WebsiteActionsCard } from './WebsiteActionsCard';
+import { FinancialOverviewCard } from './FinancialOverviewCard';
+import type { DealTranscript } from '../types';
 
 interface OverviewTabProps {
-  deal: any;
+  deal: Record<string, unknown>;
   dealId: string;
   scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
-  pipelineStats: {
-    contacted: number;
-    responded: number;
-    meetingScheduled: number;
-    loiSent: number;
-    closedWon: number;
-    closedLost: number;
-  } | undefined;
+  pipelineStats:
+    | {
+        contacted: number;
+        responded: number;
+        meetingScheduled: number;
+        loiSent: number;
+        closedWon: number;
+        closedLost: number;
+      }
+    | undefined;
   transcripts: unknown[] | undefined;
   transcriptsLoading: boolean;
   effectiveWebsite: string | null;
@@ -46,10 +49,13 @@ interface OverviewTabProps {
   setEditFinancialsOpen: (v: boolean) => void;
   handleEnrichFromWebsite: () => void;
   handleAnalyzeNotes: (notes: string) => void;
-  updateDealMutation: { mutateAsync: (updates: Record<string, unknown>) => Promise<void>; isPending: boolean };
+  updateDealMutation: {
+    mutateAsync: (updates: Record<string, unknown>) => Promise<void>;
+    isPending: boolean;
+  };
   toggleContactOwnerMutation: { mutate: (v: boolean) => void; isPending: boolean };
   toggleUniverseFlagMutation: { mutate: (v: boolean) => void; isPending: boolean };
-  queryClient: any;
+  queryClient: QueryClient;
 }
 
 export function OverviewTab({
@@ -157,10 +163,7 @@ export function OverviewTab({
         }}
       />
 
-      <FinancialOverviewCard
-        deal={deal}
-        onEditClick={() => setEditFinancialsOpen(true)}
-      />
+      <FinancialOverviewCard deal={deal} onEditClick={() => setEditFinancialsOpen(true)} />
 
       <EditFinancialsDialog
         open={editFinancialsOpen}
@@ -262,12 +265,16 @@ export function OverviewTab({
 
       <CustomerTypesCard
         customerTypes={deal.customer_types}
-        customerConcentration={deal.customer_concentration != null ? String(deal.customer_concentration) : undefined}
+        customerConcentration={
+          deal.customer_concentration != null ? String(deal.customer_concentration) : undefined
+        }
         customerGeography={deal.customer_geography ?? undefined}
         onSave={async (data) => {
           await updateDealMutation.mutateAsync({
             customer_types: data.customerTypes,
-            customer_concentration: data.customerConcentration ? parseFloat(data.customerConcentration) : null,
+            customer_concentration: data.customerConcentration
+              ? parseFloat(data.customerConcentration)
+              : null,
             customer_geography: data.customerGeography,
           });
         }}
@@ -328,7 +335,9 @@ export function OverviewTab({
           await updateDealMutation.mutateAsync({ general_notes: notes });
         }}
         isAnalyzing={isAnalyzingNotes}
-        onAnalyze={async (notes: string) => { handleAnalyzeNotes(notes); }}
+        onAnalyze={async (notes: string) => {
+          handleAnalyzeNotes(notes);
+        }}
       />
 
       <div className="flex justify-end gap-6 text-xs text-muted-foreground pt-4">

@@ -25,7 +25,7 @@ interface RouterResult {
 }
 
 interface BypassRule {
-  test: (query: string, ctx: any) => boolean;
+  test: (query: string, ctx: Record<string, unknown>) => boolean;
   result: RouterResult;
 }
 
@@ -312,7 +312,10 @@ const BYPASS_RULES: BypassRule[] = [
   },
 ];
 
-function classifyQuery(query: string, pageContext: any = {}): RouterResult | null {
+function classifyQuery(
+  query: string,
+  pageContext: Record<string, unknown> = {},
+): RouterResult | null {
   for (const rule of BYPASS_RULES) {
     if (rule.test(query, pageContext)) {
       return rule.result;

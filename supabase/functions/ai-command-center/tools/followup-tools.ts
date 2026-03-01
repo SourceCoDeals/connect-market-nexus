@@ -4,8 +4,8 @@
  * unsigned NDAs, unread messages, and upcoming due dates into a single view.
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+type SupabaseClient = ReturnType<typeof createClient>;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
 
@@ -169,14 +169,32 @@ async function getFollowUpQueue(
   ]);
 
   // Map entity_id to deal_id for backward compatibility
-  const overdueTasks = (overdueTasksResult.data || []).map((t: any) => ({
-    ...t,
-    deal_id: t.entity_id,
-  }));
-  const upcomingTasks = (upcomingTasksResult.data || []).map((t: any) => ({
-    ...t,
-    deal_id: t.entity_id,
-  }));
+  const overdueTasks = (overdueTasksResult.data || []).map(
+    (t: {
+      id: string;
+      title: string;
+      entity_id: string;
+      status: string;
+      priority: string;
+      due_date: string;
+    }) => ({
+      ...t,
+      deal_id: t.entity_id,
+    }),
+  );
+  const upcomingTasks = (upcomingTasksResult.data || []).map(
+    (t: {
+      id: string;
+      title: string;
+      entity_id: string;
+      status: string;
+      priority: string;
+      due_date: string;
+    }) => ({
+      ...t,
+      deal_id: t.entity_id,
+    }),
+  );
   const staleOutreach = staleOutreachResult.data || [];
   const pendingNdas = pendingNdasResult.data || [];
   const unreadMessages = unreadMessagesResult.data || [];
@@ -194,46 +212,88 @@ async function getFollowUpQueue(
         unread_messages: unreadMessages.length,
         upcoming_tasks: upcomingTasks.length,
       },
-      overdue_tasks: overdueTasks.map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        deal_id: t.deal_id,
-        priority: t.priority,
-        due_date: t.due_date,
-        days_overdue: Math.floor(
-          (now.getTime() - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24),
-        ),
-      })),
-      stale_outreach: staleOutreach.map((o: any) => ({
-        id: o.id,
-        buyer_name: o.buyer_name,
-        deal_id: o.deal_id,
-        stage: o.stage,
-        last_action_date: o.last_action_date,
-        days_since_action: Math.floor(
-          (now.getTime() - new Date(o.last_action_date).getTime()) / (1000 * 60 * 60 * 24),
-        ),
-        next_action: o.next_action,
-      })),
-      pending_ndas: pendingNdas.map((n: any) => ({
-        id: n.id,
-        company: n.primary_company_name,
-        has_fee_agreement: n.fee_agreement_signed,
-        created_at: n.created_at,
-      })),
-      unread_messages: unreadMessages.map((m: any) => ({
-        id: m.id,
-        preview: (m.body || '').substring(0, 100),
-        connection_request_id: m.connection_request_id,
-        created_at: m.created_at,
-      })),
-      upcoming_tasks: upcomingTasks.map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        deal_id: t.deal_id,
-        priority: t.priority,
-        due_date: t.due_date,
-      })),
+      overdue_tasks: overdueTasks.map(
+        (t: {
+          id: string;
+          title: string;
+          deal_id: string;
+          priority: string;
+          due_date: string;
+        }) => ({
+          id: t.id,
+          title: t.title,
+          deal_id: t.deal_id,
+          priority: t.priority,
+          due_date: t.due_date,
+          days_overdue: Math.floor(
+            (now.getTime() - new Date(t.due_date).getTime()) / (1000 * 60 * 60 * 24),
+          ),
+        }),
+      ),
+      stale_outreach: staleOutreach.map(
+        (o: {
+          id: string;
+          buyer_name: string;
+          deal_id: string;
+          stage: string;
+          last_action_date: string;
+          next_action: string;
+          next_action_date: string;
+        }) => ({
+          id: o.id,
+          buyer_name: o.buyer_name,
+          deal_id: o.deal_id,
+          stage: o.stage,
+          last_action_date: o.last_action_date,
+          days_since_action: Math.floor(
+            (now.getTime() - new Date(o.last_action_date).getTime()) / (1000 * 60 * 60 * 24),
+          ),
+          next_action: o.next_action,
+        }),
+      ),
+      pending_ndas: pendingNdas.map(
+        (n: {
+          id: string;
+          primary_company_name: string;
+          nda_signed: boolean;
+          fee_agreement_signed: boolean;
+          created_at: string;
+        }) => ({
+          id: n.id,
+          company: n.primary_company_name,
+          has_fee_agreement: n.fee_agreement_signed,
+          created_at: n.created_at,
+        }),
+      ),
+      unread_messages: unreadMessages.map(
+        (m: {
+          id: string;
+          body: string;
+          sender_role: string;
+          created_at: string;
+          connection_request_id: string;
+        }) => ({
+          id: m.id,
+          preview: (m.body || '').substring(0, 100),
+          connection_request_id: m.connection_request_id,
+          created_at: m.created_at,
+        }),
+      ),
+      upcoming_tasks: upcomingTasks.map(
+        (t: {
+          id: string;
+          title: string;
+          deal_id: string;
+          priority: string;
+          due_date: string;
+        }) => ({
+          id: t.id,
+          title: t.title,
+          deal_id: t.deal_id,
+          priority: t.priority,
+          due_date: t.due_date,
+        }),
+      ),
       source_tables: [
         'daily_standup_tasks',
         'outreach_records',
