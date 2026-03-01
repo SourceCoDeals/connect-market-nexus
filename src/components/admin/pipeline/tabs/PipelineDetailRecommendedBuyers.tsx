@@ -43,12 +43,10 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Only auto-score for active deals (NDA Sent and beyond, not closed)
-  // All lead sources are excluded from auto-scoring — use manual button instead
+  // Lead sources don't auto-score — only active deals do
   const LEAD_SOURCES = ['captarget', 'gp_partners', 'valuation_calculator', 'referral'];
   const isLeadSource = LEAD_SOURCES.includes((deal.deal_source || '').toLowerCase());
-  const isActiveDeal = deal.stage_position >= 3 && deal.stage_position <= 9 && !isLeadSource;
-  const isClosedDeal = deal.stage_position >= 10;
+  const isActiveDeal = !isLeadSource;
 
   const limit = showAll ? 100 : 25;
   const { data, isLoading, isError, isFetching, refetch } = useRecommendedBuyers(
@@ -59,7 +57,7 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
   const autoScore = useAutoScoreDeal(deal.listing_id || undefined, hasScores);
 
-  // Auto-trigger scoring ONLY for active deals (not leads, not closed)
+  // Auto-trigger scoring for active deals (not lead sources)
   useEffect(() => {
     if (isActiveDeal && hasScores === false && autoScore.status === 'idle') {
       autoScore.triggerAutoScore();
@@ -245,17 +243,13 @@ export function PipelineDetailRecommendedBuyers({ deal }: PipelineDetailRecommen
   }
 
   if (!data || data.buyers.length === 0) {
-    // Early-stage lead or lead source — show manual trigger button
-    if (!isActiveDeal && !isClosedDeal) {
+    // Lead source deal — show manual trigger button instead of auto-scoring
+    if (isLeadSource) {
       return (
         <div className="flex-1 flex items-center justify-center py-12">
           <div className="text-center space-y-3">
             <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-            <p className="text-sm text-muted-foreground">
-              {isLeadSource
-                ? 'Lead-source deals are not auto-scored.'
-                : 'Buyer scoring runs automatically once a deal reaches NDA stage.'}
-            </p>
+            <p className="text-sm text-muted-foreground">Lead-source deals are not auto-scored.</p>
             <p className="text-xs text-muted-foreground/60">
               You can score this deal now if you want buyer recommendations.
             </p>
