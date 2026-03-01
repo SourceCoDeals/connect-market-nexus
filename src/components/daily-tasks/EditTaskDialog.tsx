@@ -20,7 +20,9 @@ import {
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { useEditTask } from '@/hooks/useDailyTasks';
+import { useExistingTags } from '@/hooks/useTaskTags';
 import { TASK_TYPE_OPTIONS } from '@/types/daily-tasks';
+import { TagInput } from './TagInput';
 import type { DailyStandupTaskWithRelations, TaskType } from '@/types/daily-tasks';
 
 interface EditTaskDialogProps {
@@ -32,11 +34,13 @@ interface EditTaskDialogProps {
 export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps) {
   const editTask = useEditTask();
   const { toast } = useToast();
+  const { data: existingTags } = useExistingTags();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [taskType, setTaskType] = useState<TaskType>('other');
   const [dueDate, setDueDate] = useState('');
   const [dealReference, setDealReference] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (task) {
@@ -45,6 +49,7 @@ export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps
       setTaskType(task.task_type);
       setDueDate(task.due_date);
       setDealReference(task.deal_reference || '');
+      setTags(task.tags || []);
     }
   }, [task]);
 
@@ -60,6 +65,7 @@ export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps
           task_type: taskType,
           due_date: dueDate,
           deal_reference: dealReference.trim() || null,
+          tags,
         },
       });
       onOpenChange(false);
@@ -130,6 +136,16 @@ export function EditTaskDialog({ task, open, onOpenChange }: EditTaskDialogProps
               value={dealReference}
               onChange={(e) => setDealReference(e.target.value)}
               placeholder="Company name"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tags</Label>
+            <TagInput
+              value={tags}
+              onChange={setTags}
+              suggestions={existingTags || []}
+              placeholder="e.g., Q1 push, board meeting prep"
             />
           </div>
         </div>

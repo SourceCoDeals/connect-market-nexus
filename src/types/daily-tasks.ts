@@ -108,6 +108,9 @@ export interface DailyStandupTask {
   depends_on: string | null;
   snoozed_until: string | null;
   buyer_deal_score: number | null;
+
+  // v3.2 — Free-form tags
+  tags: string[];
 }
 
 export interface DailyStandupTaskWithRelations extends DailyStandupTask {

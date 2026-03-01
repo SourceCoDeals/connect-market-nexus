@@ -1,15 +1,15 @@
-import { useNavigate, Link } from "react-router-dom";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { TableCell, TableRow } from "@/components/ui/table";
+import { useNavigate, Link } from 'react-router-dom';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { TableCell, TableRow } from '@/components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Checkbox } from "@/components/ui/checkbox";
+} from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   MoreHorizontal,
   Users,
@@ -18,10 +18,11 @@ import {
   Trash2,
   ExternalLink,
   Sparkles,
-} from "lucide-react";
-import { IntelligenceBadge } from "@/components/remarketing";
-import { isSponsorType, findPeFirmByName, getBuyerTypeLabel } from "./constants";
-import type { BuyerTab } from "./constants";
+} from 'lucide-react';
+import { IntelligenceBadge } from '@/components/remarketing';
+import { FlagForBuyerButton } from '@/components/daily-tasks/FlagForBuyerButton';
+import { isSponsorType, findPeFirmByName, getBuyerTypeLabel } from './constants';
+import type { BuyerTab } from './constants';
 
 interface BuyerTableRowProps {
   buyer: any;
@@ -31,7 +32,11 @@ interface BuyerTableRowProps {
   buyers: any[] | undefined;
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
-  toggleSelect: (id: string, checked: boolean, event?: React.MouseEvent | React.KeyboardEvent) => void;
+  toggleSelect: (
+    id: string,
+    checked: boolean,
+    event?: React.MouseEvent | React.KeyboardEvent,
+  ) => void;
   handleEnrichBuyer: (e: React.MouseEvent, buyerId: string) => void;
   deleteMutation: { mutate: (id: string) => void };
 }
@@ -50,9 +55,7 @@ const BuyerTableRow = ({
 }: BuyerTableRowProps) => {
   const navigate = useNavigate();
   const isSponsor = isSponsorType(buyer.buyer_type);
-  const detailPath = isSponsor
-    ? `/admin/buyers/pe-firms/${buyer.id}`
-    : `/admin/buyers/${buyer.id}`;
+  const detailPath = isSponsor ? `/admin/buyers/pe-firms/${buyer.id}` : `/admin/buyers/${buyer.id}`;
 
   return (
     <TableRow
@@ -61,17 +64,22 @@ const BuyerTableRow = ({
       onClick={() => navigate(detailPath)}
     >
       {/* Checkbox */}
-      <TableCell onClick={(e) => { e.stopPropagation(); toggleSelect(buyer.id, !selectedIds.has(buyer.id), e); }}>
+      <TableCell
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleSelect(buyer.id, !selectedIds.has(buyer.id), e);
+        }}
+      >
         <Checkbox
           checked={selectedIds.has(buyer.id)}
-          onCheckedChange={() => {/* handled by TableCell onClick for shift support */}}
+          onCheckedChange={() => {
+            /* handled by TableCell onClick for shift support */
+          }}
         />
       </TableCell>
 
       {/* Row Number */}
-      <TableCell className="text-xs text-muted-foreground tabular-nums">
-        {globalIdx}
-      </TableCell>
+      <TableCell className="text-xs text-muted-foreground tabular-nums">{globalIdx}</TableCell>
 
       {/* Name Column */}
       <TableCell>
@@ -85,9 +93,7 @@ const BuyerTableRow = ({
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-medium text-foreground truncate">
-                {buyer.company_name}
-              </span>
+              <span className="font-medium text-foreground truncate">{buyer.company_name}</span>
             </div>
             {buyer.company_website && (
               <a
@@ -123,23 +129,29 @@ const BuyerTableRow = ({
 
           {/* Fee Agreement Column */}
           <TableCell className="text-center">
-            {buyer.has_fee_agreement
-              ? <span className="text-xs font-medium text-green-600">Yes</span>
-              : <span className="text-xs text-muted-foreground">No</span>}
+            {buyer.has_fee_agreement ? (
+              <span className="text-xs font-medium text-green-600">Yes</span>
+            ) : (
+              <span className="text-xs text-muted-foreground">No</span>
+            )}
           </TableCell>
 
           {/* NDA Column */}
           <TableCell className="text-center">
-            {buyer.firm_agreement?.nda_signed
-              ? <span className="text-xs font-medium text-green-600">Yes</span>
-              : <span className="text-xs text-muted-foreground">No</span>}
+            {buyer.firm_agreement?.nda_signed ? (
+              <span className="text-xs font-medium text-green-600">Yes</span>
+            ) : (
+              <span className="text-xs text-muted-foreground">No</span>
+            )}
           </TableCell>
 
           {/* Marketplace Column */}
           <TableCell className="text-center">
-            {buyer.marketplace_firm_id
-              ? <span className="text-xs font-medium text-green-600">Yes</span>
-              : <span className="text-xs text-muted-foreground">No</span>}
+            {buyer.marketplace_firm_id ? (
+              <span className="text-xs font-medium text-green-600">Yes</span>
+            ) : (
+              <span className="text-xs text-muted-foreground">No</span>
+            )}
           </TableCell>
 
           {/* Intel Column */}
@@ -198,7 +210,7 @@ const BuyerTableRow = ({
 
           {/* Description Column */}
           <TableCell>
-            {(buyer.business_summary || buyer.thesis_summary) ? (
+            {buyer.business_summary || buyer.thesis_summary ? (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -218,23 +230,29 @@ const BuyerTableRow = ({
 
           {/* Marketplace Column */}
           <TableCell className="text-center">
-            {buyer.marketplace_firm_id
-              ? <span className="text-xs font-medium text-green-600">Yes</span>
-              : <span className="text-xs text-muted-foreground">No</span>}
+            {buyer.marketplace_firm_id ? (
+              <span className="text-xs font-medium text-green-600">Yes</span>
+            ) : (
+              <span className="text-xs text-muted-foreground">No</span>
+            )}
           </TableCell>
 
           {/* Fee Agreement Column */}
           <TableCell className="text-center">
-            {buyer.has_fee_agreement
-              ? <span className="text-xs font-medium text-green-600">Yes</span>
-              : <span className="text-xs text-muted-foreground">No</span>}
+            {buyer.has_fee_agreement ? (
+              <span className="text-xs font-medium text-green-600">Yes</span>
+            ) : (
+              <span className="text-xs text-muted-foreground">No</span>
+            )}
           </TableCell>
 
           {/* NDA Column */}
           <TableCell className="text-center">
-            {buyer.firm_agreement?.nda_signed
-              ? <span className="text-xs font-medium text-green-600">Yes</span>
-              : <span className="text-xs text-muted-foreground">No</span>}
+            {buyer.firm_agreement?.nda_signed ? (
+              <span className="text-xs font-medium text-green-600">Yes</span>
+            ) : (
+              <span className="text-xs text-muted-foreground">No</span>
+            )}
           </TableCell>
 
           {/* Intel Column */}
@@ -249,45 +267,52 @@ const BuyerTableRow = ({
 
       {/* Actions Column */}
       <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              navigate(detailPath);
-            }}>
-              <Pencil className="h-4 w-4 mr-2" />
-              {isSponsor ? 'View Firm' : 'Edit'}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => {
-              e.stopPropagation();
-              handleEnrichBuyer(e, buyer.id);
-            }}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Enrich
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (confirm('Are you sure you want to delete this buyer?')) {
-                  deleteMutation.mutate(buyer.id);
-                }
-              }}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1">
+          <FlagForBuyerButton buyerId={buyer.id} buyerName={buyer.company_name || 'Unknown'} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(detailPath);
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                {isSponsor ? 'View Firm' : 'Edit'}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEnrichBuyer(e, buyer.id);
+                }}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Enrich
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm('Are you sure you want to delete this buyer?')) {
+                    deleteMutation.mutate(buyer.id);
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </TableCell>
     </TableRow>
   );

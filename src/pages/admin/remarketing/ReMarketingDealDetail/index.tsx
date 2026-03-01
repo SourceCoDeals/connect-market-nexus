@@ -3,20 +3,26 @@
 // The monolithic sibling file ReMarketingDealDetail.tsx (1,675 lines) is ORPHANED.
 // AUDIT REF: CTO Audit February 2026
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, Eye, Activity, UserPlus, FolderOpen } from "lucide-react";
-import { useDealDetail } from "./useDealDetail";
-import { CapTargetInfoCard } from "./CapTargetInfoCard";
-import { SalesforceInfoCard } from "./SalesforceInfoCard";
-import { DealHeader } from "./DealHeader";
-import { OverviewTab } from "./OverviewTab";
-import { DataRoomTab } from "./DataRoomTab";
-import { DealCallActivityTab } from "./DealCallActivityTab";
-import { DealContactHistoryTab, DealBuyerHistoryTab, BuyerIntroductionTracker, RecommendedBuyersSection } from "@/components/remarketing/deal-detail";
-import { ListingNotesLog } from "@/components/remarketing/deal-detail/ListingNotesLog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Building2, Eye, Activity, UserPlus, FolderOpen } from 'lucide-react';
+import { MissedCallButton } from '@/components/daily-tasks';
+import { useDealDetail } from './useDealDetail';
+import { CapTargetInfoCard } from './CapTargetInfoCard';
+import { SalesforceInfoCard } from './SalesforceInfoCard';
+import { DealHeader } from './DealHeader';
+import { OverviewTab } from './OverviewTab';
+import { DataRoomTab } from './DataRoomTab';
+import { DealCallActivityTab } from './DealCallActivityTab';
+import {
+  DealContactHistoryTab,
+  DealBuyerHistoryTab,
+  BuyerIntroductionTracker,
+  RecommendedBuyersSection,
+} from '@/components/remarketing/deal-detail';
+import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNotesLog';
 
 const ReMarketingDealDetail = () => {
   const {
@@ -91,22 +97,27 @@ const ReMarketingDealDetail = () => {
       <CapTargetInfoCard deal={deal} dealId={dealId!} />
       <SalesforceInfoCard deal={deal} />
 
-      <DealHeader
-        deal={deal}
-        backTo={backTo}
-        navigate={navigate}
-        displayName={displayName}
-        listedName={listedName}
-        dataCompleteness={dataCompleteness}
-        tier={tier}
-        isEditingName={isEditingName}
-        setIsEditingName={setIsEditingName}
-        editedName={editedName}
-        setEditedName={setEditedName}
-        handleSaveName={handleSaveName}
-        handleCancelEdit={handleCancelEdit}
-        updateNameMutation={updateNameMutation}
-      />
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <DealHeader
+            deal={deal}
+            backTo={backTo}
+            navigate={navigate}
+            displayName={displayName}
+            listedName={listedName}
+            dataCompleteness={dataCompleteness}
+            tier={tier}
+            isEditingName={isEditingName}
+            setIsEditingName={setIsEditingName}
+            editedName={editedName}
+            setEditedName={setEditedName}
+            handleSaveName={handleSaveName}
+            handleCancelEdit={handleCancelEdit}
+            updateNameMutation={updateNameMutation}
+          />
+        </div>
+        <MissedCallButton entityType="deal" entityId={dealId!} entityName={displayName} />
+      </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
@@ -165,18 +176,9 @@ const ReMarketingDealDetail = () => {
         </TabsContent>
 
         <TabsContent value="buyer-introductions" className="space-y-6">
-          <RecommendedBuyersSection
-            listingId={dealId!}
-            listingTitle={displayName}
-          />
-          <DealBuyerHistoryTab
-            listingId={dealId!}
-            listingTitle={displayName}
-          />
-          <BuyerIntroductionTracker
-            listingId={dealId!}
-            listingTitle={displayName}
-          />
+          <RecommendedBuyersSection listingId={dealId!} listingTitle={displayName} />
+          <DealBuyerHistoryTab listingId={dealId!} listingTitle={displayName} />
+          <BuyerIntroductionTracker listingId={dealId!} listingTitle={displayName} />
         </TabsContent>
 
         <TabsContent value="data-room" className="space-y-6">

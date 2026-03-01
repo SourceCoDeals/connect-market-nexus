@@ -15,3 +15,5 @@ export { SnoozeMenu } from './SnoozeMenu';
 export { TaskTemplateDialog } from './TaskTemplateDialog';
 export { DealTeamPanel } from './DealTeamPanel';
 export { DealSignalsPanel } from './DealSignalsPanel';
+export { MissedCallButton } from './MissedCallButton';
+export { FlagForBuyerButton } from './FlagForBuyerButton';

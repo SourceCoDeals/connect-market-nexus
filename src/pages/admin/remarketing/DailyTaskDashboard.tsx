@@ -35,6 +35,7 @@ import {
   UserRound,
   ShieldCheck,
   XCircle,
+  Tag,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, getLocalDateString } from '@/lib/utils';
@@ -43,6 +44,13 @@ import { AddTaskDialog } from '@/components/daily-tasks/AddTaskDialog';
 import { EditTaskDialog } from '@/components/daily-tasks/EditTaskDialog';
 import { ReassignDialog } from '@/components/daily-tasks/ReassignDialog';
 import { PinDialog } from '@/components/daily-tasks/PinDialog';
+import { useExistingTags } from '@/hooks/useTaskTags';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 
 // ─── Group tasks by assignee into separate sections ───
@@ -164,6 +172,7 @@ const DailyTaskDashboard = () => {
 
   const [view, setView] = useState<'my' | 'all'>('my');
   const [showCompleted, setShowCompleted] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editTask, setEditTask] = useState<DailyStandupTaskWithRelations | null>(null);
   const [reassignTask, setReassignTask] = useState<DailyStandupTaskWithRelations | null>(null);
@@ -174,6 +183,7 @@ const DailyTaskDashboard = () => {
   const approveTask = useApproveTask();
   const approveAll = useApproveAllTasks();
   const dismissTask = useCancelTask();
+  const { data: allDistinctTags } = useExistingTags();
 
   const today = getLocalDateString();
 
@@ -210,8 +220,19 @@ const DailyTaskDashboard = () => {
 
   const approvedTasks = useMemo(() => {
     if (!tasks) return [];
-    return tasks.filter((t) => t.status !== 'pending_approval');
-  }, [tasks]);
+    let filtered = tasks.filter((t) => t.status !== 'pending_approval');
+
+    // Apply tag filter
+    if (selectedTags.size > 0) {
+      filtered = filtered.filter((t) => {
+        const taskTags = (t as DailyStandupTaskWithRelations & { tags?: string[] }).tags;
+        if (!taskTags || taskTags.length === 0) return false;
+        return Array.from(selectedTags).some((tag) => taskTags.includes(tag));
+      });
+    }
+
+    return filtered;
+  }, [tasks, selectedTags]);
 
   // Stats (only from approved tasks)
   const stats = useMemo(() => {
@@ -475,14 +496,55 @@ const DailyTaskDashboard = () => {
           </button>
         </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowCompleted(!showCompleted)}
-          className="text-xs"
-        >
-          {showCompleted ? 'Hide Completed' : 'Show Completed'}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Tag filter */}
+          {allDistinctTags && allDistinctTags.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={selectedTags.size > 0 ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs gap-1.5"
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  Tags
+                  {selectedTags.size > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 text-[9px] ml-1">
+                      {selectedTags.size}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-48 overflow-auto">
+                {allDistinctTags.map((tag) => (
+                  <DropdownMenuCheckboxItem
+                    key={tag}
+                    checked={selectedTags.has(tag)}
+                    onCheckedChange={(checked) => {
+                      setSelectedTags((prev) => {
+                        const next = new Set(prev);
+                        if (checked) next.add(tag);
+                        else next.delete(tag);
+                        return next;
+                      });
+                    }}
+                  >
+                    {tag}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowCompleted(!showCompleted)}
+            className="text-xs"
+          >
+            {showCompleted ? 'Hide Completed' : 'Show Completed'}
+          </Button>
+        </div>
       </div>
 
       {/* Task List */}

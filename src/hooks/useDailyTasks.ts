@@ -270,7 +270,11 @@ export function useReassignTask() {
                 .select('id, email, first_name, last_name')
                 .eq('id', newAssigneeId)
                 .single(),
-              supabase.from('profiles').select('first_name, last_name').eq('id', user?.id!).single(),
+              supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', user?.id ?? '')
+                .single(),
               task.entity_type === 'deal'
                 ? supabase.from('deals').select('title').eq('id', task.entity_id).single()
                 : Promise.resolve({ data: null }),
@@ -341,7 +345,7 @@ export function useEditTask() {
       updates: Partial<
         Pick<
           DailyStandupTask,
-          'title' | 'description' | 'task_type' | 'due_date' | 'deal_id' | 'deal_reference'
+          'title' | 'description' | 'task_type' | 'due_date' | 'deal_id' | 'deal_reference' | 'tags'
         >
       >;
     }) => {
@@ -373,6 +377,7 @@ export function useAddManualTask() {
         | 'due_date'
         | 'deal_id'
         | 'deal_reference'
+        | 'tags'
       >,
     ) => {
       const { data, error } = await supabase
