@@ -260,6 +260,7 @@ export function ConnectionRequestActions({
         due_date: new Date().toISOString().split('T')[0],
         deal_reference: listing?.title || null,
         deal_id: null,
+        tags: [],
       });
     } catch {
       // Task creation is best-effort; the flag itself already succeeded via the mutation
