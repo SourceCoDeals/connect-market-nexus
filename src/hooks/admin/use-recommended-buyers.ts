@@ -19,6 +19,7 @@ export interface RecommendedBuyer {
   buyer_id: string;
   company_name: string;
   pe_firm_name: string | null;
+  pe_firm_id: string | null;
   buyer_type: string | null;
   hq_state: string | null;
   hq_city: string | null;
@@ -357,7 +358,7 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
             supabase
               .from('remarketing_buyers')
               .select(
-                `id, company_name, pe_firm_name, buyer_type, hq_state, hq_city,
+                `id, company_name, pe_firm_name, pe_firm_id, buyer_type, hq_state, hq_city,
                    acquisition_appetite, has_fee_agreement, thesis_summary, total_acquisitions, archived`,
               )
               .eq('archived', false),
@@ -498,6 +499,7 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
           buyer_id: score.buyer_id,
           company_name: buyer.company_name,
           pe_firm_name: buyer.pe_firm_name || null,
+          pe_firm_id: (buyer.pe_firm_id as string) || null,
           buyer_type: buyer.buyer_type || null,
           hq_state: buyer.hq_state || null,
           hq_city: buyer.hq_city || null,
@@ -581,6 +583,7 @@ export function useRecommendedBuyers(listingId: string | null | undefined, limit
           buyer_id: buyerId,
           company_name: buyer.company_name,
           pe_firm_name: buyer.pe_firm_name || null,
+          pe_firm_id: (buyer.pe_firm_id as string) || null,
           buyer_type: buyer.buyer_type || null,
           hq_state: buyer.hq_state || null,
           hq_city: buyer.hq_city || null,
