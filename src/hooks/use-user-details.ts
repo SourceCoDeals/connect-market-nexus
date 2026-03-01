@@ -26,7 +26,7 @@ export interface UserDetails {
     utm_source: string | null;
     utm_medium: string | null;
     utm_campaign: string | null;
-    location: any | null;
+    location: { city?: string; region?: string; country?: string } | null;
     browser: string | null;
     device_type: string | null;
     platform: string | null;

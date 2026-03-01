@@ -20,8 +20,8 @@ interface ContactInfoSectionProps {
   isSelectingUser: boolean;
   selectedUserId: string | null;
   selectedCompanyName: string | null;
-  marketplaceUsers: any[] | undefined;
-  marketplaceCompanies: any[] | undefined;
+  marketplaceUsers: Array<{ id: string; email: string; first_name: string | null; last_name: string | null; company: string | null; buyer_type: string | null }> | undefined;
+  marketplaceCompanies: Array<{ value: string; label: string; searchTerms: string; profileTemplate: { buyer_type: string | null; phone_number: string | null; website: string | null; linkedin_profile: string | null; business_categories: string[] | null; target_locations: string[] | null; sampleUserEmail: string; sampleUserId: string } }> | undefined;
   userOptions: { value: string; label: string; searchTerms: string }[];
   handleUserSelect: (userId: string) => void;
   handleToggleUserSelection: () => void;

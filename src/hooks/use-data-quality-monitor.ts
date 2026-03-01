@@ -73,7 +73,7 @@ export const useDataQualityMonitor = () => {
     }
   };
 
-  const calculateMetrics = (profiles: any[], funnelData: any[]): DataQualityMetrics => {
+  const calculateMetrics = (profiles: Record<string, unknown>[], funnelData: Record<string, unknown>[]): DataQualityMetrics => {
     const totalUsers = profiles.length;
     const recentUsers = profiles.filter(p => 
       new Date(p.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)

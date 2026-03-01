@@ -12,7 +12,7 @@ import { formatCurrency } from '@/lib/currency-utils';
 interface DealAlertWithUser {
   id: string;
   name: string;
-  criteria: any;
+  criteria: Record<string, unknown>;
   frequency: string;
   is_active: boolean;
   created_at: string;
@@ -83,7 +83,7 @@ export function AdminAlertManagement() {
     );
   }
 
-  const formatCriteria = (criteria: any) => {
+  const formatCriteria = (criteria: Record<string, unknown>) => {
     const parts = [];
     
     if (criteria.category && criteria.category !== 'all') {

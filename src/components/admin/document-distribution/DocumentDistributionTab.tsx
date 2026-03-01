@@ -64,7 +64,7 @@ export function DocumentDistributionTab({
 
       if (error) throw error;
 
-      return (data || []).flatMap((buyer: any) => {
+      return (data || []).flatMap((buyer) => {
         const contacts = buyer.contacts || [];
 
         if (contacts.length === 0) {
@@ -78,7 +78,7 @@ export function DocumentDistributionTab({
         }
 
         // Return each contact as a separate buyer option
-        return contacts.map((c: any) => ({
+        return contacts.map((c) => ({
           id: buyer.id,
           name: [c.first_name, c.last_name].filter(Boolean).join(' ') || buyer.company_name,
           email: c.email || '',

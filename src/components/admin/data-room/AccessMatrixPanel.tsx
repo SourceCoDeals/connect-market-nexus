@@ -130,7 +130,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         entry_type: 'firm' | 'contact';
       };
 
-      const firms: UnifiedBuyer[] = (firmsResult.data || []).map((b: any) => ({
+      const firms: UnifiedBuyer[] = (firmsResult.data || []).map((b) => ({
         id: b.id,
         remarketing_buyer_id: b.id,
         display_name: b.company_name || b.pe_firm_name || 'Unknown',
@@ -140,7 +140,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         entry_type: 'firm' as const,
       }));
 
-      const contacts: UnifiedBuyer[] = (contactsResult.data || []).map((c: any) => ({
+      const contacts: UnifiedBuyer[] = (contactsResult.data || []).map((c) => ({
         id: `contact:${c.id}`,
         remarketing_buyer_id: c.buyer?.id,
         display_name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',

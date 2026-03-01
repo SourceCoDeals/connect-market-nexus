@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 /**
@@ -17,7 +18,7 @@ export function useDealOwnerNotifications() {
           table: 'admin_notifications',
           filter: 'notification_type=eq.deal_assignment'
         },
-        async (payload: RealtimePostgresChangesPayload<any>) => {
+        async (payload: RealtimePostgresChangesPayload<Tables<'admin_notifications'>['Row']>) => {
           const notification = payload.new;
           const metadata = notification.metadata;
 
@@ -52,7 +53,7 @@ export function useDealOwnerNotifications() {
           table: 'admin_notifications',
           filter: 'notification_type=eq.deal_reassignment'
         },
-        async (payload: RealtimePostgresChangesPayload<any>) => {
+        async (payload: RealtimePostgresChangesPayload<Tables<'admin_notifications'>['Row']>) => {
           const notification = payload.new;
           const metadata = notification.metadata;
 

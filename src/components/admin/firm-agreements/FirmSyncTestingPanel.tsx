@@ -197,7 +197,7 @@ export function FirmSyncTestingPanel() {
       
       if (error) throw error;
       
-      const syncIssues = members?.filter((m: any) => {
+      const syncIssues = members?.filter((m) => {
         const firmFee = m.firm_agreements?.fee_agreement_signed;
         const profileFee = m.profiles?.fee_agreement_signed;
         const firmNda = m.firm_agreements?.nda_signed;
@@ -285,7 +285,7 @@ export function FirmSyncTestingPanel() {
       if (error) throw error;
 
       // Validate deal status matches connection request for lead-based requests
-      const syncIssues = deals?.filter((d: any) => {
+      const syncIssues = deals?.filter((d) => {
         const cr = d.connection_requests;
         if (!cr || cr.user_id !== null) return false; // Skip user-based requests
         
