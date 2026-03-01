@@ -1,7 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { MapPin, Check, X } from 'lucide-react';
+import { MapPin } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { RecommendedBuyer } from '@/hooks/admin/use-recommended-buyers';
+import { routeBuilders } from '@/config/routes';
+
+const SPONSOR_TYPES = ['pe_firm', 'independent_sponsor', 'search_fund', 'family_office'];
 
 interface BuyerRecommendationCardProps {
   buyer: RecommendedBuyer;
@@ -16,9 +20,12 @@ export function BuyerRecommendationCard({
   onApprove,
   onReject,
 }: BuyerRecommendationCardProps) {
-  const displayName = buyer.pe_firm_name
-    ? `${buyer.company_name} (${buyer.pe_firm_name})`
-    : buyer.company_name;
+  const isSponsor = SPONSOR_TYPES.includes(buyer.buyer_type || '');
+  const companyLink = isSponsor
+    ? routeBuilders.peFirmDetail(buyer.buyer_id)
+    : routeBuilders.buyerDetail(buyer.buyer_id);
+
+  const peFirmLink = buyer.pe_firm_id ? routeBuilders.peFirmDetail(buyer.pe_firm_id) : null;
 
   const hqDisplay = [buyer.hq_city, buyer.hq_state].filter(Boolean).join(', ');
 
@@ -50,7 +57,28 @@ export function BuyerRecommendationCard({
 
       {/* Content - name, geography, fit reason */}
       <div className="flex-1 min-w-0 space-y-0.5">
-        <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+        <p className="text-sm font-medium text-foreground truncate">
+          <Link to={companyLink} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+            {buyer.company_name}
+          </Link>
+          {buyer.pe_firm_name && (
+            <>
+              {' '}
+              <span className="text-muted-foreground font-normal">—</span>{' '}
+              {peFirmLink ? (
+                <Link
+                  to={peFirmLink}
+                  className="text-muted-foreground font-normal hover:underline hover:text-foreground"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {buyer.pe_firm_name}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground font-normal">{buyer.pe_firm_name}</span>
+              )}
+            </>
+          )}
+        </p>
         {hqDisplay && (
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <MapPin className="h-3 w-3 flex-shrink-0" />
@@ -70,28 +98,26 @@ export function BuyerRecommendationCard({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="h-8 px-3 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={(e) => {
               e.stopPropagation();
               onReject(buyer);
             }}
-            title="Reject"
           >
-            <X className="h-4 w-4" />
+            Reject
           </Button>
         )}
         {onApprove && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
+            className="h-8 px-3 text-xs text-muted-foreground hover:text-emerald-600 hover:bg-emerald-500/10"
             onClick={(e) => {
               e.stopPropagation();
               onApprove(buyer);
             }}
-            title="Approve - Introduce to firm"
           >
-            <Check className="h-4 w-4" />
+            Approve
           </Button>
         )}
       </div>
