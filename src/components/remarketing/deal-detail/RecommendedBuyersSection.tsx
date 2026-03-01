@@ -46,7 +46,7 @@ export function RecommendedBuyersSection({
   const hasScores = isLoading ? undefined : (data?.buyers?.length ?? 0) > 0;
   const autoScore = useAutoScoreDeal(listingId, hasScores);
 
-  const { createIntroduction, isCreating } = useBuyerIntroductions(listingId);
+  const { createIntroduction } = useBuyerIntroductions(listingId);
 
   // Auto-trigger scoring when we detect no scores exist
   useEffect(() => {
