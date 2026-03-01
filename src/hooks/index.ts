@@ -75,15 +75,10 @@ export type { TimeframePreset, TimeframeValue, DateRange } from './use-timeframe
 // ─── Filtering ───
 export { useFilterEngine } from './use-filter-engine';
 
-// ─── Mobile ───
-export { useSwipeGesture, useLongPress, triggerHaptic, usePullToRefresh } from './use-mobile-gestures';
-export { useLazyComponent, usePerformanceMetrics, useOptimizedQuery, useNetworkAwareLoading, useMobileTableOptimization } from './use-mobile-performance';
-
 // ─── Analytics ───
 export { useAnalyticsTracking } from './use-analytics-tracking';
 export { useClickTracking } from './use-click-tracking';
 export { usePageEngagement } from './use-page-engagement';
-export { useSimpleMarketplaceAnalytics, useAnalyticsHealthCheck } from './use-simple-marketplace-analytics';
 
 // ─── UTM & Attribution ───
 export { useUTMParams, getCurrentUTMParams, getFirstTouchAttribution, getFullAttribution } from './use-utm-params';
@@ -107,18 +102,8 @@ export { useDataQualityMonitor } from './use-data-quality-monitor';
 // ─── Tab-aware Queries ───
 export { useTabAwareQuery, useTabAwareMarketplaceQuery } from './use-tab-aware-query';
 
-// ─── Smart Alerts ───
-export { useSmartAlerts } from './use-smart-alerts';
-export type { SmartAlert } from './use-smart-alerts';
-
-// ─── Enhanced Feedback ───
-export { useEnhancedFeedback } from './use-enhanced-feedback';
-export type { EnhancedFeedbackData, FeedbackMessageWithUser } from './use-enhanced-feedback';
-
 // ─── Revenue / Intelligence ───
-export { useRevenueOptimization } from './use-revenue-optimization';
 export { useListingIntelligence, useListingJourneys } from './use-listing-intelligence';
-export { usePredictiveUserIntelligence } from './use-predictive-user-intelligence';
 
 // ─── Enrichment ───
 export { useEnrichmentProgress } from './useEnrichmentProgress';
@@ -127,26 +112,13 @@ export { useBuyerEnrichment } from './useBuyerEnrichment';
 export { useBuyerEnrichmentProgress } from './useBuyerEnrichmentProgress';
 export { useBuyerEnrichmentQueue } from './useBuyerEnrichmentQueue';
 export { useDealEnrichment } from './useDealEnrichment';
-export { useAutoEnrichment } from './useAutoEnrichment';
 
 // ─── Advanced Analytics ───
 export { useUnifiedAnalytics } from './useUnifiedAnalytics';
-export { useRealTimeAnalytics } from './useRealTimeAnalytics';
 export { useEnhancedRealTimeAnalytics } from './useEnhancedRealTimeAnalytics';
-export { useTrafficAnalytics } from './useTrafficAnalytics';
-export { useEngagementAnalytics } from './useEngagementAnalytics';
-export { useSearchAnalytics } from './useSearchAnalytics';
-export { useGeographicAnalytics } from './useGeographicAnalytics';
-export { useHistoricalMetrics } from './useHistoricalMetrics';
-export { useBuyerIntentAnalytics } from './useBuyerIntentAnalytics';
-export { useCampaignAttribution } from './useCampaignAttribution';
-export { useExitAnalysis } from './useExitAnalysis';
 export { useReMarketingAnalytics } from './useReMarketingAnalytics';
-export { useListingHealth } from './useListingHealth';
 
 // ─── User Journeys ───
-export { useUserJourneys, useJourneyDetail } from './useUserJourneys';
-export { useJourneyMilestones } from './useJourneyMilestones';
 export { useVisitorIdentity } from './useVisitorIdentity';
 export { useUserDetail } from './useUserDetail';
 
@@ -157,9 +129,6 @@ export { useBackgroundGuideGeneration } from './useBackgroundGuideGeneration';
 
 // ─── Mapbox ───
 export { useMapboxToken, preloadMapboxToken } from './useMapboxToken';
-
-// ─── Signup ───
-export { useSignupAnalytics } from './use-signup-analytics';
 
 // ─── Activity ───
 export { useRecentActivity } from './use-recent-activity';
