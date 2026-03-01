@@ -133,7 +133,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       const profileToFirstSession = new Map<string, FirstSessionData>();
       profileSessionsMap.forEach((sessions, userId) => {
         const meaningfulSession = getFirstMeaningfulSession(sessions.reverse());
-        if (meaningfulSession) profileToFirstSession.set(userId, meaningfulSession);
+        if (meaningfulSession) profileToFirstSession.set(userId, meaningfulSession as FirstSessionData);
       });
 
       // Build self-reported sources
@@ -165,7 +165,7 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
 
       // Filter sessions
       const { sessionMap: currentSessionMap } = filterAndDeduplicateSessions(rawSessions);
-      const { sessions: prevFilteredSessions } = filterAndDeduplicateSessions(rawPrevSessions);
+      const { sessions: prevFilteredSessions } = filterAndDeduplicateSessions(rawPrevSessions as any);
       let { uniqueSessions } = filterAndDeduplicateSessions(rawSessions);
       uniqueSessions = applySessionFilters(uniqueSessions, filters, pageViews);
 
@@ -212,18 +212,18 @@ export function useUnifiedAnalytics(timeRangeDays: number = 30, filters: Analyti
       });
 
       // Compute all analytics sections
-      const kpiData = computeKPIs(uniqueSessions, prevFilteredSessions, filteredConnections, prevConnections, filteredPageViews, activeSessions.length, endDate);
-      const channels = computeChannels(uniqueSessions, filteredConnections, filteredProfiles, profileToFirstSession, userToAttributionSession);
-      const referrers = computeReferrers(uniqueSessions, filteredConnections, filteredProfiles, profileToFirstSession, userToAttributionSession);
-      const campaigns = computeCampaigns(uniqueSessions, filteredConnections, filteredProfiles, profileToFirstSession, userToAttributionSession);
-      const keywords = computeKeywords(uniqueSessions, filteredConnections, filteredProfiles, profileToFirstSession, userToAttributionSession);
-      const { countries, regions, cities, geoCoverage } = computeGeography(uniqueSessions, filteredConnections, filteredProfiles, profileToFirstSession, userToAttributionSession);
-      const { browsers, operatingSystems, devices } = computeTechBreakdown(uniqueSessions, filteredProfiles, profileToFirstSession, kpiData.currentVisitors);
-      const funnel = computeFunnel(kpiData.currentVisitors, uniqueSessions, filteredPageViews, filteredConnections, filteredConnectionsWithMilestones, kpiData.conversionRate);
+      const kpiData = computeKPIs(uniqueSessions, prevFilteredSessions, filteredConnections as any, prevConnections as any, filteredPageViews, activeSessions.length, endDate);
+      const channels = computeChannels(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
+      const referrers = computeReferrers(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
+      const campaigns = computeCampaigns(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
+      const keywords = computeKeywords(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
+      const { countries, regions, cities, geoCoverage } = computeGeography(uniqueSessions, filteredConnections as any, filteredProfiles as any, profileToFirstSession, userToAttributionSession as any);
+      const { browsers, operatingSystems, devices } = computeTechBreakdown(uniqueSessions, filteredProfiles as any, profileToFirstSession, kpiData.currentVisitors);
+      const funnel = computeFunnel(kpiData.currentVisitors, uniqueSessions, filteredPageViews, filteredConnections as any, filteredConnectionsWithMilestones as any, kpiData.conversionRate);
       const { topPages, entryPages, exitPages } = computePages(filteredPageViews);
       const blogEntryPages = computeBlogEntryPages(uniqueSessions);
-      const topUsers = computeTopUsers(uniqueSessions, filteredConnectionsWithMilestones, filteredPageViews, currentSessionMap, allProfilesMap, filters, kpiData.last7Days);
-      const formattedDailyMetrics = formatDailyMetrics(filters, dailyMetrics, kpiData.dailyVisitorSets, kpiData.dailySessionCounts, kpiData.dailyConnectionCounts, startDate, endDate);
+      const topUsers = computeTopUsers(uniqueSessions, filteredConnectionsWithMilestones as any, filteredPageViews, currentSessionMap, allProfilesMap as any, filters, kpiData.last7Days);
+      const formattedDailyMetrics = formatDailyMetrics(filters, dailyMetrics as any, kpiData.dailyVisitorSets, kpiData.dailySessionCounts, kpiData.dailyConnectionCounts, startDate, endDate);
 
       return {
         kpis: {

@@ -168,7 +168,7 @@ const ReMarketingUniverseDetail = () => {
       }
     },
     onClearSelection: () => setSelectedBuyerIds([]),
-    onSortColumn: (field) => {
+    onSortColumn: (_field) => {
       // Sort not yet implemented for universe buyer table
     },
     onTriggerAction: (action) => {

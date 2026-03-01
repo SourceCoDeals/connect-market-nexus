@@ -34,7 +34,7 @@ export function PipelineDetailDealInfo({ deal }: PipelineDetailDealInfoProps) {
       const { data, error } = await supabase
         .from('listings')
         .select('*')
-        .eq('id', deal.listing_id)
+        .eq('id', deal.listing_id!)
         .maybeSingle();
       if (error) throw error;
       return data;
@@ -48,7 +48,7 @@ export function PipelineDetailDealInfo({ deal }: PipelineDetailDealInfoProps) {
       const { error } = await supabase
         .from('listings')
         .update(updates)
-        .eq('id', deal.listing_id);
+        .eq('id', deal.listing_id!);
       if (error) throw error;
     },
     onSuccess: () => {

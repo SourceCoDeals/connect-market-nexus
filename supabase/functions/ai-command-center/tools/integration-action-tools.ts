@@ -1257,7 +1257,7 @@ async function enrichBuyerContacts(
   return {
     data: {
       contacts: allContacts,
-      total_found: filtered.length,
+      total_found: allContacts.length,
       total_enriched: contacts.length,
       skipped_already_in_crm: skippedFromCrm,
       from_cache: false,
