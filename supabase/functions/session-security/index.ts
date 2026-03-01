@@ -135,7 +135,7 @@ async function checkConcurrentSessions(userId?: string) {
     // Estimate concurrent sessions based on unique IP addresses
     const uniqueIPs = new Set();
     activities?.forEach(activity => {
-      const metadata = activity.metadata as any;
+      const metadata = activity.metadata as Record<string, unknown> | null;
       if (metadata?.ip_address) {
         uniqueIPs.add(metadata.ip_address);
       }
@@ -264,12 +264,12 @@ async function getRecentSessions(userId: string, hours: number = 24) {
   
   return activities?.map(activity => ({
     timestamp: activity.created_at,
-    ip_address: (activity.metadata as any)?.ip_address,
-    user_agent: (activity.metadata as any)?.user_agent
+    ip_address: (activity.metadata as Record<string, unknown> | null)?.ip_address,
+    user_agent: (activity.metadata as Record<string, unknown> | null)?.user_agent
   })) || [];
 }
 
-async function logSessionActivity(userId: string, activityType: string, metadata: any) {
+async function logSessionActivity(userId: string, activityType: string, metadata: Record<string, unknown>) {
   try {
     await supabase
       .from('user_activity')

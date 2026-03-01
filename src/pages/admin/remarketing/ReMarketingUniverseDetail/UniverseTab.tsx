@@ -232,7 +232,7 @@ export function UniverseTab({ data, handlers }: UniverseTabProps) {
                   {universeDeals?.length || 0} deals
                 </span>
                 {(() => {
-                  const unenrichedCount = universeDeals?.filter((d: any) => !d.listing?.enriched_at).length || 0;
+                  const unenrichedCount = universeDeals?.filter((d) => !(d.listing as Record<string, unknown> | null)?.enriched_at).length || 0;
                   return unenrichedCount > 0 ? (
                     <Badge variant="outline" className="text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-950/30">
                       {unenrichedCount} unenriched

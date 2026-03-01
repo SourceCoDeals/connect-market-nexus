@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod/v3';
 import {
@@ -338,7 +338,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
         position: stages.length,
         is_active: true,
         is_default: false,
-      } as any);
+      });
       form.reset();
       setShowCreateForm(false);
     } catch (error) {
@@ -403,7 +403,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
         if (views && views.length > 0) {
           for (const view of views) {
             if (view.stage_config && Array.isArray(view.stage_config)) {
-              const updatedConfig = view.stage_config.filter((sc: any) => sc.stageId !== stageId);
+              const updatedConfig = (view.stage_config as Array<{ stageId: string }>).filter((sc) => sc.stageId !== stageId);
               
               if (updatedConfig.length !== view.stage_config.length) {
                 await supabase

@@ -191,7 +191,7 @@ Deno.serve(async (req: Request) => {
 
     // 3. Scrape LinkedIn employees via Apify
     console.log(`[find-contacts] Scraping employees at ${linkedInUrl}`);
-    let employees: unknown[] = [];
+    let employees: Record<string, unknown>[] = [];
     try {
       employees = await scrapeCompanyEmployees(linkedInUrl!, Math.max(targetCount * 3, 50));
     } catch (err) {
@@ -216,7 +216,7 @@ Deno.serve(async (req: Request) => {
     const domain = body.company_domain || inferDomain(companyName);
     console.log(`[find-contacts] Enriching ${toEnrich.length} contacts via Prospeo`);
 
-    let enriched: unknown[] = [];
+    let enriched: Record<string, unknown>[] = [];
     try {
       enriched = await batchEnrich(
         toEnrich.map((e) => ({
@@ -267,7 +267,7 @@ Deno.serve(async (req: Request) => {
     }));
 
     // Also include unenriched Apify contacts (no email but have LinkedIn)
-    const enrichedLinkedIns = new Set(enriched.map((e: any) => e.linkedin_url?.toLowerCase()));
+    const enrichedLinkedIns = new Set(enriched.map((e) => (e.linkedin_url as string)?.toLowerCase()));
     const unenriched = toEnrich
       .filter((e) => !enrichedLinkedIns.has(e.profileUrl?.toLowerCase()))
       .map((e) => ({
