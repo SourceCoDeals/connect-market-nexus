@@ -60,6 +60,7 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
   const triggeredRef = useRef(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCountRef = useRef(0);
+  const initialScoreCountRef = useRef<number | null>(null);
   const MAX_POLL_ATTEMPTS = 45; // 45 * 4s = 3 minutes max
 
   // Check if scoring is already queued/in-progress for this deal
@@ -80,43 +81,61 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
 
   // Poll for new scores during scoring
   useEffect(() => {
-    if (state.status === 'scoring' && listingId) {
-      pollCountRef.current = 0;
-      pollingRef.current = setInterval(async () => {
-        pollCountRef.current++;
+    if (state.status !== 'scoring' || !listingId) {
+      return undefined;
+    }
 
-        if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
-          setState({
-            status: 'error',
-            message:
-              'Scoring timed out. It may still be running in the background — try refreshing.',
-            progress: 0,
-            error: 'Polling timeout',
-          });
-          if (pollingRef.current) clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          queryClient.invalidateQueries({ queryKey: ['recommended-buyers', listingId] });
-          return;
-        }
+    pollCountRef.current = 0;
 
+    // Capture initial score count so we can detect NEW scores (not just pre-existing ones)
+    const captureInitialCount = async () => {
+      if (initialScoreCountRef.current === null) {
         const { count } = await supabase
           .from('remarketing_scores')
           .select('*', { count: 'exact', head: true })
           .eq('listing_id', listingId);
+        initialScoreCountRef.current = count ?? 0;
+      }
+    };
+    captureInitialCount();
 
-        if (count && count > 0) {
-          setState({ status: 'done', message: `${count} buyers scored`, progress: 100 });
-          if (pollingRef.current) clearInterval(pollingRef.current);
-          pollingRef.current = null;
-          queryClient.invalidateQueries({ queryKey: ['recommended-buyers', listingId] });
-        }
-      }, 4000);
+    pollingRef.current = setInterval(async () => {
+      pollCountRef.current++;
 
-      return () => {
+      if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
+        setState({
+          status: 'error',
+          message: 'Scoring timed out. It may still be running in the background — try refreshing.',
+          progress: 0,
+          error: 'Polling timeout',
+        });
+        // Allow retry by resetting triggeredRef
+        triggeredRef.current = false;
         if (pollingRef.current) clearInterval(pollingRef.current);
         pollingRef.current = null;
-      };
-    }
+        queryClient.invalidateQueries({ queryKey: ['recommended-buyers', listingId] });
+        return;
+      }
+
+      const { count } = await supabase
+        .from('remarketing_scores')
+        .select('*', { count: 'exact', head: true })
+        .eq('listing_id', listingId);
+
+      const initialCount = initialScoreCountRef.current ?? 0;
+      // Detect new scores: either first scores appeared, or count increased from when we started
+      if (count && count > 0 && count > initialCount) {
+        setState({ status: 'done', message: `${count} buyers scored`, progress: 100 });
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        pollingRef.current = null;
+        queryClient.invalidateQueries({ queryKey: ['recommended-buyers', listingId] });
+      }
+    }, 4000);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    };
   }, [state.status, listingId, queryClient]);
 
   // Detect if scoring is already in progress (from a prior visit or manual trigger)
@@ -432,6 +451,8 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
       }
     } catch (err) {
       console.error('[useAutoScoreDeal] Error:', err);
+      // Reset triggeredRef so the user can retry
+      triggeredRef.current = false;
       setState({
         status: 'error',
         message: err instanceof Error ? err.message : 'Scoring failed',
@@ -445,6 +466,7 @@ export function useAutoScoreDeal(listingId: string | undefined, hasScores: boole
   useEffect(() => {
     return () => {
       triggeredRef.current = false;
+      initialScoreCountRef.current = null;
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [listingId]);

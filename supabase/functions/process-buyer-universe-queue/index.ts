@@ -25,7 +25,7 @@ import {
 import { callGeminiWithTool, DEFAULT_GEMINI_MODEL } from '../_shared/ai-providers.ts';
 
 const OPERATION_TYPE = 'buyer_universe_generation' as const;
-const MAX_FUNCTION_RUNTIME_MS = 140_000; // 140s safety margin
+const MAX_FUNCTION_RUNTIME_MS = 50_000; // 50s — must stay well under the 58s edge function hard-kill limit
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -66,10 +66,9 @@ serve(async (req) => {
 
     if (listingIds.length === 0) {
       await completeGlobalQueueOperation(supabase, OPERATION_TYPE, 'completed');
-      return new Response(
-        JSON.stringify({ message: 'No listing IDs in context' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ message: 'No listing IDs in context' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Skip already-processed items (resume support)
@@ -91,7 +90,9 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ continuation: true }),
-        }).catch((err: unknown) => { console.warn('[buyer-universe-queue] Continuation trigger failed:', err); });
+        }).catch((err: unknown) => {
+          console.warn('[buyer-universe-queue] Continuation trigger failed:', err);
+        });
         return new Response(
           JSON.stringify({ message: `Processed ${processed}, continuing in next invocation` }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -100,10 +101,9 @@ serve(async (req) => {
 
       // Check if paused
       if (await isOperationPaused(supabase, OPERATION_TYPE)) {
-        return new Response(
-          JSON.stringify({ message: 'Operation paused', processed }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
+        return new Response(JSON.stringify({ message: 'Operation paused', processed }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       try {
@@ -179,21 +179,18 @@ async function generateForListing(
   if (listing.website) contextParts.push(`Website: ${listing.website}`);
   if (listing.industry) contextParts.push(`Industry: ${listing.industry}`);
   if (listing.category) contextParts.push(`Category: ${listing.category}`);
-  if (listing.categories?.length)
-    contextParts.push(`Categories: ${listing.categories.join(', ')}`);
+  if (listing.categories?.length) contextParts.push(`Categories: ${listing.categories.join(', ')}`);
   if (listing.description) contextParts.push(`Description: ${listing.description.slice(0, 500)}`);
   if (listing.executive_summary)
     contextParts.push(`Executive Summary: ${listing.executive_summary.slice(0, 500)}`);
-  if (listing.hero_description)
-    contextParts.push(`Hero Description: ${listing.hero_description}`);
+  if (listing.hero_description) contextParts.push(`Hero Description: ${listing.hero_description}`);
   if (listing.end_market_description)
     contextParts.push(`End Market: ${listing.end_market_description}`);
   if (listing.address_state) contextParts.push(`State: ${listing.address_state}`);
   if (listing.address_city) contextParts.push(`City: ${listing.address_city}`);
   if (listing.geographic_states?.length)
     contextParts.push(`Geographic Coverage: ${listing.geographic_states.join(', ')}`);
-  if (listing.revenue)
-    contextParts.push(`Revenue: $${(listing.revenue / 1_000_000).toFixed(1)}M`);
+  if (listing.revenue) contextParts.push(`Revenue: $${(listing.revenue / 1_000_000).toFixed(1)}M`);
   if (listing.ebitda) contextParts.push(`EBITDA: $${(listing.ebitda / 1_000_000).toFixed(1)}M`);
   if (listing.ebitda_margin) contextParts.push(`EBITDA Margin: ${listing.ebitda_margin}%`);
   if (listing.business_model) contextParts.push(`Business Model: ${listing.business_model}`);
