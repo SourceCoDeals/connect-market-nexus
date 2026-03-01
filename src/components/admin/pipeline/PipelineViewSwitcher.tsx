@@ -36,13 +36,14 @@ import { PipelineViewDialog } from './PipelineViewDialog';
 import { StageReorderDialog } from './StageReorderDialog';
 import { ViewStagesCustomizer } from './ViewStagesCustomizer';
 import { useToast } from '@/hooks/use-toast';
+import type { DealStage } from '@/hooks/admin/use-deals';
 
 interface PipelineViewSwitcherProps {
   currentViewId?: string;
   onViewChange: (viewId: string) => void;
   onSaveCurrentView?: () => void;
-  getCurrentFilterConfig?: () => any;
-  stages?: unknown[];
+  getCurrentFilterConfig?: () => Record<string, unknown>;
+  stages?: DealStage[];
 }
 
 export function PipelineViewSwitcher({
