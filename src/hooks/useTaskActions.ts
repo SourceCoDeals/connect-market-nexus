@@ -39,8 +39,7 @@ export function useSnoozeTask() {
     mutationFn: async ({ taskId, days }: { taskId: string; days: number }) => {
       const snoozedUntil = format(addDays(new Date(), days), 'yyyy-MM-dd');
 
-      const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+      const { error } = await fromTable('daily_standup_tasks')
         .update({
           status: 'snoozed',
           snoozed_until: snoozedUntil,
@@ -50,7 +49,7 @@ export function useSnoozeTask() {
       if (error) throw error;
 
       // Log activity
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await fromTable('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'snoozed',
@@ -72,8 +71,7 @@ export function useUnsnoozeTask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+      const { error } = await fromTable('daily_standup_tasks')
         .update({
           status: 'pending',
           snoozed_until: null,
@@ -82,7 +80,7 @@ export function useUnsnoozeTask() {
 
       if (error) throw error;
 
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await fromTable('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'status_changed',
@@ -111,14 +109,13 @@ export function useConfirmAITask() {
       };
       if (dueDate) updates.due_date = dueDate;
 
-      const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+      const { error } = await fromTable('daily_standup_tasks')
         .update(updates)
         .eq('id', taskId);
 
       if (error) throw error;
 
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await fromTable('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'confirmed',
@@ -140,8 +137,7 @@ export function useDismissAITask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+      const { error } = await fromTable('daily_standup_tasks')
         .update({
           dismissed_at: new Date().toISOString(),
           status: 'cancelled',
@@ -150,7 +146,7 @@ export function useDismissAITask() {
 
       if (error) throw error;
 
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await fromTable('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'dismissed',
@@ -171,14 +167,13 @@ export function useCancelTask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase
-        .from('daily_standup_tasks' as any)
+      const { error } = await fromTable('daily_standup_tasks')
         .update({ status: 'cancelled' })
         .eq('id', taskId);
 
       if (error) throw error;
 
-      await supabase.from('rm_task_activity_log' as any).insert({
+      await fromTable('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id,
         action: 'cancelled',
@@ -235,18 +230,18 @@ export function useApplyTaskTemplate() {
           insertData.depends_on = createdTaskIds[task.depends_on_index];
         }
 
-        const { data, error } = await supabase
-          .from('daily_standup_tasks' as any)
+        const { data, error } = await fromTable('daily_standup_tasks')
           .insert(insertData)
           .select('id')
           .single();
 
         if (error) throw error;
-        createdTaskIds.push((data as any).id);
+        const created = data as { id: string };
+        createdTaskIds.push(created.id);
 
         // Log activity
-        await supabase.from('rm_task_activity_log' as any).insert({
-          task_id: (data as any).id,
+        await fromTable('rm_task_activity_log').insert({
+          task_id: created.id,
           user_id: user?.id,
           action: 'created',
           new_value: { source: 'template', template_stage: template.name },
@@ -283,8 +278,7 @@ export function useAddEntityTask() {
       deal_reference?: string | null;
       deal_id?: string | null;
     }) => {
-      const { data, error } = await supabase
-        .from('daily_standup_tasks' as any)
+      const { data, error } = await fromTable('daily_standup_tasks')
         .insert({
           title: task.title,
           description: task.description || null,
@@ -311,15 +305,17 @@ export function useAddEntityTask() {
 
       if (error) throw error;
 
+      const created = data as { id: string } & Record<string, unknown>;
+
       // Log activity
-      await supabase.from('rm_task_activity_log' as any).insert({
-        task_id: (data as any).id,
+      await fromTable('rm_task_activity_log').insert({
+        task_id: created.id,
         user_id: user?.id,
         action: 'created',
         new_value: { entity_type: task.entity_type, entity_id: task.entity_id },
       });
 
-      return data;
+      return created;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
