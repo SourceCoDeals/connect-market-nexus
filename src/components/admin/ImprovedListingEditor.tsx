@@ -7,7 +7,8 @@ import { AdminListing } from "@/types/admin";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { parseCurrency } from "@/lib/currency-utils";
-import { Loader2, Save, Target } from "lucide-react";
+import { Loader2, Save, Target, Sparkles, ExternalLink } from "lucide-react";
+import { useGenerateListingContent } from "@/hooks/admin/listings/use-generate-listing-content";
 
 // Import section components
 import { EditorTopBar } from "./editor-sections/EditorTopBar";
@@ -16,6 +17,8 @@ import { EditorDescriptionSection } from "./editor-sections/EditorDescriptionSec
 import { EditorHeroDescriptionSection } from "./editor-sections/EditorHeroDescriptionSection";
 import { EditorVisualsSection } from "./editor-sections/EditorVisualsSection";
 import { EditorInternalCard } from "./editor-sections/EditorInternalCard";
+import { EditorLandingPageContentSection } from "./editor-sections/EditorLandingPageContentSection";
+import { EditorLivePreview } from "./editor-sections/EditorLivePreview";
 
 // Form schema - location accepts array from select component and transforms to string
 const listingFormSchema = z.object({
@@ -66,7 +69,7 @@ const listingFormSchema = z.object({
   // Buyer visibility control
   visible_to_buyer_types: z.array(z.enum([
     'privateEquity',
-    'corporate', 
+    'corporate',
     'familyOffice',
     'searchFund',
     'individual',
@@ -74,6 +77,20 @@ const listingFormSchema = z.object({
     'advisor',
     'businessOwner'
   ])).nullable().optional(),
+
+  // Landing page content fields
+  investment_thesis: z.string().nullable().optional(),
+  custom_sections: z.any().nullable().optional(),
+  services: z.array(z.string()).nullable().optional(),
+  growth_drivers: z.any().nullable().optional(),
+  competitive_position: z.string().nullable().optional(),
+  ownership_structure: z.string().nullable().optional(),
+  seller_motivation: z.string().nullable().optional(),
+  business_model: z.string().nullable().optional(),
+  customer_geography: z.string().nullable().optional(),
+  customer_types: z.string().nullable().optional(),
+  revenue_model: z.string().nullable().optional(),
+  end_market_description: z.string().nullable().optional(),
 });
 
 type ListingFormInput = {
@@ -113,6 +130,19 @@ type ListingFormInput = {
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
   internal_notes?: string;
+  // Landing page content
+  investment_thesis?: string | null;
+  custom_sections?: any;
+  services?: string[] | null;
+  growth_drivers?: any;
+  competitive_position?: string | null;
+  ownership_structure?: string | null;
+  seller_motivation?: string | null;
+  business_model?: string | null;
+  customer_geography?: string | null;
+  customer_types?: string | null;
+  revenue_model?: string | null;
+  end_market_description?: string | null;
 };
 
 type ListingFormValues = z.infer<typeof listingFormSchema>;
@@ -162,6 +192,19 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     internal_deal_memo_link: listing?.internal_deal_memo_link || "",
     internal_contact_info: listing?.internal_contact_info || "",
     internal_notes: listing?.internal_notes || "",
+    // Landing page content
+    investment_thesis: (listing as any)?.investment_thesis || null,
+    custom_sections: (listing as any)?.custom_sections || null,
+    services: (listing as any)?.services || null,
+    growth_drivers: (listing as any)?.growth_drivers || null,
+    competitive_position: (listing as any)?.competitive_position || null,
+    ownership_structure: listing?.ownership_structure || null,
+    seller_motivation: listing?.seller_motivation || null,
+    business_model: (listing as any)?.business_model || null,
+    customer_geography: (listing as any)?.customer_geography || null,
+    customer_types: (listing as any)?.customer_types || null,
+    revenue_model: (listing as any)?.revenue_model || null,
+    end_market_description: (listing as any)?.end_market_description || null,
   };
 };
 
@@ -174,6 +217,60 @@ export function ImprovedListingEditor({
   const [imagePreview, setImagePreview] = useState<string | null>(listing?.image_url || null);
   const [isImageChanged, setIsImageChanged] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+
+  // GAP 5: AI content generation
+  const { generateContent, isGenerating, generatingField } = useGenerateListingContent();
+  const sourceDealId = listing?.source_deal_id || listing?.id;
+
+  const handleAiGenerate = async (field: string) => {
+    if (!sourceDealId) {
+      toast({ variant: 'destructive', title: 'No deal linked', description: 'This listing must be linked to a deal to generate AI content.' });
+      return;
+    }
+    const content = await generateContent(sourceDealId, field);
+    if (!content) return;
+
+    // Apply generated content to the form
+    if (field === 'description' && content.description) {
+      form.setValue('description', content.description);
+      form.setValue('description_html', `<p>${content.description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`);
+    } else if (field === 'hero_description' && content.hero_description) {
+      form.setValue('hero_description', content.hero_description);
+    } else if (field === 'title' && content.title_options?.length) {
+      form.setValue('title', content.title_options[0]);
+      toast({ title: 'Title options', description: `Generated ${content.title_options.length} options. Using the first one.` });
+    }
+  };
+
+  const handleGenerateAll = async () => {
+    if (!sourceDealId) {
+      toast({ variant: 'destructive', title: 'No deal linked', description: 'This listing must be linked to a deal to generate AI content.' });
+      return;
+    }
+    const content = await generateContent(sourceDealId);
+    if (!content) return;
+
+    // Apply all generated content
+    if (content.title_options?.length) form.setValue('title', content.title_options[0]);
+    if (content.hero_description) form.setValue('hero_description', content.hero_description);
+    if (content.description) {
+      form.setValue('description', content.description);
+      form.setValue('description_html', `<p>${content.description.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br>')}</p>`);
+    }
+    // Landing page content fields
+    if (content.investment_thesis) form.setValue('investment_thesis', content.investment_thesis);
+    if (content.custom_sections) form.setValue('custom_sections', content.custom_sections);
+    if (content.services) form.setValue('services', content.services);
+    if (content.growth_drivers) form.setValue('growth_drivers', content.growth_drivers);
+    if (content.competitive_position) form.setValue('competitive_position', content.competitive_position);
+    if (content.ownership_structure) form.setValue('ownership_structure', content.ownership_structure);
+    if (content.seller_motivation) form.setValue('seller_motivation', content.seller_motivation);
+    if (content.business_model) form.setValue('business_model', content.business_model);
+    if (content.customer_geography) form.setValue('customer_geography', content.customer_geography);
+    if (content.customer_types) form.setValue('customer_types', content.customer_types);
+    if (content.revenue_model) form.setValue('revenue_model', content.revenue_model);
+    if (content.end_market_description) form.setValue('end_market_description', content.end_market_description);
+  };
 
   const form = useForm<ListingFormInput, unknown, ListingFormValues>({
      
@@ -300,8 +397,21 @@ export function ImprovedListingEditor({
         internal_deal_memo_link: formData.internal_deal_memo_link || null,
         internal_contact_info: formData.internal_contact_info || null,
         internal_notes: formData.internal_notes || null,
+        // Landing page content
+        investment_thesis: formData.investment_thesis || null,
+        custom_sections: formData.custom_sections || null,
+        services: formData.services || null,
+        growth_drivers: formData.growth_drivers || null,
+        competitive_position: formData.competitive_position || null,
+        ownership_structure: formData.ownership_structure || null,
+        seller_motivation: formData.seller_motivation || null,
+        business_model: formData.business_model || null,
+        customer_geography: formData.customer_geography || null,
+        customer_types: formData.customer_types || null,
+        revenue_model: formData.revenue_model || null,
+        end_market_description: formData.end_market_description || null,
       };
-      
+
       await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);
       
       if (!listing) {
@@ -332,6 +442,37 @@ export function ImprovedListingEditor({
             </div>
           )}
           
+          {/* GAP 5+8: AI Generate All + Landing Page Preview buttons */}
+          {sourceDealId && (
+            <div className="mb-6 flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateAll}
+                disabled={isGenerating}
+                className="gap-2"
+              >
+                {isGenerating && generatingField === 'all' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {isGenerating && generatingField === 'all' ? 'Generating All...' : 'Generate All with AI'}
+              </Button>
+              {listing?.id && (
+                <a
+                  href={`/deals/${listing.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted/50 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Preview Landing Page
+                </a>
+              )}
+            </div>
+          )}
+
           {/* TOP BAR - Critical fields */}
           <EditorTopBar form={formForSections} />
 
@@ -346,24 +487,30 @@ export function ImprovedListingEditor({
 
             {/* FULL WIDTH - Description */}
             <div className="mb-6">
-              <EditorDescriptionSection form={formForSections} />
+              <EditorDescriptionSection form={formForSections} onAiGenerate={sourceDealId ? handleAiGenerate : undefined} isGenerating={isGenerating} generatingField={generatingField} />
             </div>
 
             {/* FULL WIDTH - Hero Description */}
             <div className="mb-6">
-              <EditorHeroDescriptionSection form={formForSections} />
+              <EditorHeroDescriptionSection form={formForSections} onAiGenerate={sourceDealId ? handleAiGenerate : undefined} isGenerating={isGenerating} generatingField={generatingField} />
             </div>
             
-            {/* FULL WIDTH - Image */}
+            {/* FULL WIDTH - Landing Page Content */}
             <div className="mb-6">
+              <EditorLandingPageContentSection form={formForSections} />
+            </div>
+
+            {/* Two-column: Image + Live Preview */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <EditorVisualsSection
                 imagePreview={imagePreview}
                 imageError={imageError}
                 onImageSelect={handleImageSelect}
                 onRemoveImage={handleRemoveImage}
               />
+              <EditorLivePreview formValues={form.watch()} imagePreview={imagePreview} />
             </div>
-            
+
             {/* FOOTER - Actions */}
             <div className="flex items-center justify-between pt-6 border-t border-border/30">
               <div className="text-sm text-muted-foreground">

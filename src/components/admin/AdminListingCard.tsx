@@ -24,6 +24,7 @@ import { formatCurrency } from "@/lib/currency-utils";
 import { CategoryLocationBadges } from "@/components/shared/CategoryLocationBadges";
 import { StatusTagSwitcher } from "./StatusTagSwitcher";
 import { BUYER_TYPE_OPTIONS } from "@/lib/signup-field-options";
+import { LandingPageAnalytics } from "./LandingPageAnalytics";
 import {
   Tooltip,
   TooltipContent,
@@ -483,6 +484,9 @@ export function AdminListingCard({
                 </div>
               </div>
             )}
+
+            {/* GAP D: Landing page analytics */}
+            <LandingPageAnalytics listingId={listing.id} />
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { MapPin, ExternalLink } from 'lucide-react';
+import { MapPin, ArrowRight, ExternalLink } from 'lucide-react';
 import type { RelatedDeal } from '@/hooks/useDealLandingPage';
 
 function formatCurrency(value: number | null | undefined): string {
@@ -30,6 +30,17 @@ export default function RelatedDeals({ deals }: RelatedDealsProps) {
         {deals.map((deal) => (
           <DealCard key={deal.id} deal={deal} />
         ))}
+      </div>
+
+      {/* Marketplace CTA below related deals */}
+      <div className="mt-8 text-center">
+        <a
+          href="/signup?utm_source=landing_page&utm_medium=related_deals&utm_content=browse_all"
+          className="inline-flex items-center gap-2 bg-[#1A1A1A] text-white font-semibold text-[15px] px-8 py-3.5 rounded-md hover:bg-[#333333] transition-colors font-['Inter',system-ui,sans-serif]"
+        >
+          <ExternalLink className="w-4 h-4" />
+          Browse All Deals on the Marketplace
+        </a>
       </div>
     </section>
   );
@@ -98,15 +109,13 @@ function DealCard({ deal }: { deal: RelatedDeal }) {
         </div>
       </div>
 
-      {/* CTA */}
+      {/* GAP 15: Link to deal landing page instead of external signup */}
       <a
-        href="https://marketplace.sourcecodeals.com/signup"
-        target="_blank"
-        rel="noopener noreferrer"
+        href={`/deals/${deal.id}`}
         className="flex items-center justify-center gap-2 w-full bg-white border border-[#1A1A1A] text-[#1A1A1A] font-semibold text-[14px] py-2.5 rounded-md hover:bg-gray-50 transition-colors font-['Inter',system-ui,sans-serif]"
       >
-        <ExternalLink className="w-4 h-4" />
-        View on Marketplace
+        <ArrowRight className="w-4 h-4" />
+        View Deal Details
       </a>
     </div>
   );

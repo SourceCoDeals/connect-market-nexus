@@ -43,6 +43,7 @@ export interface LandingPageDeal {
   full_time_employees: number | null;
   image_url: string | null;
   status: string;
+  presented_by_admin_id: string | null;
 }
 
 export interface RelatedDeal {
@@ -67,7 +68,7 @@ const LANDING_PAGE_FIELDS = `
   metric_4_type, metric_4_custom_label, metric_4_custom_value, metric_4_custom_subtitle,
   executive_summary, growth_drivers, competitive_position, service_mix,
   customer_types, revenue_model, end_market_description, management_depth,
-  full_time_employees, image_url, status
+  full_time_employees, image_url, status, presented_by_admin_id
 `;
 
 export function useDealLandingPage(dealId: string | undefined) {

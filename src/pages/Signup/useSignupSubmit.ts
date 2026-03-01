@@ -67,7 +67,38 @@ export function useSignupSubmit(formData: SignupFormData) {
       target_acquisition_volume: formData.targetAcquisitionVolume || '',
     };
 
+    // GAP C fix: Encode deal attribution into referral_source_detail (existing column)
+    // since signup_metadata/from_deal_id don't exist on profiles table
+    try {
+      const dealContextStr = localStorage.getItem('sourceco_signup_deal_context');
+      if (dealContextStr) {
+        const dealContext = JSON.parse(dealContextStr);
+        const existingDetail = signupData.referral_source_detail || '';
+        const dealAttribution = [
+          dealContext.from_deal_id ? `deal:${dealContext.from_deal_id}` : '',
+          dealContext.first_deal_viewed ? `first:${dealContext.first_deal_viewed}` : '',
+          dealContext.is_landing_page_referral ? 'landing_page_referral' : '',
+        ].filter(Boolean).join('|');
+        if (dealAttribution) {
+          signupData.referral_source_detail = existingDetail
+            ? `${existingDetail} [${dealAttribution}]`
+            : dealAttribution;
+        }
+        if (!signupData.referral_source) {
+          signupData.referral_source = 'deal_landing_page';
+        }
+      }
+    } catch { /* ignore */ }
+
     await signup(signupData, formData.password);
+
+    // Clean up deal context after successful signup
+    try {
+      localStorage.removeItem('sourceco_signup_deal_context');
+      localStorage.removeItem('sourceco_first_deal_viewed');
+      localStorage.removeItem('sourceco_last_deal_viewed');
+      localStorage.removeItem('sourceco_last_deal_title');
+    } catch { /* ignore */ }
 
     toast({ title: "Account created successfully!", description: "Please check your email to verify your account." });
     navigate(`/signup-success?email=${encodeURIComponent(formData.email)}`);

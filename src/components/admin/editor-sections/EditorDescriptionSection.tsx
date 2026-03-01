@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { FormField, FormItem, FormControl, FormMessage } from "@/components/ui/form";
 import { UseFormReturn } from "react-hook-form";
 import { EDITOR_DESIGN } from "@/lib/editor-design-system";
+import { Sparkles, Loader2 } from "lucide-react";
 
 const PremiumRichTextEditor = lazy(() =>
   import("@/components/ui/premium-rich-text-editor").then(m => ({ default: m.PremiumRichTextEditor }))
@@ -11,13 +12,30 @@ import { stripHtml } from "@/lib/sanitize";
 
 interface EditorDescriptionSectionProps {
   form: UseFormReturn<any>;
+  onAiGenerate?: (field: string) => void;
+  isGenerating?: boolean;
+  generatingField?: string | null;
 }
 
-export function EditorDescriptionSection({ form }: EditorDescriptionSectionProps) {
+export function EditorDescriptionSection({ form, onAiGenerate, isGenerating, generatingField }: EditorDescriptionSectionProps) {
+  const isFieldGenerating = isGenerating && generatingField === 'description';
+
   return (
     <div className={cn(EDITOR_DESIGN.cardBg, EDITOR_DESIGN.cardBorder, "rounded-lg", EDITOR_DESIGN.cardPadding)}>
-      <div className={cn(EDITOR_DESIGN.microHeader, "mb-4")}>
-        Description
+      <div className={cn(EDITOR_DESIGN.microHeader, "mb-4 flex items-center justify-between")}>
+        <span>Description</span>
+        {/* GAP 5: AI generate button */}
+        {onAiGenerate && (
+          <button
+            type="button"
+            onClick={() => onAiGenerate('description')}
+            disabled={isGenerating}
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
+          >
+            {isFieldGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            {isFieldGenerating ? 'Generating...' : 'Generate with AI'}
+          </button>
+        )}
       </div>
 
       <FormField

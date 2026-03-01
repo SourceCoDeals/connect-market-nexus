@@ -86,6 +86,20 @@ interface DatabaseListingInsert {
 
   // Source deal linkage
   source_deal_id?: string | null;
+
+  // Landing page content fields
+  investment_thesis?: string | null;
+  custom_sections?: any;
+  services?: string[] | null;
+  growth_drivers?: any;
+  competitive_position?: string | null;
+  ownership_structure?: string | null;
+  seller_motivation?: string | null;
+  business_model?: string | null;
+  customer_geography?: string | null;
+  customer_types?: string | null;
+  revenue_model?: string | null;
+  end_market_description?: string | null;
 }
 
 /**
@@ -183,6 +197,20 @@ export function useRobustListingCreation() {
 
           // Source deal linkage
           source_deal_id: listing.source_deal_id || null,
+
+          // Landing page content fields
+          investment_thesis: (listing as any).investment_thesis || null,
+          custom_sections: (listing as any).custom_sections || null,
+          services: (listing as any).services || null,
+          growth_drivers: (listing as any).growth_drivers || null,
+          competitive_position: (listing as any).competitive_position || null,
+          ownership_structure: listing.ownership_structure || null,
+          seller_motivation: listing.seller_motivation || null,
+          business_model: (listing as any).business_model || null,
+          customer_geography: (listing as any).customer_geography || null,
+          customer_types: (listing as any).customer_types || null,
+          revenue_model: (listing as any).revenue_model || null,
+          end_market_description: (listing as any).end_market_description || null,
         };
 
         // Step 3: Insert listing with isolated transaction
