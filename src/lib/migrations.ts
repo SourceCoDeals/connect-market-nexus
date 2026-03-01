@@ -379,12 +379,6 @@ export const MIGRATION_HISTORY: MigrationRecord[] = [
     tables: ['ma_guide_generations'],
   },
   {
-    id: '20260204172601',
-    date: '2026-02-04',
-    purpose: 'Create tracker_activity_logs table',
-    tables: ['tracker_activity_logs'],
-  },
-  {
     id: '20260204190031',
     date: '2026-02-04',
     purpose: 'Create buyer_criteria_extractions table',
@@ -741,7 +735,6 @@ export const TABLES_WITH_RLS: string[] = [
   'enrichment_cost_log',
   'trigger_logs',
   'ma_guide_generations',
-  'tracker_activity_logs',
   'buyer_criteria_extractions',
   'buyer_type_profiles',
   'criteria_extraction_sources',
