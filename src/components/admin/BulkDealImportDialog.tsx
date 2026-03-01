@@ -27,7 +27,12 @@ import {
 interface BulkDealImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (data: any) => Promise<ImportResult | void>;
+  onConfirm: (data: {
+    listingId: string;
+    deals: ParsedDeal[];
+    fileName: string;
+    batchId: string;
+  }) => Promise<ImportResult | void>;
   isLoading: boolean;
 }
 
@@ -44,10 +49,15 @@ interface ParsedDeal {
   isValid: boolean;
 }
 
-export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: BulkDealImportDialogProps) {
+export function BulkDealImportDialog({
+  isOpen,
+  onClose,
+  onConfirm,
+  isLoading,
+}: BulkDealImportDialogProps) {
   const MAX_FILE_SIZE_MB = 10;
   const MAX_ROWS = 500;
-  
+
   const [selectedListingId, setSelectedListingId] = useState<string>('');
   const [csvText, setCsvText] = useState('');
   const [parsedDeals, setParsedDeals] = useState<ParsedDeal[]>([]);
@@ -60,7 +70,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
   const [skipAllDuplicates, setSkipAllDuplicates] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
-  
+
   const { useListings } = useAdminListings();
   const { data: listings } = useListings(undefined, isOpen);
   const { undoImport, isUndoing } = useUndoBulkImport();
@@ -84,20 +94,22 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
       const text = await readSpreadsheetAsText(file);
       setCsvText(text);
     } catch (err: unknown) {
-      toast.error('Failed to read file', { description: err.message });
+      toast.error('Failed to read file', {
+        description: err instanceof Error ? err.message : String(err),
+      });
       event.target.value = '';
     }
   };
 
   const extractCompanyFromEmail = (email: string, existingCompany?: string): string => {
     if (existingCompany && existingCompany.trim()) return existingCompany;
-    
+
     const domain = email.split('@')[1];
     if (!domain) return '';
-    
+
     const parts = domain.split('.');
     if (parts.length > 1) parts.pop(); // Remove TLD
-    
+
     const company = parts.join('.');
     return company.charAt(0).toUpperCase() + company.slice(1);
   };
@@ -124,9 +136,13 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
   const mapRole = (role: string): string => {
     const normalized = role?.toLowerCase().trim() || '';
-    const tokens = new Set((normalized.match(/[a-z]+/g) || []));
+    const tokens = new Set(normalized.match(/[a-z]+/g) || []);
 
-    if (normalized === 'privateequity' || normalized.includes('private equity') || tokens.has('pe')) {
+    if (
+      normalized === 'privateequity' ||
+      normalized.includes('private equity') ||
+      tokens.has('pe')
+    ) {
       return 'privateEquity';
     }
     if (normalized === 'familyoffice' || normalized.includes('family office') || tokens.has('fo')) {
@@ -141,7 +157,11 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
     if (normalized === 'corporate' || normalized.includes('corporate') || tokens.has('corp')) {
       return 'corporate';
     }
-    if (normalized === 'individual' || normalized.includes('individual') || normalized.includes('investor')) {
+    if (
+      normalized === 'individual' ||
+      normalized.includes('individual') ||
+      normalized.includes('investor')
+    ) {
       return 'individual';
     }
     return 'other';
@@ -176,14 +196,16 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
         complete: (results) => {
           // Row count validation
           if (results.data.length > MAX_ROWS) {
-            setParseErrors([`Too many rows (${results.data.length}). Maximum is ${MAX_ROWS} rows per import.`]);
+            setParseErrors([
+              `Too many rows (${results.data.length}). Maximum is ${MAX_ROWS} rows per import.`,
+            ]);
             return;
           }
 
-          results.data.forEach((row: any, index) => {
+          results.data.forEach((row: Record<string, string>, index) => {
             const rowNumber = index + 2;
             const dealErrors: string[] = [];
-            
+
             const email = row['Email address']?.trim() || '';
             const name = row['Name']?.trim() || '';
             const message = row['Message']?.trim() || '';
@@ -225,7 +247,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
         },
       });
     } catch (error: unknown) {
-      setParseErrors([`Error: ${error.message}`]);
+      setParseErrors([`Error: ${error instanceof Error ? error.message : String(error)}`]);
     }
   };
 
@@ -240,14 +262,14 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
   const handleConfirmImport = async () => {
     setShowConfirmDialog(false);
-    
+
     const validDeals = parsedDeals.filter((d) => d.isValid);
     const startTime = Date.now();
-    
+
     // Generate unique batch ID for this import session
     const batchId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setCurrentBatchId(batchId);
-    
+
     const result = await onConfirm({
       listingId: selectedListingId,
       deals: validDeals,
@@ -257,10 +279,13 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
     if (result) {
       setImportResult(result);
-      
+
       // Log to audit_logs
       try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError) throw authError;
         if (user) {
           await supabase.from('audit_logs').insert({
@@ -281,7 +306,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
       } catch (error) {
         console.error('Failed to log audit:', error);
       }
-      
+
       // If there are duplicates, show bulk dialog first
       if (result.details.duplicates.length > 0) {
         setShowBulkDuplicateDialog(true);
@@ -307,7 +332,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
   const handleUndoImport = async () => {
     if (!currentBatchId) return;
-    
+
     try {
       await undoImport(currentBatchId);
       handleClose();
@@ -318,12 +343,12 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
   const handleDuplicateAction = async (action: 'skip' | 'merge' | 'replace' | 'create') => {
     if (!importResult) return;
-    
+
     const currentDuplicate = importResult.details.duplicates[currentDuplicateIndex];
     if (!currentDuplicate) return;
 
     const { deal, duplicateInfo } = currentDuplicate;
-    
+
     // Helper to move to next duplicate
     const moveToNextDuplicate = () => {
       if (currentDuplicateIndex < importResult.details.duplicates.length - 1) {
@@ -333,7 +358,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
         toast.success('All duplicates processed');
       }
     };
-    
+
     // If skip all duplicates mode is on, just skip
     if (skipAllDuplicates && action === 'skip') {
       moveToNextDuplicate();
@@ -386,7 +411,10 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
 
         case 'create': {
           // Create new request anyway (force duplicate)
-          const { data: { user }, error: authError } = await supabase.auth.getUser();
+          const {
+            data: { user },
+            error: authError,
+          } = await supabase.auth.getUser();
           if (authError) throw authError;
           if (!user) throw new Error('Not authenticated');
 
@@ -398,28 +426,26 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             .maybeSingle();
           if (profileError) throw profileError;
 
-          const { error: createError } = await supabase
-            .from('connection_requests')
-            .insert({
-              listing_id: selectedListingId,
-              user_id: profile?.id || null,
-              lead_email: profile ? null : deal.email,
-              lead_name: profile ? null : deal.name,
-              lead_company: profile ? null : deal.companyName,
-              lead_phone: profile ? null : deal.phoneNumber,
-              lead_role: deal.role,
-              user_message: deal.message,
-              source: 'website',
-              source_metadata: {
-                import_method: 'csv_bulk_upload',
-                csv_filename: fileName,
-                csv_row_number: deal.csvRowNumber,
-                import_date: new Date().toISOString(),
-                imported_by_admin_id: user.id,
-                forced_duplicate: true,
-              },
-              created_at: deal.date?.toISOString() || new Date().toISOString(),
-            });
+          const { error: createError } = await supabase.from('connection_requests').insert({
+            listing_id: selectedListingId,
+            user_id: profile?.id || null,
+            lead_email: profile ? null : deal.email,
+            lead_name: profile ? null : deal.name,
+            lead_company: profile ? null : deal.companyName,
+            lead_phone: profile ? null : deal.phoneNumber,
+            lead_role: deal.role,
+            user_message: deal.message,
+            source: 'website',
+            source_metadata: {
+              import_method: 'csv_bulk_upload',
+              csv_filename: fileName,
+              csv_row_number: deal.csvRowNumber,
+              import_date: new Date().toISOString(),
+              imported_by_admin_id: user.id,
+              forced_duplicate: true,
+            },
+            created_at: deal.date?.toISOString() || new Date().toISOString(),
+          });
 
           if (createError) throw createError;
           toast.success('Created new request (duplicate allowed)');
@@ -428,7 +454,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
       }
     } catch (error: unknown) {
       toast.error('Failed to process duplicate', {
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
       });
     }
 
@@ -468,7 +494,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
           <div className="space-y-2 flex-shrink-0">
             <Label htmlFor="csv-file">Step 2: Upload File (CSV, XLS, XLSX) *</Label>
             <div className="text-xs text-muted-foreground mb-2">
-              Maximum {MAX_FILE_SIZE_MB}MB file size • Up to {MAX_ROWS} rows per import • Dates are imported in UTC timezone
+              Maximum {MAX_FILE_SIZE_MB}MB file size • Up to {MAX_ROWS} rows per import • Dates are
+              imported in UTC timezone
             </div>
             <div className="flex items-center gap-2">
               <Input
@@ -478,18 +505,12 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                 onChange={handleFileUpload}
                 className="flex-1"
               />
-              <Button
-                onClick={parseCSV}
-                disabled={!csvText || isLoading}
-                variant="secondary"
-              >
+              <Button onClick={parseCSV} disabled={!csvText || isLoading} variant="secondary">
                 <Upload className="w-4 h-4 mr-2" />
                 Parse File
               </Button>
             </div>
-            {fileName && (
-              <p className="text-sm text-muted-foreground">Selected: {fileName}</p>
-            )}
+            {fileName && <p className="text-sm text-muted-foreground">Selected: {fileName}</p>}
           </div>
 
           {/* Parse Errors */}
@@ -558,13 +579,18 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                           <td className="px-3 py-2 font-medium">{deal.name}</td>
                           <td className="px-3 py-2 text-muted-foreground">{deal.email}</td>
                           <td className="px-3 py-2">{deal.companyName || '—'}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{deal.phoneNumber || '—'}</td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {deal.phoneNumber || '—'}
+                          </td>
                           <td className="px-3 py-2 text-xs">
                             <Badge variant="outline" className="text-xs font-normal">
                               {deal.role || '—'}
                             </Badge>
                           </td>
-                          <td className="px-3 py-2 max-w-xs truncate text-muted-foreground" title={deal.message}>
+                          <td
+                            className="px-3 py-2 max-w-xs truncate text-muted-foreground"
+                            title={deal.message}
+                          >
                             {deal.message || '—'}
                           </td>
                         </tr>
@@ -573,7 +599,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                   </table>
                 </div>
               </div>
-              
+
               {/* Show validation errors if any */}
               {invalidCount > 0 && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
@@ -582,7 +608,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                   </div>
                   <div className="text-xs space-y-1 text-muted-foreground max-h-24 overflow-y-auto">
                     {parsedDeals
-                      .filter(d => !d.isValid)
+                      .filter((d) => !d.isValid)
                       .map((deal) => (
                         <div key={deal.csvRowNumber}>
                           Row {deal.csvRowNumber}: {deal.errors.join(', ')}
@@ -604,7 +630,8 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                 </div>
                 <h3 className="text-lg font-semibold">Import Complete</h3>
                 <p className="text-sm text-muted-foreground">
-                  {importResult.imported} connection request{importResult.imported !== 1 ? 's' : ''} successfully imported
+                  {importResult.imported} connection request{importResult.imported !== 1 ? 's' : ''}{' '}
+                  successfully imported
                 </p>
               </div>
 
@@ -616,7 +643,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                   </div>
                   <div className="text-xs text-muted-foreground">Imported</div>
                 </div>
-                
+
                 {importResult.duplicates > 0 && (
                   <div className="rounded-lg border bg-card p-4 text-center space-y-1">
                     <div className="text-2xl font-semibold text-orange-600 dark:text-orange-400">
@@ -625,7 +652,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
                     <div className="text-xs text-muted-foreground">Duplicates</div>
                   </div>
                 )}
-                
+
                 {importResult.errors > 0 && (
                   <div className="rounded-lg border bg-card p-4 text-center space-y-1">
                     <div className="text-2xl font-semibold text-destructive">
@@ -637,19 +664,23 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
               </div>
 
               {/* Linked Users Section */}
-              {importResult.details.imported.some(i => i.linkedToUser) && (
+              {importResult.details.imported.some((i) => i.linkedToUser) && (
                 <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <div className="w-2 h-2 rounded-full bg-primary"></div>
                     <span>
-                      {importResult.details.imported.filter(i => i.linkedToUser).length} Linked to Existing Users
+                      {importResult.details.imported.filter((i) => i.linkedToUser).length} Linked to
+                      Existing Users
                     </span>
                   </div>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
                     {importResult.details.imported
-                      .filter(i => i.linkedToUser)
+                      .filter((i) => i.linkedToUser)
                       .map((imp) => (
-                        <div key={imp.userEmail || imp.userName} className="flex items-center justify-between text-sm py-2 px-3 rounded-md bg-background/50">
+                        <div
+                          key={imp.userEmail || imp.userName}
+                          className="flex items-center justify-between text-sm py-2 px-3 rounded-md bg-background/50"
+                        >
                           <div className="flex items-center gap-2">
                             <div className="font-medium">{imp.userName || imp.userEmail}</div>
                             {imp.userCompany && (
@@ -671,13 +702,12 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
               {/* Error Details */}
               {importResult.details.errors.length > 0 && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-3">
-                  <div className="text-sm font-medium text-destructive">
-                    Error Details
-                  </div>
+                  <div className="text-sm font-medium text-destructive">Error Details</div>
                   <div className="space-y-1 max-h-32 overflow-y-auto text-xs text-muted-foreground">
                     {importResult.details.errors.map((err) => (
                       <div key={err.deal.csvRowNumber} className="py-1">
-                        <span className="font-medium">Row {err.deal.csvRowNumber}:</span> {err.error}
+                        <span className="font-medium">Row {err.deal.csvRowNumber}:</span>{' '}
+                        {err.error}
                       </div>
                     ))}
                   </div>
@@ -692,11 +722,7 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
               // After import: show Undo and Close buttons
               <>
                 {currentBatchId && importResult.imported > 0 && (
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleUndoImport}
-                    disabled={isUndoing}
-                  >
+                  <Button variant="destructive" onClick={handleUndoImport} disabled={isUndoing}>
                     {isUndoing ? 'Undoing...' : 'Undo This Import'}
                   </Button>
                 )}
@@ -763,26 +789,30 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
               Confirm Import
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                You are about to import <strong>{parsedDeals.filter(d => d.isValid).length} connection requests</strong> to the listing:
+                You are about to import{' '}
+                <strong>{parsedDeals.filter((d) => d.isValid).length} connection requests</strong>{' '}
+                to the listing:
               </AlertDescription>
             </Alert>
-            
+
             <div className="rounded-lg border bg-muted/30 p-4">
               <div className="text-sm font-medium mb-1">Selected Listing</div>
               <div className="text-sm text-muted-foreground">
-                {listings?.find(l => l.id === selectedListingId)?.title || 'Unknown Listing'}
+                {listings?.find((l) => l.id === selectedListingId)?.title || 'Unknown Listing'}
               </div>
             </div>
 
             <div className="rounded-lg border bg-muted/30 p-4">
               <div className="text-sm font-medium mb-1">Import Summary</div>
               <div className="text-sm text-muted-foreground space-y-1">
-                <div>• {parsedDeals.filter(d => d.isValid).length} valid rows will be imported</div>
+                <div>
+                  • {parsedDeals.filter((d) => d.isValid).length} valid rows will be imported
+                </div>
                 <div>• Each will create a new connection request</div>
                 <div>• Duplicate checking will be performed</div>
               </div>
@@ -791,23 +821,21 @@ export function BulkDealImportDialog({ isOpen, onClose, onConfirm, isLoading }: 
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                <strong>Important:</strong> Make sure you've selected the correct listing. This action will create connection requests that you'll need to manage.
+                <strong>Important:</strong> Make sure you've selected the correct listing. This
+                action will create connection requests that you'll need to manage.
               </AlertDescription>
             </Alert>
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setShowConfirmDialog(false)}
               disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleConfirmImport}
-              disabled={isLoading}
-            >
+            <Button onClick={handleConfirmImport} disabled={isLoading}>
               {isLoading ? 'Importing...' : 'Confirm & Import'}
             </Button>
           </div>

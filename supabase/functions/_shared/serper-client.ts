@@ -71,12 +71,14 @@ export async function googleSearch(
   const data = await response.json();
   const organic = data.organic || [];
 
-  return organic.slice(0, maxResults).map((r: any) => ({
-    title: r.title || '',
-    url: r.link || '',
-    description: r.snippet || '',
-    position: r.position || 0,
-  }));
+  return organic
+    .slice(0, maxResults)
+    .map((r: { title?: string; link?: string; snippet?: string; position?: number }) => ({
+      title: r.title || '',
+      url: r.link || '',
+      description: r.snippet || '',
+      position: r.position || 0,
+    }));
 }
 
 /**

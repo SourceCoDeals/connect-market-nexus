@@ -24,7 +24,7 @@ async function fetchTier12RequestCounts(listingIds: string[]): Promise<Record<st
 
   const counts: Record<string, number> = {};
   for (const row of data) {
-    const tier = (row as any).profiles?.buyer_tier;
+    const tier = (row as unknown as { profiles?: { buyer_tier?: number } }).profiles?.buyer_tier;
     if (tier === 1 || tier === 2) {
       counts[row.listing_id] = (counts[row.listing_id] || 0) + 1;
     }

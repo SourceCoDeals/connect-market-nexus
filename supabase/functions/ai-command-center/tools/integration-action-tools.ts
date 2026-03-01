@@ -15,17 +15,13 @@
  *   find_contact_linkedin + find_and_enrich_person → find_contact (with mode param)
  */
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = any;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+type SupabaseClient = ReturnType<typeof createClient>;
 import type { ClaudeTool } from '../../_shared/claude-client.ts';
 import type { ToolResult } from './index.ts';
-import {
-  resolveCompanyUrl,
-  inferDomain,
-  inferDomainCandidates,
-} from '../../_shared/apify-client.ts';
+import { inferDomain, inferDomainCandidates } from '../../_shared/apify-client.ts';
 import { batchEnrich, domainSearchEnrich, enrichContact } from '../../_shared/prospeo-client.ts';
-import { findCompanyLinkedIn, googleSearch } from '../../_shared/serper-client.ts';
+import { googleSearch } from '../../_shared/serper-client.ts';
 
 // ---------- Tool definitions ----------
 
@@ -427,9 +423,7 @@ function validateProspeoResult(
   const fNameMatch =
     result.first_name.toLowerCase() === expectedFirstName.toLowerCase() ||
     (expectedFirstName.length >= 3 &&
-      result.first_name
-        .toLowerCase()
-        .startsWith(expectedFirstName.toLowerCase().substring(0, 3)));
+      result.first_name.toLowerCase().startsWith(expectedFirstName.toLowerCase().substring(0, 3)));
   const lNameMatch = result.last_name.toLowerCase() === expectedLastName.toLowerCase();
   const nameMatch = fNameMatch && lNameMatch;
 
@@ -504,9 +498,7 @@ async function discoverLinkedInUrl(
   if (companyName) {
     // Strategy 1: domain + quoted name + site restriction (most precise, like decision_makers_finder)
     if (companyDomain) {
-      queries.push(
-        `${companyDomain} "${fullName}" site:linkedin.com/in ${excludeNoise}`,
-      );
+      queries.push(`${companyDomain} "${fullName}" site:linkedin.com/in ${excludeNoise}`);
     }
 
     // Strategy 2: quoted name + quoted company + site restriction
@@ -632,9 +624,7 @@ function parseLinkedInTitle(resultTitle: string): {
   company: string;
 } | null {
   // Strip LinkedIn suffix
-  const cleaned = resultTitle
-    .replace(/\s*[|·–—-]\s*LinkedIn\s*$/i, '')
-    .trim();
+  const cleaned = resultTitle.replace(/\s*[|·–—-]\s*LinkedIn\s*$/i, '').trim();
   if (!cleaned) return null;
 
   // Split on dash: "Name - Role at Company" or "Name - Company"
@@ -656,7 +646,8 @@ function parseLinkedInTitle(resultTitle: string): {
       company = atMatch[2].trim();
     } else {
       // Could be just a company name or just a role
-      const looksLikeRole = /\b(CEO|CFO|COO|CTO|VP|President|Founder|Owner|Partner|Director|Manager|Chairman|Principal)\b/i;
+      const looksLikeRole =
+        /\b(CEO|CFO|COO|CTO|VP|President|Founder|Owner|Partner|Director|Manager|Chairman|Principal)\b/i;
       if (looksLikeRole.test(rest)) {
         role = rest;
       } else {
@@ -728,9 +719,7 @@ async function discoverDecisionMakers(
     }
   }
 
-  console.log(
-    `[discover-decision-makers] Collected ${allResults.length} total search results`,
-  );
+  console.log(`[discover-decision-makers] Collected ${allResults.length} total search results`);
 
   // Extract contacts from LinkedIn results
   const contactMap = new Map<string, DiscoveredContact>();
@@ -773,7 +762,9 @@ async function discoverDecisionMakers(
     // Has a role/title
     if (parsed.role) confidence += 20;
     // Role is a decision-maker title
-    if (/\b(CEO|CFO|COO|CTO|President|Founder|Owner|Chairman|Partner|Principal)\b/i.test(parsed.role)) {
+    if (
+      /\b(CEO|CFO|COO|CTO|President|Founder|Owner|Chairman|Partner|Principal)\b/i.test(parsed.role)
+    ) {
       confidence += 20;
     } else if (/\b(VP|Director|Manager|General\s*Manager)\b/i.test(parsed.role)) {
       confidence += 10;
@@ -1045,16 +1036,16 @@ async function enrichBuyerContacts(
       Math.max(targetCount * 2, 30),
     );
   } catch (err) {
-    errors.push(`Google-based contact discovery failed: ${err instanceof Error ? err.message : String(err)}`);
+    errors.push(
+      `Google-based contact discovery failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 
   // 3. Pre-check CRM — skip people we already have email for
   const crmAlreadyKnown = new Set<string>();
   if (discovered.length > 0) {
     // Check by LinkedIn URL
-    const linkedInUrls = discovered
-      .map((d) => d.linkedin_url?.toLowerCase())
-      .filter(Boolean);
+    const linkedInUrls = discovered.map((d) => d.linkedin_url?.toLowerCase()).filter(Boolean);
 
     if (linkedInUrls.length > 0) {
       const { data: existingByLinkedIn } = await supabase
@@ -1066,9 +1057,18 @@ async function enrichBuyerContacts(
       if (existingByLinkedIn?.length) {
         for (const c of existingByLinkedIn) {
           if (c.linkedin_url) {
-            const norm = c.linkedin_url.toLowerCase()
-              .replace('https://www.', '').replace('https://', '').replace('http://', '');
-            if (linkedInUrls.some((u: string) => u.includes(norm) || norm.includes(u.replace('https://www.', '').replace('https://', '')))) {
+            const norm = c.linkedin_url
+              .toLowerCase()
+              .replace('https://www.', '')
+              .replace('https://', '')
+              .replace('http://', '');
+            if (
+              linkedInUrls.some(
+                (u: string) =>
+                  u.includes(norm) ||
+                  norm.includes(u.replace('https://www.', '').replace('https://', '')),
+              )
+            ) {
               crmAlreadyKnown.add(c.linkedin_url.toLowerCase());
             }
           }
@@ -1095,9 +1095,15 @@ async function enrichBuyerContacts(
 
   // Filter out contacts already in CRM with email
   const needsEnrichment = discovered.filter((d) => {
-    const normUrl = d.linkedin_url.toLowerCase()
-      .replace('https://www.', '').replace('https://', '').replace('http://', '');
-    if (normUrl && Array.from(crmAlreadyKnown).some((k) => k.includes(normUrl) || normUrl.includes(k))) {
+    const normUrl = d.linkedin_url
+      .toLowerCase()
+      .replace('https://www.', '')
+      .replace('https://', '')
+      .replace('http://', '');
+    if (
+      normUrl &&
+      Array.from(crmAlreadyKnown).some((k) => k.includes(normUrl) || normUrl.includes(k))
+    ) {
       return false;
     }
     const nameKey = `${d.first_name.toLowerCase()}:${d.last_name.toLowerCase()}`;
@@ -1137,7 +1143,9 @@ async function enrichBuyerContacts(
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     if (errMsg.includes('404')) {
-      errors.push(`Email enrichment failed (404): Prospeo API endpoint may have changed. Check PROSPEO_API_KEY.`);
+      errors.push(
+        `Email enrichment failed (404): Prospeo API endpoint may have changed. Check PROSPEO_API_KEY.`,
+      );
     } else if (errMsg.includes('401') || errMsg.includes('403')) {
       errors.push(`Email enrichment failed (auth): PROSPEO_API_KEY may be invalid or expired.`);
     } else {
@@ -1150,7 +1158,10 @@ async function enrichBuyerContacts(
     for (const domainCandidate of domainCandidates.slice(0, 3)) {
       if (enriched.length >= targetCount) break;
       try {
-        const domainResults = await domainSearchEnrich(domainCandidate, targetCount - enriched.length);
+        const domainResults = await domainSearchEnrich(
+          domainCandidate,
+          targetCount - enriched.length,
+        );
         const filteredDomain =
           titleFilter.length > 0
             ? domainResults.filter((r) => matchesTitle(r.title, titleFilter))
@@ -1163,25 +1174,36 @@ async function enrichBuyerContacts(
   }
 
   // Build final contacts — merge enriched results with discovered-only contacts
-  // deno-lint-ignore no-explicit-any
-  const contacts = enriched.map((e: any) => ({
-    company_name: companyName,
-    full_name: `${e.first_name} ${e.last_name}`.trim(),
-    first_name: e.first_name,
-    last_name: e.last_name,
-    title: e.title || '',
-    email: e.email,
-    phone: e.phone,
-    linkedin_url: e.linkedin_url || '',
-    confidence: e.confidence || 'low',
-    source: e.source || 'unknown',
-    enriched_at: new Date().toISOString(),
-    search_query: cacheKey,
-  }));
+  const contacts = enriched.map(
+    (e: {
+      first_name?: string;
+      last_name?: string;
+      title?: string;
+      email?: string;
+      phone?: string;
+      linkedin_url?: string;
+      confidence?: string;
+      source?: string;
+    }) => ({
+      company_name: companyName,
+      full_name: `${e.first_name} ${e.last_name}`.trim(),
+      first_name: e.first_name,
+      last_name: e.last_name,
+      title: e.title || '',
+      email: e.email,
+      phone: e.phone,
+      linkedin_url: e.linkedin_url || '',
+      confidence: e.confidence || 'low',
+      source: e.source || 'unknown',
+      enriched_at: new Date().toISOString(),
+      search_query: cacheKey,
+    }),
+  );
 
   // Include unenriched LinkedIn-only contacts (discovered but no email from Prospeo)
-  // deno-lint-ignore no-explicit-any
-  const enrichedLinkedIns = new Set(enriched.map((e: any) => e.linkedin_url?.toLowerCase()));
+  const enrichedLinkedIns = new Set(
+    enriched.map((e: { linkedin_url?: string }) => e.linkedin_url?.toLowerCase()),
+  );
   const unenriched = toEnrich
     .filter((d) => !enrichedLinkedIns.has(d.linkedin_url?.toLowerCase()))
     .map((d) => ({
@@ -1300,7 +1322,9 @@ async function enrichLinkedInContact(
 
     if (!result) {
       // --- FALLBACK: Prospeo returned nothing — try Google discovery to verify/find correct profile ---
-      console.log(`[enrich-linkedin] Prospeo returned no results for ${linkedinUrl} — trying Google fallback`);
+      console.log(
+        `[enrich-linkedin] Prospeo returned no results for ${linkedinUrl} — trying Google fallback`,
+      );
 
       // Try to find CRM context for this LinkedIn URL (person name + company)
       let fallbackFirstName = firstName;
@@ -1308,7 +1332,10 @@ async function enrichLinkedInContact(
       let fallbackCompany = '';
       let fallbackCrmContactId: string | null = null;
 
-      const normalizedUrl = linkedinUrl.replace('https://www.', '').replace('https://', '').replace('http://', '');
+      const normalizedUrl = linkedinUrl
+        .replace('https://www.', '')
+        .replace('https://', '')
+        .replace('http://', '');
       const { data: crmMatch } = await supabase
         .from('contacts')
         .select('id, first_name, last_name, title, company_name, listing_id, remarketing_buyer_id')
@@ -1465,7 +1492,10 @@ async function enrichLinkedInContact(
     let crmContactId: string | null = null;
     let crmAction: 'created' | 'updated' | null = null;
     if (result.email) {
-      const normalizedUrl = linkedinUrl.replace('https://www.', '').replace('https://', '').replace('http://', '');
+      const normalizedUrl = linkedinUrl
+        .replace('https://www.', '')
+        .replace('https://', '')
+        .replace('http://', '');
 
       // First: try matching by LinkedIn URL
       const { data: existingContacts } = await supabase
@@ -1692,7 +1722,9 @@ async function findAndEnrichPerson(
   // --- Step 3: If we already have a LinkedIn URL, verify it and try Prospeo ---
   const storedLinkedinUrl = contact?.linkedin_url as string | undefined;
   if (storedLinkedinUrl?.includes('linkedin.com/in/')) {
-    steps.push(`3. LinkedIn URL on record: ${storedLinkedinUrl} — verifying via Google before enriching`);
+    steps.push(
+      `3. LinkedIn URL on record: ${storedLinkedinUrl} — verifying via Google before enriching`,
+    );
 
     // VERIFICATION: Cross-check stored LinkedIn URL against Google discovery
     // This catches stale/wrong URLs (e.g. profile slug changed, wrong person stored)
@@ -1705,13 +1737,23 @@ async function findAndEnrichPerson(
 
     try {
       const verifyDomain = companyName ? inferDomain(companyName) : undefined;
-      const googleResult = await discoverLinkedInUrl(firstName, lastName, companyName, title, verifyDomain);
+      const googleResult = await discoverLinkedInUrl(
+        firstName,
+        lastName,
+        companyName,
+        title,
+        verifyDomain,
+      );
       if (googleResult) {
-        const storedSlug = storedLinkedinUrl.split('/in/')[1]?.split(/[/?#]/)[0]?.toLowerCase() || '';
-        const googleSlug = googleResult.url.split('/in/')[1]?.split(/[/?#]/)[0]?.toLowerCase() || '';
+        const storedSlug =
+          storedLinkedinUrl.split('/in/')[1]?.split(/[/?#]/)[0]?.toLowerCase() || '';
+        const googleSlug =
+          googleResult.url.split('/in/')[1]?.split(/[/?#]/)[0]?.toLowerCase() || '';
 
         if (storedSlug === googleSlug) {
-          steps.push(`3b. Google confirms stored LinkedIn URL (${googleResult.verification.join(', ')})`);
+          steps.push(
+            `3b. Google confirms stored LinkedIn URL (${googleResult.verification.join(', ')})`,
+          );
           linkedinVerified = true;
         } else {
           // Google found a DIFFERENT LinkedIn profile — stored URL is likely wrong
@@ -1733,7 +1775,9 @@ async function findAndEnrichPerson(
                 .eq('id', contact.id);
             }
           } else {
-            steps.push(`3c. Google result score too low (${googleResult.score}) — will try stored URL first, then rediscover`);
+            steps.push(
+              `3c. Google result score too low (${googleResult.score}) — will try stored URL first, then rediscover`,
+            );
           }
         }
       } else {
@@ -1758,12 +1802,7 @@ async function findAndEnrichPerson(
       if (result?.email) {
         // Cross-validate: check that Prospeo result matches expected person
         if (companyName && result.company) {
-          const validation = validateProspeoResult(
-            result,
-            firstName,
-            lastName,
-            companyName,
-          );
+          const validation = validateProspeoResult(result, firstName, lastName, companyName);
           if (!validation.valid && !linkedinVerified) {
             // Prospeo returned data for a different person AND we didn't verify via Google
             console.warn(`[find-person] Prospeo result mismatch: ${validation.details}`);
@@ -1782,7 +1821,8 @@ async function findAndEnrichPerson(
             if (contact?.id) {
               const updates: Record<string, unknown> = { email: result.email };
               if (result.phone && !contact.phone) updates.phone = result.phone;
-              if (verifiedLinkedInUrl !== storedLinkedinUrl) updates.linkedin_url = verifiedLinkedInUrl;
+              if (verifiedLinkedInUrl !== storedLinkedinUrl)
+                updates.linkedin_url = verifiedLinkedInUrl;
               await supabase.from('contacts').update(updates).eq('id', contact.id);
               steps.push(`4. Updated CRM contact ${contact.id} with email: ${result.email}`);
             }
@@ -1820,7 +1860,8 @@ async function findAndEnrichPerson(
                 linkedin_url: result.linkedin_url || verifiedLinkedInUrl,
                 confidence: result.confidence,
                 linkedin_verified: linkedinVerified,
-                linkedin_corrected: verifiedLinkedInUrl !== storedLinkedinUrl ? storedLinkedinUrl : undefined,
+                linkedin_corrected:
+                  verifiedLinkedInUrl !== storedLinkedinUrl ? storedLinkedinUrl : undefined,
                 crm_updated: !!contact?.id,
                 steps,
                 message: `Found email for ${result.first_name} ${result.last_name}: ${result.email} (confidence: ${result.confidence})${verifiedLinkedInUrl !== storedLinkedinUrl ? ' — LinkedIn URL was corrected via Google verification' : ''}`,
@@ -1893,7 +1934,13 @@ async function findAndEnrichPerson(
   let discoveredLinkedIn: string | null = null;
   try {
     const discoverDomain = companyName ? inferDomain(companyName) : undefined;
-    const googleResult = await discoverLinkedInUrl(firstName, lastName, companyName, title, discoverDomain);
+    const googleResult = await discoverLinkedInUrl(
+      firstName,
+      lastName,
+      companyName,
+      title,
+      discoverDomain,
+    );
 
     if (googleResult) {
       discoveredLinkedIn = googleResult.url;
@@ -2034,7 +2081,9 @@ async function findAndEnrichPerson(
         /* try next domain candidate */
       }
     }
-    steps.push(`${steps.length + 1}. Name+domain fallback returned no email across all domain candidates`);
+    steps.push(
+      `${steps.length + 1}. Name+domain fallback returned no email across all domain candidates`,
+    );
   }
 
   // --- No email found through any method ---
@@ -2352,7 +2401,13 @@ async function findContactLinkedIn(
     const searchDomain = companyName ? inferDomain(companyName) : undefined;
 
     try {
-      const googleResult = await discoverLinkedInUrl(firstName, lastName, companyName, title, searchDomain);
+      const googleResult = await discoverLinkedInUrl(
+        firstName,
+        lastName,
+        companyName,
+        title,
+        searchDomain,
+      );
 
       if (!googleResult) {
         matches.push({

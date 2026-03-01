@@ -482,7 +482,7 @@ export function ImprovedListingEditor({
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to save listing',
+        description: error instanceof Error ? error.message : 'Failed to save listing',
       });
     }
   };
