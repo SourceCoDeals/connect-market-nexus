@@ -112,7 +112,6 @@ const handler = async (req: Request): Promise<Response> => {
         .maybeSingle();
 
       if (existingEmail) {
-        console.log("[notify-buyer-rejection] Already sent for connectionRequestId:", connectionRequestId);
         return new Response(
           JSON.stringify({ success: true, message: "Rejection email already sent", duplicate: true }),
           { headers: { "Content-Type": "application/json", ...corsHeaders } },
@@ -135,7 +134,6 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (existingLog) {
-      console.log(
         '[notify-buyer-rejection] Skipping duplicate rejection email for correlationId:',
         correlationId,
       );
@@ -150,7 +148,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(
       '[notify-buyer-rejection] Sending rejection email to:',
       buyerEmail,
       'for:',
@@ -183,7 +180,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(result.error || 'Failed to send rejection email');
     }
 
-    console.log('[notify-buyer-rejection] Email sent successfully:', result.messageId);
 
     return new Response(
       JSON.stringify({

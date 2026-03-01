@@ -104,7 +104,6 @@ serve(async (req) => {
     // Filter to deals that have a company name (required for LinkedIn/Google search)
     const eligibleDeals = allDeals.filter(d => d.internal_company_name || d.title);
 
-    console.log(`[enrich-external-only] Found ${allDeals.length} deals missing external data, ${eligibleDeals.length} have company names`);
 
     if (eligibleDeals.length === 0) {
       return new Response(
@@ -144,7 +143,6 @@ serve(async (req) => {
 
     for (const chunk of processChunks) {
       if (Date.now() - startedAt > MAX_FUNCTION_RUNTIME_MS) {
-        console.log('[enrich-external-only] Time limit reached, will self-continue');
         break;
       }
 
@@ -218,7 +216,6 @@ serve(async (req) => {
     const remaining = eligibleDeals.length - processedCount;
 
     if (remaining > 0) {
-      console.log(`[enrich-external-only] ${remaining} remaining — triggering continuation`);
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
       fetch(`${supabaseUrl}/functions/v1/enrich-external-only`, {
         method: 'POST',
@@ -233,7 +230,6 @@ serve(async (req) => {
       await completeGlobalQueueOperation(supabase, 'deal_enrichment');
     }
 
-    console.log(`[enrich-external-only] Done: ${results.processed} processed, LI: ${results.linkedinSuccess}, Google: ${results.googleSuccess}, Failed: ${results.failed}`);
 
     return new Response(
       JSON.stringify({

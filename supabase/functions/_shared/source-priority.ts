@@ -182,7 +182,6 @@ export function buildPriorityUpdates<T extends Record<string, unknown>>(
 
   // Log rejected updates if any
   if (rejected.length > 0) {
-    console.log(`[SourcePriority] Rejected ${rejected.length} lower-priority updates:`, rejected);
   }
 
   return { updates, sourceUpdates, rejected };

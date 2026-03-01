@@ -335,7 +335,6 @@ serve(async (req) => {
             8,
             50,
           );
-          console.log(
             `Combined participant search [${validEmails.join(', ')}] returned ${results.length} results`,
           );
           return { results, type: 'email' as const };
@@ -354,7 +353,6 @@ serve(async (req) => {
               8,
               50,
             );
-            console.log(
               `Individual participant search [${email}] returned ${results.length} results`,
             );
             return { results, type: 'email' as const };
@@ -374,7 +372,6 @@ serve(async (req) => {
               4,
               50,
             );
-            console.log(`Email keyword search "${email}" returned ${results.length} results`);
             return { results, type: 'email' as const };
           })(),
         );
@@ -393,7 +390,6 @@ serve(async (req) => {
             8,
             50,
           );
-          console.log(`Keyword search "${trimmedQuery}" returned ${results.length} results`);
           return { results, type: 'keyword' as const };
         })(),
       );
@@ -428,7 +424,6 @@ serve(async (req) => {
       }
     }
 
-    console.log(`${matchingResults.length} unique transcripts after primary search`);
 
     // === Phase 2: Fallback keyword search by company name ===
     // Only run if primary email search returned 0 results with content
@@ -438,7 +433,6 @@ serve(async (req) => {
 
     const fallbackResults: any[] = [];
     if (emailResultsWithContent.length === 0 && companyName && companyName.trim().length >= 3) {
-      console.log(
         `No email results with content, running fallback keyword search for "${companyName}"`,
       );
       const fallbackRaw = await paginatedFetch(
@@ -456,7 +450,6 @@ serve(async (req) => {
           fallbackResults.push(t);
         }
       }
-      console.log(
         `Fallback search for "${companyName}" returned ${fallbackResults.length} new results`,
       );
     }

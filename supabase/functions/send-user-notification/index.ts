@@ -48,7 +48,6 @@ const handler = async (req: Request): Promise<Response> => {
     }: UserNotificationRequest = await req.json();
 
     const correlationId = crypto.randomUUID();
-    console.log("Sending user notification:", { email, subject, type });
 
     // For connection_approved emails, use plain text format
     const isPlainText = type === 'connection_approved';
@@ -154,7 +153,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Brevo API error: ${errorText}`);
     }
 
-    console.log("User notification sent successfully");
 
     await logEmailDelivery(supabase, { email, emailType: 'user_notification', status: 'sent', correlationId });
 

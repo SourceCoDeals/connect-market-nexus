@@ -259,7 +259,6 @@ export async function callGeminiWithTool(
       } : undefined;
 
       if (usage) {
-        console.log(`[Gemini/${model}] ${usage.input_tokens}in/${usage.output_tokens}out tokens, ${durationMs}ms`);
       }
 
       const toolCall = responseData.choices?.[0]?.message?.tool_calls?.[0];

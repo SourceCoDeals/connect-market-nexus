@@ -112,7 +112,6 @@ serve(async (req) => {
       });
     }
 
-    console.log(`Checking ${buyers.length} buyers for duplicates`);
 
     // Fetch all existing buyers
     const { data: existingBuyers, error: buyersError } = await supabase

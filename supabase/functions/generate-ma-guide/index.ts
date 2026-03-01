@@ -655,7 +655,6 @@ async function generatePhaseWithTimeout(
       const backoffMs = Math.min(3000 * Math.pow(2, retryCount), 30000); // 3s, 6s, 12s, 24s...
       console.error(`Phase ${phase.id} failed with transient error (attempt ${retryCount + 1}/${MAX_RETRIES + 1}): ${err.message}. Waiting ${backoffMs}ms`);
       await new Promise(resolve => setTimeout(resolve, backoffMs));
-      console.log(`Retrying phase ${phase.id} after backoff...`);
       return generatePhaseWithTimeout(phase, industryName, existingContent, apiKey, clarificationContext, retryCount + 1, firefliesIntelligence);
     }
 
@@ -1141,7 +1140,6 @@ serve(async (req) => {
     }
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    console.log(`GEMINI_API_KEY configured: ${!!GEMINI_API_KEY}, length: ${GEMINI_API_KEY?.length || 0}`);
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
@@ -1153,7 +1151,6 @@ serve(async (req) => {
     const isLastBatch = endPhase >= GENERATION_PHASES.length;
     const totalBatches = Math.ceil(GENERATION_PHASES.length / BATCH_SIZE);
 
-    console.log(`Generating M&A Guide batch ${batch_index + 1}/${totalBatches} for: ${industry_name}`, 
       enrichedContext ? 'with context' : 'without context',
       `phases ${startPhase + 1}-${endPhase}`);
 

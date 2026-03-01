@@ -91,7 +91,6 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // Send email via shared Brevo sender
-    console.log("Sending deal owner change notification to:", previousOwner.email);
 
     const emailResult = await sendViaBervo({
       to: previousOwner.email,
@@ -104,7 +103,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(emailResult.error || "Failed to send email");
     }
 
-    console.log("Deal owner notification sent successfully:", emailResult.messageId);
 
     return new Response(
       JSON.stringify({

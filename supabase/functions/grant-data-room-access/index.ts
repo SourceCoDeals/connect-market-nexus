@@ -286,7 +286,6 @@ Deno.serve(async (req: Request) => {
       // Continue — access record and logs are already created; email failure is non-fatal
     }
 
-    console.log(
       `Data room access granted: deal ${deal_id} -> ${emailTrimmed} by admin ${auth.userId} (access_id: ${accessRecord.id}, documents: ${documentsToLog.length})`
     );
 

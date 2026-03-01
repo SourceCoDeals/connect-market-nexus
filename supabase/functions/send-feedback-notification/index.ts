@@ -43,7 +43,6 @@ const handler = async (req: Request): Promise<Response> => {
     const body: FeedbackNotificationRequest = await req.json();
     const { feedbackId, message, pageUrl, userAgent, category, priority, userId, userEmail, userName } = body;
 
-    console.log("Processing feedback notification:", { feedbackId, category, priority });
 
     // Get admin users
     const { data: adminUsers, error: adminError } = await supabase
@@ -57,7 +56,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!adminUsers || adminUsers.length === 0) {
-      console.log("No admin users found to notify");
       return new Response(
         JSON.stringify({ success: true, message: "No admin users to notify" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -130,7 +128,6 @@ const handler = async (req: Request): Promise<Response> => {
       if (!brevoApiKey) {
         console.warn("BREVO_API_KEY not configured, using fallback email delivery");
         // Log feedback for admin review instead of failing
-        console.log("Feedback submission logged for admin review:", {
           feedbackId,
           category,
           priority,
@@ -189,7 +186,6 @@ const handler = async (req: Request): Promise<Response> => {
         const errorText = await emailResponse.text();
         console.error("Error sending email via Brevo:", errorText);
         // Log feedback for admin review instead of failing
-        console.log("Feedback submission logged for admin review:", {
           feedbackId,
           category,
           priority,
@@ -209,7 +205,6 @@ const handler = async (req: Request): Promise<Response> => {
           });
         }
       } else {
-        console.log("Email sent successfully to admin");
         for (const admin of adminUsers) {
           await logEmailDelivery(supabase, {
             email: admin.email,

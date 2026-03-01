@@ -139,7 +139,6 @@ serve(async (req) => {
       passCategories,
     };
 
-    console.log(`[recalculate-deal-weights] Deal ${listingId}: ${JSON.stringify(stats)}`);
 
     return new Response(
       JSON.stringify({ success: true, adjustments, stats }),

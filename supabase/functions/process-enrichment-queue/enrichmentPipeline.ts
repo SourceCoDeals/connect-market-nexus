@@ -77,7 +77,6 @@ export async function runListingEnrichmentPipeline(
 
   // 409 = concurrent modification (another process enriched this deal) — treat as success
   if (enrichDeal.status === 409 && enrichDeal.json?.error_code === 'concurrent_modification') {
-    console.log(`Deal ${input.listingId} was already enriched by another process — treating as success`);
     return { ok: true, fieldsUpdated: [] };
   }
 
@@ -107,7 +106,6 @@ export async function runListingEnrichmentPipeline(
 
     if (freshListing) {
       enrichedListing = freshListing as ListingContext;
-      console.log(`[pipeline] Re-fetched listing after enrich-deal: name="${enrichedListing.internal_company_name}", city="${enrichedListing.address_city}", state="${enrichedListing.address_state}", linkedin="${enrichedListing.linkedin_url}"`);
     }
   } catch (err) {
     console.warn('[pipeline] Failed to re-fetch listing after enrich-deal, using original context:', err);

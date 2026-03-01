@@ -62,7 +62,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log('✅ Brevo API key found, proceeding with email setup');
 
     const {
       userId,
@@ -84,7 +83,6 @@ const handler = async (req: Request): Promise<Response> => {
       ? `NDA Required - ${listingTitle} | SourceCo`
       : customSubject || "Non-Disclosure Agreement | SourceCo";
     
-    console.log('📧 Starting NDA email process', {
       userEmail,
       userId,
       firmId,
@@ -119,7 +117,6 @@ const handler = async (req: Request): Promise<Response> => {
     let recipientEmails: Array<{email: string, userId: string, name?: string}> = [];
     
     if (firmId && sendToAllMembers) {
-      console.log('📧 Fetching all members for firm:', firmId);
       const { data: members, error: membersError } = await supabaseAdmin
         .from('firm_members')
         .select(`
@@ -139,7 +136,6 @@ const handler = async (req: Request): Promise<Response> => {
         name: [m.user.first_name, m.user.last_name].filter(Boolean).join(' ')
       })) || [];
       
-      console.log(`✅ Found ${recipientEmails.length} firm members to email`);
     } else {
       if (!userId || !userEmail) {
         throw new Error("Missing required parameters: userId and userEmail are required for single emails");
@@ -151,11 +147,9 @@ const handler = async (req: Request): Promise<Response> => {
     const finalAttachments = [...attachments];
     
     if (finalAttachments.length === 0) {
-      console.log('📎 No attachments provided, fetching default NDA document...');
       
       try {
         const defaultFileName = 'SourceCo Form Bilateral NDA_2025.docx';
-        console.log('📎 Trying to fetch default NDA:', defaultFileName);
         
         const { data: fileData, error: downloadError } = await supabaseAdmin.storage
           .from('nda-documents')
@@ -171,9 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
             contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
           });
           
-          console.log('✅ Default NDA document loaded successfully:', defaultFileName);
         } else {
-          console.log('⚠️ Could not fetch default NDA document');
         }
       } catch (error) {
         console.error('❌ Error fetching default NDA document:', error);
@@ -195,11 +187,9 @@ const handler = async (req: Request): Promise<Response> => {
       adminCalendly = adminProfile.calendlyUrl || '';
     }
 
-    console.log('📧 Using sender:', `${senderName} <${senderEmail}>`);
 
     // Try to get custom admin signature from database (like fee agreement function)
     let customSignature = null;
-    console.log('🔍 Looking for custom signature for adminId:', adminId);
     
     if (adminId) {
       try {
@@ -211,29 +201,22 @@ const handler = async (req: Request): Promise<Response> => {
         
         if (signatureData) {
           customSignature = signatureData;
-          console.log('✅ Found custom signature for admin:', adminId);
-          console.log('📝 Signature data:', { 
             hasHtml: !!signatureData.signature_html, 
             hasText: !!signatureData.signature_text 
           });
         } else {
-          console.log('❌ No signature data returned from database');
         }
       } catch (error) {
-        console.log('⚠️ Error fetching custom signature:', error);
       }
     } else {
-      console.log('⚠️ No adminId provided for signature lookup');
     }
 
-    console.log('📧 Using text-only signature without logo for immediate delivery');
     
     // Create premium signature (same logic as fee agreement)
     let adminSignature;
     
     if (customSignature?.signature_text) {
       // Prioritize text signature and build HTML from it
-      console.log('✅ Using custom text signature (prioritized)');
       const signatureParts = customSignature.signature_text.split('\n').filter(line => line.trim());
       
       // Add optional phone and calendly if provided
@@ -275,7 +258,6 @@ const handler = async (req: Request): Promise<Response> => {
             ${signatureParts.join('<br>')}
           </p>
         </div>`;
-      console.log('✅ Using conditional signature template');
     }
 
     // Simple text content - use custom signature text if provided, otherwise strip HTML
@@ -311,12 +293,10 @@ ${adminSignature}
 </div>`;
 
     // Process attachments safely
-    console.log('📎 Starting attachment processing for', finalAttachments.length, 'attachment(s)');
     
     const processedAttachments = [];
 
     for (const [index, attachment] of finalAttachments.entries()) {
-      console.log(`📎 Processing attachment ${index + 1}/${finalAttachments.length}: ${attachment.name}`);
       
       try {
         if (!attachment.content) {
@@ -325,10 +305,8 @@ ${adminSignature}
         }
         
         const cleanBase64 = attachment.content.replace(/^data:[^;]+;base64,/, '');
-        console.log(`📎 Original content length for ${attachment.name}: ${cleanBase64.length} chars`);
         
         const decodedBytes = atob(cleanBase64);
-        console.log(`✅ Successfully decoded base64 for ${attachment.name}: ${cleanBase64.length} chars → ${decodedBytes.length} bytes`);
         
         processedAttachments.push({
           name: attachment.name,
@@ -336,13 +314,11 @@ ${adminSignature}
           ...(attachment.contentType && { contentType: attachment.contentType })
         });
         
-        console.log(`✅ Successfully processed attachment: ${attachment.name} (${decodedBytes.length} bytes)`);
       } catch (error) {
         console.error(`❌ Error processing attachment ${attachment.name}:`, error);
       }
     }
 
-    console.log('📎 Successfully added', processedAttachments.length, 'attachment(s) to Brevo payload');
 
     // Determine the sender email - use current admin info (same logic as fee agreement)
     let finalSenderEmail = senderEmail;
@@ -361,7 +337,6 @@ ${adminSignature}
 
     for (const recipient of recipientEmails) {
       try {
-        console.log(`📬 Sending NDA to ${recipient.email} (${recipient.userId})...`);
         
         const brevoPayload = {
           to: [{ email: recipient.email, name: recipient.name || recipient.email.split('@')[0] }],
@@ -400,7 +375,6 @@ ${adminSignature}
         }
 
         const brevoResult = await brevoResponse.json();
-        console.log(`✅ Sent to ${recipient.email}:`, brevoResult.messageId);
         successCount++;
         emailResults.push({ email: recipient.email, success: true, messageId: brevoResult.messageId });
         await logEmailDelivery(supabaseAdmin, {
@@ -444,7 +418,6 @@ ${adminSignature}
       }
     }
 
-    console.log(`📊 NDA batch complete: ${successCount} sent, ${failCount} failed`);
 
     return new Response(
       JSON.stringify({ 

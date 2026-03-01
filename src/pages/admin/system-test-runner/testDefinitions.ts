@@ -923,7 +923,6 @@ export function buildTests(): TestDef[] {
       .eq('applied_to_deal', true);
 
     // This is informational — log counts for visibility
-    console.log(
       `Transcript Stats: ${totalCount || 0} total, ${ffCount || 0} Fireflies, ${uploadCount || 0} uploads, ${noContentCount || 0} no-content, ${extractedCount || 0} extracted, ${appliedCount || 0} applied`,
     );
 
@@ -938,7 +937,6 @@ export function buildTests(): TestDef[] {
       .select('id', { count: 'exact', head: true });
     if (error) throw new Error(error.message);
     // Informational — just verify table is accessible and report count
-    console.log(`Buyer transcripts: ${count || 0}`);
   });
 
   // ═══════════════════════════════════════════

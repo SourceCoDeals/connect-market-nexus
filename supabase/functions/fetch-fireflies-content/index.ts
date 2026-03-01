@@ -138,7 +138,6 @@ async function findFirefliesIdByUrl(url: string): Promise<string | null> {
     for (const t of batch) {
       // Match by transcript_url containing the same slug
       if (t.transcript_url && t.transcript_url.includes(slug)) {
-        console.log(`Found Fireflies transcript ID ${t.id} matching URL slug "${slug}"`);
         return t.id;
       }
     }
@@ -147,7 +146,6 @@ async function findFirefliesIdByUrl(url: string): Promise<string | null> {
     skip += batchSize;
   }
 
-  console.log(`No Fireflies transcript found matching URL slug "${slug}"`);
   return null;
 }
 
@@ -223,7 +221,6 @@ serve(async (req) => {
 
     // Handle transcripts flagged as having no content (silent/skipped meetings)
     if (dealTranscript.has_content === false) {
-      console.log(`Transcript ${transcriptId} has no content (silent/skipped meeting)`);
       return new Response(
         JSON.stringify({
           success: true,
@@ -239,7 +236,6 @@ serve(async (req) => {
 
     // Check if already cached (content length > 100 chars indicates real content)
     if (dealTranscript.transcript_text && dealTranscript.transcript_text.length > 100) {
-      console.log(`Returning cached content for transcript ${transcriptId}`);
       return new Response(
         JSON.stringify({
           success: true,
@@ -256,7 +252,6 @@ serve(async (req) => {
 
     // If no Fireflies ID stored but we have a Fireflies URL, search for it
     if (!firefliesId && hasFirefliesUrl) {
-      console.log(
         `No fireflies_transcript_id stored, searching by URL: ${dealTranscript.transcript_url}`,
       );
       firefliesId = await findFirefliesIdByUrl(dealTranscript.transcript_url!);
@@ -270,7 +265,6 @@ serve(async (req) => {
             source: 'fireflies', // Ensure source is correct
           })
           .eq('id', transcriptId);
-        console.log(`Saved resolved fireflies_transcript_id: ${firefliesId}`);
       }
     }
 
@@ -281,7 +275,6 @@ serve(async (req) => {
     }
 
     // Fetch full transcript from Fireflies API
-    console.log(`Fetching content from Fireflies for transcript ${firefliesId}`);
 
     const data = await firefliesGraphQL(GET_TRANSCRIPT_QUERY, {
       transcriptId: firefliesId,
@@ -345,7 +338,6 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Fetched ${transcriptText.length} characters from Fireflies`);
 
     // Cache the content in database
     const { error: updateError } = await supabase
@@ -361,7 +353,6 @@ serve(async (req) => {
       console.error('Failed to cache transcript content:', updateError);
       // Don't fail the request - still return the content
     } else {
-      console.log(`Cached transcript content for ${transcriptId}`);
     }
 
     return new Response(

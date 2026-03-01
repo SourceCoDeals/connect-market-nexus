@@ -89,7 +89,6 @@ export async function heyreachRequest<T = unknown>(
 
       if (response.ok) {
         if (attempt > 0) {
-          console.log(`[heyreach] Succeeded on retry ${attempt}/${MAX_RETRIES}`);
         }
         return { ok: true, status: response.status, data };
       }

@@ -85,7 +85,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (existingUser) {
       userId = existingUser.id;
-      console.log(`[invite-team-member] User already exists (${userId}), updating role`);
     } else {
       // Create auth user with invite (sends magic link email)
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -107,7 +106,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       userId = newUser.user.id;
-      console.log(`[invite-team-member] Created auth user (${userId})`);
     }
 
     // H4: Ensure profile exists with is_admin=true
@@ -181,7 +179,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`[invite-team-member] Successfully invited ${normalizedEmail} as ${role}`);
 
     return new Response(
       JSON.stringify({

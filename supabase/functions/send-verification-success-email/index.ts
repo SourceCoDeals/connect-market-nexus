@@ -22,10 +22,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log("Email verification success notification request received");
     
     const requestBody = await req.json();
-    console.log("Request body:", JSON.stringify(requestBody));
 
     const { email, firstName, lastName }: VerificationSuccessRequest = requestBody;
 
@@ -33,7 +31,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Email is required");
     }
 
-    console.log(`Sending email verification success notification to: ${email}`);
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
     const correlationId = crypto.randomUUID();
@@ -186,7 +183,6 @@ The SourceCodeALS Team
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
 
     await logEmailDelivery(supabase, { email, emailType: 'verification_success', status: 'sent', correlationId });
 

@@ -42,11 +42,9 @@ serve(async (req) => {
       contactName,
     } = await req.json();
 
-    console.log(`Generating intro email for buyer: ${buyerName}, deal: ${deal?.title}`);
 
     if (!OPENAI_API_KEY) {
       // Fallback template if no API key
-      console.log('No OpenAI API key configured, using template');
       return new Response(JSON.stringify({
         subject: `Introduction: ${deal?.title || 'Acquisition Opportunity'}`,
         body: generateFallbackEmail(buyerName, peFirmName, deal, contactName, fitReasoning),
@@ -142,7 +140,6 @@ Respond with JSON in this exact format:
       };
     }
 
-    console.log(`Successfully generated email for ${buyerName}`);
 
     return new Response(JSON.stringify(emailData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -52,7 +52,6 @@ const handler = async (req: Request): Promise<Response> => {
     const { email, action, token, newPassword }: PasswordResetRequest = await req.json();
 
     if (action === 'request') {
-      console.log(`Password reset requested for email: ${email}`);
 
       if (!email) {
         return new Response(
@@ -135,7 +134,6 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      console.log('Validating reset token...');
 
       // Validate token directly
       const { data: tokenRow } = await supabase

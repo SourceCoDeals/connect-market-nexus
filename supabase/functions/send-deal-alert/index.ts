@@ -25,7 +25,6 @@ interface DealAlertRequest {
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
 
-  console.log("Deal alert function called");
 
   if (req.method === "OPTIONS") {
     return corsPreflightResponse(req);
@@ -76,7 +75,6 @@ const handler = async (req: Request): Promise<Response> => {
     parsedBody = await req.json();
     const { alert_id, user_email, user_id, listing_id, alert_name, listing_data } = parsedBody;
 
-    console.log("Processing deal alert:", { alert_id, user_email, listing_id });
 
     // Format currency values
     const formatCurrency = (value: number) => {
@@ -206,7 +204,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailResponse = await brevoResponse.json();
-    console.log("Email sent via Brevo:", emailResponse);
 
     await logEmailDelivery(supabaseClient, {
       email: user_email,

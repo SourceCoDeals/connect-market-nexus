@@ -28,11 +28,9 @@ serve(async (req) => {
     const fileName = file.name.toLowerCase();
     let extractedText = '';
 
-    console.log(`Processing file: ${file.name}, size: ${file.size}, type: ${file.type}`);
 
     if (fileName.endsWith('.txt') || fileName.endsWith('.vtt') || fileName.endsWith('.srt')) {
       extractedText = await file.text();
-      console.log(`Text file extracted, length: ${extractedText.length}`);
     } 
     else if (fileName.endsWith('.pdf') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
       const arrayBuffer = await file.arrayBuffer();
@@ -45,7 +43,6 @@ serve(async (req) => {
         mimeType = 'application/msword';
       }
       
-      console.log(`Document file, size: ${arrayBuffer.byteLength} bytes, mime: ${mimeType}, model: ${GEMINI_MODEL}`);
       
       const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
       if (!geminiApiKey) {
@@ -121,7 +118,6 @@ serve(async (req) => {
         console.warn(`[TRUNCATION WARNING] Output was truncated for ${file.name}`);
       }
       
-      console.log(`Document text extracted via Gemini Flash, length: ${extractedText.length}, finishReason: ${finishReason}`);
     }
     else {
       return new Response(

@@ -99,7 +99,6 @@ Deno.serve(async (req) => {
     // If session doesn't exist yet, return gracefully
     // Session creation is handled by track-session edge function to prevent race conditions with journey tracking
     if (!session) {
-      console.log('Session not found (will be created by track-session):', body.session_id);
 
       return new Response(
         JSON.stringify({
@@ -134,7 +133,6 @@ Deno.serve(async (req) => {
       throw updateError;
     }
 
-    console.log(`Heartbeat: session ${body.session_id.substring(0, 20)}..., duration: ${durationSeconds}s`);
 
     return new Response(
       JSON.stringify({

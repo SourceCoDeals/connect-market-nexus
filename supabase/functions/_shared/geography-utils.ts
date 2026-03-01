@@ -75,7 +75,6 @@ async function initializeCache(supabaseUrl: string, supabaseKey: string) {
         regionCache.set(row.state_code, row.region);
       }
       cacheLoadedAt = Date.now();
-      console.log(`Loaded adjacency data from DB for ${adjacencyCache.size} states`);
       return;
     }
   } catch {
@@ -86,7 +85,6 @@ async function initializeCache(supabaseUrl: string, supabaseKey: string) {
   adjacencyCache = new Map(Object.entries(BUILT_IN_ADJACENCY));
   regionCache = new Map(Object.entries(BUILT_IN_REGIONS));
   cacheLoadedAt = Date.now();
-  console.log(`Using built-in adjacency data for ${adjacencyCache.size} states`);
 }
 
 /**

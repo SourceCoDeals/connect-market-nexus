@@ -708,7 +708,6 @@ async function discoverDecisionMakers(
   // Also try without site restriction for broader coverage
   roleQueries.push(`${companyDomain} "${companyName}" leadership team ${excludeNoise}`);
 
-  console.log(
     `[discover-decision-makers] Running ${roleQueries.length} Serper queries for "${companyName}"`,
   );
 
@@ -728,7 +727,6 @@ async function discoverDecisionMakers(
     }
   }
 
-  console.log(
     `[discover-decision-makers] Collected ${allResults.length} total search results`,
   );
 
@@ -804,7 +802,6 @@ async function discoverDecisionMakers(
     if (filtered.length > 0) results = filtered;
   }
 
-  console.log(
     `[discover-decision-makers] Found ${results.length} unique contacts for "${companyName}"`,
   );
 
@@ -1107,7 +1104,6 @@ async function enrichBuyerContacts(
 
   const skippedFromCrm = discovered.length - needsEnrichment.length;
   if (skippedFromCrm > 0) {
-    console.log(
       `[enrich-buyer-contacts] Skipped ${skippedFromCrm} contacts already in CRM with email`,
     );
   }
@@ -1288,7 +1284,6 @@ async function enrichLinkedInContact(
   const lastName = (args.last_name as string)?.trim() || '';
   const domain = (args.company_domain as string)?.trim() || undefined;
 
-  console.log(`[enrich-linkedin] Enriching: ${linkedinUrl}`);
 
   try {
     const result = await enrichContact({
@@ -1300,7 +1295,6 @@ async function enrichLinkedInContact(
 
     if (!result) {
       // --- FALLBACK: Prospeo returned nothing — try Google discovery to verify/find correct profile ---
-      console.log(`[enrich-linkedin] Prospeo returned no results for ${linkedinUrl} — trying Google fallback`);
 
       // Try to find CRM context for this LinkedIn URL (person name + company)
       let fallbackFirstName = firstName;
@@ -1355,7 +1349,6 @@ async function enrichLinkedInContact(
 
           if (googleResult && googleResult.url !== linkedinUrl) {
             // Google found a DIFFERENT LinkedIn URL — stored URL was likely wrong
-            console.log(
               `[enrich-linkedin] Google found different profile: ${googleResult.url} (score: ${googleResult.score}) — retrying enrichment`,
             );
 
@@ -1377,7 +1370,6 @@ async function enrichLinkedInContact(
                     ...(retryResult.phone ? { phone: retryResult.phone } : {}),
                   })
                   .eq('id', fallbackCrmContactId);
-                console.log(
                   `[enrich-linkedin] Corrected LinkedIn URL and updated CRM contact ${fallbackCrmContactId}`,
                 );
               }
@@ -1483,7 +1475,6 @@ async function enrichLinkedInContact(
 
         if (Object.keys(updates).length > 0) {
           await supabase.from('contacts').update(updates).eq('id', existing.id);
-          console.log(`[enrich-linkedin] Updated CRM contact ${existing.id} with enriched data`);
         }
         crmContactId = existing.id as string;
         crmAction = 'updated';
@@ -1510,7 +1501,6 @@ async function enrichLinkedInContact(
           await supabase.from('contacts').update(updates).eq('id', existing.id);
           crmContactId = existing.id as string;
           crmAction = 'updated';
-          console.log(
             `[enrich-linkedin] Updated CRM contact ${existing.id} by name match — corrected LinkedIn URL: ${(existing.linkedin_url as string) || 'none'} → ${linkedinUrl}`,
           );
         } else {
@@ -1536,7 +1526,6 @@ async function enrichLinkedInContact(
           if (newContact) {
             crmContactId = newContact.id;
             crmAction = 'created';
-            console.log(`[enrich-linkedin] Created new CRM contact ${newContact.id}`);
           }
         }
       } else {
@@ -1562,7 +1551,6 @@ async function enrichLinkedInContact(
         if (newContact) {
           crmContactId = newContact.id;
           crmAction = 'created';
-          console.log(`[enrich-linkedin] Created new CRM contact ${newContact.id}`);
         }
       }
     }
@@ -2067,7 +2055,6 @@ async function findDecisionMakers(
   const targetCount = Math.min((args.target_count as number) || 10, 25);
   const autoEnrich = args.auto_enrich !== false; // default true
 
-  console.log(
     `[find-decision-makers] Discovering contacts at "${companyName}"${companyDomain ? ` (${companyDomain})` : ''}`,
   );
 
@@ -2396,7 +2383,6 @@ async function findContactLinkedIn(
 
         if (!updateError) {
           match.updated = true;
-          console.log(
             `[find-contact-linkedin] Updated contact ${contact.id} with LinkedIn URL: ${googleResult.url}`,
           );
         } else {

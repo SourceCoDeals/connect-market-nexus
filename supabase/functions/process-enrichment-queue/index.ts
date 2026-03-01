@@ -89,11 +89,9 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: cancelErr.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       const count = cancelled?.length || 0;
-      console.log(`Cancelled ${count} pending items before ${cutoffIso}`);
       return new Response(JSON.stringify({ cancelled: count }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log('Processing enrichment queue (PARALLEL MODE)...');
 
     // Recovery: reset any items that were left in `processing` due to timeouts/crashes.
     // This prevents the UI from showing a stuck "processing" count forever.
@@ -128,7 +126,6 @@ serve(async (req) => {
     // Fallback to regular query if RPC doesn't exist yet
     let queueItems: QueueItem[] = claimedItems as QueueItem[] || [];
     if (claimError?.code === 'PGRST202') {
-      console.log('Using fallback queue fetch (RPC not available)');
 
       const { data: pendingItems, error: fetchError } = await supabase
         .from('enrichment_queue')
@@ -168,7 +165,6 @@ serve(async (req) => {
           }
         }));
         queueItems = claimed;
-        console.log(`Fallback: claimed ${claimed.length} of ${pendingItems.length} items atomically`);
       } else {
         queueItems = [];
       }
@@ -178,7 +174,6 @@ serve(async (req) => {
     }
 
     if (!queueItems || queueItems.length === 0) {
-      console.log('No pending enrichment items in queue');
       // Complete any running global queue operation that has no more work
       await completeGlobalQueueOperation(supabase, 'deal_enrichment');
       return new Response(
@@ -187,7 +182,6 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Found ${queueItems.length} items to process`);
 
     // Create enrichment job for observability tracking (non-blocking on failure)
     let enrichmentJobId: string | null = null;
@@ -198,7 +192,7 @@ serve(async (req) => {
         p_source: (body.source === 'self-continuation') ? 'scheduled' : 'manual',
       });
       enrichmentJobId = jobData;
-      if (enrichmentJobId) console.log(`[enrichment-jobs] Created job ${enrichmentJobId}`);
+      
     } catch (err) {
       console.warn('[enrichment-jobs] Failed to create job (non-blocking):', err);
     }
@@ -212,7 +206,6 @@ serve(async (req) => {
     const nonForceItems = queueItems.filter((item: any) => item.force !== true);
 
     if (forceItems.length > 0) {
-      console.log(`${forceItems.length} item(s) have force=true — will re-enrich regardless of enriched_at`);
     }
 
     if (nonForceItems.length > 0) {
@@ -233,11 +226,9 @@ serve(async (req) => {
 
       const partiallyEnrichedCount = (enrichedListings || []).length - alreadyEnrichedIds.size;
       if (partiallyEnrichedCount > 0) {
-        console.log(`${partiallyEnrichedCount} listings have enriched_at but lack quality data — will re-enrich`);
       }
 
       if (alreadyEnrichedIds.size > 0) {
-        console.log(`Found ${alreadyEnrichedIds.size} listings with quality enrichment data — marking non-force queue items as completed`);
 
         const itemsToComplete = nonForceItems.filter((item: { listing_id: string }) => alreadyEnrichedIds.has(item.listing_id));
         const completionResults = await Promise.allSettled(itemsToComplete.map((item: { id: string; listing_id: string }) =>
@@ -262,7 +253,6 @@ serve(async (req) => {
         queueItems = [...forceItems, ...nonForceRemaining];
 
         if (queueItems.length === 0) {
-          console.log('All items were already enriched — nothing to process');
           return new Response(
             JSON.stringify({
               success: true,
@@ -274,7 +264,6 @@ serve(async (req) => {
           );
         }
 
-        console.log(`${queueItems.length} items still need enrichment — proceeding with pipeline`);
       }
     }
 
@@ -299,7 +288,6 @@ serve(async (req) => {
     for (const chunk of chunks) {
       // Safety cutoff - check before each chunk
       if (Date.now() - startedAt > MAX_FUNCTION_RUNTIME_MS) {
-        console.log('Stopping early to avoid function timeout');
         break;
       }
 
@@ -312,7 +300,6 @@ serve(async (req) => {
 
       // Check if operation was paused by user
       if (await isOperationPaused(supabase, 'deal_enrichment')) {
-        console.log('Operation paused by user — stopping processing');
         break;
       }
 
@@ -325,21 +312,17 @@ serve(async (req) => {
           // self-continuation handle it after the cooldown passes.
           const timeRemaining = MAX_FUNCTION_RUNTIME_MS - (Date.now() - startedAt);
           if (availability.retryAfterMs > timeRemaining) {
-            console.log(`Gemini cooldown (${Math.round(availability.retryAfterMs / 1000)}s) exceeds remaining runtime (${Math.round(timeRemaining / 1000)}s) — breaking for delayed continuation`);
             circuitBroken = true; // Use circuit breaker path for delayed continuation
             break;
           }
           const cooldownWait = availability.retryAfterMs + Math.random() * 2000; // Add jitter
-          console.log(`Gemini in cooldown — waiting ${Math.round(cooldownWait / 1000)}s before next chunk`);
           await new Promise(r => setTimeout(r, cooldownWait));
         } else {
-          console.log(`Waiting ${INTER_CHUNK_DELAY_MS}ms between chunks to avoid rate limits...`);
           await new Promise(r => setTimeout(r, INTER_CHUNK_DELAY_MS));
         }
       }
       chunkIndex++;
 
-      console.log(`Processing chunk of ${chunk.length} items in parallel...`);
 
       // Items are already marked as 'processing' by either:
       // - The RPC claim_enrichment_queue_items call
@@ -350,7 +333,6 @@ serve(async (req) => {
       const chunkResults = await Promise.allSettled(
         chunk.map(async (item: { id: string; listing_id: string; attempts: number }) => {
           try {
-            console.log(`Processing queue item ${item.id} for listing ${item.listing_id}`);
 
             // Fetch listing context
             const { data: listing, error: listingError } = await supabase
@@ -405,7 +387,6 @@ serve(async (req) => {
               })
               .eq('id', item.id);
 
-            console.log(`Successfully enriched listing ${item.listing_id}: ${pipeline.fieldsUpdated.length} fields`);
             results.succeeded++;
             consecutiveFailures = 0; // Reset circuit breaker on success
             await updateGlobalQueueProgress(supabase, 'deal_enrichment', { completedDelta: 1 });
@@ -503,7 +484,6 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Queue processing complete: ${results.succeeded} succeeded, ${results.failed} failed out of ${results.processed} processed${circuitBroken ? ' [CIRCUIT BREAKER TRIPPED]' : ''}`);
 
     // Complete enrichment job (non-blocking)
     if (enrichmentJobId) {
@@ -548,9 +528,7 @@ serve(async (req) => {
         // Otherwise continue immediately. Retry self-invocation up to 3 times on failure.
         const continuationDelayMs = circuitBroken ? 30000 + Math.random() * 10000 : 0;
         if (circuitBroken) {
-          console.log(`${remainingPending} items remaining — scheduling delayed continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} in ${Math.round(continuationDelayMs / 1000)}s (circuit breaker recovery)...`);
         } else {
-          console.log(`${remainingPending} items remaining — triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS}...`);
         }
 
         const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';

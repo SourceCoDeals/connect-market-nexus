@@ -101,7 +101,6 @@ const handler = async (req: Request): Promise<Response> => {
       html: htmlBody,
     });
 
-    console.log(`Marketplace invitation sent to ${to}`, emailResponse);
 
     return new Response(
       JSON.stringify({ success: true, emailId: emailResponse?.data?.id }),

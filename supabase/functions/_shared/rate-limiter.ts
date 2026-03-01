@@ -121,7 +121,6 @@ export async function reportRateLimit(
       { onConflict: 'provider' },
     );
 
-    console.log(`[rate-limiter] ${provider} rate limited — cooldown until ${backoffUntil}`);
   } catch (err) {
     console.warn(`[rate-limiter] Failed to persist rate limit for ${provider}:`, err);
   }
@@ -227,7 +226,6 @@ export async function waitForProviderSlot(
   if (retryAfter > maxWaitMs) {
     // Signal that we're rate limited and couldn't wait long enough.
     // Callers should NOT proceed — they should schedule delayed retry instead.
-    console.log(
       `[rate-limiter] ${provider} cooldown (${retryAfter}ms) exceeds max wait (${maxWaitMs}ms) — signaling rate limited`,
     );
     return { proceeded: false, waitedMs: 0, rateLimited: true };
@@ -237,7 +235,6 @@ export async function waitForProviderSlot(
   // wake up simultaneously after the same cooldown period
   const jitter = Math.random() * 2000;
   const totalWait = retryAfter + jitter;
-  console.log(
     `[rate-limiter] Waiting ${Math.round(totalWait)}ms for ${provider} cooldown (${retryAfter}ms + ${Math.round(jitter)}ms jitter)...`,
   );
   await new Promise((r) => setTimeout(r, totalWait));

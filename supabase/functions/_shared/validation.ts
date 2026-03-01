@@ -331,7 +331,6 @@ export function validateExtraction<T extends Record<string, unknown>>(
 
   // Log if any fields were rejected
   if (errors.length > 0) {
-    console.log(`[AntiHallucination] Rejected ${errors.length} fields from ${source}:`, errors);
   }
 
   return {

@@ -158,7 +158,6 @@ serve(async (req: Request) => {
             }
           }
 
-          console.log(`🔧 Self-healed: fee agreement for firm ${firmId} marked as signed (DocuSeal says completed)`);
 
           return new Response(JSON.stringify({ feeSigned: true, embedSrc: null }), {
             status: 200,
@@ -246,7 +245,6 @@ serve(async (req: Request) => {
       raw_payload: { created_by_buyer: userId },
     });
 
-    console.log(`✅ Created fee agreement submission ${submissionId} for buyer ${userId}`);
 
     return new Response(
       JSON.stringify({ feeSigned: false, embedSrc }),

@@ -26,7 +26,6 @@ Deno.serve(async (req) => {
     try { body = await req.json(); } catch { /* empty body ok */ }
 
     const continuationCount = (typeof body.continuationCount === 'number') ? body.continuationCount : 0;
-    console.log(`Processing scoring queue (self-looping)... [continuation ${continuationCount}/${MAX_CONTINUATIONS}]`);
 
     // Recover stale global operations
     await recoverStaleOperations(supabase);
@@ -46,7 +45,6 @@ Deno.serve(async (req) => {
       .select('id');
 
     if (recoveredItems && recoveredItems.length > 0) {
-      console.log(`Recovered ${recoveredItems.length} stale scoring items from processing state`);
     }
 
     // BUG-3 FIX: Use pg_advisory_xact_lock via RPC for mutual exclusion.
@@ -65,13 +63,11 @@ Deno.serve(async (req) => {
         .limit(1);
 
       if (active && active.length > 0) {
-        console.log('Another scoring processor is active (fallback guard), skipping');
         return new Response(JSON.stringify({ success: true, message: 'Skipped', processed: 0 }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
     } else if (lockAcquired === false) {
-      console.log('Another scoring processor holds the lock, skipping');
       return new Response(JSON.stringify({ success: true, message: 'Skipped - lock held', processed: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -96,12 +92,10 @@ Deno.serve(async (req) => {
 
     while (true) {
       if (Date.now() - functionStartTime > MAX_FUNCTION_RUNTIME_MS) {
-        console.log(`Time limit reached after ${totalProcessed} items`);
         break;
       }
 
       if (await isOperationPaused(supabase, 'buyer_scoring')) {
-        console.log('Scoring paused by user');
         break;
       }
 
@@ -116,24 +110,20 @@ Deno.serve(async (req) => {
 
       if (fetchErr) { console.error('Fetch error:', fetchErr); break; }
       if (!items || items.length === 0) {
-        console.log(`Queue empty. Processed ${totalProcessed} items.`);
         await completeGlobalQueueOperation(supabase, 'buyer_scoring');
         break;
       }
 
       const item = items[0];
-      console.log(`Processing ${item.score_type} scoring: buyer=${item.buyer_id}, listing=${item.listing_id} (attempt ${item.attempts + 1})`);
 
       // Check rate limiter
       const availability = await checkProviderAvailability(supabase, 'gemini');
       if (!availability.ok) {
         const waitMs = availability.retryAfterMs || RATE_LIMIT_BACKOFF_MS;
         if (waitMs > 30000) {
-          console.log(`Gemini rate limited for ${Math.round(waitMs / 1000)}s — stopping`);
           rateLimited = true;
           break;
         }
-        console.log(`Waiting ${Math.round(waitMs / 1000)}s for Gemini...`);
         await new Promise(r => setTimeout(r, waitMs));
       }
 
@@ -182,7 +172,6 @@ Deno.serve(async (req) => {
             .from('remarketing_scoring_queue')
             .update({ status: 'pending', last_error: 'Rate limited - will retry' })
             .eq('id', item.id);
-          console.log('Rate limited, stopping loop');
           rateLimited = true;
           totalProcessed++;
           break;
@@ -200,7 +189,6 @@ Deno.serve(async (req) => {
             .eq('universe_id', item.universe_id)
             .eq('score_type', item.score_type)
             .eq('status', 'pending');
-          console.log(`Critical error ${data.error_code}, failing all remaining items`);
           await completeGlobalQueueOperation(supabase, 'buyer_scoring', 'failed');
           totalFailed++;
           totalProcessed++;
@@ -255,7 +243,6 @@ Deno.serve(async (req) => {
         await completeGlobalQueueOperation(supabase, 'buyer_scoring', 'failed');
       } else if (rateLimited) {
         // Schedule delayed self-continuation after rate limit cooldown
-        console.log(`${remaining} items pending but rate limited — scheduling retry ${continuationCount + 1}/${MAX_CONTINUATIONS} in ${RATE_LIMIT_BACKOFF_MS / 1000}s`);
         setTimeout(() => {
           fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
             method: 'POST',
@@ -269,7 +256,6 @@ Deno.serve(async (req) => {
           }).catch((err: unknown) => { console.warn('[process-scoring-queue] Continuation failed:', err); });
         }, Math.min(RATE_LIMIT_BACKOFF_MS, 30_000));
       } else {
-        console.log(`${remaining} items still pending, triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS}...`);
         fetch(`${supabaseUrl}/functions/v1/process-scoring-queue`, {
           method: 'POST',
           headers: {

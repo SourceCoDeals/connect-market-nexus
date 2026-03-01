@@ -100,7 +100,6 @@ export async function sendViaBervo(
 
       if (response.ok) {
         if (attempt > 0) {
-          console.log(`[brevo-sender] Succeeded on retry ${attempt}/${maxRetries}`);
         }
         return { success: true, messageId: data.messageId };
       }

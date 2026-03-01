@@ -153,7 +153,6 @@ function getShortReferrer(url: string | undefined): string {
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
-  console.log('📊 Track initial session function invoked');
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -167,7 +166,6 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    console.log('✅ Supabase client initialized');
 
     // Parse request body
     const trackingData: TrackingData = await req.json();
@@ -181,7 +179,6 @@ Deno.serve(async (req) => {
       );
     }
     
-    console.log('📥 Tracking data received:', {
       user_id: trackingData.user_id,
       session_id: trackingData.session_id,
       landing_page: trackingData.landing_page,
@@ -203,7 +200,6 @@ Deno.serve(async (req) => {
     }
 
     if (existingSession) {
-      console.log('ℹ️  Initial session already exists for user, skipping');
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -216,14 +212,12 @@ Deno.serve(async (req) => {
 
     // Parse User-Agent
     const userAgentData = parseUserAgent(trackingData.user_agent);
-    console.log('🔍 Parsed User-Agent:', userAgentData);
 
     // Determine marketing channel
     const marketingChannel = getMarketingChannel(
       trackingData.referrer,
       trackingData.utm_source
     );
-    console.log('📢 Marketing channel:', marketingChannel);
 
     // Get short referrer
     const shortReferrer = getShortReferrer(trackingData.referrer);
@@ -251,7 +245,6 @@ Deno.serve(async (req) => {
       first_seen_at: new Date().toISOString(),
     };
 
-    console.log('💾 Inserting initial session data...');
 
     // Insert initial session data
     const { data: insertedData, error: insertError } = await supabase
@@ -265,8 +258,6 @@ Deno.serve(async (req) => {
       throw insertError;
     }
 
-    console.log('✅ Initial session data saved successfully!');
-    console.log('📊 Session details:', {
       browser: userAgentData.browser_type,
       device: userAgentData.device_type,
       platform: userAgentData.platform,

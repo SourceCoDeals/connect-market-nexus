@@ -39,7 +39,6 @@ serve(async (req) => {
       throw new Error("universeId is required");
     }
 
-    console.log(`Analyzing scoring patterns for universe: ${universeId}`);
 
     // Fetch universe configuration
     const { data: universe, error: universeError } = await supabase
@@ -65,7 +64,6 @@ serve(async (req) => {
     }
 
     const history = learningHistory || [];
-    console.log(`Found ${history.length} learning history entries`);
 
     // If not enough data, return early
     if (history.length < 5) {
@@ -226,7 +224,6 @@ serve(async (req) => {
       analysisDate: new Date().toISOString(),
     };
 
-    console.log(`Analysis complete: ${suggestions.length} suggestions, ${insights.length} insights`);
 
     return new Response(
       JSON.stringify(analysis),

@@ -78,7 +78,6 @@ serve(async (req) => {
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
       // Fallback to local parsing
-      console.log("GEMINI_API_KEY not configured, using local parsing");
       const localParsed = parseLocally(fit_criteria_text);
       return new Response(
         JSON.stringify(localParsed),
@@ -86,8 +85,6 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Parsing fit criteria for universe: ${universe_name || 'unnamed'}`);
-    console.log(`Input text length: ${fit_criteria_text.length} chars`);
 
     const systemPrompt = `You are an M&A criteria extraction expert. Parse buyer universe fit criteria from natural language into structured data.
 
@@ -235,7 +232,6 @@ CRITICAL REQUIREMENTS:
 
       if (attempt < MAX_RETRIES) {
         const delay = Math.pow(2, attempt + 1) * 1000;
-        console.log(`[parse-fit-criteria] Rate limited (${response.status}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
         await new Promise(r => setTimeout(r, delay));
       }
     }
@@ -255,7 +251,6 @@ CRITICAL REQUIREMENTS:
       }
 
       // Fallback to local parsing
-      console.log('AI unavailable, using local parsing fallback');
       const localParsed = parseLocally(fit_criteria_text);
       return new Response(
         JSON.stringify(localParsed),
@@ -267,7 +262,6 @@ CRITICAL REQUIREMENTS:
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall?.function?.arguments) {
-      console.log('No tool call response, using local fallback');
       const localParsed = parseLocally(fit_criteria_text);
       return new Response(
         JSON.stringify(localParsed),
@@ -301,7 +295,6 @@ CRITICAL REQUIREMENTS:
       }
     }
 
-    console.log('Parsed criteria:', JSON.stringify(parsed, null, 2));
 
     return new Response(
       JSON.stringify(parsed),

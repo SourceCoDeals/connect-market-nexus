@@ -22,7 +22,6 @@ interface DocumentContent {
  * Returns either text for text files, or base64 + mimeType for binary docs.
  */
 async function extractDocumentContent(documentUrl: string): Promise<DocumentContent> {
-  console.log(`[DOCUMENT_FETCH] Downloading from storage: "${documentUrl}"`);
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -31,7 +30,6 @@ async function extractDocumentContent(documentUrl: string): Promise<DocumentCont
 
   // Decode in case the path was URL-encoded
   const storagePath = decodeURIComponent(documentUrl);
-  console.log(`[DOCUMENT_FETCH] Resolved path: "${storagePath}"`);
 
   const { data, error } = await supabase.storage
     .from('universe-documents')
@@ -46,7 +44,6 @@ async function extractDocumentContent(documentUrl: string): Promise<DocumentCont
 
   const buffer = await data.arrayBuffer();
   const ext = storagePath.split('.').pop()?.toLowerCase() || '';
-  console.log(`[DOCUMENT_FETCH] Downloaded ${buffer.byteLength} bytes, ext="${ext}"`);
 
   // For binary document formats, return as base64 for Gemini native processing
   const binaryFormats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'];
@@ -68,13 +65,11 @@ async function extractDocumentContent(documentUrl: string): Promise<DocumentCont
       xls: 'application/vnd.ms-excel',
     };
     const mimeType = mimeTypes[ext] || 'application/octet-stream';
-    console.log(`[DOCUMENT_LOADED] Binary: ${ext}, ${buffer.byteLength} bytes`);
     return { base64, mimeType };
   }
 
   // For text-based files, decode as UTF-8
   const text = new TextDecoder().decode(buffer);
-  console.log(`[DOCUMENT_LOADED] Text: ${text.length} characters`);
   return { text };
 }
 
@@ -87,7 +82,6 @@ async function extractCriteriaFromDocument(
   documentName: string,
   industryName: string
 ): Promise<any> {
-  console.log('[EXTRACTION_START] Processing document');
 
   const systemPrompt = `You are an expert M&A advisor analyzing a document to extract buyer fit criteria and deal information. These documents may be shorter and more focused than comprehensive M&A guides — they could be deal memos, broker packages, internal research notes, or one-pagers.
 
@@ -285,7 +279,6 @@ Industry: ${industryName}`;
 
   // For binary documents, use Gemini's native multimodal with inline_data
   if (content.base64 && content.mimeType) {
-    console.log(`[EXTRACTION] Using Gemini multimodal for binary document (${content.mimeType})`);
 
     // Normalize tool format
     const toolName = tool.function.name;
@@ -322,7 +315,6 @@ Industry: ${industryName}`;
     );
 
     const duration = Date.now() - startTime;
-    console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
 
     if (!response.ok) {
       const errText = await response.text();
@@ -332,7 +324,6 @@ Industry: ${industryName}`;
 
     const responseData = await response.json();
     if (responseData.usage) {
-      console.log(`[USAGE] Input: ${responseData.usage.prompt_tokens}, Output: ${responseData.usage.completion_tokens}`);
     }
 
     const toolCalls = responseData.choices?.[0]?.message?.tool_calls;
@@ -362,10 +353,8 @@ Industry: ${industryName}`;
   );
 
   const duration = Date.now() - startTime;
-  console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
 
   if (result.usage) {
-    console.log(`[USAGE] Input: ${result.usage.input_tokens}, Output: ${result.usage.output_tokens}`);
   }
 
   if (!result.data) {
@@ -399,7 +388,6 @@ serve(async (req) => {
       throw new Error('Missing required fields: universe_id, document_url, document_name');
     }
 
-    console.log(`[REQUEST] Universe: ${universe_id}, Document: ${document_name}`);
 
     const { data: sourceRecord, error: sourceError } = await supabase
       .from('criteria_extraction_sources')
@@ -419,7 +407,6 @@ serve(async (req) => {
       throw new Error(`Failed to create source record: ${sourceError.message}`);
     }
 
-    console.log(`[SOURCE_CREATED] ID: ${sourceRecord.id}`);
 
     try {
       const content = await extractDocumentContent(document_url);
@@ -456,7 +443,6 @@ serve(async (req) => {
         throw new Error(`Failed to update source record: ${updateError.message}`);
       }
 
-      console.log(`[SUCCESS] Extraction completed: type=${extractionResult.document_metadata?.document_type}, confidence=${extractionResult.overall_confidence}%`);
 
       return new Response(
         JSON.stringify({

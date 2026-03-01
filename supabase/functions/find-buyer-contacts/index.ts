@@ -70,7 +70,6 @@ serve(async (req) => {
 
     for (const website of websites) {
       try {
-        console.log(`[find-buyer-contacts] Processing: ${website}`);
 
         // Step 1: Use Firecrawl Map API to find team pages
         const mapResponse = await fetch('https://api.firecrawl.dev/v1/map', {
@@ -91,7 +90,6 @@ serve(async (req) => {
         if (mapResponse.ok) {
           const mapResult = await mapResponse.json();
           teamPages = mapResult.links || [];
-          console.log(`[find-buyer-contacts] Found ${teamPages.length} potential team pages`);
         }
 
         // Filter to likely team/about pages
@@ -152,7 +150,6 @@ serve(async (req) => {
       const contactsNeedingLinkedIn = uniqueContacts.filter((c) => !c.linkedin_url && c.name);
 
       if (contactsNeedingLinkedIn.length > 0) {
-        console.log(
           `[find-buyer-contacts] Looking up LinkedIn profiles for ${contactsNeedingLinkedIn.length} contacts`,
         );
 
@@ -164,7 +161,6 @@ serve(async (req) => {
               const linkedinUrl = await searchLinkedInProfile(contact.name, companyName);
               if (linkedinUrl) {
                 contact.linkedin_url = linkedinUrl;
-                console.log(
                   `[find-buyer-contacts] Found LinkedIn for ${contact.name}: ${linkedinUrl}`,
                 );
               }

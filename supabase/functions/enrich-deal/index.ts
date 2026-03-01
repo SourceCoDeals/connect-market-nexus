@@ -123,7 +123,6 @@ async function inferIndustryFromContext(
       if (industryError) {
         console.error(`[inferIndustry] Failed to set industry for deal ${dealId}:`, industryError);
       } else {
-        console.log(`[inferIndustry] Set industry="${industry}" for deal ${dealId}`);
       }
       return industry;
     }
@@ -225,7 +224,6 @@ serve(async (req) => {
         has_extracted: !!t.extracted_data,
         applied_to_deal: t.applied_to_deal,
       }));
-      console.log(`[Transcripts] fetched=${allTranscripts.length}`, sample);
     }
 
     // 0A) Apply existing extracted_data from previously-processed transcripts
@@ -248,12 +246,10 @@ serve(async (req) => {
 
     if (!transcriptsError && allTranscripts && allTranscripts.length > 0) {
       if (forceReExtract) {
-        console.log(`[Transcripts] forceReExtract=true: Re-processing ALL ${allTranscripts.length} transcripts with new prompts`);
         needsExtraction = allTranscripts;
 
         const allTranscriptIds = allTranscripts.map((t: any) => t.id);
         if (allTranscriptIds.length > 0) {
-          console.log(`[Transcripts] Clearing extracted_data for ${allTranscriptIds.length} transcripts`);
           const { error: clearError } = await supabase
             .from('deal_transcripts')
             .update({ processed_at: null, extracted_data: null, applied_to_deal: false })
@@ -271,7 +267,6 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[Transcripts] Total: ${allTranscripts?.length || 0}, Need extraction: ${needsExtraction.length}, Already extracted: ${(allTranscripts?.length || 0) - needsExtraction.length}, forceReExtract: ${forceReExtract}`);
 
     if (needsExtraction.length > 0) {
       const newResult = await processNewTranscripts(
@@ -321,7 +316,6 @@ serve(async (req) => {
       );
 
       if (allHaveExtracted) {
-        console.log('[Transcripts] All transcripts already have extracted_data from prior runs. Continuing to website scraping.');
       } else {
         const reason = needsExtraction.length === 0
           ? 'All transcripts marked as processed but none have extracted_data.'
@@ -343,7 +337,6 @@ serve(async (req) => {
 
     let notesFieldsUpdated: string[] = [];
     if (notesContent.length >= 20) {
-      console.log(`[Notes] Analyzing deal notes (${notesContent.length} chars)...`);
       try {
         const notesResponse = await fetch(`${supabaseUrl}/functions/v1/analyze-deal-notes`, {
           method: 'POST',
@@ -358,7 +351,6 @@ serve(async (req) => {
         if (notesResponse.ok) {
           const notesResult = await notesResponse.json();
           notesFieldsUpdated = notesResult.fieldsUpdated || [];
-          console.log(`[Notes] Analysis complete: ${notesFieldsUpdated.length} fields updated:`, notesFieldsUpdated);
         } else {
           const errText = await notesResponse.text().catch(() => `HTTP ${notesResponse.status}`);
           console.warn(`[Notes] Analysis failed (non-fatal): ${notesResponse.status} - ${errText.substring(0, 200)}`);
@@ -379,7 +371,6 @@ serve(async (req) => {
         Object.assign(deal, refreshedDeal);
       }
     } else {
-      console.log('[Notes] No notes content to analyze (skipping)');
     }
 
     // ========================================================================
@@ -441,7 +432,6 @@ serve(async (req) => {
     }
     websiteUrl = urlValidation.normalizedUrl || websiteUrl;
 
-    console.log(`Enriching deal ${dealId} from website: ${websiteUrl}`);
 
     if (!firecrawlApiKey) {
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
@@ -520,7 +510,6 @@ serve(async (req) => {
     }));
 
     if (!websiteContent || websiteContent.length < DEAL_MIN_CONTENT_LENGTH) {
-      console.log(`Insufficient website content scraped: ${websiteContent.length} chars (need ${DEAL_MIN_CONTENT_LENGTH}+)`);
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       if (transcriptFieldsApplied > 0) {
         return new Response(
@@ -539,10 +528,8 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Scraped ${websiteContent.length} characters from website`);
 
     if (!geminiApiKey) {
-      console.log('No AI key configured, using basic extraction');
       const updates: Record<string, unknown> = {
         enriched_at: new Date().toISOString(),
       };
@@ -570,7 +557,6 @@ serve(async (req) => {
     // ========================================================================
     // STEP 2: AI EXTRACTION
     // ========================================================================
-    console.log('Extracting deal intelligence with AI...');
 
     const userPrompt = buildDealUserPrompt(deal.title, websiteContent);
 
@@ -585,7 +571,6 @@ serve(async (req) => {
         const availability = await checkProviderAvailability(supabase, 'gemini');
         if (!availability.ok && availability.retryAfterMs) {
           const waitMs = Math.min(availability.retryAfterMs, 30000);
-          console.log(`[enrich-deal] Gemini in cooldown, waiting ${waitMs}ms before attempt ${attempt + 1}`);
           await new Promise(r => setTimeout(r, waitMs));
         }
 
@@ -615,7 +600,6 @@ serve(async (req) => {
 
           const waitMs = retryAfterSeconds ? retryAfterSeconds * 1000 : AI_RETRY_DELAYS[attempt];
           const jitter = Math.random() * 1000;
-          console.log(`AI rate limited (429), waiting ${Math.round(waitMs + jitter)}ms (attempt ${attempt + 1}/${MAX_AI_RETRIES})`);
           await new Promise(r => setTimeout(r, waitMs + jitter));
           continue;
         }
@@ -661,7 +645,6 @@ serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    console.log('AI response:', JSON.stringify(aiData, null, 2));
 
     // Cost tracking (non-blocking)
     const geminiUsage = aiData.usage;
@@ -684,7 +667,6 @@ serve(async (req) => {
       }
     }
 
-    console.log('Extracted data:', extracted);
 
     // ========================================================================
     // STEP 3: VALIDATE + CLEAN EXTRACTED DATA
@@ -695,7 +677,6 @@ serve(async (req) => {
 
     // Protect manually-set internal_company_name from AI overwrite
     if (deal.internal_company_name && extracted.internal_company_name) {
-      console.log(`[Enrichment] Preserving existing internal_company_name "${deal.internal_company_name}" (AI suggested: "${extracted.internal_company_name}")`);
       delete extracted.internal_company_name;
     }
 
@@ -711,7 +692,6 @@ serve(async (req) => {
       await enrichLinkedIn(supabaseUrl, supabaseAnonKey!, supabaseServiceKey, dealId, extracted, deal, websiteUrl);
       await enrichGoogleReviews(supabaseUrl, supabaseAnonKey!, supabaseServiceKey, dealId, extracted, deal);
     } else {
-      console.log('[enrich-deal] Skipping LinkedIn/Google (handled by pipeline)');
     }
 
     // ========================================================================
@@ -790,7 +770,6 @@ serve(async (req) => {
         );
         if (inferred) {
           websiteFieldsUpdated.push('industry');
-          console.log(`[enrich-deal] Industry inferred as fallback: "${inferred}"`);
         }
       } catch (err) {
         console.warn('[enrich-deal] Industry inference fallback failed (non-blocking):', err);
@@ -802,7 +781,6 @@ serve(async (req) => {
     if (transcriptFieldNames.length > 0) sourceParts.push(`${transcriptFieldNames.length} from transcripts`);
     if (notesFieldsUpdated.length > 0) sourceParts.push(`${notesFieldsUpdated.length} from notes`);
     sourceParts.push(`${websiteFieldsUpdated.length} from website`);
-    console.log(`Updated ${allFieldsUpdated.length} fields (${sourceParts.join(', ')}):`, allFieldsUpdated);
 
     // Observability: log enrichment outcome (non-blocking)
     logEnrichmentEvent(supabase, {

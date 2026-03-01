@@ -134,7 +134,6 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    console.log("Sending new owner notification to:", newOwnerEmail);
 
     const result = await sendViaBervo({
       to: newOwnerEmail,
@@ -147,7 +146,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(result.error || "Failed to send email");
     }
 
-    console.log("Email sent successfully to new owner:", result.messageId);
 
     return new Response(
       JSON.stringify({ success: true, messageId: result.messageId }),

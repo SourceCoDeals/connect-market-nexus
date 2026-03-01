@@ -61,7 +61,6 @@ const handler = async (req: Request): Promise<Response> => {
       customSignatureText
     } = requestData;
 
-    console.log('Sending approval email to:', userEmail);
 
     // Get admin profile for signature - use dynamic admin info
     let senderInfo = {
@@ -131,7 +130,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Email API error: ${emailResult.message || 'Unknown error'}`);
     }
 
-    console.log('Approval email sent successfully:', emailResult);
 
     const correlationId = crypto.randomUUID();
     await logEmailDelivery(supabase, {

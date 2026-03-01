@@ -43,7 +43,6 @@ serve(async (req) => {
     }: TaskNotificationRequest = await req.json();
 
     const correlationId = crypto.randomUUID();
-    console.log('Sending task notification email to:', assignee_email);
 
     // Format due date if provided
     const dueDateFormatted = task_due_date 
@@ -229,7 +228,6 @@ This is an automated notification from your admin task management system.`;
     }
 
     const result = await brevoResponse.json();
-    console.log('Email sent successfully via Brevo:', result);
 
     await logEmailDelivery(supabaseClient, { email: assignee_email, emailType: 'task_notification', status: 'sent', correlationId });
 

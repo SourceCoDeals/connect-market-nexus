@@ -79,7 +79,6 @@ const handler = async (req: Request): Promise<Response> => {
       ? `Fee Agreement - ${listingTitle} | SourceCo`
       : subject || 'Fee Agreement | SourceCo';
 
-    console.log(`📧 Starting fee agreement email process`, { 
       userEmail, 
       userId,
       firmId,
@@ -111,7 +110,6 @@ const handler = async (req: Request): Promise<Response> => {
     let recipientEmails: Array<{email: string, userId: string, name?: string}> = [];
     
     if (firmId && sendToAllMembers) {
-      console.log('📧 Fetching all members for firm:', firmId);
       const { data: members, error: membersError } = await supabase
         .from('firm_members')
         .select(`
@@ -131,7 +129,6 @@ const handler = async (req: Request): Promise<Response> => {
         name: [m.user.first_name, m.user.last_name].filter(Boolean).join(' ')
       })) || [];
       
-      console.log(`✅ Found ${recipientEmails.length} firm members to email`);
     } else {
       // Single recipient
       if (!userId || !userEmail) {
@@ -151,7 +148,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Email service configuration error. Please contact support.");
     }
 
-    console.log("✅ Brevo API key found, proceeding with email setup");
 
     // Get admin profile for enhanced signature
     const adminProfile = adminEmail ? ADMIN_PROFILES[adminEmail] : null;
@@ -171,23 +167,19 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (signatureData) {
         customSignature = signatureData;
-        console.log('✅ Found custom signature for admin:', adminId);
       }
     } catch (error) {
-      console.log('ℹ️ No custom signature found, using default template');
     }
 
     // Email subject is already set above with listing title if available
     
     // Skip logo entirely for fast, reliable emails
-    console.log('📧 Using text-only signature without logo for immediate delivery');
     
     // Create premium signature with Bill Martin format
     let adminSignature;
     
     if (customSignature?.signature_text) {
       // Prioritize text signature and build HTML from it
-      console.log('✅ Using custom text signature (prioritized)');
       const signatureParts = customSignature.signature_text.split('\n').filter(line => line.trim());
       
       // Add optional phone and calendly if provided
@@ -229,7 +221,6 @@ const handler = async (req: Request): Promise<Response> => {
             ${signatureParts.join('<br>')}
           </p>
         </div>`;
-      console.log('✅ Using conditional signature template');
     }
 
     // Simple text content - use custom signature text if provided, otherwise strip HTML
@@ -263,7 +254,6 @@ ${signatureText}` : signatureText;
       senderName = `${adminName} - SourceCo`;
     }
     
-    console.log(`📧 Using sender: ${senderName} <${senderEmail}>, reply-to: ${adminName} <${adminEmail}>`);
 
     // Build HTML content (required by Brevo API)
     const htmlContent = content ? `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -278,8 +268,6 @@ ${adminSignature}
     const processedAttachments: any[] = [];
     
     if (attachments && attachments.length > 0) {
-      console.log(`📎 Starting attachment processing for ${attachments.length} attachment(s)`);
-      console.log(`📎 Raw attachments data:`, attachments.map(a => ({ 
         name: a.name, 
         hasContent: !!a.content, 
         contentLength: a.content?.length || 0,
@@ -290,7 +278,6 @@ ${adminSignature}
       const processedAttachments = [];
       for (let i = 0; i < attachments.length; i++) {
         const att = attachments[i];
-        console.log(`📎 Processing attachment ${i + 1}/${attachments.length}: ${att.name}`);
         
         if (!att.name || !att.content) {
           console.warn(`⚠️ Skipping invalid attachment ${i + 1}: missing name or content`, {
@@ -303,20 +290,17 @@ ${adminSignature}
         
         // Clean and validate base64 content
         let content = att.content;
-        console.log(`📎 Original content length for ${att.name}: ${content.length} chars`);
         
         // Remove data URL prefix if present (e.g., "data:application/pdf;base64,")
         if (content.includes(',')) {
           const parts = content.split(',');
           content = parts[1];
-          console.log(`📎 Removed data URL prefix for ${att.name}, new length: ${content.length} chars`);
         }
         
         // Remove any whitespace or newlines
         const originalLength = content.length;
         content = content.replace(/\s/g, '');
         if (originalLength !== content.length) {
-          console.log(`📎 Cleaned whitespace from ${att.name}: ${originalLength} → ${content.length} chars`);
         }
         
         // Enhanced base64 validation
@@ -329,7 +313,6 @@ ${adminSignature}
           // Test base64 decoding
           const decoded = atob(content);
           const decodedSize = decoded.length;
-          console.log(`✅ Successfully decoded base64 for ${att.name}: ${content.length} chars → ${decodedSize} bytes`);
           
           // Additional PDF header validation for PDFs
           if (att.name.toLowerCase().endsWith('.pdf')) {
@@ -338,7 +321,6 @@ ${adminSignature}
               console.warn(`⚠️ ${att.name} doesn't appear to be a valid PDF (missing %PDF header)`);
               // Continue anyway - some PDFs might have variations
             } else {
-              console.log(`✅ PDF header validation passed for ${att.name}`);
             }
           }
           
@@ -347,7 +329,6 @@ ${adminSignature}
             content: content
           });
           
-          console.log(`✅ Successfully processed attachment: ${att.name} (${decodedSize} bytes)`);
           
         } catch (e) {
           console.error(`❌ Base64 validation failed for ${att.name}:`, e);
@@ -357,7 +338,6 @@ ${adminSignature}
       }
       
       if (processedAttachments.length > 0) {
-        console.log(`📎 Successfully processed ${processedAttachments.length} attachment(s)`);
       } else {
         console.error(`❌ No valid attachments processed from ${attachments.length} input attachment(s)`);
       }
@@ -370,7 +350,6 @@ ${adminSignature}
 
     for (const recipient of recipientEmails) {
       try {
-        console.log(`📬 Sending to ${recipient.email} (${recipient.userId})...`);
         
         const brevoPayload: any = {
           sender: { name: senderName, email: senderEmail },
@@ -410,7 +389,6 @@ ${adminSignature}
         }
 
         const result = await emailResponse.json();
-        console.log(`✅ Sent to ${recipient.email}:`, result.messageId);
         await logEmailDelivery(supabase, {
           email: recipient.email,
           emailType: 'fee_agreement',
@@ -454,7 +432,6 @@ ${adminSignature}
       }
     }
 
-    console.log(`📊 Email batch complete: ${successCount} sent, ${failCount} failed`);
 
     return new Response(JSON.stringify({ 
       success: successCount > 0,

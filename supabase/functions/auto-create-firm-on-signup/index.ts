@@ -72,7 +72,6 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     if (existingMember) {
-      console.log(`User ${userId} already has firm ${existingMember.firm_id}`);
       return new Response(
         JSON.stringify({ success: true, firmId: existingMember.firm_id, alreadyExisted: true }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
@@ -167,9 +166,7 @@ serve(async (req: Request) => {
       }
 
       firmId = newFirm.id;
-      console.log(`Created new firm ${firmId} for company "${companyName}"`);
     } else {
-      console.log(`Found existing firm ${firmId} for company "${companyName}"`);
     }
 
     // Create firm_member
@@ -184,7 +181,6 @@ serve(async (req: Request) => {
       // Non-fatal — firm exists, member link failed (could be duplicate)
     }
 
-    console.log(`Firm setup complete: user ${userId} → firm ${firmId}`);
 
     return new Response(
       JSON.stringify({

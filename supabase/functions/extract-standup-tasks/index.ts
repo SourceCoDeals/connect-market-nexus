@@ -308,7 +308,6 @@ serve(async (req) => {
     let meetingDuration = 0;
 
     if (firefliesId && !transcriptText) {
-      console.log(`Fetching transcript ${firefliesId} from Fireflies...`);
       const transcript = await fetchTranscript(firefliesId);
       if (!transcript) {
         return new Response(JSON.stringify({ error: 'Transcript not found in Fireflies' }), {
@@ -376,16 +375,13 @@ serve(async (req) => {
       aliases: aliasMap.get(r.user_id) || [],
     }));
 
-    console.log(`Found ${teamMembers.length} team members`);
 
     // 3. Extract tasks with AI
-    console.log('Running AI extraction...');
     const extractedTasks = await extractTasksWithAI(
       transcriptText,
       teamMembers.map((m) => ({ name: m.name, aliases: m.aliases })),
       today,
     );
-    console.log(`Extracted ${extractedTasks.length} tasks`);
 
     // 4. Match assignees to team member profiles
     function matchAssignee(name: string): string | null {

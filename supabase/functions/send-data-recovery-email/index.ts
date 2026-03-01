@@ -36,7 +36,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { userIds, template }: DataRecoveryEmailRequest = await req.json();
 
-    console.log(`Processing data recovery emails for ${userIds.length} users`);
 
     // Get user data for the specified user IDs
     const { data: users, error: usersError } = await supabase
@@ -88,7 +87,6 @@ const handler = async (req: Request): Promise<Response> => {
           `,
         });
 
-        console.log(`Email sent successfully to ${user.email}:`, emailResponse);
 
         // Log the email delivery
         await supabase.from('email_delivery_logs').insert({
@@ -119,7 +117,6 @@ const handler = async (req: Request): Promise<Response> => {
     const successCount = results.filter(r => r.status === 'sent').length;
     const failedCount = results.filter(r => r.status === 'failed').length;
 
-    console.log(`Data recovery campaign completed: ${successCount} sent, ${failedCount} failed`);
 
     return new Response(JSON.stringify({
       success: true,

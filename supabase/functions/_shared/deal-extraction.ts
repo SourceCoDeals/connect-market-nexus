@@ -315,7 +315,6 @@ const CA_PROVINCE_CODES = new Set(['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU
 export function stripFinancialFields(extracted: Record<string, unknown>): void {
   for (const field of FINANCIAL_FIELDS_BLOCKED_FROM_WEBSITES) {
     if (extracted[field] !== undefined) {
-      console.log(`FINANCIAL SCRAPING BLOCKED: Stripping '${field}' from website-extracted data`);
       delete extracted[field];
     }
   }
@@ -345,7 +344,6 @@ export function validateAddressState(extracted: Record<string, unknown>): void {
   if (normalized && (US_STATE_CODES.has(normalized) || CA_PROVINCE_CODES.has(normalized))) {
     extracted.address_state = normalized;
   } else {
-    console.log(`Rejecting invalid address_state: "${extracted.address_state}"`);
     delete extracted.address_state;
   }
 }
@@ -360,7 +358,6 @@ export function validateAddressZip(extracted: Record<string, unknown>): void {
   const usZipPattern = /^\d{5}(-\d{4})?$/;
   const caPostalPattern = /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/;
   if (!usZipPattern.test(zipStr) && !caPostalPattern.test(zipStr)) {
-    console.log(`Rejecting invalid address_zip: "${extracted.address_zip}"`);
     delete extracted.address_zip;
   } else {
     extracted.address_zip = zipStr;
@@ -385,7 +382,6 @@ export function cleanAddressCity(extracted: Record<string, unknown>): void {
     if (!extracted.street_address && fullMatch[1]) {
       extracted.street_address = fullMatch[1].trim();
     }
-    console.log(`Extracted city "${cityStr}" from full address, street: "${fullMatch[1]}"`);
   }
 
   // Pattern 2: Street address followed by city name without proper separators
@@ -403,7 +399,6 @@ export function cleanAddressCity(extracted: Record<string, unknown>): void {
             extracted.street_address = cityStr.substring(0, lastStreetIndex + streetMatch[0].length - 1).trim();
           }
           cityStr = cleanedCity;
-          console.log(`Parsed city "${cityStr}" from combined address, street: "${extracted.street_address}"`);
         }
       }
     }
@@ -419,7 +414,6 @@ export function cleanAddressCity(extracted: Record<string, unknown>): void {
   if (cityStr.length > 0 && cityStr.length < 50 && !ADDRESS_PLACEHOLDERS.includes(cityStr.toLowerCase())) {
     extracted.address_city = cityStr;
   } else {
-    console.log(`Rejecting invalid/placeholder address_city: "${extracted.address_city}"`);
     delete extracted.address_city;
   }
 }
@@ -434,7 +428,6 @@ export function cleanStreetAddress(extracted: Record<string, unknown>): void {
   if (streetStr.length > 0 && !ADDRESS_PLACEHOLDERS.includes(streetStr.toLowerCase())) {
     extracted.street_address = streetStr;
   } else {
-    console.log(`Rejecting placeholder street_address: "${extracted.street_address}"`);
     delete extracted.street_address;
   }
 }
@@ -471,7 +464,6 @@ export function extractLocationCount(extracted: Record<string, unknown>, website
       const count = parseInt(match[1], 10);
       if (count > 0 && count < 1000) {
         extracted.number_of_locations = count;
-        console.log(`Extracted location count via regex: ${count}`);
         return;
       }
     }
@@ -480,10 +472,8 @@ export function extractLocationCount(extracted: Record<string, unknown>, website
   // Fallback: "multiple locations" → estimate 3
   if (/multiple\s+locations?/i.test(websiteContent)) {
     extracted.number_of_locations = 3;
-    console.log('Inferred multiple locations as 3');
   } else if (/several\s+locations?/i.test(websiteContent)) {
     extracted.number_of_locations = 4;
-    console.log('Inferred several locations as 4');
   }
 }
 
@@ -499,10 +489,8 @@ export function validateLinkedInUrl(extracted: Record<string, unknown>): void {
     const match = linkedinUrlStr.match(/linkedin\.com\/company\/([^/?]+)/);
     if (match) {
       extracted.linkedin_url = `https://www.linkedin.com/company/${match[1]}`;
-      console.log(`Validated LinkedIn URL: ${extracted.linkedin_url}`);
     }
   } else {
-    console.log(`Rejecting non-direct LinkedIn URL: "${linkedinUrlStr}"`);
     delete extracted.linkedin_url;
   }
 }

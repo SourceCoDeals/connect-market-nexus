@@ -93,7 +93,6 @@ serve(async (req) => {
   }
 
   try {
-    console.log(`[${VERSION}] Request received`, {
       method: req.method,
       url: req.url,
       ts: new Date().toISOString(),
@@ -258,7 +257,6 @@ Consider the sample data to make better decisions.`;
 
     if (!response.ok) {
       if (response.status === 429) {
-        console.log("Rate limited, falling back to heuristic mapping");
         const heuristic = heuristicMapping(columns, targetType);
         const complete = ensureCompleteMappings(columns, heuristic);
         return new Response(
@@ -267,7 +265,6 @@ Consider the sample data to make better decisions.`;
         );
       }
       if (response.status === 402) {
-        console.log("Payment required, falling back to heuristic mapping");
         const heuristic = heuristicMapping(columns, targetType);
         const complete = ensureCompleteMappings(columns, heuristic);
         return new Response(
@@ -282,7 +279,6 @@ Consider the sample data to make better decisions.`;
     const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
     
     if (!toolCall) {
-      console.log("No tool call, falling back to heuristic");
       const heuristic = heuristicMapping(columns, targetType);
       const complete = ensureCompleteMappings(columns, heuristic);
       return new Response(
@@ -306,7 +302,6 @@ Consider the sample data to make better decisions.`;
     // CRITICAL: Ensure we return a complete mapping for every input column
     const completeMappings = ensureCompleteMappings(columns, aiMappings);
     
-    console.log(`[${VERSION}] Mapping stats: requested=${columns.length}, ai_returned=${aiMappings.length}, final=${completeMappings.length}`);
 
     return new Response(
       JSON.stringify({ mappings: completeMappings, _version: VERSION }),
@@ -639,7 +634,6 @@ function ensureCompleteMappings(inputColumns: string[], partialMappings: ColumnM
   const missingCount = inputColumns.length - partialMappings.filter(m => m.csvColumn).length;
   if (missingCount > 0) {
     const missing = inputColumns.filter(col => !lookup.has(col.toLowerCase().trim()));
-    console.log(`[ensureCompleteMappings] Filled ${missingCount} missing columns. First 10:`, missing.slice(0, 10));
   }
 
   return complete;

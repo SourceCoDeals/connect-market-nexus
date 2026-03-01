@@ -117,7 +117,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailData = await emailResponse.json();
-    console.log("Email sent successfully:", emailData);
 
     // Log email delivery status
     await supabase.from('email_delivery_logs').insert({

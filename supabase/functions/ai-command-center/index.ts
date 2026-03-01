@@ -213,7 +213,6 @@ async function processChat(
     bypassed: routerResult.bypassed,
   })}\n\n`);
 
-  console.log(`[ai-cc] Routed: ${routerResult.category} (${routerResult.tier}) tools=[${routerResult.tools.join(',')}] confidence=${routerResult.confidence} bypassed=${routerResult.bypassed}`);
 
   // 3. Orchestrate (tool-calling loop)
   await writer.write(`event: status\ndata: ${JSON.stringify({ phase: 'processing' })}\n\n`);
@@ -234,7 +233,6 @@ async function processChat(
 
   // 4. Track usage
   const durationMs = Date.now() - startTime;
-  console.log(`[ai-cc] Complete: ${durationMs}ms, ${result.toolCallCount} tools, $${result.totalCost.toFixed(4)}`);
 
   await trackUsage(supabase, userId, body.conversation_id, {
     query,

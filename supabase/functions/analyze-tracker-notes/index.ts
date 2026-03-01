@@ -139,8 +139,6 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    console.log(`Analyzing notes for universe: ${universe_name || 'unnamed'}`);
-    console.log(`Notes length: ${notes_text.length} chars`);
 
     const systemPrompt = `You are an expert M&A analyst extracting structured buyer universe criteria from unstructured notes.
 
@@ -235,7 +233,6 @@ Extract all available criteria using the extract_criteria function. Be thorough 
     // Post-process: clean placeholders and validate
     const cleanedData = cleanExtractedData(extractedData);
 
-    console.log(`Extracted criteria with ${Math.round((cleanedData.confidence || 0.5) * 100)}% confidence`);
 
     return new Response(
       JSON.stringify({

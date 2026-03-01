@@ -241,7 +241,6 @@ serve(async (req: Request) => {
     // 4. Create admin notifications
     await createAdminNotification(supabaseAdmin, firmId, firmName, docLabel);
 
-    console.log(`✅ Confirmed ${docLabel} signed for firm ${firmId} (buyer ${userId})`);
 
     return new Response(
       JSON.stringify({ confirmed: true, signedDocumentUrl: signedDocUrl }),
@@ -337,7 +336,6 @@ async function sendBuyerSignedDocNotification(
         }
       }
     }
-    console.log(`📨 Sent signed doc notifications to ${members.length} buyer(s) for ${docLabel}`);
   } catch (err) {
     console.error('Buyer notification error:', err);
   }

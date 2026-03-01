@@ -75,7 +75,6 @@ interface SessionData {
 
 async function getGeoData(ip: string): Promise<GeoData | null> {
   if (ip === '127.0.0.1' || ip === 'localhost' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip === '::1') {
-    console.log('Skipping geolocation for local/private IP:', ip);
     return null;
   }
 
@@ -172,7 +171,6 @@ Deno.serve(async (req) => {
     const isProduction = isProductionRequest(req, body);
     const isBot = detectBot(body.user_agent);
     
-    console.log('Track session request:', {
       session_id: body.session_id,
       client_ip: clientIP,
       is_production: isProduction,
@@ -182,7 +180,6 @@ Deno.serve(async (req) => {
 
     // Get geographic data from IP
     const geoData = await getGeoData(clientIP);
-    console.log('Geo data result:', geoData);
 
     // Use UPSERT to prevent race condition duplicates
     // The session_id column has a UNIQUE constraint
@@ -245,7 +242,6 @@ Deno.serve(async (req) => {
 
     // Upsert user_journeys record for cross-session tracking
     if (body.visitor_id) {
-      console.log('Upserting user journey for visitor:', body.visitor_id);
       
       // Calculate first_external_referrer from cross-domain tracking params
       const firstExternalReferrer = body.original_referrer || body.original_referrer_host || null;
@@ -296,11 +292,9 @@ Deno.serve(async (req) => {
           console.error('RPC increment error:', rpcErr);
         }
         
-        console.log('User journey upserted successfully');
       }
     }
 
-    console.log('Session tracked successfully');
     return new Response(
       JSON.stringify({ 
         success: true,

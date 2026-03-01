@@ -81,7 +81,6 @@ Deno.serve(async (req: Request) => {
 
   try {
     // 1. Use Haiku to build optimized search queries
-    console.log(`[discover-companies] Building search queries for: "${body.query}"`);
 
     const queryBuilderResponse = await callClaude({
       model: CLAUDE_MODELS.haiku,
@@ -106,7 +105,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // 2. Execute Google searches via Apify
-    console.log(`[discover-companies] Executing ${searchQueries.length} search queries`);
     const allResults: any[] = [];
 
     for (const query of searchQueries.slice(0, 3)) {
@@ -133,7 +131,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // 3. Use Haiku to extract company information from results
-    console.log(`[discover-companies] Extracting companies from ${allResults.length} results`);
 
     const extractionResponse = await callClaude({
       model: CLAUDE_MODELS.haiku,
@@ -164,7 +161,6 @@ Extract matching companies as JSON array.`,
     }
 
     // 4. Cross-reference against existing buyer database
-    console.log(`[discover-companies] Cross-referencing ${companies.length} companies against DB`);
 
     const { data: existingBuyers } = await supabaseAdmin
       .from('remarketing_buyers')
@@ -200,7 +196,6 @@ Extract matching companies as JSON array.`,
       .slice(0, maxResults);
 
     const duration = Date.now() - startTime;
-    console.log(`[discover-companies] Found ${dedupedCompanies.length} companies in ${duration}ms`);
 
     return new Response(
       JSON.stringify({

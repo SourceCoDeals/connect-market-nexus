@@ -82,7 +82,6 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log('📝 Processing approval for connection request:', {
       id: cr.id,
       company: cr.lead_company,
       existingFirmId: cr.firm_id,
@@ -292,7 +291,6 @@ serve(async (req: Request) => {
         }
       }
     } else {
-      console.log('ℹ️ Skipping DocuSeal NDA — missing API key, template, or email');
     }
 
     return new Response(

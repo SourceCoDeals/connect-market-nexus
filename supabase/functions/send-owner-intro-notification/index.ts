@@ -50,7 +50,6 @@ const handler = async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     if (recentNotif) {
-      console.log('Notification already sent recently, skipping duplicate');
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -115,7 +114,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Validate primary owner exists on listing
     if (!listing.primary_owner_id || !listing.primary_owner) {
-      console.log('No primary owner assigned to listing, cannot send notification');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -279,7 +277,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("BREVO_API_KEY is not set");
     }
     
-    console.log("Sending owner intro notification to:", primaryOwnerData.email);
     
     const emailPayload = {
       sender: { name: "SourceCo Notifications", email: "notifications@sourcecodeals.com" },
@@ -313,7 +310,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailResult = await emailResponse.json();
-    console.log("Email sent successfully:", emailResult);
 
     await logEmailDelivery(supabase, {
       email: primaryOwnerData.email,

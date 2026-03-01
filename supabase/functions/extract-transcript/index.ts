@@ -101,7 +101,6 @@ serve(async (req) => {
     const buyerTranscriptIdToUpdate: string | undefined = transcriptId;
 
     if (transcriptText && buyerId) {
-      console.log(`[TranscriptExtraction] Processing direct text for buyer ${buyerId}`);
       transcriptTextToProcess = transcriptText;
     } else if (transcript_id) {
       const { data: transcript, error: transcriptError } = await supabase
@@ -137,7 +136,6 @@ serve(async (req) => {
 
     const ceoDetected = detectCEOInvolvement(transcriptTextToProcess);
     if (ceoDetected) {
-      console.log(`[TranscriptExtraction] CEO detected in transcript`);
       insights.ceo_detected = true;
 
       if (buyerIdToUpdate && listingIdToUpdate) {
@@ -146,14 +144,12 @@ serve(async (req) => {
     }
 
     if ((entity_type === 'deal' || entity_type === 'both') && listingIdToUpdate) {
-      console.log(`[TranscriptExtraction] Extracting deal insights`);
       const dealInsights = await extractDealInsights(transcriptTextToProcess, GEMINI_API_KEY);
       insights.deal = dealInsights;
       await updateListingFromTranscript(supabase, listingIdToUpdate, dealInsights, transcriptIdForTracking || 'direct');
     }
 
     if ((entity_type === 'buyer' || entity_type === 'both') && buyerIdToUpdate) {
-      console.log(`[TranscriptExtraction] Extracting buyer insights for ${buyerIdToUpdate}`);
 
       const { data: buyerContext } = await supabase
         .from('remarketing_buyers')
@@ -184,7 +180,6 @@ serve(async (req) => {
         if (transcriptUpdateError) {
           console.error(`[TranscriptExtraction] Failed to update buyer_transcripts record:`, transcriptUpdateError);
         } else {
-          console.log(`[TranscriptExtraction] Updated buyer_transcripts ${buyerTranscriptIdToUpdate} as processed`);
         }
       }
     }
@@ -253,7 +248,6 @@ async function createEngagementSignal(supabase: any, listingId: string, buyerId:
   if (error) {
     console.error("Failed to create engagement signal:", error);
   } else {
-    console.log(`[EngagementSignal] Created ${signalType} signal (+${signalValue} pts)`);
   }
 }
 
@@ -699,7 +693,6 @@ async function updateListingFromTranscript(supabase: any, listingId: string, ins
     if (error) {
       console.error("Failed to update listing from transcript:", error);
     } else {
-      console.log(`[TranscriptExtraction] Updated listing ${listingId} with ${Object.keys(updates).length} fields`);
     }
   }
 }
@@ -882,7 +875,6 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
     if (error) {
       console.error("Failed to update buyer from transcript:", error);
     } else {
-      console.log(`[TranscriptExtraction] Updated buyer ${buyerId} with ${Object.keys(updates).length} fields (thesis_summary: ${!!updates.thesis_summary}). Total extraction sources: ${(updates.extraction_sources as any[]).length}`);
     }
   } else if (insights.is_evaluation_call) {
     const existingSources = (existing.extraction_sources || []) as any[];
@@ -904,7 +896,6 @@ async function updateBuyerFromTranscript(supabase: any, buyerId: string, insight
     if (error) {
       console.error("Failed to update buyer with insufficient status:", error);
     } else {
-      console.log(`[TranscriptExtraction] Marked transcript ${transcriptId} as insufficient for buyer ${buyerId} — no overwrites. Total extraction sources: ${(insufficientUpdate.extraction_sources as any[]).length}`);
     }
   }
 }

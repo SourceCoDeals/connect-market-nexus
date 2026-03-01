@@ -574,7 +574,6 @@ export async function executeTool(
     ]);
 
     const durationMs = Date.now() - startTime;
-    console.log(`[ai-cc] Tool ${toolName} completed in ${durationMs}ms`);
     return result;
   } catch (err) {
     const durationMs = Date.now() - startTime;
@@ -651,7 +650,6 @@ async function _executeToolInternal(
   // Backward compatibility: route old (merged) tool names to their new executors
   const legacyRouter = LEGACY_TOOL_ROUTING[toolName];
   if (legacyRouter) {
-    console.log(`[ai-cc] Legacy tool name "${toolName}" — routing via backward compat`);
     return legacyRouter(supabase, toolName, resolvedArgs, userId);
   }
 

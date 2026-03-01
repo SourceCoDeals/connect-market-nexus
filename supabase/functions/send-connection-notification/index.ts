@@ -49,7 +49,6 @@ const handler = async (req: Request): Promise<Response> => {
       requestId
     } = requestData;
 
-    console.log("Sending connection notification:", {
       type,
       recipientEmail,
       requesterName,
@@ -174,7 +173,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("BREVO_API_KEY not configured");
     }
     
-    console.log("Using Brevo API to send email to:", recipientEmail);
 
     const emailResponse = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -231,7 +229,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const responseData = await emailResponse.json();
-    console.log("Connection notification sent successfully:", {
       type,
       recipient: recipientEmail,
       messageId: responseData.messageId

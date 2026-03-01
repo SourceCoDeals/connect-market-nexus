@@ -374,7 +374,6 @@ async function callBuyerGemini(
 export async function extractBusinessOverview(
   content: string, geminiApiKey: string, rateLimitConfig?: RateLimitConfig
 ): Promise<AIExtractionResult> {
-  console.log('Running Prompt 1: Business Overview & Services');
   const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the business overview information from this company website.`;
   return await callBuyerGemini(PROMPT_1_SYSTEM, userPrompt, PROMPT_1_BUSINESS, geminiApiKey, rateLimitConfig);
 }
@@ -382,7 +381,6 @@ export async function extractBusinessOverview(
 export async function extractCustomerProfile(
   content: string, geminiApiKey: string, rateLimitConfig?: RateLimitConfig
 ): Promise<AIExtractionResult> {
-  console.log('Running Prompt 2: Customer Profile');
   const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the customer profile information from this company website.`;
   return await callBuyerGemini(PROMPT_2_SYSTEM, userPrompt, PROMPT_2_CUSTOMER, geminiApiKey, rateLimitConfig);
 }
@@ -390,7 +388,6 @@ export async function extractCustomerProfile(
 export async function extractGeography(
   content: string, geminiApiKey: string, rateLimitConfig?: RateLimitConfig
 ): Promise<AIExtractionResult> {
-  console.log(`Running Prompt 3a: Geographic Footprint (${content.length} chars input)`);
   // Geography gets a higher content limit (100k) because location pages can be very large
   // for multi-location businesses (hundreds of branch addresses)
   const userPrompt = `Website Content:\n\n${content.substring(0, 100000)}\n\nExtract geographic coverage information. Include states from addresses, service area descriptions, location pages, contact info, and any explicitly named states or cities where the company operates or serves customers. For each city found, add it to operating_locations as "City, ST" format. Always use 2-letter state codes. Pay special attention to any "LOCATION/BRANCH PAGES" sections — these contain the most accurate location data.`;
@@ -400,7 +397,6 @@ export async function extractGeography(
 export async function extractPEIntelligence(
   content: string, geminiApiKey: string, rateLimitConfig?: RateLimitConfig
 ): Promise<AIExtractionResult> {
-  console.log('Running Prompt 3b: Combined PE Intelligence (Acquisitions + Activity + Portfolio + Size Criteria)');
   const userPrompt = `Website Content:\n\n${content.substring(0, 50000)}\n\nExtract the PE firm name, classify the buyer type, and extract acquisition history, investment focus areas, portfolio companies, and investment size criteria (target EBITDA and revenue ranges if explicitly stated). Do NOT extract thesis, strategic priorities, or thesis confidence.`;
   return await callBuyerGemini(PROMPT_3B_SYSTEM, userPrompt, PROMPT_3B_PE_INTELLIGENCE, geminiApiKey, rateLimitConfig);
 }
@@ -456,13 +452,11 @@ export function validateGeography(extracted: AIExtractionResult): AIExtractionRe
       for (const s of locStates) {
         if (!data.geographic_footprint.includes(s)) data.geographic_footprint.push(s);
       }
-      console.log(`Added ${locStates.length} states from operating_locations to geographic_footprint`);
     }
   }
 
   // If geographic_footprint is empty but service_regions has data, promote service_regions
   if ((!data.geographic_footprint || data.geographic_footprint.length === 0) && data.service_regions?.length > 0) {
-    console.log('Promoting service_regions to geographic_footprint (footprint was empty)');
     data.geographic_footprint = [...data.service_regions];
   }
 
@@ -543,7 +537,6 @@ export function shouldOverwrite(
   const newPriority = SOURCE_PRIORITY[newSourceType] ?? 60;
 
   if (existing.priority > 0 && existing.priority > newPriority) {
-    console.log(`🛡️ PRIORITY: Skipping ${fieldName} — existing source "${existing.sourceType}" (priority ${existing.priority}) > new source "${newSourceType}" (priority ${newPriority})`);
     return false;
   }
 
@@ -552,7 +545,6 @@ export function shouldOverwrite(
   // when the buyer has ANY transcript source (broad protection)
   if (TRANSCRIPT_PROTECTED_FIELDS.includes(fieldName) && hasTranscriptSource) {
     if (newSourceType === 'platform_website' || newSourceType === 'pe_firm_website') {
-      console.log(`🛡️ PROTECTED FIELD: Skipping ${fieldName} — transcript-protected and buyer has transcript data`);
       return false;
     }
   }
@@ -703,6 +695,5 @@ export function buildBuyerUpdateObject(
   baseEntries.push({ type: 'field_sources', fields: fieldSources });
   updateData.extraction_sources = baseEntries;
 
-  console.log(`Built update with ${fieldsUpdated} field changes`);
   return updateData;
 }

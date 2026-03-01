@@ -17,17 +17,14 @@ interface ContactResponseData {
 serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  console.log('🚀 Contact response function invoked');
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    console.log('✅ Handling CORS preflight request');
     return corsPreflightResponse(req);
   }
 
   try {
     const requestBody = await req.json();
-    console.log('📝 Request body received:', { ...requestBody, content: '[HIDDEN]' });
     
     const { to, subject, content, feedbackId, userName, category }: ContactResponseData = requestBody;
     
@@ -42,7 +39,6 @@ serve(async (req: Request) => {
       throw new Error('BREVO_API_KEY not configured');
     }
 
-    console.log('📧 Preparing email for category:', category);
 
     // Create email content based on category
     let emailHtml = '';
@@ -127,7 +123,6 @@ The SourcecodeAls Team
 This is an automated response. Please do not reply to this email.`;
     }
 
-    console.log('📬 Sending email via Brevo API...');
 
     // Send email using Brevo API
     const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -174,7 +169,6 @@ This is an automated response. Please do not reply to this email.`;
     }
 
     const result = await emailResponse.json();
-    console.log('✅ Email sent successfully via Brevo:', result);
 
     await logEmailDelivery(supabase, {
       email: to,

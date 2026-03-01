@@ -438,7 +438,6 @@ serve(async (req) => {
     const BATCH_SIZE = 200;
 
     const queueDealsForEnrichment = async (dealIds: string[], reason: string) => {
-      console.log(`Queueing ${dealIds.length} deals for enrichment (${reason})`);
       let queuedCount = 0;
       for (const dealId of dealIds) {
         const { data: existing } = await supabase
@@ -460,7 +459,7 @@ serve(async (req) => {
           if (!queueError) queuedCount++;
         }
       }
-      if (queuedCount > 0) console.log(`Queued ${queuedCount} deals for enrichment`);
+      
       return queuedCount;
     };
 
@@ -495,7 +494,6 @@ serve(async (req) => {
       if (listingsError) throw new Error('Failed to fetch listings: ' + listingsError.message);
       listingsToScore = listings || [];
 
-      console.log(
         `[batch] Source=${batchSource}, offset=${offset}, fetched=${listingsToScore.length}`,
       );
 
@@ -532,10 +530,8 @@ serve(async (req) => {
         .limit(100);
       if (listingsError) throw new Error('Failed to fetch listings');
       listingsToScore = listings || [];
-      console.log(`Force recalculating scores for ${listingsToScore.length} listings`);
       if (triggerEnrichment && listingsToScore.length > 0) {
         const dealIds = listingsToScore.map((l) => l.id);
-        console.log(`Resetting enriched_at for ${dealIds.length} deals to force re-enrichment`);
         await supabase.from('listings').update({ enriched_at: null }).in('id', dealIds);
         enrichmentQueued = await queueDealsForEnrichment(dealIds, 'force recalculate all');
       }
@@ -563,7 +559,6 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Scoring ${listingsToScore.length} listings...`);
     let scored = 0;
     let errors = 0;
     const results: any[] = [];
@@ -596,7 +591,6 @@ serve(async (req) => {
       }
     }
 
-    console.log(
       `Scored ${scored} listings, ${errors} errors, ${enrichmentQueued} queued for enrichment`,
     );
 
@@ -619,7 +613,6 @@ serve(async (req) => {
       const nextOffset = unscoredOnly ? 0 : offset + BATCH_SIZE;
       const selfUrl = `${supabaseUrl}/functions/v1/calculate-deal-quality`;
       const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || supabaseKey;
-      console.log(
         `[batch] Continuing at offset ${nextOffset}, scored so far: ${nextScoredSoFar}...`,
       );
       fetch(selfUrl, {
@@ -649,7 +642,6 @@ serve(async (req) => {
           completed_at: new Date().toISOString(),
         })
         .eq('id', globalQueueId);
-      console.log(`[batch] Complete! Total scored: ${totalScoredSoFar}`);
     }
 
     return new Response(

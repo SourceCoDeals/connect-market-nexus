@@ -33,12 +33,10 @@ Deno.serve(async (req) => {
     try { body = await req.json(); } catch { /* empty body ok */ }
 
     const continuationCount = (typeof body.continuationCount === 'number') ? body.continuationCount : 0;
-    console.log(`Processing buyer enrichment queue (self-looping)... [continuation ${continuationCount}/${MAX_CONTINUATIONS}]`);
 
     // Auto-recover any stale global operations (prevents deadlocks)
     const recovered = await recoverStaleOperations(supabase);
     if (recovered > 0) {
-      console.log(`Recovered ${recovered} stale global operations`);
     }
 
     // Recovery: reset stale processing items (stuck for 5+ minutes)
@@ -56,7 +54,6 @@ Deno.serve(async (req) => {
       .select('id');
 
     if (staleItems && staleItems.length > 0) {
-      console.log(`Recovered ${staleItems.length} stale processing items`);
     }
 
     // BUG-3 FIX: Use pg_advisory_xact_lock via RPC for mutual exclusion.
@@ -78,14 +75,12 @@ Deno.serve(async (req) => {
         .limit(1);
 
       if (activeItems && activeItems.length > 0) {
-        console.log('Another processor is active (fallback guard), skipping this run');
         return new Response(
           JSON.stringify({ success: true, message: 'Skipped - another processor active', processed: 0 }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     } else if (lockAcquired === false) {
-      console.log('Another processor holds the lock, skipping this run');
       return new Response(
         JSON.stringify({ success: true, message: 'Skipped - another processor holds lock', processed: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -117,7 +112,6 @@ Deno.serve(async (req) => {
       .select('id');
 
     if (exhaustedItems && exhaustedItems.length > 0) {
-      console.log(`Marked ${exhaustedItems.length} exhausted items as failed`);
     }
 
     // Create enrichment job for observability tracking (non-blocking on failure)
@@ -136,7 +130,7 @@ Deno.serve(async (req) => {
         p_source: 'scheduled',
       });
       enrichmentJobId = jobData;
-      if (enrichmentJobId) console.log(`[enrichment-jobs] Created job ${enrichmentJobId}`);
+      
     } catch (err) {
       console.warn('[enrichment-jobs] Failed to create job (non-blocking):', err);
     }
@@ -151,13 +145,11 @@ Deno.serve(async (req) => {
     while (true) {
       // Time guard: stop before Deno's execution limit
       if (Date.now() - functionStartTime > MAX_FUNCTION_RUNTIME_MS) {
-        console.log(`Time limit reached after ${totalProcessed} buyers, will continue on next invocation`);
         break;
       }
 
       // Check if operation was paused by user
       if (await isOperationPaused(supabase, 'buyer_enrichment')) {
-        console.log('Buyer enrichment paused by user — stopping');
         break;
       }
 
@@ -176,13 +168,11 @@ Deno.serve(async (req) => {
       }
 
       if (!queueItems || queueItems.length === 0) {
-        console.log(`No more pending items. Processed ${totalProcessed} buyers this run.`);
         await completeGlobalQueueOperation(supabase, 'buyer_enrichment');
         break;
       }
 
       const item = queueItems[0];
-      console.log(`Processing buyer ${item.buyer_id} (attempt ${item.attempts + 1}) [#${totalProcessed + 1} this run]`);
 
       const itemForce = (item as any).force === true;
 
@@ -217,7 +207,6 @@ Deno.serve(async (req) => {
           });
 
           if (Date.now() - lastUpdatedMs < freshnessWindowMs && hasRecentEnrichmentSource) {
-            console.log(`Skipping buyer ${item.buyer_id} — enrichment data is fresh (${buyerData.data_last_updated}), marking completed`);
             await supabase
               .from('buyer_enrichment_queue')
               .update({
@@ -240,11 +229,9 @@ Deno.serve(async (req) => {
       if (!availability.ok) {
         const waitMs = availability.retryAfterMs || RATE_LIMIT_BACKOFF_MS;
         if (waitMs > 30000) {
-          console.log(`Gemini rate limited for ${Math.round(waitMs / 1000)}s — stopping queue processing`);
           totalRateLimited++;
           break;
         }
-        console.log(`Gemini rate limited — waiting ${Math.round(waitMs / 1000)}s before processing buyer`);
         await new Promise(r => setTimeout(r, waitMs));
       }
 
@@ -291,7 +278,6 @@ Deno.serve(async (req) => {
               updated_at: new Date().toISOString(),
             })
             .eq('id', item.id);
-          console.log(`Rate limited at buyer ${item.buyer_id}, stopping loop`);
           totalRateLimited++;
           totalProcessed++;
 
@@ -430,9 +416,7 @@ Deno.serve(async (req) => {
         const continuationDelayMs = totalRateLimited > 0 ? RATE_LIMIT_BACKOFF_MS + Math.random() * 5000 : 0;
 
         if (continuationDelayMs > 0) {
-          console.log(`${totalRemaining} buyers remaining (${rateLimitedRemaining} rate-limited). Scheduling continuation ${continuationCount + 1}/${MAX_CONTINUATIONS} in ${Math.round(continuationDelayMs / 1000)}s...`);
         } else {
-          console.log(`${remaining} buyers still pending, triggering continuation ${continuationCount + 1}/${MAX_CONTINUATIONS}...`);
         }
 
         // Self-continuation with optional delay for rate-limit recovery.

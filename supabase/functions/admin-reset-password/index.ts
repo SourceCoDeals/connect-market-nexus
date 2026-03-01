@@ -72,7 +72,6 @@ serve(async (req: Request) => {
       });
     }
 
-    console.log(`Admin ${caller.email} reset password for user ${userId}`);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

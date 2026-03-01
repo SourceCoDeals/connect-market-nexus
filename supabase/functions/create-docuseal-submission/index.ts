@@ -112,7 +112,6 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`📝 Creating DocuSeal submission`, {
       firmId,
       documentType,
       deliveryMode,
@@ -286,7 +285,6 @@ serve(async (req: Request) => {
             delivery_mode: deliveryMode,
           },
         });
-        console.log(
           `🔔 Created notification for buyer ${buyerProfile.id} — ${docLabel} pending (${deliveryMode})`,
         );
 
@@ -319,7 +317,6 @@ serve(async (req: Request) => {
           if (msgError) {
             console.error('⚠️ Failed to insert system message:', msgError);
           } else {
-            console.log(`💬 Sent system message to general inquiry for ${docLabel}`);
           }
         }
       }

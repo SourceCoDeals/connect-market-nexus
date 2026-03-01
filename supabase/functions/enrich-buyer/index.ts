@@ -169,7 +169,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('[enrich-buyer] request received');
 
     // ── Auth guard: require valid JWT + admin role, OR internal service call ──
     const authHeader = req.headers.get('Authorization') || '';
@@ -258,11 +257,9 @@ Deno.serve(async (req) => {
     let peFirmWebsite = buyer.pe_firm_website;
     if (platformWebsite?.includes(',')) {
       platformWebsite = platformWebsite.split(',').map((u: string) => u.trim()).filter(Boolean)[0] || null;
-      console.log(`Multiple platform URLs detected, using first: "${platformWebsite}"`);
     }
     if (peFirmWebsite?.includes(',')) {
       peFirmWebsite = peFirmWebsite.split(',').map((u: string) => u.trim()).filter(Boolean)[0] || null;
-      console.log(`Multiple PE firm URLs detected, using first: "${peFirmWebsite}"`);
     }
 
     if (!platformWebsite && !peFirmWebsite) {
@@ -329,9 +326,6 @@ Deno.serve(async (req) => {
         .eq('id', buyerId);
     }
 
-    console.log(`Starting 4-prompt enrichment for buyer: ${buyer.company_name || buyer.pe_firm_name || buyerId}`);
-    console.log(`Platform website: ${platformWebsite || 'none'}`);
-    console.log(`PE firm website: ${peFirmWebsite || 'none'}`);
 
     const existingSources = Array.isArray(buyer.extraction_sources) ? buyer.extraction_sources : [];
     const hasTranscriptSource = existingSources.some(
@@ -370,7 +364,6 @@ Deno.serve(async (req) => {
         if (result.success && result.content) {
           platformContent = result.content;
           sources.platform = platformWebsite!;
-          console.log(`Scraped platform website: ${platformContent.length} chars`);
 
           // PERF: Start location page discovery immediately (runs in parallel with non-geography Gemini prompts)
           // Scrape up to 3 location pages to capture full geographic footprint
@@ -381,7 +374,6 @@ Deno.serve(async (req) => {
                 LOCATION_PATTERNS.some(p => link.toLowerCase().includes(p))
               );
               if (locationPages.length === 0) {
-                console.log('No location pages found in sitemap');
                 return null;
               }
 
@@ -396,7 +388,6 @@ Deno.serve(async (req) => {
               });
 
               const toScrape = unique.slice(0, 3); // Cap at 3 pages to control API costs
-              console.log(`Found ${locationPages.length} location pages, scraping ${toScrape.length}: ${toScrape.join(', ')}`);
 
               const locationScrapeResults = await Promise.allSettled(
                 toScrape.map(url => scrapeWebsite(url, firecrawlApiKey))
@@ -406,7 +397,6 @@ Deno.serve(async (req) => {
               for (let i = 0; i < locationScrapeResults.length; i++) {
                 const settled = locationScrapeResults[i];
                 if (settled.status === 'fulfilled' && settled.value.success && settled.value.content) {
-                  console.log(`Scraped location page (${settled.value.content.length} chars): ${toScrape[i]}`);
                   contents.push(settled.value.content);
                 }
               }
@@ -424,7 +414,6 @@ Deno.serve(async (req) => {
         if (result.success && result.content) {
           peContent = result.content;
           sources.pe_firm = peFirmWebsite!;
-          console.log(`Scraped PE firm website: ${peContent.length} chars`);
         } else {
           warnings.push(`PE firm website scrape failed: ${result.error}`);
         }
@@ -541,9 +530,7 @@ Deno.serve(async (req) => {
             const locationContent = await locationPagesPromise;
             if (locationContent) {
               geoContent = platformContent + '\n\n--- LOCATION/BRANCH PAGES ---\n\n' + locationContent;
-              console.log(`Geography extraction using combined content: ${geoContent.length} chars (homepage ${platformContent.length} + location pages ${locationContent.length})`);
             } else {
-              console.log('No location page content found — using homepage only for geography');
             }
           }
 
@@ -555,7 +542,6 @@ Deno.serve(async (req) => {
       );
     } else if (peContent) {
       // No platform content — only extract geography from PE site
-      console.log('Platform website unavailable — extracting geographic_footprint/service_regions ONLY from PE firm website');
       allTasks.push(
         () => extractGeography(peContent, geminiApiKey, _rateLimitConfig).then(r => {
           const validated = validateGeography(r);
@@ -585,16 +571,13 @@ Deno.serve(async (req) => {
       const allResults: PromiseSettledResult<ExtractionResult>[] = [];
       for (let b = 0; b < allTasks.length; b += BUYER_AI_CONCURRENCY) {
         const batch = allTasks.slice(b, b + BUYER_AI_CONCURRENCY);
-        console.log(`Running AI batch ${Math.floor(b / BUYER_AI_CONCURRENCY) + 1}/${Math.ceil(allTasks.length / BUYER_AI_CONCURRENCY)} (${batch.length} prompts)`);
         const batchResults = await Promise.allSettled(batch.map(fn => fn()));
         allResults.push(...batchResults);
       }
 
       processBatchResults(allResults);
-      console.log(`All prompts complete: ${promptsSuccessful}/${promptsRun} successful`);
     }
 
-    console.log(`Extraction complete: ${promptsSuccessful}/${promptsRun} prompts successful, ${Object.keys(allExtracted).length} fields extracted`);
 
     // Handle billing errors with partial save
     if (billingError) {
@@ -606,7 +589,6 @@ Deno.serve(async (req) => {
       }
 
       if (be.code === 'rate_limited' && fieldsExtracted > 0) {
-        console.log(`Partial enrichment saved despite rate limit: ${fieldsExtracted} fields for buyer ${buyerId}`);
         return new Response(
           JSON.stringify({
             success: true,
@@ -657,7 +639,6 @@ Deno.serve(async (req) => {
     }
 
     const fieldsUpdated = Object.keys(updateData).length - 2; // Exclude metadata fields
-    console.log(`Successfully enriched buyer ${buyerId}: ${fieldsUpdated} fields updated`);
 
     // Observability: log enrichment outcome (non-blocking)
     logEnrichmentEvent(supabase, {

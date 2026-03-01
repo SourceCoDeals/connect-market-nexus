@@ -109,7 +109,6 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    console.log("Sending deal reassignment notification to:", previousOwnerEmail);
 
     const result = await sendViaBervo({
       to: previousOwnerEmail,
@@ -122,7 +121,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(result.error || "Failed to send email");
     }
 
-    console.log("Deal reassignment notification sent successfully:", result.messageId);
 
     return new Response(
       JSON.stringify({

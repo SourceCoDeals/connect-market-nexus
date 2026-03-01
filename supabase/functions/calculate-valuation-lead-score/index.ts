@@ -363,7 +363,6 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[calculate-valuation-lead-score] Scoring ${leads.length} leads (mode: ${mode || "single"})`);
 
     let scored = 0;
     const errors: string[] = [];
@@ -390,7 +389,6 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[calculate-valuation-lead-score] Scored ${scored}/${leads.length}. Errors: ${errors.length}`);
 
     return new Response(
       JSON.stringify({

@@ -33,7 +33,6 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { action, password, user_id, email }: PasswordSecurityRequest = await req.json();
     
-    console.log(`Password security action: ${action} for user: ${user_id}`);
     
     let result: any;
     

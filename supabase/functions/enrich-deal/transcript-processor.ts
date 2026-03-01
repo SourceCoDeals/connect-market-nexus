@@ -114,7 +114,6 @@ export async function applyExistingTranscriptData(
         .filter(([k]) => NUMERIC_LISTING_FIELDS.has(k))
         .map(([k, v]) => [k, { value: v, type: typeof v }])
     );
-    console.log('[Transcripts] Numeric payload preview (post-sanitize):', numericPreview);
 
     const { error: applyExistingError } = await supabase
       .from('listings')
@@ -166,7 +165,6 @@ export async function processNewTranscripts(
       const match = textToCheck.match(firefliesLinkPattern);
       if (match) {
         const ffId = match[1];
-        console.log(`[Transcripts] Detected Fireflies URL in link transcript ${t.id}, extracted ID: ${ffId}`);
         const { error: convertErr } = await supabase
           .from('deal_transcripts')
           .update({
@@ -195,7 +193,6 @@ export async function processNewTranscripts(
     }
   );
   if (firefliesEmpty.length > 0) {
-    console.log(`[Transcripts] Fetching Fireflies content for ${firefliesEmpty.length} transcript(s)...`);
     for (const t of firefliesEmpty) {
       try {
         const { data: fetchResult, error: fetchErr } = await supabase.functions.invoke(
@@ -204,7 +201,6 @@ export async function processNewTranscripts(
         );
         if (!fetchErr && fetchResult?.content) {
           t.transcript_text = fetchResult.content;
-          console.log(`[Transcripts] Fetched ${fetchResult.content.length} chars for Fireflies transcript ${t.id}`);
         } else {
           console.warn(`[Transcripts] Failed to fetch Fireflies content for ${t.id}:`, fetchErr?.message || 'no content');
         }
@@ -222,17 +218,14 @@ export async function processNewTranscripts(
   const skipped = needsExtraction.length - validTranscripts.length;
 
   if (skipped > 0) {
-    console.log(`[Transcripts] Skipping ${skipped} transcripts with insufficient content (<100 chars)`);
   }
 
-  console.log(`[Transcripts] Processing ${validTranscripts.length} transcripts in batches...`);
 
   const failedTranscriptIds = validTranscripts
     .filter((t: any) => t.processed_at)
     .map((t: any) => t.id);
 
   if (failedTranscriptIds.length > 0) {
-    console.log(`[Transcripts] Resetting processed_at for ${failedTranscriptIds.length} previously-failed transcripts`);
     const { error: resetError } = await supabase
       .from('deal_transcripts')
       .update({ processed_at: null, extracted_data: null })
@@ -253,7 +246,6 @@ export async function processNewTranscripts(
 
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
           if (attempt > 0) {
-            console.log(`[Transcripts] Retrying transcript ${transcript.id} (attempt ${attempt + 1})`);
             await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
           }
 
@@ -318,7 +310,6 @@ export async function processNewTranscripts(
         if (fieldsUpdated?.length > 0) {
           allFieldNames.push(...fieldsUpdated);
         }
-        console.log(`[Transcripts] Successfully processed transcript ${transcript.id} (${fieldsUpdated?.length || 0} fields applied)`);
       } else {
         const errMsg = getErrorMessage(result.reason);
         console.error(`[Transcripts] Failed transcript ${transcript.id}:`, errMsg);

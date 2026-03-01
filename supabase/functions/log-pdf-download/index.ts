@@ -172,7 +172,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log(
       `PDF download logged: document ${document_id} -> ${buyer_email} by admin ${auth.userId} (release_log: ${releaseLog.id})`
     );
 

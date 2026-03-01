@@ -35,21 +35,18 @@ export async function enrichLinkedIn(
     const lastScraped = new Date(deal.linkedin_verified_at);
     const daysSinceLastScrape = (Date.now() - lastScraped.getTime()) / (1000 * 60 * 60 * 24);
     if (daysSinceLastScrape < LINKEDIN_COOLDOWN_DAYS) {
-      console.log(
         `Skipping LinkedIn enrichment for deal ${dealId}: ` +
           `last scraped ${Math.round(daysSinceLastScrape)} days ago ` +
           `(cooldown: ${LINKEDIN_COOLDOWN_DAYS} days, confidence: ${deal.linkedin_match_confidence})`,
       );
       return;
     }
-    console.log(
       `LinkedIn data is stale for deal ${dealId}: ` +
         `last scraped ${Math.round(daysSinceLastScrape)} days ago — re-scraping`,
     );
   }
 
   try {
-    console.log(`Attempting LinkedIn enrichment for: ${linkedinUrl || companyName}`);
 
     const linkedinResponse = await fetch(`${supabaseUrl}/functions/v1/apify-linkedin-scrape`, {
       method: 'POST',
@@ -73,7 +70,6 @@ export async function enrichLinkedIn(
     if (linkedinResponse.ok) {
       const linkedinData = await linkedinResponse.json();
       if (linkedinData.success && linkedinData.scraped) {
-        console.log('LinkedIn data retrieved:', linkedinData);
         if (linkedinData.linkedin_employee_count) {
           extracted.linkedin_employee_count = linkedinData.linkedin_employee_count;
         }
@@ -84,7 +80,6 @@ export async function enrichLinkedIn(
           extracted.linkedin_url = linkedinData.linkedin_url;
         }
       } else {
-        console.log('LinkedIn scrape returned no data:', linkedinData.error || 'No company found');
       }
     } else {
       console.warn('LinkedIn scrape failed:', linkedinResponse.status);
@@ -121,7 +116,6 @@ export async function enrichGoogleReviews(
   if (!googleSearchName || deal.google_review_count) return;
 
   try {
-    console.log(`Attempting Google reviews enrichment for: ${googleSearchName}`);
 
     const googleResponse = await fetch(`${supabaseUrl}/functions/v1/apify-google-reviews`, {
       method: 'POST',
@@ -143,9 +137,7 @@ export async function enrichGoogleReviews(
     if (googleResponse.ok) {
       const googleData = await googleResponse.json();
       if (googleData.success && googleData.scraped) {
-        console.log('Google reviews data retrieved:', googleData);
       } else {
-        console.log(
           'Google reviews scrape returned no data:',
           googleData.error || 'No business found',
         );

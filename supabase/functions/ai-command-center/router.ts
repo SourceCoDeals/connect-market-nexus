@@ -1154,7 +1154,6 @@ export async function routeIntent(query: string, pageContext?: PageContext): Pro
   const ctx: PageContext = pageContext || {};
   for (const rule of BYPASS_RULES) {
     if (rule.test(query, ctx)) {
-      console.log(
         `[ai-cc] Router bypassed → ${rule.result.category} (confidence: ${rule.result.confidence})`,
       );
 

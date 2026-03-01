@@ -279,7 +279,6 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Syncing Fireflies transcripts for [${validEmails.join(', ')}] on deal ${listingId}`);
 
     // === Phase 1: Email-based participant search ===
     const matchingTranscripts: any[] = [];
@@ -299,7 +298,6 @@ serve(async (req) => {
           transcriptMatchType.set(t.id, 'email');
         }
       }
-      console.log(`Combined participant search returned ${combinedResults.length} transcripts`);
 
       // Also search each email individually to catch transcripts the combined search misses
       // (Fireflies may use AND logic for the participants array filter)
@@ -312,7 +310,6 @@ serve(async (req) => {
             transcriptMatchType.set(t.id, 'email');
           }
         }
-        console.log(`Individual search [${email}] added ${individualResults.filter(t => !seenIds.has(t.id)).length} new transcripts`);
       }
 
       // Also search each email as a keyword (catches organizer-only matches)
@@ -337,7 +334,6 @@ serve(async (req) => {
         }
       }
 
-      console.log(`Total participant search returned ${matchingTranscripts.length} unique transcripts`);
     }
 
     // Deduplicate
@@ -352,7 +348,6 @@ serve(async (req) => {
     const emailResultsWithContent = uniqueTranscripts.filter(t => transcriptHasContent(t));
 
     if (emailResultsWithContent.length === 0 && companyName && companyName.trim().length >= 3) {
-      console.log(`No email results with content, running fallback for "${companyName}"`);
 
       let skip = 0;
       const batchSize = 50;
@@ -378,10 +373,8 @@ serve(async (req) => {
         skip += batchSize;
       }
 
-      console.log(`Fallback search added ${uniqueTranscripts.length - emailResultsWithContent.length} transcripts`);
     }
 
-    console.log(`Found ${uniqueTranscripts.length} unique Fireflies transcripts total`);
 
     if (uniqueTranscripts.length === 0) {
       return new Response(
@@ -416,7 +409,6 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existing) {
-          console.log(`Transcript ${transcript.id} already linked, skipping`);
           skipped++;
           continue;
         }
@@ -478,7 +470,6 @@ serve(async (req) => {
           errors.push(`${transcript.id}: ${insertError.message}`);
           skipped++;
         } else {
-          console.log(`Linked transcript ${transcript.id}: ${transcript.title} (has_content=${hasContent}, match_type=${matchType})`);
           linked++;
         }
       } catch (err) {
@@ -499,7 +490,6 @@ serve(async (req) => {
       errors: errors.length > 0 ? errors : undefined,
     };
 
-    console.log("Sync complete:", response);
 
     return new Response(
       JSON.stringify(response),

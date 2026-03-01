@@ -180,7 +180,6 @@ const handler = async (req: Request): Promise<Response> => {
     const loginUrl = 'https://marketplace.sourcecodeals.com/my-requests';
     const correlationId = `admin-message-${connection_request_id}-${Date.now()}`;
 
-    console.log(
       '[notify-buyer-new-message] Sending notification to:',
       buyer.email,
       'for deal:',
@@ -217,7 +216,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(result.error || 'Failed to send message notification email');
     }
 
-    console.log('[notify-buyer-new-message] Email sent successfully:', result.messageId);
 
     return new Response(
       JSON.stringify({

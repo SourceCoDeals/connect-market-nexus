@@ -143,7 +143,6 @@ serve(async (req) => {
         : `Removed ${totalCleaned} CapTarget deals that were PE/VC/advisory firms`,
     };
 
-    console.log("Cleanup complete:", JSON.stringify(result));
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

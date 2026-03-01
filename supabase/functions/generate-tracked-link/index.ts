@@ -206,7 +206,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log(
       `Tracked link created: ${trackedLink.id} for document ${document_id} -> ${buyer_email} by admin ${auth.userId}`
     );
 

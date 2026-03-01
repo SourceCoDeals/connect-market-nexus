@@ -383,7 +383,6 @@ serve(async (req) => {
       }
 
       if (tabRows.length < 2) {
-        console.log(`Tab "${tab.name}" has no data rows, skipping`);
         continue;
       }
 
@@ -398,20 +397,17 @@ serve(async (req) => {
         const matchCount = knownHeaders.filter(h => normalizedCells.some(cell => cell.includes(h))).length;
         if (matchCount >= 3) {
           headerRowIndex = r;
-          console.log(`Tab "${tab.name}": found header at row ${r} (matched ${matchCount} known headers)`);
           break;
         }
         // Fallback: if a row has 5+ non-empty cells and isn't just a "Last Updated" row, treat it as header
         const nonEmpty = normalizedCells.filter(c => c.length > 0).length;
         if (nonEmpty >= 5 && !normalizedCells[0].startsWith("last updated")) {
           headerRowIndex = r;
-          console.log(`Tab "${tab.name}": using row ${r} as header (${nonEmpty} non-empty cells)`);
           break;
         }
       }
 
       const headerRow = tabRows[headerRowIndex];
-      console.log(`Tab "${tab.name}" headers (row ${headerRowIndex}, ${headerRow.length} cols): ${headerRow.slice(0, 15).join(' | ')}`);
 
       const allRows = tabRows.slice(headerRowIndex + 1);
       let filteredByMeta = 0;
@@ -423,14 +419,12 @@ serve(async (req) => {
         if (!rowHasData(row)) { filteredByData++; return false; }
         return true;
       });
-      console.log(`Tab "${tab.name}": ${allRows.length} total, ${filteredByMeta} meta-filtered, ${filteredByData} empty-filtered, ${dataRows.length} usable`);
 
       const rowOffset = tabIdx === startTab ? startRow : 0;
       const rowsThisTab = dataRows.length - rowOffset;
       if (rowsThisTab <= 0) continue;
 
       rowsRead += rowsThisTab;
-      console.log(`Tab "${tab.name}": ${tabRows.length} total → ${dataRows.length} data rows (filtered: ${filteredByMeta} meta/empty-col0, ${filteredByData} no-data). Processing ${rowsThisTab} from offset ${rowOffset}.`);
 
       for (let i = rowOffset; i < dataRows.length; i += BATCH_SIZE) {
         // Timeout check BEFORE processing the next batch
@@ -637,7 +631,6 @@ serve(async (req) => {
           exclusionsToLog = [];
         }
 
-        console.log(`Batch at row ${i}: +${rowsInserted} inserted, ~${toUpdate.length} updated, ${rowsExcluded} excluded`);
       }
 
       if (hasMore) break;
@@ -686,7 +679,6 @@ serve(async (req) => {
     nextRow,
   };
 
-  console.log("Sync complete:", JSON.stringify(result));
 
   return new Response(JSON.stringify(result), {
     status: syncStatus === "failed" ? 500 : 200,

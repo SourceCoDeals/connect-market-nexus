@@ -41,13 +41,11 @@ export function resolveWebsiteUrl(deal: any): string | null {
 
   // Reject email addresses stored in website field
   if (websiteUrl && websiteUrl.includes('@')) {
-    console.log(`[Website] Rejecting email address in website field: "${websiteUrl}"`);
     websiteUrl = null;
   }
 
   // Reject placeholder values
   if (websiteUrl && WEBSITE_PLACEHOLDERS.includes(websiteUrl.trim().toLowerCase())) {
-    console.log(`[Website] Rejecting placeholder website value: "${websiteUrl}"`);
     websiteUrl = null;
   }
 
@@ -72,13 +70,11 @@ export function resolveWebsiteUrl(deal: any): string | null {
   if (websiteUrl.includes(',')) {
     const urls = websiteUrl.split(',').map((u: string) => u.trim()).filter(Boolean);
     websiteUrl = urls[0];
-    console.log(`Multiple URLs detected, using first: "${websiteUrl}" (from ${urls.length} URLs)`);
   }
 
   // Normalize malformed protocols (e.g. "htpps://", "htp://") before the prefix check
   websiteUrl = websiteUrl.replace(/^[a-z]{3,6}:\/\//i, (match: string) => {
     if (match === 'http://' || match === 'https://') return match;
-    console.log(`[Website] Normalizing malformed protocol "${match}" → "https://"`);
     return 'https://';
   });
 
@@ -210,7 +206,6 @@ export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string)
 }> {
   const scrapedPages: ScrapeResult[] = [];
 
-  console.log(`Scraping homepage: ${websiteUrl}`);
   const homepageResult = await scrapePage(websiteUrl, firecrawlApiKey);
   scrapedPages.push(homepageResult);
 
@@ -218,7 +213,6 @@ export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string)
   if (homepageResult.success && homepageResult.content.length > 50) {
     const subpageUrls = extractSubpageUrls(homepageResult.content, websiteUrl);
     if (subpageUrls.length > 0) {
-      console.log(`Found ${subpageUrls.length} high-value subpages to scrape: ${subpageUrls.join(', ')}`);
       const subpageResults = await Promise.allSettled(
         subpageUrls.map(url => {
           // Use a shorter timeout for subpages
@@ -233,12 +227,10 @@ export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string)
         }
       }
     } else {
-      console.log('No high-value subpage links found on homepage');
     }
   }
 
   const successfulScrapes = scrapedPages.filter(p => p.success);
-  console.log(`Successfully scraped ${successfulScrapes.length} of ${scrapedPages.length} pages`);
 
   let websiteContent = '';
   for (const page of scrapedPages) {
@@ -253,7 +245,6 @@ export async function scrapeWebsite(websiteUrl: string, firecrawlApiKey: string)
     success: p.success,
     chars: p.content.length
   }));
-  console.log('Scrape summary:', JSON.stringify(scrapedPagesSummary));
 
   return { scrapedPages, successfulScrapes, websiteContent };
 }

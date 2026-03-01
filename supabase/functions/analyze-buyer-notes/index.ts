@@ -151,14 +151,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Analyzing notes for buyer ${buyerId}, length: ${notes.length}`);
 
     // Step 1: Pre-extraction with regex
     const regexExtracted = extractWithRegex(notes);
     const geographyFromNotes = extractStatesFromText(notes);
 
-    console.log('Regex pre-extraction:', regexExtracted);
-    console.log('Geography from notes:', geographyFromNotes);
 
     // Step 2: AI extraction for complex fields
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
@@ -432,7 +429,6 @@ Extract the relevant information using the provided tool. Be comprehensive - ext
     }
 
     const fieldsUpdated = Object.keys(updates);
-    console.log(`Updated ${fieldsUpdated.length} fields from notes:`, fieldsUpdated);
 
     return new Response(
       JSON.stringify({

@@ -48,7 +48,6 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const data: OwnerInquiryNotification = await req.json();
     
-    console.log("Sending owner inquiry notification for:", data.companyName);
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
@@ -165,7 +164,6 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const responseData = await emailResponse.json();
-    console.log("Owner inquiry notification sent successfully:", responseData.messageId);
 
     await logEmailDelivery(supabase, {
       email: recipientEmail,

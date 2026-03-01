@@ -153,7 +153,6 @@ serve(async (req: Request) => {
             }
           }
 
-          console.log(`🔧 Self-healed: NDA for firm ${firmId} marked as signed (DocuSeal says completed)`);
 
           return new Response(
             JSON.stringify({ ndaSigned: true, embedSrc: null }),
@@ -217,7 +216,6 @@ serve(async (req: Request) => {
             }
           }
 
-          console.log(`🔧 Self-healed: NDA for firm ${firmId} marked as signed (DocuSeal says completed)`);
 
           return new Response(
             JSON.stringify({ ndaSigned: true, embedSrc: null }),
@@ -302,7 +300,6 @@ serve(async (req: Request) => {
       raw_payload: { created_by_buyer: userId },
     });
 
-    console.log(`✅ Created NDA submission ${submissionId} for buyer ${userId}`);
 
     return new Response(
       JSON.stringify({ ndaSigned: false, embedSrc }),

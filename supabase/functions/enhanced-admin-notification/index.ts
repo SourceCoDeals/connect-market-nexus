@@ -51,7 +51,6 @@ const handler = async (req: Request): Promise<Response> => {
     // N08 FIX: Use env var for admin notification email instead of hardcoded address
     const adminEmail = Deno.env.get('ADMIN_NOTIFICATION_EMAIL') || 'admin@sourcecoconnect.com';
 
-    console.log(`Sending admin notification for new user: ${email}`);
 
     // Enhanced retry logic for email delivery
     let emailSent = false;
@@ -70,7 +69,6 @@ const handler = async (req: Request): Promise<Response> => {
           if (provider === 'resend') {
             const resendApiKey = Deno.env.get("RESEND_API_KEY");
             if (!resendApiKey) {
-              console.log("Resend API key not found, trying next provider");
               break;
             }
             
@@ -113,7 +111,6 @@ const handler = async (req: Request): Promise<Response> => {
           } else if (provider === 'brevo') {
             const brevoApiKey = Deno.env.get("BREVO_API_KEY");
             if (!brevoApiKey) {
-              console.log("Brevo API key not found, trying next provider");
               break;
             }
             
@@ -159,7 +156,6 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           if (response && response.ok) {
-            console.log(`Admin notification sent successfully via ${provider}`);
             emailSent = true;
             break;
           } else {

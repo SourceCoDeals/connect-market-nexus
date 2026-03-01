@@ -138,7 +138,6 @@ export async function recoverStaleOperations(
           error_log: log,
         })
         .eq('id', item.id);
-      console.log(`[global-activity-queue] Auto-failed stale operation: ${item.operation_type} (${item.id})`);
     }
 
     // After clearing stale ops, drain any queued work
@@ -177,7 +176,6 @@ export async function completeGlobalQueueOperation(
 
     if (!completed) return;
 
-    console.log(`[global-activity-queue] Marked ${operationType} as ${finalStatus}`);
 
     // DRAIN: Check if there's a queued major operation to auto-start
     await drainNextQueuedOperation(supabase);
@@ -224,7 +222,6 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
     .maybeSingle();
 
   if (!nextOp) {
-    console.log('[global-activity-queue] No queued operations to drain');
     return;
   }
 
@@ -237,7 +234,6 @@ async function drainNextQueuedOperation(supabase: SupabaseClient): Promise<void>
     })
     .eq('id', nextOp.id);
 
-  console.log(`[global-activity-queue] Auto-started queued operation: ${nextOp.operation_type} (${nextOp.id})`);
 
   // Try to invoke the appropriate processor edge function to kick it off immediately
   // SECURITY: Use service role key for internal function-to-function calls

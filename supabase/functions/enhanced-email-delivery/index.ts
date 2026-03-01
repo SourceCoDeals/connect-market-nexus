@@ -38,7 +38,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { to, subject, content, email_type, correlation_id, metadata }: EmailRequest = await req.json();
 
-    console.log('Enhanced Email Delivery Request:', {
       to,
       subject,
       email_type,
@@ -63,7 +62,6 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Failed to log email delivery: ${logError.message}`);
     }
 
-    console.log('Email delivery logged with ID:', logData.id);
 
     // Send via Brevo using shared sender
     const result = await sendViaBervo({
@@ -86,7 +84,6 @@ const handler = async (req: Request): Promise<Response> => {
         })
         .eq('id', logData.id);
 
-      console.log('Email delivered successfully via Brevo');
     } else {
       // Update delivery status to failed
       await supabase
