@@ -105,58 +105,69 @@ CRITICAL RULES:
 You must respond with valid JSON only. No markdown, no code fences, no explanatory text outside the JSON.`;
 }
 
-function buildUserPrompt(deal: {
-  industry: string | null;
-  category: string | null;
-  categories: string[] | null;
-  ebitda: number | null;
-  address_state: string | null;
-  geographic_states: string[] | null;
-  title: string | null;
-  business_description: string | null;
-}, maxBuyers: number): string {
-  const ebitdaStr = deal.ebitda
-    ? `$${(deal.ebitda / 1_000_000).toFixed(1)}M`
-    : 'Unknown';
+function buildUserPrompt(deal: Record<string, unknown>, maxBuyers: number): string {
+  const ebitdaNum = deal.ebitda as number | null;
+  const ebitdaStr = ebitdaNum
+    ? `$${(ebitdaNum / 1_000_000).toFixed(1)}M`
+    : 'Not disclosed';
 
-  const categories = deal.categories?.length
-    ? deal.categories.join(', ')
-    : deal.category || 'Not specified';
+  const cats = (deal.categories as string[] | null)?.length
+    ? (deal.categories as string[]).join(', ')
+    : (deal.category as string) || 'Not specified';
 
-  const geoStates = deal.geographic_states?.length
-    ? deal.geographic_states.join(', ')
-    : deal.address_state || 'Not specified';
+  const geoStates = (deal.geographic_states as string[] | null)?.length
+    ? (deal.geographic_states as string[]).join(', ')
+    : (deal.address_state as string) || 'Not specified';
 
-  return `Find up to ${maxBuyers} potential acquirers for this deal:
+  // Use the richest available description field — in order of preference
+  const description =
+    (deal.executive_summary as string) ||
+    (deal.description as string) ||
+    (deal.hero_description as string) ||
+    'No description available';
 
-DEAL PROFILE:
-- Industry: ${deal.industry || 'Not specified'}
-- Service Categories: ${categories}
-- EBITDA: ${ebitdaStr}
-- Location: ${deal.address_state || 'Not specified'}
-- Geographic Coverage: ${geoStates}
-${deal.title ? `- Title: ${deal.title}` : ''}
-${deal.business_description ? `- Description: ${deal.business_description}` : ''}
+  const thesis = (deal.investment_thesis as string) || '';
+  const endMarket = (deal.end_market_description as string) || '';
+  const bizModel = (deal.business_model as string) || (deal.revenue_model as string) || '';
+  const ownerGoals = (deal.owner_goals as string) || (deal.seller_motivation as string) || '';
 
-Return a JSON array of buyers. Each buyer object must have these exact fields:
+  return `Find up to ${maxBuyers} potential acquirers for this business.
+
+DEAL OVERVIEW:
+Title: ${(deal.title as string) || 'Not provided'}
+Industry: ${(deal.industry as string) || 'Not specified'}
+Service Categories: ${cats}
+EBITDA: ${ebitdaStr}
+Headquarters: ${(deal.address_state as string) || 'Not specified'}
+Geographic Coverage: ${geoStates}
+
+BUSINESS DESCRIPTION:
+${description}
+
+${thesis ? `INVESTMENT THESIS:\n${thesis}\n` : ''}
+${endMarket ? `END MARKET / CUSTOMERS:\n${endMarket}\n` : ''}
+${bizModel ? `BUSINESS MODEL:\n${bizModel}\n` : ''}
+${ownerGoals ? `SELLER GOALS:\n${ownerGoals}\n` : ''}
+
+Return a JSON array of up to ${maxBuyers} buyers. Each object must have:
 {
-  "company_name": "string (exact legal/common name)",
-  "company_website": "string or null",
+  "company_name": "exact legal/common name",
+  "company_website": "url or null",
   "buyer_type": "pe_firm" | "platform" | "strategic" | "family_office",
-  "pe_firm_name": "string or null (if this is a platform, name the PE sponsor)",
-  "hq_city": "string or null",
-  "hq_state": "string (2-letter state code) or null",
-  "thesis_summary": "string (their acquisition thesis in 1-2 sentences)",
-  "why_relevant": "string (why specifically good for THIS deal)",
-  "target_services": ["array of service types they target"],
-  "target_industries": ["array of industries they invest in"],
-  "target_geographies": ["array of states/regions they cover"],
-  "known_acquisitions": ["array of recent acquisition names if known"],
-  "estimated_ebitda_min": number or null (minimum EBITDA they target, in dollars),
-  "estimated_ebitda_max": number or null (maximum EBITDA they target, in dollars)
+  "pe_firm_name": "PE sponsor name or null",
+  "hq_city": "city or null",
+  "hq_state": "2-letter state code or null",
+  "thesis_summary": "their acquisition thesis in 1-2 sentences",
+  "why_relevant": "why specifically fit for THIS deal — be concrete, reference deal details",
+  "target_services": ["service types they acquire"],
+  "target_industries": ["industries they invest in"],
+  "target_geographies": ["states or regions they cover"],
+  "known_acquisitions": ["recent acquisition names if known"],
+  "estimated_ebitda_min": number or null,
+  "estimated_ebitda_max": number or null
 }
 
-Return ONLY the JSON array. No other text.`;
+Return ONLY the JSON array. No markdown, no explanation.`;
 }
 
 function parseClaudeResponse(responseText: string): AISuggestedBuyer[] {
@@ -249,7 +260,12 @@ Deno.serve(async (req: Request) => {
     // ── Fetch deal ──
     const { data: deal, error: dealError } = await supabase
       .from('listings')
-      .select('id, title, industry, category, categories, ebitda, address_state, geographic_states, business_description')
+      .select(
+        'id, title, industry, category, categories, ebitda, address_state,' +
+        'geographic_states, executive_summary, description, hero_description,' +
+        'investment_thesis, end_market_description, business_model, revenue_model,' +
+        'customer_types, growth_trajectory, owner_goals, seller_motivation, transition_preferences'
+      )
       .eq('id', listingId)
       .single();
 

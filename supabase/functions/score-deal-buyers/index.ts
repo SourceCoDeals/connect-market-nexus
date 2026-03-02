@@ -13,6 +13,7 @@ interface BuyerScore {
   buyer_id: string;
   company_name: string;
   pe_firm_name: string | null;
+  pe_firm_id: string | null;
   buyer_type: string | null;
   hq_state: string | null;
   hq_city: string | null;
@@ -24,8 +25,9 @@ interface BuyerScore {
   size_score: number;
   bonus_score: number;
   fit_signals: string[];
+  fit_reason: string;
   tier: 'move_now' | 'strong' | 'speculative';
-  source: 'scored';
+  source: 'ai_seeded' | 'marketplace' | 'scored';
 }
 
 // ── Scoring weights (v1 — hardcoded) ──
@@ -96,6 +98,48 @@ const STATE_REGIONS: Record<string, string> = {
   WY: 'west',
 };
 
+// ── Sector synonym expansion for semantic matching ──
+
+const SECTOR_SYNONYMS: Record<string, string[]> = {
+  // Utilities / Infrastructure
+  'utility':             ['utilities', 'utility services', 'infrastructure', 'field services', 'municipal services'],
+  'utility services':    ['utility', 'utilities', 'infrastructure services', 'outsourced utility', 'municipal'],
+  'metering':            ['amr', 'ami', 'smart meter', 'meter reading', 'utility services', 'field services'],
+  'infrastructure':      ['utility', 'field services', 'municipal', 'outsourced services'],
+  // Home Services
+  'hvac':                ['mechanical', 'climate control', 'building services', 'home services', 'facilities'],
+  'plumbing':            ['home services', 'mechanical services', 'building services', 'facilities'],
+  'roofing':             ['restoration', 'exterior services', 'home services', 'construction'],
+  'collision':           ['auto body', 'automotive', 'paint and body', 'auto repair'],
+  // Healthcare
+  'dental':              ['healthcare', 'clinical services', 'practice management'],
+  'behavioral health':   ['mental health', 'healthcare', 'clinical', 'therapy'],
+  // Other
+  'landscaping':         ['grounds maintenance', 'outdoor services', 'facility services'],
+  'pest control':        ['environmental services', 'facility services', 'home services'],
+};
+
+function expandTerms(terms: string[]): string[] {
+  const expanded = new Set(terms.map(t => t.toLowerCase()));
+  for (const t of terms) {
+    const synonyms = SECTOR_SYNONYMS[t.toLowerCase()] || [];
+    for (const s of synonyms) expanded.add(s.toLowerCase());
+  }
+  return [...expanded];
+}
+
+// ── Helper: extract keywords from rich text fields ──
+
+function extractDealKeywords(deal: Record<string, unknown>): string[] {
+  const richText = [
+    deal.executive_summary, deal.description, deal.hero_description,
+    deal.investment_thesis, deal.end_market_description,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  const knownTerms = Object.keys(SECTOR_SYNONYMS);
+  return knownTerms.filter(term => richText.includes(term));
+}
+
 // ── Helper: normalize strings for comparison ──
 
 function norm(s: string | null | undefined): string {
@@ -116,12 +160,16 @@ function scoreService(
   buyerIndustries: string[],
   buyerIndustryVertical: string,
 ): { score: number; signals: string[] } {
-  const dealTerms = [...dealCategories, dealIndustry].filter(Boolean);
-  const buyerTerms = [...buyerServices, ...buyerIndustries, buyerIndustryVertical].filter(Boolean);
+  const rawDealTerms = [...dealCategories, dealIndustry].filter(Boolean);
+  const rawBuyerTerms = [...buyerServices, ...buyerIndustries, buyerIndustryVertical].filter(Boolean);
 
-  if (dealTerms.length === 0 || buyerTerms.length === 0) {
+  if (rawDealTerms.length === 0 || rawBuyerTerms.length === 0) {
     return { score: 30, signals: [] }; // Partial data — baseline
   }
+
+  // Expand terms through synonyms for semantic matching
+  const dealTerms = expandTerms(rawDealTerms);
+  const buyerTerms = expandTerms(rawBuyerTerms);
 
   let bestMatch = 0;
   let bestSignal = '';
@@ -356,7 +404,12 @@ Deno.serve(async (req: Request) => {
     // ── Fetch deal ──
     const { data: deal, error: dealError } = await supabase
       .from('listings')
-      .select('id, industry, category, categories, ebitda, address_state, geographic_states')
+      .select(
+        'id, title, industry, category, categories, ebitda, address_state, geographic_states,' +
+        'executive_summary, description, hero_description, investment_thesis,' +
+        'end_market_description, business_model, revenue_model, customer_types,' +
+        'owner_goals, seller_motivation, transition_preferences'
+      )
       .eq('id', listingId)
       .single();
 
@@ -371,11 +424,12 @@ Deno.serve(async (req: Request) => {
     const { data: buyers, error: buyerError } = await supabase
       .from('remarketing_buyers')
       .select(
-        'id, company_name, pe_firm_name, buyer_type, hq_state, hq_city, ' +
+        'id, company_name, pe_firm_name, pe_firm_id, buyer_type, hq_state, hq_city, ' +
           'target_services, target_industries, industry_vertical, ' +
           'target_geographies, geographic_footprint, ' +
           'target_ebitda_min, target_ebitda_max, ' +
-          'has_fee_agreement, acquisition_appetite, total_acquisitions',
+          'has_fee_agreement, acquisition_appetite, total_acquisitions, ' +
+          'thesis_summary, ai_seeded, ai_seeded_from_deal_id, marketplace_firm_id',
       )
       .eq('archived', false);
 
@@ -398,8 +452,23 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ── Fetch deal-specific why_relevant from seed log ──
+    const { data: seedLogRows } = await supabase
+      .from('buyer_seed_log')
+      .select('remarketing_buyer_id, why_relevant, known_acquisitions')
+      .eq('source_deal_id', listingId);
+
+    const seedLogMap = new Map<string, string>();
+    for (const row of (seedLogRows || [])) {
+      if (row.why_relevant) seedLogMap.set(row.remarketing_buyer_id, row.why_relevant);
+    }
+
     // ── Normalize deal fields ──
-    const dealCategories = normArray(deal.categories || (deal.category ? [deal.category] : []));
+    const richKeywords = extractDealKeywords(deal);
+    const dealCategories = normArray([
+      ...(deal.categories || (deal.category ? [deal.category] : [])),
+      ...richKeywords,
+    ]);
     const dealIndustry = norm(deal.industry);
     const dealState = norm(deal.address_state);
     const dealGeoStates = normArray(deal.geographic_states);
@@ -437,10 +506,24 @@ Deno.serve(async (req: Request) => {
       const fitSignals = [...svc.signals, ...geo.signals, ...size.signals, ...bonus.signals];
       const tier = classifyTier(composite, !!buyer.has_fee_agreement, buyer.acquisition_appetite);
 
+      // Derive source from buyer origin
+      const source: BuyerScore['source'] = buyer.ai_seeded
+        ? 'ai_seeded'
+        : buyer.marketplace_firm_id
+          ? 'marketplace'
+          : 'scored';
+
+      // Build fit_reason from seed log (best), thesis_summary (fallback), or signals
+      const fit_reason = seedLogMap.get(buyer.id)
+        || (buyer.thesis_summary
+             ? `${buyer.thesis_summary.split('.')[0]}. ${fitSignals.slice(0, 2).join(', ')}.`
+             : fitSignals.slice(0, 2).join(' · ') || 'Potential industry fit');
+
       scored.push({
         buyer_id: buyer.id,
         company_name: buyer.company_name,
         pe_firm_name: buyer.pe_firm_name,
+        pe_firm_id: buyer.pe_firm_id || null,
         buyer_type: buyer.buyer_type,
         hq_state: buyer.hq_state,
         hq_city: buyer.hq_city,
@@ -452,8 +535,9 @@ Deno.serve(async (req: Request) => {
         size_score: size.score,
         bonus_score: bonus.score,
         fit_signals: fitSignals,
+        fit_reason,
         tier,
-        source: 'scored',
+        source,
       });
     }
 
