@@ -13,8 +13,6 @@ import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
 import {
   RefreshCw,
   Users,
-  ChevronLeft,
-  ChevronRight,
   AlertCircle,
   Zap,
   Star,
@@ -36,7 +34,7 @@ interface RecommendedBuyersPanelProps {
   listingId: string;
 }
 
-const PAGE_SIZE = 10;
+const MAX_BUYERS = 10;
 
 const TIER_CONFIG: Record<BuyerScore['tier'], { label: string; color: string; icon: typeof Zap }> = {
   move_now: { label: 'Move Now', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: Zap },
@@ -312,7 +310,6 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   const { data, isLoading, isError, error, refresh } = useNewRecommendedBuyers(listingId);
   const seedMutation = useSeedBuyers();
   const { createIntroduction } = useBuyerIntroductions(listingId);
-  const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [seedResults, setSeedResults] = useState<SeedBuyerResult[] | null>(null);
   const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
@@ -436,13 +433,9 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   }
 
   const allBuyers = data?.buyers || [];
-  const buyers = allBuyers.filter(
-    b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id)
-  );
-  const totalPages = Math.ceil(buyers.length / PAGE_SIZE);
-  // Clamp page to valid range when filtering shrinks the list
-  const clampedPage = totalPages > 0 ? Math.min(page, totalPages - 1) : 0;
-  const paginatedBuyers = buyers.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
+  const buyers = allBuyers
+    .filter(b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id))
+    .slice(0, MAX_BUYERS);
 
   return (
     <Card>
@@ -451,11 +444,11 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-4 w-4" />
             Recommended Buyers
-            {data?.total ? (
+            {buyers.length > 0 && (
               <Badge variant="secondary" className="text-xs ml-1">
-                {data.total}
+                Top {buyers.length}
               </Badge>
-            ) : null}
+            )}
           </CardTitle>
           {buyers.length > 0 && <TierSummary buyers={buyers} />}
         </div>
@@ -495,7 +488,7 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           </div>
         ) : (
           <div className="space-y-1.5">
-            {paginatedBuyers.map(buyer => (
+            {buyers.map(buyer => (
               <BuyerCard
                 key={buyer.buyer_id}
                 buyer={buyer}
@@ -504,35 +497,6 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
                 isAccepting={acceptingIds.has(buyer.buyer_id)}
               />
             ))}
-
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-2">
-                <p className="text-xs text-muted-foreground">
-                  Showing {clampedPage * PAGE_SIZE + 1}-{Math.min((clampedPage + 1) * PAGE_SIZE, buyers.length)} of {buyers.length}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setPage(p => p - 1)}
-                    disabled={clampedPage === 0}
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-                  <span className="text-xs px-2">{clampedPage + 1} / {totalPages}</span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setPage(p => p + 1)}
-                    disabled={clampedPage >= totalPages - 1}
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            )}
 
             {data?.cached && (
               <p className="text-[10px] text-muted-foreground text-right">
