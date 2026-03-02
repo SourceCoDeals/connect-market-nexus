@@ -27,6 +27,7 @@ interface SeedRequest {
   listingId: string;
   maxBuyers?: number;
   forceRefresh?: boolean;
+  buyerCategory?: 'sponsors' | 'operating_companies';
 }
 
 interface AISuggestedBuyer {
@@ -62,14 +63,15 @@ function buildCacheKey(deal: {
   categories: string[] | null;
   address_state: string | null;
   ebitda: number | null;
-}): string {
+}, buyerCategory?: string): string {
   const industry = (deal.industry || 'unknown').toLowerCase().trim();
   const cats = (deal.categories || []).sort().join(',').toLowerCase();
   const state = (deal.address_state || 'unknown').toLowerCase().trim();
   const ebitdaBucket = deal.ebitda
     ? Math.floor(deal.ebitda / 500_000) * 500_000
     : 0;
-  return `seed:${industry}:${cats}:${state}:${ebitdaBucket}`;
+  const catSuffix = buyerCategory ? `:${buyerCategory}` : '';
+  return `seed:${industry}:${cats}:${state}:${ebitdaBucket}${catSuffix}`;
 }
 
 function extractDomain(url: string | null): string | null {
@@ -110,7 +112,7 @@ CRITICAL RULES:
 You must respond with valid JSON only. No markdown, no code fences, no explanatory text outside the JSON.`;
 }
 
-function buildUserPrompt(deal: Record<string, unknown>, maxBuyers: number): string {
+function buildUserPrompt(deal: Record<string, unknown>, maxBuyers: number, buyerCategory?: string): string {
   const ebitdaNum = deal.ebitda as number | null;
   const ebitdaStr = ebitdaNum
     ? `$${(ebitdaNum / 1_000_000).toFixed(1)}M`
@@ -136,8 +138,15 @@ function buildUserPrompt(deal: Record<string, unknown>, maxBuyers: number): stri
   const bizModel = (deal.business_model as string) || (deal.revenue_model as string) || '';
   const ownerGoals = (deal.owner_goals as string) || (deal.seller_motivation as string) || '';
 
-  return `Find up to ${maxBuyers} potential acquirers for this business.
+  let categoryInstruction = '';
+  if (buyerCategory === 'sponsors') {
+    categoryInstruction = `\nIMPORTANT: ONLY return financial sponsors — PE firms, family offices, independent sponsors, and search funds. Do NOT include operating companies or strategic acquirers.\n`;
+  } else if (buyerCategory === 'operating_companies') {
+    categoryInstruction = `\nIMPORTANT: ONLY return operating companies and strategic acquirers that would be direct acquirers of this business. Do NOT include PE firms, financial sponsors, family offices, or investment funds. Focus on companies that operate in the same or adjacent industries and would acquire this business to expand their own operations.\n`;
+  }
 
+  return `Find up to ${maxBuyers} potential acquirers for this business.
+${categoryInstruction}
 DEAL OVERVIEW:
 Title: ${(deal.title as string) || 'Not provided'}
 Industry: ${(deal.industry as string) || 'Not specified'}
@@ -311,7 +320,7 @@ Deno.serve(async (req: Request) => {
     // ── End auth guard ──
 
     const body: SeedRequest = await req.json();
-    const { listingId, maxBuyers = 10, forceRefresh = false } = body;
+    const { listingId, maxBuyers = 10, forceRefresh = false, buyerCategory } = body;
 
     if (!listingId) {
       return new Response(
@@ -340,7 +349,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Check seed cache ──
-    const cacheKey = buildCacheKey(deal);
+    const cacheKey = buildCacheKey(deal, buyerCategory);
 
     if (!forceRefresh) {
       const { data: cached } = await supabase
@@ -404,7 +413,7 @@ Deno.serve(async (req: Request) => {
       maxTokens: 4096,
       systemPrompt: buildSystemPrompt(),
       messages: [
-        { role: 'user', content: buildUserPrompt(deal, cappedMax) },
+        { role: 'user', content: buildUserPrompt(deal, cappedMax, buyerCategory) },
       ],
       timeoutMs: 45000,
     });
