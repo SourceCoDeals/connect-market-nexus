@@ -17,7 +17,7 @@ export const getEffectiveWebsite = (listing: {
   internal_deal_memo_link?: string | null;
 }): string | null => {
   if (listing.website) return listing.website;
-  return extractWebsiteFromMemo(listing.internal_deal_memo_link);
+  return extractWebsiteFromMemo(listing.internal_deal_memo_link ?? null);
 };
 
 export const formatGeographyBadges = (states: string[] | null): string | null => {

@@ -1,18 +1,14 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { 
-  X, 
-  SlidersHorizontal,
-  Search
-} from "lucide-react";
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { X, SlidersHorizontal, Search } from 'lucide-react';
 
 export interface ScoreFiltersState {
   status: string;
@@ -33,7 +29,7 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'pending', label: 'Pending' },
   { value: 'approved', label: 'Approved' },
-  { value: 'passed', label: 'Passed' }
+  { value: 'passed', label: 'Passed' },
 ];
 
 const TIER_OPTIONS = [
@@ -42,7 +38,7 @@ const TIER_OPTIONS = [
   { value: 'B', label: 'Tier B (65-79)' },
   { value: 'C', label: 'Tier C (50-64)' },
   { value: 'D', label: 'Tier D (35-49)' },
-  { value: 'F', label: 'Tier F (<35)' }
+  { value: 'F', label: 'Tier F (<35)' },
 ];
 
 const BUYER_TYPE_OPTIONS = [
@@ -50,18 +46,18 @@ const BUYER_TYPE_OPTIONS = [
   { value: 'pe_firm', label: 'PE Firms' },
   { value: 'platform', label: 'Platforms' },
   { value: 'strategic', label: 'Strategic' },
-  { value: 'family_office', label: 'Family Office' }
+  { value: 'family_office', label: 'Family Office' },
 ];
 
 export const ScoreFilters = ({
   filters,
   onFiltersChange,
   totalCount,
-  filteredCount
+  filteredCount,
 }: ScoreFiltersProps) => {
-  const hasActiveFilters = 
-    filters.status !== 'all' || 
-    filters.tier !== 'all' || 
+  const hasActiveFilters =
+    filters.status !== 'all' ||
+    filters.tier !== 'all' ||
     filters.buyerType !== 'all' ||
     filters.minScore !== null ||
     filters.search !== '';
@@ -72,7 +68,7 @@ export const ScoreFilters = ({
       tier: 'all',
       minScore: null,
       buyerType: 'all',
-      search: ''
+      search: '',
     });
   };
 
@@ -91,8 +87,8 @@ export const ScoreFilters = ({
         </div>
 
         {/* Status Filter */}
-        <Select 
-          value={filters.status} 
+        <Select
+          value={filters.status}
           onValueChange={(value) => onFiltersChange({ ...filters, status: value })}
         >
           <SelectTrigger className="w-[140px]">
@@ -108,8 +104,8 @@ export const ScoreFilters = ({
         </Select>
 
         {/* Tier Filter */}
-        <Select 
-          value={filters.tier} 
+        <Select
+          value={filters.tier}
           onValueChange={(value) => onFiltersChange({ ...filters, tier: value })}
         >
           <SelectTrigger className="w-[140px]">
@@ -125,8 +121,8 @@ export const ScoreFilters = ({
         </Select>
 
         {/* Buyer Type Filter */}
-        <Select 
-          value={filters.buyerType} 
+        <Select
+          value={filters.buyerType}
           onValueChange={(value) => onFiltersChange({ ...filters, buyerType: value })}
         >
           <SelectTrigger className="w-[140px]">
@@ -143,8 +139,8 @@ export const ScoreFilters = ({
 
         {/* Clear Filters */}
         {hasActiveFilters && (
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="sm"
             onClick={clearFilters}
             className="text-muted-foreground"
@@ -165,27 +161,27 @@ export const ScoreFilters = ({
           <div className="flex gap-1.5">
             {filters.status !== 'all' && (
               <Badge variant="secondary" className="gap-1 text-xs">
-                {STATUS_OPTIONS.find(o => o.value === filters.status)?.label}
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                {STATUS_OPTIONS.find((o) => o.value === filters.status)?.label}
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => onFiltersChange({ ...filters, status: 'all' })}
                 />
               </Badge>
             )}
             {filters.tier !== 'all' && (
               <Badge variant="secondary" className="gap-1 text-xs">
-                {TIER_OPTIONS.find(o => o.value === filters.tier)?.label}
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                {TIER_OPTIONS.find((o) => o.value === filters.tier)?.label}
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => onFiltersChange({ ...filters, tier: 'all' })}
                 />
               </Badge>
             )}
             {filters.buyerType !== 'all' && (
               <Badge variant="secondary" className="gap-1 text-xs">
-                {BUYER_TYPE_OPTIONS.find(o => o.value === filters.buyerType)?.label}
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                {BUYER_TYPE_OPTIONS.find((o) => o.value === filters.buyerType)?.label}
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => onFiltersChange({ ...filters, buyerType: 'all' })}
                 />
               </Badge>
@@ -193,8 +189,8 @@ export const ScoreFilters = ({
             {filters.search && (
               <Badge variant="secondary" className="gap-1 text-xs">
                 "{filters.search}"
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => onFiltersChange({ ...filters, search: '' })}
                 />
               </Badge>
@@ -208,11 +204,10 @@ export const ScoreFilters = ({
 
 // Helper to filter scores based on filter state
 // eslint-disable-next-line react-refresh/only-export-components
-export const filterScores = (
-  scores: unknown[],
-  filters: ScoreFiltersState
-): unknown[] => {
-  return scores.filter(score => {
+export const filterScores = (scores: unknown[], filters: ScoreFiltersState): unknown[] => {
+  return scores.filter((_score) => {
+    const score = _score as Record<string, unknown>;
+    const buyer = score.buyer as Record<string, unknown> | undefined;
     // Status filter
     if (filters.status !== 'all' && score.status !== filters.status) {
       return false;
@@ -224,20 +219,20 @@ export const filterScores = (
     }
 
     // Buyer type filter
-    if (filters.buyerType !== 'all' && score.buyer?.buyer_type !== filters.buyerType) {
+    if (filters.buyerType !== 'all' && buyer?.buyer_type !== filters.buyerType) {
       return false;
     }
 
     // Min score filter
-    if (filters.minScore !== null && (score.composite_score || 0) < filters.minScore) {
+    if (filters.minScore !== null && ((score.composite_score as number) || 0) < filters.minScore) {
       return false;
     }
 
     // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      const companyName = (score.buyer?.company_name || '').toLowerCase();
-      const thesis = (score.buyer?.thesis_summary || '').toLowerCase();
+      const companyName = ((buyer?.company_name as string) || '').toLowerCase();
+      const thesis = ((buyer?.thesis_summary as string) || '').toLowerCase();
       if (!companyName.includes(searchLower) && !thesis.includes(searchLower)) {
         return false;
       }

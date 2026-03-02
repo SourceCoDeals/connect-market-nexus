@@ -18,11 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { startOfToday } from 'date-fns';
@@ -31,7 +27,7 @@ import { CreateDealFormData } from './schema';
 
 interface AdditionalDetailsSectionProps {
   form: UseFormReturn<CreateDealFormData>;
-  adminUsers: unknown[];
+  adminUsers: { id: string; first_name: string; last_name: string }[];
 }
 
 export function AdditionalDetailsSection({ form, adminUsers }: AdditionalDetailsSectionProps) {
@@ -53,7 +49,9 @@ export function AdditionalDetailsSection({ form, adminUsers }: AdditionalDetails
                   max="100"
                   placeholder="Auto-set by stage"
                   {...field}
-                  onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                  onChange={(e) =>
+                    field.onChange(e.target.value ? parseInt(e.target.value) : undefined)
+                  }
                   value={field.value ?? ''}
                 />
               </FormControl>
@@ -78,14 +76,10 @@ export function AdditionalDetailsSection({ form, adminUsers }: AdditionalDetails
                       variant="outline"
                       className={cn(
                         'w-full pl-3 text-left font-normal',
-                        !field.value && 'text-muted-foreground'
+                        !field.value && 'text-muted-foreground',
                       )}
                     >
-                      {field.value ? (
-                        format(field.value, 'PPP')
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
+                      {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>

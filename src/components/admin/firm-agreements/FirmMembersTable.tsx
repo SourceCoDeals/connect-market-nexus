@@ -161,9 +161,9 @@ function MemberRow({ member }: { member: FirmMember }) {
                         (deal: {
                           id: string;
                           title: string;
-                          created_at: string;
-                          value?: number;
-                          stage?: string;
+                          created_at: string | null;
+                          value?: number | null;
+                          stage?: { name: string; color: string | null };
                         }) => (
                           <div
                             key={deal.id}
@@ -174,7 +174,11 @@ function MemberRow({ member }: { member: FirmMember }) {
                                 {deal.title}
                               </div>
                               <div className="flex items-center gap-2 text-xs text-slate-600 mt-0.5">
-                                <span>{format(new Date(deal.created_at), 'MMM d, yyyy')}</span>
+                                <span>
+                                  {deal.created_at
+                                    ? format(new Date(deal.created_at), 'MMM d, yyyy')
+                                    : 'N/A'}
+                                </span>
                                 {deal.value && (
                                   <>
                                     <span>•</span>
@@ -188,11 +192,11 @@ function MemberRow({ member }: { member: FirmMember }) {
                             {deal.stage && (
                               <span
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)] text-[11px] font-medium tracking-[0.02em] whitespace-nowrap"
-                                style={{ color: deal.stage.color }}
+                                style={{ color: deal.stage.color || undefined }}
                               >
                                 <span
                                   className="w-1.5 h-1.5 rounded-full"
-                                  style={{ backgroundColor: deal.stage.color }}
+                                  style={{ backgroundColor: deal.stage.color || undefined }}
                                 />
                                 {deal.stage.name}
                               </span>

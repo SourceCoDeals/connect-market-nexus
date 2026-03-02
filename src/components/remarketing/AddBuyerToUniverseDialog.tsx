@@ -1,13 +1,20 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { normalizeDomain } from "@/lib/remarketing/normalizeDomain";
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+import { normalizeDomain } from '@/lib/remarketing/normalizeDomain';
 
 interface AddBuyerToUniverseDialogProps {
   open: boolean;
@@ -16,40 +23,47 @@ interface AddBuyerToUniverseDialogProps {
   onBuyerAdded: () => void;
 }
 
-export function AddBuyerToUniverseDialog({ open, onOpenChange, universeId, onBuyerAdded }: AddBuyerToUniverseDialogProps) {
-  const [companyName, setCompanyName] = useState("");
-  const [companyWebsite, setCompanyWebsite] = useState("");
-  const [peFirmName, setPeFirmName] = useState("");
-  const [peFirmWebsite, setPeFirmWebsite] = useState("");
-  const [notes, setNotes] = useState("");
+export function AddBuyerToUniverseDialog({
+  open,
+  onOpenChange,
+  universeId,
+  onBuyerAdded,
+}: AddBuyerToUniverseDialogProps) {
+  const [companyName, setCompanyName] = useState('');
+  const [companyWebsite, setCompanyWebsite] = useState('');
+  const [peFirmName, setPeFirmName] = useState('');
+  const [peFirmWebsite, setPeFirmWebsite] = useState('');
+  const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!companyName.trim() && !peFirmName.trim()) {
-      toast.error("Company name or PE Firm name is required");
+      toast.error('Company name or PE Firm name is required');
       return;
     }
 
     setIsSubmitting(true);
     try {
       // Normalize websites for dedup
-      const normalizedCompanyWebsite = normalizeDomain(companyWebsite.trim()) || companyWebsite.trim() || null;
-      const normalizedPeFirmWebsite = normalizeDomain(peFirmWebsite.trim()) || peFirmWebsite.trim() || null;
+      const normalizedCompanyWebsite =
+        normalizeDomain(companyWebsite.trim()) || companyWebsite.trim() || null;
+      const normalizedPeFirmWebsite =
+        normalizeDomain(peFirmWebsite.trim()) || peFirmWebsite.trim() || null;
 
       // Check for duplicate buyer by domain in this universe
       if (normalizedCompanyWebsite) {
         const { data: existingBuyers, error: existingBuyersError } = await supabase
-          .from("remarketing_buyers")
-          .select("id, company_name, company_website")
-          .eq("universe_id", universeId)
-          .eq("archived", false)
-          .not("company_website", "is", null);
+          .from('remarketing_buyers')
+          .select('id, company_name, company_website')
+          .eq('universe_id', universeId)
+          .eq('archived', false)
+          .not('company_website', 'is', null);
         if (existingBuyersError) throw existingBuyersError;
 
-        const duplicate = existingBuyers?.find(b =>
-          normalizeDomain(b.company_website) === normalizedCompanyWebsite
+        const duplicate = existingBuyers?.find(
+          (b) => normalizeDomain(b.company_website) === normalizedCompanyWebsite,
         );
         if (duplicate) {
           toast.error(`A buyer with this website already exists: "${duplicate.company_name}"`);
@@ -59,7 +73,7 @@ export function AddBuyerToUniverseDialog({ open, onOpenChange, universeId, onBuy
       }
 
       const { data: newBuyer, error } = await supabase
-        .from("remarketing_buyers")
+        .from('remarketing_buyers')
         .insert({
           universe_id: universeId,
           company_name: companyName.trim() || peFirmName.trim(),
@@ -67,59 +81,59 @@ export function AddBuyerToUniverseDialog({ open, onOpenChange, universeId, onBuy
           pe_firm_name: peFirmName.trim() || null,
           pe_firm_website: normalizedPeFirmWebsite,
           business_summary: notes.trim() || null,
-          buyer_type: peFirmName.trim() ? "pe_firm" : "platform",
+          buyer_type: peFirmName.trim() ? 'pe_firm' : 'platform',
         })
-        .select("id")
+        .select('id')
         .single();
 
       if (error) {
         if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
-          throw new Error("A buyer with this website already exists in this universe.");
+          throw new Error('A buyer with this website already exists in this universe.');
         }
         throw error;
       }
 
       // Verify buyer is readable
       const { data: verified, error: verifiedError } = await supabase
-        .from("remarketing_buyers")
-        .select("id")
-        .eq("id", newBuyer.id)
+        .from('remarketing_buyers')
+        .select('id')
+        .eq('id', newBuyer.id)
         .single();
       if (verifiedError) throw verifiedError;
 
       if (!verified) {
-        throw new Error("Buyer created but not visible — check RLS policies");
+        throw new Error('Buyer created but not visible — check RLS policies');
       }
 
       // Queue scoring against all deals in this universe
       const { data: universeDeals, error: universeDealsError } = await supabase
-        .from("remarketing_universe_deals")
-        .select("listing_id")
-        .eq("universe_id", universeId);
+        .from('remarketing_universe_deals')
+        .select('listing_id')
+        .eq('universe_id', universeId);
       if (universeDealsError) throw universeDealsError;
 
       if (universeDeals && universeDeals.length > 0) {
-        const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
-        await queueDealScoring({ universeId, listingIds: universeDeals.map(d => d.listing_id) });
+        const { queueDealScoring } = await import('@/lib/remarketing/queueScoring');
+        await queueDealScoring({ universeId, listingIds: universeDeals.map((d) => d.listing_id) });
       }
 
-      toast.success("Buyer added successfully");
+      toast.success('Buyer added successfully');
       onBuyerAdded();
       onOpenChange(false);
       resetForm();
     } catch (error: unknown) {
-      toast.error(error.message || "Error adding buyer");
+      toast.error(error instanceof Error ? error.message : 'Error adding buyer');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
-    setCompanyName("");
-    setCompanyWebsite("");
-    setPeFirmName("");
-    setPeFirmWebsite("");
-    setNotes("");
+    setCompanyName('');
+    setCompanyWebsite('');
+    setPeFirmName('');
+    setPeFirmWebsite('');
+    setNotes('');
   };
 
   return (

@@ -1,22 +1,13 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import {
-  Sparkles,
-  MapPin,
-  ArrowUpDown,
-  Mail,
-  Search,
-} from "lucide-react";
-import {
-  BuyerMatchCard,
-  type OutreachStatus,
-} from "@/components/remarketing";
-import { AddToUniverseQuickAction } from "@/components/remarketing/AddToUniverseQuickAction";
-import type { SortOption, FilterTab } from "./types";
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
+import { Sparkles, MapPin, ArrowUpDown, Mail, Search } from 'lucide-react';
+import { BuyerMatchCard, type OutreachStatus } from '@/components/remarketing';
+import { AddToUniverseQuickAction } from '@/components/remarketing/AddToUniverseQuickAction';
+import type { SortOption, FilterTab } from './types';
 
 interface ScoreRecord {
   id: string;
@@ -26,7 +17,9 @@ interface ScoreRecord {
 }
 
 interface MatchListProps {
-  listing: { location?: string | null; title?: string | null } | undefined;
+  listing:
+    | { location?: string | null; title?: string | null; category?: string | null }
+    | undefined;
   listingId: string | undefined;
   scores: ScoreRecord[] | undefined;
   allScores: ScoreRecord[] | undefined;
@@ -40,7 +33,9 @@ interface MatchListProps {
     passed: number;
   };
   outreachCount: number;
-  outreachRecords: Array<{ score_id: string; status: string; contacted_at?: string; notes?: string }> | undefined;
+  outreachRecords:
+    | Array<{ score_id: string; status: string; contacted_at?: string; notes?: string }>
+    | undefined;
   feeAgreementLookup: Map<string, { signed: boolean; signedAt: string | null }>;
   pipelineDealByBuyer: Map<string, string>;
   activeTab: FilterTab;
@@ -56,10 +51,18 @@ interface MatchListProps {
   handleSelect: (id: string, selected: boolean) => void;
   handleApprove: (scoreId: string, scoreData?: ScoreRecord) => Promise<void>;
   handleOpenPassDialog: (scoreId: string, buyerName: string, scoreData?: ScoreRecord) => void;
-  handleToggleInterested: (scoreId: string, interested: boolean, scoreData?: ScoreRecord) => Promise<void>;
+  handleToggleInterested: (
+    scoreId: string,
+    interested: boolean,
+    scoreData?: ScoreRecord,
+  ) => Promise<void>;
   handleOutreachUpdate: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   handleScoreViewed: (scoreId: string) => Promise<void>;
-  handleMoveToPipeline: (scoreId: string, buyerId: string, targetListingId: string) => Promise<void>;
+  handleMoveToPipeline: (
+    scoreId: string,
+    buyerId: string,
+    targetListingId: string,
+  ) => Promise<void>;
   updateScoreMutationIsPending: boolean;
   refetchLinkedUniverses: () => void;
 }
@@ -119,14 +122,12 @@ export function MatchList({
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FilterTab)}>
               <TabsList>
                 <TabsTrigger value="all">
-                  All Buyers ({filteredScores.length !== stats.total ? `${filteredScores.length}/` : ''}{stats.total})
+                  All Buyers (
+                  {filteredScores.length !== stats.total ? `${filteredScores.length}/` : ''}
+                  {stats.total})
                 </TabsTrigger>
-                <TabsTrigger value="approved">
-                  Approved ({stats.approved})
-                </TabsTrigger>
-                <TabsTrigger value="passed">
-                  Passed ({stats.passed})
-                </TabsTrigger>
+                <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
+                <TabsTrigger value="passed">Passed ({stats.passed})</TabsTrigger>
                 <TabsTrigger value="outreach">
                   <Mail className="h-3.5 w-3.5 mr-1" />
                   In Outreach ({outreachCount})
@@ -168,7 +169,7 @@ export function MatchList({
                   className="h-8 w-8"
                   onClick={() => setSortDesc(!sortDesc)}
                 >
-                  <ArrowUpDown className={cn("h-4 w-4", !sortDesc && "rotate-180")} />
+                  <ArrowUpDown className={cn('h-4 w-4', !sortDesc && 'rotate-180')} />
                 </Button>
               </div>
             </div>
@@ -184,10 +185,11 @@ export function MatchList({
               <Skeleton key={i} className="h-48" />
             ))}
           </div>
-        ) : (!linkedUniverses || linkedUniverses.length === 0) && (!allScores || allScores.length === 0) ? (
+        ) : (!linkedUniverses || linkedUniverses.length === 0) &&
+          (!allScores || allScores.length === 0) ? (
           <AddToUniverseQuickAction
             listingId={listingId!}
-            listingCategory={listing.category}
+            listingCategory={listing?.category}
             onUniverseAdded={() => {
               refetchLinkedUniverses();
             }}
@@ -205,22 +207,22 @@ export function MatchList({
         ) : filteredScores.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">
-                No buyers match the current filters
-              </p>
+              <p className="text-muted-foreground">No buyers match the current filters</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
             {filteredScores.map((score: ScoreRecord) => {
-              const outreach = outreachRecords?.find(o => o.score_id === score.id);
+              const outreach = outreachRecords?.find((o) => o.score_id === score.id);
               return (
                 <BuyerMatchCard
                   key={score.id}
-                  score={score}
-                  dealLocation={listing.location ?? undefined}
+                  score={score as any}
+                  dealLocation={listing?.location ?? undefined}
                   isSelected={selectedIds.has(score.id)}
-                  isHighlighted={highlightedBuyerIds.includes(score.buyer?.id || '')}
+                  isHighlighted={highlightedBuyerIds.includes(
+                    (score.buyer as { id?: string } | undefined)?.id || '',
+                  )}
                   onSelect={handleSelect}
                   onApprove={handleApprove}
                   onPass={handleOpenPassDialog}
@@ -228,11 +230,27 @@ export function MatchList({
                   onOutreachUpdate={handleOutreachUpdate}
                   onViewed={handleScoreViewed}
                   onMoveToPipeline={handleMoveToPipeline}
-                  outreach={outreach ? { status: outreach.status as OutreachStatus, contacted_at: outreach.contacted_at ?? undefined, notes: outreach.notes ?? undefined } : undefined}
+                  outreach={
+                    outreach
+                      ? {
+                          status: outreach.status as OutreachStatus,
+                          contacted_at: outreach.contacted_at ?? undefined,
+                          notes: outreach.notes ?? undefined,
+                        }
+                      : undefined
+                  }
                   isPending={updateScoreMutationIsPending}
-                  universeName={selectedUniverse === 'all' ? score.universe?.name : undefined}
+                  universeName={
+                    selectedUniverse === 'all'
+                      ? (score.universe as { name?: string } | undefined)?.name
+                      : undefined
+                  }
                   firmFeeAgreement={feeAgreementLookup.get(score.id)}
-                  pipelineDealId={pipelineDealByBuyer.get(score.buyer?.id || '') || null}
+                  pipelineDealId={
+                    pipelineDealByBuyer.get(
+                      (score.buyer as { id?: string } | undefined)?.id || '',
+                    ) || null
+                  }
                   listingId={listingId}
                 />
               );

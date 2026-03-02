@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import {
   SizeCriteria,
   GeographyCriteria,
@@ -10,15 +10,15 @@ import {
   BuyerTypesCriteria,
   ScoringBehavior,
   DocumentReference,
-  TargetBuyerTypeConfig
-} from "@/types/remarketing";
-import { toast } from "sonner";
-import { useBuyerEnrichment } from "@/hooks/useBuyerEnrichment";
-import { useBuyerEnrichmentQueue } from "@/hooks/useBuyerEnrichmentQueue";
-import { useDealEnrichment } from "@/hooks/useDealEnrichment";
-import { useEnrichmentProgress } from "@/hooks/useEnrichmentProgress";
-import { useAlignmentScoring } from "@/hooks/useAlignmentScoring";
-import type { UniverseFormData } from "./types";
+  TargetBuyerTypeConfig,
+} from '@/types/remarketing';
+import { toast } from 'sonner';
+import { useBuyerEnrichment } from '@/hooks/useBuyerEnrichment';
+import { useBuyerEnrichmentQueue } from '@/hooks/useBuyerEnrichmentQueue';
+import { useDealEnrichment } from '@/hooks/useDealEnrichment';
+import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
+import { useAlignmentScoring } from '@/hooks/useAlignmentScoring';
+import type { UniverseFormData } from './types';
 
 export function useUniverseData() {
   const { id } = useParams<{ id: string }>();
@@ -44,15 +44,15 @@ export function useUniverseData() {
     include_pe_firms: true,
     include_platforms: true,
     include_strategic: true,
-    include_family_office: true
+    include_family_office: true,
   });
   const [scoringBehavior, setScoringBehavior] = useState<ScoringBehavior>({});
   const [documents, setDocuments] = useState<DocumentReference[]>([]);
-  const [maGuideContent, setMaGuideContent] = useState("");
+  const [maGuideContent, setMaGuideContent] = useState('');
   const [targetBuyerTypes, setTargetBuyerTypes] = useState<TargetBuyerTypeConfig[]>([]);
 
   // Dialog/UI state
-  const [buyerSearch, setBuyerSearch] = useState("");
+  const [buyerSearch, setBuyerSearch] = useState('');
   const [addDealDialogOpen, setAddDealDialogOpen] = useState(false);
   const [addDealDefaultTab, setAddDealDefaultTab] = useState<'existing' | 'new'>('existing');
   const [importDealsDialogOpen, setImportDealsDialogOpen] = useState(false);
@@ -86,7 +86,7 @@ export function useUniverseData() {
     progress: dealEnrichmentProgress,
     enrichDeals,
     cancel: cancelDealEnrichment,
-    reset: resetDealEnrichment
+    reset: resetDealEnrichment,
   } = useDealEnrichment(id);
 
   // Use the queue-based deal enrichment progress for real-time tracking
@@ -103,7 +103,7 @@ export function useUniverseData() {
     progress: alignmentProgress,
     scoreBuyers: scoreAlignmentBuyers,
     cancel: cancelAlignmentScoring,
-    reset: resetAlignmentScoring
+    reset: resetAlignmentScoring,
   } = useAlignmentScoring(id);
 
   // Fetch universe if editing
@@ -121,7 +121,7 @@ export function useUniverseData() {
       if (error) throw error;
       return data;
     },
-    enabled: !isNew
+    enabled: !isNew,
   });
 
   // Fetch buyers in this universe
@@ -132,7 +132,9 @@ export function useUniverseData() {
 
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement')
+        .select(
+          'id, company_name, company_website, platform_website, pe_firm_website, buyer_type, pe_firm_name, hq_city, hq_state, business_summary, thesis_summary, target_geographies, geographic_footprint, service_regions, operating_locations, alignment_score, alignment_reasoning, alignment_checked_at, has_fee_agreement',
+        )
         .eq('universe_id', id!)
         .eq('archived', false)
         .order('alignment_score', { ascending: false, nullsFirst: false });
@@ -154,7 +156,7 @@ export function useUniverseData() {
     queryFn: async () => {
       if (isNew || !buyers?.length) return new Set<string>();
 
-      const buyerIds = buyers.map(b => b.id);
+      const buyerIds = buyers.map((b) => b.id);
       const { data, error } = await supabase
         .from('buyer_transcripts')
         .select('buyer_id')
@@ -184,17 +186,17 @@ export function useUniverseData() {
     const channel = supabase
       .channel(`universe-buyers:${id}`)
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "*",
-          schema: "public",
-          table: "remarketing_buyers",
+          event: '*',
+          schema: 'public',
+          table: 'remarketing_buyers',
           filter: `universe_id=eq.${id}`,
         },
         (_payload) => {
           // Refetch buyers list on any change (INSERT, UPDATE, DELETE)
           refetchBuyers();
-        }
+        },
       )
       .subscribe();
 
@@ -216,7 +218,8 @@ export function useUniverseData() {
 
       const result = await supabase
         .from('remarketing_universe_deals')
-        .select(`
+        .select(
+          `
           id,
           added_at,
           status,
@@ -227,7 +230,8 @@ export function useUniverseData() {
             google_rating, google_review_count,
             deal_total_score, seller_interest_score
           )
-        `)
+        `,
+        )
         .eq('universe_id', id!)
         .eq('status', 'active')
         .order('added_at', { ascending: false });
@@ -235,7 +239,7 @@ export function useUniverseData() {
       if (result.error) throw result.error;
       return result.data || [];
     },
-    enabled: !isNew
+    enabled: !isNew,
   });
 
   // Fetch engagement stats from remarketing_scores for deals in this universe
@@ -244,7 +248,9 @@ export function useUniverseData() {
     queryFn: async () => {
       if (isNew || !universeDeals?.length) return {};
 
-      const listingIds = universeDeals.map((d) => (d.listing as { id?: string } | null)?.id).filter(Boolean) as string[];
+      const listingIds = universeDeals
+        .map((d) => (d.listing as { id?: string } | null)?.id)
+        .filter(Boolean) as string[];
       if (listingIds.length === 0) return {};
 
       const { data: scores, error } = await supabase
@@ -255,11 +261,28 @@ export function useUniverseData() {
 
       if (error) throw error;
 
-      const stats: Record<string, { approved: number; interested: number; passed: number; avgScore: number; totalScore: number; count: number }> = {};
+      const stats: Record<
+        string,
+        {
+          approved: number;
+          interested: number;
+          passed: number;
+          avgScore: number;
+          totalScore: number;
+          count: number;
+        }
+      > = {};
 
       scores?.forEach((score) => {
         if (!stats[score.listing_id]) {
-          stats[score.listing_id] = { approved: 0, interested: 0, passed: 0, avgScore: 0, totalScore: 0, count: 0 };
+          stats[score.listing_id] = {
+            approved: 0,
+            interested: 0,
+            passed: 0,
+            avgScore: 0,
+            totalScore: 0,
+            count: 0,
+          };
         }
         const s = stats[score.listing_id];
         s.count++;
@@ -271,13 +294,13 @@ export function useUniverseData() {
       });
 
       // Calculate averages
-      Object.values(stats).forEach(s => {
+      Object.values(stats).forEach((s) => {
         s.avgScore = s.count > 0 ? s.totalScore / s.count : 0;
       });
 
       return stats;
     },
-    enabled: !isNew && !!universeDeals?.length
+    enabled: !isNew && !!universeDeals?.length,
   });
 
   // Update form when universe loads
@@ -295,18 +318,22 @@ export function useUniverseData() {
       setSizeCriteria((universe.size_criteria as unknown as SizeCriteria) || {});
       setGeographyCriteria((universe.geography_criteria as unknown as GeographyCriteria) || {});
       setServiceCriteria((universe.service_criteria as unknown as ServiceCriteria) || {});
-      setBuyerTypesCriteria((universe.buyer_types_criteria as unknown as BuyerTypesCriteria) || {
-        include_pe_firms: true,
-        include_platforms: true,
-        include_strategic: true,
-        include_family_office: true
-      });
+      setBuyerTypesCriteria(
+        (universe.buyer_types_criteria as unknown as BuyerTypesCriteria) || {
+          include_pe_firms: true,
+          include_platforms: true,
+          include_strategic: true,
+          include_family_office: true,
+        },
+      );
       setScoringBehavior((universe.scoring_behavior as unknown as ScoringBehavior) || {});
       setDocuments((universe.documents as unknown as DocumentReference[]) || []);
       setMaGuideContent(universe.ma_guide_content || '');
 
       // Load saved target buyer types from DB, fall back to defaults if empty
-      const savedBuyerTypes = universe.target_buyer_types as unknown as TargetBuyerTypeConfig[] | null;
+      const savedBuyerTypes = universe.target_buyer_types as unknown as
+        | TargetBuyerTypeConfig[]
+        | null;
       if (savedBuyerTypes && savedBuyerTypes.length > 0) {
         setTargetBuyerTypes(savedBuyerTypes);
       }
@@ -324,23 +351,22 @@ export function useUniverseData() {
 
       // If there's substantial guide content but no document entry, create one
       if (guideContent && guideContent.length > 1000 && !hasGuideDoc) {
-
         try {
           // Call edge function to upload HTML to storage
           const response = await fetch(
             `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-guide-pdf`,
             {
-              method: "POST",
+              method: 'POST',
               headers: {
-                "Content-Type": "application/json",
+                'Content-Type': 'application/json',
                 Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
               },
               body: JSON.stringify({
                 universeId: id,
                 industryName: universe.name || 'M&A Guide',
-                content: guideContent
+                content: guideContent,
               }),
-            }
+            },
           );
 
           if (!response.ok) {
@@ -382,7 +408,6 @@ export function useUniverseData() {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
-
       const saveData: Record<string, unknown> = {
         ...formData,
         size_criteria: sizeCriteria,
@@ -392,13 +417,13 @@ export function useUniverseData() {
         scoring_behavior: scoringBehavior,
         documents: documents,
         ma_guide_content: maGuideContent,
-        target_buyer_types: targetBuyerTypes
+        target_buyer_types: targetBuyerTypes,
       };
 
       if (isNew) {
         const { data, error } = await supabase
           .from('remarketing_buyer_universes')
-          .insert([saveData])
+          .insert([saveData] as never)
           .select()
           .single();
 
@@ -422,18 +447,23 @@ export function useUniverseData() {
     },
     onError: () => {
       toast.error('Failed to save universe');
-    }
+    },
   });
 
   // Filter buyers by search
-  const filteredBuyers = buyers?.filter(buyer =>
-    !buyerSearch ||
-    buyer.company_name.toLowerCase().includes(buyerSearch.toLowerCase()) ||
-    buyer.pe_firm_name?.toLowerCase().includes(buyerSearch.toLowerCase())
-  ) || [];
+  const filteredBuyers =
+    buyers?.filter(
+      (buyer) =>
+        !buyerSearch ||
+        buyer.company_name.toLowerCase().includes(buyerSearch.toLowerCase()) ||
+        buyer.pe_firm_name?.toLowerCase().includes(buyerSearch.toLowerCase()),
+    ) || [];
 
-  const totalWeight = formData.geography_weight + formData.size_weight +
-    formData.service_weight + formData.owner_goals_weight;
+  const totalWeight =
+    formData.geography_weight +
+    formData.size_weight +
+    formData.service_weight +
+    formData.owner_goals_weight;
 
   return {
     id,
@@ -442,45 +472,86 @@ export function useUniverseData() {
     queryClient,
 
     // Form state
-    formData, setFormData,
-    sizeCriteria, setSizeCriteria,
-    geographyCriteria, setGeographyCriteria,
-    serviceCriteria, setServiceCriteria,
-    buyerTypesCriteria, setBuyerTypesCriteria,
-    scoringBehavior, setScoringBehavior,
-    documents, setDocuments,
-    maGuideContent, setMaGuideContent,
-    targetBuyerTypes, setTargetBuyerTypes,
+    formData,
+    setFormData,
+    sizeCriteria,
+    setSizeCriteria,
+    geographyCriteria,
+    setGeographyCriteria,
+    serviceCriteria,
+    setServiceCriteria,
+    buyerTypesCriteria,
+    setBuyerTypesCriteria,
+    scoringBehavior,
+    setScoringBehavior,
+    documents,
+    setDocuments,
+    maGuideContent,
+    setMaGuideContent,
+    targetBuyerTypes,
+    setTargetBuyerTypes,
 
     // Dialog/UI state
-    buyerSearch, setBuyerSearch,
-    addDealDialogOpen, setAddDealDialogOpen,
-    addDealDefaultTab, setAddDealDefaultTab,
-    importDealsDialogOpen, setImportDealsDialogOpen,
-    isScoringAllDeals, setIsScoringAllDeals,
-    showCriteriaEdit, setShowCriteriaEdit,
-    documentsOpen, setDocumentsOpen,
-    isParsing, setIsParsing,
-    importBuyersDialogOpen, setImportBuyersDialogOpen,
-    addBuyerDialogOpen, setAddBuyerDialogOpen,
-    showBuyerEnrichDialog, setShowBuyerEnrichDialog,
-    selectedBuyerIds, setSelectedBuyerIds,
-    isRemovingSelected, setIsRemovingSelected,
-    editingHeader, setEditingHeader,
+    buyerSearch,
+    setBuyerSearch,
+    addDealDialogOpen,
+    setAddDealDialogOpen,
+    addDealDefaultTab,
+    setAddDealDefaultTab,
+    importDealsDialogOpen,
+    setImportDealsDialogOpen,
+    isScoringAllDeals,
+    setIsScoringAllDeals,
+    showCriteriaEdit,
+    setShowCriteriaEdit,
+    documentsOpen,
+    setDocumentsOpen,
+    isParsing,
+    setIsParsing,
+    importBuyersDialogOpen,
+    setImportBuyersDialogOpen,
+    addBuyerDialogOpen,
+    setAddBuyerDialogOpen,
+    showBuyerEnrichDialog,
+    setShowBuyerEnrichDialog,
+    selectedBuyerIds,
+    setSelectedBuyerIds,
+    isRemovingSelected,
+    setIsRemovingSelected,
+    editingHeader,
+    setEditingHeader,
 
     // Query data
-    universe, isLoading,
-    buyers, refetchBuyers,
+    universe,
+    isLoading,
+    buyers,
+    refetchBuyers,
     buyerIdsWithTranscripts,
-    universeDeals, refetchDeals,
+    universeDeals,
+    refetchDeals,
     dealEngagementStats,
 
     // Enrichment hooks
-    queueProgress, enrichmentSummary, showEnrichmentSummary, dismissEnrichmentSummary,
-    queueBuyers, cancelQueueEnrichment, resetQueueEnrichment,
-    dealEnrichmentProgress, enrichDeals, cancelDealEnrichment, resetDealEnrichment,
-    dealQueueProgress, cancelDealQueueEnrichment, pauseDealEnrichment, resumeDealEnrichment,
-    isScoringAlignment, alignmentProgress, scoreAlignmentBuyers, cancelAlignmentScoring, resetAlignmentScoring,
+    queueProgress,
+    enrichmentSummary,
+    showEnrichmentSummary,
+    dismissEnrichmentSummary,
+    queueBuyers,
+    cancelQueueEnrichment,
+    resetQueueEnrichment,
+    dealEnrichmentProgress,
+    enrichDeals,
+    cancelDealEnrichment,
+    resetDealEnrichment,
+    dealQueueProgress,
+    cancelDealQueueEnrichment,
+    pauseDealEnrichment,
+    resumeDealEnrichment,
+    isScoringAlignment,
+    alignmentProgress,
+    scoreAlignmentBuyers,
+    cancelAlignmentScoring,
+    resetAlignmentScoring,
 
     // Mutation
     saveMutation,

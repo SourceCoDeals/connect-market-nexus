@@ -1,13 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { FileDown, Shield, FileSignature, CheckCircle, Loader2 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { FileDown, Shield, FileSignature, CheckCircle, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 
 interface SignedDocument {
-  type: "nda" | "fee_agreement";
+  type: 'nda' | 'fee_agreement';
   label: string;
   signed: boolean;
   signedAt: string | null;
@@ -18,38 +18,51 @@ function useSignedDocuments() {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["buyer-signed-documents", user?.id],
+    queryKey: ['buyer-signed-documents', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
       // Get firm membership
-      const { data: membership } = await (supabase
-        .from("firm_members" as never) as unknown as ReturnType<typeof supabase.from>)
-        .select("firm_id")
-        .eq("user_id", user.id)
+      const { data: membership } = await (
+        supabase.from('firm_members' as never) as unknown as ReturnType<typeof supabase.from>
+      )
+        .select('firm_id')
+        .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
 
       if (!membership) return [];
+      const membershipData = membership as unknown as { firm_id: string };
 
       // Get firm agreement with signed doc URLs
-      const { data: firm } = await (supabase
-        .from("firm_agreements" as never) as unknown as ReturnType<typeof supabase.from>)
+      const { data: firmRaw } = await (
+        supabase.from('firm_agreements' as never) as unknown as ReturnType<typeof supabase.from>
+      )
         .select(
-          "nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url"
+          'nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url',
         )
-        .eq("id", membership.firm_id)
+        .eq('id', membershipData.firm_id)
         .maybeSingle();
 
-      if (!firm) return [];
+      if (!firmRaw) return [];
+      const firm = firmRaw as unknown as {
+        nda_signed: boolean | null;
+        nda_signed_at: string | null;
+        nda_signed_document_url: string | null;
+        nda_document_url: string | null;
+        fee_agreement_signed: boolean | null;
+        fee_agreement_signed_at: string | null;
+        fee_signed_document_url: string | null;
+        fee_agreement_document_url: string | null;
+      };
 
       const docs: SignedDocument[] = [];
 
       // NDA
       if (firm.nda_signed || firm.nda_signed_document_url || firm.nda_document_url) {
         docs.push({
-          type: "nda",
-          label: "Non-Disclosure Agreement (NDA)",
+          type: 'nda',
+          label: 'Non-Disclosure Agreement (NDA)',
           signed: !!firm.nda_signed,
           signedAt: firm.nda_signed_at,
           documentUrl: firm.nda_signed_document_url || firm.nda_document_url || null,
@@ -57,10 +70,14 @@ function useSignedDocuments() {
       }
 
       // Fee Agreement
-      if (firm.fee_agreement_signed || firm.fee_signed_document_url || firm.fee_agreement_document_url) {
+      if (
+        firm.fee_agreement_signed ||
+        firm.fee_signed_document_url ||
+        firm.fee_agreement_document_url
+      ) {
         docs.push({
-          type: "fee_agreement",
-          label: "Fee Agreement",
+          type: 'fee_agreement',
+          label: 'Fee Agreement',
           signed: !!firm.fee_agreement_signed,
           signedAt: firm.fee_agreement_signed_at,
           documentUrl: firm.fee_signed_document_url || firm.fee_agreement_document_url || null,
@@ -98,7 +115,8 @@ export function ProfileDocuments() {
               <Shield className="h-5 w-5 text-muted-foreground" />
             </div>
             <p className="text-sm text-muted-foreground">
-              No signed documents yet. Once you sign your NDA or Fee Agreement, copies will be available here for your compliance records.
+              No signed documents yet. Once you sign your NDA or Fee Agreement, copies will be
+              available here for your compliance records.
             </p>
           </div>
         </CardContent>
@@ -122,7 +140,7 @@ export function ProfileDocuments() {
           >
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-accent p-2">
-                {doc.type === "nda" ? (
+                {doc.type === 'nda' ? (
                   <Shield className="h-4 w-4 text-accent-foreground" />
                 ) : (
                   <FileSignature className="h-4 w-4 text-accent-foreground" />
@@ -139,26 +157,24 @@ export function ProfileDocuments() {
                   )}
                   {doc.signedAt && (
                     <span className="text-xs text-muted-foreground">
-                      {format(new Date(doc.signedAt), "MMM d, yyyy")}
+                      {format(new Date(doc.signedAt), 'MMM d, yyyy')}
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {doc.documentUrl && doc.documentUrl.startsWith("https://") ? (
+            {doc.documentUrl && doc.documentUrl.startsWith('https://') ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(doc.documentUrl!, "_blank", "noopener,noreferrer")}
+                onClick={() => window.open(doc.documentUrl!, '_blank', 'noopener,noreferrer')}
               >
                 <FileDown className="h-3.5 w-3.5 mr-1.5" />
                 Download
               </Button>
             ) : (
-              <span className="text-xs text-muted-foreground">
-                Processing...
-              </span>
+              <span className="text-xs text-muted-foreground">Processing...</span>
             )}
           </div>
         ))}

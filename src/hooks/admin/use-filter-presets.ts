@@ -49,7 +49,7 @@ export function useCreateFilterPreset() {
         .insert({
           user_id: user.id,
           name: preset.name,
-          filters: preset.filters,
+          filters: preset.filters as unknown as import('@/integrations/supabase/types').Json,
           is_default: preset.is_default || false,
         })
         .select()
@@ -83,7 +83,7 @@ export function useUpdateFilterPreset() {
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<FilterPreset> }) => {
       const { data, error } = await supabase
         .from('filter_presets')
-        .update(updates)
+        .update(updates as Record<string, unknown>)
         .eq('id', id)
         .select()
         .single();

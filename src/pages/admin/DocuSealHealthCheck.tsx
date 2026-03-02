@@ -43,8 +43,6 @@ interface TestResponse {
 
 type RunState = 'idle' | 'running' | 'done' | 'error';
 
-const DOCUSEAL_STORAGE_KEY = 'sourceco-docuseal-test-results';
-
 // ── Test metadata (icons + groups for display) ──────
 
 const TEST_META: Record<string, { icon: typeof Shield; group: string }> = {
@@ -79,12 +77,15 @@ const STATUS_BG = {
   skip: 'bg-zinc-500/10 border-zinc-500/20',
 };
 
+const DOCUSEAL_STORAGE_KEY = 'sourceco-docuseal-test-results';
+
 // ── Component ──────────────────────────────────────
 
 export default function DocuSealHealthCheck() {
   const [runState, setRunState] = useState<RunState>('idle');
   const [response, setResponse] = useState<TestResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [, setLastRun] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggleExpand = useCallback((id: string) => {
@@ -105,15 +106,8 @@ export default function DocuSealHealthCheck() {
       const { data, error } = await supabase.functions.invoke('docuseal-integration-test');
 
       if (error) {
-        const msg = error.message || 'Edge function invocation failed';
         setRunState('error');
-        setErrorMsg(msg);
-        try {
-          localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify({ error: msg, results: [] }));
-          localStorage.setItem(DOCUSEAL_STORAGE_KEY + '-ts', new Date().toISOString());
-        } catch {
-          /* ignore storage errors */
-        }
+        setErrorMsg(error.message || 'Edge function invocation failed');
         return;
       }
 
@@ -125,23 +119,16 @@ export default function DocuSealHealthCheck() {
             DOCUSEAL_STORAGE_KEY,
             JSON.stringify({ error: data.error, results: [] }),
           );
-          localStorage.setItem(DOCUSEAL_STORAGE_KEY + '-ts', new Date().toISOString());
         } catch {
-          /* ignore storage errors */
+          /* ignore */
         }
         return;
       }
 
       const resp = data as TestResponse;
       setResponse(resp);
+      setLastRun(resp.ranAt);
       setRunState('done');
-      // Persist to localStorage so Export All can pick up the results
-      try {
-        localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify(resp));
-        localStorage.setItem(DOCUSEAL_STORAGE_KEY + '-ts', resp.ranAt || new Date().toISOString());
-      } catch {
-        /* ignore storage errors */
-      }
       // Auto-expand failed and warned tests so errors are immediately visible
       const autoExpand = new Set<string>();
       for (const r of resp.results) {
@@ -149,15 +136,8 @@ export default function DocuSealHealthCheck() {
       }
       setExpanded(autoExpand);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Unexpected error';
       setRunState('error');
-      setErrorMsg(msg);
-      try {
-        localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify({ error: msg, results: [] }));
-        localStorage.setItem(DOCUSEAL_STORAGE_KEY + '-ts', new Date().toISOString());
-      } catch {
-        /* ignore storage errors */
-      }
+      setErrorMsg((e as Error).message || 'Unexpected error');
     }
   }, []);
 

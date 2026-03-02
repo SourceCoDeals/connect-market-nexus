@@ -385,11 +385,11 @@ Deno.serve(async (req: Request) => {
     scored.sort((a, b) => b.composite_score - a.composite_score);
     const topBuyers = scored.slice(0, MAX_RESULTS);
 
-    // ── Write to cache ──
+    // ── Write to cache (non-blocking — scoring still succeeds if cache write fails) ──
     const now = new Date();
     const expiresAt = new Date(now.getTime() + CACHE_HOURS * 60 * 60 * 1000);
 
-    await supabase
+    const { error: cacheError } = await supabase
       .from('buyer_recommendation_cache')
       .upsert(
         {
@@ -402,6 +402,10 @@ Deno.serve(async (req: Request) => {
         },
         { onConflict: 'listing_id' },
       );
+
+    if (cacheError) {
+      console.error('Cache write failed (non-fatal):', cacheError.message);
+    }
 
     return new Response(
       JSON.stringify({

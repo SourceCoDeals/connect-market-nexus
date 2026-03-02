@@ -418,49 +418,37 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                       No direct connection history
                     </p>
                   ) : (
-                    connectionRequests.map(
-                      (req: {
-                        id: string;
-                        status: string;
-                        created_at: string;
-                        listings?: {
-                          title?: string;
-                          internal_company_name?: string;
-                          location?: string;
-                          revenue?: number;
-                        } | null;
-                      }) => (
-                        <div
-                          key={req.id}
-                          className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <p className="text-sm font-medium text-foreground">
-                                {req.listings?.internal_company_name ||
-                                  req.listings?.title ||
-                                  'Unknown Listing'}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {req.listings?.location && `${req.listings.location} · `}
-                                {req.listings?.revenue &&
-                                  `$${(req.listings.revenue / 1000000).toFixed(1)}M revenue · `}
-                                {req.created_at &&
-                                  formatDistanceToNow(new Date(req.created_at), {
-                                    addSuffix: true,
-                                  })}
-                              </p>
-                            </div>
-                            <Badge
-                              variant={req.status === 'approved' ? 'default' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {req.status}
-                            </Badge>
+                    connectionRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-foreground">
+                              {req.listings?.internal_company_name ||
+                                req.listings?.title ||
+                                'Unknown Listing'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {req.listings?.location && `${req.listings.location} · `}
+                              {req.listings?.revenue &&
+                                `$${(req.listings.revenue / 1000000).toFixed(1)}M revenue · `}
+                              {req.created_at &&
+                                formatDistanceToNow(new Date(req.created_at), {
+                                  addSuffix: true,
+                                })}
+                            </p>
                           </div>
+                          <Badge
+                            variant={req.status === 'approved' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {req.status}
+                          </Badge>
                         </div>
-                      ),
-                    )
+                      </div>
+                    ))
                   )}
                 </div>
               </TabsContent>
@@ -473,73 +461,54 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                       No colleague activity
                     </p>
                   ) : (
-                    associatedRequests.map(
-                      (req: {
-                        id: string;
-                        status: string;
-                        created_at: string;
-                        lead_name?: string | null;
-                        lead_email?: string | null;
-                        listing?: {
-                          title?: string;
-                          internal_company_name?: string;
-                          location?: string;
-                          revenue?: number;
-                        } | null;
-                        user?: {
-                          first_name?: string | null;
-                          last_name?: string | null;
-                          email?: string;
-                        } | null;
-                      }) => {
-                        const displayName = req.user
-                          ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() ||
-                            req.lead_name ||
-                            req.lead_email
-                          : req.lead_name || req.lead_email;
+                    associatedRequests.map((req) => {
+                      const displayName = req.user
+                        ? `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() ||
+                          req.lead_name ||
+                          req.lead_email
+                        : req.lead_name || req.lead_email;
 
-                        const listingTitle =
-                          req.listing?.internal_company_name ||
-                          req.listing?.title ||
-                          'Unknown Listing';
+                      const listingTitle =
+                        req.listing?.internal_company_name ||
+                        req.listing?.title ||
+                        'Unknown Listing';
 
-                        return (
-                          <div
-                            key={req.id}
-                            className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors"
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="space-y-1 flex-1">
-                                <p className="text-sm font-medium text-foreground">{displayName}</p>
-                                <p className="text-xs text-muted-foreground font-mono">
-                                  {req.lead_email || req.user?.email}
-                                </p>
-                              </div>
-                              <Badge
-                                variant={req.status === 'approved' ? 'default' : 'secondary'}
-                                className="text-xs ml-2"
-                              >
-                                {req.status}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-2 pt-2 border-t border-border/20">
-                              <ExternalLink className="w-3 h-3 text-muted-foreground" />
-                              <p className="text-xs text-muted-foreground">
-                                {listingTitle}
-                                {req.listing?.location && ` · ${req.listing.location}`}
-                                {req.listing?.revenue &&
-                                  ` · $${(req.listing.revenue / 1000000).toFixed(1)}M revenue`}
+                      return (
+                        <div
+                          key={req.id}
+                          className="p-3 border border-border/40 rounded-lg hover:border-border/60 transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="space-y-1 flex-1">
+                              <p className="text-sm font-medium text-foreground">{displayName}</p>
+                              <p className="text-xs text-muted-foreground font-mono">
+                                {req.lead_email || req.user?.email}
                               </p>
                             </div>
-                            {req.created_at && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-                              </p>
-                            )}
+                            <Badge
+                              variant={req.status === 'approved' ? 'default' : 'secondary'}
+                              className="text-xs ml-2"
+                            >
+                              {req.status}
+                            </Badge>
                           </div>
-                        );
-                      },
-                    )
+                          <div className="flex items-center gap-2 pt-2 border-t border-border/20">
+                            <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground">
+                              {listingTitle}
+                              {req.listing?.location && ` · ${req.listing.location}`}
+                              {req.listing?.revenue &&
+                                ` · $${(req.listing.revenue / 1000000).toFixed(1)}M revenue`}
+                            </p>
+                          </div>
+                          {req.created_at && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </TabsContent>
@@ -552,33 +521,22 @@ export function PipelineDetailBuyer({ deal }: PipelineDetailBuyerProps) {
                       No saved listings
                     </p>
                   ) : (
-                    savedListings.map(
-                      (saved: {
-                        id: string;
-                        created_at: string;
-                        listings?: {
-                          title?: string;
-                          internal_company_name?: string;
-                          location?: string;
-                          revenue?: number;
-                        } | null;
-                      }) => (
-                        <div key={saved.id} className="p-3 border border-border/40 rounded-lg">
-                          <p className="text-sm font-medium text-foreground">
-                            {saved.listings?.internal_company_name ||
-                              saved.listings?.title ||
-                              'Unknown'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {saved.listings?.location && `${saved.listings.location} · `}
-                            {saved.listings?.revenue &&
-                              `$${(saved.listings.revenue / 1000000).toFixed(1)}M revenue · `}
-                            Saved{' '}
-                            {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
-                          </p>
-                        </div>
-                      ),
-                    )
+                    savedListings.map((saved) => (
+                      <div key={saved.id} className="p-3 border border-border/40 rounded-lg">
+                        <p className="text-sm font-medium text-foreground">
+                          {saved.listings?.internal_company_name ||
+                            saved.listings?.title ||
+                            'Unknown'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {saved.listings?.location && `${saved.listings.location} · `}
+                          {saved.listings?.revenue &&
+                            `$${(saved.listings.revenue / 1000000).toFixed(1)}M revenue · `}
+                          Saved{' '}
+                          {formatDistanceToNow(new Date(saved.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                    ))
                   )}
                 </div>
               </TabsContent>

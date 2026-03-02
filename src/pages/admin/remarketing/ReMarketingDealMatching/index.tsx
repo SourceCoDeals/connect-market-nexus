@@ -1,18 +1,18 @@
-import { useParams } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Sparkles, AlertTriangle, Activity, Loader2 } from "lucide-react";
+import { useParams } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Sparkles, AlertTriangle, Activity, Loader2 } from 'lucide-react';
 import {
   BuyerMatchCard,
   ScoringInstructionsPanel,
   PassConfirmDialog,
   BulkEmailDialog,
-} from "@/components/remarketing";
+} from '@/components/remarketing';
 
-import { MatchingHeader } from "./MatchingHeader";
-import { MatchingControls } from "./MatchingControls";
-import { useMatchingData } from "./useMatchingData";
-import { useMatchingActions } from "./useMatchingActions";
+import { MatchingHeader } from './MatchingHeader';
+import { MatchingControls } from './MatchingControls';
+import { useMatchingData } from './useMatchingData';
+import { useMatchingActions } from './useMatchingActions';
 
 export default function ReMarketingDealMatching() {
   const { listingId } = useParams<{ listingId: string }>();
@@ -20,12 +20,12 @@ export default function ReMarketingDealMatching() {
   const data = useMatchingData(listingId);
   const actions = useMatchingActions({
     listingId,
-    scores: data.scores,
+    scores: data.scores as Parameters<typeof useMatchingActions>[0]['scores'],
     selectedUniverse: data.selectedUniverse,
     linkedUniverses: data.linkedUniverses,
     setIsScoring: data.setIsScoring,
     setScoringProgress: data.setScoringProgress,
-    // @ts-ignore
+    // @ts-expect-error customInstructions may not exist on data type
     customInstructions: data.customInstructions,
     setCustomInstructions: data.setCustomInstructions,
     refetchOutreach: data.refetchOutreach,
@@ -36,7 +36,7 @@ export default function ReMarketingDealMatching() {
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <MatchingHeader
-        listing={data.listing}
+        listing={data.listing ?? null}
         listingLoading={data.listingLoading}
         listingId={listingId!}
         totalScores={data.stats.total}
@@ -76,7 +76,10 @@ export default function ReMarketingDealMatching() {
               <div className="text-2xl font-bold text-red-500">{data.stats.disqualified}</div>
               <div className="text-xs text-muted-foreground flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" />
-                DQ'd {data.stats.disqualificationReason && <span className="text-[10px]">({data.stats.disqualificationReason})</span>}
+                DQ'd{' '}
+                {data.stats.disqualificationReason && (
+                  <span className="text-[10px]">({data.stats.disqualificationReason})</span>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -91,9 +94,18 @@ export default function ReMarketingDealMatching() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-sm font-medium">Scoring in progress...</p>
-                <span className="text-xs text-muted-foreground">{data.backgroundScoring.currentCount}/{data.backgroundScoring.expectedCount}</span>
+                <span className="text-xs text-muted-foreground">
+                  {data.backgroundScoring.currentCount}/{data.backgroundScoring.expectedCount}
+                </span>
               </div>
-              <Progress value={(data.backgroundScoring.currentCount / Math.max(data.backgroundScoring.expectedCount, 1)) * 100} className="h-2" />
+              <Progress
+                value={
+                  (data.backgroundScoring.currentCount /
+                    Math.max(data.backgroundScoring.expectedCount, 1)) *
+                  100
+                }
+                className="h-2"
+              />
             </div>
           </CardContent>
         </Card>
@@ -159,7 +171,7 @@ export default function ReMarketingDealMatching() {
             </CardTitle>
             <CardDescription>
               {data.stats.total > 0
-                ? "No matches found for the selected filters. Try adjusting your filter or sort settings."
+                ? 'No matches found for the selected filters. Try adjusting your filter or sort settings.'
                 : "Click 'Score Buyers' to find matching buyers for this deal. Make sure you have linked a buyer universe first."}
             </CardDescription>
           </CardHeader>
@@ -172,20 +184,37 @@ export default function ReMarketingDealMatching() {
             return (
               <BuyerMatchCard
                 key={score.id}
-                score={score as React.ComponentProps<typeof BuyerMatchCard>['score']}
+                score={score as unknown as React.ComponentProps<typeof BuyerMatchCard>['score']}
                 listingId={listingId}
                 outreach={outreach as React.ComponentProps<typeof BuyerMatchCard>['outreach']}
-                firmFeeAgreement={feeAgreement ? { signed: feeAgreement.signed || false, signedAt: feeAgreement.signedAt || null } : undefined}
+                firmFeeAgreement={
+                  feeAgreement
+                    ? {
+                        signed: feeAgreement.signed || false,
+                        signedAt: feeAgreement.signedAt || null,
+                      }
+                    : undefined
+                }
                 isSelected={actions.selectedIds.has(score.id)}
                 isHighlighted={actions.highlightedBuyerIds?.includes(score.buyer_id)}
                 onSelect={actions.handleSelect}
-                onApprove={(id) => actions.handleApprove(id, score)}
-                onPass={(id) => actions.handleOpenPassDialog(id, score.buyer?.company_name || 'Unknown', score)}
-                onToggleInterested={(id, interested) => actions.handleToggleInterested(id, interested, score)}
+                onApprove={(id) => actions.handleApprove(id, score as any)}
+                onPass={(id) =>
+                  actions.handleOpenPassDialog(
+                    id,
+                    (score as any).buyer?.company_name || 'Unknown',
+                    score as any,
+                  )
+                }
+                onToggleInterested={(id, interested) =>
+                  actions.handleToggleInterested(id, interested, score as any)
+                }
                 onOutreachUpdate={actions.handleOutreachUpdate}
                 onViewed={actions.handleScoreViewed}
                 onMoveToPipeline={actions.handleMoveToPipeline}
-                pipelineDealId={score.buyer_id ? data.pipelineDealByBuyer.get(score.buyer_id) : undefined}
+                pipelineDealId={
+                  score.buyer_id ? data.pipelineDealByBuyer.get(score.buyer_id) : undefined
+                }
               />
             );
           })}
@@ -215,9 +244,15 @@ export default function ReMarketingDealMatching() {
         <BulkEmailDialog
           open={actions.emailDialogOpen}
           onOpenChange={actions.setEmailDialogOpen}
-          scores={(data.scores?.filter((s) => actions.selectedIds.has(s.id)) || []) as React.ComponentProps<typeof BulkEmailDialog>['scores']}
+          scores={
+            (data.scores?.filter((s) => actions.selectedIds.has(s.id)) ||
+              []) as React.ComponentProps<typeof BulkEmailDialog>['scores']
+          }
           listing={data.listing as React.ComponentProps<typeof BulkEmailDialog>['listing']}
-          onSent={(buyerIds: string[]) => { actions.setHighlightedBuyerIds(buyerIds); setTimeout(() => actions.setHighlightedBuyerIds([]), 5000); }}
+          onSent={(buyerIds: string[]) => {
+            actions.setHighlightedBuyerIds(buyerIds);
+            setTimeout(() => actions.setHighlightedBuyerIds([]), 5000);
+          }}
         />
       )}
     </div>

@@ -28,6 +28,25 @@ export interface RecommendedBuyersResult {
   scored_at: string;
 }
 
+/** Extract the real error message from a Supabase FunctionsHttpError */
+async function extractEdgeFunctionError(error: unknown): Promise<string> {
+  // FunctionsHttpError has a context property with the Response object
+  if (error && typeof error === 'object' && 'context' in error) {
+    try {
+      const ctx = (error as { context: Response }).context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) return body.error + (body.details ? `: ${body.details}` : '');
+        return JSON.stringify(body);
+      }
+    } catch {
+      // Fall through to generic message
+    }
+  }
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
 export function useNewRecommendedBuyers(listingId: string | null | undefined) {
   const queryClient = useQueryClient();
 
@@ -37,7 +56,10 @@ export function useNewRecommendedBuyers(listingId: string | null | undefined) {
       const { data, error } = await supabase.functions.invoke('score-deal-buyers', {
         body: { listingId },
       });
-      if (error) throw error;
+      if (error) {
+        const msg = await extractEdgeFunctionError(error);
+        throw new Error(msg);
+      }
       return data as RecommendedBuyersResult;
     },
     enabled: !!listingId,
@@ -49,7 +71,10 @@ export function useNewRecommendedBuyers(listingId: string | null | undefined) {
     const { data, error } = await supabase.functions.invoke('score-deal-buyers', {
       body: { listingId, forceRefresh: true },
     });
-    if (error) throw error;
+    if (error) {
+      const msg = await extractEdgeFunctionError(error);
+      throw new Error(msg);
+    }
     queryClient.setQueryData(['new-recommended-buyers', listingId], data);
     return data as RecommendedBuyersResult;
   }, [listingId, queryClient]);

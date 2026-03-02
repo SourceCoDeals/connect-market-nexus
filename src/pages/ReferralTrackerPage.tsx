@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -13,23 +13,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  Loader2,
-  Lock,
-  Building2,
-  ChevronDown,
-  Users,
-} from "lucide-react";
-import { toast } from "sonner";
-import { ReferralSubmissionForm } from "@/components/remarketing/ReferralSubmissionForm";
-import { ReferralCSVUpload } from "@/components/remarketing/ReferralCSVUpload";
-const sourcecoLogo = "/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png";
+} from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Loader2, Lock, Building2, ChevronDown, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { ReferralSubmissionForm } from '@/components/remarketing/ReferralSubmissionForm';
+import { ReferralCSVUpload } from '@/components/remarketing/ReferralCSVUpload';
+const sourcecoLogo = '/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png';
 
 interface PartnerData {
   name: string;
@@ -44,7 +34,7 @@ interface DealRow {
   ebitda: number | null;
   full_time_employees: number | null;
   location: string | null;
-  source: "listing" | "submission";
+  source: 'listing' | 'submission';
   status?: string;
   is_priority_target?: boolean;
   website?: string | null;
@@ -57,32 +47,32 @@ interface DealRow {
 }
 
 const formatCurrency = (value: number | null) => {
-  if (!value) return "-";
+  if (!value) return '-';
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${value.toLocaleString()}`;
 };
 
-const statusBadge = (status: string | undefined, source: "listing" | "submission") => {
+const statusBadge = (status: string | undefined, source: 'listing' | 'submission') => {
   if (!status) return null;
-  if (source === "listing") {
+  if (source === 'listing') {
     switch (status) {
-      case "active":
+      case 'active':
         return <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>;
-      case "draft":
+      case 'draft':
         return <Badge className="bg-amber-100 text-amber-800 border-amber-200">In Review</Badge>;
-      case "archived":
+      case 'archived':
         return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Archived</Badge>;
       default:
         return <Badge className="bg-blue-100 text-blue-800 border-blue-200">{status}</Badge>;
     }
   }
   switch (status) {
-    case "pending":
+    case 'pending':
       return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>;
-    case "approved":
+    case 'approved':
       return <Badge className="bg-green-100 text-green-800 border-green-200">Approved</Badge>;
-    case "rejected":
+    case 'rejected':
       return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Rejected</Badge>;
     default:
       return null;
@@ -91,7 +81,7 @@ const statusBadge = (status: string | undefined, source: "listing" | "submission
 
 export default function ReferralTrackerPage() {
   const { shareToken } = useParams<{ shareToken: string }>();
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState('');
   const [authenticated, setAuthenticated] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -104,16 +94,13 @@ export default function ReferralTrackerPage() {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "validate-referral-access",
-        {
-          body: {
-            action: "get-data",
-            shareToken,
-            password,
-          },
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('validate-referral-access', {
+        body: {
+          action: 'get-data',
+          shareToken,
+          password,
+        },
+      });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -132,7 +119,7 @@ export default function ReferralTrackerPage() {
             ebitda: l.ebitda,
             full_time_employees: l.full_time_employees,
             location: l.location,
-            source: "listing",
+            source: 'listing',
             status: l.status,
             is_priority_target: l.is_priority_target,
             website: l.website,
@@ -148,7 +135,7 @@ export default function ReferralTrackerPage() {
 
       if (data.submissions) {
         for (const s of data.submissions) {
-          if (s.status === "approved" && s.listing_id) continue;
+          if (s.status === 'approved' && s.listing_id) continue;
 
           dealRows.push({
             id: s.id,
@@ -158,7 +145,7 @@ export default function ReferralTrackerPage() {
             ebitda: s.ebitda,
             full_time_employees: null,
             location: s.location,
-            source: "submission",
+            source: 'submission',
             status: s.status,
             website: s.website || null,
             main_contact_name: s.contact_name || null,
@@ -169,7 +156,7 @@ export default function ReferralTrackerPage() {
 
       setDeals(dealRows);
     } catch (err: unknown) {
-      toast.error(err.message || "Failed to load data");
+      toast.error((err as Error).message || 'Failed to load data');
     } finally {
       setIsLoading(false);
     }
@@ -188,16 +175,13 @@ export default function ReferralTrackerPage() {
     setIsAuthenticating(true);
     setLoginError(null);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "validate-referral-access",
-        {
-          body: {
-            action: "validate",
-            shareToken,
-            password: password.trim(),
-          },
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('validate-referral-access', {
+        body: {
+          action: 'validate',
+          shareToken,
+          password: password.trim(),
+        },
+      });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -206,12 +190,12 @@ export default function ReferralTrackerPage() {
         setAuthenticated(true);
         setPartner(data.partner);
       } else {
-        const msg = "Invalid password";
+        const msg = 'Invalid password';
         setLoginError(msg);
         toast.error(msg);
       }
     } catch (err: unknown) {
-      const msg = err.message || "Authentication failed";
+      const msg = (err as Error).message || 'Authentication failed';
       setLoginError(msg);
       toast.error(msg);
     } finally {
@@ -285,7 +269,7 @@ export default function ReferralTrackerPage() {
             <img src={sourcecoLogo} alt="SourceCo" className="h-9 w-auto" />
             <div>
               <h1 className="text-lg font-semibold text-foreground">
-                {partner?.name || "Partner"} — Referral Tracker
+                {partner?.name || 'Partner'} — Referral Tracker
               </h1>
               {partner?.company && (
                 <p className="text-sm text-muted-foreground">{partner.company}</p>
@@ -293,7 +277,7 @@ export default function ReferralTrackerPage() {
             </div>
           </div>
           <Badge variant="outline" className="border-sourceco-accent text-sourceco-accent">
-            {deals.length} {deals.length === 1 ? "Referral" : "Referrals"}
+            {deals.length} {deals.length === 1 ? 'Referral' : 'Referrals'}
           </Badge>
         </div>
       </header>
@@ -318,58 +302,140 @@ export default function ReferralTrackerPage() {
                 <Table className="table-fixed w-full" style={{ minWidth: '1100px' }}>
                   <TableHeader>
                     <TableRow className="border-sourceco-form bg-sourceco-form/30">
-                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 180 }}>Company Name</TableHead>
-                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 180 }}>Industry</TableHead>
-                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 140 }}>Website</TableHead>
-                      <TableHead className="text-foreground font-semibold text-center overflow-hidden resize-x" style={{ width: 70 }}>Score</TableHead>
-                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 160 }}>Contact</TableHead>
-                      <TableHead className="text-foreground font-semibold text-right overflow-hidden resize-x" style={{ width: 100 }}>Revenue</TableHead>
-                      <TableHead className="text-foreground font-semibold text-right overflow-hidden resize-x" style={{ width: 100 }}>EBITDA</TableHead>
-                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 120 }}>LinkedIn</TableHead>
-                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 110 }}>Location</TableHead>
-                      <TableHead className="text-foreground font-semibold overflow-hidden resize-x" style={{ width: 80 }}>Status</TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold overflow-hidden resize-x"
+                        style={{ width: 180 }}
+                      >
+                        Company Name
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold overflow-hidden resize-x"
+                        style={{ width: 180 }}
+                      >
+                        Industry
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold overflow-hidden resize-x"
+                        style={{ width: 140 }}
+                      >
+                        Website
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold text-center overflow-hidden resize-x"
+                        style={{ width: 70 }}
+                      >
+                        Score
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold overflow-hidden resize-x"
+                        style={{ width: 160 }}
+                      >
+                        Contact
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold text-right overflow-hidden resize-x"
+                        style={{ width: 100 }}
+                      >
+                        Revenue
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold text-right overflow-hidden resize-x"
+                        style={{ width: 100 }}
+                      >
+                        EBITDA
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold overflow-hidden resize-x"
+                        style={{ width: 120 }}
+                      >
+                        LinkedIn
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold overflow-hidden resize-x"
+                        style={{ width: 110 }}
+                      >
+                        Location
+                      </TableHead>
+                      <TableHead
+                        className="text-foreground font-semibold overflow-hidden resize-x"
+                        style={{ width: 80 }}
+                      >
+                        Status
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {deals.map((deal) => (
-                      <TableRow key={deal.id} className={`border-sourceco-form ${deal.is_priority_target ? "bg-amber-50" : ""}`}>
+                      <TableRow
+                        key={deal.id}
+                        className={`border-sourceco-form ${deal.is_priority_target ? 'bg-amber-50' : ''}`}
+                      >
                         <TableCell className="font-medium text-foreground truncate">
-                          {deal.title || "Untitled"}
+                          {deal.title || 'Untitled'}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm truncate">
-                          {deal.category || "-"}
+                          {deal.category || '-'}
                         </TableCell>
                         <TableCell className="text-sm truncate">
                           {deal.website ? (
-                            <a href={deal.website.startsWith('http') ? deal.website : `https://${deal.website}`} target="_blank" rel="noopener noreferrer" className="text-sourceco-accent hover:underline truncate block">
+                            <a
+                              href={
+                                deal.website.startsWith('http')
+                                  ? deal.website
+                                  : `https://${deal.website}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sourceco-accent hover:underline truncate block"
+                            >
                               {deal.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
                             </a>
-                          ) : <span className="text-muted-foreground">-</span>}
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           {deal.deal_total_score ? (
-                            <Badge className={`text-xs ${
-                              deal.deal_total_score >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                              deal.deal_total_score >= 60 ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                              deal.deal_total_score >= 40 ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                              'bg-red-100 text-red-800 border-red-200'
-                            }`}>
+                            <Badge
+                              className={`text-xs ${
+                                deal.deal_total_score >= 80
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                  : deal.deal_total_score >= 60
+                                    ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                    : deal.deal_total_score >= 40
+                                      ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                      : 'bg-red-100 text-red-800 border-red-200'
+                              }`}
+                            >
                               {deal.deal_total_score}
                             </Badge>
-                          ) : <span className="text-muted-foreground text-sm">-</span>}
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-sm truncate">
                           {deal.main_contact_name ? (
                             <div className="space-y-0.5 overflow-hidden">
-                              <div className="text-foreground font-medium text-xs truncate">{deal.main_contact_name}</div>
-                              {deal.main_contact_title && <div className="text-muted-foreground text-xs truncate">{deal.main_contact_title}</div>}
+                              <div className="text-foreground font-medium text-xs truncate">
+                                {deal.main_contact_name}
+                              </div>
+                              {deal.main_contact_title && (
+                                <div className="text-muted-foreground text-xs truncate">
+                                  {deal.main_contact_title}
+                                </div>
+                              )}
                               {deal.main_contact_email && (
-                                <a href={`mailto:${deal.main_contact_email}`} className="text-sourceco-accent hover:underline text-xs block truncate">
+                                <a
+                                  href={`mailto:${deal.main_contact_email}`}
+                                  className="text-sourceco-accent hover:underline text-xs block truncate"
+                                >
                                   {deal.main_contact_email}
                                 </a>
                               )}
                             </div>
-                          ) : <span className="text-muted-foreground">-</span>}
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm text-right truncate">
                           {formatCurrency(deal.revenue)}
@@ -382,16 +448,22 @@ export default function ReferralTrackerPage() {
                             <div className="space-y-0.5 overflow-hidden">
                               <div className="flex items-center gap-1 text-foreground">
                                 <Users className="h-3 w-3 text-blue-600 shrink-0" />
-                                <span className="font-medium text-xs">{deal.linkedin_employee_count.toLocaleString()}</span>
+                                <span className="font-medium text-xs">
+                                  {deal.linkedin_employee_count.toLocaleString()}
+                                </span>
                               </div>
                               {deal.linkedin_employee_range && (
-                                <div className="text-muted-foreground text-xs truncate">{deal.linkedin_employee_range}</div>
+                                <div className="text-muted-foreground text-xs truncate">
+                                  {deal.linkedin_employee_range}
+                                </div>
                               )}
                             </div>
-                          ) : <span className="text-muted-foreground text-sm">-</span>}
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm truncate">
-                          {deal.location || "-"}
+                          {deal.location || '-'}
                         </TableCell>
                         <TableCell>{statusBadge(deal.status, deal.source)}</TableCell>
                       </TableRow>
@@ -412,10 +484,12 @@ export default function ReferralTrackerPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-sm font-medium text-foreground mb-3">
-                Upload Spreadsheet
-              </h3>
-              <ReferralCSVUpload shareToken={shareToken!} password={password} onUploaded={fetchData} />
+              <h3 className="text-sm font-medium text-foreground mb-3">Upload Spreadsheet</h3>
+              <ReferralCSVUpload
+                shareToken={shareToken!}
+                password={password}
+                onUploaded={fetchData}
+              />
             </div>
 
             <Collapsible defaultOpen={false} className="border-t border-sourceco-form pt-6">

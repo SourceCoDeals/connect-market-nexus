@@ -62,7 +62,7 @@ export function ProfileSecurity({
         variant: 'destructive',
         title: 'Request failed',
         description:
-          error.message ||
+          (error as Error).message ||
           'Something went wrong while submitting your deactivation request. Please try again.',
       });
     } finally {

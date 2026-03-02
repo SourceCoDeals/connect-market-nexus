@@ -4,14 +4,14 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  CheckCircle2, 
-  AlertTriangle, 
-  XCircle, 
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
   Activity,
   Users,
   TrendingUp,
-  Clock
+  Clock,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -33,33 +33,43 @@ export function FormMonitoringTab() {
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-  const processMetrics = (profiles: unknown[]): FormMetrics => {
+  const processMetrics = (profiles: Record<string, unknown>[]): FormMetrics => {
     const totalSignups = profiles.length;
-    const completedSignups = profiles.filter(p => p.onboarding_completed).length;
+    const completedSignups = profiles.filter((p) => p.onboarding_completed).length;
     const completionRate = totalSignups > 0 ? (completedSignups / totalSignups) * 100 : 0;
 
     const requiredFields = [
-      'first_name', 'last_name', 'company', 'phone_number', 'website',
-      'linkedin_profile', 'buyer_type', 'ideal_target_description'
+      'first_name',
+      'last_name',
+      'company',
+      'phone_number',
+      'website',
+      'linkedin_profile',
+      'buyer_type',
+      'ideal_target_description',
     ];
 
     const fieldCompletionRates: Record<string, number> = {};
-    requiredFields.forEach(field => {
-      const completedCount = profiles.filter(p => p[field] && p[field] !== '').length;
+    requiredFields.forEach((field) => {
+      const completedCount = profiles.filter((p) => p[field] && p[field] !== '').length;
       fieldCompletionRates[field] = totalSignups > 0 ? (completedCount / totalSignups) * 100 : 0;
     });
 
     const buyerTypeDistribution: Record<string, number> = {};
-    profiles.forEach(profile => {
-      const type = profile.buyer_type || 'unknown';
+    profiles.forEach((profile) => {
+      const type = (profile.buyer_type as string) || 'unknown';
       buyerTypeDistribution[type] = (buyerTypeDistribution[type] || 0) + 1;
     });
 
     const validationErrors = [
       { field: 'email', errorCount: Math.floor(totalSignups * 0.02), errorType: 'Invalid format' },
       { field: 'website', errorCount: Math.floor(totalSignups * 0.05), errorType: 'Invalid URL' },
-      { field: 'linkedin_profile', errorCount: Math.floor(totalSignups * 0.03), errorType: 'Invalid URL' },
-    ].filter(error => error.errorCount > 0);
+      {
+        field: 'linkedin_profile',
+        errorCount: Math.floor(totalSignups * 0.03),
+        errorType: 'Invalid URL',
+      },
+    ].filter((error) => error.errorCount > 0);
 
     return {
       totalSignups,
@@ -103,7 +113,7 @@ export function FormMonitoringTab() {
       toast({
         variant: 'destructive',
         title: 'Error loading metrics',
-        description: 'Failed to load form validation metrics'
+        description: 'Failed to load form validation metrics',
       });
     } finally {
       setIsLoading(false);
@@ -121,7 +131,8 @@ export function FormMonitoringTab() {
   }, [loadMetrics]);
 
   const getHealthStatus = (rate: number) => {
-    if (rate >= 90) return { label: 'Excellent', variant: 'default' as const, color: 'text-success' };
+    if (rate >= 90)
+      return { label: 'Excellent', variant: 'default' as const, color: 'text-success' };
     if (rate >= 70) return { label: 'Good', variant: 'secondary' as const, color: 'text-warning' };
     return { label: 'Needs Attention', variant: 'destructive' as const, color: 'text-destructive' };
   };
@@ -160,7 +171,12 @@ export function FormMonitoringTab() {
         isPositive: true,
         label: 'vs last period',
       },
-      variant: metrics.completionRate >= 90 ? 'success' as const : metrics.completionRate >= 70 ? 'warning' as const : 'default' as const,
+      variant:
+        metrics.completionRate >= 90
+          ? ('success' as const)
+          : metrics.completionRate >= 70
+            ? ('warning' as const)
+            : ('default' as const),
     },
     {
       label: 'Avg Completion Time',
@@ -172,7 +188,7 @@ export function FormMonitoringTab() {
       label: 'Validation Errors',
       value: totalErrors,
       icon: <XCircle className="h-5 w-5" />,
-      variant: totalErrors > 10 ? 'warning' as const : 'default' as const,
+      variant: totalErrors > 10 ? ('warning' as const) : ('default' as const),
     },
   ];
 
@@ -188,7 +204,7 @@ export function FormMonitoringTab() {
           </p>
         </div>
         <div className="flex gap-2">
-          {(['24h', '7d', '30d'] as const).map(range => (
+          {(['24h', '7d', '30d'] as const).map((range) => (
             <Button
               key={range}
               variant={timeRange === range ? 'default' : 'outline'}
@@ -213,7 +229,8 @@ export function FormMonitoringTab() {
               <div>
                 <p className="font-semibold text-sm">Form Performance Alert</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Completion rate is below 70%. Consider reviewing form UX and validation requirements.
+                  Completion rate is below 70%. Consider reviewing form UX and validation
+                  requirements.
                 </p>
               </div>
             </div>
@@ -233,23 +250,43 @@ export function FormMonitoringTab() {
           <div className="space-y-4">
             {[
               { step: 'Started Registration', count: metrics.totalSignups, rate: 100 },
-              { step: 'Basic Info Complete', count: Math.round(metrics.totalSignups * 0.85), rate: 85 },
-              { step: 'Buyer Type Selected', count: Math.round(metrics.totalSignups * 0.72), rate: 72 },
-              { step: 'Business Details Added', count: Math.round(metrics.totalSignups * 0.65), rate: 65 },
-              { step: 'Profile Completed', count: metrics.completedSignups, rate: Math.round(metrics.completionRate) },
+              {
+                step: 'Basic Info Complete',
+                count: Math.round(metrics.totalSignups * 0.85),
+                rate: 85,
+              },
+              {
+                step: 'Buyer Type Selected',
+                count: Math.round(metrics.totalSignups * 0.72),
+                rate: 72,
+              },
+              {
+                step: 'Business Details Added',
+                count: Math.round(metrics.totalSignups * 0.65),
+                rate: 65,
+              },
+              {
+                step: 'Profile Completed',
+                count: metrics.completedSignups,
+                rate: Math.round(metrics.completionRate),
+              },
             ].map((step, index, array) => {
               const dropOff = index > 0 ? array[index - 1].rate - step.rate : 0;
               const isHighDropOff = dropOff > 15;
-              
+
               return (
                 <div key={step.step} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                        step.rate >= 80 ? 'bg-success/10 text-success' :
-                        step.rate >= 60 ? 'bg-warning/10 text-warning' :
-                        'bg-destructive/10 text-destructive'
-                      }`}>
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                          step.rate >= 80
+                            ? 'bg-success/10 text-success'
+                            : step.rate >= 60
+                              ? 'bg-warning/10 text-warning'
+                              : 'bg-destructive/10 text-destructive'
+                        }`}
+                      >
                         {index + 1}
                       </div>
                       <div>
@@ -267,9 +304,9 @@ export function FormMonitoringTab() {
                       <p className="text-xs text-muted-foreground">{step.count} users</p>
                     </div>
                   </div>
-                  <Progress 
-                    value={step.rate} 
-                    className={`h-3 ${isHighDropOff ? '[&>div]:bg-destructive' : ''}`} 
+                  <Progress
+                    value={step.rate}
+                    className={`h-3 ${isHighDropOff ? '[&>div]:bg-destructive' : ''}`}
                   />
                 </div>
               );
@@ -294,13 +331,15 @@ export function FormMonitoringTab() {
             {[
               {
                 title: 'Simplify Business Details Step',
-                description: '13% drop-off detected. Consider breaking into smaller sections or making some fields optional.',
+                description:
+                  '13% drop-off detected. Consider breaking into smaller sections or making some fields optional.',
                 impact: 'High',
                 effort: 'Medium',
               },
               {
                 title: 'Add Progress Indicator',
-                description: 'Users completing forms with progress bars show 23% higher completion rates.',
+                description:
+                  'Users completing forms with progress bars show 23% higher completion rates.',
                 impact: 'Medium',
                 effort: 'Low',
               },
@@ -350,21 +389,19 @@ export function FormMonitoringTab() {
           <Card>
             <CardHeader>
               <CardTitle>Field Completion Rates</CardTitle>
-              <CardDescription>
-                Track which fields users complete most frequently
-              </CardDescription>
+              <CardDescription>Track which fields users complete most frequently</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {Object.entries(metrics.fieldCompletionRates)
-                  .sort(([,a], [,b]) => b - a)
+                  .sort(([, a], [, b]) => b - a)
                   .map(([field, rate]) => {
                     const status = getHealthStatus(rate);
                     return (
                       <div key={field} className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium">
-                            {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            {field.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                           </span>
                           <div className="flex items-center gap-2">
                             <span className={`text-sm font-semibold tabular-nums ${status.color}`}>
@@ -388,18 +425,20 @@ export function FormMonitoringTab() {
           <Card>
             <CardHeader>
               <CardTitle>Buyer Type Distribution</CardTitle>
-              <CardDescription>
-                See which buyer types are signing up
-              </CardDescription>
+              <CardDescription>See which buyer types are signing up</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {Object.entries(metrics.buyerTypeDistribution)
-                  .sort(([,a], [,b]) => b - a)
+                  .sort(([, a], [, b]) => b - a)
                   .map(([type, count]) => {
-                    const percentage = metrics.totalSignups > 0 ? (count / metrics.totalSignups) * 100 : 0;
+                    const percentage =
+                      metrics.totalSignups > 0 ? (count / metrics.totalSignups) * 100 : 0;
                     return (
-                      <div key={type} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div
+                        key={type}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
                         <div>
                           <p className="font-medium capitalize">
                             {type.replace(/([A-Z])/g, ' $1').trim()}
@@ -409,7 +448,9 @@ export function FormMonitoringTab() {
                           </p>
                         </div>
                         <div className="text-right space-y-1">
-                          <p className="text-lg font-semibold tabular-nums">{Math.round(percentage)}%</p>
+                          <p className="text-lg font-semibold tabular-nums">
+                            {Math.round(percentage)}%
+                          </p>
                           <Progress value={percentage} className="w-20 h-2" />
                         </div>
                       </div>
@@ -424,20 +465,23 @@ export function FormMonitoringTab() {
           <Card>
             <CardHeader>
               <CardTitle>Validation Errors</CardTitle>
-              <CardDescription>
-                Common validation issues users encounter
-              </CardDescription>
+              <CardDescription>Common validation issues users encounter</CardDescription>
             </CardHeader>
             <CardContent>
               {metrics.validationErrors.length > 0 ? (
                 <div className="space-y-3">
                   {metrics.validationErrors.map((error) => (
-                    <div key={`${error.field}-${error.errorType}`} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={`${error.field}-${error.errorType}`}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div className="flex items-center gap-3">
                         <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
                         <div>
                           <p className="font-medium">
-                            {error.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            {error.field
+                              .replace(/_/g, ' ')
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
                           </p>
                           <p className="text-sm text-muted-foreground">{error.errorType}</p>
                         </div>

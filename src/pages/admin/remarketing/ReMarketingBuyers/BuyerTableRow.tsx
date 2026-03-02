@@ -133,7 +133,7 @@ const BuyerTableRow = ({
           {/* Type Column (PE Firms tab) */}
           <TableCell>
             <Badge variant="outline" className="text-xs">
-              {getBuyerTypeLabel(buyer.buyer_type)}
+              {getBuyerTypeLabel(buyer.buyer_type ?? null)}
             </Badge>
           </TableCell>
 
@@ -185,7 +185,9 @@ const BuyerTableRow = ({
           <TableCell onClick={(e) => e.stopPropagation()}>
             {buyer.pe_firm_name ? (
               (() => {
-                const peFirm = findPeFirmByName(buyers || [], buyer.pe_firm_name);
+                const peFirm = findPeFirmByName(buyers || [], buyer.pe_firm_name!) as {
+                  id: string;
+                } | null;
                 return peFirm ? (
                   <Link
                     to={`/admin/buyers/pe-firms/${peFirm.id}`}
@@ -207,7 +209,7 @@ const BuyerTableRow = ({
               })()
             ) : isSponsor ? (
               <Badge variant="outline" className="text-xs">
-                {getBuyerTypeLabel(buyer.buyer_type)}
+                {getBuyerTypeLabel(buyer.buyer_type ?? null)}
               </Badge>
             ) : (
               <span className="text-sm text-muted-foreground">—</span>

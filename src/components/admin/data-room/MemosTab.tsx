@@ -241,12 +241,20 @@ function MemoSlotCard({
     if (!draft?.content?.sections) return;
     setIsDownloadingDocx(true);
     try {
+      const rawSections = draft.content.sections as Array<{
+        heading?: string;
+        body?: string;
+        bullets?: string[];
+        key?: string;
+        title?: string;
+        content?: string;
+      }>;
       await generateMemoDocx({
-        sections: draft.content.sections as Array<{
-          heading?: string;
-          body?: string;
-          bullets?: string[];
-        }>,
+        sections: rawSections.map((s, i) => ({
+          key: s.key || `section-${i}`,
+          title: s.title || s.heading || '',
+          content: s.content || s.body || (s.bullets ? s.bullets.join('\n') : ''),
+        })),
         memoType: slotType,
         dealTitle: dealTitle || 'Deal',
         branding: 'SourceCo',

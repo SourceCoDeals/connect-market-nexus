@@ -83,11 +83,31 @@ export function useEnrichmentProgress() {
 
       // Use lightweight count queries instead of fetching all rows
       const [pendingRes, processingRes, completedRes, failedRes, pausedRes] = await Promise.all([
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending').gte('queued_at', cutoff),
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'processing').gte('queued_at', cutoff),
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'completed').gte('queued_at', cutoff),
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'failed').gte('queued_at', cutoff),
-        supabase.from('enrichment_queue').select('*', { count: 'exact', head: true }).eq('status', 'paused').gte('queued_at', cutoff),
+        supabase
+          .from('enrichment_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending')
+          .gte('queued_at', cutoff),
+        supabase
+          .from('enrichment_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'processing')
+          .gte('queued_at', cutoff),
+        supabase
+          .from('enrichment_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'completed')
+          .gte('queued_at', cutoff),
+        supabase
+          .from('enrichment_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'failed')
+          .gte('queued_at', cutoff),
+        supabase
+          .from('enrichment_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'paused')
+          .gte('queued_at', cutoff),
       ]);
 
       const counts = {
@@ -162,7 +182,8 @@ export function useEnrichmentProgress() {
       const progressPercent = totalCount > 0 ? (counts.completed / totalCount) * 100 : 0;
 
       // Detect completion transition
-      const justCompleted = wasRunningRef.current && !isEnriching && !isPaused && lastTotalRef.current > 0;
+      const justCompleted =
+        wasRunningRef.current && !isEnriching && !isPaused && lastTotalRef.current > 0;
 
       if (justCompleted) {
         setSummary({
@@ -206,11 +227,14 @@ export function useEnrichmentProgress() {
         .update({ status: 'paused' })
         .eq('status', 'pending');
       if (error) throw error;
-      toast({ title: "Enrichment paused", description: "Remaining deals have been paused. In-progress deals will finish." });
+      toast({
+        title: 'Enrichment paused',
+        description: 'Remaining deals have been paused. In-progress deals will finish.',
+      });
       lastFetchRef.current = 0; // Allow immediate fetch
       fetchQueueStatus();
     } catch (error: unknown) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' });
     }
   }, [fetchQueueStatus]);
 
@@ -224,11 +248,14 @@ export function useEnrichmentProgress() {
       void supabase.functions
         .invoke('process-enrichment-queue', { body: { source: 'resume' } })
         .catch(console.warn);
-      toast({ title: "Enrichment resumed", description: "Remaining deals will continue enriching." });
+      toast({
+        title: 'Enrichment resumed',
+        description: 'Remaining deals will continue enriching.',
+      });
       lastFetchRef.current = 0;
       fetchQueueStatus();
     } catch (error: unknown) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' });
     }
   }, [fetchQueueStatus]);
 
@@ -249,9 +276,12 @@ export function useEnrichmentProgress() {
       // Immediately hide the progress bar
       setProgress(EMPTY_PROGRESS);
 
-      toast({ title: "Enrichment cancelled", description: "Remaining deals have been removed from the queue." });
+      toast({
+        title: 'Enrichment cancelled',
+        description: 'Remaining deals have been removed from the queue.',
+      });
     } catch (error: unknown) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Error', description: (error as Error).message, variant: 'destructive' });
     }
   }, []);
 
@@ -303,7 +333,7 @@ export function useEnrichmentProgress() {
             lastFetchRef.current = 0; // Reset throttle for this debounced call
             fetchQueueStatus();
           }, 2000);
-        }
+        },
       )
       .subscribe();
 

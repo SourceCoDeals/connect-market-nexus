@@ -5,16 +5,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table';
-import { Send, Mail, ClipboardList, Monitor, Loader2 } from 'lucide-react';
+import { Send, Mail, ClipboardList, Monitor, Loader2, type LucideIcon } from 'lucide-react';
 import { useDistributionLog } from '@/hooks/admin/data-room/use-data-room';
 
 interface DistributionLogPanelProps {
   dealId: string;
 }
 
-const CHANNEL_ICONS: Record<string, unknown> = {
+const CHANNEL_ICONS: Record<string, LucideIcon> = {
   platform: Monitor,
   email: Mail,
   manual_log: ClipboardList,
@@ -50,7 +55,9 @@ export function DistributionLogPanel({ dealId }: DistributionLogPanelProps) {
         <CardTitle className="text-base flex items-center gap-2">
           <Send className="h-4 w-4" />
           Distribution Log
-          <Badge variant="secondary" className="ml-1">{logs.length}</Badge>
+          <Badge variant="secondary" className="ml-1">
+            {logs.length}
+          </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -73,13 +80,11 @@ export function DistributionLogPanel({ dealId }: DistributionLogPanelProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map(log => {
+              {logs.map((log) => {
                 const ChannelIcon = CHANNEL_ICONS[log.channel] || Send;
                 return (
                   <TableRow key={log.log_id}>
-                    <TableCell className="font-medium text-sm">
-                      {log.buyer_name}
-                    </TableCell>
+                    <TableCell className="font-medium text-sm">{log.buyer_name}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {log.buyer_company}
                     </TableCell>

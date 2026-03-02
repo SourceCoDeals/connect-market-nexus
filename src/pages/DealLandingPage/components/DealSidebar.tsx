@@ -31,17 +31,27 @@ export default function DealSidebar({
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('first_name, last_name, email, phone_number, company, title')
+        .select('first_name, last_name, email, phone_number, company')
         .eq('id', presentedByAdminId!)
         .single();
       if (!data) return null;
+      const profileData = data as unknown as {
+        first_name: string | null;
+        last_name: string | null;
+        email: string | null;
+        phone_number: string | null;
+        company: string | null;
+        title?: string | null;
+      };
       return {
-        name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || DEFAULT_PRESENTER.name,
-        title: data.title
-          ? `${data.title}, ${data.company || 'SourceCo'}`
+        name:
+          `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim() ||
+          DEFAULT_PRESENTER.name,
+        title: profileData.title
+          ? `${profileData.title}, ${profileData.company || 'SourceCo'}`
           : DEFAULT_PRESENTER.title,
-        phone: data.phone_number || DEFAULT_PRESENTER.phone,
-        email: data.email || DEFAULT_PRESENTER.email,
+        phone: profileData.phone_number || DEFAULT_PRESENTER.phone,
+        email: profileData.email || DEFAULT_PRESENTER.email,
         avatarUrl: DEFAULT_PRESENTER.avatarUrl,
         calendarUrl: DEFAULT_PRESENTER.calendarUrl,
       };

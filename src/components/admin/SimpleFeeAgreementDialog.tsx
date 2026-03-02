@@ -1,23 +1,16 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { 
-  FileText, 
-  X, 
-  User, 
-  Mail, 
-  Send,
-  Loader2
-} from "lucide-react";
-import { User as UserType, Listing } from "@/types";
-import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
-import { EditableSignature } from "@/components/admin/EditableSignature";
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { FileText, X, User, Mail, Send, Loader2 } from 'lucide-react';
+import { User as UserType, Listing } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
+import { EditableSignature } from '@/components/admin/EditableSignature';
 // Hook removed - edge function handles both email sending and database logging
 
 interface SimpleFeeAgreementDialogProps {
@@ -25,12 +18,20 @@ interface SimpleFeeAgreementDialogProps {
   listing?: Listing;
   isOpen: boolean;
   onClose: () => void;
-  onSendEmail: (user: UserType, options?: { subject?: string; content?: string; attachments?: Array<{name: string, content: string}>; customSignatureText?: string }) => Promise<void>;
+  onSendEmail: (
+    user: UserType,
+    options?: {
+      subject?: string;
+      content?: string;
+      attachments?: Array<{ name: string; content: string }>;
+      customSignatureText?: string;
+    },
+  ) => Promise<void>;
 }
 
 const QUICK_TEMPLATE = {
-  name: "Quick",
-  subject: "Fee Agreement",
+  name: 'Quick',
+  subject: 'Fee Agreement',
   content: `{{userName}},
 
 When you get a chance, please review and sign the attached fee agreement.
@@ -38,49 +39,59 @@ When you get a chance, please review and sign the attached fee agreement.
 Thanks!
 
 Best regards,
-{{adminName}}`
+{{adminName}}`,
 };
 
 export function SimpleFeeAgreementDialog({
   user,
   isOpen,
   onClose,
-  onSendEmail
+  onSendEmail,
 }: SimpleFeeAgreementDialogProps) {
-  const [subject, setSubject] = useState("");
-  const [content, setContent] = useState("");
+  const [subject, setSubject] = useState('');
+  const [content, setContent] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [customSignatureText, setCustomSignatureText] = useState("");
+  const [customSignatureText, setCustomSignatureText] = useState('');
   const [isSending, setIsSending] = useState(false);
-  
+
   const { user: adminUser } = useAuth();
 
   useEffect(() => {
     if (user && isOpen) {
-      const name = user.first_name && user.last_name 
-        ? `${user.first_name} ${user.last_name}` 
-        : user.email?.split('@')[0] || "";
+      const name =
+        user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
+          : user.email?.split('@')[0] || '';
 
-      const admin = adminUser?.first_name || "SourceCo Team";
+      const admin = adminUser?.first_name || 'SourceCo Team';
 
-      const filledSubject = QUICK_TEMPLATE.subject.replace("{{userName}}", name).replace("{{adminName}}", admin);
-      const filledContent = QUICK_TEMPLATE.content.replace(/{{userName}}/g, name).replace(/{{adminName}}/g, admin);
+      const filledSubject = QUICK_TEMPLATE.subject
+        .replace('{{userName}}', name)
+        .replace('{{adminName}}', admin);
+      const filledContent = QUICK_TEMPLATE.content
+        .replace(/{{userName}}/g, name)
+        .replace(/{{adminName}}/g, admin);
       setSubject(filledSubject);
       setContent(filledContent);
       setAttachments([]);
     }
   }, [user, isOpen, adminUser]);
 
-  const userName = user?.first_name && user?.last_name 
-    ? `${user.first_name} ${user.last_name}` 
-    : user?.email?.split('@')[0] || "";
+  const userName =
+    user?.first_name && user?.last_name
+      ? `${user.first_name} ${user.last_name}`
+      : user?.email?.split('@')[0] || '';
 
-  const adminName = adminUser?.first_name || "SourceCo Team";
+  const adminName = adminUser?.first_name || 'SourceCo Team';
 
   const loadTemplate = () => {
-    const filledSubject = QUICK_TEMPLATE.subject.replace("{{userName}}", userName).replace("{{adminName}}", adminName);
-    const filledContent = QUICK_TEMPLATE.content.replace(/{{userName}}/g, userName).replace(/{{adminName}}/g, adminName);
-    
+    const filledSubject = QUICK_TEMPLATE.subject
+      .replace('{{userName}}', userName)
+      .replace('{{adminName}}', adminName);
+    const filledContent = QUICK_TEMPLATE.content
+      .replace(/{{userName}}/g, userName)
+      .replace(/{{adminName}}/g, adminName);
+
     setSubject(filledSubject);
     setContent(filledContent);
     toast.success(`${QUICK_TEMPLATE.name} template loaded`);
@@ -88,29 +99,31 @@ export function SimpleFeeAgreementDialog({
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    const pdfFiles = files.filter(file => file.type === 'application/pdf');
-    
+    const pdfFiles = files.filter((file) => file.type === 'application/pdf');
+
     if (pdfFiles.length !== files.length) {
-      toast.error("Only PDF files are allowed");
+      toast.error('Only PDF files are allowed');
       return;
     }
 
     if (pdfFiles.length + attachments.length > 3) {
-      toast.error("Maximum 3 attachments allowed");
+      toast.error('Maximum 3 attachments allowed');
       return;
     }
 
-    setAttachments(prev => [...prev, ...pdfFiles]);
+    setAttachments((prev) => [...prev, ...pdfFiles]);
     toast.success(`Added ${pdfFiles.length} file(s)`);
   };
 
   const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const convertFilesToBase64 = async (files: File[]): Promise<Array<{name: string, content: string}>> => {
+  const convertFilesToBase64 = async (
+    files: File[],
+  ): Promise<Array<{ name: string; content: string }>> => {
     const convertedAttachments = [];
-    
+
     for (const file of files) {
       try {
         const base64 = await new Promise<string>((resolve, reject) => {
@@ -119,30 +132,30 @@ export function SimpleFeeAgreementDialog({
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
-        
+
         const base64Content = base64.split(',')[1];
         convertedAttachments.push({
           name: file.name,
-          content: base64Content
+          content: base64Content,
         });
       } catch (error) {
         toast.error(`Failed to process ${file.name}`);
       }
     }
-    
+
     return convertedAttachments;
   };
 
   const handleSend = async () => {
     if (!user) return;
-    
+
     if (!subject.trim()) {
-      toast.error("Subject is required");
+      toast.error('Subject is required');
       return;
     }
 
     if (!content.trim()) {
-      toast.error("Email content is required");
+      toast.error('Email content is required');
       return;
     }
 
@@ -150,29 +163,29 @@ export function SimpleFeeAgreementDialog({
     try {
       // Convert attachments to base64
       const convertedAttachments = await convertFilesToBase64(attachments);
-      
+
       // Use the onSendEmail prop which calls the hook
       await onSendEmail(user, {
         subject: subject,
         content: content,
         attachments: convertedAttachments,
-        customSignatureText: customSignatureText
+        customSignatureText: customSignatureText,
       });
 
-      toast.success("Fee agreement email sent!");
+      toast.success('Fee agreement email sent!');
       handleClose();
     } catch (error: unknown) {
-      toast.error(error.message || "Failed to send email");
+      toast.error(error instanceof Error ? error.message : 'Failed to send email');
     } finally {
       setIsSending(false);
     }
   };
 
   const handleClose = () => {
-    setSubject("");
-    setContent("");
+    setSubject('');
+    setContent('');
     setAttachments([]);
-    setCustomSignatureText("");
+    setCustomSignatureText('');
     onClose();
   };
 
@@ -205,11 +218,11 @@ export function SimpleFeeAgreementDialog({
                   <span className="text-sm text-muted-foreground">({userName})</span>
                 </div>
                 <div className="flex gap-2">
-                  <Badge variant={user.fee_agreement_signed ? "default" : "secondary"}>
-                    {user.fee_agreement_signed ? "Signed" : "Pending"}
+                  <Badge variant={user.fee_agreement_signed ? 'default' : 'secondary'}>
+                    {user.fee_agreement_signed ? 'Signed' : 'Pending'}
                   </Badge>
-                  <Badge variant={user.fee_agreement_email_sent ? "default" : "outline"}>
-                    {user.fee_agreement_email_sent ? "Email Sent" : "Not Sent"}
+                  <Badge variant={user.fee_agreement_email_sent ? 'default' : 'outline'}>
+                    {user.fee_agreement_email_sent ? 'Email Sent' : 'Not Sent'}
                   </Badge>
                 </div>
               </div>
@@ -219,11 +232,7 @@ export function SimpleFeeAgreementDialog({
           {/* Template Button */}
           <div className="space-y-2">
             <Label>Load Template (one-click)</Label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadTemplate}
-            >
+            <Button variant="outline" size="sm" onClick={loadTemplate}>
               Load {QUICK_TEMPLATE.name} Template
             </Button>
           </div>
@@ -263,15 +272,16 @@ export function SimpleFeeAgreementDialog({
                     onChange={handleFileUpload}
                     className="flex-1"
                   />
-                  <Badge variant="outline">
-                    {attachments.length}/3
-                  </Badge>
+                  <Badge variant="outline">{attachments.length}/3</Badge>
                 </div>
-                
+
                 {attachments.length > 0 && (
                   <div className="space-y-2">
                     {attachments.map((file, index) => (
-                      <div key={file.name} className="flex items-center justify-between p-2 bg-muted rounded">
+                      <div
+                        key={file.name}
+                        className="flex items-center justify-between p-2 bg-muted rounded"
+                      >
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4" />
                           <span className="text-sm">{file.name}</span>
@@ -279,11 +289,7 @@ export function SimpleFeeAgreementDialog({
                             {(file.size / 1024 / 1024).toFixed(2)} MB
                           </Badge>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeAttachment(index)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
@@ -294,14 +300,13 @@ export function SimpleFeeAgreementDialog({
             </div>
 
             {/* Email Signature */}
-            <EditableSignature 
+            <EditableSignature
               showInline
               onSignatureChange={(_html, text) => {
                 setCustomSignatureText(text);
               }}
             />
           </div>
-
         </div>
 
         {/* Actions */}
@@ -310,10 +315,7 @@ export function SimpleFeeAgreementDialog({
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSend} 
-              disabled={!subject.trim() || !content.trim() || isSending}
-            >
+            <Button onClick={handleSend} disabled={!subject.trim() || !content.trim() || isSending}>
               {isSending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -47,7 +47,7 @@ export function useAcknowledgeSignal() {
         .update({
           acknowledged_by: user?.id,
           acknowledged_at: new Date().toISOString(),
-        })
+        } as never)
         .eq('id', signalId);
 
       if (error) throw error;

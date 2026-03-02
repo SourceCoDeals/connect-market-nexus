@@ -162,24 +162,15 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
         entry_type: 'firm' | 'contact';
       };
 
-      const firms: UnifiedBuyer[] = (firmsResult.data || []).map(
-        (b: {
-          id: string;
-          company_name: string | null;
-          pe_firm_name: string | null;
-          email_domain: string | null;
-          buyer_type: string | null;
-          firm_agreement: { fee_agreement_signed?: boolean } | null;
-        }) => ({
-          id: b.id,
-          remarketing_buyer_id: b.id,
-          display_name: b.company_name || b.pe_firm_name || 'Unknown',
-          subtitle: b.email_domain || null,
-          buyer_type: b.buyer_type,
-          has_fee_agreement: !!b.firm_agreement?.fee_agreement_signed,
-          entry_type: 'firm' as const,
-        }),
-      );
+      const firms: UnifiedBuyer[] = (firmsResult.data || []).map((b) => ({
+        id: b.id,
+        remarketing_buyer_id: b.id,
+        display_name: b.company_name || b.pe_firm_name || 'Unknown',
+        subtitle: b.email_domain || null,
+        buyer_type: b.buyer_type,
+        has_fee_agreement: !!b.firm_agreement?.fee_agreement_signed,
+        entry_type: 'firm' as const,
+      }));
 
       const contacts: UnifiedBuyer[] = (contactsResult.data || []).map(
         (c: {
@@ -197,7 +188,7 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
           } | null;
         }) => ({
           id: `contact:${c.id}`,
-          remarketing_buyer_id: c.buyer?.id,
+          remarketing_buyer_id: c.buyer?.id || '',
           display_name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
           subtitle: c.title
             ? `${c.title} at ${c.buyer?.company_name || c.buyer?.pe_firm_name || ''}`

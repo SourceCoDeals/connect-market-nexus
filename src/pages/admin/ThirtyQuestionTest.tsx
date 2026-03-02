@@ -57,6 +57,8 @@ const THIRTY_Q_STORAGE_KEY = 'sourceco-30q-test-results';
 
 // ---------- Helpers ----------
 
+const THIRTY_Q_STORAGE_KEY = 'sourceco-30q-test-results';
+
 const GRADE_COLORS: Record<string, string> = {
   A: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
   B: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
@@ -221,9 +223,24 @@ export default function ThirtyQuestionTest() {
       localStorage.removeItem(THIRTY_Q_STORAGE_KEY);
       localStorage.removeItem(THIRTY_Q_STORAGE_KEY + '-ts');
     } catch {
-      /* ignore storage errors */
+      /* ignore */
     }
   }, []);
+
+  // Persist results to localStorage when a run finishes
+  const prevRunStatus = useRef<RunStatus>('idle');
+  useEffect(() => {
+    const wasRunning = prevRunStatus.current === 'running';
+    prevRunStatus.current = runStatus;
+    if (wasRunning && (runStatus === 'done' || runStatus === 'cancelled')) {
+      try {
+        localStorage.setItem(THIRTY_Q_STORAGE_KEY, JSON.stringify(results));
+        localStorage.setItem(THIRTY_Q_STORAGE_KEY + '-ts', new Date().toISOString());
+      } catch {
+        /* ignore storage errors */
+      }
+    }
+  }, [runStatus, results]);
 
   // ---------- Stats ----------
 

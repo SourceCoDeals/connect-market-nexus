@@ -11,16 +11,17 @@ import {
   Mail,
   ListChecks,
   Store,
-  Play,
+  Sparkles,
+  PlayCircle,
   Download,
   Square,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import type { TestContext } from './system-test-runner/testDefinitions';
 import type { ChatbotTestContext } from './chatbot-test-runner/chatbotInfraTests';
 
+// Lazy-loaded tab components
 const EnrichmentTest = lazy(() => import('@/pages/admin/EnrichmentTest'));
 const SystemTestRunner = lazy(() => import('@/pages/admin/SystemTestRunner'));
 const DocuSealHealthCheck = lazy(() => import('@/pages/admin/DocuSealHealthCheck'));
@@ -28,6 +29,108 @@ const ChatbotTestRunner = lazy(() => import('@/pages/admin/ChatbotTestRunner'));
 const SmartleadTestPage = lazy(() => import('@/pages/admin/SmartleadTestPage'));
 const ThirtyQuestionTest = lazy(() => import('@/pages/admin/ThirtyQuestionTest'));
 const ListingPipelineTest = lazy(() => import('@/pages/admin/ListingPipelineTest'));
+const BuyerRecommendationTest = lazy(() => import('@/pages/admin/BuyerRecommendationTest'));
+
+// Storage keys — must match individual tab components exactly
+const SYSTEM_TEST_KEY = 'sourceco-system-tests';
+const DOCUSEAL_KEY = 'sourceco-docuseal-test-results';
+const CHATBOT_INFRA_KEY = 'sourceco-chatbot-infra-test-results';
+const SCENARIO_KEY = 'sourceco-chatbot-scenario-results';
+const THIRTY_Q_KEY = 'sourceco-30q-test-results';
+
+// ── Types ──
+
+interface TestResult {
+  id: string;
+  name: string;
+  category: string;
+  status: 'pending' | 'running' | 'pass' | 'fail' | 'warn';
+  error?: string;
+  durationMs?: number;
+}
+
+interface ChatbotTestResult {
+  id: string;
+  name: string;
+  category: string;
+  status: 'pending' | 'running' | 'pass' | 'fail' | 'warn';
+  error?: string;
+  durationMs?: number;
+}
+
+interface RunAllProgress {
+  running: boolean;
+  currentSuite: string;
+  suitesCompleted: number;
+  testsRun: number;
+  testsTotal: number;
+}
+
+// ── Warning heuristics (match individual tab components) ──
+
+function isSystemTestWarning(msg: string): boolean {
+  return (
+    (msg.includes('does not exist') && !msg.includes('table')) ||
+    msg.includes('No documents exist') ||
+    msg.includes('No test ')
+  );
+}
+
+function isChatbotTestWarning(msg: string): boolean {
+  return (
+    (msg.includes('does not exist') && !msg.includes('table')) ||
+    msg.includes('empty') ||
+    msg.includes('Expected multiple')
+  );
+}
+
+// ── Generic test runner loop ──
+
+async function runTestLoop<Ctx>(
+  tests: Array<{ id: string; name: string; category: string; fn: (ctx: Ctx) => Promise<void> }>,
+  ctx: Ctx,
+  abortRef: React.MutableRefObject<boolean>,
+  isWarning: (msg: string) => boolean,
+  onProgress: (completed: number) => void,
+): Promise<TestResult[]> {
+  const results: TestResult[] = tests.map((t) => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    status: 'pending' as const,
+  }));
+
+  for (let i = 0; i < tests.length; i++) {
+    if (abortRef.current) break;
+    const test = tests[i];
+    results[i] = { ...results[i], status: 'running' };
+
+    const start = performance.now();
+    try {
+      await test.fn(ctx);
+      results[i] = {
+        ...results[i],
+        status: 'pass',
+        durationMs: Math.round(performance.now() - start),
+        error: undefined,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results[i] = {
+        ...results[i],
+        status: isWarning(msg) ? 'warn' : 'fail',
+        error: msg,
+        durationMs: Math.round(performance.now() - start),
+      };
+    }
+    onProgress(i + 1);
+  }
+
+  return results;
+}
+
+// ── Suite count ──
+const SUITE_COUNT = 3; // System Tests, DocuSeal, Chatbot Infra
 
 const Loading = () => (
   <div className="flex items-center justify-center py-20">
@@ -144,7 +247,6 @@ async function runTestLoop<Ctx>(opts: {
 export default function TestingHub() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'enrichment';
-  const [isRunningAll, setIsRunningAll] = useState(false);
   const [progress, setProgress] = useState<RunAllProgress | null>(null);
   const abortRef = useRef(false);
 
@@ -152,813 +254,300 @@ export default function TestingHub() {
     setSearchParams({ tab: value }, { replace: true });
   };
 
-  // ── Run All Suites ───────────────────────────────────────────────
-  // Runs all 8 suites sequentially, auto-selecting test data where needed.
+  // ── Run All Suites ──
 
   const runAllSuites = useCallback(async () => {
-    setIsRunningAll(true);
     abortRef.current = false;
-    let suiteIndex = 0;
+    let suitesCompleted = 0;
+    let totalRun = 0;
+
+    const updateProgress = (suite: string, testsRun: number, testsTotal: number) => {
+      setProgress({
+        running: true,
+        currentSuite: suite,
+        suitesCompleted,
+        testsRun,
+        testsTotal,
+      });
+    };
+
+    setProgress({
+      running: true,
+      currentSuite: 'Starting...',
+      suitesCompleted: 0,
+      testsRun: 0,
+      testsTotal: 0,
+    });
 
     try {
-      // Dynamic imports so we don't bloat the initial bundle
-      const [testDefs, chatbotInfra, pipelineMod, thirtyQMod, scenarioMod] = await Promise.all([
-        import('./system-test-runner/testDefinitions'),
-        import('./chatbot-test-runner/chatbotInfraTests'),
-        import('./listing-pipeline/runPipelineChecks'),
-        import('./chatbot-test-runner/thirtyQuestionSuite'),
-        import('./chatbot-test-runner/chatbotTestScenarios'),
-      ]);
+      // --- Suite 1: System Tests ---
+      const { buildTests, STORAGE_KEY } = await import('./system-test-runner/testDefinitions');
+      const systemTests = buildTests();
 
-      // ─── Suite 1: System Tests ───
-      if (!abortRef.current) {
-        await runTestLoop({
-          tests: testDefs.buildTests(),
-          ctx: {
-            createdContactIds: [],
-            createdAccessIds: [],
-            createdReleaseLogIds: [],
-            createdTrackedLinkIds: [],
-            testListingId: null,
-            testBuyerId: null,
-            testDealId: null,
-          } as TestContext,
-          storageKey: testDefs.STORAGE_KEY,
-          suiteName: 'System Tests',
-          isWarning: isSystemTestWarning,
-          suiteIndex: suiteIndex++,
-          abortRef,
-          setProgress,
-        });
-      }
+      updateProgress('System Tests', 0, systemTests.length);
 
-      // ─── Suite 2: DocuSeal Health Check ───
-      if (!abortRef.current) {
-        setProgress({
-          suiteName: 'DocuSeal Health Check',
-          testIndex: 1,
-          testCount: 1,
-          suiteIndex,
-          suiteCount: SUITE_COUNT,
-        });
+      const sysCtx: TestContext = {
+        createdContactIds: [],
+        createdAccessIds: [],
+        createdReleaseLogIds: [],
+        createdTrackedLinkIds: [],
+        testListingId: null,
+        testBuyerId: null,
+        testDealId: null,
+      };
 
-        try {
-          const { data, error } = await supabase.functions.invoke('docuseal-integration-test');
-          if (error) throw new Error(error.message);
-          if (data?.error) throw new Error(data.error);
-          localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify(data));
-          localStorage.setItem(
-            DOCUSEAL_STORAGE_KEY + '-ts',
-            data.ranAt || new Date().toISOString(),
-          );
-        } catch (err: unknown) {
-          localStorage.setItem(
-            DOCUSEAL_STORAGE_KEY,
-            JSON.stringify({
-              error: err instanceof Error ? err.message : String(err),
-              results: [],
-            }),
-          );
-          localStorage.setItem(DOCUSEAL_STORAGE_KEY + '-ts', new Date().toISOString());
-        }
-        suiteIndex++;
-      }
-
-      // ─── Suite 3: Chatbot Infrastructure Tests ───
-      if (!abortRef.current) {
-        await runTestLoop({
-          tests: chatbotInfra.buildChatbotTests(),
-          ctx: {
-            createdConversationIds: [],
-            createdAnalyticsIds: [],
-            createdFeedbackIds: [],
-          } as ChatbotTestContext,
-          storageKey: chatbotInfra.CHATBOT_INFRA_STORAGE_KEY,
-          suiteName: 'Chatbot Infrastructure',
-          isWarning: isChatbotTestWarning,
-          suiteIndex: suiteIndex++,
-          abortRef,
-          setProgress,
-          jsonStringifyTs: true,
-        });
-      }
-
-      // ─── Suite 4: Enrichment (auto-selected deal + buyer) ───
-      if (!abortRef.current) {
-        setProgress({
-          suiteName: 'Enrichment (auto-select)',
-          testIndex: 0,
-          testCount: 4,
-          suiteIndex,
-          suiteCount: SUITE_COUNT,
-        });
-
-        const enrichResults: Array<{
-          id: string;
-          name: string;
-          status: string;
-          detail: string;
-          durationMs?: number;
-        }> = [];
-
-        try {
-          // Step 1: Auto-select a deal (prefer unenriched)
-          setProgress({
-            suiteName: 'Enrichment',
-            testIndex: 1,
-            testCount: 4,
-            suiteIndex,
-            suiteCount: SUITE_COUNT,
-          });
-          let { data: deals } = await supabase
-            .from('listings')
-            .select('id, title, internal_company_name')
-            .is('enriched_at', null)
-            .limit(50);
-          if (!deals?.length) {
-            const res = await supabase
-              .from('listings')
-              .select('id, title, internal_company_name')
-              .limit(50);
-            deals = res.data;
-          }
-          const deal = deals?.length ? deals[Math.floor(Math.random() * deals.length)] : null;
-
-          // Auto-select a buyer (prefer unenriched)
-          let { data: buyers } = await supabase
-            .from('remarketing_buyers')
-            .select('id, company_name')
-            .is('data_last_updated', null)
-            .limit(50);
-          if (!buyers?.length) {
-            const res = await supabase
-              .from('remarketing_buyers')
-              .select('id, company_name')
-              .limit(50);
-            buyers = res.data;
-          }
-          const buyer = buyers?.length ? buyers[Math.floor(Math.random() * buyers.length)] : null;
-
-          if (!deal) {
-            enrichResults.push({
-              id: 'auto-select',
-              name: 'Auto-select test data',
-              status: 'fail',
-              detail: 'No deals found in the database',
-            });
-          } else {
-            enrichResults.push({
-              id: 'auto-select',
-              name: 'Auto-select test data',
-              status: 'pass',
-              detail: `Deal: ${deal.internal_company_name || deal.title || deal.id}${buyer ? ` | Buyer: ${buyer.company_name || buyer.id}` : ' | No buyers found'}`,
-            });
-
-            // Step 2: Queue deal enrichment + poll
-            if (!abortRef.current) {
-              setProgress({
-                suiteName: 'Enrichment – Deal',
-                testIndex: 2,
-                testCount: 4,
-                suiteIndex,
-                suiteCount: SUITE_COUNT,
-              });
-              const start = performance.now();
-              try {
-                const { queueDealEnrichment } = await import('@/lib/remarketing/queueEnrichment');
-                await queueDealEnrichment([deal.id]);
-                let attempts = 0;
-                let done = false;
-                while (attempts < 45 && !done && !abortRef.current) {
-                  await new Promise((r) => setTimeout(r, 4000));
-                  attempts++;
-                  const { data: q } = await supabase
-                    .from('enrichment_queue')
-                    .select('status')
-                    .eq('listing_id', deal.id)
-                    .order('queued_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-                  if (q?.status === 'completed' || q?.status === 'failed') done = true;
-                }
-                const ms = Math.round(performance.now() - start);
-                enrichResults.push({
-                  id: 'deal-enrich',
-                  name: 'Deal enrichment',
-                  status: done ? 'pass' : abortRef.current ? 'skip' : 'warn',
-                  detail: done
-                    ? `Completed in ${attempts} poll cycles`
-                    : abortRef.current
-                      ? 'Aborted'
-                      : `Timed out after ${attempts} polls`,
-                  durationMs: ms,
-                });
-              } catch (err: unknown) {
-                enrichResults.push({
-                  id: 'deal-enrich',
-                  name: 'Deal enrichment',
-                  status: 'fail',
-                  detail: err instanceof Error ? err.message : String(err),
-                  durationMs: Math.round(performance.now() - start),
-                });
-              }
-            }
-
-            // Step 3: Queue buyer enrichment + poll
-            if (!abortRef.current && buyer) {
-              setProgress({
-                suiteName: 'Enrichment – Buyer',
-                testIndex: 3,
-                testCount: 4,
-                suiteIndex,
-                suiteCount: SUITE_COUNT,
-              });
-              const start = performance.now();
-              try {
-                const { queueBuyerEnrichment } = await import('@/lib/remarketing/queueEnrichment');
-                await queueBuyerEnrichment([buyer.id]);
-                let attempts = 0;
-                let done = false;
-                while (attempts < 45 && !done && !abortRef.current) {
-                  await new Promise((r) => setTimeout(r, 4000));
-                  attempts++;
-                  const { data: q } = await supabase
-                    .from('buyer_enrichment_queue')
-                    .select('status')
-                    .eq('buyer_id', buyer.id)
-                    .order('queued_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-                  if (q?.status === 'completed' || q?.status === 'failed') done = true;
-                }
-                const ms = Math.round(performance.now() - start);
-                enrichResults.push({
-                  id: 'buyer-enrich',
-                  name: 'Buyer enrichment',
-                  status: done ? 'pass' : abortRef.current ? 'skip' : 'warn',
-                  detail: done
-                    ? `Completed in ${attempts} poll cycles`
-                    : abortRef.current
-                      ? 'Aborted'
-                      : `Timed out after ${attempts} polls`,
-                  durationMs: ms,
-                });
-              } catch (err: unknown) {
-                enrichResults.push({
-                  id: 'buyer-enrich',
-                  name: 'Buyer enrichment',
-                  status: 'fail',
-                  detail: err instanceof Error ? err.message : String(err),
-                  durationMs: Math.round(performance.now() - start),
-                });
-              }
-            }
-
-            // Step 4: Deal quality scoring
-            if (!abortRef.current) {
-              setProgress({
-                suiteName: 'Enrichment – Scoring',
-                testIndex: 4,
-                testCount: 4,
-                suiteIndex,
-                suiteCount: SUITE_COUNT,
-              });
-              const start = performance.now();
-              try {
-                const { queueDealQualityScoring } = await import('@/lib/remarketing/queueScoring');
-                const scoreResult = await queueDealQualityScoring({ listingIds: [deal.id] });
-                enrichResults.push({
-                  id: 'scoring',
-                  name: 'Deal quality scoring',
-                  status: scoreResult.errors === 0 ? 'pass' : 'warn',
-                  detail: `Scored: ${scoreResult.scored}, Errors: ${scoreResult.errors}`,
-                  durationMs: Math.round(performance.now() - start),
-                });
-              } catch (err: unknown) {
-                enrichResults.push({
-                  id: 'scoring',
-                  name: 'Deal quality scoring',
-                  status: 'fail',
-                  detail: err instanceof Error ? err.message : String(err),
-                  durationMs: Math.round(performance.now() - start),
-                });
-              }
-            }
-          }
-        } catch (err: unknown) {
-          enrichResults.push({
-            id: 'enrichment-error',
-            name: 'Enrichment suite',
-            status: 'fail',
-            detail: err instanceof Error ? err.message : String(err),
-          });
-        }
-
-        const ts = new Date().toISOString();
-        localStorage.setItem(ENRICHMENT_STORAGE_KEY, JSON.stringify(enrichResults));
-        localStorage.setItem(ENRICHMENT_STORAGE_KEY + '-ts', ts);
-        suiteIndex++;
-      }
-
-      // ─── Suite 5: Listing Pipeline (auto-selected pushed deal) ───
-      if (!abortRef.current) {
-        setProgress({
-          suiteName: 'Listing Pipeline',
-          testIndex: 1,
-          testCount: 1,
-          suiteIndex,
-          suiteCount: SUITE_COUNT,
-        });
-
-        try {
-          // Auto-select a recently pushed deal
-          const { data: pushedDeals } = await supabase
-            .from('listings')
-            .select('id, internal_company_name, title')
-            .eq('pushed_to_marketplace', true)
-            .eq('remarketing_status', 'active')
-            .order('pushed_to_marketplace_at', { ascending: false })
-            .limit(5);
-
-          if (!pushedDeals?.length) {
-            // Fall back to any deal
-            const { data: anyDeal } = await supabase
-              .from('listings')
-              .select('id')
-              .limit(1)
-              .maybeSingle();
-            if (anyDeal) {
-              const report = await pipelineMod.runPipelineChecks(anyDeal.id);
-              localStorage.setItem(PIPELINE_STORAGE_KEY, JSON.stringify(report));
-            } else {
-              localStorage.setItem(
-                PIPELINE_STORAGE_KEY,
-                JSON.stringify({ error: 'No deals found', checks: [] }),
-              );
-            }
-          } else {
-            const pick = pushedDeals[Math.floor(Math.random() * pushedDeals.length)];
-            const report = await pipelineMod.runPipelineChecks(pick.id);
-            localStorage.setItem(PIPELINE_STORAGE_KEY, JSON.stringify(report));
-          }
-        } catch (err: unknown) {
-          localStorage.setItem(
-            PIPELINE_STORAGE_KEY,
-            JSON.stringify({ error: err instanceof Error ? err.message : String(err), checks: [] }),
-          );
-        }
-
-        localStorage.setItem(PIPELINE_STORAGE_KEY + '-ts', new Date().toISOString());
-        suiteIndex++;
-      }
-
-      // ─── Suite 6: Smartlead Diagnostics (DB-only checks) ───
-      if (!abortRef.current) {
-        setProgress({
-          suiteName: 'Smartlead Diagnostics',
-          testIndex: 0,
-          testCount: 3,
-          suiteIndex,
-          suiteCount: SUITE_COUNT,
-        });
-        const slResults: Array<{
-          id: string;
-          name: string;
-          status: string;
-          detail: string;
-          durationMs?: number;
-        }> = [];
-
-        // Campaign tables
-        setProgress({
-          suiteName: 'Smartlead Diagnostics',
-          testIndex: 1,
-          testCount: 3,
-          suiteIndex,
-          suiteCount: SUITE_COUNT,
-        });
-        const s1 = performance.now();
-        const { data: campaigns, error: campErr } = await supabase
-          .from('smartlead_campaigns')
-          .select('id, name, status, lead_count, smartlead_campaign_id, created_at, last_synced_at')
-          .order('created_at', { ascending: false })
-          .limit(10);
-        slResults.push({
-          id: 'campaigns',
-          name: 'Campaign database tables',
-          status: campErr ? 'fail' : 'pass',
-          detail: campErr ? campErr.message : `${campaigns?.length || 0} campaign(s) found`,
-          durationMs: Math.round(performance.now() - s1),
-        });
-
-        // Campaign stats
-        if (!abortRef.current) {
-          setProgress({
-            suiteName: 'Smartlead Diagnostics',
-            testIndex: 2,
-            testCount: 3,
-            suiteIndex,
-            suiteCount: SUITE_COUNT,
-          });
-          const s2 = performance.now();
-          const { data: stats, error: statsErr } = await supabase
-            .from('smartlead_campaign_stats')
-            .select('*')
-            .limit(5);
-          slResults.push({
-            id: 'stats',
-            name: 'Campaign stats table',
-            status: statsErr ? 'fail' : 'pass',
-            detail: statsErr ? statsErr.message : `${stats?.length || 0} stat snapshot(s)`,
-            durationMs: Math.round(performance.now() - s2),
-          });
-        }
-
-        // Webhook events
-        if (!abortRef.current) {
-          setProgress({
-            suiteName: 'Smartlead Diagnostics',
-            testIndex: 3,
-            testCount: 3,
-            suiteIndex,
-            suiteCount: SUITE_COUNT,
-          });
-          const s3 = performance.now();
-          const { data: events, error: evtErr } = await supabase
-            .from('smartlead_webhook_events')
-            .select('id, event_type, lead_email, processed, created_at')
-            .order('created_at', { ascending: false })
-            .limit(20);
-          if (evtErr) {
-            slResults.push({
-              id: 'webhooks',
-              name: 'Webhook events',
-              status: 'fail',
-              detail: evtErr.message,
-              durationMs: Math.round(performance.now() - s3),
-            });
-          } else {
-            const summary: Record<string, number> = {};
-            for (const evt of events || [])
-              summary[evt.event_type] = (summary[evt.event_type] || 0) + 1;
-            slResults.push({
-              id: 'webhooks',
-              name: 'Webhook events',
-              status: 'pass',
-              detail: `${events?.length || 0} event(s)${
-                Object.keys(summary).length > 0
-                  ? `: ${Object.entries(summary)
-                      .map(([k, v]) => `${k}: ${v}`)
-                      .join(', ')}`
-                  : ''
-              }`,
-              durationMs: Math.round(performance.now() - s3),
-            });
-          }
-        }
-
-        localStorage.setItem(SMARTLEAD_STORAGE_KEY, JSON.stringify(slResults));
-        localStorage.setItem(SMARTLEAD_STORAGE_KEY + '-ts', new Date().toISOString());
-        suiteIndex++;
-      }
-
-      // ─── Suite 7: 30-Question QA (35 AI calls) ───
-      if (!abortRef.current) {
-        const questions = thirtyQMod.THIRTY_Q_SUITE;
-        const qResults: Array<{
-          question: { id: number; category: string; question: string };
-          status: string;
-          actualResponse: string;
-          routeCategory: string;
-          tools: string[];
-          durationMs: number;
-          score?: unknown;
-        }> = [];
-
-        for (let i = 0; i < questions.length; i++) {
-          if (abortRef.current) break;
-          setProgress({
-            suiteName: '30-Question QA',
-            testIndex: i + 1,
-            testCount: questions.length,
-            suiteIndex,
-            suiteCount: SUITE_COUNT,
-          });
-
-          const q = questions[i];
-          const start = performance.now();
-          try {
-            const res = await chatbotInfra.sendAIQuery(q.question, 60000);
-            const durationMs = Math.round(performance.now() - start);
-            const toolNames = res.toolCalls.map((t: { name: string }) => t.name);
-            const routeCategory = res.routeInfo?.category || 'unknown';
-            const hasResponse = !!(res.text && res.text.trim().length > 0);
-            const hasError = !!res.error;
-            const score = thirtyQMod.scoreThirtyQResponse(q, {
-              text: res.text || '',
-              tools: toolNames,
-              routeCategory,
-              error: res.error || undefined,
-              durationMs,
-            });
-            qResults.push({
-              question: { id: q.id, category: q.category, question: q.question },
-              status: hasError ? 'fail' : hasResponse ? 'pass' : 'fail',
-              actualResponse: res.text || res.error || '(empty)',
-              routeCategory,
-              tools: toolNames,
-              durationMs,
-              score,
-            });
-          } catch (err: unknown) {
-            qResults.push({
-              question: { id: q.id, category: q.category, question: q.question },
-              status: 'fail',
-              actualResponse: err instanceof Error ? err.message : String(err),
-              routeCategory: '',
-              tools: [],
-              durationMs: Math.round(performance.now() - start),
-            });
-          }
-        }
-
-        localStorage.setItem(THIRTY_Q_STORAGE_KEY, JSON.stringify(qResults));
-        localStorage.setItem(THIRTY_Q_STORAGE_KEY + '-ts', new Date().toISOString());
-        suiteIndex++;
-      }
-
-      // ─── Suite 8: Chatbot Scenarios (126+ AI calls) ───
-      if (!abortRef.current) {
-        const allScenarios = scenarioMod.getChatbotTestScenarios();
-        const autoScenarios = allScenarios.filter((s: { skipAutoRun?: boolean }) => !s.skipAutoRun);
-        const scenarioResults: Record<string, unknown> = {};
-
-        for (let i = 0; i < autoScenarios.length; i++) {
-          if (abortRef.current) break;
-          setProgress({
-            suiteName: 'Chatbot Scenarios',
-            testIndex: i + 1,
-            testCount: autoScenarios.length,
-            suiteIndex,
-            suiteCount: SUITE_COUNT,
-          });
-
-          const scenario = autoScenarios[i];
-          const start = performance.now();
-          try {
-            const res = await chatbotInfra.sendAIQuery(scenario.userMessage, 45000);
-            const durationMs = Math.round(performance.now() - start);
-            const toolNames = res.toolCalls.map((t: { name: string }) => t.name);
-            const routeCategory = res.routeInfo?.category || 'unknown';
-            const autoChecks = scenarioMod.runAutoChecks(scenario, {
-              text: res.text || '',
-              toolCalls: res.toolCalls,
-              routeInfo: res.routeInfo,
-              error: res.error,
-            });
-            const allPassed = autoChecks.every((c: { passed: boolean }) => c.passed);
-            scenarioResults[scenario.id] = {
-              id: scenario.id,
-              status: allPassed ? 'pass' : 'fail',
-              notes: '',
-              testedAt: new Date().toISOString(),
-              aiResponse: res.text || res.error || '(empty)',
-              toolsCalled: toolNames,
-              routeCategory,
-              durationMs,
-              autoChecks,
-            };
-          } catch (err: unknown) {
-            scenarioResults[scenario.id] = {
-              id: scenario.id,
-              status: 'fail',
-              notes: '',
-              testedAt: new Date().toISOString(),
-              error: err instanceof Error ? err.message : String(err),
-              durationMs: Math.round(performance.now() - start),
-            };
-          }
-        }
-
-        localStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify(scenarioResults));
-        suiteIndex++;
-      }
-
-      toast.success(
-        `Run All complete — ${suiteIndex} suite${suiteIndex !== 1 ? 's' : ''} finished`,
+      const systemResults = await runTestLoop(
+        systemTests,
+        sysCtx,
+        abortRef,
+        isSystemTestWarning,
+        (n) => updateProgress('System Tests', n, systemTests.length),
       );
-    } catch (err: unknown) {
-      toast.error(`Run All failed: ${err instanceof Error ? err.message : String(err)}`);
+
+      totalRun += systemResults.length;
+      const sysTs = new Date().toISOString();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(systemResults));
+        localStorage.setItem(STORAGE_KEY + '-ts', sysTs);
+      } catch {
+        /* ignore */
+      }
+
+      suitesCompleted = 1;
+      if (abortRef.current) throw new Error('aborted');
+
+      // --- Suite 2: DocuSeal Health Check ---
+      updateProgress('DocuSeal Health Check', 0, 1);
+      const { supabase } = await import('@/integrations/supabase/client');
+
+      try {
+        const { data, error } = await supabase.functions.invoke('docuseal-integration-test');
+        if (error) {
+          const errorMsg = error.message || 'Edge function invocation failed';
+          localStorage.setItem(DOCUSEAL_KEY, JSON.stringify({ error: errorMsg, results: [] }));
+        } else if (data?.error) {
+          localStorage.setItem(DOCUSEAL_KEY, JSON.stringify({ error: data.error, results: [] }));
+        } else {
+          localStorage.setItem(DOCUSEAL_KEY, JSON.stringify(data));
+        }
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'Unexpected error';
+        localStorage.setItem(DOCUSEAL_KEY, JSON.stringify({ error: msg, results: [] }));
+      }
+
+      totalRun += 1;
+      suitesCompleted = 2;
+      updateProgress('DocuSeal Health Check', 1, 1);
+      if (abortRef.current) throw new Error('aborted');
+
+      // --- Suite 3: Chatbot Infra Tests ---
+      const { buildChatbotTests, CHATBOT_INFRA_STORAGE_KEY } =
+        await import('./chatbot-test-runner/chatbotInfraTests');
+      const chatbotTests = buildChatbotTests();
+
+      updateProgress('Chatbot Infrastructure', 0, chatbotTests.length);
+
+      const chatCtx: ChatbotTestContext = {
+        createdConversationIds: [],
+        createdAnalyticsIds: [],
+        createdFeedbackIds: [],
+      };
+
+      const chatResults = await runTestLoop(
+        chatbotTests,
+        chatCtx,
+        abortRef,
+        isChatbotTestWarning,
+        (n) => updateProgress('Chatbot Infrastructure', n, chatbotTests.length),
+      );
+
+      totalRun += chatResults.length;
+      const chatTs = new Date().toISOString();
+      try {
+        localStorage.setItem(CHATBOT_INFRA_STORAGE_KEY, JSON.stringify(chatResults));
+        localStorage.setItem(CHATBOT_INFRA_STORAGE_KEY + '-ts', JSON.stringify(chatTs));
+      } catch {
+        /* ignore */
+      }
+
+      suitesCompleted = 3;
+      toast.success(`Run All complete: ${totalRun} tests across ${SUITE_COUNT} suites`);
+    } catch (e) {
+      if (abortRef.current) {
+        toast.info('Run All stopped');
+      } else {
+        toast.error('Run All failed: ' + (e instanceof Error ? e.message : String(e)));
+      }
     } finally {
-      setIsRunningAll(false);
       setProgress(null);
     }
   }, []);
 
-  const stopRunAll = useCallback(() => {
+  const stopAll = useCallback(() => {
     abortRef.current = true;
   }, []);
 
-  // ── Export All Results as JSON ─────────────────────────────────────
-  // Collects results from all suites stored in localStorage and downloads
-  // a single JSON report suitable for uploading to Claude Code for feedback.
+  // ── Export All Results ──
 
   const exportAllResults = useCallback(() => {
-    const suites: Record<string, unknown> = {};
-
-    const summarize = (results: Array<{ status: string }>) => ({
-      total: results.length,
-      pass: results.filter((r) => r.status === 'pass').length,
-      fail: results.filter((r) => r.status === 'fail').length,
-      warn: results.filter((r) => r.status === 'warn').length,
-      skip: results.filter((r) => r.status === 'skip').length,
-    });
-
     const readTs = (key: string): string | null => {
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
       try {
-        return JSON.parse(raw);
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        // Try JSON parse first (chatbot infra stores as JSON string)
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return raw; // System tests store raw ISO string
+        }
       } catch {
-        return raw;
+        return null;
       }
     };
 
-    // System Tests
+    const suites: Record<string, unknown> = {};
+    let hasSomeData = false;
+
+    // 1. System Tests
     try {
-      const raw = localStorage.getItem(SYSTEM_STORAGE_KEY);
+      const raw = localStorage.getItem(SYSTEM_TEST_KEY);
       if (raw) {
-        const results = JSON.parse(raw);
-        suites.systemTests = {
-          name: 'System Tests',
-          lastRunAt: readTs(SYSTEM_STORAGE_KEY + '-ts'),
-          summary: summarize(results),
+        const results = JSON.parse(raw) as TestResult[];
+        const pass = results.filter((r) => r.status === 'pass').length;
+        const fail = results.filter((r) => r.status === 'fail').length;
+        const warn = results.filter((r) => r.status === 'warn').length;
+        suites['system_tests'] = {
+          ranAt: readTs(SYSTEM_TEST_KEY + '-ts'),
+          summary: { total: results.length, pass, fail, warn },
           results,
         };
+        hasSomeData = true;
       }
     } catch {
       /* skip */
     }
 
-    // DocuSeal Health Check
+    // 2. DocuSeal
     try {
-      const raw = localStorage.getItem(DOCUSEAL_STORAGE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        suites.docuSealHealth = {
-          name: 'DocuSeal Health Check',
-          lastRunAt: readTs(DOCUSEAL_STORAGE_KEY + '-ts') || data.ranAt,
-          ...(data.error
-            ? { error: data.error }
-            : {
-                summary: summarize(data.results || []),
-                results: data.results || [],
-                cleanup: data.cleanup,
-              }),
-        };
-      }
-    } catch {
-      /* skip */
-    }
-
-    // Chatbot Infrastructure Tests
-    try {
-      const raw = localStorage.getItem(CHATBOT_INFRA_STORAGE_KEY);
-      if (raw) {
-        const results = JSON.parse(raw);
-        suites.chatbotInfrastructure = {
-          name: 'Chatbot Infrastructure Tests',
-          lastRunAt: readTs(CHATBOT_INFRA_STORAGE_KEY + '-ts'),
-          summary: summarize(results),
-          results,
-        };
-      }
-    } catch {
-      /* skip */
-    }
-
-    // Chatbot QA Scenarios
-    try {
-      const raw = localStorage.getItem(SCENARIO_STORAGE_KEY);
-      if (raw) {
-        const map = JSON.parse(raw);
-        const results = Object.values(map) as Array<{ status: string }>;
-        suites.chatbotScenarios = {
-          name: 'Chatbot QA Scenarios',
-          summary: summarize(results),
-          results: map,
-        };
-      }
-    } catch {
-      /* skip */
-    }
-
-    // 30-Question QA
-    try {
-      const raw = localStorage.getItem(THIRTY_Q_STORAGE_KEY);
-      if (raw) {
-        const results = JSON.parse(raw);
-        suites.thirtyQuestionQA = {
-          name: '30-Question QA',
-          lastRunAt: readTs(THIRTY_Q_STORAGE_KEY + '-ts'),
-          summary: summarize(results),
-          results,
-        };
-      }
-    } catch {
-      /* skip */
-    }
-
-    // Enrichment Test
-    try {
-      const raw = localStorage.getItem(ENRICHMENT_STORAGE_KEY);
-      if (raw) {
-        const results = JSON.parse(raw);
-        suites.enrichmentTest = {
-          name: 'Enrichment Test (auto-selected)',
-          lastRunAt: readTs(ENRICHMENT_STORAGE_KEY + '-ts'),
-          summary: summarize(results),
-          results,
-        };
-      }
-    } catch {
-      /* skip */
-    }
-
-    // Listing Pipeline
-    try {
-      const raw = localStorage.getItem(PIPELINE_STORAGE_KEY);
+      const raw = localStorage.getItem(DOCUSEAL_KEY);
       if (raw) {
         const data = JSON.parse(raw);
         if (data.error) {
-          suites.listingPipeline = {
-            name: 'Listing Pipeline',
-            lastRunAt: readTs(PIPELINE_STORAGE_KEY + '-ts'),
-            error: data.error,
-          };
+          suites['docuseal'] = { error: data.error };
         } else {
-          suites.listingPipeline = {
-            name: 'Listing Pipeline',
-            lastRunAt: readTs(PIPELINE_STORAGE_KEY + '-ts') || data.ranAt,
-            dealId: data.dealId,
-            dealTitle: data.dealTitle,
-            summary: summarize(data.checks || []),
-            checks: data.checks,
+          const results = data.results || [];
+          const pass = results.filter((r: { status: string }) => r.status === 'pass').length;
+          const fail = results.filter((r: { status: string }) => r.status === 'fail').length;
+          const warn = results.filter((r: { status: string }) => r.status === 'warn').length;
+          const skip = results.filter((r: { status: string }) => r.status === 'skip').length;
+          suites['docuseal'] = {
+            ranAt: data.ranAt || null,
+            summary: { total: results.length, pass, fail, warn, skip },
+            results,
           };
         }
+        hasSomeData = true;
       }
     } catch {
       /* skip */
     }
 
-    // Smartlead Diagnostics
+    // 3. Chatbot Infra
     try {
-      const raw = localStorage.getItem(SMARTLEAD_STORAGE_KEY);
+      const raw = localStorage.getItem(CHATBOT_INFRA_KEY);
       if (raw) {
-        const results = JSON.parse(raw);
-        suites.smartleadDiagnostics = {
-          name: 'Smartlead Diagnostics',
-          lastRunAt: readTs(SMARTLEAD_STORAGE_KEY + '-ts'),
-          summary: summarize(results),
+        const results = JSON.parse(raw) as ChatbotTestResult[];
+        const pass = results.filter((r) => r.status === 'pass').length;
+        const fail = results.filter((r) => r.status === 'fail').length;
+        const warn = results.filter((r) => r.status === 'warn').length;
+        suites['chatbot_infra'] = {
+          ranAt: readTs(CHATBOT_INFRA_KEY + '-ts'),
+          summary: { total: results.length, pass, fail, warn },
           results,
         };
+        hasSomeData = true;
       }
     } catch {
       /* skip */
     }
 
-    if (Object.keys(suites).length === 0) {
-      toast.error('No test results found. Run some tests first.');
+    // 4. Chatbot Scenarios
+    try {
+      const raw = localStorage.getItem(SCENARIO_KEY);
+      if (raw) {
+        const results = JSON.parse(raw);
+        const pass = results.filter((r: { status: string }) => r.status === 'pass').length;
+        const fail = results.filter((r: { status: string }) => r.status === 'fail').length;
+        const skip = results.filter((r: { status: string }) => r.status === 'skip').length;
+        suites['chatbot_scenarios'] = {
+          summary: { total: results.length, pass, fail, skip },
+          results,
+        };
+        hasSomeData = true;
+      }
+    } catch {
+      /* skip */
+    }
+
+    // 5. 30-Question QA
+    try {
+      const raw = localStorage.getItem(THIRTY_Q_KEY);
+      if (raw) {
+        const results = JSON.parse(raw);
+        const pass = results.filter((r: { status: string }) => r.status === 'pass').length;
+        const fail = results.filter((r: { status: string }) => r.status === 'fail').length;
+        const error = results.filter((r: { status: string }) => r.status === 'error').length;
+        suites['thirty_question_qa'] = {
+          ranAt: readTs(THIRTY_Q_KEY + '-ts'),
+          summary: { total: results.length, pass, fail, error },
+          results,
+        };
+        hasSomeData = true;
+      }
+    } catch {
+      /* skip */
+    }
+
+    if (!hasSomeData) {
+      toast.error('No test results to export. Run some tests first.');
       return;
     }
 
-    const report = {
+    const exportData = {
       exportedAt: new Date().toISOString(),
-      platform: 'SourceCo Connect – Testing & Diagnostics',
+      platform: 'SourceCo Connect Market Nexus',
       suites,
     };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], {
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `test-results-${new Date().toISOString().slice(0, 10)}.json`;
-    a.style.visibility = 'hidden';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    toast.success(`Exported ${Object.keys(suites).length} suite(s) to JSON`);
+    toast.success('Exported all test results');
   }, []);
+
+  // ── Overall progress percentage ──
+  const overallProgress =
+    progress && progress.testsTotal > 0
+      ? Math.round(
+          (progress.suitesCompleted / SUITE_COUNT) * 100 +
+            (progress.testsRun / progress.testsTotal / SUITE_COUNT) * 100,
+        )
+      : 0;
 
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-background/95 backdrop-blur sticky top-0 z-40">
         <div className="px-8 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between">
             <div className="space-y-1">
               <h1 className="text-2xl font-semibold tracking-tight">Testing & Diagnostics</h1>
               <p className="text-sm text-muted-foreground">
@@ -966,29 +555,45 @@ export default function TestingHub() {
                 integration, and AI chatbot QA.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {isRunningAll ? (
-                <Button variant="destructive" onClick={stopRunAll} className="gap-2">
+            <div className="flex gap-2">
+              {progress ? (
+                <Button variant="destructive" onClick={stopAll} className="gap-2">
                   <Square className="h-4 w-4" />
                   Stop All
                 </Button>
               ) : (
                 <Button onClick={runAllSuites} className="gap-2">
-                  <Play className="h-4 w-4" />
+                  <PlayCircle className="h-4 w-4" />
                   Run All Suites
                 </Button>
               )}
-              <Button
-                variant="outline"
-                onClick={exportAllResults}
-                disabled={isRunningAll}
-                className="gap-2"
-              >
+              <Button variant="outline" onClick={exportAllResults} className="gap-2">
                 <Download className="h-4 w-4" />
                 Export Results
               </Button>
             </div>
           </div>
+
+          {/* Run All progress bar */}
+          {progress && (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Running:{' '}
+                  <span className="font-medium text-foreground">{progress.currentSuite}</span>
+                  {progress.testsTotal > 0 && (
+                    <span className="ml-2">
+                      ({progress.testsRun}/{progress.testsTotal} tests)
+                    </span>
+                  )}
+                </span>
+                <span className="text-muted-foreground">
+                  Suite {progress.suitesCompleted + 1} of {SUITE_COUNT}
+                </span>
+              </div>
+              <Progress value={overallProgress} className="h-2" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -1049,6 +654,10 @@ export default function TestingHub() {
               <Store className="h-4 w-4" />
               Listing Pipeline
             </TabsTrigger>
+            <TabsTrigger value="buyer-rec" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              AI Buyer Engine
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="enrichment">
@@ -1090,6 +699,12 @@ export default function TestingHub() {
           <TabsContent value="listing-pipeline">
             <Suspense fallback={<Loading />}>
               <ListingPipelineTest />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="buyer-rec">
+            <Suspense fallback={<Loading />}>
+              <BuyerRecommendationTest />
             </Suspense>
           </TabsContent>
         </Tabs>

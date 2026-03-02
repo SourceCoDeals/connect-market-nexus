@@ -63,7 +63,7 @@ export function useTaskAnalytics(dateFrom: string | null, dateTo: string | null)
       const completionTimes = completed
         .filter((t) => t.completed_at && t.created_at)
         .map((t) => {
-          const diff = new Date(t.completed_at).getTime() - new Date(t.created_at).getTime();
+          const diff = new Date(t.completed_at!).getTime() - new Date(t.created_at!).getTime();
           return diff / (1000 * 60 * 60); // hours
         });
 
@@ -89,7 +89,10 @@ export function useTaskAnalytics(dateFrom: string | null, dateTo: string | null)
         total_overdue: overdue.length,
         completion_rate: all.length > 0 ? (completed.length / all.length) * 100 : 0,
         avg_time_to_complete_hours: avgTimeToComplete,
-        by_task_type: byTaskType as Record<TaskType, { assigned: number; completed: number; overdue: number }>,
+        by_task_type: byTaskType as Record<
+          TaskType,
+          { assigned: number; completed: number; overdue: number }
+        >,
       };
 
       return summary;
@@ -152,13 +155,12 @@ export function useTeamScorecards(dateFrom: string | null, dateTo: string | null
         const completedWithRanks = completed
           .filter((t) => t.priority_rank != null && t.completed_at)
           .sort(
-            (a, b) =>
-              new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime(),
+            (a, b) => new Date(a.completed_at!).getTime() - new Date(b.completed_at!).getTime(),
           );
 
         let inOrderCount = 0;
         for (let i = 1; i < completedWithRanks.length; i++) {
-          if (completedWithRanks[i].priority_rank >= completedWithRanks[i - 1].priority_rank) {
+          if (completedWithRanks[i].priority_rank! >= completedWithRanks[i - 1].priority_rank!) {
             inOrderCount++;
           }
         }
@@ -204,7 +206,10 @@ export function useTeamScorecards(dateFrom: string | null, dateTo: string | null
           avg_time_to_complete_hours: avgTime,
           priority_discipline_score: priorityDiscipline,
           completion_trend: completionTrend,
-          by_task_type: byType as Record<TaskType, { assigned: number; completed: number; overdue: number }>,
+          by_task_type: byType as Record<
+            TaskType,
+            { assigned: number; completed: number; overdue: number }
+          >,
         });
       }
 
@@ -269,9 +274,7 @@ export function useMeetingQualityMetrics(dateFrom: string | null, dateTo: string
           continue;
         }
 
-        const highConfidence = taskList.filter(
-          (t) => t.extraction_confidence === 'high',
-        ).length;
+        const highConfidence = taskList.filter((t) => t.extraction_confidence === 'high').length;
         const needsReview = taskList.filter((t) => t.needs_review).length;
         const assigned = taskList.filter((t) => t.assignee_id != null).length;
 

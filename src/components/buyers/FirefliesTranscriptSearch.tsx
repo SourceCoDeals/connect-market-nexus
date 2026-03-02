@@ -1,20 +1,12 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  Loader2,
-  Search,
-  Link,
-  ExternalLink,
-  Clock,
-  Users,
-  FileText,
-} from "lucide-react";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2, Search, Link, ExternalLink, Clock, Users, FileText } from 'lucide-react';
 
 interface FirefliesTranscriptSearchProps {
   buyerId: string;
@@ -74,7 +66,7 @@ export const FirefliesTranscriptSearch = ({
   const handleSearch = async () => {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
-      toast.error("Please enter a search query");
+      toast.error('Please enter a search query');
       return;
     }
 
@@ -83,20 +75,15 @@ export const FirefliesTranscriptSearch = ({
 
     try {
       // Build participant email list from contacts for domain-based search
-      const participantEmails = contacts
-        ?.map(c => c.email)
-        .filter(Boolean) || [];
+      const participantEmails = contacts?.map((c) => c.email).filter(Boolean) || [];
 
-      const { data, error } = await supabase.functions.invoke(
-        'search-fireflies-for-buyer',
-        {
-          body: {
-            query: trimmedQuery,
-            participantEmails: participantEmails.length > 0 ? participantEmails : undefined,
-            limit: 30
-          }
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
+        body: {
+          query: trimmedQuery,
+          participantEmails: participantEmails.length > 0 ? participantEmails : undefined,
+          limit: 30,
+        },
+      });
 
       if (error) {
         throw error;
@@ -109,16 +96,13 @@ export const FirefliesTranscriptSearch = ({
       } else {
         toast.success(
           `Found ${data.results.length} matching call${data.results.length !== 1 ? 's' : ''}`,
-          { id: toastId }
+          { id: toastId },
         );
       }
-
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? `Search failed: ${error.message}`
-          : "Failed to search Fireflies",
-        { id: toastId }
+        error instanceof Error ? `Search failed: ${error.message}` : 'Failed to search Fireflies',
+        { id: toastId },
       );
     } finally {
       setLoading(false);
@@ -129,32 +113,31 @@ export const FirefliesTranscriptSearch = ({
     setLinking(transcript.id);
 
     try {
-      const { error } = await supabase
-        .from('buyer_transcripts')
-        .insert({
-          buyer_id: buyerId,
-          fireflies_transcript_id: transcript.id,
-          transcript_url: transcript.meeting_url,
-          title: transcript.title,
-          call_date: transcript.date,
-          participants: transcript.participants,
-          duration_minutes: transcript.duration_minutes,
-          summary: transcript.summary,
-          key_points: transcript.keywords,
-          notes: linkingNotes[transcript.id] || null,
-        });
+      const { error } = await supabase.from('buyer_transcripts').insert({
+        buyer_id: buyerId,
+        fireflies_transcript_id: transcript.id,
+        transcript_url: transcript.meeting_url,
+        title: transcript.title,
+        call_date: transcript.date,
+        participants: transcript.participants as Record<string, unknown>[],
+        duration_minutes: transcript.duration_minutes,
+        summary: transcript.summary,
+        key_points: transcript.keywords,
+        notes: linkingNotes[transcript.id] || null,
+      } as never);
 
       if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          toast.info("This transcript is already linked to this buyer");
+        if (error.code === '23505') {
+          // Unique constraint violation
+          toast.info('This transcript is already linked to this buyer');
         } else {
           throw error;
         }
       } else {
-        toast.success("Transcript linked to buyer");
+        toast.success('Transcript linked to buyer');
 
         // Remove from results
-        setResults(results.filter(r => r.id !== transcript.id));
+        setResults(results.filter((r) => r.id !== transcript.id));
 
         // Clear notes for this transcript
         const newNotes = { ...linkingNotes };
@@ -169,12 +152,9 @@ export const FirefliesTranscriptSearch = ({
         // Notify parent
         onTranscriptLinked?.();
       }
-
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? `Failed to link: ${error.message}`
-          : "Failed to link transcript"
+        error instanceof Error ? `Failed to link: ${error.message}` : 'Failed to link transcript',
       );
     } finally {
       setLinking(null);
@@ -182,7 +162,7 @@ export const FirefliesTranscriptSearch = ({
   };
 
   const handleNotesChange = (transcriptId: string, notes: string) => {
-    setLinkingNotes(prev => ({
+    setLinkingNotes((prev) => ({
       ...prev,
       [transcriptId]: notes,
     }));
@@ -200,10 +180,7 @@ export const FirefliesTranscriptSearch = ({
             onKeyDown={(e) => e.key === 'Enter' && !loading && handleSearch()}
           />
         </div>
-        <Button
-          onClick={handleSearch}
-          disabled={loading || !query.trim()}
-        >
+        <Button onClick={handleSearch} disabled={loading || !query.trim()}>
           {loading ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
@@ -218,13 +195,10 @@ export const FirefliesTranscriptSearch = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {results.length} result{results.length !== 1 ? 's' : ''} — click title to view in Fireflies
+              {results.length} result{results.length !== 1 ? 's' : ''} — click title to view in
+              Fireflies
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setResults([])}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setResults([])}>
               Clear
             </Button>
           </div>
@@ -246,9 +220,7 @@ export const FirefliesTranscriptSearch = ({
                         <ExternalLink className="h-3 w-3 shrink-0" />
                       </a>
                     ) : (
-                      <h4 className="font-medium text-sm break-words">
-                        {result.title}
-                      </h4>
+                      <h4 className="font-medium text-sm break-words">{result.title}</h4>
                     )}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
@@ -259,13 +231,12 @@ export const FirefliesTranscriptSearch = ({
                           year: 'numeric',
                         })}
                       </span>
-                      {result.duration_minutes && (
-                        <span>{result.duration_minutes} min</span>
-                      )}
+                      {result.duration_minutes && <span>{result.duration_minutes} min</span>}
                       {result.participants.length > 0 && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          {result.participants.length} participant{result.participants.length !== 1 ? 's' : ''}
+                          {result.participants.length} participant
+                          {result.participants.length !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
@@ -274,9 +245,7 @@ export const FirefliesTranscriptSearch = ({
 
                 {/* Summary */}
                 {result.summary && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {result.summary}
-                  </p>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{result.summary}</p>
                 )}
 
                 {/* Keywords */}
@@ -298,9 +267,7 @@ export const FirefliesTranscriptSearch = ({
                 {/* Notes (collapsible) */}
                 {expandedNotes === result.id && (
                   <div className="space-y-2 pt-2 border-t">
-                    <label className="text-xs font-medium">
-                      Notes (Optional)
-                    </label>
+                    <label className="text-xs font-medium">Notes (Optional)</label>
                     <Textarea
                       placeholder="Why is this transcript relevant to this buyer?"
                       value={linkingNotes[result.id] || ''}
@@ -335,9 +302,7 @@ export const FirefliesTranscriptSearch = ({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setExpandedNotes(
-                      expandedNotes === result.id ? null : result.id
-                    )}
+                    onClick={() => setExpandedNotes(expandedNotes === result.id ? null : result.id)}
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     {expandedNotes === result.id ? 'Hide' : 'Add'} Notes

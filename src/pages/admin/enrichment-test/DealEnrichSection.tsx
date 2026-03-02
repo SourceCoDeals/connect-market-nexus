@@ -52,36 +52,36 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
       setBefore(bData as Record<string, unknown> | null);
 
       // Queue deal enrichment via shared queue utility
-      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      const { queueDealEnrichment } = await import('@/lib/remarketing/queueEnrichment');
       await queueDealEnrichment([dealId]);
 
       // Poll for completion (enrichment runs in background)
       let attempts = 0;
       let enrichmentDone = false;
       while (attempts < 45 && !enrichmentDone) {
-        await new Promise(r => setTimeout(r, 4000));
+        await new Promise((r) => setTimeout(r, 4000));
         attempts++;
         const { data: queueItem } = await supabase
-          .from("enrichment_queue")
-          .select("status")
-          .eq("listing_id", dealId)
-          .order("queued_at", { ascending: false })
+          .from('enrichment_queue')
+          .select('status')
+          .eq('listing_id', dealId)
+          .order('queued_at', { ascending: false })
           .limit(1)
           .maybeSingle();
-        if (queueItem?.status === "completed" || queueItem?.status === "failed") {
+        if (queueItem?.status === 'completed' || queueItem?.status === 'failed') {
           enrichmentDone = true;
-          if (queueItem.status === "failed") {
-            setError("Enrichment failed in queue");
+          if (queueItem.status === 'failed') {
+            setError('Enrichment failed in queue');
             addLog(`enrich-deal for ${dealId.slice(0, 8)}… — queue failed`, Date.now() - t0, false);
             return;
           }
         }
       }
       if (!enrichmentDone) {
-        setResponse({ success: true, message: "Enrichment queued — still running in background" });
+        setResponse({ success: true, message: 'Enrichment queued — still running in background' });
         addLog(`enrich-deal for ${dealId.slice(0, 8)}… (queued, still running)`, Date.now() - t0);
       } else {
-        setResponse({ success: true, message: "Enrichment completed via queue" });
+        setResponse({ success: true, message: 'Enrichment completed via queue' });
       }
 
       // Fetch after
@@ -93,11 +93,14 @@ export default function DealEnrichSection({ addLog, dealId, runRef }: Props) {
       if (aDataError) throw aDataError;
       setAfter(aData as Record<string, unknown> | null);
 
-      addLog(`enrich-deal for ${dealId.slice(0, 8)}… (enrichment ${enrichmentDone ? 'completed' : 'queued'})`, Date.now() - t0);
+      addLog(
+        `enrich-deal for ${dealId.slice(0, 8)}… (enrichment ${enrichmentDone ? 'completed' : 'queued'})`,
+        Date.now() - t0,
+      );
     } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`enrich-deal for ${dealId.slice(0, 8)}… — ${e.message}`, dur, false);
+      setError((e as Error).message);
+      addLog(`enrich-deal for ${dealId.slice(0, 8)}… — ${(e as Error).message}`, dur, false);
     } finally {
       setLoading(false);
     }

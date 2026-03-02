@@ -1,25 +1,28 @@
-import { useState, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { supabase } from "@/integrations/supabase/client";
-import { useGlobalGateCheck, useGlobalActivityMutations } from "@/hooks/remarketing/useGlobalActivityQueue";
-import { DocumentReference } from "@/types/remarketing";
-import { 
-  FileText, 
-  Upload, 
-  X, 
-  ExternalLink, 
+import { useState, useRef } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  useGlobalGateCheck,
+  useGlobalActivityMutations,
+} from '@/hooks/remarketing/useGlobalActivityQueue';
+import { DocumentReference } from '@/types/remarketing';
+import {
+  FileText,
+  Upload,
+  X,
+  ExternalLink,
   Loader2,
   File,
   FileSpreadsheet,
   FileImage,
   RotateCcw,
-  Sparkles
-} from "lucide-react";
-import { toast } from "sonner";
+  Sparkles,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
 interface DocumentUploadSectionProps {
@@ -56,13 +59,18 @@ export const DocumentUploadSection = ({
   onDocumentsChange,
   onReanalyze,
   isReanalyzing = false,
-  industryName = 'Unknown Industry'
+  industryName = 'Unknown Industry',
 }: DocumentUploadSectionProps) => {
   const { registerMinorOp } = useGlobalGateCheck();
   const { updateProgress, completeOperation } = useGlobalActivityMutations();
   const [isUploading, setIsUploading] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
-  const [enrichProgress, setEnrichProgress] = useState({ current: 0, total: 0, successes: 0, failures: 0 });
+  const [enrichProgress, setEnrichProgress] = useState({
+    current: 0,
+    total: 0,
+    successes: 0,
+    failures: 0,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setActiveQueueId] = useState<string | null>(null);
 
@@ -99,7 +107,7 @@ export const DocumentUploadSection = ({
           name: file.name,
           url: urlData.publicUrl,
           path: fileName,
-          uploaded_at: new Date().toISOString()
+          uploaded_at: new Date().toISOString(),
         });
       }
 
@@ -118,12 +126,12 @@ export const DocumentUploadSection = ({
   };
 
   const handleRemoveDocument = (docId: string) => {
-    onDocumentsChange(documents.filter(d => d.id !== docId));
+    onDocumentsChange(documents.filter((d) => d.id !== docId));
     toast.success('Document removed');
   };
 
   const handleEnrichFromDocuments = async () => {
-    const enrichableDocs = documents.filter(d => d.type !== 'ma_guide');
+    const enrichableDocs = documents.filter((d) => d.type !== 'ma_guide');
     if (enrichableDocs.length === 0) {
       toast.error('No documents to enrich from');
       return;
@@ -137,7 +145,10 @@ export const DocumentUploadSection = ({
     // Register in global activity queue
     let queueId: string | null = null;
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (user) {
         const item = await registerMinorOp({
@@ -185,7 +196,7 @@ export const DocumentUploadSection = ({
             document_url: storagePath,
             document_name: doc.name,
             industry_name: industryName,
-          }
+          },
         });
 
         if (error) throw error;
@@ -201,12 +212,14 @@ export const DocumentUploadSection = ({
                 id: queueId,
                 errorEntry: { itemId: doc.name, error: errMsg },
               });
-            } catch { /* ignored */ }
+            } catch {
+              /* ignored */
+            }
           }
         }
       } catch (err: unknown) {
         failures++;
-        const errMsg = err?.message || 'Unknown error';
+        const errMsg = err instanceof Error ? err.message : 'Unknown error';
         // Enrichment error tracked via queue error entry
         if (queueId) {
           try {
@@ -214,7 +227,9 @@ export const DocumentUploadSection = ({
               id: queueId,
               errorEntry: { itemId: doc.name, error: errMsg },
             });
-          } catch { /* ignored */ }
+          } catch {
+            /* ignored */
+          }
         }
       }
 
@@ -228,11 +243,13 @@ export const DocumentUploadSection = ({
             completedItems: successes + failures,
             failedItems: failures,
           });
-        } catch { /* ignored */ }
+        } catch {
+          /* ignored */
+        }
       }
 
       if (i < enrichableDocs.length - 1) {
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 1500));
       }
     }
 
@@ -243,7 +260,9 @@ export const DocumentUploadSection = ({
           id: queueId,
           finalStatus: failures === enrichableDocs.length ? 'failed' : 'completed',
         });
-      } catch { /* ignored */ }
+      } catch {
+        /* ignored */
+      }
     }
 
     setIsEnriching(false);
@@ -292,12 +311,7 @@ export const DocumentUploadSection = ({
               Add Documents
             </Button>
             {onReanalyze && documents.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onReanalyze}
-                disabled={isReanalyzing}
-              >
+              <Button variant="outline" size="sm" onClick={onReanalyze} disabled={isReanalyzing}>
                 {isReanalyzing ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
                 ) : (
@@ -356,16 +370,24 @@ export const DocumentUploadSection = ({
                 {enrichProgress.current} of {enrichProgress.total}
               </span>
             </div>
-            <Progress value={enrichProgress.total > 0 ? (enrichProgress.current / enrichProgress.total) * 100 : 0} className="h-2" />
+            <Progress
+              value={
+                enrichProgress.total > 0 ? (enrichProgress.current / enrichProgress.total) * 100 : 0
+              }
+              className="h-2"
+            />
             {(enrichProgress.successes > 0 || enrichProgress.failures > 0) && (
               <div className="flex gap-3 text-xs text-muted-foreground">
-                {enrichProgress.successes > 0 && <span className="text-emerald-600">{enrichProgress.successes} successful</span>}
-                {enrichProgress.failures > 0 && <span className="text-destructive">{enrichProgress.failures} failed</span>}
+                {enrichProgress.successes > 0 && (
+                  <span className="text-emerald-600">{enrichProgress.successes} successful</span>
+                )}
+                {enrichProgress.failures > 0 && (
+                  <span className="text-destructive">{enrichProgress.failures} failed</span>
+                )}
               </div>
             )}
           </div>
         )}
-
 
         {documents.length > 0 && (
           <div className="flex flex-wrap gap-2">
@@ -379,9 +401,9 @@ export const DocumentUploadSection = ({
                   {truncateName(doc.name)}
                 </span>
                 {doc.url && (
-                  <a 
-                    href={doc.url} 
-                    target="_blank" 
+                  <a
+                    href={doc.url}
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground hover:text-foreground"
                   >

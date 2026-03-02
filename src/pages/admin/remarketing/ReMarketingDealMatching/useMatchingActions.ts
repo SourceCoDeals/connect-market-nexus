@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
-import type { OutreachStatus } from "@/components/remarketing";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
+import type { OutreachStatus } from '@/components/remarketing';
 
 interface ScoreData {
   id: string;
@@ -31,9 +31,15 @@ interface UseMatchingActionsProps {
 }
 
 export function useMatchingActions({
-  listingId, scores, selectedUniverse, linkedUniverses,
-  setIsScoring, setScoringProgress, setCustomInstructions,
-  refetchOutreach, listing,
+  listingId,
+  scores,
+  selectedUniverse,
+  linkedUniverses,
+  setIsScoring,
+  setScoringProgress,
+  setCustomInstructions,
+  refetchOutreach,
+  listing,
 }: UseMatchingActionsProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -50,7 +56,12 @@ export function useMatchingActions({
   const [highlightedBuyerIds, setHighlightedBuyerIds] = useState<string[]>([]);
 
   // Log learning history helper
-  const logLearningHistory = async (scoreData: ScoreData, action: 'approved' | 'passed', passReason?: string, passCategory?: string) => {
+  const logLearningHistory = async (
+    scoreData: ScoreData,
+    action: 'approved' | 'passed',
+    passReason?: string,
+    passCategory?: string,
+  ) => {
     try {
       await supabase.from('buyer_learning_history').insert({
         buyer_id: scoreData.buyer_id,
@@ -79,7 +90,7 @@ export function useMatchingActions({
       status,
       pass_reason,
       pass_category,
-      scoreData
+      scoreData,
     }: {
       id: string;
       status: string;
@@ -99,7 +110,7 @@ export function useMatchingActions({
           scoreData,
           status as 'approved' | 'passed',
           pass_reason,
-          pass_category
+          pass_category,
         );
       }
     },
@@ -110,7 +121,7 @@ export function useMatchingActions({
     },
     onError: () => {
       toast.error('Failed to update match');
-    }
+    },
   });
 
   // Bulk approve mutation
@@ -125,28 +136,35 @@ export function useMatchingActions({
 
       // Log learning history + create outreach + discover contacts for each
       for (const id of ids) {
-        const scoreData = scores?.find(s => s.id === id);
+        const scoreData = scores?.find((s) => s.id === id);
         if (scoreData) {
           await logLearningHistory(scoreData, 'approved');
 
           // Auto-create outreach record
           try {
-            await supabase.from('remarketing_outreach').upsert({
-              score_id: id,
-              listing_id: listingId!,
-              buyer_id: scoreData.buyer_id,
-              status: 'pending',
-              created_by: user?.id,
-            }, { onConflict: 'score_id' });
+            await supabase.from('remarketing_outreach').upsert(
+              {
+                score_id: id,
+                listing_id: listingId!,
+                buyer_id: scoreData.buyer_id,
+                status: 'pending',
+                created_by: user?.id,
+              },
+              { onConflict: 'score_id' },
+            );
           } catch (err) {
             // Failed to create outreach record — non-blocking
           }
 
           // Fire-and-forget: discover contacts
           if (scoreData.buyer_id) {
-            supabase.functions.invoke('find-buyer-contacts', {
-              body: { buyerId: scoreData.buyer_id }
-            }).catch(() => { /* contact discovery failure is non-blocking */ });
+            supabase.functions
+              .invoke('find-buyer-contacts', {
+                body: { buyerId: scoreData.buyer_id },
+              })
+              .catch(() => {
+                /* contact discovery failure is non-blocking */
+              });
           }
         }
       }
@@ -159,7 +177,7 @@ export function useMatchingActions({
     },
     onError: () => {
       toast.error('Failed to bulk approve');
-    }
+    },
   });
 
   // Bulk score using edge function
@@ -167,7 +185,7 @@ export function useMatchingActions({
     // Determine which universe IDs to score
     let universeIds: string[] = [];
     if (selectedUniverse === 'all' || !selectedUniverse) {
-      universeIds = (linkedUniverses || []).map(u => u.id);
+      universeIds = (linkedUniverses || []).map((u) => u.id);
     } else {
       universeIds = [selectedUniverse];
     }
@@ -181,10 +199,9 @@ export function useMatchingActions({
     setScoringProgress(10);
 
     try {
-      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
-      let totalQueued = 0;
+      const { queueDealScoring } = await import('@/lib/remarketing/queueScoring');
       for (const uid of universeIds) {
-        totalQueued += await queueDealScoring({ universeId: uid, listingIds: [listingId!] });
+        await queueDealScoring({ universeId: uid, listingIds: [listingId!] });
       }
 
       setScoringProgress(100);
@@ -203,15 +220,16 @@ export function useMatchingActions({
 
     // Save custom instructions to database
     try {
-      await supabase
-        .from('deal_scoring_adjustments')
-        .upsert({
+      await supabase.from('deal_scoring_adjustments').upsert(
+        {
           listing_id: listingId!,
           adjustment_type: 'custom_instructions',
           adjustment_value: 0,
           reason: instructions,
           created_by: user?.id,
-        }, { onConflict: 'listing_id,adjustment_type' });
+        },
+        { onConflict: 'listing_id,adjustment_type' },
+      );
     } catch (error) {
       // Failed to save custom instructions — non-critical
     }
@@ -222,7 +240,7 @@ export function useMatchingActions({
 
   // Reset scoring (clear custom instructions)
   const handleReset = async () => {
-    setCustomInstructions("");
+    setCustomInstructions('');
 
     // Clear saved instructions
     try {
@@ -253,7 +271,7 @@ export function useMatchingActions({
         status: 'passed',
         pass_reason: reason,
         pass_category: category,
-        scoreData: selectedBuyerForPass.scoreData
+        scoreData: selectedBuyerForPass.scoreData,
       });
       setPassDialogOpen(false);
       setSelectedBuyerForPass(null);
@@ -261,7 +279,11 @@ export function useMatchingActions({
   };
 
   // Handle toggle interested (approve/revert to pending)
-  const handleToggleInterested = async (scoreId: string, interested: boolean, scoreData?: ScoreData) => {
+  const handleToggleInterested = async (
+    scoreId: string,
+    interested: boolean,
+    scoreData?: ScoreData,
+  ) => {
     if (interested) {
       // Toggling ON -> approve
       await handleApprove(scoreId, scoreData);
@@ -279,13 +301,16 @@ export function useMatchingActions({
 
     // Auto-create outreach record for approved buyer
     try {
-      const { error } = await supabase.from('remarketing_outreach').upsert({
-        score_id: scoreId,
-        listing_id: listingId!,
-        buyer_id: scoreData?.buyer_id,
-        status: 'pending',
-        created_by: user?.id,
-      }, { onConflict: 'score_id' });
+      const { error } = await supabase.from('remarketing_outreach').upsert(
+        {
+          score_id: scoreId,
+          listing_id: listingId!,
+          buyer_id: scoreData?.buyer_id,
+          status: 'pending',
+          created_by: user?.id,
+        } as never,
+        { onConflict: 'score_id' },
+      );
 
       if (error) {
         // Outreach creation failed — non-blocking
@@ -299,9 +324,13 @@ export function useMatchingActions({
 
     // Fire-and-forget: auto-discover buyer contacts for approved buyer
     if (scoreData?.buyer_id) {
-      supabase.functions.invoke('find-buyer-contacts', {
-        body: { buyerId: scoreData.buyer_id }
-      }).catch(() => { /* contact discovery failure is non-blocking */ });
+      supabase.functions
+        .invoke('find-buyer-contacts', {
+          body: { buyerId: scoreData.buyer_id },
+        })
+        .catch(() => {
+          /* contact discovery failure is non-blocking */
+        });
     }
   };
 
@@ -324,7 +353,7 @@ export function useMatchingActions({
 
     // Log learning history for each
     for (const id of ids) {
-      const scoreData = scores?.find(s => s.id === id);
+      const scoreData = scores?.find((s) => s.id === id);
       if (scoreData) {
         await logLearningHistory(scoreData, 'passed', reason, category);
       }
@@ -336,30 +365,43 @@ export function useMatchingActions({
 
   // Handle export CSV
   const handleExportCSV = () => {
-    const selectedScores = scores?.filter(s => selectedIds.has(s.id)) || [];
+    const selectedScores = scores?.filter((s) => selectedIds.has(s.id)) || [];
     if (selectedScores.length === 0) return;
 
-    const csvData = selectedScores.map(s => ({
-      buyer_name: s.buyer?.company_name || '',
-      website: s.buyer?.company_website || '',
-      hq_location: s.buyer?.hq_city && s.buyer?.hq_state ? `${s.buyer.hq_city}, ${s.buyer.hq_state}` : '',
-      pe_firm: s.buyer?.pe_firm_name || '',
-      score: s.composite_score,
-      tier: s.tier,
-      geography_score: s.geography_score,
-      size_score: s.size_score,
-      service_score: s.service_score,
-      owner_goals_score: s.owner_goals_score,
-      size_multiplier: s.size_multiplier,
-      service_multiplier: s.service_multiplier,
-      status: s.status,
-      fit_reasoning: s.fit_reasoning || '',
-    }));
+    const csvData = selectedScores.map((s) => {
+      const buyer = s.buyer as
+        | {
+            company_name?: string;
+            company_website?: string;
+            hq_city?: string;
+            hq_state?: string;
+            pe_firm_name?: string;
+          }
+        | undefined;
+      return {
+        buyer_name: buyer?.company_name || '',
+        website: buyer?.company_website || '',
+        hq_location: buyer?.hq_city && buyer?.hq_state ? `${buyer.hq_city}, ${buyer.hq_state}` : '',
+        pe_firm: buyer?.pe_firm_name || '',
+        score: s.composite_score,
+        tier: s.tier,
+        geography_score: s.geography_score,
+        size_score: s.size_score,
+        service_score: s.service_score,
+        owner_goals_score: s.owner_goals_score,
+        size_multiplier: s.size_multiplier,
+        service_multiplier: s.service_multiplier,
+        status: s.status,
+        fit_reasoning: s.fit_reasoning || '',
+      };
+    });
 
     const headers = Object.keys(csvData[0]);
     const csv = [
       headers.join(','),
-      ...csvData.map(row => headers.map(h => `"${(row as Record<string, unknown>)[h] || ''}"`).join(','))
+      ...csvData.map((row) =>
+        headers.map((h) => `"${(row as Record<string, unknown>)[h] || ''}"`).join(','),
+      ),
     ].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -385,18 +427,21 @@ export function useMatchingActions({
 
   // Handle outreach update
   const handleOutreachUpdate = async (scoreId: string, status: OutreachStatus, notes: string) => {
-    const score = scores?.find(s => s.id === scoreId);
+    const score = scores?.find((s) => s.id === scoreId);
     if (!score) return;
 
-    const { error } = await supabase.from('remarketing_outreach').upsert({
-      score_id: scoreId,
-      listing_id: listingId!,
-      buyer_id: score.buyer_id,
-      status,
-      notes,
-      contacted_at: status !== 'pending' ? new Date().toISOString() : null,
-      created_by: user?.id,
-    }, { onConflict: 'score_id' });
+    const { error } = await supabase.from('remarketing_outreach').upsert(
+      {
+        score_id: scoreId,
+        listing_id: listingId!,
+        buyer_id: score.buyer_id,
+        status,
+        notes,
+        contacted_at: status !== 'pending' ? new Date().toISOString() : null,
+        created_by: user?.id,
+      },
+      { onConflict: 'score_id' },
+    );
 
     if (error) {
       // Outreach update failed — toast shown to user
@@ -421,7 +466,11 @@ export function useMatchingActions({
   };
 
   // Handle "Move to Pipeline" button
-  const handleMoveToPipeline = async (scoreId: string, buyerId: string, targetListingId: string) => {
+  const handleMoveToPipeline = async (
+    scoreId: string,
+    buyerId: string,
+    targetListingId: string,
+  ) => {
     try {
       const { data, error } = await supabase.functions.invoke('convert-to-pipeline-deal', {
         body: { listing_id: targetListingId, buyer_id: buyerId, score_id: scoreId },
@@ -451,18 +500,30 @@ export function useMatchingActions({
   };
 
   return {
-    selectedIds, setSelectedIds,
-    passDialogOpen, setPassDialogOpen,
+    selectedIds,
+    setSelectedIds,
+    passDialogOpen,
+    setPassDialogOpen,
     selectedBuyerForPass,
-    emailDialogOpen, setEmailDialogOpen,
-    highlightedBuyerIds, setHighlightedBuyerIds,
-    updateScoreMutation, bulkApproveMutation,
-    handleBulkScore, handleApplyAndRescore, handleReset,
-    handleOpenPassDialog, handleConfirmPass,
-    handleToggleInterested, handleApprove,
-    handleBulkApprove, handleBulkPass,
-    handleExportCSV, handleSelect,
-    handleOutreachUpdate, handleScoreViewed,
+    emailDialogOpen,
+    setEmailDialogOpen,
+    highlightedBuyerIds,
+    setHighlightedBuyerIds,
+    updateScoreMutation,
+    bulkApproveMutation,
+    handleBulkScore,
+    handleApplyAndRescore,
+    handleReset,
+    handleOpenPassDialog,
+    handleConfirmPass,
+    handleToggleInterested,
+    handleApprove,
+    handleBulkApprove,
+    handleBulkPass,
+    handleExportCSV,
+    handleSelect,
+    handleOutreachUpdate,
+    handleScoreViewed,
     handleMoveToPipeline,
   };
 }

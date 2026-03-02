@@ -23,7 +23,13 @@ interface GroupedUserActivity {
   first_name?: string;
   last_name?: string;
   user_name: string;
-  activities: unknown[];
+  activities: Array<{
+    activity_type?: string;
+    action_type?: string;
+    description?: string;
+    created_at?: string;
+    [key: string]: unknown;
+  }>;
   lastActivityTime: string;
   totalActivities: number;
   actionCounts: {
@@ -32,6 +38,9 @@ interface GroupedUserActivity {
     connections: number;
     pageViews: number;
   };
+  mostRecentSession?: Record<string, unknown> | null;
+  dateFirstSeen?: string;
+  sessionReferrer?: string;
 }
 
 export function StripeOverviewTab() {
@@ -210,13 +219,13 @@ export function StripeOverviewTab() {
       }
 
       const userGroup = userMap.get(userId)!;
-      userGroup.activities.push(activity);
+      userGroup.activities.push(activity as unknown as (typeof userGroup.activities)[number]);
       userGroup.totalActivities++;
 
       // Update last activity time if this is more recent
       if (new Date(activity.created_at) > new Date(userGroup.lastActivityTime)) {
         userGroup.lastActivityTime = activity.created_at;
-        userGroup.mostRecentSession = activity;
+        userGroup.mostRecentSession = activity as unknown as Record<string, unknown>;
       }
 
       // Set date first seen to user signup date (profiles.created_at)
@@ -250,7 +259,9 @@ export function StripeOverviewTab() {
     if (activityFilter === 'all') return true;
     if (activityFilter === 'users') {
       return userGroup.activities.some(
-        (a) => a.activity_type === 'user_event' || a.description.toLowerCase().includes('signup'),
+        (a) =>
+          a.activity_type === 'user_event' ||
+          (a.description ?? '').toLowerCase().includes('signup'),
       );
     }
     if (activityFilter === 'listings') {
@@ -428,13 +439,25 @@ export function StripeOverviewTab() {
                             })}
                           </p>
                           <ActivityDetailsDropdown
-                            session_id={userGroup.mostRecentSession?.session_id}
-                            referrer={userGroup.mostRecentSession?.referrer}
-                            time_on_page={userGroup.mostRecentSession?.time_on_page}
-                            scroll_depth={userGroup.mostRecentSession?.scroll_depth}
-                            page_title={userGroup.mostRecentSession?.page_title}
-                            event_category={userGroup.mostRecentSession?.event_category}
-                            event_label={userGroup.mostRecentSession?.event_label}
+                            session_id={
+                              userGroup.mostRecentSession?.session_id as string | undefined
+                            }
+                            referrer={userGroup.mostRecentSession?.referrer as string | undefined}
+                            time_on_page={
+                              userGroup.mostRecentSession?.time_on_page as number | undefined
+                            }
+                            scroll_depth={
+                              userGroup.mostRecentSession?.scroll_depth as number | undefined
+                            }
+                            page_title={
+                              userGroup.mostRecentSession?.page_title as string | undefined
+                            }
+                            event_category={
+                              userGroup.mostRecentSession?.event_category as string | undefined
+                            }
+                            event_label={
+                              userGroup.mostRecentSession?.event_label as string | undefined
+                            }
                           />
                         </div>
                         <Button
@@ -457,19 +480,22 @@ export function StripeOverviewTab() {
                             {format(new Date(userGroup.dateFirstSeen), 'MMM d, yyyy')}
                           </div>
                         </div>
-                        {userGroup.mostRecentSession?.location && (
+                        {!!userGroup.mostRecentSession?.location && (
                           <div>
                             <div className="text-xs font-medium text-muted-foreground/70">
                               Initial Location
                             </div>
                             <div className="text-xs text-foreground mt-0.5">
-                              {[
-                                userGroup.mostRecentSession.location.city,
-                                userGroup.mostRecentSession.location.region,
-                                userGroup.mostRecentSession.location.country,
-                              ]
-                                .filter(Boolean)
-                                .join(', ') || 'Unknown'}
+                              {(() => {
+                                const loc = userGroup.mostRecentSession.location as
+                                  | { city?: string; region?: string; country?: string }
+                                  | undefined;
+                                return (
+                                  [loc?.city, loc?.region, loc?.country]
+                                    .filter(Boolean)
+                                    .join(', ') || 'Unknown'
+                                );
+                              })()}
                             </div>
                           </div>
                         )}

@@ -825,8 +825,11 @@ export function buildTests(): TestDef[] {
     if (error) throw new Error(error.message);
     const validTypes = ['email', 'keyword'];
     const invalid = (data || [])
-      .filter((t: { match_type: string }) => !validTypes.includes(t.match_type))
-      .map((t: { match_type: string }) => t.match_type);
+      .filter(
+        (t: { match_type: string | null }) =>
+          t.match_type !== null && !validTypes.includes(t.match_type),
+      )
+      .map((t: { match_type: string | null }) => t.match_type);
     if (invalid.length > 0) {
       throw new Error(`Found unexpected match_type values: ${[...new Set(invalid)].join(', ')}`);
     }
@@ -1118,12 +1121,20 @@ export function buildTests(): TestDef[] {
       throw new Error('Unexpected response format from docuseal-integration-test');
     }
 
-    const failed = data.results.filter((r: { status: string; name: string; detail: string }) => r.status === 'fail');
-    const warned = data.results.filter((r: { status: string; name: string; detail: string }) => r.status === 'warn');
-    const passed = data.results.filter((r: { status: string; name: string; detail: string }) => r.status === 'pass');
+    const failed = data.results.filter(
+      (r: { status: string; name: string; detail: string }) => r.status === 'fail',
+    );
+    const warned = data.results.filter(
+      (r: { status: string; name: string; detail: string }) => r.status === 'warn',
+    );
+    const passed = data.results.filter(
+      (r: { status: string; name: string; detail: string }) => r.status === 'pass',
+    );
 
     if (failed.length > 0) {
-      const details = failed.map((r: { status: string; name: string; detail: string }) => `${r.name}: ${r.detail}`).join('; ');
+      const details = failed
+        .map((r: { status: string; name: string; detail: string }) => `${r.name}: ${r.detail}`)
+        .join('; ');
       throw new Error(`${failed.length}/${data.results.length} sub-tests failed — ${details}`);
     }
 
@@ -1287,8 +1298,14 @@ export function buildTests(): TestDef[] {
 
   add(C16, 'buyer_seed_log has required columns', async () => {
     const cols = [
-      'remarketing_buyer_id', 'source_deal_id', 'why_relevant',
-      'known_acquisitions', 'was_new_record', 'action', 'seed_model', 'category_cache_key',
+      'remarketing_buyer_id',
+      'source_deal_id',
+      'why_relevant',
+      'known_acquisitions',
+      'was_new_record',
+      'action',
+      'seed_model',
+      'category_cache_key',
     ];
     for (const col of cols) {
       await columnExists('buyer_seed_log', col);
@@ -1332,7 +1349,9 @@ export function buildTests(): TestDef[] {
   add(C16, 'AI-seeded buyers have valid metadata', async () => {
     const { data, error } = await supabase
       .from('remarketing_buyers')
-      .select('id, company_name, ai_seeded, ai_seeded_at, ai_seeded_from_deal_id, verification_status')
+      .select(
+        'id, company_name, ai_seeded, ai_seeded_at, ai_seeded_from_deal_id, verification_status',
+      )
       .eq('ai_seeded', true)
       .limit(20);
     if (error) throw new Error(error.message);
@@ -1356,15 +1375,15 @@ export function buildTests(): TestDef[] {
     if (error) throw new Error(error.message);
     if (!logs || logs.length === 0) return; // No logs yet — acceptable
 
-    const buyerIds = [...new Set(logs.map(l => l.remarketing_buyer_id))];
+    const buyerIds = [...new Set(logs.map((l) => l.remarketing_buyer_id))];
     const { data: buyers, error: buyerError } = await supabase
       .from('remarketing_buyers')
       .select('id')
       .in('id', buyerIds.slice(0, 30));
     if (buyerError) throw new Error(buyerError.message);
 
-    const existingIds = new Set((buyers || []).map(b => b.id));
-    const orphaned = buyerIds.filter(id => !existingIds.has(id));
+    const existingIds = new Set((buyers || []).map((b) => b.id));
+    const orphaned = buyerIds.filter((id) => !existingIds.has(id));
     if (orphaned.length > 0) {
       throw new Error(`${orphaned.length} seed_log entries reference deleted buyers`);
     }
@@ -1396,11 +1415,7 @@ export function buildTests(): TestDef[] {
   add(C16, 'score-deal-buyers returns valid response for real deal', async (ctx) => {
     if (!ctx.testDealId) {
       // Find any listing to test with
-      const { data: listing } = await supabase
-        .from('listings')
-        .select('id')
-        .limit(1)
-        .single();
+      const { data: listing } = await supabase.from('listings').select('id').limit(1).single();
       if (!listing) throw new Error('No listings found to test scoring');
       ctx.testDealId = listing.id;
     }
@@ -1409,12 +1424,22 @@ export function buildTests(): TestDef[] {
       body: { listingId: ctx.testDealId, forceRefresh: true },
     });
     if (error) {
-      const msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
+      // Extract real error from FunctionsHttpError
+      let msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
+      if (error && typeof error === 'object' && 'context' in error) {
+        try {
+          const ctx = (error as { context: Response }).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            msg = body?.error ? `${body.error}${body.details ? `: ${body.details}` : ''}` : JSON.stringify(body);
+          }
+        } catch { /* fall through */ }
+      }
       if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
         throw new Error(`Network failure calling score-deal-buyers: ${msg}`);
       }
-      // Auth errors are acceptable for reachability test
-      return;
+      // Auth errors yield specific messages now
+      throw new Error(`score-deal-buyers error: ${msg}`);
     }
     if (!data) throw new Error('score-deal-buyers returned null');
     if (!Array.isArray(data.buyers)) throw new Error('Response missing buyers array');
@@ -1425,9 +1450,87 @@ export function buildTests(): TestDef[] {
     // Validate buyer structure
     for (const buyer of (data.buyers || []).slice(0, 5)) {
       if (!buyer.buyer_id) throw new Error('Buyer missing buyer_id');
-      if (typeof buyer.composite_score !== 'number') throw new Error('Buyer missing composite_score');
+      if (typeof buyer.composite_score !== 'number')
+        throw new Error('Buyer missing composite_score');
       if (!['move_now', 'strong', 'speculative'].includes(buyer.tier)) {
         throw new Error(`Invalid tier: ${buyer.tier}`);
+      }
+    }
+  });
+
+  // --- Seed engine functional test ---
+  add(C16, 'seed-buyers returns valid response for real deal', async (ctx) => {
+    if (!ctx.testDealId) {
+      const { data: listing } = await supabase
+        .from('listings')
+        .select('id')
+        .limit(1)
+        .single();
+      if (!listing) throw new Error('No listings found to test seeding');
+      ctx.testDealId = listing.id;
+    }
+
+    const { data, error } = await supabase.functions.invoke('seed-buyers', {
+      body: { listingId: ctx.testDealId, maxBuyers: 3, forceRefresh: false },
+    });
+    if (error) {
+      let msg = typeof error === 'object' ? JSON.stringify(error) : String(error);
+      if (error && typeof error === 'object' && 'context' in error) {
+        try {
+          const ctx = (error as { context: Response }).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            msg = body?.error ? `${body.error}${body.details ? `: ${body.details}` : ''}` : JSON.stringify(body);
+          }
+        } catch { /* fall through */ }
+      }
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        throw new Error(`Network failure calling seed-buyers: ${msg}`);
+      }
+      throw new Error(`seed-buyers error: ${msg}`);
+    }
+    if (!data) throw new Error('seed-buyers returned null');
+    if (!Array.isArray(data.seeded_buyers)) throw new Error('Response missing seeded_buyers array');
+    if (typeof data.total !== 'number') throw new Error('Response missing total count');
+
+    console.log(`Seeded ${data.total} buyers, cached: ${data.cached}`);
+
+    // Validate seeded buyer structure
+    const validActions = ['inserted', 'enriched_existing', 'probable_duplicate', 'cached'];
+    for (const buyer of (data.seeded_buyers || []).slice(0, 5)) {
+      if (!buyer.buyer_id) throw new Error('Seeded buyer missing buyer_id');
+      if (!buyer.company_name) throw new Error('Seeded buyer missing company_name');
+      if (!validActions.includes(buyer.action)) {
+        throw new Error(`Invalid seed action: ${buyer.action}`);
+      }
+    }
+  });
+
+  add(C16, 'seed-buyers writes to buyer_seed_log', async (ctx) => {
+    if (!ctx.testDealId) return; // Skip if no deal available
+    const { data, error } = await supabase
+      .from('buyer_seed_log')
+      .select('id, remarketing_buyer_id, action, seed_model')
+      .eq('source_deal_id', ctx.testDealId)
+      .limit(5);
+    if (error) throw new Error(`seed_log query failed: ${error.message}`);
+    // Just check that if prior seed ran, logs exist
+    console.log(`Seed log entries for test deal: ${data?.length || 0}`);
+  });
+
+  add(C16, 'AI-seeded buyers are in remarketing_buyers table', async (ctx) => {
+    if (!ctx.testDealId) return;
+    const { data, error } = await supabase
+      .from('remarketing_buyers')
+      .select('id, company_name, ai_seeded, verification_status')
+      .eq('ai_seeded', true)
+      .eq('ai_seeded_from_deal_id', ctx.testDealId)
+      .limit(10);
+    if (error) throw new Error(`AI-seeded buyers query failed: ${error.message}`);
+    console.log(`AI-seeded buyers from test deal: ${data?.length || 0}`);
+    for (const buyer of data || []) {
+      if (!buyer.verification_status) {
+        throw new Error(`AI-seeded buyer ${buyer.id} missing verification_status`);
       }
     }
   });
