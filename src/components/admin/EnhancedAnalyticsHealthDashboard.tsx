@@ -209,7 +209,11 @@ export function EnhancedAnalyticsHealthDashboard() {
         description: 'Check results below',
       });
     } catch (error: unknown) {
-      logTestResult('Test Suite Execution', false, error.message);
+      logTestResult(
+        'Test Suite Execution',
+        false,
+        error instanceof Error ? error.message : String(error),
+      );
     } finally {
       setIsTestingRunning(false);
     }
@@ -245,7 +249,7 @@ export function EnhancedAnalyticsHealthDashboard() {
     } catch (error: unknown) {
       toast({
         title: 'Clear Failed',
-        description: error.message,
+        description: error instanceof Error ? error.message : String(error),
         variant: 'destructive',
       });
     } finally {
