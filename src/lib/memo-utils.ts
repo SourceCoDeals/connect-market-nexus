@@ -105,13 +105,20 @@ export function memoToPlainText(content: Record<string, unknown>, branding?: str
   lines.push(brandName.toUpperCase());
   lines.push('');
 
-  // Company info
-  if (company.company_name) lines.push(company.company_name);
-  if (company.company_address) lines.push(company.company_address);
-  if (company.company_website) lines.push(company.company_website);
-  if (company.company_phone) lines.push(company.company_phone);
-  if (company.company_name || company.company_address || company.company_website) {
-    lines.push('');
+  // Company info — anonymous teasers only show project codename
+  if (isAnonymous) {
+    if (company.company_name) {
+      lines.push(company.company_name);
+      lines.push('');
+    }
+  } else {
+    if (company.company_name) lines.push(company.company_name);
+    if (company.company_address) lines.push(company.company_address);
+    if (company.company_website) lines.push(company.company_website);
+    if (company.company_phone) lines.push(company.company_phone);
+    if (company.company_name || company.company_address || company.company_website) {
+      lines.push('');
+    }
   }
 
   // Memo type and date

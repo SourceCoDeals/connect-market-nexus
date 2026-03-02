@@ -104,7 +104,25 @@ export async function generateMemoDocx({
   );
 
   // ─── Company Info Block ───
-  if (companyInfo?.company_name || companyInfo?.company_address || companyInfo?.company_website) {
+  // For anonymous teasers, only show the project codename (no address, website, phone)
+  if (isAnonymous) {
+    if (companyInfo?.company_name) {
+      children.push(
+        new Paragraph({
+          spacing: { before: 200, after: 40 },
+          children: [
+            new TextRun({
+              text: companyInfo.company_name,
+              bold: true,
+              size: 26,
+              font: 'Arial',
+              color: '1A1A2E',
+            }),
+          ],
+        }),
+      );
+    }
+  } else if (companyInfo?.company_name || companyInfo?.company_address || companyInfo?.company_website) {
     if (companyInfo.company_name) {
       children.push(
         new Paragraph({
@@ -218,67 +236,6 @@ export async function generateMemoDocx({
     // Section content — parse markdown-like formatting
     const contentParagraphs = parseContentToParagraphs(section.content);
     children.push(...contentParagraphs);
-  }
-
-  // ─── Data Needed Flags ───
-  const dataNeededSections = sections.filter(
-    (s) => s.content.includes('[DATA NEEDED:') || s.content.includes('[VERIFY:'),
-  );
-
-  if (dataNeededSections.length > 0) {
-    children.push(
-      new Paragraph({
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 400, after: 100 },
-        children: [
-          new TextRun({
-            text: 'Items Requiring Review',
-            bold: true,
-            size: 24,
-            font: 'Arial',
-            color: 'CC6600',
-          }),
-        ],
-      }),
-      new Paragraph({
-        spacing: { after: 100 },
-        children: [
-          new TextRun({
-            text: 'The following items were flagged during AI generation and require human review:',
-            size: 20,
-            font: 'Arial',
-            color: '666666',
-            italics: true,
-          }),
-        ],
-      }),
-    );
-
-    for (const section of dataNeededSections) {
-      const flags = extractFlags(section.content);
-      for (const flag of flags) {
-        children.push(
-          new Paragraph({
-            spacing: { after: 50 },
-            bullet: { level: 0 },
-            children: [
-              new TextRun({
-                text: `${section.title}: `,
-                bold: true,
-                size: 20,
-                font: 'Arial',
-              }),
-              new TextRun({
-                text: flag,
-                size: 20,
-                font: 'Arial',
-                color: 'CC6600',
-              }),
-            ],
-          }),
-        );
-      }
-    }
   }
 
   // Create document
@@ -395,44 +352,14 @@ function parseInlineFormatting(text: string): TextRun[] {
         }),
       );
     } else if (match[4]) {
-      // Regular text — check for [DATA NEEDED:] and [VERIFY:] flags
-      const flagText = match[4];
-      const flagRegex = /(\[DATA NEEDED:[^\]]*\]|\[VERIFY:[^\]]*\])/g;
-      let lastIndex = 0;
-      let flagMatch;
-
-      while ((flagMatch = flagRegex.exec(flagText)) !== null) {
-        if (flagMatch.index > lastIndex) {
-          runs.push(
-            new TextRun({
-              text: flagText.slice(lastIndex, flagMatch.index),
-              size: 20,
-              font: 'Arial',
-            }),
-          );
-        }
-        runs.push(
-          new TextRun({
-            text: flagMatch[1],
-            size: 20,
-            font: 'Arial',
-            color: 'CC6600',
-            bold: true,
-            highlight: 'yellow',
-          }),
-        );
-        lastIndex = flagMatch.index + flagMatch[0].length;
-      }
-
-      if (lastIndex < flagText.length) {
-        runs.push(
-          new TextRun({
-            text: flagText.slice(lastIndex),
-            size: 20,
-            font: 'Arial',
-          }),
-        );
-      }
+      // Regular text
+      runs.push(
+        new TextRun({
+          text: match[4],
+          size: 20,
+          font: 'Arial',
+        }),
+      );
     }
   }
 
@@ -441,16 +368,6 @@ function parseInlineFormatting(text: string): TextRun[] {
   }
 
   return runs;
-}
-
-function extractFlags(content: string): string[] {
-  const flags: string[] = [];
-  const regex = /\[(DATA NEEDED|VERIFY):\s*([^\]]*)\]/g;
-  let match;
-  while ((match = regex.exec(content)) !== null) {
-    flags.push(`[${match[1]}: ${match[2]}]`);
-  }
-  return flags;
 }
 
 function sanitizeFileName(name: string): string {

@@ -9,11 +9,13 @@
  *   3. Upload Final PDF → Upload the polished PDF to data_room_documents
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   FileText,
   Upload,
@@ -27,6 +29,8 @@ import {
   Calendar,
   Eye,
   BookOpen,
+  Save,
+  Tag,
 } from 'lucide-react';
 import {
   useDataRoomDocuments,
@@ -54,6 +58,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface MemosTabProps {
   dealId: string;
@@ -66,6 +72,31 @@ type MemoSlotType = 'anonymous_teaser' | 'full_memo';
 export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
   const { data: documents = [], isLoading: docsLoading } = useDataRoomDocuments(dealId);
   const { data: memos = [], isLoading: memosLoading } = useLeadMemos(dealId);
+  const { toast } = useToast();
+
+  // Project Name state
+  const [editableProjectName, setEditableProjectName] = useState(projectName || '');
+  const [isSavingProjectName, setIsSavingProjectName] = useState(false);
+
+  useEffect(() => {
+    setEditableProjectName(projectName || '');
+  }, [projectName]);
+
+  const handleSaveProjectName = async () => {
+    setIsSavingProjectName(true);
+    try {
+      const { error } = await supabase
+        .from('listings')
+        .update({ project_name: editableProjectName.trim() || null })
+        .eq('id', dealId);
+      if (error) throw error;
+      toast({ title: 'Project name saved' });
+    } catch {
+      toast({ title: 'Failed to save project name', variant: 'destructive' });
+    } finally {
+      setIsSavingProjectName(false);
+    }
+  };
 
   // Find the most recent PDF for each slot
   const teaserDoc = documents.find((d) => d.document_category === 'anonymous_teaser');
@@ -94,11 +125,47 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
   const teaserLocked = !fullMemoDoc;
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="space-y-6">
+      {/* Project Name Field */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <Label htmlFor="project-name" className="text-sm font-medium flex items-center gap-1.5 mb-1.5">
+                <Tag className="h-3.5 w-3.5" />
+                Project Name
+              </Label>
+              <Input
+                id="project-name"
+                placeholder='e.g. "Project Central" — used as the codename in anonymous teasers'
+                value={editableProjectName}
+                onChange={(e) => setEditableProjectName(e.target.value)}
+              />
+            </div>
+            <Button
+              size="sm"
+              onClick={handleSaveProjectName}
+              disabled={isSavingProjectName || editableProjectName === (projectName || '')}
+            >
+              {isSavingProjectName ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-1.5" />
+              )}
+              Save
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            This codename replaces the real company name in anonymous teasers and lead memos.
+          </p>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-2">
       <MemoSlotCard
         dealId={dealId}
         dealTitle={dealTitle}
-        projectName={projectName}
+        projectName={editableProjectName || projectName}
         slotType="anonymous_teaser"
         title="Anonymous Teaser"
         description="One-page blind profile. No company name, no owner name, no identifying details. Used for initial interest gauging."
@@ -117,6 +184,7 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
         document={fullMemoDoc}
         draft={fullMemoDraft}
       />
+      </div>
     </div>
   );
 }
@@ -140,6 +208,7 @@ interface MemoSlotCardProps {
 function MemoSlotCard({
   dealId,
   dealTitle,
+  projectName,
   slotType,
   title,
   description,
@@ -227,6 +296,7 @@ function MemoSlotCard({
         deal_id: dealId,
         memo_type: slotType,
         branding: 'sourceco',
+        project_name: projectName || undefined,
       });
       setGenerateProgress(100);
       // Brief pause to show 100%
@@ -650,22 +720,30 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
         <span className="text-lg font-bold tracking-widest text-[#1a1a2e]">SOURCECO</span>
       </div>
 
-      {/* Company info block */}
-      {(company.company_name || company.company_address || company.company_website) && (
-        <div className="pl-3 border-l-4 border-[#1a1a2e] bg-muted/30 py-2 px-3">
-          {company.company_name && (
+      {/* Company info block — anonymous teasers show only project codename */}
+      {isAnonymous ? (
+        company.company_name && (
+          <div className="pl-3 border-l-4 border-[#1a1a2e] bg-muted/30 py-2 px-3">
             <p className="font-bold text-sm text-[#1a1a2e]">{company.company_name}</p>
-          )}
-          {company.company_address && (
-            <p className="text-xs text-muted-foreground">{company.company_address}</p>
-          )}
-          {company.company_website && (
-            <p className="text-xs text-muted-foreground">{company.company_website}</p>
-          )}
-          {company.company_phone && (
-            <p className="text-xs text-muted-foreground">{company.company_phone}</p>
-          )}
-        </div>
+          </div>
+        )
+      ) : (
+        (company.company_name || company.company_address || company.company_website) && (
+          <div className="pl-3 border-l-4 border-[#1a1a2e] bg-muted/30 py-2 px-3">
+            {company.company_name && (
+              <p className="font-bold text-sm text-[#1a1a2e]">{company.company_name}</p>
+            )}
+            {company.company_address && (
+              <p className="text-xs text-muted-foreground">{company.company_address}</p>
+            )}
+            {company.company_website && (
+              <p className="text-xs text-muted-foreground">{company.company_website}</p>
+            )}
+            {company.company_phone && (
+              <p className="text-xs text-muted-foreground">{company.company_phone}</p>
+            )}
+          </div>
+        )
       )}
 
       {/* Memo type */}

@@ -8,6 +8,7 @@
  *   - deal_id: UUID
  *   - memo_type: "anonymous_teaser" | "full_memo" | "both"
  *   - branding: "sourceco" | "new_heritage" | "renovus" | "cortec" | custom
+ *   - project_name: optional custom project codename for anonymous teasers
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -66,7 +67,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { deal_id, memo_type, branding = 'sourceco' } = await req.json();
+    const { deal_id, memo_type, branding = 'sourceco', project_name: requestProjectName } = await req.json();
 
     if (!deal_id) {
       return new Response(JSON.stringify({ error: 'deal_id is required' }), {
@@ -137,12 +138,23 @@ Deno.serve(async (req: Request) => {
     // Generate memo(s)
     const results: Record<string, Record<string, unknown>> = {};
 
+    // Resolve project name: request param > deal record > fallback auto-generated
+    const resolvedProjectName = (requestProjectName || deal.project_name || '') as string;
+
     // Extract company info from deal for memo metadata
-    const companyMeta = {
+    const fullCompanyMeta = {
       company_name: (deal.internal_company_name || deal.title || '') as string,
       company_address: [deal.address_city, deal.address_state].filter(Boolean).join(', ') as string,
       company_website: (deal.website || '') as string,
       company_phone: (deal.main_contact_phone || '') as string,
+    };
+
+    // For anonymous teasers, strip all identifying information from metadata
+    const anonCompanyMeta = {
+      company_name: resolvedProjectName || '', // Only project codename, no real name
+      company_address: '', // No address at all
+      company_website: '', // No website
+      company_phone: '', // No phone
     };
 
     if (memo_type === 'anonymous_teaser' || memo_type === 'both') {
@@ -151,7 +163,8 @@ Deno.serve(async (req: Request) => {
         dataContext,
         'anonymous_teaser',
         branding,
-        companyMeta,
+        anonCompanyMeta,
+        resolvedProjectName,
       );
 
       // Save to lead_memos
@@ -213,7 +226,8 @@ Deno.serve(async (req: Request) => {
         dataContext,
         'full_memo',
         branding,
-        companyMeta,
+        fullCompanyMeta,
+        resolvedProjectName,
       );
 
       const { data: fullMemo, error: fullError } = await supabaseAdmin
@@ -424,6 +438,147 @@ function enforceBannedWords(sections: MemoSection[]): MemoSection[] {
   });
 }
 
+// Post-process: strip all [DATA NEEDED: ...] and [VERIFY: ...] tags
+function stripDataNeededTags(sections: MemoSection[]): MemoSection[] {
+  return sections.map((s) => {
+    let content = s.content;
+    // Remove [DATA NEEDED: ...] and [VERIFY: ...] tags
+    content = content.replace(/\[DATA NEEDED:[^\]]*\]/g, '');
+    content = content.replace(/\[VERIFY:[^\]]*\]/g, '');
+    // Clean up orphaned sentences/lines that now only contain whitespace
+    content = content.replace(/\n\s*\n\s*\n/g, '\n\n');
+    // Clean up double spaces and trailing spaces
+    content = content.replace(/  +/g, ' ').replace(/ +\n/g, '\n').trim();
+    return { ...s, content };
+  });
+}
+
+// Post-process: enforce anonymization by stripping any leaked identifying information
+function enforceAnonymization(
+  sections: MemoSection[],
+  deal: Record<string, unknown>,
+  projectCodename: string,
+  regionName: string,
+): MemoSection[] {
+  // Build list of identifying terms to strip
+  const identifyingTerms: string[] = [];
+
+  const companyName = (deal.internal_company_name || '') as string;
+  const title = (deal.title || '') as string;
+  const website = (deal.website || '') as string;
+  const contactName = (deal.main_contact_name || '') as string;
+  const contactEmail = (deal.main_contact_email || '') as string;
+  const contactPhone = (deal.main_contact_phone || '') as string;
+  const addressCity = (deal.address_city || '') as string;
+  const addressState = (deal.address_state || '') as string;
+
+  if (companyName) {
+    identifyingTerms.push(companyName);
+    // Also strip without common suffixes
+    const suffixes = [' Inc', ' Inc.', ' LLC', ' Corp', ' Corp.', ' Ltd', ' Ltd.', ' Co', ' Co.', ' LP', ' LLP'];
+    for (const suffix of suffixes) {
+      if (companyName.endsWith(suffix)) {
+        identifyingTerms.push(companyName.slice(0, -suffix.length).trim());
+      }
+    }
+  }
+  if (title && title !== companyName) identifyingTerms.push(title);
+
+  if (website) {
+    identifyingTerms.push(website);
+    const domain = website.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    identifyingTerms.push(domain);
+    const domainBase = domain.split('.')[0];
+    if (domainBase && domainBase.length >= 4) identifyingTerms.push(domainBase);
+  }
+
+  if (contactName) {
+    identifyingTerms.push(contactName);
+    const parts = contactName.split(/\s+/);
+    if (parts.length >= 2) {
+      parts.forEach((p) => { if (p.length >= 3) identifyingTerms.push(p); });
+    }
+  }
+  if (contactEmail) identifyingTerms.push(contactEmail);
+  if (contactPhone) {
+    identifyingTerms.push(contactPhone);
+    identifyingTerms.push(contactPhone.replace(/[\s\-().]/g, ''));
+  }
+  if (addressCity && addressCity.length >= 3) identifyingTerms.push(addressCity);
+
+  // Build state-specific terms to replace
+  const stateNames: Record<string, string> = {
+    AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+    CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+    HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+    KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+    MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+    MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+    NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+    OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+    SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+    VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+    DC: 'Washington D.C.',
+  };
+  // Collect specific states from the deal's geographic_states and address_state
+  const statesInDeal: string[] = [];
+  if (addressState) statesInDeal.push(addressState.toUpperCase());
+  const geoStates = Array.isArray(deal.geographic_states) ? deal.geographic_states as string[] : [];
+  for (const s of geoStates) {
+    if (s) statesInDeal.push(s.toUpperCase());
+  }
+  const uniqueStates = [...new Set(statesInDeal)];
+  const stateNamesToReplace: string[] = [];
+  for (const abbr of uniqueStates) {
+    if (stateNames[abbr]) stateNamesToReplace.push(stateNames[abbr]);
+    stateNamesToReplace.push(abbr);
+  }
+
+  // Deduplicate and sort by length (longest first for replacement priority)
+  const uniqueTerms = [...new Set(identifyingTerms.filter((t) => t.length > 0))];
+  uniqueTerms.sort((a, b) => b.length - a.length);
+
+  return sections.map((s) => {
+    let content = s.content;
+
+    // Replace identifying company/contact terms
+    for (const term of uniqueTerms) {
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'gi');
+      content = content.replace(regex, projectCodename);
+    }
+
+    // Replace specific state names with region
+    for (const stateName of stateNamesToReplace) {
+      if (stateName.length <= 2) {
+        // State abbreviation — only replace when it's a standalone word or preceded by a comma
+        const regex = new RegExp(`\\b${stateName}\\b`, 'g');
+        content = content.replace(regex, `the ${regionName}`);
+      } else {
+        // Full state name
+        const escaped = stateName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escaped, 'gi');
+        content = content.replace(regex, `the ${regionName}`);
+      }
+    }
+
+    // Strip any remaining email addresses
+    content = content.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '');
+
+    // Strip any remaining phone numbers (US format)
+    content = content.replace(/(\+?1?\s*[-.]?\s*)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g, '');
+
+    // Strip any remaining URLs
+    content = content.replace(/https?:\/\/[^\s)]+/g, '');
+    content = content.replace(/www\.[^\s)]+/g, '');
+
+    // Clean up double spaces, trailing spaces, orphan punctuation
+    content = content.replace(/  +/g, ' ').replace(/ ,/g, ',').replace(/ \./g, '.').trim();
+
+    return { ...s, content };
+  });
+}
+
 async function generateMemo(
   apiKey: string,
   context: DataContext,
@@ -435,6 +590,7 @@ async function generateMemo(
     company_website: string;
     company_phone: string;
   },
+  projectName?: string,
 ): Promise<MemoContent> {
   const isAnonymous = memoType === 'anonymous_teaser';
 
@@ -495,7 +651,16 @@ async function generateMemo(
     DC: 'Mid-Atlantic',
   };
   const regionName = stateToRegion[dealState.toUpperCase()] || 'Central';
-  const projectCodename = `Project ${regionName}`;
+  // Use user-provided project name if available, otherwise generate from region
+  const projectCodename = projectName?.trim() || `Project ${regionName}`;
+
+  // Build list of identifying terms to warn the AI about for anonymous teasers
+  const companyName = (context.deal.internal_company_name || context.deal.title || '') as string;
+  const companyWebsite = (context.deal.website || '') as string;
+  const contactName = (context.deal.main_contact_name || '') as string;
+  const addressCity = (context.deal.address_city || '') as string;
+  const addressState = (context.deal.address_state || '') as string;
+  const geoStates = Array.isArray(context.deal.geographic_states) ? context.deal.geographic_states : [];
 
   const systemPrompt = `You are a VP at a buy-side investment bank writing an investment memo for the partners at a private equity firm. This memo will go to the investment committee.
 ...
@@ -503,25 +668,40 @@ ${
   isAnonymous
     ? `MEMO TYPE: Anonymous Teaser (blind profile)
 
-CRITICAL ANONYMITY RULES:
-- NO company name — use the codename "${projectCodename}" throughout the memo
-- NO owner/CEO name or any individual's name
-- NO street address, city — state or region only (e.g., "${regionName} U.S.")
-- NO website URL, email, or phone number
-- NO specific client or customer names
-- Financial data as ranges only (e.g., "$8M–$10M revenue", "28%–32% EBITDA margin")
-- Services described generically without identifying the specific company
+CRITICAL ANONYMITY RULES — VIOLATION OF ANY OF THESE WILL RESULT IN THE MEMO BEING REJECTED:
+- NO company name — use ONLY the codename "${projectCodename}" throughout the memo
+- NO owner/CEO name or any individual's name — refer to as "the owner," "the founder," "senior leadership," etc.
+- NO street address, city name, or specific state names (e.g., do NOT write "Arizona," "Texas," "New York," etc.)
+- Use ONLY broad regional descriptors: "${regionName} United States" or "multiple markets across the ${regionName}" — NEVER name specific states or cities
+- NO website URL, email address, or phone number
+- NO specific client, customer, partner, vendor, or supplier names (e.g., do NOT name "Carfax," "Parts Plus," "ASA," specific brand partnerships, etc.)
+- NO branded service program names that could identify the company
+- Financial data as ranges only (e.g., "$4.5M–$5.5M revenue", "28%–32% EBITDA margin")
+- Services described generically (e.g., "automotive maintenance and repair" not the brand name of the service)
+- NO founding dates that combined with other details could identify the company — use approximate years in operation (e.g., "approximately 3–5 years")
+${companyName ? `- BANNED TERMS (these are the actual company identifiers — NEVER include them): "${companyName}"` : ''}
+${companyWebsite ? `, "${companyWebsite}", "${companyWebsite.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '')}"` : ''}
+${contactName ? `, "${contactName}"` : ''}
+${addressCity ? `\n- BANNED LOCATION: "${addressCity}" — do NOT mention this city` : ''}
+${geoStates.length > 0 ? `\n- BANNED STATES: ${geoStates.map((s: string) => `"${s}"`).join(', ')} — do NOT name these states individually` : ''}
 
 REQUIRED SECTIONS (9 sections — follow this exact structure — be EXHAUSTIVE with detail, this is a comprehensive investment document for an investment committee, NOT a short summary):
-1. key: "company_overview" / title: "Company Overview" — 3-5 paragraphs. Detailed description of what the company does, where it operates (region only), years in operation, employee count range, market positioning, competitive advantages, customer base demographics (without names), recurring vs. project-based revenue dynamics, end-market exposure, and what makes the business defensible. Be specific about the business model and value proposition.
-2. key: "financial_overview" / title: "Financial Overview" — Present a 3-year (or best available) annual summary table PLUS YTD as ranges: Revenue range, Gross Profit range, EBITDA range, EBITDA margin range, owner compensation add-backs (range), adjusted EBITDA range. Then a narrative paragraph covering: revenue trend and CAGR, margin evolution, revenue concentration risk, recurring vs. project revenue split, capex requirements (range), and working capital characteristics. Flag any notable fluctuations with [VERIFY: context].
-3. key: "services_operations" / title: "Services & Operations" — 3-5 paragraphs. All service lines with estimated revenue mix percentages (as ranges), operational footprint and geographic reach (region only), certifications, licenses, specialized equipment or technology, owned vs. leased facilities (size ranges without addresses), capacity utilization, seasonal patterns, and key operational differentiators. Include subcontractor vs. W-2 workforce split if known.
+1. key: "company_overview" / title: "Company Overview" — 3-5 paragraphs. Detailed description of what the company does, where it operates (region only — NEVER name specific states or cities), years in operation (approximate range), employee count range, market positioning, competitive advantages, customer base demographics (without names), recurring vs. project-based revenue dynamics, end-market exposure, and what makes the business defensible. Be specific about the business model and value proposition.
+2. key: "financial_overview" / title: "Financial Overview" — Present a 3-year (or best available) annual summary table PLUS YTD as ranges: Revenue range, Gross Profit range, EBITDA range, EBITDA margin range, owner compensation add-backs (range), adjusted EBITDA range. Then a narrative paragraph covering: revenue trend and CAGR, margin evolution, revenue concentration risk, recurring vs. project revenue split, capex requirements (range), and working capital characteristics.
+3. key: "services_operations" / title: "Services & Operations" — 3-5 paragraphs. All service lines with estimated revenue mix percentages (as ranges), operational footprint and geographic reach (region only — NEVER name specific states or cities), certifications described generically (e.g., "industry-standard certifications" not specific named programs), facilities (size ranges without addresses), capacity utilization, seasonal patterns, and key operational differentiators. Do NOT name specific vendor or partner companies.
 4. key: "ownership_management" / title: "Ownership & Management" — 2-3 paragraphs. Owner/operator background: years in industry (no name), how long they have owned the business, day-to-day role and involvement level, management team depth (tenure ranges, functional coverage), whether there is a layer of management that would allow a transition, and what the owner is seeking from a transaction partner. No names — refer to as "the owner," "the founder," "senior leadership," etc.
-5. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount range, breakdown by function (field/technical, office/admin, management), key management depth and average tenure range, compensation structure (hourly vs. salary, benefit programs), training and certification programs, union status, and retention characteristics. Describe the workforce quality and any concentration risk without naming individuals.
-6. key: "facilities_locations" / title: "Facilities & Locations" — Number of locations (region only, no cities or addresses), approximate total square footage range, owned vs. leased breakdown, lease term ranges and renewal options, condition of facilities, and any planned expansions or consolidations. Describe the operational footprint without identifying the specific location.
+5. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount range, breakdown by function (field/technical, office/admin, management), key management depth and average tenure range, compensation structure (hourly vs. salary, benefit programs), training and certification programs (described generically), union status, and retention characteristics. Describe the workforce quality and any concentration risk without naming individuals.
+6. key: "facilities_locations" / title: "Facilities & Locations" — Number of locations (region only, no cities, states, or addresses), approximate total square footage range, owned vs. leased breakdown, lease term ranges and renewal options, condition of facilities, and any planned expansions or consolidations.
 7. key: "growth_opportunities" / title: "Growth Opportunities" — 3-4 paragraphs. Organic expansion opportunities (geographic, service line, pricing), M&A bolt-on potential, cross-sell opportunities, technology-driven efficiencies or margin improvement levers, and any identified demand tailwinds. Be specific about actionable initiatives a buyer could execute.
-8. key: "key_risks" / title: "Key Considerations" — Customer concentration (top-customer revenue share as range), key-person dependency, regulatory or licensing factors, competitive dynamics, end-market cyclicality, capital requirements for growth, and any other material risks. Present a balanced assessment — do not omit negatives.
-9. key: "transaction_overview" / title: "Transaction Overview" — Transaction structure the owner is seeking (full sale, majority recap, growth partner), asking price or valuation range if known, preferred timeline, ideal buyer profile and characteristics, owner's transition willingness and preferred period, and any deal requirements or deal-breakers. No names.`
+8. key: "key_risks" / title: "Key Considerations" — Customer concentration (top-customer revenue share as range), key-person dependency, regulatory or licensing factors (described generically, no state-specific references), competitive dynamics, end-market cyclicality, capital requirements for growth, and any other material risks. Present a balanced assessment — do not omit negatives.
+9. key: "transaction_overview" / title: "Transaction Overview" — Transaction structure the owner is seeking (full sale, majority recap, growth partner), asking price or valuation range if known, preferred timeline, ideal buyer profile and characteristics, owner's transition willingness and preferred period, and any deal requirements or deal-breakers. No names.
+
+IMPORTANT — COMPLETENESS RULES:
+- Only write about information you actually have from the data provided
+- If you do not have data for a metric or topic, simply OMIT it — do NOT write placeholder text, do NOT add "[DATA NEEDED: ...]" or "[VERIFY: ...]" tags
+- Write substantive paragraphs for topics where data exists; skip topics where it does not
+- Each section should contain ONLY factual content derived from the provided data — no filler, no speculation, no placeholder markers
+- Do NOT repeat the same information across multiple sections — each section should cover its assigned topic without restating content from other sections`
     : `MEMO TYPE: Full Lead Memo (confidential, post-NDA)
 
 Include all identifying information: company name, owner, address, website, contact details. Use exact financial figures.
@@ -535,7 +715,14 @@ REQUIRED SECTIONS (follow this exact structure):
 6. key: "financial_overview" / title: "Financial Overview" — Revenue, EBITDA, margins for last 3 years (or available). YTD numbers. Revenue concentration. Capex. Working capital. Present as a table with brief narrative.
 7. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount, breakdown by role, key personnel and tenure, compensation structure, union status.
 8. key: "facilities_locations" / title: "Facilities & Locations" — Number of locations, owned vs leased, lease terms, square footage, condition, planned expansions.
-9. key: "transaction_overview" / title: "Transaction Overview" — Full sale, majority recap, growth partner. Valuation expectations. Timeline. Broker involvement.`
+9. key: "transaction_overview" / title: "Transaction Overview" — Full sale, majority recap, growth partner. Valuation expectations. Timeline. Broker involvement.
+
+IMPORTANT — COMPLETENESS RULES:
+- Only write about information you actually have from the data provided
+- If you do not have data for a metric or topic, simply OMIT it — do NOT write placeholder text, do NOT add "[DATA NEEDED: ...]" or "[VERIFY: ...]" tags
+- Write substantive paragraphs for topics where data exists; skip topics where it does not
+- Each section should contain ONLY factual content derived from the provided data — no filler, no speculation, no placeholder markers
+- Do NOT repeat the same information across multiple sections — each section should cover its assigned topic without restating content from other sections`
 }
 
 OUTPUT FORMAT:
@@ -579,9 +766,11 @@ ${context.manualEntries || 'No manual entries or notes.'}
 ${context.valuationData || 'No valuation data.'}
 
 DATA SOURCE PRIORITY: Transcripts > General Notes > Enrichment/Website > Manual entries.
-When sources conflict, prefer higher-priority sources. Flag conflicts with [VERIFY: description].
+When sources conflict, prefer higher-priority sources.
 
-Follow the memo template exactly. Use only the sections specified. Present financial data in a table. Flag any data gaps with [DATA NEEDED: description].
+Follow the memo template exactly. Use only the sections specified. Present financial data in a table.
+
+CRITICAL: Do NOT include any [DATA NEEDED: ...] or [VERIFY: ...] tags in your output. If data is missing, simply omit that topic — do not flag it. Write only about what you know from the provided data.${isAnonymous ? `\n\nCRITICAL ANONYMITY CHECK: Before returning the memo, verify that NONE of the following appear anywhere in your output: company name, website URL, owner name, city name, specific state names (like "Arizona", "Texas", "New York"), specific partner/vendor names, or phone numbers. Use only "${projectCodename}" as the company reference and "${regionName} United States" as the geographic reference.` : ''}
 
 Generate the memo now. Return ONLY the JSON object with "sections" array.`;
 
@@ -627,7 +816,16 @@ Generate the memo now. Return ONLY the JSON object with "sections" array.`;
   }
 
   // Post-process: enforce banned words removal
-  const cleanedSections = enforceBannedWords(parsed.sections || []);
+  let cleanedSections = enforceBannedWords(parsed.sections || []);
+
+  // Post-process: strip all [DATA NEEDED: ...] and [VERIFY: ...] tags from both memo types
+  cleanedSections = stripDataNeededTags(cleanedSections);
+
+  // Post-process: for anonymous teasers, enforce anonymization by stripping any
+  // identifying information that may have leaked through the AI
+  if (isAnonymous) {
+    cleanedSections = enforceAnonymization(cleanedSections, context.deal, projectCodename, regionName);
+  }
 
   return {
     sections: cleanedSections,
@@ -666,8 +864,15 @@ function sectionsToHtml(memo: MemoContent, memoType: string, branding: string): 
   html += `<p style="font-size: 22px; font-weight: bold; letter-spacing: 2px; color: #1a1a2e; margin: 0 0 4px 0;">${brandName.toUpperCase()}</p>`;
   html += `</div>`;
 
-  // Company info block at top
-  if (memo.company_name || memo.company_address || memo.company_website) {
+  // Company info block at top — only for full memos (anonymous teasers show only project codename)
+  if (isAnonymous) {
+    // For anonymous teasers, only show the project codename if provided
+    if (memo.company_name) {
+      html += `<div class="company-info" style="margin-bottom: 20px; padding: 16px; background: #f8f9fa; border-left: 4px solid #1a1a2e;">`;
+      html += `<p style="font-size: 18px; font-weight: bold; margin: 0; color: #1a1a2e;">${memo.company_name}</p>`;
+      html += `</div>`;
+    }
+  } else if (memo.company_name || memo.company_address || memo.company_website) {
     html += `<div class="company-info" style="margin-bottom: 20px; padding: 16px; background: #f8f9fa; border-left: 4px solid #1a1a2e;">`;
     if (memo.company_name) {
       html += `<p style="font-size: 18px; font-weight: bold; margin: 0 0 4px 0; color: #1a1a2e;">${memo.company_name}</p>`;
