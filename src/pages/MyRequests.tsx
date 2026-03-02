@@ -18,7 +18,6 @@ import {
   Shield,
   FileSignature,
   Check,
-  Calendar,
 } from 'lucide-react';
 import { useUnreadBuyerMessageCounts } from '@/hooks/use-connection-messages';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -41,6 +40,8 @@ import { DealStatusSection } from '@/components/deals/DealStatusSection';
 import { DealMessageEditor } from '@/components/deals/DealMessageEditor';
 import { BuyerProfileStatus } from '@/components/deals/BuyerProfileStatus';
 import { PostRejectionPanel } from '@/components/deals/PostRejectionPanel';
+import { DealDocumentsCard } from '@/components/deals/DealDocumentsCard';
+import { DealInfoCard } from '@/components/deals/DealInfoCard';
 import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -54,7 +55,6 @@ import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
-import { formatDistanceToNow } from 'date-fns';
 
 /* ═══════════════════════════════════════════════════════════════════════
    Account Documents Banner — Slim inline banner
@@ -489,8 +489,8 @@ function DetailPanel({
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <TabsContent value="overview" className="mt-0 p-6 space-y-6">
-            {/* Action Card — the single most important thing */}
+          <TabsContent value="overview" className="mt-0 p-6 space-y-5">
+            {/* Row 1: Action Card — full width */}
             <DealActionCard
               requestStatus={requestStatus as 'pending' | 'approved' | 'rejected'}
               ndaSigned={ndaSigned}
@@ -499,12 +499,33 @@ function DetailPanel({
               requestCreatedAt={request.created_at}
             />
 
-            {/* Deal Progress */}
+            {/* Row 2: Two-column grid — Documents + Deal Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DealDocumentsCard
+                dealId={request.listing_id}
+                requestStatus={requestStatus as 'pending' | 'approved' | 'rejected'}
+                ndaSigned={ndaSigned}
+                feeCovered={feeCovered}
+                feeStatus={feeStatus}
+              />
+              <DealInfoCard
+                category={request.listing?.category}
+                location={request.listing?.location}
+                revenue={request.listing?.revenue}
+                ebitda={request.listing?.ebitda}
+                acquisitionType={request.listing?.acquisition_type}
+                createdAt={request.created_at}
+                description={request.listing?.description}
+              />
+            </div>
+
+            {/* Row 3: Deal Progress — full width */}
             <DealStatusSection
               requestStatus={requestStatus as 'pending' | 'approved' | 'rejected'}
               ndaSigned={ndaSigned}
               feeCovered={feeCovered}
               feeStatus={feeStatus}
+              requestCreatedAt={request.created_at}
             />
 
             {/* Post-rejection panel */}
@@ -515,18 +536,11 @@ function DetailPanel({
               />
             )}
 
-            {/* Deal Info — clean key-value sections */}
-            <div className="border-t border-[#F0EDE6] pt-6 space-y-5">
-              {/* Submission date */}
-              <div className="flex items-center gap-2 text-[12px] text-[#0E101A]/40">
-                <Calendar className="h-3.5 w-3.5" />
-                <span>Submitted {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}</span>
-              </div>
-
-              {/* Your Message */}
-              {requestStatus !== 'rejected' && (
-                <div>
-                  <h4 className="text-[10px] font-semibold text-[#0E101A]/30 uppercase tracking-[0.12em] mb-2">
+            {/* Row 4: Two-column — Your Message + Profile Status */}
+            {requestStatus !== 'rejected' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-[#F0EDE6] bg-white p-5">
+                  <h4 className="text-[10px] font-semibold text-[#0E101A]/30 uppercase tracking-[0.12em] mb-3">
                     Your Message
                   </h4>
                   <DealMessageEditor
@@ -537,33 +551,19 @@ function DetailPanel({
                     }}
                   />
                 </div>
-              )}
-
-              {/* Buyer Profile */}
-              {requestStatus !== 'rejected' && profileDetails && (
-                <div>
-                  <h4 className="text-[10px] font-semibold text-[#0E101A]/30 uppercase tracking-[0.12em] mb-2">
-                    Buyer Profile
-                  </h4>
-                  <BuyerProfileStatus
-                    isComplete={profileDetails.isComplete}
-                    completionPercentage={profileDetails.percentage}
-                  />
-                </div>
-              )}
-
-              {/* About this opportunity */}
-              {request.listing?.description && (
-                <div>
-                  <h4 className="text-[10px] font-semibold text-[#0E101A]/30 uppercase tracking-[0.12em] mb-2">
-                    About this Opportunity
-                  </h4>
-                  <p className="text-[13px] text-[#0E101A]/60 leading-relaxed line-clamp-4">
-                    {request.listing.description}
-                  </p>
-                </div>
-              )}
-            </div>
+                {profileDetails && (
+                  <div className="rounded-lg border border-[#F0EDE6] bg-white p-5">
+                    <h4 className="text-[10px] font-semibold text-[#0E101A]/30 uppercase tracking-[0.12em] mb-3">
+                      Buyer Profile
+                    </h4>
+                    <BuyerProfileStatus
+                      isComplete={profileDetails.isComplete}
+                      completionPercentage={profileDetails.percentage}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="messages" className="mt-0 p-6">

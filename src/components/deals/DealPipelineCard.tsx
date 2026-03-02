@@ -48,12 +48,14 @@ function formatEbitdaCompact(ebitda: number): string {
   return `$${ebitda}`;
 }
 
-function getStatusLabel(status: string, ndaSigned?: boolean): string {
+function getStatusLabel(status: string, ndaSigned?: boolean): { label: string; needsAction: boolean } {
   switch (status) {
-    case 'pending': return ndaSigned ? 'Under Review' : 'Pending';
-    case 'approved': return 'Connected';
-    case 'rejected': return 'Not Selected';
-    default: return 'Under Review';
+    case 'pending':
+      if (ndaSigned === false) return { label: 'Action Needed', needsAction: true };
+      return { label: 'Under Review', needsAction: false };
+    case 'approved': return { label: 'Connected', needsAction: false };
+    case 'rejected': return { label: 'Not Selected', needsAction: false };
+    default: return { label: 'Under Review', needsAction: false };
   }
 }
 
@@ -131,14 +133,20 @@ export function DealPipelineCard({
 
       {/* Row 3: Status + Timestamp */}
       <div className="flex items-center justify-between mt-2 pl-11">
-        <span className={cn(
-          'text-[10px] font-semibold uppercase tracking-wide',
-          request.status === 'approved' ? 'text-[#0E101A]' :
-          request.status === 'rejected' ? 'text-[#0E101A]/30' :
-          'text-[#8B6F47]',
-        )}>
-          {statusLabel}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {statusLabel.needsAction && (
+            <div className="h-1.5 w-1.5 rounded-full bg-[#DEC76B] shrink-0" />
+          )}
+          <span className={cn(
+            'text-[10px] font-semibold uppercase tracking-wide',
+            request.status === 'approved' ? 'text-[#0E101A]' :
+            request.status === 'rejected' ? 'text-[#0E101A]/30' :
+            statusLabel.needsAction ? 'text-[#8B6F47]' :
+            'text-[#0E101A]/50',
+          )}>
+            {statusLabel.label}
+          </span>
+        </div>
         <span className="text-[10px] text-[#0E101A]/30">
           {formatDistanceToNow(new Date(request.updated_at || request.created_at), { addSuffix: true })}
         </span>

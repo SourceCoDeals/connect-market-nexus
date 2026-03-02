@@ -25,28 +25,16 @@ export function DealMessageEditor({
 
   const handleSave = async () => {
     if (!message.trim()) {
-      toast({
-        title: "Message required",
-        description: "Please enter a message before saving.",
-        variant: "destructive",
-      });
+      toast({ title: "Message required", description: "Please enter a message before saving.", variant: "destructive" });
       return;
     }
-
     setIsSaving(true);
     try {
       await onMessageUpdate(message);
       setIsEditing(false);
-      toast({
-        title: "Message updated",
-        description: "Your message has been saved successfully.",
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to update",
-        description: "There was an error updating your message. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Message updated", description: "Your message has been saved successfully." });
+    } catch {
+      toast({ title: "Failed to update", description: "There was an error updating your message.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -62,13 +50,13 @@ export function DealMessageEditor({
       {!isEditing ? (
         <button
           onClick={() => setIsEditing(true)}
-          className="group w-full text-left border-b border-gray-200 hover:border-gray-400 pb-3 transition-colors duration-200"
+          className="group w-full text-left border-b border-[#F0EDE6] hover:border-[#E5DDD0] pb-3 transition-colors duration-200"
         >
           <div className="flex items-start justify-between gap-3">
-            <p className="text-base leading-relaxed flex-1 break-all" style={{ color: '#0E101A' }}>
+            <p className="text-[13px] leading-relaxed flex-1 break-all text-[#0E101A]/70">
               {message || 'Click to add a message'}
             </p>
-            <Pencil className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 transition-colors shrink-0" />
+            <Pencil className="w-3.5 h-3.5 text-[#0E101A]/20 group-hover:text-[#0E101A]/50 transition-colors shrink-0" />
           </div>
         </button>
       ) : (
@@ -77,21 +65,18 @@ export function DealMessageEditor({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Enter your message..."
-            className="min-h-[120px] resize-none border-slate-200 bg-white shadow-sm focus:ring-1 focus:ring-slate-900 focus:border-slate-900 transition-all duration-200"
+            className="min-h-[100px] resize-none border-[#E5DDD0] bg-white focus:ring-1 focus:ring-[#0E101A] focus:border-[#0E101A] transition-all duration-200 text-[13px]"
             autoFocus
             onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                handleSave();
-              } else if (e.key === 'Escape') {
-                handleCancel();
-              }
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSave();
+              else if (e.key === 'Escape') handleCancel();
             }}
           />
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={handleCancel}
               disabled={isSaving}
-              className="text-sm text-slate-600 hover:text-slate-900 transition-colors duration-200 disabled:opacity-50"
+              className="text-[12px] text-[#0E101A]/40 hover:text-[#0E101A]/70 transition-colors duration-200 disabled:opacity-50"
             >
               Cancel
             </button>
@@ -99,7 +84,7 @@ export function DealMessageEditor({
               size="sm"
               onClick={handleSave}
               disabled={isSaving || !message.trim()}
-              className="h-7 px-3 text-xs bg-slate-900 hover:bg-slate-800 transition-colors duration-200"
+              className="h-7 px-3 text-xs bg-[#0E101A] hover:bg-[#0E101A]/85 transition-colors duration-200"
             >
               {isSaving ? (
                 <span className="flex items-center gap-1.5">
