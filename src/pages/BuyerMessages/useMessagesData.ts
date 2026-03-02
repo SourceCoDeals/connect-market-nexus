@@ -4,6 +4,23 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { BuyerThread } from './helpers';
 
+// ─── useResolvedThreadId ───
+// Calls the resolve-buyer-message-thread edge function to guarantee a thread ID.
+// Caches the result so it's only called once per session.
+
+export function useResolvedThreadId() {
+  return useQuery({
+    queryKey: ['resolved-thread-id'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('resolve-buyer-message-thread');
+      if (error) throw error;
+      return data as { connection_request_id: string; source: string };
+    },
+    staleTime: 5 * 60_000, // Cache for 5 minutes
+    retry: 2,
+  });
+}
+
 // ─── useBuyerThreads ───
 // Fetches the list of conversation threads for the current buyer,
 // including unread counts and a realtime subscription for new messages.
@@ -114,6 +131,8 @@ export function useBuyerActiveRequest() {
 
 // ─── useFirmAgreementStatus ───
 // Fetches the firm agreement status (NDA + fee agreement) for the current buyer.
+// Uses deterministic firm selection: picks the firm linked to the most recent active request,
+// or falls back to the most recently added firm membership.
 
 export function useFirmAgreementStatus() {
   const { user } = useAuth();
@@ -122,20 +141,39 @@ export function useFirmAgreementStatus() {
     queryKey: ['buyer-firm-agreement-status', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data: membership } = await supabase
-        .from('firm_members')
+
+      // Try to find firm linked to most recent connection request first
+      const { data: recentRequest } = await supabase
+        .from('connection_requests')
         .select('firm_id')
         .eq('user_id', user.id)
+        .not('firm_id', 'is', null)
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!membership) return null;
+
+      let firmId = recentRequest?.firm_id;
+
+      // Fall back to firm_members table
+      if (!firmId) {
+        const { data: membership } = await supabase
+          .from('firm_members')
+          .select('firm_id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        firmId = membership?.firm_id;
+      }
+
+      if (!firmId) return null;
 
       const { data: firm } = await supabase
         .from('firm_agreements')
         .select(
           'nda_signed, nda_signed_at, nda_signed_document_url, nda_document_url, nda_docuseal_status, fee_agreement_signed, fee_agreement_signed_at, fee_signed_document_url, fee_agreement_document_url, fee_docuseal_status',
         )
-        .eq('id', membership.firm_id)
+        .eq('id', firmId)
         .maybeSingle();
       return firm;
     },

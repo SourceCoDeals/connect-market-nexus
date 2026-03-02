@@ -1,21 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { MessageSquare, ArrowLeft } from 'lucide-react';
+import { MessageSquare, ArrowLeft, Loader2 } from 'lucide-react';
 import { useConnectionMessages } from '@/hooks/use-connection-messages';
 import { useAuth } from '@/context/AuthContext';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 
-import { useBuyerActiveRequest } from './useMessagesData';
+import { useResolvedThreadId } from './useMessagesData';
 import { MessageBody } from './MessageBody';
 import { MessageInput } from './MessageInput';
 
 // ─── GeneralChatView ───
-// A general inquiry chat not tied to any specific deal.
+// A general inquiry chat. Always persists to DB via resolved thread ID.
 
 export function GeneralChatView({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
@@ -25,21 +25,20 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
   const [sending, setSending] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [sentMessages, setSentMessages] = useState<
-    Array<{ id: string; body: string; created_at: string }>
-  >([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { data: activeRequest } = useBuyerActiveRequest();
+  // Resolve a guaranteed thread ID (creates General Inquiry request if needed)
+  const { data: resolvedThread, isLoading: resolving } = useResolvedThreadId();
+  const threadId = resolvedThread?.connection_request_id;
 
-  const { data: existingMessages = [] } = useConnectionMessages(activeRequest?.id || '');
+  const { data: existingMessages = [] } = useConnectionMessages(threadId || '');
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [existingMessages, sentMessages]);
+  }, [existingMessages]);
 
   const handleSend = async () => {
-    if ((!newMessage.trim() && !attachment) || sending || !user?.id) return;
+    if ((!newMessage.trim() && !attachment) || sending || !user?.id || !threadId) return;
     setSending(true);
 
     let body = newMessage.trim();
@@ -81,42 +80,18 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
     }
 
     try {
-      if (activeRequest?.id) {
-        const { error } = await (supabase.from('connection_messages') as any).insert({
-          connection_request_id: activeRequest.id,
-          sender_id: user.id,
-          body,
-          sender_role: 'buyer',
-        });
-        if (error) throw error;
-      } else {
-        const { OZ_ADMIN_ID } = await import('@/constants');
-        await supabase.functions.invoke('notify-admin-document-question', {
-          body: {
-            admin_id: OZ_ADMIN_ID,
-            user_id: user.id,
-            document_type: 'General Inquiry',
-            question: body,
-          },
-        });
-      }
+      const { error } = await (supabase.from('connection_messages') as any).insert({
+        connection_request_id: threadId,
+        sender_id: user.id,
+        body,
+        sender_role: 'buyer',
+      });
+      if (error) throw error;
 
-      setSentMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          body,
-          created_at: new Date().toISOString(),
-        },
-      ]);
       setNewMessage('');
       setAttachment(null);
       queryClient.invalidateQueries({ queryKey: ['buyer-message-threads'] });
-      queryClient.invalidateQueries({ queryKey: ['connection-messages'] });
-
-      if (!activeRequest?.id) {
-        toast({ title: 'Message Sent', description: 'Our team will respond shortly.' });
-      }
+      queryClient.invalidateQueries({ queryKey: ['connection-messages', threadId] });
     } catch (err) {
       console.error('Error sending message:', err);
       toast({
@@ -129,7 +104,14 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const allMessages = activeRequest?.id ? existingMessages : sentMessages;
+  if (resolving) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center gap-2">
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: '#5A5A5A' }} />
+        <p className="text-sm" style={{ color: '#5A5A5A' }}>Loading conversation...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -157,7 +139,7 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
       {/* Messages */}
       <ScrollArea className="flex-1" style={{ backgroundColor: '#FCF9F0' }}>
         <div className="px-5 py-4 space-y-3">
-          {allMessages.length === 0 ? (
+          {existingMessages.length === 0 ? (
             <div className="flex items-center justify-center py-16">
               <div className="text-center">
                 <MessageSquare className="h-10 w-10 mx-auto mb-3" style={{ color: '#CBCBCB' }} />
@@ -167,18 +149,18 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
               </div>
             </div>
           ) : (
-            allMessages.map((msg: any) => (
+            existingMessages.map((msg: any) => (
               <div
                 key={msg.id}
                 className={cn(
                   'flex',
-                  msg.sender_role === 'buyer' || !msg.sender_role ? 'justify-end' : 'justify-start',
+                  msg.sender_role === 'buyer' ? 'justify-end' : 'justify-start',
                 )}
               >
                 <div
                   className="max-w-[80%] rounded-xl px-4 py-3 space-y-1 shadow-sm border"
                   style={
-                    msg.sender_role === 'buyer' || !msg.sender_role
+                    msg.sender_role === 'buyer'
                       ? {
                           backgroundColor: '#0E101A',
                           borderColor: '#0E101A',
@@ -195,13 +177,13 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
                     className="flex items-center gap-2 text-[11px]"
                     style={{
                       color:
-                        msg.sender_role === 'buyer' || !msg.sender_role
+                        msg.sender_role === 'buyer'
                           ? 'rgba(255,255,255,0.6)'
                           : '#5A5A5A',
                     }}
                   >
                     <span className="font-medium">
-                      {msg.sender_role === 'buyer' || !msg.sender_role
+                      {msg.sender_role === 'buyer'
                         ? 'You'
                         : msg.sender?.first_name || 'SourceCo'}
                     </span>
@@ -213,7 +195,7 @@ export function GeneralChatView({ onBack }: { onBack: () => void }) {
                   <div className="text-base leading-relaxed">
                     <MessageBody
                       body={msg.body}
-                      variant={msg.sender_role === 'buyer' || !msg.sender_role ? 'buyer' : 'admin'}
+                      variant={msg.sender_role === 'buyer' ? 'buyer' : 'admin'}
                     />
                   </div>
                 </div>
