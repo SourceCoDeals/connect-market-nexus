@@ -15,9 +15,12 @@ import {
   PlayCircle,
   Download,
   Square,
+  History,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useTestRunTracking } from '@/hooks/useTestRunTracking';
+import TestRunTracker from './TestRunTracker';
 import type { TestContext } from './system-test-runner/testDefinitions';
 import type { ChatbotTestContext } from './chatbot-test-runner/chatbotInfraTests';
 
@@ -143,6 +146,10 @@ export default function TestingHub() {
   const tab = searchParams.get('tab') || 'enrichment';
   const [progress, setProgress] = useState<RunAllProgress | null>(null);
   const abortRef = useRef(false);
+  const [showTracker, setShowTracker] = useState(true);
+
+  // ── Test Run Tracking (persists to Supabase) ──
+  const tracking = useTestRunTracking();
 
   const setTab = (value: string) => {
     setSearchParams({ tab: value }, { replace: true });
@@ -154,6 +161,13 @@ export default function TestingHub() {
     abortRef.current = false;
     let suitesCompleted = 0;
     let totalRun = 0;
+    const runStart = performance.now();
+
+    // Aggregate stats for tracking
+    let totalPassed = 0;
+    let totalFailed = 0;
+    let totalWarnings = 0;
+    const errorEntries: Array<{ testId: string; testName: string; suite: string; error: string }> = [];
 
     const updateProgress = (suite: string, testsRun: number, testsTotal: number) => {
       setProgress({
@@ -172,6 +186,9 @@ export default function TestingHub() {
       testsRun: 0,
       testsTotal: 0,
     });
+
+    // Start tracking run in Supabase
+    const trackingRunId = await tracking.startRun('run_all', SUITE_COUNT);
 
     try {
       // --- Suite 1: System Tests ---
@@ -207,30 +224,64 @@ export default function TestingHub() {
         /* ignore */
       }
 
+      // Persist to Supabase
+      if (trackingRunId) {
+        await tracking.saveResults(trackingRunId, 'system', systemResults);
+      }
+      for (const r of systemResults) {
+        if (r.status === 'pass') totalPassed++;
+        else if (r.status === 'fail') {
+          totalFailed++;
+          if (r.error) errorEntries.push({ testId: r.id, testName: r.name, suite: 'system', error: r.error });
+        } else if (r.status === 'warn') totalWarnings++;
+      }
+
       suitesCompleted = 1;
+      if (trackingRunId) await tracking.updateProgress(trackingRunId, suitesCompleted);
       if (abortRef.current) throw new Error('aborted');
 
       // --- Suite 2: DocuSeal Health Check ---
       updateProgress('DocuSeal Health Check', 0, 1);
       const { supabase } = await import('@/integrations/supabase/client');
 
+      let docuSealStatus: 'pass' | 'fail' = 'pass';
+      let docuSealError: string | undefined;
+      const docuSealStart = performance.now();
+
       try {
         const { data, error } = await supabase.functions.invoke('docuseal-integration-test');
         if (error) {
-          const errorMsg = error.message || 'Edge function invocation failed';
-          localStorage.setItem(DOCUSEAL_KEY, JSON.stringify({ error: errorMsg, results: [] }));
+          docuSealStatus = 'fail';
+          docuSealError = error.message || 'Edge function invocation failed';
+          localStorage.setItem(DOCUSEAL_KEY, JSON.stringify({ error: docuSealError, results: [] }));
         } else if (data?.error) {
+          docuSealStatus = 'fail';
+          docuSealError = data.error;
           localStorage.setItem(DOCUSEAL_KEY, JSON.stringify({ error: data.error, results: [] }));
         } else {
           localStorage.setItem(DOCUSEAL_KEY, JSON.stringify(data));
         }
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : 'Unexpected error';
-        localStorage.setItem(DOCUSEAL_KEY, JSON.stringify({ error: msg, results: [] }));
+        docuSealStatus = 'fail';
+        docuSealError = e instanceof Error ? e.message : 'Unexpected error';
+        localStorage.setItem(DOCUSEAL_KEY, JSON.stringify({ error: docuSealError, results: [] }));
+      }
+
+      const docuSealDuration = Math.round(performance.now() - docuSealStart);
+      if (trackingRunId) {
+        await tracking.saveResults(trackingRunId, 'docuseal', [
+          { id: 'docuseal-health', name: 'DocuSeal Health Check', category: 'Integration', status: docuSealStatus, error: docuSealError, durationMs: docuSealDuration },
+        ]);
+      }
+      if (docuSealStatus === 'pass') totalPassed++;
+      else {
+        totalFailed++;
+        if (docuSealError) errorEntries.push({ testId: 'docuseal-health', testName: 'DocuSeal Health Check', suite: 'docuseal', error: docuSealError });
       }
 
       totalRun += 1;
       suitesCompleted = 2;
+      if (trackingRunId) await tracking.updateProgress(trackingRunId, suitesCompleted);
       updateProgress('DocuSeal Health Check', 1, 1);
       if (abortRef.current) throw new Error('aborted');
 
@@ -264,18 +315,68 @@ export default function TestingHub() {
         /* ignore */
       }
 
+      // Persist to Supabase
+      if (trackingRunId) {
+        await tracking.saveResults(trackingRunId, 'chatbot_infra', chatResults);
+      }
+      for (const r of chatResults) {
+        if (r.status === 'pass') totalPassed++;
+        else if (r.status === 'fail') {
+          totalFailed++;
+          if (r.error) errorEntries.push({ testId: r.id, testName: r.name, suite: 'chatbot_infra', error: r.error });
+        } else if (r.status === 'warn') totalWarnings++;
+      }
+
       suitesCompleted = 3;
+
+      // Complete the tracking run
+      if (trackingRunId) {
+        await tracking.completeRun(trackingRunId, 'completed', {
+          totalTests: totalRun,
+          passed: totalPassed,
+          failed: totalFailed,
+          warnings: totalWarnings,
+          durationMs: Math.round(performance.now() - runStart),
+          suitesCompleted,
+          errorSummary: errorEntries,
+        });
+      }
+
       toast.success(`Run All complete: ${totalRun} tests across ${SUITE_COUNT} suites`);
     } catch (e) {
       if (abortRef.current) {
+        // Mark as cancelled in tracking
+        if (trackingRunId) {
+          await tracking.completeRun(trackingRunId, 'cancelled', {
+            totalTests: totalRun,
+            passed: totalPassed,
+            failed: totalFailed,
+            warnings: totalWarnings,
+            durationMs: Math.round(performance.now() - runStart),
+            suitesCompleted,
+            errorSummary: errorEntries,
+          });
+        }
         toast.info('Run All stopped');
       } else {
+        // Mark as failed in tracking
+        if (trackingRunId) {
+          await tracking.completeRun(trackingRunId, 'failed', {
+            totalTests: totalRun,
+            passed: totalPassed,
+            failed: totalFailed,
+            warnings: totalWarnings,
+            durationMs: Math.round(performance.now() - runStart),
+            suitesCompleted,
+            errorSummary: errorEntries,
+          });
+        }
         toast.error('Run All failed: ' + (e instanceof Error ? e.message : String(e)));
       }
     } finally {
       setProgress(null);
     }
-  }, []);
+  }, [tracking]);
 
   const stopAll = useCallback(() => {
     abortRef.current = true;
@@ -461,6 +562,14 @@ export default function TestingHub() {
                   Run All Suites
                 </Button>
               )}
+              <Button
+                variant={showTracker ? 'default' : 'outline'}
+                onClick={() => setShowTracker((v) => !v)}
+                className="gap-2"
+              >
+                <History className="h-4 w-4" />
+                History
+              </Button>
               <Button variant="outline" onClick={exportAllResults} className="gap-2">
                 <Download className="h-4 w-4" />
                 Export Results
@@ -490,7 +599,18 @@ export default function TestingHub() {
           )}
         </div>
       </div>
-      <div className="px-8 py-6">
+      <div className="px-8 py-6 space-y-6">
+        {/* Test Run History Panel */}
+        {showTracker && (
+          <TestRunTracker
+            runs={tracking.runs}
+            loading={tracking.loading}
+            onRefresh={tracking.fetchRuns}
+            onDelete={tracking.deleteRun}
+            onFetchResults={tracking.fetchRunResults}
+          />
+        )}
+
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="enrichment" className="gap-2">
