@@ -1,29 +1,6 @@
 /**
  * DealMessagesTab — Human-only message thread for a single deal.
- *
- * This tab displays the buyer <-> SourceCo deal team conversation,
- * deliberately excluding system/decision messages (those live in the
- * Activity Log tab).  This separation ensures buyers can always find
- * real human replies without wading through automated notifications.
- *
- * Visual treatment:
- *   - **Inbound messages** (from SourceCo team) — white card with a subtle
- *     border, left-aligned.  Sender shown as "FirstName — SourceCo Deal Team".
- *   - **Outbound messages** (from the buyer) — navy background matching the
- *     detail panel header, right-aligned with a gold "You" label.  This
- *     creates a clear visual distinction without relying solely on alignment.
- *
- * The message area uses a light cream background (`#faf8f4`) to differentiate
- * it from the surrounding white UI.
- *
- * Compose bar: A multi-line textarea with a "Send Message" button.  The
- * textarea supports Enter-to-send (Shift+Enter for newlines).
- *
- * Realtime: `useConnectionMessages` subscribes to Supabase realtime
- * INSERT events, so new messages appear immediately without polling.
- *
- * Auto-read: Unread admin messages are marked as read when this tab renders,
- * preventing stale unread badges on the tab trigger.
+ * Quiet luxury palette: #0E101A, #DEC76B, #F0EDE6.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -37,19 +14,13 @@ import {
 } from '@/hooks/use-connection-messages';
 import { formatDistanceToNow } from 'date-fns';
 
-/* ─── Props ────────────────────────────────────────────────────────────── */
-
 interface DealMessagesTabProps {
   requestId: string;
   requestStatus: 'pending' | 'approved' | 'rejected' | 'on_hold';
 }
 
-/* ─── Component ────────────────────────────────────────────────────────── */
-
 export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabProps) {
   const { data: allMessages = [], isLoading: messagesLoading } = useConnectionMessages(requestId);
-
-  // Filter out system/decision messages — those live in the Activity Log tab
   const messages = allMessages.filter(
     (m) => m.message_type !== 'system' && m.message_type !== 'decision',
   );
@@ -61,7 +32,6 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
   const canSend = requestStatus !== 'rejected';
   const isRejected = requestStatus === 'rejected';
 
-  // Mark unread admin messages as read when the buyer views this tab
   useEffect(() => {
     if (requestId && messages.some((m) => !m.is_read_by_buyer && m.sender_role === 'admin')) {
       markRead.mutate(requestId);
@@ -69,12 +39,10 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId, messages.length]);
 
-  // Auto-scroll to the most recent message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  /** Send a new message and clear the input field */
   const handleSend = () => {
     if (!newMessage.trim() || !canSend) return;
     sendMsg.mutate(
@@ -85,7 +53,6 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
       },
       {
         onError: () => {
-          // Restore the message if send failed so user can retry
           setNewMessage(newMessage.trim());
         },
       },
@@ -94,40 +61,28 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
   };
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden flex flex-col bg-white">
-      {/* Header */}
-      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-slate-400" />
-        <h3 className="text-sm font-semibold text-[#0f1f3d]">Messages</h3>
-        {messages.length > 0 && <span className="text-xs text-slate-400">{messages.length}</span>}
-      </div>
-
-      {/* Rejected deal banner */}
+    <div className="border border-[#F0EDE6] rounded-xl overflow-hidden flex flex-col bg-white">
+      {/* Rejected banner */}
       {isRejected && (
-        <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100">
-          <p className="text-xs text-slate-500">
+        <div className="px-5 py-2.5 bg-[#F8F6F1] border-b border-[#F0EDE6]">
+          <p className="text-xs text-[#0E101A]/40">
             This deal is no longer active. Message history is available below.
           </p>
         </div>
       )}
 
-      {/* Message thread — cream background to set apart from white panels */}
-      <div className="min-h-[300px] max-h-[500px] overflow-y-auto px-5 py-4 space-y-3 flex-1 bg-[#faf8f4]/50">
+      {/* Message thread */}
+      <div className="min-h-[300px] max-h-[500px] overflow-y-auto px-5 py-4 space-y-3 flex-1 bg-[#FAFAF8]">
         {messagesLoading ? (
           <div className="space-y-3 py-4">
-            <div className="flex justify-start">
-              <Skeleton className="h-16 w-52 rounded-xl" />
-            </div>
-            <div className="flex justify-end">
-              <Skeleton className="h-12 w-44 rounded-xl" />
-            </div>
-            <div className="flex justify-start">
-              <Skeleton className="h-16 w-60 rounded-xl" />
-            </div>
+            <div className="flex justify-start"><Skeleton className="h-16 w-52 rounded-xl" /></div>
+            <div className="flex justify-end"><Skeleton className="h-12 w-44 rounded-xl" /></div>
+            <div className="flex justify-start"><Skeleton className="h-16 w-60 rounded-xl" /></div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-12">
-            <p className="text-sm text-slate-400 text-center">
+            <MessageSquare className="h-5 w-5 text-[#0E101A]/15 mb-2" />
+            <p className="text-[13px] text-[#0E101A]/30 text-center">
               {canSend
                 ? 'No messages yet. Send a message to the SourceCo team below.'
                 : 'No messages in this conversation.'}
@@ -138,36 +93,28 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
             const isBuyer = msg.sender_role === 'buyer';
             return (
               <div key={msg.id} className={`flex ${isBuyer ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[80%] rounded-xl px-4 py-2.5 ${
-                    isBuyer ? 'bg-[#0f1f3d]' : 'bg-white border border-slate-200'
-                  }`}
-                >
-                  {/* Sender name + timestamp */}
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={`font-semibold text-xs ${
-                        isBuyer ? 'text-[#c9a84c]' : 'text-[#0f1f3d]'
-                      }`}
-                    >
-                      {isBuyer
-                        ? 'You'
-                        : `${msg.sender?.first_name || 'SourceCo'} — SourceCo Deal Team`}
+                <div className="max-w-[80%]">
+                  {/* Sender + time outside bubble */}
+                  <div className={`flex items-center gap-2 mb-1 ${isBuyer ? 'justify-end' : 'justify-start'}`}>
+                    <span className={`font-semibold text-[11px] ${isBuyer ? 'text-[#DEC76B]' : 'text-[#0E101A]/60'}`}>
+                      {isBuyer ? 'You' : `${msg.sender?.first_name || 'SourceCo'} — SourceCo`}
                     </span>
-                    <span className={`text-[10px] ${isBuyer ? 'text-white/40' : 'text-slate-400'}`}>
-                      {formatDistanceToNow(new Date(msg.created_at), {
-                        addSuffix: true,
-                      })}
+                    <span className="text-[10px] text-[#0E101A]/25">
+                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                     </span>
                   </div>
-                  {/* Message body */}
-                  <p
-                    className={`text-[13px] leading-relaxed whitespace-pre-wrap ${
-                      isBuyer ? 'text-white/85' : 'text-slate-700'
+                  {/* Bubble */}
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 ${
+                      isBuyer
+                        ? 'bg-[#0E101A] text-white/85'
+                        : 'bg-white border border-[#F0EDE6] text-[#0E101A]/70'
                     }`}
                   >
-                    {msg.body}
-                  </p>
+                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
+                      {msg.body}
+                    </p>
+                  </div>
                 </div>
               </div>
             );
@@ -176,8 +123,8 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Compose bar — textarea + send button */}
-      <div className="border-t border-slate-100 bg-white">
+      {/* Compose bar */}
+      <div className="border-t border-[#F0EDE6] bg-white">
         {canSend ? (
           <div>
             <textarea
@@ -190,14 +137,14 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
                 }
               }}
               placeholder="Send a message to the deal team..."
-              className="w-full px-4 py-3 text-[13px] text-slate-800 placeholder:text-slate-400 resize-none h-[72px] bg-white focus:outline-none font-[inherit]"
+              className="w-full px-4 py-3 text-[13px] text-[#0E101A]/70 placeholder:text-[#0E101A]/25 resize-none h-[72px] bg-white focus:outline-none font-[inherit]"
             />
-            <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 flex justify-end">
+            <div className="px-4 py-2 bg-[#FAFAF8] border-t border-[#F0EDE6] flex justify-end">
               <Button
                 onClick={handleSend}
                 disabled={!newMessage.trim() || sendMsg.isPending}
                 size="sm"
-                className="bg-[#0f1f3d] text-white hover:bg-[#1a3260] text-xs font-semibold px-4 gap-1.5"
+                className="bg-[#0E101A] text-white hover:bg-[#0E101A]/85 text-xs font-semibold px-4 gap-1.5"
               >
                 Send Message
                 <Send className="h-3 w-3" />
@@ -205,7 +152,7 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
             </div>
           </div>
         ) : (
-          <p className="text-xs text-slate-400 text-center py-3">This deal is no longer active.</p>
+          <p className="text-xs text-[#0E101A]/30 text-center py-3">This deal is no longer active.</p>
         )}
       </div>
     </div>
