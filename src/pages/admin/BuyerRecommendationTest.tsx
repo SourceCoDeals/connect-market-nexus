@@ -412,7 +412,7 @@ export default function BuyerRecommendationTest() {
               disabled={!dealId || seeding || runningFull}
             >
               {seeding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-              AI Seed Buyers
+              AI Search for Buyers
             </Button>
             <Button
               variant="secondary"
@@ -420,7 +420,7 @@ export default function BuyerRecommendationTest() {
               disabled={!dealId || seeding || runningFull}
             >
               {seeding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              AI Seed (Force Refresh)
+              AI Search (Force Refresh)
             </Button>
             <Button
               variant="outline"
