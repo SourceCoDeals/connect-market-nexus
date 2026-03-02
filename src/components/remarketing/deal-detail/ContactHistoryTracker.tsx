@@ -12,9 +12,7 @@
  * Used on:
  *   ReMarketing deal detail page (/admin/remarketing/deals/:id)
  */
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,187 +20,35 @@ import {
   Mail,
   Phone,
   Linkedin,
-  ChevronDown,
   CheckCircle,
   Clock,
   Zap,
   TrendingUp,
-  Mic,
   Activity,
-  User,
   Users,
 } from 'lucide-react';
-import { format, formatDistanceToNow, subDays } from 'date-fns';
-import {
-  useContactCombinedHistory,
-  useContactCombinedHistoryByEmail,
-  type UnifiedActivityEntry,
-} from '@/hooks/use-contact-combined-history';
-import {
-  ContactActivityTimeline,
-  ContactActivityTimelineByEmail,
-} from '@/components/remarketing/ContactActivityTimeline';
+import { format } from 'date-fns';
 import { ListingNotesLog } from './ListingNotesLog';
+import { useContactHistory, type DateRangeValue } from './useContactHistory';
+import {
+  EngagementBadge,
+  NextActionIcon,
+  StatCard,
+  ChannelSection,
+  EmailEntry,
+  CallEntry,
+  LinkedInEntry,
+  SingleContactTimeline,
+  ContactTabSelector,
+  ActiveContactHeader,
+} from './ContactTimeline';
 
 // ── Types ──
-
-type DateRangeValue = '7d' | '30d' | '90d' | 'all';
 
 interface ContactHistoryTrackerProps {
   listingId: string;
   primaryContactEmail?: string | null;
   primaryContactName?: string | null;
-}
-
-interface AssociatedBuyer {
-  id: string;
-  buyerName: string;
-  contactName: string | null;
-  contactEmail: string | null;
-  remarketing_buyer_id: string | null;
-  buyerType: string | null;
-}
-
-// ── Helpers ──
-
-function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${mins}m ${secs}s`;
-}
-
-function getDateRangeCutoff(range: DateRangeValue): Date | null {
-  switch (range) {
-    case '7d':
-      return subDays(new Date(), 7);
-    case '30d':
-      return subDays(new Date(), 30);
-    case '90d':
-      return subDays(new Date(), 90);
-    case 'all':
-    default:
-      return null;
-  }
-}
-
-function filterByDateRange(
-  entries: UnifiedActivityEntry[],
-  range: DateRangeValue,
-): UnifiedActivityEntry[] {
-  const cutoff = getDateRangeCutoff(range);
-  if (!cutoff) return entries;
-  return entries.filter((e) => new Date(e.timestamp) >= cutoff);
-}
-
-// Compute overview stats from entries
-function computeOverview(entries: UnifiedActivityEntry[]) {
-  let totalEmails = 0;
-  let totalCalls = 0;
-  let totalLinkedIn = 0;
-  let emailsOpened = 0;
-  let emailsReplied = 0;
-  let callsConnected = 0;
-  let linkedInReplied = 0;
-
-  const emailEntries: UnifiedActivityEntry[] = [];
-  const callEntries: UnifiedActivityEntry[] = [];
-  const linkedInEntries: UnifiedActivityEntry[] = [];
-
-  for (const e of entries) {
-    if (e.channel === 'email') {
-      totalEmails++;
-      emailEntries.push(e);
-      if (['EMAIL_OPENED', 'OPENED'].includes(e.event_type)) emailsOpened++;
-      if (['EMAIL_REPLIED', 'REPLIED'].includes(e.event_type)) emailsReplied++;
-    } else if (e.channel === 'linkedin') {
-      totalLinkedIn++;
-      linkedInEntries.push(e);
-      if (['MESSAGE_RECEIVED', 'INMAIL_RECEIVED', 'LEAD_REPLIED'].includes(e.event_type))
-        linkedInReplied++;
-    } else {
-      totalCalls++;
-      callEntries.push(e);
-      if (e.event_type === 'call_completed') callsConnected++;
-    }
-  }
-
-  const lastEntry = entries.length > 0 ? entries[0] : null;
-  const daysSinceLastContact = lastEntry
-    ? Math.floor((Date.now() - new Date(lastEntry.timestamp).getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-
-  // Determine next best action
-  let nextBestAction: { action: string; icon: 'mail' | 'phone' | 'linkedin'; reason: string; timing: string } = {
-    action: 'Send Email',
-    icon: 'mail',
-    reason: 'No contact history found. Start with an introductory email.',
-    timing: 'as soon as possible',
-  };
-
-  if (lastEntry) {
-    if (emailsOpened > 0 && emailsReplied === 0 && callsConnected === 0) {
-      nextBestAction = {
-        action: 'Schedule Call',
-        icon: 'phone',
-        reason: `Email opened ${emailsOpened}x with no reply. Engagement is high—time to connect directly.`,
-        timing: 'within 2 days',
-      };
-    } else if (totalEmails > 3 && emailsOpened === 0) {
-      nextBestAction = {
-        action: 'Try LinkedIn',
-        icon: 'linkedin',
-        reason: 'Multiple emails sent with no opens. Try a different channel to break through.',
-        timing: 'within 3 days',
-      };
-    } else if (callsConnected > 0 && emailsReplied === 0) {
-      nextBestAction = {
-        action: 'Send Follow-up Email',
-        icon: 'mail',
-        reason: 'Had a call but no email reply yet. Send a follow-up to keep momentum.',
-        timing: 'within 1 day',
-      };
-    } else if (linkedInReplied > 0) {
-      nextBestAction = {
-        action: 'Schedule Call',
-        icon: 'phone',
-        reason: 'Positive LinkedIn engagement. Convert to a phone conversation.',
-        timing: 'within 2 days',
-      };
-    } else if (daysSinceLastContact !== null && daysSinceLastContact > 14) {
-      nextBestAction = {
-        action: 'Re-engage',
-        icon: 'mail',
-        reason: `No contact in ${daysSinceLastContact} days. Time to re-engage before they go cold.`,
-        timing: 'today',
-      };
-    }
-  }
-
-  // Engagement status
-  let engagementStatus: 'active' | 'warm' | 'cold' | 'none' = 'none';
-  if (daysSinceLastContact !== null) {
-    if (daysSinceLastContact <= 7) engagementStatus = 'active';
-    else if (daysSinceLastContact <= 30) engagementStatus = 'warm';
-    else engagementStatus = 'cold';
-  }
-
-  return {
-    totalEmails,
-    totalCalls,
-    totalLinkedIn,
-    emailsOpened,
-    emailsReplied,
-    callsConnected,
-    linkedInReplied,
-    daysSinceLastContact,
-    lastContactDate: lastEntry?.timestamp || null,
-    lastContactChannel: lastEntry?.channel || null,
-    nextBestAction,
-    engagementStatus,
-    emailEntries,
-    callEntries,
-    linkedInEntries,
-  };
 }
 
 // ── Main component ──
@@ -216,152 +62,21 @@ export function ContactHistoryTracker({
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     emails: true,
   });
+  const [activeContactTab, setActiveContactTab] = useState<string>('');
 
-  // Fetch associated buyers for this deal
-  const { data: associatedBuyers = [], isLoading: buyersLoading } = useQuery({
-    queryKey: ['contact-history-tracker-buyers', listingId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('deals')
-        .select(
-          `
-          id,
-          contact_name,
-          contact_email,
-          contact_phone,
-          remarketing_buyer_id,
-          remarketing_buyers!deals_remarketing_buyer_id_fkey ( company_name, buyer_type )
-        `,
-        )
-        .eq('listing_id', listingId)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      return (data || []).map((d: Record<string, unknown>) => ({
-        id: d.id as string,
-        buyerName:
-          ((d.remarketing_buyers as Record<string, unknown> | null)?.company_name as string) ||
-          (d.contact_name as string) ||
-          'Unknown',
-        contactName: d.contact_name as string | null,
-        contactEmail: d.contact_email as string | null,
-        remarketing_buyer_id: d.remarketing_buyer_id as string | null,
-        buyerType:
-          ((d.remarketing_buyers as Record<string, unknown> | null)?.buyer_type as string) || null,
-      }));
-    },
-    enabled: !!listingId,
-  });
-
-  // Fetch seller-side contacts
-  const { data: sellerContacts = [], isLoading: contactsLoading } = useQuery({
-    queryKey: ['contact-history-tracker-seller', listingId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('id, first_name, last_name, email, phone, title, contact_type')
-        .eq('listing_id', listingId)
-        .eq('archived', false)
-        .order('is_primary_seller_contact', { ascending: false });
-
-      if (error) throw error;
-
-      return (data || []).map((c) => ({
-        id: c.id as string,
-        name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
-        email: c.email as string | null,
-        phone: c.phone as string | null,
-        title: c.title as string | null,
-        contactType: c.contact_type as string | null,
-      }));
-    },
-    enabled: !!listingId,
-  });
-
-  // Find the best buyer ID or email for the overview
-  const primaryBuyerId =
-    associatedBuyers.find((b) => b.remarketing_buyer_id)?.remarketing_buyer_id || null;
-  const lookupEmail =
-    primaryContactEmail || associatedBuyers.find((b) => b.contactEmail)?.contactEmail || null;
-
-  // Fetch combined history for overview stats
-  const { data: entriesByBuyer = [], isLoading: historyByBuyerLoading } =
-    useContactCombinedHistory(primaryBuyerId);
-  const { data: entriesByEmail = [], isLoading: historyByEmailLoading } =
-    useContactCombinedHistoryByEmail(!primaryBuyerId ? lookupEmail : null);
-
-  const isLoading =
-    buyersLoading || contactsLoading || historyByBuyerLoading || historyByEmailLoading;
-  const allEntries = primaryBuyerId ? entriesByBuyer : entriesByEmail;
-
-  // Filter by date range
-  const filteredEntries = useMemo(
-    () => filterByDateRange(allEntries, dateRange),
-    [allEntries, dateRange],
+  const { isLoading, filteredEntries, overview, contactTabs } = useContactHistory(
+    listingId,
+    primaryContactEmail,
+    dateRange,
+    primaryContactName,
   );
-
-  // Compute overview from filtered entries
-  const overview = useMemo(() => computeOverview(filteredEntries), [filteredEntries]);
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // Build contact tabs for the per-contact activity log section
-  const allContactEmails = new Set<string>();
-  if (primaryContactEmail) allContactEmails.add(primaryContactEmail.toLowerCase());
-
-  const uniqueBuyers: AssociatedBuyer[] = [];
-  for (const b of associatedBuyers) {
-    const email = b.contactEmail?.toLowerCase();
-    if (email && allContactEmails.has(email)) continue;
-    if (email) allContactEmails.add(email);
-    uniqueBuyers.push(b);
-  }
-
-  type ContactTab = {
-    id: string;
-    label: string;
-    email?: string | null;
-    buyerId?: string | null;
-    type: 'primary' | 'buyer' | 'seller';
-  };
-
-  const contactTabs: ContactTab[] = [];
-
-  if (primaryContactEmail) {
-    contactTabs.push({
-      id: 'primary',
-      label: primaryContactName || 'Primary Contact',
-      email: primaryContactEmail,
-      type: 'primary',
-    });
-  }
-
-  for (const b of uniqueBuyers) {
-    contactTabs.push({
-      id: `buyer-${b.id}`,
-      label: b.contactName || b.buyerName,
-      email: b.contactEmail,
-      buyerId: b.remarketing_buyer_id,
-      type: 'buyer',
-    });
-  }
-
-  for (const c of sellerContacts) {
-    if (allContactEmails.has(c.email?.toLowerCase() || '')) continue;
-    contactTabs.push({
-      id: `seller-${c.id}`,
-      label: c.name,
-      email: c.email,
-      type: 'seller',
-    });
-  }
-
-  const [activeContactTab, setActiveContactTab] = useState<string>('');
-  const effectiveContactTab = activeContactTab || (contactTabs.length > 0 ? contactTabs[0].id : '');
+  const effectiveContactTab =
+    activeContactTab || (contactTabs.length > 0 ? contactTabs[0].id : '');
   const activeContact = contactTabs.find((t) => t.id === effectiveContactTab);
 
   if (isLoading) {
@@ -389,7 +104,7 @@ export function ContactHistoryTracker({
 
   return (
     <div className="space-y-6">
-      {/* ─── Overview & Stats Card ─── */}
+      {/* Overview & Stats Card */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -437,14 +152,16 @@ export function ContactHistoryTracker({
                 <Clock className="w-4 h-4 text-muted-foreground/50" />
               </div>
               <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-4xl font-bold">{overview.daysSinceLastContact ?? '—'}</span>
+                <span className="text-4xl font-bold">
+                  {overview.daysSinceLastContact ?? '\u2014'}
+                </span>
                 {overview.daysSinceLastContact !== null && (
                   <span className="text-muted-foreground text-sm">days</span>
                 )}
               </div>
               {overview.lastContactDate && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-                  <CheckCircle className="w-3 h-3 text-green-500" />
+                  <Clock className="w-3 h-3 text-green-500" />
                   Last contacted via {overview.lastContactChannel} on{' '}
                   {format(new Date(overview.lastContactDate), 'MMM d')}
                 </div>
@@ -551,7 +268,7 @@ export function ContactHistoryTracker({
         </CardContent>
       </Card>
 
-      {/* ─── Per-Contact Activity Log ─── */}
+      {/* Per-Contact Activity Log */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -581,53 +298,14 @@ export function ContactHistoryTracker({
           ) : (
             <>
               {/* Contact selector */}
-              <div className="flex gap-2 flex-wrap mb-4">
-                {contactTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveContactTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                      effectiveContactTab === tab.id
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                    }`}
-                  >
-                    <User className="h-3 w-3" />
-                    <span className="truncate max-w-[120px]">{tab.label}</span>
-                    {tab.type === 'primary' && (
-                      <Badge variant="default" className="text-[8px] px-1 py-0 h-4 ml-1">
-                        Primary
-                      </Badge>
-                    )}
-                    {tab.type === 'buyer' && (
-                      <Badge
-                        variant="outline"
-                        className="text-[8px] px-1 py-0 h-4 ml-1 border-blue-200 text-blue-700"
-                      >
-                        Buyer
-                      </Badge>
-                    )}
-                  </button>
-                ))}
-              </div>
+              <ContactTabSelector
+                tabs={contactTabs}
+                activeTabId={effectiveContactTab}
+                onSelect={setActiveContactTab}
+              />
 
               {/* Contact info header */}
-              {activeContact && (
-                <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-muted/50">
-                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary/10">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{activeContact.label}</p>
-                    {activeContact.email && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Mail className="h-3 w-3" />
-                        {activeContact.email}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              {activeContact && <ActiveContactHeader tab={activeContact} />}
 
               {/* Timeline for active contact */}
               {activeContact && <SingleContactTimeline tab={activeContact} />}
@@ -636,346 +314,8 @@ export function ContactHistoryTracker({
         </CardContent>
       </Card>
 
-      {/* ─── Notes ─── */}
+      {/* Notes */}
       <ListingNotesLog listingId={listingId} />
-    </div>
-  );
-}
-
-// ── Sub-components ──
-
-function EngagementBadge({ status }: { status: 'active' | 'warm' | 'cold' | 'none' }) {
-  if (status === 'none') return null;
-
-  const config = {
-    active: {
-      classes:
-        'bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800 dark:text-emerald-400',
-      dot: 'bg-emerald-500',
-      label: 'Actively Engaged',
-    },
-    warm: {
-      classes:
-        'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400',
-      dot: 'bg-amber-500',
-      label: 'Warm Lead',
-    },
-    cold: {
-      classes: 'bg-muted border-border text-muted-foreground',
-      dot: 'bg-muted-foreground',
-      label: 'Gone Cold',
-    },
-  }[status];
-
-  return (
-    <div
-      className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-medium ${config.classes}`}
-    >
-      <div className={`w-1.5 h-1.5 rounded-full ${config.dot} animate-pulse`} />
-      {config.label}
-    </div>
-  );
-}
-
-function NextActionIcon({ type }: { type: 'mail' | 'phone' | 'linkedin' }) {
-  const className = 'w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5';
-  if (type === 'phone') return <Phone className={className} />;
-  if (type === 'linkedin') return <Linkedin className={className} />;
-  return <Mail className={className} />;
-}
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-}: {
-  label: string;
-  value: number;
-  icon: typeof Mail;
-  color: 'blue' | 'green' | 'violet';
-}) {
-  const iconColor = {
-    blue: 'text-blue-500',
-    green: 'text-green-500',
-    violet: 'text-violet-500',
-  }[color];
-
-  return (
-    <div className="rounded-lg border bg-card p-4 hover:bg-muted/30 transition-colors">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs uppercase tracking-wide font-medium text-muted-foreground">
-          {label}
-        </span>
-        <Icon className={`w-4 h-4 ${iconColor}`} />
-      </div>
-      <div className="text-2xl font-bold">{value}</div>
-    </div>
-  );
-}
-
-function ChannelSection({
-  icon: Icon,
-  title,
-  count,
-  color,
-  expanded,
-  onToggle,
-  children,
-}: {
-  icon: typeof Mail;
-  title: string;
-  count: number;
-  color: 'blue' | 'green' | 'violet';
-  expanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  const colorStyles = {
-    blue: {
-      border: 'border-blue-200 dark:border-blue-800',
-      icon: 'text-blue-500 bg-blue-50 dark:bg-blue-950/30',
-    },
-    green: {
-      border: 'border-green-200 dark:border-green-800',
-      icon: 'text-green-500 bg-green-50 dark:bg-green-950/30',
-    },
-    violet: {
-      border: 'border-violet-200 dark:border-violet-800',
-      icon: 'text-violet-500 bg-violet-50 dark:bg-violet-950/30',
-    },
-  }[color];
-
-  return (
-    <div className={`rounded-lg border ${colorStyles.border} overflow-hidden`}>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-md ${colorStyles.icon}`}>
-            <Icon className="w-4 h-4" />
-          </div>
-          <div className="text-left">
-            <h3 className="font-medium text-sm">{title}</h3>
-            <p className="text-xs text-muted-foreground">
-              {count} {count === 1 ? 'entry' : 'entries'}
-            </p>
-          </div>
-        </div>
-        <ChevronDown
-          className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {expanded && <div className="border-t px-4 pb-4 pt-2 space-y-2">{children}</div>}
-    </div>
-  );
-}
-
-// ── Entry renderers ──
-
-function EmailEntry({ entry }: { entry: UnifiedActivityEntry }) {
-  const isOpened = ['EMAIL_OPENED', 'OPENED'].includes(entry.event_type);
-  const isReplied = ['EMAIL_REPLIED', 'REPLIED'].includes(entry.event_type);
-  const isSent = entry.event_type === 'EMAIL_SENT';
-
-  return (
-    <div className="rounded-md border bg-card p-3 hover:bg-muted/30 transition-colors">
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex-1">
-          <h4 className="font-medium text-sm">{entry.label}</h4>
-          {entry.context && <p className="text-xs text-muted-foreground mt-0.5">{entry.context}</p>}
-          {entry.details.lead_email && (
-            <p className="text-xs text-muted-foreground mt-0.5">{entry.details.lead_email}</p>
-          )}
-        </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
-          {format(new Date(entry.timestamp), 'MMM d, h:mm a')}
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-2 text-xs">
-        <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-muted">
-          {isOpened || isReplied ? (
-            <>
-              <CheckCircle className="w-3 h-3 text-green-500" />
-              <span>{isReplied ? 'Replied' : 'Opened'}</span>
-            </>
-          ) : isSent ? (
-            <>
-              <Mail className="w-3 h-3 text-blue-500" />
-              <span>Sent</span>
-            </>
-          ) : (
-            <>
-              <Clock className="w-3 h-3 text-muted-foreground" />
-              <span>{entry.label}</span>
-            </>
-          )}
-        </div>
-        <span className="text-muted-foreground">
-          {formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}
-        </span>
-      </div>
-      {isReplied && entry.details.lead_email && (
-        <div className="mt-2 p-2 rounded-md bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800">
-          <div className="text-xs text-muted-foreground">
-            Reply received from {entry.details.lead_email}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CallEntry({ entry }: { entry: UnifiedActivityEntry }) {
-  const isConnected =
-    entry.event_type === 'call_completed' && entry.details.call_outcome === 'dispositioned';
-  const isVoicemail =
-    entry.details.call_outcome === 'no_answer' ||
-    entry.details.disposition_code?.toLowerCase().includes('voicemail');
-
-  return (
-    <div className="rounded-md border bg-card p-3 hover:bg-muted/30 transition-colors">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">{entry.label}</span>
-            <Badge
-              variant={isConnected ? 'default' : isVoicemail ? 'secondary' : 'outline'}
-              className="text-[10px]"
-            >
-              {isConnected
-                ? 'Connected'
-                : isVoicemail
-                  ? 'Voicemail'
-                  : entry.details.call_outcome || ''}
-            </Badge>
-          </div>
-          {entry.context && <p className="text-xs text-muted-foreground mt-0.5">{entry.context}</p>}
-        </div>
-        <span className="text-xs text-muted-foreground">
-          {format(new Date(entry.timestamp), 'MMM d, h:mm a')}
-        </span>
-      </div>
-      {entry.details.call_duration_seconds && entry.details.call_duration_seconds > 0 && (
-        <div className="text-xs text-muted-foreground mb-2">
-          Duration:{' '}
-          <span className="font-semibold">
-            {formatDuration(entry.details.call_duration_seconds)}
-          </span>
-        </div>
-      )}
-      {entry.details.disposition_label && (
-        <Badge variant="secondary" className="text-[10px] mb-2">
-          {entry.details.disposition_label}
-        </Badge>
-      )}
-      {entry.details.disposition_notes && (
-        <div className="p-2 rounded-md bg-muted text-sm">
-          <div className="text-xs text-muted-foreground mb-0.5">Notes:</div>
-          {entry.details.disposition_notes}
-        </div>
-      )}
-      {entry.details.recording_url && (
-        <a
-          href={entry.details.recording_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 mt-2 text-xs text-primary hover:underline"
-        >
-          <Mic className="w-3 h-3" />
-          Listen to Recording
-        </a>
-      )}
-    </div>
-  );
-}
-
-function LinkedInEntry({ entry }: { entry: UnifiedActivityEntry }) {
-  const isReply = ['MESSAGE_RECEIVED', 'INMAIL_RECEIVED', 'LEAD_REPLIED'].includes(
-    entry.event_type,
-  );
-  const isAccepted = entry.event_type === 'CONNECTION_REQUEST_ACCEPTED';
-
-  const typeLabel =
-    {
-      CONNECTION_REQUEST_SENT: 'Connection Request Sent',
-      CONNECTION_REQUEST_ACCEPTED: 'Connection Accepted',
-      MESSAGE_SENT: 'Message Sent',
-      MESSAGE_RECEIVED: 'Message Received',
-      INMAIL_SENT: 'InMail Sent',
-      INMAIL_RECEIVED: 'InMail Received',
-      PROFILE_VIEWED: 'Profile Viewed',
-      FOLLOW_SENT: 'Followed',
-      LIKE_SENT: 'Liked Post',
-      LEAD_REPLIED: 'Lead Replied',
-      LEAD_INTERESTED: 'Interested',
-      LEAD_NOT_INTERESTED: 'Not Interested',
-    }[entry.event_type] || entry.label;
-
-  return (
-    <div className="rounded-md border bg-card p-3 hover:bg-muted/30 transition-colors">
-      <div className="flex justify-between items-start mb-2">
-        <span className="font-medium text-sm">{typeLabel}</span>
-        <span className="text-xs text-muted-foreground">
-          {format(new Date(entry.timestamp), 'MMM d, h:mm a')}
-        </span>
-      </div>
-      {entry.context && <p className="text-xs text-muted-foreground mb-1">{entry.context}</p>}
-      {entry.details.lead_linkedin_url && (
-        <p className="text-xs text-muted-foreground mb-1 truncate">
-          {entry.details.lead_linkedin_url}
-        </p>
-      )}
-      {(isReply || isAccepted) && (
-        <div className="p-2 rounded-md bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800">
-          <div className="text-xs text-muted-foreground">
-            {isAccepted ? 'Connection accepted' : 'Response received'}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Per-contact timeline ──
-
-function SingleContactTimeline({
-  tab,
-}: {
-  tab: {
-    buyerId?: string | null;
-    email?: string | null;
-    label: string;
-  };
-}) {
-  if (tab.buyerId) {
-    return (
-      <ContactActivityTimeline
-        buyerId={tab.buyerId}
-        title={`${tab.label} - Activity`}
-        maxHeight={600}
-        compact
-      />
-    );
-  }
-
-  if (tab.email) {
-    return (
-      <ContactActivityTimelineByEmail
-        email={tab.email}
-        title={`${tab.label} - Activity`}
-        maxHeight={600}
-        compact
-      />
-    );
-  }
-
-  return (
-    <div className="text-center py-6 text-muted-foreground text-sm">
-      <Phone className="h-6 w-6 mx-auto mb-2 opacity-40" />
-      No email address on file — cannot look up communication history
     </div>
   );
 }

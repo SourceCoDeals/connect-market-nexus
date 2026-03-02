@@ -207,6 +207,7 @@ export function useContactHistory(
   listingId: string,
   primaryContactEmail: string | null | undefined,
   dateRange: DateRangeValue,
+  primaryContactName?: string | null,
 ) {
   // Fetch associated buyers for this deal
   const { data: associatedBuyers = [], isLoading: buyersLoading } = useQuery({
@@ -314,7 +315,7 @@ export function useContactHistory(
     if (primaryContactEmail) {
       tabs.push({
         id: 'primary',
-        label: 'Primary Contact',
+        label: primaryContactName || 'Primary Contact',
         email: primaryContactEmail,
         type: 'primary',
       });
@@ -341,7 +342,7 @@ export function useContactHistory(
     }
 
     return tabs;
-  }, [primaryContactEmail, associatedBuyers, sellerContacts]);
+  }, [primaryContactEmail, primaryContactName, associatedBuyers, sellerContacts]);
 
   return {
     isLoading,
