@@ -320,7 +320,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: callerUser.id });
+    const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: callerUser.id });
     if (!isAdmin) {
       return errorResponse('Forbidden: admin access required', 403, corsHeaders, 'forbidden');
     }

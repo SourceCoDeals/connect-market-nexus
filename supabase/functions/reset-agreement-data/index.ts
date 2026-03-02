@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       });
     }
     const { data: isAdmin } = await supabase.rpc('is_admin', {
-      uid: user.id,
+      user_id: user.id,
     });
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
