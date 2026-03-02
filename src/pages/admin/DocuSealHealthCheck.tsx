@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { useState, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   CheckCircle2,
   XCircle,
@@ -18,16 +18,16 @@ import {
   MinusCircle,
   ChevronDown,
   ChevronRight,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 // ── Types ──────────────────────────────────────────
 
 interface TestResult {
   id: string;
   name: string;
-  status: "pass" | "fail" | "warn" | "skip";
+  status: 'pass' | 'fail' | 'warn' | 'skip';
   detail: string;
   durationMs: number;
 }
@@ -41,19 +41,19 @@ interface TestResponse {
   error?: string;
 }
 
-type RunState = "idle" | "running" | "done" | "error";
+type RunState = 'idle' | 'running' | 'done' | 'error';
 
 // ── Test metadata (icons + groups for display) ──────
 
 const TEST_META: Record<string, { icon: typeof Shield; group: string }> = {
-  env_config: { icon: Shield, group: "Configuration" },
-  api_auth: { icon: Shield, group: "Configuration" },
-  templates: { icon: FileText, group: "Templates" },
-  create_submission: { icon: Send, group: "Submission Pipeline" },
-  get_submission: { icon: Search, group: "Submission Pipeline" },
-  webhook_handler: { icon: Webhook, group: "Webhook Pipeline" },
-  db_verification: { icon: Database, group: "Webhook Pipeline" },
-  idempotency: { icon: Copy, group: "Webhook Pipeline" },
+  env_config: { icon: Shield, group: 'Configuration' },
+  api_auth: { icon: Shield, group: 'Configuration' },
+  templates: { icon: FileText, group: 'Templates' },
+  create_submission: { icon: Send, group: 'Submission Pipeline' },
+  get_submission: { icon: Search, group: 'Submission Pipeline' },
+  webhook_handler: { icon: Webhook, group: 'Webhook Pipeline' },
+  db_verification: { icon: Database, group: 'Webhook Pipeline' },
+  idempotency: { icon: Copy, group: 'Webhook Pipeline' },
 };
 
 const STATUS_ICON = {
@@ -64,26 +64,28 @@ const STATUS_ICON = {
 };
 
 const STATUS_COLOR = {
-  pass: "text-emerald-400",
-  fail: "text-red-400",
-  warn: "text-amber-400",
-  skip: "text-zinc-500",
+  pass: 'text-emerald-400',
+  fail: 'text-red-400',
+  warn: 'text-amber-400',
+  skip: 'text-zinc-500',
 };
 
 const STATUS_BG = {
-  pass: "bg-emerald-500/10 border-emerald-500/20",
-  fail: "bg-red-500/10 border-red-500/20",
-  warn: "bg-amber-500/10 border-amber-500/20",
-  skip: "bg-zinc-500/10 border-zinc-500/20",
+  pass: 'bg-emerald-500/10 border-emerald-500/20',
+  fail: 'bg-red-500/10 border-red-500/20',
+  warn: 'bg-amber-500/10 border-amber-500/20',
+  skip: 'bg-zinc-500/10 border-zinc-500/20',
 };
+
+const DOCUSEAL_STORAGE_KEY = 'sourceco-docuseal-test-results';
 
 // ── Component ──────────────────────────────────────
 
 export default function DocuSealHealthCheck() {
-  const [runState, setRunState] = useState<RunState>("idle");
+  const [runState, setRunState] = useState<RunState>('idle');
   const [response, setResponse] = useState<TestResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [_lastRun, setLastRun] = useState<string | null>(null);
+  const [, setLastRun] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggleExpand = useCallback((id: string) => {
@@ -96,52 +98,75 @@ export default function DocuSealHealthCheck() {
   }, []);
 
   const runTests = useCallback(async () => {
-    setRunState("running");
+    setRunState('running');
     setErrorMsg(null);
     setResponse(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "docuseal-integration-test"
-      );
+      const { data, error } = await supabase.functions.invoke('docuseal-integration-test');
 
       if (error) {
-        setRunState("error");
-        setErrorMsg(error.message || "Edge function invocation failed");
+        const msg = error.message || 'Edge function invocation failed';
+        setRunState('error');
+        setErrorMsg(msg);
+        try {
+          localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify({ error: msg, results: [] }));
+        } catch {
+          /* ignore */
+        }
         return;
       }
 
       if (data?.error) {
-        setRunState("error");
+        setRunState('error');
         setErrorMsg(data.error);
+        try {
+          localStorage.setItem(
+            DOCUSEAL_STORAGE_KEY,
+            JSON.stringify({ error: data.error, results: [] }),
+          );
+        } catch {
+          /* ignore */
+        }
         return;
       }
 
       const resp = data as TestResponse;
       setResponse(resp);
       setLastRun(resp.ranAt);
-      setRunState("done");
+      setRunState('done');
+      try {
+        localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify(resp));
+      } catch {
+        /* ignore */
+      }
       // Auto-expand failed and warned tests so errors are immediately visible
       const autoExpand = new Set<string>();
       for (const r of resp.results) {
-        if (r.status === "fail" || r.status === "warn") autoExpand.add(r.id);
+        if (r.status === 'fail' || r.status === 'warn') autoExpand.add(r.id);
       }
       setExpanded(autoExpand);
     } catch (e: unknown) {
-      setRunState("error");
-      setErrorMsg(e.message || "Unexpected error");
+      const msg = e instanceof Error ? e.message : 'Unexpected error';
+      setRunState('error');
+      setErrorMsg(msg);
+      try {
+        localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify({ error: msg, results: [] }));
+      } catch {
+        /* ignore */
+      }
     }
   }, []);
 
   const results = response?.results || [];
-  const passed = results.filter((r) => r.status === "pass").length;
-  const failed = results.filter((r) => r.status === "fail").length;
-  const warned = results.filter((r) => r.status === "warn").length;
-  const skipped = results.filter((r) => r.status === "skip").length;
+  const passed = results.filter((r) => r.status === 'pass').length;
+  const failed = results.filter((r) => r.status === 'fail').length;
+  const warned = results.filter((r) => r.status === 'warn').length;
+  const skipped = results.filter((r) => r.status === 'skip').length;
 
   // Group results for display
   const groups = results.reduce<Record<string, TestResult[]>>((acc, r) => {
-    const group = TEST_META[r.id]?.group || "Other";
+    const group = TEST_META[r.id]?.group || 'Other';
     if (!acc[group]) acc[group] = [];
     acc[group].push(r);
     return acc;
@@ -152,21 +177,14 @@ export default function DocuSealHealthCheck() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            DocuSeal Health Check
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">DocuSeal Health Check</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            End-to-end integration test for the NDA & Fee Agreement signing
-            pipeline. Tests run server-side through your actual edge functions.
+            End-to-end integration test for the NDA & Fee Agreement signing pipeline. Tests run
+            server-side through your actual edge functions.
           </p>
         </div>
-        <Button
-          onClick={runTests}
-          disabled={runState === "running"}
-          size="lg"
-          className="gap-2"
-        >
-          {runState === "running" ? (
+        <Button onClick={runTests} disabled={runState === 'running'} size="lg" className="gap-2">
+          {runState === 'running' ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Running...
@@ -181,7 +199,7 @@ export default function DocuSealHealthCheck() {
       </div>
 
       {/* What it tests */}
-      {runState === "idle" && (
+      {runState === 'idle' && (
         <div className="rounded-lg border bg-card p-5 space-y-3">
           <h3 className="font-semibold text-sm">What this tests</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
@@ -210,8 +228,8 @@ export default function DocuSealHealthCheck() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground pt-2 border-t">
-            All test data is automatically cleaned up. No emails are sent. API
-            keys stay server-side.
+            All test data is automatically cleaned up. No emails are sent. API keys stay
+            server-side.
           </p>
         </div>
       )}
@@ -280,23 +298,19 @@ export default function DocuSealHealthCheck() {
                     onClick={() => toggleExpand(r.id)}
                     className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-muted/30 transition-colors"
                   >
-                    <Icon
-                      className={cn("h-5 w-5 shrink-0", STATUS_COLOR[r.status])}
-                    />
+                    <Icon className={cn('h-5 w-5 shrink-0', STATUS_COLOR[r.status])} />
                     <span className="text-sm font-medium flex-1">{r.name}</span>
                     <Badge
                       variant="outline"
                       className={cn(
-                        "text-[10px] px-1.5 py-0",
+                        'text-[10px] px-1.5 py-0',
                         STATUS_BG[r.status],
-                        STATUS_COLOR[r.status]
+                        STATUS_COLOR[r.status],
                       )}
                     >
                       {r.status}
                     </Badge>
-                    <span className="text-[10px] text-muted-foreground">
-                      {r.durationMs}ms
-                    </span>
+                    <span className="text-[10px] text-muted-foreground">{r.durationMs}ms</span>
                     {isOpen ? (
                       <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                     ) : (
@@ -306,14 +320,14 @@ export default function DocuSealHealthCheck() {
                   {isOpen && r.detail && (
                     <div
                       className={cn(
-                        "mx-4 mb-3 p-3 rounded-md text-xs font-mono break-words whitespace-pre-wrap border",
-                        r.status === "fail"
-                          ? "bg-red-500/10 border-red-500/30 text-red-300"
-                          : r.status === "warn"
-                            ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                            : r.status === "pass"
-                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                              : "bg-muted border-border text-muted-foreground"
+                        'mx-4 mb-3 p-3 rounded-md text-xs font-mono break-words whitespace-pre-wrap border',
+                        r.status === 'fail'
+                          ? 'bg-red-500/10 border-red-500/30 text-red-300'
+                          : r.status === 'warn'
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                            : r.status === 'pass'
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                              : 'bg-muted border-border text-muted-foreground',
                       )}
                     >
                       {r.detail}
@@ -329,9 +343,7 @@ export default function DocuSealHealthCheck() {
       {/* Cleanup log */}
       {response?.cleanup && response.cleanup.length > 0 && (
         <div className="rounded-lg border bg-card p-4">
-          <h3 className="text-sm font-semibold mb-2 text-muted-foreground">
-            Cleanup
-          </h3>
+          <h3 className="text-sm font-semibold mb-2 text-muted-foreground">Cleanup</h3>
           <ul className="text-xs text-muted-foreground space-y-1">
             {response.cleanup.map((note, i) => (
               <li key={i} className="flex items-center gap-1.5">
