@@ -3673,10 +3673,13 @@ export type Database = {
           completed_at: string | null
           completed_by: string | null
           created_at: string | null
+          created_by: string | null
           deal_id: string | null
           deal_reference: string | null
           description: string | null
           due_date: string
+          entity_id: string | null
+          entity_type: string | null
           extraction_confidence: string | null
           id: string
           is_manual: boolean | null
@@ -3686,8 +3689,13 @@ export type Database = {
           pinned_at: string | null
           pinned_by: string | null
           pinned_rank: number | null
+          priority: string | null
           priority_rank: number | null
           priority_score: number | null
+          secondary_entity_id: string | null
+          secondary_entity_type: string | null
+          snoozed_until: string | null
+          source: string | null
           source_meeting_id: string | null
           source_timestamp: string | null
           status: string
@@ -3703,10 +3711,13 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string | null
+          created_by?: string | null
           deal_id?: string | null
           deal_reference?: string | null
           description?: string | null
           due_date?: string
+          entity_id?: string | null
+          entity_type?: string | null
           extraction_confidence?: string | null
           id?: string
           is_manual?: boolean | null
@@ -3716,8 +3727,13 @@ export type Database = {
           pinned_at?: string | null
           pinned_by?: string | null
           pinned_rank?: number | null
+          priority?: string | null
           priority_rank?: number | null
           priority_score?: number | null
+          secondary_entity_id?: string | null
+          secondary_entity_type?: string | null
+          snoozed_until?: string | null
+          source?: string | null
           source_meeting_id?: string | null
           source_timestamp?: string | null
           status?: string
@@ -3733,10 +3749,13 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string | null
+          created_by?: string | null
           deal_id?: string | null
           deal_reference?: string | null
           description?: string | null
           due_date?: string
+          entity_id?: string | null
+          entity_type?: string | null
           extraction_confidence?: string | null
           id?: string
           is_manual?: boolean | null
@@ -3746,8 +3765,13 @@ export type Database = {
           pinned_at?: string | null
           pinned_by?: string | null
           pinned_rank?: number | null
+          priority?: string | null
           priority_rank?: number | null
           priority_score?: number | null
+          secondary_entity_id?: string | null
+          secondary_entity_type?: string | null
+          snoozed_until?: string | null
+          source?: string | null
           source_meeting_id?: string | null
           source_timestamp?: string | null
           status?: string
@@ -3797,6 +3821,13 @@ export type Database = {
             columns: ["source_meeting_id"]
             isOneToOne: false
             referencedRelation: "standup_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dst_created_by_fk"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -12314,40 +12345,40 @@ export type Database = {
       }
       test_run_results: {
         Row: {
+          category: string | null
+          created_at: string
+          duration_ms: number | null
+          error: string | null
           id: string
           run_id: string
+          status: string
           suite: string
           test_id: string
           test_name: string
-          category: string | null
-          status: string
-          error: string | null
-          duration_ms: number | null
-          created_at: string
         }
         Insert: {
+          category?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
           id?: string
           run_id: string
+          status?: string
           suite: string
           test_id: string
           test_name: string
-          category?: string | null
-          status?: string
-          error?: string | null
-          duration_ms?: number | null
-          created_at?: string
         }
         Update: {
+          category?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
           id?: string
           run_id?: string
+          status?: string
           suite?: string
           test_id?: string
           test_name?: string
-          category?: string | null
-          status?: string
-          error?: string | null
-          duration_ms?: number | null
-          created_at?: string
         }
         Relationships: [
           {
@@ -12361,58 +12392,58 @@ export type Database = {
       }
       test_run_tracking: {
         Row: {
-          id: string
-          run_type: string
-          status: string
-          started_at: string
           completed_at: string | null
-          total_tests: number
-          passed: number
-          failed: number
-          warnings: number
-          skipped: number
+          created_at: string
           duration_ms: number | null
+          error_summary: Json | null
+          failed: number
+          id: string
+          passed: number
+          run_type: string
+          skipped: number
+          started_at: string
+          status: string
           suites_completed: number | null
           suites_total: number | null
-          error_summary: Json | null
+          total_tests: number
           triggered_by: string | null
-          created_at: string
+          warnings: number
         }
         Insert: {
-          id?: string
-          run_type?: string
-          status?: string
-          started_at?: string
           completed_at?: string | null
-          total_tests?: number
-          passed?: number
-          failed?: number
-          warnings?: number
-          skipped?: number
+          created_at?: string
           duration_ms?: number | null
+          error_summary?: Json | null
+          failed?: number
+          id?: string
+          passed?: number
+          run_type?: string
+          skipped?: number
+          started_at?: string
+          status?: string
           suites_completed?: number | null
           suites_total?: number | null
-          error_summary?: Json | null
+          total_tests?: number
           triggered_by?: string | null
-          created_at?: string
+          warnings?: number
         }
         Update: {
-          id?: string
-          run_type?: string
-          status?: string
-          started_at?: string
           completed_at?: string | null
-          total_tests?: number
-          passed?: number
-          failed?: number
-          warnings?: number
-          skipped?: number
+          created_at?: string
           duration_ms?: number | null
+          error_summary?: Json | null
+          failed?: number
+          id?: string
+          passed?: number
+          run_type?: string
+          skipped?: number
+          started_at?: string
+          status?: string
           suites_completed?: number | null
           suites_total?: number | null
-          error_summary?: Json | null
+          total_tests?: number
           triggered_by?: string | null
-          created_at?: string
+          warnings?: number
         }
         Relationships: []
       }
