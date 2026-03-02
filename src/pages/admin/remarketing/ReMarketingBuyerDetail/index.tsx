@@ -20,7 +20,7 @@ import {
   PhoneCall,
   Users,
 } from 'lucide-react';
-import { EntityTasksTab, MissedCallButton } from '@/components/daily-tasks';
+import { EntityTasksTab, CreateTaskButton } from '@/components/daily-tasks';
 import { BuyerAgreementsPanel } from '@/components/remarketing/BuyerAgreementsPanel';
 import {
   BuyerDetailHeader,
@@ -150,7 +150,7 @@ const ReMarketingBuyerDetail = () => {
             marketplaceFirmId={buyer?.marketplace_firm_id}
           />
         </div>
-        <MissedCallButton entityType="buyer" entityId={id!} entityName={buyer?.company_name} />
+        <CreateTaskButton entityType="buyer" entityId={id!} entityName={buyer?.company_name} />
       </div>
 
       {/* Criteria Completeness Banner */}

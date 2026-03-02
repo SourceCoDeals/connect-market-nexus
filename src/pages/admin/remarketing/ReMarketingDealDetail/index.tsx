@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Building2, Eye, Activity, UserPlus, FolderOpen } from 'lucide-react';
-import { MissedCallButton } from '@/components/daily-tasks';
+import { CreateTaskButton } from '@/components/daily-tasks';
 import { useDealDetail } from './useDealDetail';
 import { CapTargetInfoCard } from './CapTargetInfoCard';
 import { SalesforceInfoCard } from './SalesforceInfoCard';
@@ -116,7 +116,7 @@ const ReMarketingDealDetail = () => {
             updateNameMutation={updateNameMutation}
           />
         </div>
-        <MissedCallButton entityType="deal" entityId={dealId!} entityName={displayName} />
+        <CreateTaskButton entityType="deal" entityId={dealId!} entityName={displayName} />
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
