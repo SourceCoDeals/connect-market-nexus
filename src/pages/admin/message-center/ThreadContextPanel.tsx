@@ -14,8 +14,10 @@ import {
   ExternalLink,
   Building2,
   ChevronRight,
+  Ban,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { resolveAgreementStatus, type AgreementDisplayStatus } from '@/lib/agreement-status';
 
 interface ThreadContextPanelProps {
   userId: string | null;
@@ -24,18 +26,19 @@ interface ThreadContextPanelProps {
   buyerCompany: string | null;
 }
 
-type AgreementStatus = 'not_sent' | 'sent' | 'viewed' | 'signed' | 'declined';
-
-const STATUS_CONFIG: Record<AgreementStatus, {
+const STATUS_CONFIG: Record<AgreementDisplayStatus, {
   label: string;
   className: string;
   icon: typeof Check;
 }> = {
-  not_sent: { label: 'Not Sent', className: 'border-border/40 bg-muted/30 text-muted-foreground', icon: Clock },
-  sent: { label: 'Sent', className: 'border-blue-500/20 bg-blue-50 text-blue-700', icon: Send },
-  viewed: { label: 'Viewed', className: 'border-amber-500/20 bg-amber-50 text-amber-700', icon: Eye },
   signed: { label: 'Signed', className: 'border-emerald-500/20 bg-emerald-50 text-emerald-700', icon: Check },
   declined: { label: 'Declined', className: 'border-red-500/20 bg-red-50 text-red-700', icon: AlertCircle },
+  expired: { label: 'Expired', className: 'border-red-500/20 bg-red-50 text-red-700', icon: Ban },
+  viewed: { label: 'Viewed', className: 'border-amber-500/20 bg-amber-50 text-amber-700', icon: Eye },
+  sent: { label: 'Sent', className: 'border-blue-500/20 bg-blue-50 text-blue-700', icon: Send },
+  pending: { label: 'Pending', className: 'border-blue-500/20 bg-blue-50 text-blue-700', icon: Clock },
+  not_sent: { label: 'Not Sent', className: 'border-border/40 bg-muted/30 text-muted-foreground', icon: Clock },
+  no_firm: { label: 'No Firm', className: 'border-border/40 bg-muted/30 text-muted-foreground', icon: Clock },
 };
 
 function useThreadBuyerFirm(userId: string | null) {
@@ -44,21 +47,37 @@ function useThreadBuyerFirm(userId: string | null) {
     queryFn: async () => {
       if (!userId) return null;
 
-      const { data: membership } = await supabase
-        .from('firm_members')
+      // Deterministic: prefer firm linked to most recent request
+      const { data: recentReq } = await supabase
+        .from('connection_requests')
         .select('firm_id')
         .eq('user_id', userId)
+        .not('firm_id', 'is', null)
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (!membership) return null;
+      let firmId = recentReq?.firm_id;
+
+      if (!firmId) {
+        const { data: membership } = await supabase
+          .from('firm_members')
+          .select('firm_id')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        firmId = membership?.firm_id;
+      }
+
+      if (!firmId) return null;
 
       const { data: firm } = await supabase
         .from('firm_agreements')
         .select(
           'id, primary_company_name, nda_signed, nda_docuseal_status, nda_signed_document_url, fee_agreement_signed, fee_docuseal_status, fee_signed_document_url',
         )
-        .eq('id', membership.firm_id)
+        .eq('id', firmId)
         .maybeSingle();
 
       return firm;
@@ -68,15 +87,7 @@ function useThreadBuyerFirm(userId: string | null) {
   });
 }
 
-function resolveStatus(signed: boolean, docusealStatus: string | null): AgreementStatus {
-  if (signed) return 'signed';
-  if (docusealStatus === 'declined') return 'declined';
-  if (docusealStatus === 'viewed') return 'viewed';
-  if (docusealStatus === 'sent') return 'sent';
-  return 'not_sent';
-}
-
-function StatusBadge({ status }: { status: AgreementStatus }) {
+function StatusBadge({ status }: { status: AgreementDisplayStatus }) {
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
   return (
@@ -91,8 +102,8 @@ export function ThreadContextPanel({ userId, buyerName, buyerEmail, buyerCompany
   const { data: firm, isLoading } = useThreadBuyerFirm(userId);
   const navigate = useNavigate();
 
-  const ndaStatus = firm ? resolveStatus(!!firm.nda_signed, firm.nda_docuseal_status) : null;
-  const feeStatus = firm ? resolveStatus(!!firm.fee_agreement_signed, firm.fee_docuseal_status) : null;
+  const ndaStatus = firm ? resolveAgreementStatus(!!firm.nda_signed, firm.nda_docuseal_status) : null;
+  const feeStatus = firm ? resolveAgreementStatus(!!firm.fee_agreement_signed, firm.fee_docuseal_status) : null;
 
   return (
     <div className="w-[240px] flex-shrink-0 flex flex-col min-h-0 overflow-y-auto" style={{ borderLeft: '1px solid #E5DDD0', backgroundColor: '#FCF9F0' }}>
