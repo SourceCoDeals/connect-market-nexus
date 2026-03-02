@@ -6,7 +6,6 @@ import {
   CheckCircle,
   MessageSquarePlus,
   XCircle,
-  Clock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
