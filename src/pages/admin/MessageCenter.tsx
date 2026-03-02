@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
+import { resolveAgreementStatus } from '@/lib/agreement-status';
 
 import type { InboxThread, InboxFilter, ViewMode, DealGroup } from './message-center/types';
 import { ThreadListItem } from './message-center/ThreadListItem';
