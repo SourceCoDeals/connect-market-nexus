@@ -65,10 +65,13 @@ function formatBuyerType(type: string | null): string {
 /** Sponsors = PE firms, independent sponsors, family offices, search funds */
 const SPONSOR_TYPES = new Set(['pe_firm', 'family_office', 'independent_sponsor', 'search_fund']);
 
+/** Keywords in company name that indicate a sponsor/financial buyer */
+const SPONSOR_NAME_KEYWORDS = /\b(capital|partners|equity|investment|ventures|advisors|fund|holdings|group)\b/i;
+
 function isSponsor(buyer: BuyerScore): boolean {
   if (buyer.buyer_type && SPONSOR_TYPES.has(buyer.buyer_type)) return true;
-  // If buyer has a PE firm attached, treat as sponsor
   if (buyer.pe_firm_name) return true;
+  if (SPONSOR_NAME_KEYWORDS.test(buyer.company_name)) return true;
   return false;
 }
 
