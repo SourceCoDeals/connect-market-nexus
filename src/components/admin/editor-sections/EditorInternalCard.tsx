@@ -108,39 +108,6 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
           />
         </div>
         
-        {/* Presenter */}
-        <div className={EDITOR_DESIGN.microFieldSpacing}>
-          <div className={EDITOR_DESIGN.microLabel}>Presenter</div>
-          <FormField
-            control={form.control}
-            name="presented_by_admin_id"
-            render={({ field }) => (
-              <FormItem>
-                <Select onValueChange={field.onChange} value={field.value || ''}>
-                  <FormControl>
-                    <SelectTrigger className={cn(EDITOR_DESIGN.miniHeight, "text-sm", EDITOR_DESIGN.inputBg)}>
-                      <SelectValue placeholder="Select presenter" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {loadingAdmins ? (
-                      <SelectItem value="_loading" disabled>Loading...</SelectItem>
-                    ) : sourceCoAdmins && sourceCoAdmins.length > 0 ? (
-                      sourceCoAdmins.map((admin) => (
-                        <SelectItem key={admin.id} value={admin.id}>
-                          {admin.displayName}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="_none" disabled>No admins found</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
-        </div>
-        
         {/* CRM Links */}
         <div className={cn("pt-3", EDITOR_DESIGN.subtleDivider, "space-y-2")}>
           <Input
