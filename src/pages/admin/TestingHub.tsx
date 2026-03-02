@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useCallback, useRef } from 'react';
+import { lazy, Suspense, useState, useCallback, useRef, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -21,6 +21,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useTestRunTracking } from '@/hooks/useTestRunTracking';
 import type { TestContext } from './system-test-runner/testDefinitions';
+import { INTER_TEST_DELAY_MS, sleep, withRateLimitRetry } from './system-test-runner/types';
 import type { ChatbotTestContext } from './chatbot-test-runner/chatbotInfraTests';
 
 // Lazy-loaded tab components
@@ -32,6 +33,7 @@ const SmartleadTestPage = lazy(() => import('@/pages/admin/SmartleadTestPage'));
 const ThirtyQuestionTest = lazy(() => import('@/pages/admin/ThirtyQuestionTest'));
 const ListingPipelineTest = lazy(() => import('@/pages/admin/ListingPipelineTest'));
 const BuyerRecommendationTest = lazy(() => import('@/pages/admin/BuyerRecommendationTest'));
+const TestRunTracker = lazy(() => import('@/pages/admin/TestRunTracker'));
 
 // Storage keys — must match individual tab components exactly
 const SYSTEM_TEST_KEY = 'sourceco-system-tests';
@@ -86,7 +88,7 @@ function isChatbotTestWarning(msg: string): boolean {
   );
 }
 
-// ── Generic test runner loop ──
+// ── Generic test runner loop (rate-limit aware) ──
 
 async function runTestLoop<Ctx>(
   tests: Array<{ id: string; name: string; category: string; fn: (ctx: Ctx) => Promise<void> }>,
@@ -109,7 +111,8 @@ async function runTestLoop<Ctx>(
 
     const start = performance.now();
     try {
-      await test.fn(ctx);
+      // Wrap each test in rate-limit retry so transient 429s don't fail the suite
+      await withRateLimitRetry(() => test.fn(ctx));
       results[i] = {
         ...results[i],
         status: 'pass',
@@ -126,6 +129,11 @@ async function runTestLoop<Ctx>(
       };
     }
     onProgress(i + 1);
+
+    // Small delay between tests to stay under Supabase rate limits
+    if (i < tests.length - 1 && !abortRef.current) {
+      await sleep(INTER_TEST_DELAY_MS);
+    }
   }
 
   return results;
@@ -145,10 +153,21 @@ export default function TestingHub() {
   const tab = searchParams.get('tab') || 'enrichment';
   const [progress, setProgress] = useState<RunAllProgress | null>(null);
   const abortRef = useRef(false);
-  const [showTracker, setShowTracker] = useState(true);
+  const [showTracker, setShowTracker] = useState(false);
+  const trackerRef = useRef<HTMLDivElement>(null);
 
   // ── Test Run Tracking (persists to Supabase) ──
   const tracking = useTestRunTracking();
+
+  // Scroll the History panel into view when opened
+  useEffect(() => {
+    if (showTracker) {
+      // Small delay to let React render the panel before scrolling
+      requestAnimationFrame(() => {
+        trackerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [showTracker]);
 
   const setTab = (value: string) => {
     setSearchParams({ tab: value }, { replace: true });
@@ -166,7 +185,8 @@ export default function TestingHub() {
     let totalPassed = 0;
     let totalFailed = 0;
     let totalWarnings = 0;
-    const errorEntries: Array<{ testId: string; testName: string; suite: string; error: string }> = [];
+    const errorEntries: Array<{ testId: string; testName: string; suite: string; error: string }> =
+      [];
 
     const updateProgress = (suite: string, testsRun: number, testsTotal: number) => {
       setProgress({
@@ -231,7 +251,8 @@ export default function TestingHub() {
         if (r.status === 'pass') totalPassed++;
         else if (r.status === 'fail') {
           totalFailed++;
-          if (r.error) errorEntries.push({ testId: r.id, testName: r.name, suite: 'system', error: r.error });
+          if (r.error)
+            errorEntries.push({ testId: r.id, testName: r.name, suite: 'system', error: r.error });
         } else if (r.status === 'warn') totalWarnings++;
       }
 
@@ -269,13 +290,26 @@ export default function TestingHub() {
       const docuSealDuration = Math.round(performance.now() - docuSealStart);
       if (trackingRunId) {
         await tracking.saveResults(trackingRunId, 'docuseal', [
-          { id: 'docuseal-health', name: 'DocuSeal Health Check', category: 'Integration', status: docuSealStatus, error: docuSealError, durationMs: docuSealDuration },
+          {
+            id: 'docuseal-health',
+            name: 'DocuSeal Health Check',
+            category: 'Integration',
+            status: docuSealStatus,
+            error: docuSealError,
+            durationMs: docuSealDuration,
+          },
         ]);
       }
       if (docuSealStatus === 'pass') totalPassed++;
       else {
         totalFailed++;
-        if (docuSealError) errorEntries.push({ testId: 'docuseal-health', testName: 'DocuSeal Health Check', suite: 'docuseal', error: docuSealError });
+        if (docuSealError)
+          errorEntries.push({
+            testId: 'docuseal-health',
+            testName: 'DocuSeal Health Check',
+            suite: 'docuseal',
+            error: docuSealError,
+          });
       }
 
       totalRun += 1;
@@ -322,7 +356,13 @@ export default function TestingHub() {
         if (r.status === 'pass') totalPassed++;
         else if (r.status === 'fail') {
           totalFailed++;
-          if (r.error) errorEntries.push({ testId: r.id, testName: r.name, suite: 'chatbot_infra', error: r.error });
+          if (r.error)
+            errorEntries.push({
+              testId: r.id,
+              testName: r.name,
+              suite: 'chatbot_infra',
+              error: r.error,
+            });
         } else if (r.status === 'warn') totalWarnings++;
       }
 
@@ -598,6 +638,20 @@ export default function TestingHub() {
           )}
         </div>
       </div>
+
+      {showTracker && (
+        <div ref={trackerRef} className="px-8 pt-6">
+          <Suspense fallback={<Loading />}>
+            <TestRunTracker
+              runs={tracking.runs}
+              loading={tracking.loading}
+              onRefresh={tracking.fetchRuns}
+              onDelete={tracking.deleteRun}
+              onFetchResults={tracking.fetchRunResults}
+            />
+          </Suspense>
+        </div>
+      )}
 
       <div className="px-8 py-6">
         <Tabs value={tab} onValueChange={setTab}>

@@ -6,6 +6,7 @@ export interface BuyerScore {
   buyer_id: string;
   company_name: string;
   pe_firm_name: string | null;
+  pe_firm_id: string | null;
   buyer_type: string | null;
   hq_state: string | null;
   hq_city: string | null;
@@ -17,8 +18,9 @@ export interface BuyerScore {
   size_score: number;
   bonus_score: number;
   fit_signals: string[];
+  fit_reason: string;
   tier: 'move_now' | 'strong' | 'speculative';
-  source: 'scored' | 'marketplace' | 'pipeline';
+  source: 'ai_seeded' | 'marketplace' | 'scored';
 }
 
 export interface RecommendedBuyersResult {

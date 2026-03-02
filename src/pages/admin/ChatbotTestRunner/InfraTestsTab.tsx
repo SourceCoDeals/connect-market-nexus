@@ -18,6 +18,7 @@ import {
   CHATBOT_INFRA_STORAGE_KEY,
   buildChatbotTests,
 } from '../chatbot-test-runner/chatbotInfraTests';
+import { INTER_TEST_DELAY_MS, sleep, withRateLimitRetry } from '../system-test-runner/types';
 import { loadStoredResults, saveToStorage } from './helpers';
 import { StatusIcon } from './StatusIcon';
 
@@ -64,15 +65,16 @@ export function InfraTestsTab() {
 
       const updated = [...initialResults];
 
-      for (const test of testsToRun) {
+      for (let i = 0; i < testsToRun.length; i++) {
         if (abortRef.current) break;
+        const test = testsToRun[i];
         const idx = updated.findIndex((r) => r.id === test.id);
         updated[idx] = { ...updated[idx], status: 'running' };
         setResults([...updated]);
 
         const start = performance.now();
         try {
-          await test.fn(ctx);
+          await withRateLimitRetry(() => test.fn(ctx));
           updated[idx] = {
             ...updated[idx],
             status: 'pass',
@@ -93,6 +95,11 @@ export function InfraTestsTab() {
           };
         }
         setResults([...updated]);
+
+        // Small delay between tests to stay under Supabase rate limits
+        if (i < testsToRun.length - 1 && !abortRef.current) {
+          await sleep(INTER_TEST_DELAY_MS);
+        }
       }
 
       const ts = new Date().toISOString();
@@ -212,7 +219,9 @@ export function InfraTestsTab() {
                         r.status === 'fail' && 'bg-destructive/5',
                       )}
                     >
-                      <div className="mt-0.5"><StatusIcon status={r.status} /></div>
+                      <div className="mt-0.5">
+                        <StatusIcon status={r.status} />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <span className="font-medium">{r.name}</span>
                         {r.durationMs !== undefined && (
