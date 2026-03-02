@@ -32,19 +32,28 @@ import {
   Globe,
   Building2,
   Landmark,
-  AlertCircle,
   AlertTriangle,
   DollarSign,
   Target,
   Mail,
   Calendar,
   ArrowRightCircle,
-  Phone,
-  Linkedin,
 } from 'lucide-react';
 import { IntelligenceBadge } from './IntelligenceBadge';
 import { OutreachStatusDialog, type OutreachStatus } from './OutreachStatusDialog';
 import { FlagForBuyerButton } from '@/components/daily-tasks/FlagForBuyerButton';
+import { BuyerMatchDetails } from './BuyerMatchDetails';
+import {
+  isDisqualified,
+  getMissingDataFields,
+  getBuyerLocationDisplay,
+  getScoreDescription,
+  formatCurrency,
+  getReasoningBackground,
+  getScoreRingColor,
+  getTierLabel,
+  ScoreBreakdownPanel,
+} from './BuyerMatchScoreSection';
 import type { ScoreTier, ReMarketingBuyer } from '@/types/remarketing';
 
 interface OutreachData {
@@ -94,185 +103,6 @@ interface BuyerMatchCardProps {
   pipelineDealId?: string | null; // If set, buyer already has a deal in the pipeline
   listingId?: string; // The listing this score is for
 }
-
-const getScoreColorClass = (score: number) => {
-  if (score >= 80) return 'text-emerald-600';
-  if (score >= 50) return 'text-amber-600';
-  return 'text-red-500';
-};
-
-const getScoreDot = (score: number) => {
-  if (score < 50) return <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 mr-1" />;
-  return null;
-};
-
-// Determine if buyer is disqualified (prefer backend field, fallback to heuristic)
-const isDisqualified = (scoreData: {
-  composite_score: number;
-  is_disqualified?: boolean | null;
-  fit_reasoning?: string | null;
-}) => {
-  if (scoreData.is_disqualified != null) return scoreData.is_disqualified;
-  if (scoreData.composite_score < 35) return true;
-  if (scoreData.fit_reasoning?.toLowerCase().includes('disqualified')) return true;
-  return false;
-};
-
-// Get disqualification reason from reasoning text
-// Uses specific patterns to avoid over-triggering (e.g., "size mismatch" just because reasoning mentions revenue)
-const getDisqualificationReason = (reasoning: string | null, score?: any): string => {
-  if (!reasoning) return 'criteria mismatch';
-  const lower = reasoning.toLowerCase();
-
-  // Check for explicit missing data flag first (highest priority)
-  if (lower.includes('[missing_data:')) {
-    return 'insufficient data';
-  }
-
-  // Check for explicit disqualification patterns (specific language from enforceHardRules)
-  if (
-    lower.includes('disqualified: deal revenue') ||
-    lower.includes('below buyer minimum') ||
-    lower.includes('below minimum')
-  ) {
-    return 'size mismatch';
-  }
-  if (lower.includes('dealbreaker: deal includes excluded')) {
-    return 'excluded criteria';
-  }
-  if (lower.includes('geography strict:') || lower.includes('not in buyer targets')) {
-    return 'geography mismatch';
-  }
-
-  // Use individual scores to determine the weakest dimension (more accurate than keyword matching)
-  if (score) {
-    const dimensions = [
-      { name: 'size mismatch', score: score.size_score ?? 100 },
-      { name: 'no nearby presence', score: score.geography_score ?? 100 },
-      { name: 'service mismatch', score: score.service_score ?? 100 },
-      { name: 'owner goals mismatch', score: score.owner_goals_score ?? 100 },
-    ];
-    const weakest = dimensions.reduce((min, d) => (d.score < min.score ? d : min), dimensions[0]);
-    if (weakest.score < 40) {
-      return weakest.name;
-    }
-  }
-
-  // Fallback to keyword matching with more specific patterns
-  if (
-    lower.includes('no nearby presence') ||
-    lower.includes('no presence in') ||
-    lower.includes('distant')
-  ) {
-    return 'no nearby presence';
-  }
-  if (
-    lower.includes('too small') ||
-    lower.includes('too large') ||
-    lower.includes('size multiplier: ')
-  ) {
-    return 'size mismatch';
-  }
-  if (
-    lower.includes('no service overlap') ||
-    lower.includes('0% overlap') ||
-    lower.includes('weak service')
-  ) {
-    return 'service mismatch';
-  }
-  return 'criteria mismatch';
-};
-
-// Calculate missing data fields (Whispers parity)
-const getMissingDataFields = (buyer?: ReMarketingBuyer): string[] => {
-  const missing: string[] = [];
-  if (!buyer) return ['All buyer data'];
-
-  // Location data
-  if ((!buyer.geographic_footprint || buyer.geographic_footprint.length === 0) && !buyer.hq_state) {
-    missing.push('HQ location');
-  }
-  if (!buyer.target_geographies || buyer.target_geographies.length === 0) {
-    missing.push('Target geographies');
-  }
-
-  // Financial data
-  if (!buyer.target_revenue_min && !buyer.target_revenue_max) {
-    missing.push('Target revenue range');
-  }
-
-  // Thesis data
-  if (!buyer.thesis_summary) {
-    missing.push('Investment thesis');
-  }
-  if (!buyer.target_services || buyer.target_services.length === 0) {
-    missing.push('Target services');
-  }
-
-  // Owner goals / preferences
-  if (!buyer.acquisition_appetite) {
-    missing.push('Acquisition appetite');
-  }
-
-  // Activity data
-  if (!buyer.recent_acquisitions || buyer.recent_acquisitions.length === 0) {
-    missing.push('Recent acquisitions');
-  }
-
-  // Transcript/call data
-  if (!buyer.extraction_sources?.some((s) => s.type === 'transcript')) {
-    missing.push('Call quotes');
-  }
-
-  return missing;
-};
-
-// Get buyer location display (prefer HQ city/state)
-const getBuyerLocationDisplay = (buyer?: ReMarketingBuyer): string => {
-  if (!buyer) return 'Unknown';
-
-  // Prefer HQ location if available (Whispers format: "City, ST")
-  if (buyer.hq_city && buyer.hq_state) {
-    return `${buyer.hq_city}, ${buyer.hq_state}`;
-  }
-
-  // Fall back to footprint
-  if (buyer.geographic_footprint && buyer.geographic_footprint.length > 0) {
-    return buyer.geographic_footprint.slice(0, 2).join(', ');
-  }
-
-  return 'Unknown';
-};
-
-// Get score description for tooltip (aligned with spec tier bands)
-const getScoreDescription = (score: number, disqualified: boolean): string => {
-  if (disqualified) return 'Does not meet minimum criteria - not recommended';
-  if (score >= 80) return 'Excellent alignment on key criteria - strong candidate';
-  if (score >= 65) return 'Good alignment - solid candidate for outreach';
-  if (score >= 50) return 'Partial alignment - worth considering';
-  if (score >= 35) return 'Limited alignment - review carefully';
-  return 'No alignment - not recommended';
-};
-
-const formatCurrency = (value: number | null | undefined) => {
-  if (!value) return null;
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(0)}M`;
-  }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
-  return `$${value}`;
-};
-
-// Get fit label based on score (aligned with spec tier bands)
-const getFitLabel = (score: number, disqualified: boolean): string => {
-  if (disqualified) return 'DISQUALIFIED:';
-  if (score >= 80) return 'Strong fit:';
-  if (score >= 65) return 'Good fit:';
-  if (score >= 50) return 'Fair fit:';
-  return 'Poor fit:';
-};
 
 // Outreach status colors and labels
 const getOutreachBadge = (status: OutreachStatus) => {
@@ -349,34 +179,6 @@ export const BuyerMatchCard = ({
   // Get outreach badge info
   const outreachBadge = outreach ? getOutreachBadge(outreach.status) : null;
 
-  // Determine reasoning panel background - aligned with spec tier bands
-  const getReasoningBackground = () => {
-    if (disqualified) return 'bg-red-50 border-red-200';
-    if (score.composite_score >= 80) return 'bg-emerald-50 border-emerald-200';
-    if (score.composite_score >= 65) return 'bg-blue-50 border-blue-200';
-    if (score.composite_score >= 50) return 'bg-amber-50 border-amber-200';
-    return 'bg-muted/50 border-border';
-  };
-
-  // Score ring color
-  const getScoreRingColor = () => {
-    if (disqualified) return 'border-red-300 bg-red-50 text-red-600';
-    if (score.composite_score >= 80) return 'border-emerald-400 bg-emerald-50 text-emerald-700';
-    if (score.composite_score >= 65) return 'border-blue-400 bg-blue-50 text-blue-700';
-    if (score.composite_score >= 50) return 'border-amber-400 bg-amber-50 text-amber-700';
-    if (score.composite_score >= 35) return 'border-orange-400 bg-orange-50 text-orange-600';
-    return 'border-red-300 bg-red-50 text-red-600';
-  };
-
-  const getTierLabel = () => {
-    if (disqualified) return 'DQ';
-    if (score.composite_score >= 80) return 'A';
-    if (score.composite_score >= 65) return 'B';
-    if (score.composite_score >= 50) return 'C';
-    if (score.composite_score >= 35) return 'D';
-    return 'F';
-  };
-
   return (
     <div
       id={`buyer-card-${score.buyer?.id}`}
@@ -405,14 +207,14 @@ export const BuyerMatchCard = ({
                 <div
                   className={cn(
                     'flex-shrink-0 w-14 h-14 rounded-full border-2 flex flex-col items-center justify-center cursor-help',
-                    getScoreRingColor(),
+                    getScoreRingColor(score.composite_score, disqualified),
                   )}
                 >
                   <span className="text-xl font-bold leading-none">
                     {disqualified ? '—' : Math.round(score.composite_score)}
                   </span>
                   <span className="text-[10px] font-semibold leading-none mt-0.5 opacity-70">
-                    {getTierLabel()}
+                    {getTierLabel(score.composite_score, disqualified)}
                   </span>
                 </div>
               </TooltipTrigger>
@@ -720,162 +522,18 @@ export const BuyerMatchCard = ({
       />
 
       {/* Score Breakdown Panel - Colored background based on tier */}
-      <div className={cn('border-t p-4', getReasoningBackground())}>
-        {/* AI Reasoning with Fit Label */}
-        <p className={cn('text-sm mb-4', disqualified ? 'text-red-700' : 'text-foreground')}>
-          {getFitLabel(score.composite_score, disqualified)}{' '}
-          {score.fit_reasoning || 'No reasoning available'}
-        </p>
-
-        {/* Inline Score Breakdown - Services (45%), Size (30%), Geography (20%), Owner Goals (5%) */}
-        <div className="grid grid-cols-4 gap-4 mb-3">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">
-              Services
-              {score.service_multiplier != null && score.service_multiplier < 1.0 && (
-                <span className="ml-1 text-orange-600">
-                  ({(score.service_multiplier * 100).toFixed(0)}% gate)
-                </span>
-              )}
-            </p>
-            <p className={cn('text-lg font-bold', getScoreColorClass(score.service_score))}>
-              {getScoreDot(score.service_score)}
-              {Math.round(score.service_score)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">
-              Size
-              {score.size_multiplier != null && score.size_multiplier < 1.0 && (
-                <span className="ml-1 text-orange-600">
-                  ({(score.size_multiplier * 100).toFixed(0)}% gate)
-                </span>
-              )}
-            </p>
-            <p className={cn('text-lg font-bold', getScoreColorClass(score.size_score))}>
-              {getScoreDot(score.size_score)}
-              {Math.round(score.size_score)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Geography</p>
-            <p className={cn('text-lg font-bold', getScoreColorClass(score.geography_score))}>
-              {getScoreDot(score.geography_score)}
-              {Math.round(score.geography_score)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Owner Goals</p>
-            <p className={cn('text-lg font-bold', getScoreColorClass(score.owner_goals_score))}>
-              {getScoreDot(score.owner_goals_score)}
-              {Math.round(score.owner_goals_score)}%
-            </p>
-          </div>
-        </div>
-
-        {/* Thesis Alignment Bonus */}
-        {score.thesis_alignment_bonus != null && score.thesis_alignment_bonus > 0 && (
-          <p className="text-xs text-primary mb-2">
-            +{score.thesis_alignment_bonus} thesis alignment bonus
-          </p>
-        )}
-
-        {/* Needs Review Badge */}
-        {score.needs_review && (
-          <div className="flex items-center gap-2 text-xs text-amber-600 mb-2">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            <span>Needs review — borderline score</span>
-          </div>
-        )}
-
-        {/* Buyer Footprint Context */}
-        <p className="text-xs text-muted-foreground">
-          Buyer footprint: {buyerFootprint} → Deal: {dealLocation || 'Unknown'}
-        </p>
-
-        {/* Disqualification Warning (repeated at bottom) */}
-        {disqualified &&
-          (() => {
-            const reason = getDisqualificationReason(score.fit_reasoning, score);
-            const isDataIssue = reason === 'insufficient data';
-            return (
-              <div
-                className={`mt-3 flex items-center gap-2 text-xs ${isDataIssue ? 'text-amber-600' : 'text-red-600'}`}
-              >
-                <AlertCircle className="h-4 w-4" />
-                <span>
-                  {isDataIssue
-                    ? 'Low confidence — insufficient data for scoring'
-                    : `Reason: ${reason}`}
-                </span>
-              </div>
-            );
-          })()}
+      <div className={cn('border-t p-4', getReasoningBackground(score.composite_score, disqualified))}>
+        <ScoreBreakdownPanel
+          score={score}
+          disqualified={disqualified}
+          buyerFootprint={buyerFootprint}
+          dealLocation={dealLocation}
+        />
 
         {/* Expandable Thesis */}
         <Collapsible open={isExpanded} onOpenChange={handleExpand}>
           <CollapsibleContent className="pt-4">
-            {(() => {
-              const primaryContact =
-                buyer?.contacts?.find((c: any) => c.is_primary_contact || c.is_primary) ||
-                buyer?.contacts?.[0];
-              if (!primaryContact) return null;
-              return (
-                <div className="border-t pt-3 pb-1">
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                    Primary Contact
-                  </p>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">
-                      {primaryContact.name}
-                      {primaryContact.role && (
-                        <span className="text-muted-foreground font-normal">
-                          {' '}
-                          · {primaryContact.role}
-                        </span>
-                      )}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {primaryContact.email && (
-                        <a
-                          href={`mailto:${primaryContact.email}`}
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                        >
-                          <Mail className="h-3 w-3" />
-                          {primaryContact.email}
-                        </a>
-                      )}
-                      {primaryContact.phone && (
-                        <a
-                          href={`tel:${primaryContact.phone}`}
-                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
-                        >
-                          <Phone className="h-3 w-3" />
-                          {primaryContact.phone}
-                        </a>
-                      )}
-                      {primaryContact.linkedin_url && (
-                        <a
-                          href={primaryContact.linkedin_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                        >
-                          <Linkedin className="h-3 w-3" />
-                          LinkedIn
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-            {buyer?.thesis_summary && (
-              <div className="border-t pt-3">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Investment Thesis</p>
-                <p className="text-sm italic text-muted-foreground">"{buyer.thesis_summary}"</p>
-              </div>
-            )}
+            <BuyerMatchDetails buyer={buyer} />
           </CollapsibleContent>
         </Collapsible>
       </div>
