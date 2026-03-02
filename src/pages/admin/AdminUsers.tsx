@@ -90,8 +90,15 @@ class TableErrorBoundary extends Component<
 const AdminUsers = () => {
   const { users } = useAdmin();
   const { data: usersData = [], isLoading, error, refetch } = users;
-  const { data: nonMarketplaceUsers = [], isLoading: isLoadingNonMarketplace } = useNonMarketplaceUsers();
-  const { data: ownerLeads = [], isLoading: isLoadingOwnerLeads } = useOwnerLeads();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const primaryView: PrimaryView = searchParams.get('view') === 'owners' ? 'owners' : 'buyers';
+  const setPrimaryView = (view: PrimaryView) => {
+    setSearchParams(view === 'owners' ? { view: 'owners' } : {}, { replace: true });
+  };
+  const [secondaryView, setSecondaryView] = useState<SecondaryView>('marketplace');
+  const isBuyersView = primaryView === 'buyers';
+  const { data: nonMarketplaceUsers = [], isLoading: isLoadingNonMarketplace } = useNonMarketplaceUsers({ enabled: isBuyersView && secondaryView === 'non-marketplace' });
+  const { data: ownerLeads = [], isLoading: isLoadingOwnerLeads } = useOwnerLeads({ enabled: primaryView === 'owners' });
   const updateOwnerStatus = useUpdateOwnerLeadStatus();
   const updateOwnerNotes = useUpdateOwnerLeadNotes();
   const updateOwnerContacted = useUpdateOwnerLeadContacted();
@@ -111,14 +118,8 @@ const AdminUsers = () => {
     },
     staleTime: 60_000,
   });
-  const [searchParams, setSearchParams] = useSearchParams();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [filteredOwnerLeads, setFilteredOwnerLeads] = useState<OwnerLead[]>([]);
-  const primaryView: PrimaryView = searchParams.get('view') === 'owners' ? 'owners' : 'buyers';
-  const setPrimaryView = (view: PrimaryView) => {
-    setSearchParams(view === 'owners' ? { view: 'owners' } : {}, { replace: true });
-  };
-  const [secondaryView, setSecondaryView] = useState<SecondaryView>('marketplace');
   const { markAsViewed: markUsersAsViewed } = useMarkUsersViewed();
   const { markAsViewed: markOwnerLeadsAsViewed } = useMarkOwnerLeadsViewed();
 
@@ -272,7 +273,6 @@ const AdminUsers = () => {
     );
   }
 
-  const isBuyersView = primaryView === 'buyers';
   const isOwnersView = primaryView === 'owners';
 
   return (
@@ -387,8 +387,9 @@ const AdminUsers = () => {
 
         {/* Table Container */}
         <div className="bg-card rounded-lg border overflow-hidden">
-          {/* Buyers table - marketplace */}
-          <div className={cn(!(isBuyersView && secondaryView === 'marketplace') && "hidden")}>
+        {/* Buyers table - marketplace */}
+          {isBuyersView && secondaryView === 'marketplace' && (
+            <>
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -422,10 +423,11 @@ const AdminUsers = () => {
                 </TableErrorBoundary>
               </div>
             )}
-          </div>
+            </>
+          )}
 
           {/* Buyers table - non-marketplace */}
-          <div className={cn(!(isBuyersView && secondaryView === 'non-marketplace') && "hidden")}>
+          {isBuyersView && secondaryView === 'non-marketplace' && (
              <NonMarketplaceUsersTable
                users={nonMarketplaceUsers}
                isLoading={isLoadingNonMarketplace}
@@ -434,10 +436,11 @@ const AdminUsers = () => {
                onToggleSelect={() => {}}
                onToggleSelectAll={() => {}}
              />
-          </div>
+          )}
 
           {/* Owners table */}
-          <div className={cn(!isOwnersView && "hidden")}>
+          {isOwnersView && (
+            <>
             {isLoadingOwnerLeads ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -464,7 +467,8 @@ const AdminUsers = () => {
                 />
               </div>
             )}
-          </div>
+            </>
+          )}
         </div>
 
         {/* Owner bulk actions floating bar */}
