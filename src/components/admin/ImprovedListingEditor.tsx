@@ -538,15 +538,15 @@ export function ImprovedListingEditor({
             <EditorTopBar form={formForSections} />
 
             {/* MAIN CONTENT - Card grid */}
-            <div className="grid grid-cols-[1fr_540px] gap-8 mb-6">
-              {/* Left: Financial */}
-              <EditorFinancialCard form={formForSections} />
-
-              {/* Right: Internal */}
+            <div className="grid grid-cols-[540px_1fr] gap-8 mb-6">
+              {/* Left: Company Overview */}
               <EditorInternalCard
                 form={formForSections}
                 dealIdentifier={listing?.deal_identifier}
               />
+
+              {/* Right: Financial */}
+              <EditorFinancialCard form={formForSections} />
             </div>
 
             {/* FULL WIDTH - Description */}
