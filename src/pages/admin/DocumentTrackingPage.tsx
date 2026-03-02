@@ -1,17 +1,13 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Badge } from '@/components/ui/badge';
+
 import { Checkbox } from '@/components/ui/checkbox';
 import { useShiftSelect } from '@/hooks/useShiftSelect';
 import {
   FileSignature,
   Shield,
   Search,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Send,
   AlertCircle,
   Loader2,
   ArrowUpDown,
@@ -219,7 +215,7 @@ export default function DocumentTrackingPage() {
   }, [setPageContext]);
 
   useAIUIActionHandler({
-    table: 'firms',
+    table: 'documents',
     onSelectRows: (rowIds, mode) => {
       if (mode === 'replace') setSelectedIds(new Set(rowIds));
       else if (mode === 'add') setSelectedIds((p) => { const n = new Set(p); rowIds.forEach((id) => n.add(id)); return n; });
