@@ -49,8 +49,15 @@ export function useUploadDocument() {
       );
 
       if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Upload failed');
+        let errorMessage = 'Upload failed';
+        try {
+          const err = await response.json();
+          errorMessage = err.error || errorMessage;
+        } catch {
+          // Response wasn't JSON (e.g. HTML error page)
+          errorMessage = `Upload failed (HTTP ${response.status}). The data-room-upload function may not be deployed.`;
+        }
+        throw new Error(errorMessage);
       }
 
       return response.json();
