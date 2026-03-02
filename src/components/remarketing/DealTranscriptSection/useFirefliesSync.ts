@@ -130,6 +130,13 @@ export function useFirefliesSync({
   const handleLinkSearchResult = async (transcript: FirefliesSearchResult) => {
     setFfLinking(transcript.id);
     try {
+      // Store summary in extracted_data (like auto-sync does) instead of transcript_text.
+      // Empty transcript_text ensures fetch-fireflies-content fetches the FULL transcript
+      // before AI extraction runs, rather than extracting from just a brief summary.
+      const extractedData: Record<string, unknown> = {};
+      if (transcript.summary) {
+        extractedData.fireflies_summary = transcript.summary;
+      }
       const { error } = await supabase.from('deal_transcripts').insert({
         listing_id: dealId,
         fireflies_transcript_id: transcript.id,
@@ -139,7 +146,7 @@ export function useFirefliesSync({
         call_date: transcript.date,
         participants: transcript.participants as Record<string, unknown>[],
         duration_minutes: transcript.duration_minutes,
-        transcript_text: transcript.summary || 'Fireflies transcript',
+        transcript_text: '', // Empty — full content will be fetched from Fireflies API
         source: 'fireflies',
         auto_linked: false,
         has_content: transcript.has_content !== false,
@@ -148,6 +155,7 @@ export function useFirefliesSync({
           string,
           unknown
         >[],
+        extracted_data: extractedData,
       } as never);
       if (error) {
         if (error.code === '23505') toast.info('Already linked');
@@ -202,13 +210,19 @@ export function useFirefliesSync({
     setLinkingUrl(true);
     try {
       const match = url.match(/fireflies\.ai\/view\/([^/?#]+)/);
-      const transcriptId = match![1];
+      const slug = match![1];
+      // Fireflies URL slugs look like "Meeting-Title::ActualApiId"
+      // Extract the actual API ID from after "::" so fetch-fireflies-content can use it directly.
+      // If slug doesn't contain "::", store null and let the backend resolve via URL search.
+      const idMatch = slug.match(/::([a-zA-Z0-9]+)$/);
+      const firefliesApiId = idMatch ? idMatch[1] : null;
+      const displayTitle = slug.split('::')[0]?.replace(/-/g, ' ') || slug;
       const { error } = await supabase.from('deal_transcripts').insert({
         listing_id: dealId,
-        fireflies_transcript_id: transcriptId,
+        fireflies_transcript_id: firefliesApiId,
         transcript_url: url,
-        title: `Fireflies: ${transcriptId}`,
-        transcript_text: 'Linked via URL - content will be fetched automatically',
+        title: displayTitle,
+        transcript_text: '', // Empty — content will be fetched from Fireflies API
         source: 'fireflies',
         auto_linked: false,
       } as never);
