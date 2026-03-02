@@ -8,7 +8,7 @@ import OnboardingPopup from '@/components/onboarding/OnboardingPopup';
 import { SearchSessionProvider } from '@/contexts/SearchSessionContext';
 import { useSearchSession } from '@/hooks/use-search-session';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+
 import { LayoutGrid, LayoutList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
