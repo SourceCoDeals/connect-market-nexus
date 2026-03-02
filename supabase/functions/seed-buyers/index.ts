@@ -19,6 +19,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { callClaude, CLAUDE_MODELS } from '../_shared/claude-client.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 
 // ── Types ──
 
@@ -56,6 +57,7 @@ interface SeedResult {
 // ── Helpers ──
 
 function buildCacheKey(deal: {
+  id: string;
   industry: string | null;
   categories: string[] | null;
   address_state: string | null;
@@ -65,7 +67,8 @@ function buildCacheKey(deal: {
   const cats = (deal.categories || []).sort().join(',').toLowerCase();
   const state = (deal.address_state || 'unknown').toLowerCase().trim();
   const ebitdaBucket = deal.ebitda ? Math.floor(deal.ebitda / 500_000) * 500_000 : 0;
-  return `seed:${industry}:${cats}:${state}:${ebitdaBucket}`;
+  // Include listing ID to prevent cross-deal cache collisions
+  return `seed:${deal.id}:${industry}:${cats}:${state}:${ebitdaBucket}`;
 }
 
 function extractDomain(url: string | null): string | null {
@@ -209,46 +212,20 @@ Deno.serve(async (req: Request) => {
   const headers = getCorsHeaders(req);
 
   try {
-    // ── Auth guard (mirrors score-deal-buyers pattern) ──
-    const authHeader = req.headers.get('Authorization') || '';
-    const callerToken = authHeader.replace('Bearer ', '').trim();
-    if (!callerToken) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
-    }
-
+    // ── Auth guard (shared helper) ──
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    // Use persistSession:false for server-side Deno context (no browser storage)
-    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const {
-      data: { user: callerUser },
-      error: callerError,
-    } = await callerClient.auth.getUser(callerToken);
-    if (callerError || !callerUser) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
-    }
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { data: isAdmin, error: adminCheckError } = await supabase.rpc('is_admin', { user_id: callerUser.id });
-    if (adminCheckError) {
-      console.error('is_admin RPC error:', adminCheckError.message);
-    }
-    if (adminCheckError || !isAdmin) {
-      return new Response(JSON.stringify({ error: 'Forbidden: admin access required' }), {
-        status: 403,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
+
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.isAdmin) {
+      const status = auth.authenticated ? 403 : 401;
+      return new Response(
+        JSON.stringify({ error: auth.error }),
+        { status, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
     }
     // ── End auth guard ──
 
@@ -365,6 +342,7 @@ Deno.serve(async (req: Request) => {
     // ── Deduplicate and insert ──
     const results: SeedResult[] = [];
     const newBuyerIds: string[] = [];
+    const seedLogEntries: Record<string, unknown>[] = [];
     const now = new Date().toISOString();
 
     for (const suggested of suggestedBuyers) {
@@ -400,7 +378,12 @@ Deno.serve(async (req: Request) => {
         const domainBuyer = (existingBuyers || []).find(
           (b) => extractDomain(b.company_website) === domain,
         );
-        buyerId = domainBuyer?.id || 'unknown';
+        if (!domainBuyer) {
+          // Cannot resolve the duplicate — skip to avoid corrupting UUID[] cache
+          console.warn(`Domain match for ${domain} but could not resolve buyer ID, skipping`);
+          continue;
+        }
+        buyerId = domainBuyer.id;
       } else {
         // New buyer — insert
         action = 'inserted';
@@ -444,8 +427,8 @@ Deno.serve(async (req: Request) => {
 
       newBuyerIds.push(buyerId);
 
-      // Log to buyer_seed_log
-      await supabase.from('buyer_seed_log').insert({
+      // Collect log entry for batch insert after the loop
+      seedLogEntries.push({
         remarketing_buyer_id: buyerId,
         source_deal_id: listingId,
         why_relevant: suggested.why_relevant,
@@ -463,6 +446,14 @@ Deno.serve(async (req: Request) => {
         why_relevant: suggested.why_relevant,
         was_new_record: wasNew,
       });
+    }
+
+    // ── Batch insert seed log entries ──
+    if (seedLogEntries.length > 0) {
+      const { error: logError } = await supabase.from('buyer_seed_log').insert(seedLogEntries);
+      if (logError) {
+        console.error('Batch seed log insert failed (non-fatal):', logError.message);
+      }
     }
 
     // ── Update seed cache ──

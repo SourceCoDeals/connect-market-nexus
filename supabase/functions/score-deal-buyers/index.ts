@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 
 // ── Types ──
 
@@ -155,7 +156,7 @@ function scoreGeography(
   const dealStates = [dealState, ...dealGeoStates].filter(Boolean);
 
   if (dealStates.length === 0) {
-    return { score: 50, signals: [] }; // No deal geo data — neutral
+    return { score: 0, signals: [] }; // No deal geo data — cannot score, don't inflate
   }
 
   const allBuyerGeos = [...buyerGeos, ...buyerFootprint, buyerHqState].filter(Boolean);
@@ -203,8 +204,19 @@ function scoreGeography(
       buyerRegions.add(g);
     }
   }
-  // Also map deal sub-regions for matching
+  // Expand deal regions to include sub-regions for symmetric matching
+  const expandedDealRegions = new Set<string>(dealRegions);
   for (const dr of [...dealRegions]) {
+    // If deal is in 'south', it should also match buyers targeting 'southeast'/'southwest'
+    if (dr === 'south') {
+      expandedDealRegions.add('southeast');
+      expandedDealRegions.add('southwest');
+    } else if (dr === 'west') {
+      expandedDealRegions.add('northwest');
+    }
+  }
+
+  for (const dr of expandedDealRegions) {
     if (buyerRegions.has(dr)) {
       signals.push(`Region match: ${dr}`);
       return { score: 60, signals };
@@ -222,7 +234,7 @@ function scoreSize(
   const signals: string[] = [];
 
   if (dealEbitda == null || (buyerMin == null && buyerMax == null)) {
-    return { score: 50, signals: [] }; // No data — neutral
+    return { score: 0, signals: [] }; // No data — cannot score, don't inflate
   }
 
   const min = buyerMin ?? 0;
@@ -292,46 +304,20 @@ Deno.serve(async (req: Request) => {
   const headers = getCorsHeaders(req);
 
   try {
-    // ── Auth guard ──
-    const authHeader = req.headers.get('Authorization') || '';
-    const callerToken = authHeader.replace('Bearer ', '').trim();
-    if (!callerToken) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
-    }
-
+    // ── Auth guard (shared helper) ──
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-    // Use persistSession:false for server-side Deno context (no browser storage)
-    const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const {
-      data: { user: callerUser },
-      error: callerError,
-    } = await callerClient.auth.getUser(callerToken);
-    if (callerError || !callerUser) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
-    }
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { data: isAdmin, error: adminCheckError } = await supabase.rpc('is_admin', { user_id: callerUser.id });
-    if (adminCheckError) {
-      console.error('is_admin RPC error:', adminCheckError.message);
-    }
-    if (adminCheckError || !isAdmin) {
-      return new Response(JSON.stringify({ error: 'Forbidden: admin access required' }), {
-        status: 403,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
+
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.isAdmin) {
+      const status = auth.authenticated ? 403 : 401;
+      return new Response(
+        JSON.stringify({ error: auth.error }),
+        { status, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
     }
     // ── End auth guard ──
 
@@ -499,6 +485,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         buyers: topBuyers,
         total: topBuyers.length,
+        total_scored: scored.length,
         cached: false,
         scored_at: now.toISOString(),
       }),

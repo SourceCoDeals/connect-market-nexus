@@ -94,28 +94,6 @@ export function UniverseAssignmentButton({
     },
   });
 
-  // Unassign from universe mutation
-  const unassignMutation = useMutation({
-    mutationFn: async () => {
-      if (!assignment?.id) return;
-
-      const { error } = await supabase
-        .from("remarketing_universe_deals")
-        .delete()
-        .eq("id", assignment.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Deal removed from universe");
-      queryClient.invalidateQueries({ queryKey: ["remarketing", "deal-universe", dealId] });
-    },
-    onError: () => {
-      toast.error("Failed to remove deal from universe");
-    },
-  });
-  void unassignMutation;
-
   const handleAssign = async () => {
     if (!selectedUniverse) {
       toast.error("Please select a universe");
