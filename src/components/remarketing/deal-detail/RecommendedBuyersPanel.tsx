@@ -27,6 +27,7 @@ import {
   Copy,
   CheckCircle,
   X,
+  Briefcase,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -105,90 +106,114 @@ function BuyerCard({
   const sourceBadge = SOURCE_BADGE[buyer.source] || SOURCE_BADGE.scored;
 
   return (
-    <div className="flex items-center gap-3 border rounded-md px-3 py-2 hover:border-primary/30 transition-colors">
-      {/* Score */}
-      <Badge variant="secondary" className="text-xs font-mono shrink-0 w-8 justify-center">
-        {buyer.composite_score}
-      </Badge>
-
-      {/* Tier */}
-      <Badge variant="outline" className={cn('text-[10px] shrink-0', tier.color)}>
-        <TierIcon className="h-3 w-3 mr-0.5" />
-        {tier.label}
-      </Badge>
-
-      {/* Company info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <Link to={`/admin/buyers/${buyer.buyer_id}`}>
-            <span className="font-medium text-sm text-blue-700 hover:underline truncate">
-              {buyer.company_name}
-            </span>
-          </Link>
-          {buyer.pe_firm_name && (
-            <>
-              <span className="text-muted-foreground text-xs">/</span>
-              {buyer.pe_firm_id ? (
-                <Link to={`/admin/buyers/pe-firms/${buyer.pe_firm_id}`}>
-                  <span className="text-xs text-muted-foreground hover:underline truncate">
-                    {buyer.pe_firm_name}
-                  </span>
-                </Link>
-              ) : (
-                <span className="text-xs text-muted-foreground truncate">{buyer.pe_firm_name}</span>
-              )}
-            </>
-          )}
+    <div className="border rounded-lg px-3.5 py-3 hover:shadow-md transition-shadow shadow-sm">
+      {/* Top row */}
+      <div className="flex items-center gap-3">
+        {/* Icon */}
+        <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+          <Briefcase className="h-4 w-4 text-muted-foreground" />
         </div>
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          {buyer.buyer_type && <span>{formatBuyerType(buyer.buyer_type)}</span>}
-          {buyer.hq_state && (
-            <span className="flex items-center gap-0.5">
-              <MapPin className="h-2.5 w-2.5" />
-              {buyer.hq_city ? `${buyer.hq_city}, ${buyer.hq_state}` : buyer.hq_state}
-            </span>
-          )}
-          {buyer.has_fee_agreement && (
-            <span className="flex items-center gap-0.5 text-green-600">
-              <FileCheck className="h-2.5 w-2.5" />
-              Fee
-            </span>
-          )}
+
+        {/* Name + location */}
+        <div className="shrink-0 min-w-[160px]">
+          <div className="flex items-center gap-1.5">
+            <Link to={`/admin/buyers/${buyer.buyer_id}`}>
+              <span className="font-semibold text-[13.5px] hover:underline truncate">
+                {buyer.company_name}
+              </span>
+            </Link>
+            {buyer.pe_firm_name && (
+              <>
+                <span className="text-muted-foreground text-xs">/</span>
+                {buyer.pe_firm_id ? (
+                  <Link to={`/admin/buyers/pe-firms/${buyer.pe_firm_id}`}>
+                    <span className="text-xs text-muted-foreground hover:underline truncate">
+                      {buyer.pe_firm_name}
+                    </span>
+                  </Link>
+                ) : (
+                  <span className="text-xs text-muted-foreground truncate">{buyer.pe_firm_name}</span>
+                )}
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground mt-0.5">
+            <MapPin className="h-2.5 w-2.5" />
+            {buyer.hq_city && buyer.hq_state
+              ? `${buyer.hq_city}, ${buyer.hq_state}`
+              : buyer.hq_state || buyer.buyer_type
+                ? formatBuyerType(buyer.buyer_type)
+                : ''}
+            {buyer.has_fee_agreement && (
+              <span className="flex items-center gap-0.5 text-green-600 ml-1">
+                <FileCheck className="h-2.5 w-2.5" />
+                Fee
+              </span>
+            )}
+          </div>
         </div>
-        {buyer.fit_reason && (
-          <p className="text-[11px] text-muted-foreground/80 leading-snug mt-0.5 line-clamp-2">
-            {buyer.fit_reason}
-          </p>
-        )}
+
+        {/* Tags */}
+        <div className="flex-1 flex flex-wrap gap-1 min-w-0">
+          {buyer.fit_signals.slice(0, 3).map((signal, i) => (
+            <span
+              key={i}
+              className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium whitespace-nowrap"
+            >
+              {signal}
+            </span>
+          ))}
+        </div>
+
+        {/* Source + Tier + Score + Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className={cn('text-[10px]', sourceBadge.color)}>
+            {sourceBadge.label}
+          </Badge>
+
+          <Badge variant="outline" className={cn('text-[11px] gap-0.5', tier.color)}>
+            <TierIcon className="h-3 w-3" />
+            {tier.label}
+          </Badge>
+
+          <span className={cn(
+            'text-[15px] font-bold min-w-[26px] text-right tabular-nums',
+            buyer.composite_score >= 70 ? 'text-emerald-600' :
+            buyer.composite_score >= 55 ? 'text-amber-600' : 'text-muted-foreground',
+          )}>
+            {buyer.composite_score}
+          </span>
+
+          <div className="w-px h-5 bg-border mx-0.5" />
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 text-xs gap-1 hover:bg-green-50 hover:border-green-500 hover:text-green-700"
+            onClick={() => onAccept(buyer)}
+            disabled={isAccepting}
+          >
+            <CheckCircle className="h-3.5 w-3.5" />
+            Accept
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 text-xs gap-1 hover:bg-red-50 hover:border-red-400 hover:text-red-600"
+            onClick={() => onReject(buyer)}
+          >
+            <X className="h-3.5 w-3.5" />
+            Reject
+          </Button>
+        </div>
       </div>
 
-      {/* Source */}
-      <Badge variant="outline" className={cn('text-[10px] shrink-0', sourceBadge.color)}>
-        {sourceBadge.label}
-      </Badge>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-green-700 hover:bg-green-50 hover:text-green-800"
-          onClick={() => onAccept(buyer)}
-          disabled={isAccepting}
-          title="Accept"
-        >
-          <CheckCircle className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700"
-          onClick={() => onReject(buyer)}
-          title="Reject"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
+      {/* Match reason */}
+      {buyer.fit_reason && (
+        <p className="text-xs text-muted-foreground leading-relaxed mt-2.5 pt-2.5 border-t pl-11">
+          {buyer.fit_reason}
+        </p>
+      )}
     </div>
   );
 }
@@ -430,7 +455,7 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
             </p>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {paginatedBuyers.map(buyer => (
               <BuyerCard
                 key={buyer.buyer_id}
