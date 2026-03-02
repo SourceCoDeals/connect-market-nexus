@@ -26,7 +26,7 @@ export function buildApiTests(): TestDef[] {
 
   add(C8, 'approve-marketplace-buyer edge function reachable', async () => {
     await invokeEdgeFunction('approve-marketplace-buyer', {
-      profile_id: '00000000-0000-0000-0000-000000000000',
+      approval_queue_id: '00000000-0000-0000-0000-000000000000',
     });
   });
 
@@ -87,7 +87,10 @@ export function buildApiTests(): TestDef[] {
 
   // --- 9b: Edge Function Reachability ---
   add(C9, 'sync-fireflies-transcripts edge function reachable', async () => {
-    await invokeEdgeFunction('sync-fireflies-transcripts', {});
+    await invokeEdgeFunction('sync-fireflies-transcripts', {
+      listingId: '00000000-0000-0000-0000-000000000000',
+      contactEmails: ['reachability-test@sourceco-test.local'],
+    });
   });
 
   add(C9, 'search-fireflies-for-buyer edge function reachable', async () => {
