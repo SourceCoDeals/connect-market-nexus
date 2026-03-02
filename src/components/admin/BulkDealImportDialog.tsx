@@ -1,3 +1,10 @@
+/**
+ * BulkDealImportDialog.tsx
+ *
+ * Workflow orchestrator for bulk CSV import of connection requests.
+ * Delegates parsing to CsvParser, preview to ImportPreview, and
+ * submission/duplicate handling to useImportSubmit.
+ */
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,11 +13,8 @@ import { Input } from '@/components/ui/input';
 import { AlertCircle, CheckCircle2, Upload, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import Papa from 'papaparse';
-import { parse } from 'date-fns';
 import { readSpreadsheetAsText, SPREADSHEET_ACCEPT } from '@/lib/parseSpreadsheet';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useAdminListings } from '@/hooks/admin/use-admin-listings';
 import { DuplicateResolutionDialog } from './DuplicateResolutionDialog';
 import { BulkDuplicateDialog } from './BulkDuplicateDialog';
@@ -23,6 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { parseCsvText, MAX_FILE_SIZE_MB, type ParsedDeal } from './bulk-import/CsvParser';
+import { ImportPreview } from './bulk-import/ImportPreview';
+import { handleDuplicateAction, logAudit, type DuplicateAction } from './bulk-import/useImportSubmit';
 
 interface BulkDealImportDialogProps {
   isOpen: boolean;
@@ -36,28 +43,12 @@ interface BulkDealImportDialogProps {
   isLoading: boolean;
 }
 
-interface ParsedDeal {
-  csvRowNumber: number;
-  date: Date | null;
-  name: string;
-  email: string;
-  companyName: string;
-  phoneNumber: string;
-  role: string;
-  message: string;
-  errors: string[];
-  isValid: boolean;
-}
-
 export function BulkDealImportDialog({
   isOpen,
   onClose,
   onConfirm,
   isLoading,
 }: BulkDealImportDialogProps) {
-  const MAX_FILE_SIZE_MB = 10;
-  const MAX_ROWS = 500;
-
   const [selectedListingId, setSelectedListingId] = useState<string>('');
   const [csvText, setCsvText] = useState('');
   const [parsedDeals, setParsedDeals] = useState<ParsedDeal[]>([]);
@@ -79,7 +70,6 @@ export function BulkDealImportDialog({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // File size validation
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > MAX_FILE_SIZE_MB) {
       toast.error(`File too large (${fileSizeMB.toFixed(1)}MB)`, {
@@ -101,154 +91,10 @@ export function BulkDealImportDialog({
     }
   };
 
-  const extractCompanyFromEmail = (email: string, existingCompany?: string): string => {
-    if (existingCompany && existingCompany.trim()) return existingCompany;
-
-    const domain = email.split('@')[1];
-    if (!domain) return '';
-
-    const parts = domain.split('.');
-    if (parts.length > 1) parts.pop(); // Remove TLD
-
-    const company = parts.join('.');
-    return company.charAt(0).toUpperCase() + company.slice(1);
-  };
-
-  const cleanCompanyName = (company: string): string => {
-    if (!company) return '';
-    return company
-      .replace(/https?:\/\/[^\s]+/g, '')
-      .replace(/^["']+|["']+$/g, '')
-      .replace(/^www\./i, '')
-      .trim();
-  };
-
-  const standardizePhone = (phone: string): string => {
-    if (!phone) return '';
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length === 10) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    } else if (digits.length === 11 && digits[0] === '1') {
-      return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
-    }
-    return phone;
-  };
-
-  const mapRole = (role: string): string => {
-    const normalized = role?.toLowerCase().trim() || '';
-    const tokens = new Set(normalized.match(/[a-z]+/g) || []);
-
-    if (
-      normalized === 'privateequity' ||
-      normalized.includes('private equity') ||
-      tokens.has('pe')
-    ) {
-      return 'privateEquity';
-    }
-    if (normalized === 'familyoffice' || normalized.includes('family office') || tokens.has('fo')) {
-      return 'familyOffice';
-    }
-    if (normalized === 'independentsponsor' || normalized.includes('independent sponsor')) {
-      return 'independentSponsor';
-    }
-    if (normalized === 'searchfund' || normalized.includes('search fund') || tokens.has('sf')) {
-      return 'searchFund';
-    }
-    if (normalized === 'corporate' || normalized.includes('corporate') || tokens.has('corp')) {
-      return 'corporate';
-    }
-    if (
-      normalized === 'individual' ||
-      normalized.includes('individual') ||
-      normalized.includes('investor')
-    ) {
-      return 'individual';
-    }
-    return 'other';
-  };
-  const parseDate = (dateStr: string): Date | null => {
-    if (!dateStr) return null;
-    try {
-      return parse(dateStr, 'M/d/yyyy h:mm:ss a', new Date());
-    } catch {
-      return null;
-    }
-  };
-
-  const validateEmail = (email: string): boolean => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
   const parseCSV = () => {
-    if (!csvText.trim()) {
-      setParseErrors(['Please upload a CSV file first']);
-      return;
-    }
-
-    const errors: string[] = [];
-    const deals: ParsedDeal[] = [];
-
-    try {
-      Papa.parse(csvText, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (header) => header.trim(),
-        complete: (results) => {
-          // Row count validation
-          if (results.data.length > MAX_ROWS) {
-            setParseErrors([
-              `Too many rows (${results.data.length}). Maximum is ${MAX_ROWS} rows per import.`,
-            ]);
-            return;
-          }
-
-          (results.data as Record<string, string>[]).forEach((row, index) => {
-            const rowNumber = index + 2;
-            const dealErrors: string[] = [];
-
-            const email = row['Email address']?.trim() || '';
-            const name = row['Name']?.trim() || '';
-            const message = row['Message']?.trim() || '';
-            const rawCompany = cleanCompanyName(row['Company name']);
-
-            // Validation
-            if (!email || !validateEmail(email)) {
-              dealErrors.push('Invalid or missing email');
-            }
-            if (!name || name.length < 2) {
-              dealErrors.push('Name is required (min 2 chars)');
-            }
-            if (!message || message.length < 20) {
-              dealErrors.push('Message must be at least 20 characters');
-            }
-
-            // Extract company from email if not provided
-            const companyName = extractCompanyFromEmail(email, rawCompany);
-
-            deals.push({
-              csvRowNumber: rowNumber,
-              date: parseDate(row['Date']),
-              name,
-              email,
-              companyName,
-              phoneNumber: standardizePhone(row['Phone number']),
-              role: mapRole(row['Role']),
-              message,
-              errors: dealErrors,
-              isValid: dealErrors.length === 0,
-            });
-          });
-
-          setParsedDeals(deals);
-          setParseErrors(errors);
-        },
-        error: (error: Error) => {
-          setParseErrors([`CSV parsing error: ${error.message}`]);
-        },
-      });
-    } catch (error: unknown) {
-      setParseErrors([`Error: ${error instanceof Error ? error.message : String(error)}`]);
-    }
+    const { deals, errors } = parseCsvText(csvText);
+    setParsedDeals(deals);
+    setParseErrors(errors);
   };
 
   const handleShowConfirm = () => {
@@ -265,8 +111,6 @@ export function BulkDealImportDialog({
 
     const validDeals = parsedDeals.filter((d) => d.isValid);
     const startTime = Date.now();
-
-    // Generate unique batch ID for this import session
     const batchId = `import_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setCurrentBatchId(batchId);
 
@@ -274,40 +118,20 @@ export function BulkDealImportDialog({
       listingId: selectedListingId,
       deals: validDeals,
       fileName,
-      batchId, // Pass batch ID to track this import
+      batchId,
     });
 
     if (result) {
       setImportResult(result);
 
-      // Log to audit_logs
-      try {
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-        if (authError) throw authError;
-        if (user) {
-          await supabase.from('audit_logs').insert({
-            table_name: 'connection_requests',
-            operation: 'BULK_IMPORT',
-            admin_id: user.id,
-            metadata: {
-              csv_filename: fileName,
-              rows_imported: result.imported,
-              rows_duplicated: result.duplicates,
-              rows_errored: result.errors,
-              listing_id: selectedListingId,
-              import_duration_ms: Date.now() - startTime,
-              batch_id: batchId, // Store batch ID for undo capability
-            },
-          });
-        }
-      } catch (error) {
-        console.error('Failed to log audit:', error);
-      }
+      await logAudit({
+        fileName,
+        importResult: result,
+        selectedListingId,
+        batchId,
+        startTime,
+      });
 
-      // If there are duplicates, show bulk dialog first
       if (result.details.duplicates.length > 0) {
         setShowBulkDuplicateDialog(true);
       }
@@ -332,7 +156,6 @@ export function BulkDealImportDialog({
 
   const handleUndoImport = async () => {
     if (!currentBatchId) return;
-
     try {
       await undoImport(currentBatchId);
       handleClose();
@@ -341,16 +164,10 @@ export function BulkDealImportDialog({
     }
   };
 
-  const handleDuplicateAction = async (action: 'skip' | 'merge' | 'replace' | 'create') => {
+  const onDuplicateAction = async (action: DuplicateAction) => {
     if (!importResult) return;
 
-    const currentDuplicate = importResult.details.duplicates[currentDuplicateIndex];
-    if (!currentDuplicate) return;
-
-    const { deal, duplicateInfo } = currentDuplicate;
-
-    // Helper to move to next duplicate
-    const moveToNextDuplicate = () => {
+    const moveToNext = () => {
       if (currentDuplicateIndex < importResult.details.duplicates.length - 1) {
         setCurrentDuplicateIndex(currentDuplicateIndex + 1);
       } else {
@@ -359,111 +176,18 @@ export function BulkDealImportDialog({
       }
     };
 
-    // If skip all duplicates mode is on, just skip
-    if (skipAllDuplicates && action === 'skip') {
-      moveToNextDuplicate();
-      return;
-    }
-
-    try {
-      switch (action) {
-        case 'skip':
-          // Do nothing, just skip
-          toast.info('Skipped duplicate entry');
-          break;
-
-        case 'merge': {
-          // Append new message to existing request
-          const existingMessage = duplicateInfo.existingMessage || '';
-          const newMessageWithDate = `\n\nNew message (${deal.date?.toLocaleDateString() || new Date().toLocaleDateString()}):\n${deal.message}`;
-          const mergedMessage = existingMessage + newMessageWithDate;
-
-          const { error: mergeError } = await supabase
-            .from('connection_requests')
-            .update({
-              user_message: mergedMessage,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', duplicateInfo.existingRequestId);
-
-          if (mergeError) throw mergeError;
-          toast.success('Messages merged successfully');
-          break;
-        }
-
-        case 'replace': {
-          // Replace existing request data with new CSV data
-          const { error: replaceError } = await supabase
-            .from('connection_requests')
-            .update({
-              user_message: deal.message,
-              lead_role: deal.role,
-              lead_phone: deal.phoneNumber || null,
-              lead_company: deal.companyName || null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', duplicateInfo.existingRequestId);
-
-          if (replaceError) throw replaceError;
-          toast.success('Request replaced successfully');
-          break;
-        }
-
-        case 'create': {
-          // Create new request anyway (force duplicate)
-          const {
-            data: { user },
-            error: authError,
-          } = await supabase.auth.getUser();
-          if (authError) throw authError;
-          if (!user) throw new Error('Not authenticated');
-
-          // Check if user exists in profiles
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, email, company, nda_signed, fee_agreement_signed')
-            .eq('email', deal.email)
-            .maybeSingle();
-          if (profileError) throw profileError;
-
-          const { error: createError } = await supabase.from('connection_requests').insert({
-            listing_id: selectedListingId,
-            user_id: profile?.id || null,
-            lead_email: profile ? null : deal.email,
-            lead_name: profile ? null : deal.name,
-            lead_company: profile ? null : deal.companyName,
-            lead_phone: profile ? null : deal.phoneNumber,
-            lead_role: deal.role,
-            user_message: deal.message,
-            source: 'website',
-            source_metadata: {
-              import_method: 'csv_bulk_upload',
-              csv_filename: fileName,
-              csv_row_number: deal.csvRowNumber,
-              import_date: new Date().toISOString(),
-              imported_by_admin_id: user.id,
-              forced_duplicate: true,
-            },
-            created_at: deal.date?.toISOString() || new Date().toISOString(),
-          });
-
-          if (createError) throw createError;
-          toast.success('Created new request (duplicate allowed)');
-          break;
-        }
-      }
-    } catch (error: unknown) {
-      toast.error('Failed to process duplicate', {
-        description: error instanceof Error ? error.message : String(error),
-      });
-    }
-
-    // Move to next duplicate
-    moveToNextDuplicate();
+    await handleDuplicateAction({
+      action,
+      importResult,
+      currentDuplicateIndex,
+      skipAllDuplicates,
+      selectedListingId,
+      fileName,
+      onMoveNext: moveToNext,
+    });
   };
 
   const validCount = parsedDeals.filter((d) => d.isValid).length;
-  const invalidCount = parsedDeals.filter((d) => !d.isValid).length;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -494,7 +218,7 @@ export function BulkDealImportDialog({
           <div className="space-y-2 flex-shrink-0">
             <Label htmlFor="csv-file">Step 2: Upload File (CSV, XLS, XLSX) *</Label>
             <div className="text-xs text-muted-foreground mb-2">
-              Maximum {MAX_FILE_SIZE_MB}MB file size • Up to {MAX_ROWS} rows per import • Dates are
+              Maximum {MAX_FILE_SIZE_MB}MB file size • Up to 500 rows per import • Dates are
               imported in UTC timezone
             </div>
             <div className="flex items-center gap-2">
@@ -529,101 +253,12 @@ export function BulkDealImportDialog({
 
           {/* Step 3: Preview - Only show if import hasn't completed */}
           {parsedDeals.length > 0 && !importResult && (
-            <div className="space-y-4 flex-shrink-0">
-              <div>
-                <Label>Step 3: Preview & Validate</Label>
-                <div className="flex gap-4 mt-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    <span>{validCount} valid rows</span>
-                  </div>
-                  {invalidCount > 0 && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <AlertTriangle className="w-4 h-4 text-destructive" />
-                      <span>{invalidCount} invalid rows</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Compact Preview Table */}
-              <div className="border rounded-lg overflow-hidden">
-                <div className="max-h-[300px] overflow-x-auto overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted sticky top-0">
-                      <tr>
-                        <th className="px-3 py-2 text-left w-12">Status</th>
-                        <th className="px-3 py-2 text-left w-16">Row</th>
-                        <th className="px-3 py-2 text-left">Name</th>
-                        <th className="px-3 py-2 text-left">Email</th>
-                        <th className="px-3 py-2 text-left">Company</th>
-                        <th className="px-3 py-2 text-left">Phone</th>
-                        <th className="px-3 py-2 text-left w-32">Role</th>
-                        <th className="px-3 py-2 text-left max-w-xs">Message</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedDeals.map((deal) => (
-                        <tr
-                          key={deal.csvRowNumber}
-                          className={deal.isValid ? 'hover:bg-muted/50' : 'bg-destructive/10'}
-                        >
-                          <td className="px-3 py-2">
-                            {deal.isValid ? (
-                              <CheckCircle2 className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-destructive" />
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground">{deal.csvRowNumber}</td>
-                          <td className="px-3 py-2 font-medium">{deal.name}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{deal.email}</td>
-                          <td className="px-3 py-2">{deal.companyName || '—'}</td>
-                          <td className="px-3 py-2 text-muted-foreground">
-                            {deal.phoneNumber || '—'}
-                          </td>
-                          <td className="px-3 py-2 text-xs">
-                            <Badge variant="outline" className="text-xs font-normal">
-                              {deal.role || '—'}
-                            </Badge>
-                          </td>
-                          <td
-                            className="px-3 py-2 max-w-xs truncate text-muted-foreground"
-                            title={deal.message}
-                          >
-                            {deal.message || '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Show validation errors if any */}
-              {invalidCount > 0 && (
-                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
-                  <div className="text-sm font-medium text-destructive mb-2">
-                    {invalidCount} Invalid Row{invalidCount > 1 ? 's' : ''}
-                  </div>
-                  <div className="text-xs space-y-1 text-muted-foreground max-h-24 overflow-y-auto">
-                    {parsedDeals
-                      .filter((d) => !d.isValid)
-                      .map((deal) => (
-                        <div key={deal.csvRowNumber}>
-                          Row {deal.csvRowNumber}: {deal.errors.join(', ')}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <ImportPreview parsedDeals={parsedDeals} />
           )}
 
-          {/* Import Results - Elegant Success State */}
+          {/* Import Results */}
           {importResult && (
             <div className="space-y-6 py-2">
-              {/* Success Header */}
               <div className="text-center space-y-2">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/20">
                   <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -635,7 +270,6 @@ export function BulkDealImportDialog({
                 </p>
               </div>
 
-              {/* Stats Grid */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-lg border bg-card p-4 text-center space-y-1">
                   <div className="text-2xl font-semibold text-green-600 dark:text-green-400">
@@ -719,7 +353,6 @@ export function BulkDealImportDialog({
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
             {importResult ? (
-              // After import: show Undo and Close buttons
               <>
                 {currentBatchId && importResult.imported > 0 && (
                   <Button variant="destructive" onClick={handleUndoImport} disabled={isUndoing}>
@@ -731,7 +364,6 @@ export function BulkDealImportDialog({
                 </Button>
               </>
             ) : (
-              // Before import: show Cancel and Import buttons
               <>
                 <Button variant="outline" onClick={handleClose} disabled={isLoading}>
                   Cancel
@@ -773,10 +405,10 @@ export function BulkDealImportDialog({
           isOpen={showDuplicateDialog}
           onClose={() => setShowDuplicateDialog(false)}
           duplicate={importResult.details.duplicates[currentDuplicateIndex]}
-          onSkip={() => handleDuplicateAction('skip')}
-          onMerge={() => handleDuplicateAction('merge')}
-          onReplace={() => handleDuplicateAction('replace')}
-          onCreateAnyway={() => handleDuplicateAction('create')}
+          onSkip={() => onDuplicateAction('skip')}
+          onMerge={() => onDuplicateAction('merge')}
+          onReplace={() => onDuplicateAction('replace')}
+          onCreateAnyway={() => onDuplicateAction('create')}
         />
       )}
 

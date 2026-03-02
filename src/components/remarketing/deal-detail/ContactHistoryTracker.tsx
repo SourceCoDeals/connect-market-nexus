@@ -161,7 +161,7 @@ export function ContactHistoryTracker({
               </div>
               {overview.lastContactDate && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-                  <Clock className="w-3 h-3 text-green-500" />
+                  <CheckCircle className="w-3 h-3 text-green-500" />
                   Last contacted via {overview.lastContactChannel} on{' '}
                   {format(new Date(overview.lastContactDate), 'MMM d')}
                 </div>
