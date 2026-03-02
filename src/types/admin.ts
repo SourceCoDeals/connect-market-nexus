@@ -77,7 +77,7 @@ export interface AdminListing {
   deal_total_score?: number | null;
   linkedin_employee_count?: number | null;
   google_rating?: number | null;
-  google_reviews_count?: number | null;
+  google_review_count?: number | null;
   company_website?: string | null;
   is_priority_target?: boolean | null;
 

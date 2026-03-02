@@ -478,20 +478,22 @@ function DealRowActions({
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={async () => {
-            const newVal = !deal.need_owner_contact;
+            const newVal = !deal.needs_owner_contact;
             const { error } = await supabase
               .from('listings')
-              .update({ need_owner_contact: newVal } as never)
+              .update({ needs_owner_contact: newVal } as never)
               .eq('id', deal.id);
             if (!error) {
               sonnerToast.success(newVal ? 'Flagged: Need to Contact Owner' : 'Flag removed');
               queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
             }
           }}
-          className={deal.need_owner_contact ? 'text-orange-600' : ''}
+          className={deal.needs_owner_contact ? 'text-orange-600' : ''}
         >
-          <Phone className={cn('h-4 w-4 mr-2', deal.need_owner_contact && 'text-orange-600')} />
-          {deal.need_owner_contact ? '\u2713 Need to Contact Owner' : 'Flag: Need to Contact Owner'}
+          <Phone className={cn('h-4 w-4 mr-2', deal.needs_owner_contact && 'text-orange-600')} />
+          {deal.needs_owner_contact
+            ? '\u2713 Need to Contact Owner'
+            : 'Flag: Need to Contact Owner'}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => handlePushToAllDeals([deal.id])}
