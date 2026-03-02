@@ -42,16 +42,57 @@ const CACHE_HOURS = 4;
 // ── US region mapping for geographic scoring ──
 
 const STATE_REGIONS: Record<string, string> = {
-  CT: 'northeast', MA: 'northeast', ME: 'northeast', NH: 'northeast',
-  NJ: 'northeast', NY: 'northeast', PA: 'northeast', RI: 'northeast', VT: 'northeast',
-  IL: 'midwest', IN: 'midwest', IA: 'midwest', KS: 'midwest', MI: 'midwest',
-  MN: 'midwest', MO: 'midwest', NE: 'midwest', ND: 'midwest', OH: 'midwest',
-  SD: 'midwest', WI: 'midwest',
-  AL: 'south', AR: 'south', DC: 'south', DE: 'south', FL: 'south', GA: 'south',
-  KY: 'south', LA: 'south', MD: 'south', MS: 'south', NC: 'south', OK: 'south',
-  SC: 'south', TN: 'south', TX: 'south', VA: 'south', WV: 'south',
-  AK: 'west', AZ: 'west', CA: 'west', CO: 'west', HI: 'west', ID: 'west',
-  MT: 'west', NV: 'west', NM: 'west', OR: 'west', UT: 'west', WA: 'west', WY: 'west',
+  CT: 'northeast',
+  MA: 'northeast',
+  ME: 'northeast',
+  NH: 'northeast',
+  NJ: 'northeast',
+  NY: 'northeast',
+  PA: 'northeast',
+  RI: 'northeast',
+  VT: 'northeast',
+  IL: 'midwest',
+  IN: 'midwest',
+  IA: 'midwest',
+  KS: 'midwest',
+  MI: 'midwest',
+  MN: 'midwest',
+  MO: 'midwest',
+  NE: 'midwest',
+  ND: 'midwest',
+  OH: 'midwest',
+  SD: 'midwest',
+  WI: 'midwest',
+  AL: 'south',
+  AR: 'south',
+  DC: 'south',
+  DE: 'south',
+  FL: 'south',
+  GA: 'south',
+  KY: 'south',
+  LA: 'south',
+  MD: 'south',
+  MS: 'south',
+  NC: 'south',
+  OK: 'south',
+  SC: 'south',
+  TN: 'south',
+  TX: 'south',
+  VA: 'south',
+  WV: 'south',
+  AK: 'west',
+  AZ: 'west',
+  CA: 'west',
+  CO: 'west',
+  HI: 'west',
+  ID: 'west',
+  MT: 'west',
+  NV: 'west',
+  NM: 'west',
+  OR: 'west',
+  UT: 'west',
+  WA: 'west',
+  WY: 'west',
 };
 
 // ── Helper: normalize strings for comparison ──
@@ -62,7 +103,7 @@ function norm(s: string | null | undefined): string {
 
 function normArray(arr: string[] | null | undefined): string[] {
   if (!arr) return [];
-  return arr.map(s => norm(s)).filter(Boolean);
+  return arr.map((s) => norm(s)).filter(Boolean);
 }
 
 // ── Scoring functions ──
@@ -88,7 +129,12 @@ function scoreService(
       if (dt === bt && bestMatch < 100) {
         bestMatch = 100;
         bestSignal = `Exact industry match: ${bt}`;
-      } else if (bestMatch < 60 && (dt.includes(bt) || bt.includes(dt))) {
+      } else if (
+        bestMatch < 60 &&
+        dt.length >= 4 &&
+        bt.length >= 4 &&
+        (dt.includes(bt) || bt.includes(dt))
+      ) {
         bestMatch = 60;
         bestSignal = `Adjacent industry: ${bt}`;
       }
@@ -116,7 +162,7 @@ function scoreGeography(
 
   // Check for national buyer
   const nationalIndicators = ['national', 'nationwide', 'all states', 'us', 'united states'];
-  if (allBuyerGeos.some(g => nationalIndicators.includes(g))) {
+  if (allBuyerGeos.some((g) => nationalIndicators.includes(g))) {
     signals.push('National buyer');
     return { score: 80, signals };
   }
@@ -130,9 +176,35 @@ function scoreGeography(
   }
 
   // Check for region match
-  const dealRegions = new Set(dealStates.map(s => STATE_REGIONS[s.toUpperCase()]).filter(Boolean));
-  const buyerRegions = new Set(allBuyerGeos.map(s => STATE_REGIONS[s.toUpperCase()]).filter(Boolean));
-  for (const dr of dealRegions) {
+  // Region names that may appear directly in buyer geos (e.g., "northeast", "midwest")
+  const REGION_NAMES = new Set([
+    'northeast',
+    'midwest',
+    'south',
+    'west',
+    'southeast',
+    'southwest',
+    'northwest',
+  ]);
+  const dealRegions = new Set(
+    dealStates.map((s) => STATE_REGIONS[s.toUpperCase()]).filter(Boolean),
+  );
+
+  // Buyer regions: derive from state codes AND recognize region names directly
+  const buyerRegions = new Set<string>();
+  for (const g of allBuyerGeos) {
+    const fromState = STATE_REGIONS[g.toUpperCase()];
+    if (fromState) buyerRegions.add(fromState);
+    // Direct region name match (e.g., "northeast" in target_geographies)
+    if (REGION_NAMES.has(g)) {
+      // Map sub-regions to broader regions for matching
+      if (g === 'southeast' || g === 'southwest') buyerRegions.add('south');
+      else if (g === 'northwest') buyerRegions.add('west');
+      buyerRegions.add(g);
+    }
+  }
+  // Also map deal sub-regions for matching
+  for (const dr of [...dealRegions]) {
     if (buyerRegions.has(dr)) {
       signals.push(`Region match: ${dr}`);
       return { score: 60, signals };
@@ -172,13 +244,11 @@ function scoreSize(
   return { score: 0, signals: [] };
 }
 
-function scoreBonus(
-  buyer: {
-    has_fee_agreement: boolean | null;
-    acquisition_appetite: string | null;
-    total_acquisitions: number | null;
-  },
-): { score: number; signals: string[] } {
+function scoreBonus(buyer: {
+  has_fee_agreement: boolean | null;
+  acquisition_appetite: string | null;
+  total_acquisitions: number | null;
+}): { score: number; signals: string[] } {
   let points = 0;
   const signals: string[] = [];
 
@@ -226,10 +296,10 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization') || '';
     const callerToken = authHeader.replace('Bearer ', '').trim();
     if (!callerToken) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -238,21 +308,24 @@ Deno.serve(async (req: Request) => {
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
       global: { headers: { Authorization: `Bearer ${callerToken}` } },
     });
-    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
+    const {
+      data: { user: callerUser },
+      error: callerError,
+    } = await callerClient.auth.getUser();
     if (callerError || !callerUser) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: callerUser.id });
     if (!isAdmin) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden: admin access required' }),
-        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'Forbidden: admin access required' }), {
+        status: 403,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
     // ── End auth guard ──
 
@@ -260,10 +333,10 @@ Deno.serve(async (req: Request) => {
     const { listingId, forceRefresh } = body;
 
     if (!listingId) {
-      return new Response(
-        JSON.stringify({ error: 'listingId is required' }),
-        { status: 400, headers: { ...headers, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'listingId is required' }), {
+        status: 400,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+      });
     }
 
     // ── Check cache ──
@@ -307,10 +380,10 @@ Deno.serve(async (req: Request) => {
       .from('remarketing_buyers')
       .select(
         'id, company_name, pe_firm_name, buyer_type, hq_state, hq_city, ' +
-        'target_services, target_industries, industry_vertical, ' +
-        'target_geographies, geographic_footprint, ' +
-        'target_ebitda_min, target_ebitda_max, ' +
-        'has_fee_agreement, acquisition_appetite, total_acquisitions',
+          'target_services, target_industries, industry_vertical, ' +
+          'target_geographies, geographic_footprint, ' +
+          'target_ebitda_min, target_ebitda_max, ' +
+          'has_fee_agreement, acquisition_appetite, total_acquisitions',
       )
       .eq('archived', false);
 
@@ -322,7 +395,12 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!buyers || buyers.length === 0) {
-      const emptyResult = { buyers: [], total: 0, cached: false, scored_at: new Date().toISOString() };
+      const emptyResult = {
+        buyers: [],
+        total: 0,
+        cached: false,
+        scored_at: new Date().toISOString(),
+      };
       return new Response(JSON.stringify(emptyResult), {
         headers: { ...headers, 'Content-Type': 'application/json' },
       });
@@ -346,16 +424,22 @@ Deno.serve(async (req: Request) => {
       const buyerFootprint = normArray(buyer.geographic_footprint);
       const buyerHqState = norm(buyer.hq_state);
 
-      const svc = scoreService(dealCategories, dealIndustry, buyerServices, buyerIndustries, buyerIndustryVertical);
+      const svc = scoreService(
+        dealCategories,
+        dealIndustry,
+        buyerServices,
+        buyerIndustries,
+        buyerIndustryVertical,
+      );
       const geo = scoreGeography(dealState, dealGeoStates, buyerGeos, buyerFootprint, buyerHqState);
       const size = scoreSize(dealEbitda, buyer.target_ebitda_min, buyer.target_ebitda_max);
       const bonus = scoreBonus(buyer);
 
       const composite = Math.round(
         svc.score * WEIGHTS.service +
-        geo.score * WEIGHTS.geography +
-        size.score * WEIGHTS.size +
-        bonus.score * WEIGHTS.bonus,
+          geo.score * WEIGHTS.geography +
+          size.score * WEIGHTS.size +
+          bonus.score * WEIGHTS.bonus,
       );
 
       const fitSignals = [...svc.signals, ...geo.signals, ...size.signals, ...bonus.signals];
@@ -389,19 +473,17 @@ Deno.serve(async (req: Request) => {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + CACHE_HOURS * 60 * 60 * 1000);
 
-    const { error: cacheError } = await supabase
-      .from('buyer_recommendation_cache')
-      .upsert(
-        {
-          listing_id: listingId,
-          scored_at: now.toISOString(),
-          expires_at: expiresAt.toISOString(),
-          buyer_count: topBuyers.length,
-          results: topBuyers,
-          score_version: 'v1',
-        },
-        { onConflict: 'listing_id' },
-      );
+    const { error: cacheError } = await supabase.from('buyer_recommendation_cache').upsert(
+      {
+        listing_id: listingId,
+        scored_at: now.toISOString(),
+        expires_at: expiresAt.toISOString(),
+        buyer_count: topBuyers.length,
+        results: topBuyers,
+        score_version: 'v1',
+      },
+      { onConflict: 'listing_id' },
+    );
 
     if (cacheError) {
       console.error('Cache write failed (non-fatal):', cacheError.message);
