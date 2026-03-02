@@ -273,7 +273,6 @@ const AdminUsers = () => {
     );
   }
 
-  const isBuyersView = primaryView === 'buyers';
   const isOwnersView = primaryView === 'owners';
 
   return (
