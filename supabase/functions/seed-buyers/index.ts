@@ -311,7 +311,7 @@ Deno.serve(async (req: Request) => {
     // ── End auth guard ──
 
     const body: SeedRequest = await req.json();
-    const { listingId, maxBuyers = 15, forceRefresh = false } = body;
+    const { listingId, maxBuyers = 10, forceRefresh = false } = body;
 
     if (!listingId) {
       return new Response(
@@ -398,15 +398,15 @@ Deno.serve(async (req: Request) => {
     );
 
     // ── Call Claude to discover buyers ──
-    const cappedMax = Math.min(maxBuyers, 25);
+    const cappedMax = Math.min(maxBuyers, 15);
     const claudeResponse = await callClaude({
-      model: CLAUDE_MODELS.sonnet,
+      model: CLAUDE_MODELS.haiku,
       maxTokens: 4096,
       systemPrompt: buildSystemPrompt(),
       messages: [
         { role: 'user', content: buildUserPrompt(deal, cappedMax) },
       ],
-      timeoutMs: 60000,
+      timeoutMs: 45000,
     });
 
     // Extract text from response
@@ -523,7 +523,7 @@ Deno.serve(async (req: Request) => {
         known_acquisitions: suggested.known_acquisitions,
         was_new_record: wasNew,
         action,
-        seed_model: CLAUDE_MODELS.sonnet,
+        seed_model: CLAUDE_MODELS.haiku,
         category_cache_key: cacheKey,
       });
 
@@ -582,7 +582,7 @@ Deno.serve(async (req: Request) => {
         cached: false,
         seeded_at: now,
         cache_key: cacheKey,
-        model: CLAUDE_MODELS.sonnet,
+        model: CLAUDE_MODELS.haiku,
         usage: claudeResponse.usage,
       }),
       { headers: { ...headers, 'Content-Type': 'application/json' } },

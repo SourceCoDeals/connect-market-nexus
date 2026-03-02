@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useNewRecommendedBuyers,
   type BuyerScore,
@@ -13,8 +14,6 @@ import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
 import {
   RefreshCw,
   Users,
-  ChevronLeft,
-  ChevronRight,
   AlertCircle,
   Zap,
   Star,
@@ -28,6 +27,8 @@ import {
   CheckCircle,
   X,
   Briefcase,
+  Landmark,
+  Building2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -36,7 +37,7 @@ interface RecommendedBuyersPanelProps {
   listingId: string;
 }
 
-const PAGE_SIZE = 10;
+const MAX_BUYERS = 10;
 
 const TIER_CONFIG: Record<BuyerScore['tier'], { label: string; color: string; icon: typeof Zap }> = {
   move_now: { label: 'Move Now', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: Zap },
@@ -59,6 +60,16 @@ function formatBuyerType(type: string | null): string {
     family_office: 'Family Office',
   };
   return map[type] || type.replace('_', ' ');
+}
+
+/** Sponsors = PE firms, independent sponsors, family offices, search funds */
+const SPONSOR_TYPES = new Set(['pe_firm', 'family_office', 'independent_sponsor', 'search_fund']);
+
+function isSponsor(buyer: BuyerScore): boolean {
+  if (buyer.buyer_type && SPONSOR_TYPES.has(buyer.buyer_type)) return true;
+  // If buyer has a PE firm attached, treat as sponsor
+  if (buyer.pe_firm_name) return true;
+  return false;
 }
 
 function TierSummary({ buyers }: { buyers: BuyerScore[] }) {
@@ -290,7 +301,6 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   const { data, isLoading, isError, error, refresh } = useNewRecommendedBuyers(listingId);
   const seedMutation = useSeedBuyers();
   const { createIntroduction } = useBuyerIntroductions(listingId);
-  const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [seedResults, setSeedResults] = useState<SeedBuyerResult[] | null>(null);
   const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
@@ -414,13 +424,11 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   }
 
   const allBuyers = data?.buyers || [];
-  const buyers = allBuyers.filter(
-    b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id)
-  );
-  const totalPages = Math.ceil(buyers.length / PAGE_SIZE);
-  // Clamp page to valid range when filtering shrinks the list
-  const clampedPage = totalPages > 0 ? Math.min(page, totalPages - 1) : 0;
-  const paginatedBuyers = buyers.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
+  const buyers = allBuyers
+    .filter(b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id))
+    .slice(0, MAX_BUYERS);
+  const sponsors = buyers.filter(isSponsor);
+  const operatingCos = buyers.filter(b => !isSponsor(b));
 
   return (
     <Card>
@@ -429,11 +437,11 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-4 w-4" />
             Recommended Buyers
-            {data?.total ? (
+            {buyers.length > 0 && (
               <Badge variant="secondary" className="text-xs ml-1">
-                {data.total}
+                Top {buyers.length}
               </Badge>
-            ) : null}
+            )}
           </CardTitle>
           {buyers.length > 0 && <TierSummary buyers={buyers} />}
         </div>
@@ -472,52 +480,66 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
             </p>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {paginatedBuyers.map(buyer => (
-              <BuyerCard
-                key={buyer.buyer_id}
-                buyer={buyer}
-                onAccept={handleAccept}
-                onReject={handleReject}
-                isAccepting={acceptingIds.has(buyer.buyer_id)}
-              />
-            ))}
+          <Tabs defaultValue="sponsors" className="w-full">
+            <TabsList className="mb-3">
+              <TabsTrigger value="sponsors" className="gap-1.5">
+                <Landmark className="h-3.5 w-3.5" />
+                Sponsors
+                {sponsors.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-0.5">
+                    {sponsors.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="operating" className="gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Operating Companies
+                {operatingCos.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-0.5">
+                    {operatingCos.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
 
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between pt-2">
-                <p className="text-xs text-muted-foreground">
-                  Showing {clampedPage * PAGE_SIZE + 1}-{Math.min((clampedPage + 1) * PAGE_SIZE, buyers.length)} of {buyers.length}
-                </p>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setPage(p => p - 1)}
-                    disabled={clampedPage === 0}
-                  >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-                  <span className="text-xs px-2">{clampedPage + 1} / {totalPages}</span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => setPage(p => p + 1)}
-                    disabled={clampedPage >= totalPages - 1}
-                  >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            )}
+            <TabsContent value="sponsors" className="space-y-1.5 mt-0">
+              {sponsors.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No sponsors found</p>
+              ) : (
+                sponsors.map(buyer => (
+                  <BuyerCard
+                    key={buyer.buyer_id}
+                    buyer={buyer}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    isAccepting={acceptingIds.has(buyer.buyer_id)}
+                  />
+                ))
+              )}
+            </TabsContent>
+
+            <TabsContent value="operating" className="space-y-1.5 mt-0">
+              {operatingCos.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No operating companies found</p>
+              ) : (
+                operatingCos.map(buyer => (
+                  <BuyerCard
+                    key={buyer.buyer_id}
+                    buyer={buyer}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    isAccepting={acceptingIds.has(buyer.buyer_id)}
+                  />
+                ))
+              )}
+            </TabsContent>
 
             {data?.cached && (
-              <p className="text-[10px] text-muted-foreground text-right">
+              <p className="text-[10px] text-muted-foreground text-right mt-2">
                 Cached results from {new Date(data.scored_at).toLocaleString()}
               </p>
             )}
-          </div>
+          </Tabs>
         )}
       </CardContent>
     </Card>
