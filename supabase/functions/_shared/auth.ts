@@ -26,7 +26,9 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const anonClient = createClient(supabaseUrl, supabaseAnonKey);
+  const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 
   const token = authHeader.replace('Bearer ', '');
   const {
@@ -52,8 +54,11 @@ export async function requireAdmin(
   const auth = await requireAuth(req);
   if (!auth.authenticated) return auth;
 
-  const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { user_id: auth.userId });
-  if (!isAdmin) {
+  const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin', { user_id: auth.userId });
+  if (adminCheckError) {
+    console.error('is_admin RPC error:', adminCheckError.message);
+  }
+  if (adminCheckError || !isAdmin) {
     return {
       authenticated: true,
       isAdmin: false,
