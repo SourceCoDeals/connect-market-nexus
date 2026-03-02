@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save, Loader2, Plus, Trash2, GripVertical } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Plus, Trash2, GripVertical, Copy, Check } from 'lucide-react';
 import { LeadMemo, useUpdateMemo } from '@/hooks/admin/data-room/use-data-room';
+import { memoToPlainText, copyToClipboard } from '@/lib/memo-utils';
 
 interface MemoSection {
   key: string;
@@ -27,28 +28,32 @@ export function MemoEditor({ memo, dealId, onClose }: MemoEditorProps) {
 
   const initialSections = (memo.content as { sections?: MemoSection[] } | null)?.sections || [];
   const [sections, setSections] = useState<MemoSection[]>(initialSections);
+  const [copied, setCopied] = useState(false);
 
-  const handleSectionChange = useCallback((index: number, field: 'title' | 'content', value: string) => {
-    setSections(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
-  }, []);
+  const handleSectionChange = useCallback(
+    (index: number, field: 'title' | 'content', value: string) => {
+      setSections((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], [field]: value };
+        return next;
+      });
+    },
+    [],
+  );
 
   const handleAddSection = useCallback(() => {
-    setSections(prev => [
+    setSections((prev) => [
       ...prev,
       { key: `custom_${Date.now()}`, title: 'New Section', content: '' },
     ]);
   }, []);
 
   const handleRemoveSection = useCallback((index: number) => {
-    setSections(prev => prev.filter((_, i) => i !== index));
+    setSections((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleMoveSection = useCallback((index: number, direction: 'up' | 'down') => {
-    setSections(prev => {
+    setSections((prev) => {
       const next = [...prev];
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
       if (targetIndex < 0 || targetIndex >= next.length) return prev;
@@ -56,6 +61,20 @@ export function MemoEditor({ memo, dealId, onClose }: MemoEditorProps) {
       return next;
     });
   }, []);
+
+  const handleCopyAll = async () => {
+    // Build a temporary content object with current editor sections
+    const currentContent = {
+      ...((memo.content as Record<string, unknown>) || {}),
+      sections,
+    };
+    const text = memoToPlainText(currentContent, memo.branding);
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const handleSave = () => {
     const content = {
@@ -65,17 +84,20 @@ export function MemoEditor({ memo, dealId, onClose }: MemoEditorProps) {
 
     // Generate HTML from sections
     const htmlContent = sections
-      .map(s => `<h2>${s.title}</h2><div>${s.content.replace(/\n/g, '<br>')}</div>`)
+      .map((s) => `<h2>${s.title}</h2><div>${s.content.replace(/\n/g, '<br>')}</div>`)
       .join('');
 
-    updateMemo.mutate({
-      memoId: memo.id,
-      content,
-      htmlContent,
-      dealId,
-    }, {
-      onSuccess: () => onClose(),
-    });
+    updateMemo.mutate(
+      {
+        memoId: memo.id,
+        content,
+        htmlContent,
+        dealId,
+      },
+      {
+        onSuccess: () => onClose(),
+      },
+    );
   };
 
   return (
@@ -93,7 +115,26 @@ export function MemoEditor({ memo, dealId, onClose }: MemoEditorProps) {
           </h3>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            variant="outline"
+            onClick={handleCopyAll}
+            className={copied ? 'text-green-600 border-green-300' : ''}
+          >
+            {copied ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy All
+              </>
+            )}
+          </Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
           <Button onClick={handleSave} disabled={updateMemo.isPending}>
             {updateMemo.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

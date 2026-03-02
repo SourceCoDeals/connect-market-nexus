@@ -33,6 +33,8 @@ import {
   CheckCircle,
   Clock,
   Archive,
+  Copy,
+  Check,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -44,6 +46,12 @@ import {
 import { MemoEditor } from './MemoEditor';
 import { SendMemoDialog } from './SendMemoDialog';
 import { ManualLogDialog } from './ManualLogDialog';
+import {
+  extractCompanyInfo,
+  memoToPlainText,
+  copyToClipboard,
+  getBrandingLabel,
+} from '@/lib/memo-utils';
 
 interface MemosPanelProps {
   dealId: string;
@@ -92,46 +100,85 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
   };
 
   const handleExportPdf = (memo: LeadMemo) => {
-    // Generate PDF from memo content client-side
     const sections =
-      (memo.content as { sections?: Array<{ title: string; content: string }> } | null)?.sections ||
-      [];
-    const brandName = BRANDING_OPTIONS.find((b) => b.value === memo.branding)?.label || 'SourceCo';
+      (
+        memo.content as {
+          sections?: Array<{ title: string; content: string; key?: string }>;
+        } | null
+      )?.sections || [];
+    const brandName = getBrandingLabel(memo.branding);
     const isAnonymous = memo.memo_type === 'anonymous_teaser';
+    const company = extractCompanyInfo(memo.content);
+    const dateStr = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const logoUrl = '/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png';
 
-    // Build HTML for print
     const printHtml = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Lead Memo - ${dealTitle || 'Deal'}</title>
+        <title>${isAnonymous ? 'Anonymous Teaser' : 'Lead Memo'} - ${dealTitle || 'Deal'}</title>
         <style>
-          body { font-family: Arial, Helvetica, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; color: #333; line-height: 1.6; }
-          h1 { font-size: 24px; margin-bottom: 4px; }
-          h2 { font-size: 18px; margin-top: 24px; margin-bottom: 8px; color: #1a1a2e; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; }
-          .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #1a1a2e; }
-          .brand { font-size: 14px; color: #666; }
-          .memo-type { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-          .date { font-size: 12px; color: #888; }
-          .section { margin-bottom: 20px; }
-          ul { padding-left: 20px; }
+          body { font-family: Arial, Helvetica, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; color: #333; line-height: 1.6; font-size: 14px; }
+          .letterhead { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 3px solid #1a1a2e; margin-bottom: 20px; }
+          .letterhead img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; }
+          .letterhead-text { font-size: 22px; font-weight: bold; letter-spacing: 2px; color: #1a1a2e; margin: 0; }
+          .company-block { margin-bottom: 16px; padding: 14px 16px; background: #f8f9fa; border-left: 4px solid #1a1a2e; }
+          .company-block .name { font-size: 18px; font-weight: bold; color: #1a1a2e; margin: 0 0 4px 0; }
+          .company-block .detail { font-size: 13px; color: #555; margin: 0 0 2px 0; }
+          .memo-meta { text-align: center; margin-bottom: 20px; }
+          .memo-meta .type { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 4px 0; }
+          .memo-meta .date { font-size: 12px; color: #888; margin: 0; }
+          .disclaimer { text-align: center; padding: 6px 0; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; margin-bottom: 24px; }
+          .disclaimer p { font-size: 10px; color: #cc0000; font-style: italic; margin: 0; }
+          h2 { font-size: 16px; margin: 24px 0 8px 0; color: #1a1a2e; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; }
+          .section { margin-bottom: 16px; }
+          .section-content { font-size: 14px; }
+          .section-content p { margin: 0 0 8px 0; }
+          ul { padding-left: 20px; margin: 4px 0 8px 0; }
           li { margin-bottom: 4px; }
-          @media print { body { margin: 0; } }
+          table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+          th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; font-size: 13px; }
+          th { background: #f5f5f5; font-weight: bold; }
+          @media print { body { margin: 0; padding: 20px; } }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1>Lead Memo</h1>
-          <p class="brand">${brandName}</p>
-          <p class="memo-type">${isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}</p>
-          <p class="date">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <div class="letterhead">
+          <img src="${logoUrl}" alt="${brandName}" />
+          <p class="letterhead-text">${brandName.toUpperCase()}</p>
         </div>
+        ${
+          company.company_name || company.company_address || company.company_website
+            ? `
+        <div class="company-block">
+          ${company.company_name ? `<p class="name">${company.company_name}</p>` : ''}
+          ${company.company_address ? `<p class="detail">${company.company_address}</p>` : ''}
+          ${company.company_website ? `<p class="detail">${company.company_website}</p>` : ''}
+          ${company.company_phone ? `<p class="detail">${company.company_phone}</p>` : ''}
+        </div>`
+            : ''
+        }
+        <div class="memo-meta">
+          <p class="type">${isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}</p>
+          <p class="date">${dateStr}</p>
+        </div>
+        <div class="disclaimer"><p>CONFIDENTIAL — FOR INTENDED RECIPIENT ONLY</p></div>
         ${sections
+          .filter((s) => s.key !== 'header_block' && s.key !== 'contact_information')
           .map(
-            (s: { title: string; content: string }) => `
+            (s) => `
           <div class="section">
             <h2>${s.title}</h2>
-            <div>${s.content.replace(/\n/g, '<br>')}</div>
+            <div class="section-content">${s.content
+              .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\*(.+?)\*/g, '<em>$1</em>')
+              .replace(/^- (.*)/gm, '<li>$1</li>')
+              .replace(/\n\n/g, '</p><p>')
+              .replace(/\n/g, '<br>')}</div>
           </div>
         `,
           )
@@ -144,7 +191,6 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
     if (printWindow) {
       printWindow.document.write(printHtml);
       printWindow.document.close();
-      // Delay print to allow CSS to load
       setTimeout(() => printWindow.print(), 500);
     }
   };
@@ -299,6 +345,17 @@ function MemoSection({
   onSendEmail: (memo: LeadMemo) => void;
   onManualLog: (memo: LeadMemo) => void;
 }) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyAll = async (memo: LeadMemo) => {
+    const text = memoToPlainText(memo.content, memo.branding);
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedId(memo.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -309,6 +366,7 @@ function MemoSection({
           {memos.map((memo) => {
             const statusInfo = STATUS_BADGES[memo.status];
             const StatusIcon = statusInfo.icon;
+            const isCopied = copiedId === memo.id;
 
             return (
               <div key={memo.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
@@ -336,6 +394,19 @@ function MemoSection({
                   </p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyAll(memo)}
+                    title="Copy All (for AI editing)"
+                    className={isCopied ? 'text-green-600' : ''}
+                  >
+                    {isCopied ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => onEdit(memo)} title="Edit">
                     <Edit className="h-3.5 w-3.5" />
                   </Button>

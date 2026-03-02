@@ -27,6 +27,8 @@ import {
   Calendar,
   Eye,
   BookOpen,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   useDataRoomDocuments,
@@ -40,6 +42,7 @@ import {
 } from '@/hooks/admin/data-room/use-data-room';
 import { generateMemoDocx } from '@/lib/generate-memo-docx';
 import { format } from 'date-fns';
+import { extractCompanyInfo, memoToPlainText, copyToClipboard } from '@/lib/memo-utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -249,6 +252,7 @@ function MemoSlotCard({
         title?: string;
         content?: string;
       }>;
+      const company = extractCompanyInfo(draft.content as Record<string, unknown>);
       await generateMemoDocx({
         sections: rawSections.map((s, i) => ({
           key: s.key || `section-${i}`,
@@ -258,6 +262,7 @@ function MemoSlotCard({
         memoType: slotType,
         dealTitle: dealTitle || 'Deal',
         branding: 'SourceCo',
+        companyInfo: company,
       });
     } finally {
       setIsDownloadingDocx(false);
@@ -555,16 +560,12 @@ function MemoSlotCard({
 
       {/* Preview Dialog */}
       {draft && (
-        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="max-w-2xl max-h-[80vh]">
-            <DialogHeader>
-              <DialogTitle>{title} — Draft Preview</DialogTitle>
-            </DialogHeader>
-            <ScrollArea className="max-h-[60vh] pr-4">
-              <DraftPreview draft={draft} />
-            </ScrollArea>
-          </DialogContent>
-        </Dialog>
+        <PreviewDialog
+          draft={draft}
+          title={title}
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+        />
       )}
 
       {/* Remove Confirmation Dialog */}
@@ -591,10 +592,82 @@ function MemoSlotCard({
   );
 }
 
+// ─── Preview Dialog with Copy All ───
+
+function PreviewDialog({
+  draft,
+  title,
+  open,
+  onOpenChange,
+}: {
+  draft: LeadMemo;
+  title: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyAll = async () => {
+    const text = memoToPlainText(draft.content, draft.branding);
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogHeader>
+          <div className="flex items-center justify-between">
+            <DialogTitle>{title} — Draft Preview</DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyAll}
+              className={copied ? 'text-green-600 border-green-300' : ''}
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Copy All
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogHeader>
+        <ScrollArea className="max-h-[60vh] pr-4">
+          <DraftPreview draft={draft} />
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Draft Preview Component ───
 
 function DraftPreview({ draft }: { draft: LeadMemo }) {
-  const sections = draft.content?.sections;
+  const sections = (
+    draft.content as {
+      sections?: Array<{
+        key?: string;
+        title?: string;
+        heading?: string;
+        content?: string;
+        body?: string;
+        bullets?: string[];
+      }>;
+    }
+  )?.sections;
+  const company = extractCompanyInfo(draft.content);
+  const isAnonymous = draft.memo_type === 'anonymous_teaser';
+  const logoUrl = '/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png';
 
   if (!sections || !Array.isArray(sections)) {
     return (
@@ -604,21 +677,67 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
 
   return (
     <div className="space-y-4">
-      {sections.map((section: { heading?: string; body?: string; bullets?: string[] }) => (
-        <div key={section.heading || section.body?.slice(0, 40)}>
-          {section.heading && <h3 className="text-sm font-semibold mb-1">{section.heading}</h3>}
-          {section.body && (
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{section.body}</p>
+      {/* Letterhead */}
+      <div className="flex items-center gap-3 pb-3 border-b-2 border-[#1a1a2e]">
+        <img src={logoUrl} alt="SourceCo" className="w-10 h-10 rounded-full object-cover" />
+        <span className="text-lg font-bold tracking-widest text-[#1a1a2e]">SOURCECO</span>
+      </div>
+
+      {/* Company info block */}
+      {(company.company_name || company.company_address || company.company_website) && (
+        <div className="pl-3 border-l-4 border-[#1a1a2e] bg-muted/30 py-2 px-3">
+          {company.company_name && (
+            <p className="font-bold text-sm text-[#1a1a2e]">{company.company_name}</p>
           )}
-          {section.bullets && Array.isArray(section.bullets) && (
-            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5 mt-1">
-              {section.bullets.map((bullet: string) => (
-                <li key={bullet}>{bullet}</li>
-              ))}
-            </ul>
+          {company.company_address && (
+            <p className="text-xs text-muted-foreground">{company.company_address}</p>
+          )}
+          {company.company_website && (
+            <p className="text-xs text-muted-foreground">{company.company_website}</p>
+          )}
+          {company.company_phone && (
+            <p className="text-xs text-muted-foreground">{company.company_phone}</p>
           )}
         </div>
-      ))}
+      )}
+
+      {/* Memo type */}
+      <div className="text-center">
+        <p className="text-xs text-muted-foreground uppercase tracking-widest">
+          {isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}
+        </p>
+      </div>
+
+      <Separator />
+
+      {/* Sections as continuous document */}
+      {sections
+        .filter((s) => s.key !== 'header_block' && s.key !== 'contact_information')
+        .map((section) => {
+          const sectionTitle = section.title || section.heading || '';
+          const sectionContent = section.content || section.body || '';
+          return (
+            <div key={sectionTitle || sectionContent?.slice(0, 40)}>
+              {sectionTitle && (
+                <h3 className="text-sm font-semibold mb-1 text-[#1a1a2e] border-b border-muted pb-1">
+                  {sectionTitle}
+                </h3>
+              )}
+              {sectionContent && (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {sectionContent}
+                </p>
+              )}
+              {section.bullets && Array.isArray(section.bullets) && (
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-0.5 mt-1">
+                  {section.bullets.map((bullet: string) => (
+                    <li key={bullet}>{bullet}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
     </div>
   );
 }
