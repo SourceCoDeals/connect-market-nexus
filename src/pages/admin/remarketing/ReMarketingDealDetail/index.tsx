@@ -7,8 +7,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Building2, Eye, Activity, UserPlus, FolderOpen } from 'lucide-react';
-import { CreateTaskButton } from '@/components/daily-tasks';
+import { Building2, Eye, Activity, UserPlus, FolderOpen, ListChecks } from 'lucide-react';
+import { CreateTaskButton, EntityTasksTab } from '@/components/daily-tasks';
 import { useDealDetail } from './useDealDetail';
 import { CapTargetInfoCard } from './CapTargetInfoCard';
 import { SalesforceInfoCard } from './SalesforceInfoCard';
@@ -120,7 +120,7 @@ const ReMarketingDealDetail = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
@@ -131,7 +131,11 @@ const ReMarketingDealDetail = () => {
           </TabsTrigger>
           <TabsTrigger value="buyer-introductions" className="text-sm">
             <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-            Buyer Introduction History
+            Buyer Introductions
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="text-sm">
+            <ListChecks className="mr-1.5 h-3.5 w-3.5" />
+            Tasks
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -179,6 +183,15 @@ const ReMarketingDealDetail = () => {
           <RecommendedBuyersPanel listingId={dealId!} />
           <DealBuyerHistoryTab listingId={dealId!} listingTitle={displayName} />
           <BuyerIntroductionTracker listingId={dealId!} listingTitle={displayName} />
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-6">
+          <EntityTasksTab
+            entityType="deal"
+            entityId={dealId!}
+            entityName={displayName}
+            dealId={dealId!}
+          />
         </TabsContent>
 
         <TabsContent value="data-room" className="space-y-6">

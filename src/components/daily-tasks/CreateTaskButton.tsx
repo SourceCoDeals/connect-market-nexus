@@ -108,6 +108,7 @@ export function CreateTaskButton({
         entity_type: entityType,
         entity_id: entityId,
         deal_id: dealId || (entityType === 'deal' ? entityId : null),
+        deal_reference: entityName || null,
       });
 
       toast({ title: 'Task created', description: title.trim() });
