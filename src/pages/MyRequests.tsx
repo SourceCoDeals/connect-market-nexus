@@ -125,6 +125,7 @@ const MyRequests = () => {
   const { data: unreadMsgCounts } = useUnreadBuyerMessageCounts();
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
   const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
+  useAgreementStatusSync();
   const [sortBy, setSortBy] = useState<'recent' | 'action' | 'status'>('recent');
 
   /** Get the active inner tab for a specific deal (defaults to "overview") */
