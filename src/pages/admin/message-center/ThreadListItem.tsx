@@ -6,10 +6,44 @@ import {
   Building2,
   FileText,
   UserCheck,
+  Shield,
+  FileSignature,
+  Check,
+  Send,
+  Eye,
+  AlertCircle,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { InboxThread } from "./types";
+import type { AgreementDisplayStatus } from "@/lib/agreement-status";
+
+// ─── Agreement badge helper ───
+
+const AGREEMENT_BADGE: Record<AgreementDisplayStatus | string, { bg: string; color: string; icon: typeof Check }> = {
+  signed: { bg: '#DCFCE7', color: '#166534', icon: Check },
+  declined: { bg: '#FEE2E2', color: '#991B1B', icon: AlertCircle },
+  expired: { bg: '#FEE2E2', color: '#991B1B', icon: AlertCircle },
+  viewed: { bg: '#FEF3C7', color: '#92400E', icon: Eye },
+  sent: { bg: '#DBEAFE', color: '#1E40AF', icon: Send },
+  pending: { bg: '#DBEAFE', color: '#1E40AF', icon: Clock },
+  not_sent: { bg: '#F3F4F6', color: '#6B7280', icon: Clock },
+};
+
+function AgreementMicroBadge({ type, status }: { type: 'NDA' | 'Fee'; status: string | null }) {
+  if (!status) return null;
+  const config = AGREEMENT_BADGE[status] || AGREEMENT_BADGE.not_sent;
+  const Icon = config.icon;
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 px-1 py-0 rounded text-[9px] font-semibold"
+      style={{ backgroundColor: config.bg, color: config.color }}
+    >
+      <Icon className="w-2 h-2" />
+      {type}
+    </span>
+  );
+}
 
 // ─── Props ───
 
@@ -87,8 +121,8 @@ export function ThreadListItem({
             )}
           </div>
 
-          {/* Row 3: Request status + pipeline badge */}
-          <div className="flex items-center gap-1.5 mt-0.5">
+          {/* Row 3: Request status + pipeline + agreement badges */}
+          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
               style={
                 thread.request_status === 'approved' ? { backgroundColor: '#DEC76B', color: '#0E101A' } :
@@ -102,7 +136,7 @@ export function ThreadListItem({
             {thread.pipeline_deal_id && (
               <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
                 style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}>
-                In Pipeline
+                Pipeline
               </span>
             )}
             {thread.claimed_by && (
@@ -112,6 +146,9 @@ export function ThreadListItem({
                 Claimed
               </span>
             )}
+            {/* Agreement status badges */}
+            <AgreementMicroBadge type="NDA" status={thread.nda_status} />
+            <AgreementMicroBadge type="Fee" status={thread.fee_status} />
           </div>
 
           {/* Row 4: Last message preview */}

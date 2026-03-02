@@ -35,7 +35,7 @@ function useInboxThreads() {
           `
           id, status, user_id, listing_id, user_message, created_at,
           conversation_state, last_message_at, last_message_preview, last_message_sender_role,
-          claimed_by,
+          claimed_by, firm_id,
           user:profiles!connection_requests_user_id_profiles_fkey(first_name, last_name, email, company, buyer_type),
           listing:listings!connection_requests_listing_id_fkey(title)
         `,
@@ -82,11 +82,65 @@ function useInboxThreads() {
         if (d.connection_request_id) dealMap[d.connection_request_id] = d.id;
       });
 
+      // Fetch firm agreement statuses for all unique user IDs
+      const uniqueUserIds = [...new Set(requests.map(r => r.user_id as string).filter(Boolean))];
+      const firmStatusMap: Record<string, { nda_status: string | null; fee_status: string | null; firm_name: string | null }> = {};
+
+      if (uniqueUserIds.length > 0) {
+        // Get firm memberships
+        const { data: memberships } = await supabase
+          .from('firm_members')
+          .select('user_id, firm_id')
+          .in('user_id', uniqueUserIds);
+
+        const userFirmMap: Record<string, string> = {};
+        (memberships || []).forEach((m: { user_id: string; firm_id: string }) => {
+          userFirmMap[m.user_id] = m.firm_id;
+        });
+
+        // Also check firm_id from connection_requests
+        requests.forEach((req) => {
+          const userId = req.user_id as string;
+          const firmId = req.firm_id as string;
+          if (userId && firmId && !userFirmMap[userId]) {
+            userFirmMap[userId] = firmId;
+          }
+        });
+
+        const firmIds = [...new Set(Object.values(userFirmMap).filter(Boolean))];
+        if (firmIds.length > 0) {
+          const { data: firms } = await supabase
+            .from('firm_agreements')
+            .select('id, primary_company_name, nda_signed, nda_docuseal_status, fee_agreement_signed, fee_docuseal_status')
+            .in('id', firmIds);
+
+          const firmDataMap: Record<string, Record<string, unknown>> = {};
+          (firms || []).forEach((f: Record<string, unknown>) => {
+            firmDataMap[f.id as string] = f;
+          });
+
+          // Map user IDs to their firm status
+          Object.entries(userFirmMap).forEach(([userId, firmId]) => {
+            const firm = firmDataMap[firmId];
+            if (firm) {
+              const { resolveAgreementStatus } = require('@/lib/agreement-status');
+              firmStatusMap[userId] = {
+                nda_status: resolveAgreementStatus(!!firm.nda_signed, firm.nda_docuseal_status as string | null),
+                fee_status: resolveAgreementStatus(!!firm.fee_agreement_signed, firm.fee_docuseal_status as string | null),
+                firm_name: (firm.primary_company_name as string) || null,
+              };
+            }
+          });
+        }
+      }
+
       const threads: InboxThread[] = requests.map((req) => {
         const user = req.user;
+        const userId = req.user_id as string;
+        const firmInfo = firmStatusMap[userId] || { nda_status: null, fee_status: null, firm_name: null };
         return {
           connection_request_id: req.id,
-          user_id: (req.user_id as string) || null,
+          user_id: userId || null,
           buyer_name: user
             ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown'
             : 'Unknown',
@@ -106,6 +160,9 @@ function useInboxThreads() {
           user_message: req.user_message as string,
           created_at: req.created_at as string,
           pipeline_deal_id: dealMap[req.id] || null,
+          nda_status: firmInfo.nda_status,
+          fee_status: firmInfo.fee_status,
+          firm_name: firmInfo.firm_name,
         };
       });
 
