@@ -20,7 +20,6 @@ import {
   DealContactHistoryTab,
   DealBuyerHistoryTab,
   BuyerIntroductionTracker,
-  RecommendedBuyersPanel,
 } from '@/components/remarketing/deal-detail';
 import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNotesLog';
 
@@ -180,7 +179,6 @@ const ReMarketingDealDetail = () => {
         </TabsContent>
 
         <TabsContent value="buyer-introductions" className="space-y-6">
-          <RecommendedBuyersPanel listingId={dealId!} />
           <DealBuyerHistoryTab listingId={dealId!} listingTitle={displayName} />
           <BuyerIntroductionTracker listingId={dealId!} listingTitle={displayName} />
         </TabsContent>
