@@ -38,7 +38,7 @@ export function useAgreementStatusSync() {
  */
 export function invalidateAgreementQueries(
   queryClient: ReturnType<typeof useQueryClient>,
-  userId?: string,
+  _userId?: string,
 ) {
   const keys = [
     ['buyer-firm-agreement-status'],

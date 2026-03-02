@@ -16,6 +16,8 @@ import {
   Info,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { invalidateAgreementQueries } from '@/hooks/use-agreement-status-sync';
 
 interface AgreementSigningModalProps {
   open: boolean;
@@ -23,11 +25,6 @@ interface AgreementSigningModalProps {
   documentType: 'nda' | 'fee_agreement';
 }
 
-/**
- * Modal for buyers to sign NDA or Fee Agreement in-app.
- * Fetches embed_src from the appropriate edge function and renders DocuSealSigningPanel.
- * After signing, calls confirm-agreement-signed to immediately update the DB.
- */
 export function AgreementSigningModal({
   open,
   onOpenChange,
@@ -41,6 +38,7 @@ export function AgreementSigningModal({
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const ZOOM_STEP = 0.15;
@@ -82,6 +80,7 @@ export function AgreementSigningModal({
           setError('Your account hasn\'t been set up for signing yet. Please contact our team via Messages.');
         } else if (alreadySigned) {
           toast({ title: 'Already Signed', description: `Your ${docLabel} has already been signed.` });
+          invalidateAgreementQueries(queryClient, user?.id);
           onOpenChange(false);
         } else if (data?.embedSrc) {
           setEmbedSrc(data.embedSrc);
@@ -101,35 +100,37 @@ export function AgreementSigningModal({
     };
   }, [open, documentType]);
 
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
-    queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
-    queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
-    queryClient.invalidateQueries({ queryKey: ['buyer-firm-agreement-status'] });
-    queryClient.invalidateQueries({ queryKey: ['agreement-pending-notifications'] });
-    queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
-  };
-
   const handleSigned = async () => {
-    toast({
-      title: `${docLabel} Signed!`,
-      description: 'Thank you for signing. Your access has been updated.',
-    });
-
-    // Immediately confirm with backend — updates DB, creates notifications & messages
-    // This ensures the DB is updated before the webhook arrives
+    // Call confirm-agreement-signed and evaluate response
     try {
-      await supabase.functions.invoke('confirm-agreement-signed', {
+      const { data } = await supabase.functions.invoke('confirm-agreement-signed', {
         body: { documentType },
       });
+
+      if (data?.confirmed || data?.alreadySigned) {
+        toast({
+          title: `${docLabel} Signed!`,
+          description: 'Thank you for signing. Your access has been updated.',
+        });
+      } else {
+        // Not yet confirmed — show processing toast, staggered invalidation will catch up
+        toast({
+          title: 'Processing Signature…',
+          description: 'Your signature is being processed. Status will update shortly.',
+        });
+      }
     } catch (err) {
       console.warn('confirm-agreement-signed call failed (webhook will handle):', err);
+      toast({
+        title: `${docLabel} Signed!`,
+        description: 'Thank you for signing. Your access will update shortly.',
+      });
     }
 
-    // Invalidate immediately, then again after delays to catch any remaining updates
-    invalidateAll();
+    // Staggered invalidation of all agreement-related queries
+    invalidateAgreementQueries(queryClient, user?.id);
 
-    // Auto-close after brief delay so user sees success state
+    // Auto-close after brief delay
     const timer = setTimeout(() => onOpenChange(false), 2000);
     return () => clearTimeout(timer);
   };
@@ -198,7 +199,6 @@ export function AgreementSigningModal({
 
         {embedSrc && (
           <>
-            {/* Redline / feedback guidance banner */}
             {!bannerDismissed && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3 shrink-0">
                 <Info className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
@@ -237,7 +237,6 @@ export function AgreementSigningModal({
               </div>
             )}
 
-            {/* Toolbar: zoom controls + download + message */}
             <div className="flex items-center justify-between border border-border rounded-lg px-3 py-1.5 bg-muted/50 shrink-0">
               <Button
                 variant="ghost"
