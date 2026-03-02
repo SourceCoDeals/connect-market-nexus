@@ -19,7 +19,6 @@ import {
   Zap,
   Star,
   HelpCircle,
-  Building2,
   MapPin,
   FileCheck,
   Sparkles,
@@ -36,7 +35,7 @@ interface RecommendedBuyersPanelProps {
   listingId: string;
 }
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 const TIER_CONFIG: Record<BuyerScore['tier'], { label: string; color: string; icon: typeof Zap }> = {
   move_now: { label: 'Move Now', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: Zap },
@@ -106,110 +105,90 @@ function BuyerCard({
   const sourceBadge = SOURCE_BADGE[buyer.source] || SOURCE_BADGE.scored;
 
   return (
-    <div className="border rounded-lg p-4 space-y-3 hover:border-primary/30 transition-colors">
-      <div className="flex items-start justify-between gap-3">
-        {/* Left zone */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-            <Link to={`/admin/buyers/${buyer.buyer_id}`}>
-              <span className="font-semibold text-sm text-blue-700 hover:underline truncate">
-                {buyer.company_name}
-              </span>
-            </Link>
-          </div>
+    <div className="flex items-center gap-3 border rounded-md px-3 py-2 hover:border-primary/30 transition-colors">
+      {/* Score */}
+      <Badge variant="secondary" className="text-xs font-mono shrink-0 w-8 justify-center">
+        {buyer.composite_score}
+      </Badge>
+
+      {/* Tier */}
+      <Badge variant="outline" className={cn('text-[10px] shrink-0', tier.color)}>
+        <TierIcon className="h-3 w-3 mr-0.5" />
+        {tier.label}
+      </Badge>
+
+      {/* Company info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <Link to={`/admin/buyers/${buyer.buyer_id}`}>
+            <span className="font-medium text-sm text-blue-700 hover:underline truncate">
+              {buyer.company_name}
+            </span>
+          </Link>
           {buyer.pe_firm_name && (
-            <div className="mt-0.5 ml-6">
+            <>
+              <span className="text-muted-foreground text-xs">/</span>
               {buyer.pe_firm_id ? (
                 <Link to={`/admin/buyers/pe-firms/${buyer.pe_firm_id}`}>
-                  <span className="text-xs text-muted-foreground hover:underline">
+                  <span className="text-xs text-muted-foreground hover:underline truncate">
                     {buyer.pe_firm_name}
                   </span>
                 </Link>
               ) : (
-                <span className="text-xs text-muted-foreground">{buyer.pe_firm_name}</span>
+                <span className="text-xs text-muted-foreground truncate">{buyer.pe_firm_name}</span>
               )}
-            </div>
+            </>
           )}
-          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 ml-6">
-            {buyer.buyer_type && (
-              <span>{formatBuyerType(buyer.buyer_type)}</span>
-            )}
-            {buyer.hq_state && (
-              <span className="flex items-center gap-0.5">
-                <MapPin className="h-3 w-3" />
-                {buyer.hq_city ? `${buyer.hq_city}, ${buyer.hq_state}` : buyer.hq_state}
-              </span>
-            )}
-            {buyer.has_fee_agreement && (
-              <span className="flex items-center gap-0.5 text-green-600">
-                <FileCheck className="h-3 w-3" />
-                Fee Agreement
-              </span>
-            )}
-          </div>
         </div>
-
-        {/* Right zone */}
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className={cn('text-xs', tier.color)}>
-              <TierIcon className="h-3 w-3 mr-1" />
-              {tier.label}
-            </Badge>
-            <Badge variant="secondary" className="text-xs font-mono">
-              {buyer.composite_score}
-            </Badge>
-          </div>
-          <Badge variant="outline" className={cn('text-[10px]', sourceBadge.color)}>
-            {sourceBadge.label}
-          </Badge>
-          <div className="flex items-center gap-1 mt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs text-green-700 border-green-200 hover:bg-green-50"
-              onClick={() => onAccept(buyer)}
-              disabled={isAccepting}
-            >
-              <CheckCircle className="h-3 w-3 mr-1" />
-              {isAccepting ? 'Adding...' : 'Accept'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs text-red-700 border-red-200 hover:bg-red-50"
-              onClick={() => onReject(buyer)}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Reject
-            </Button>
-          </div>
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          {buyer.buyer_type && <span>{formatBuyerType(buyer.buyer_type)}</span>}
+          {buyer.hq_state && (
+            <span className="flex items-center gap-0.5">
+              <MapPin className="h-2.5 w-2.5" />
+              {buyer.hq_city ? `${buyer.hq_city}, ${buyer.hq_state}` : buyer.hq_state}
+            </span>
+          )}
+          {buyer.has_fee_agreement && (
+            <span className="flex items-center gap-0.5 text-green-600">
+              <FileCheck className="h-2.5 w-2.5" />
+              Fee
+            </span>
+          )}
+          {buyer.fit_signals.length > 0 && (
+            <span className="text-muted-foreground/70 truncate">
+              {buyer.fit_signals.slice(0, 2).join(' · ')}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Fit reason paragraph */}
-      {buyer.fit_reason && (
-        <p className="text-sm italic text-muted-foreground ml-6">
-          {buyer.fit_reason}
-        </p>
-      )}
+      {/* Source */}
+      <Badge variant="outline" className={cn('text-[10px] shrink-0', sourceBadge.color)}>
+        {sourceBadge.label}
+      </Badge>
 
-      {/* Signal tags — max 3 */}
-      {buyer.fit_signals.length > 0 && (
-        <div className="flex flex-wrap gap-1 ml-6">
-          {buyer.fit_signals.slice(0, 3).map((signal, i) => (
-            <Badge key={i} variant="outline" className="text-[10px] font-normal">
-              {signal}
-            </Badge>
-          ))}
-          {buyer.fit_signals.length > 3 && (
-            <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-              +{buyer.fit_signals.length - 3} more
-            </Badge>
-          )}
-        </div>
-      )}
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-green-700 hover:bg-green-50 hover:text-green-800"
+          onClick={() => onAccept(buyer)}
+          disabled={isAccepting}
+          title="Accept"
+        >
+          <CheckCircle className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700"
+          onClick={() => onReject(buyer)}
+          title="Reject"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -451,7 +430,7 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-1">
             {paginatedBuyers.map(buyer => (
               <BuyerCard
                 key={buyer.buyer_id}
