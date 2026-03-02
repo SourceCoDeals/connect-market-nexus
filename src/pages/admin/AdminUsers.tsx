@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, type ErrorInfo, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
-import { AlertCircle, RefreshCw, Building2, Loader2, Phone, XCircle, ThumbsDown } from "lucide-react";
+import { AlertCircle, RefreshCw, Building2, Loader2, Phone, XCircle, ThumbsDown, Users } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { User } from "@/types";
