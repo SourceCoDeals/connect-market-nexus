@@ -112,9 +112,9 @@ export function MessageInput({
           className="hidden"
         />
 
-        {/* Reference picker button -- mobile only (desktop uses ReferencePanel) */}
+        {/* Reference picker button */}
         {showPicker && (
-          <div className="md:hidden">
+          <div>
             <ReferencePicker
               threads={threads}
               documents={documents}
