@@ -3,14 +3,14 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { Json } from '@/integrations/supabase/types';
 
 function getFunctionsBaseUrl(): string {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const resolvedUrl = supabaseUrl || (projectId ? `https://${projectId}.supabase.co` : '');
+  const resolvedUrl = supabaseUrl || (projectId ? `https://${projectId}.supabase.co` : '') || SUPABASE_URL;
 
   if (!resolvedUrl) {
     throw new Error('Supabase URL is not configured');
