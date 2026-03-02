@@ -222,13 +222,14 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+    // Use persistSession:false for server-side Deno context (no browser storage)
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: `Bearer ${callerToken}` } },
+      auth: { autoRefreshToken: false, persistSession: false },
     });
     const {
       data: { user: callerUser },
       error: callerError,
-    } = await callerClient.auth.getUser();
+    } = await callerClient.auth.getUser(callerToken);
     if (callerError || !callerUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -236,9 +237,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: callerUser.id });
-    if (!isAdmin) {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: isAdmin, error: adminCheckError } = await supabase.rpc('is_admin', { user_id: callerUser.id });
+    if (adminCheckError) {
+      console.error('is_admin RPC error:', adminCheckError.message);
+    }
+    if (adminCheckError || !isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden: admin access required' }), {
         status: 403,
         headers: { ...headers, 'Content-Type': 'application/json' },
