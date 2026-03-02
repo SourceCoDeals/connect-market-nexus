@@ -34,7 +34,8 @@ import {
   Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ScoreBadge, ScoreTierBadge, OutreachTimeline } from '@/components/remarketing';
+import { ScoreBadge } from '@/components/shared/ScoreBadge';
+import { OutreachTimeline } from '@/components/remarketing';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ScoreTier } from '@/types/remarketing';
 import { format } from 'date-fns';
@@ -375,7 +376,7 @@ const ReMarketingIntroductions = () => {
                                   {intro.buyer?.company_name}
                                 </Link>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                  <ScoreTierBadge tier={tier} size="sm" showLabel={false} />
+                                  <ScoreBadge variant="tier" tier={tier} size="sm" showLabel={false} />
                                   <span className="text-xs text-muted-foreground">
                                     {intro.buyer?.buyer_type?.replace('_', ' ')}
                                   </span>
@@ -396,7 +397,7 @@ const ReMarketingIntroductions = () => {
                         </Collapsible>
                       </TableCell>
                       <TableCell className="text-center">
-                        <ScoreBadge score={intro.composite_score || 0} size="sm" />
+                        <ScoreBadge variant="numeric" score={intro.composite_score || 0} size="sm" />
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex flex-col items-center gap-1">

@@ -1,6 +1,5 @@
-// Scoring Components
-export { ScoreBadge } from './ScoreBadge';
-export { ScoreTierBadge, getTierFromScore } from './ScoreTierBadge';
+// Scoring Components (unified)
+export { ScoreBadge, getTierFromScore } from '@/components/shared/ScoreBadge';
 export { ScoreBreakdown } from './ScoreBreakdown';
 export { AIReasoningPanel } from './AIReasoningPanel';
 export { PassReasonDialog } from './PassReasonDialog';

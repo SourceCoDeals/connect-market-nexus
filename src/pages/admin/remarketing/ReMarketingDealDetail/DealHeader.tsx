@@ -14,7 +14,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Link } from "react-router-dom";
-import { ScoreTierBadge, DealSourceBadge } from "@/components/remarketing";
+import { ScoreBadge } from "@/components/shared/ScoreBadge";
+import { DealSourceBadge } from "@/components/remarketing";
 import type { ScoreTier } from "@/types/remarketing";
 
 interface DealHeaderDeal {
@@ -177,7 +178,7 @@ export function DealHeader({
         ) : null}
       </div>
       <div className="flex items-center gap-2">
-        {tier && <ScoreTierBadge tier={tier as ScoreTier} size="lg" />}
+        {tier && <ScoreBadge variant="tier" tier={tier as ScoreTier} size="lg" />}
       </div>
     </div>
   );

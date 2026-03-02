@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { formatDistanceToNow } from 'date-fns';
-import { DealScoreBadge } from '@/components/admin/DealScoreBadge';
+import { ScoreBadge } from '@/components/shared/ScoreBadge';
 
 interface PipelineListViewProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -120,7 +120,7 @@ export function PipelineListView({ pipeline }: PipelineListViewProps) {
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <h3 className="font-semibold text-sm truncate">{deal.title}</h3>
                         {deal.deal_score != null && (
-                          <DealScoreBadge score={deal.deal_score} size="sm" />
+                          <ScoreBadge variant="deal" score={deal.deal_score} size="sm" />
                         )}
                       </div>
                       <div className="flex items-center gap-2">
