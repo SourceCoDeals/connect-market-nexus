@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -286,7 +286,7 @@ function SeedResultsSummary({ results }: { results: SeedBuyerResult[] }) {
 export function RecommendedBuyersPanel({ listingId, listingTitle }: RecommendedBuyersPanelProps) {
   const { data, isLoading, isError, error, refresh } = useNewRecommendedBuyers(listingId);
   const seedMutation = useSeedBuyers();
-  const { createIntroduction } = useBuyerIntroductions(listingId);
+  const { introductions, createIntroduction } = useBuyerIntroductions(listingId);
   const [refreshing, setRefreshing] = useState(false);
   const [seedResults, setSeedResults] = useState<SeedBuyerResult[] | null>(null);
   const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
@@ -413,9 +413,22 @@ export function RecommendedBuyersPanel({ listingId, listingTitle }: RecommendedB
     );
   }
 
+  // Build a set of buyer IDs that already have introductions (persisted in DB).
+  // This ensures accepted buyers stay hidden even after refresh or new AI searches.
+  const introducedBuyerIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const intro of introductions) {
+      if (intro.contact_id) ids.add(intro.contact_id);
+    }
+    return ids;
+  }, [introductions]);
+
   const allBuyers = data?.buyers || [];
   const available = allBuyers.filter(
-    (b) => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id),
+    (b) =>
+      !acceptedIds.has(b.buyer_id) &&
+      !rejectedIds.has(b.buyer_id) &&
+      !introducedBuyerIds.has(b.buyer_id),
   );
   const allInternal = available.filter(isInternal);
   const allExternal = available.filter((b) => !isInternal(b));
