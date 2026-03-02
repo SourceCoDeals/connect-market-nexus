@@ -4,7 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, ArrowLeft, Loader2 } from 'lucide-react';
 import { useConnectionMessages } from '@/hooks/use-connection-messages';
 import { useAuth } from '@/context/AuthContext';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
