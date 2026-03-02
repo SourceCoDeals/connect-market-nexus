@@ -9,7 +9,7 @@
  * Q31-35: LinkedIn profile identification & contact enrichment
  */
 
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +54,8 @@ interface QuestionResult {
 }
 
 // ---------- Helpers ----------
+
+const THIRTY_Q_STORAGE_KEY = 'sourceco-30q-test-results';
 
 const GRADE_COLORS: Record<string, string> = {
   A: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
@@ -200,7 +202,28 @@ export default function ThirtyQuestionTest() {
         durationMs: 0,
       })),
     );
+    try {
+      localStorage.removeItem(THIRTY_Q_STORAGE_KEY);
+      localStorage.removeItem(THIRTY_Q_STORAGE_KEY + '-ts');
+    } catch {
+      /* ignore */
+    }
   }, []);
+
+  // Persist results to localStorage when a run finishes
+  const prevRunStatus = useRef<RunStatus>('idle');
+  useEffect(() => {
+    const wasRunning = prevRunStatus.current === 'running';
+    prevRunStatus.current = runStatus;
+    if (wasRunning && (runStatus === 'done' || runStatus === 'cancelled')) {
+      try {
+        localStorage.setItem(THIRTY_Q_STORAGE_KEY, JSON.stringify(results));
+        localStorage.setItem(THIRTY_Q_STORAGE_KEY + '-ts', new Date().toISOString());
+      } catch {
+        /* ignore storage errors */
+      }
+    }
+  }, [runStatus, results]);
 
   // ---------- Stats ----------
 
@@ -211,23 +234,29 @@ export default function ThirtyQuestionTest() {
     completed.length > 0
       ? Math.round(completed.reduce((s, r) => s + r.durationMs, 0) / completed.length)
       : 0;
-  const successRate = completed.length > 0 ? Math.round((passed.length / completed.length) * 100) : 0;
+  const successRate =
+    completed.length > 0 ? Math.round((passed.length / completed.length) * 100) : 0;
   const progress = Math.round((completed.length / THIRTY_Q_SUITE.length) * 100);
 
   // Route accuracy
   const routeMatches = completed.filter(
-    (r) => r.routeCategory && r.question.expectedRoute && r.routeCategory === r.question.expectedRoute,
+    (r) =>
+      r.routeCategory && r.question.expectedRoute && r.routeCategory === r.question.expectedRoute,
   );
-  const routeAccuracy = completed.length > 0 ? Math.round((routeMatches.length / completed.length) * 100) : 0;
+  const routeAccuracy =
+    completed.length > 0 ? Math.round((routeMatches.length / completed.length) * 100) : 0;
 
   // Quality score (average of all scored results)
   const scoredResults = completed.filter((r) => r.score);
   const avgScore = useMemo(() => {
     if (scoredResults.length === 0) return 0;
-    return Math.round(scoredResults.reduce((s, r) => s + (r.score?.total ?? 0), 0) / scoredResults.length);
+    return Math.round(
+      scoredResults.reduce((s, r) => s + (r.score?.total ?? 0), 0) / scoredResults.length,
+    );
   }, [scoredResults]);
 
-  const overallGrade = avgScore >= 90 ? 'A' : avgScore >= 75 ? 'B' : avgScore >= 60 ? 'C' : avgScore >= 40 ? 'D' : 'F';
+  const overallGrade =
+    avgScore >= 90 ? 'A' : avgScore >= 75 ? 'B' : avgScore >= 60 ? 'C' : avgScore >= 40 ? 'D' : 'F';
   const overallLabel = PE_GRADE_LABELS[overallGrade];
 
   // Per-category scores
@@ -262,7 +291,11 @@ export default function ThirtyQuestionTest() {
       grade_label: r.score?.gradeLabel ?? '',
       checks_passed: r.score ? r.score.checks.filter((c) => c.passed).length : '',
       checks_total: r.score ? r.score.checks.length : '',
-      check_details: r.score ? r.score.checks.map((c) => `${c.passed ? 'PASS' : 'FAIL'}: ${c.name} — ${c.detail || ''}`).join(' | ') : '',
+      check_details: r.score
+        ? r.score.checks
+            .map((c) => `${c.passed ? 'PASS' : 'FAIL'}: ${c.name} — ${c.detail || ''}`)
+            .join(' | ')
+        : '',
       tools_used: r.tools.join(', '),
       duration_ms: r.durationMs,
       actual_response: r.actualResponse.substring(0, 500),
@@ -279,7 +312,9 @@ export default function ThirtyQuestionTest() {
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{completed.length}/{THIRTY_Q_SUITE.length}</div>
+            <div className="text-2xl font-bold">
+              {completed.length}/{THIRTY_Q_SUITE.length}
+            </div>
             <p className="text-xs text-muted-foreground">Questions Completed</p>
             <Progress value={progress} className="mt-2 h-2" />
           </CardContent>
@@ -288,16 +323,22 @@ export default function ThirtyQuestionTest() {
           <CardContent className="pt-6">
             <div className="text-2xl font-bold text-primary">{successRate}%</div>
             <p className="text-xs text-muted-foreground">Success Rate</p>
-            <p className="text-xs text-muted-foreground mt-1">{passed.length} pass / {failed.length} fail</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {passed.length} pass / {failed.length} fail
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className={`text-2xl font-bold ${routeAccuracy >= 80 ? 'text-green-600' : routeAccuracy >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+            <div
+              className={`text-2xl font-bold ${routeAccuracy >= 80 ? 'text-green-600' : routeAccuracy >= 50 ? 'text-yellow-600' : 'text-red-600'}`}
+            >
               {routeAccuracy}%
             </div>
             <p className="text-xs text-muted-foreground">Route Accuracy</p>
-            <p className="text-xs text-muted-foreground mt-1">{routeMatches.length}/{completed.length} correct</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {routeMatches.length}/{completed.length} correct
+            </p>
           </CardContent>
         </Card>
         {/* PE Partner Score card */}
@@ -305,10 +346,14 @@ export default function ThirtyQuestionTest() {
           <CardContent className="pt-6">
             <div className="flex items-baseline gap-2">
               <span className={`text-2xl font-bold ${scoreColor(avgScore)}`}>{avgScore}</span>
-              <Badge className={`text-xs ${GRADE_COLORS[overallGrade] || ''}`}>{overallGrade}</Badge>
+              <Badge className={`text-xs ${GRADE_COLORS[overallGrade] || ''}`}>
+                {overallGrade}
+              </Badge>
             </div>
             <p className="text-xs text-muted-foreground">Partner Score</p>
-            <p className="text-xs text-muted-foreground mt-1">{overallLabel} — {scoredResults.length} scored</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {overallLabel} — {scoredResults.length} scored
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -329,7 +374,12 @@ export default function ThirtyQuestionTest() {
                     <Button variant="outline" size="sm" onClick={resetAll} className="gap-1 flex-1">
                       <RotateCcw className="h-3 w-3" /> Reset
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleExport} className="gap-1 flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExport}
+                      className="gap-1 flex-1"
+                    >
                       <Download className="h-3 w-3" /> CSV
                     </Button>
                   </div>
@@ -353,9 +403,14 @@ export default function ThirtyQuestionTest() {
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {categoryScores.map(({ category, avg, count }) => {
-                const g = avg >= 90 ? 'A' : avg >= 75 ? 'B' : avg >= 60 ? 'C' : avg >= 40 ? 'D' : 'F';
+                const g =
+                  avg >= 90 ? 'A' : avg >= 75 ? 'B' : avg >= 60 ? 'C' : avg >= 40 ? 'D' : 'F';
                 return (
-                  <Badge key={category} variant="secondary" className={`text-xs gap-1 ${GRADE_COLORS[g]}`}>
+                  <Badge
+                    key={category}
+                    variant="secondary"
+                    className={`text-xs gap-1 ${GRADE_COLORS[g]}`}
+                  >
                     {category}: {avg}
                     <span className="opacity-60">({count}q)</span>
                   </Badge>
@@ -388,7 +443,16 @@ export default function ThirtyQuestionTest() {
 // ---------- Result row ----------
 
 function ResultRow({ result }: { result: QuestionResult }) {
-  const { question: q, status, actualResponse, routeCategory, tools, durationMs, error, score } = result;
+  const {
+    question: q,
+    status,
+    actualResponse,
+    routeCategory,
+    tools,
+    durationMs,
+    error,
+    score,
+  } = result;
   const routeMatch = routeCategory && q.expectedRoute && routeCategory === q.expectedRoute;
 
   const statusIcon = {
@@ -406,7 +470,9 @@ function ResultRow({ result }: { result: QuestionResult }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-sm">Q{q.id}.</span>
-            <Badge variant="outline" className="text-xs">{q.category}</Badge>
+            <Badge variant="outline" className="text-xs">
+              {q.category}
+            </Badge>
             {status !== 'pending' && status !== 'running' && (
               <>
                 <Badge
@@ -420,12 +486,17 @@ function ResultRow({ result }: { result: QuestionResult }) {
                   )}
                 </Badge>
                 {score && (
-                  <Badge variant="secondary" className={`text-xs gap-1 ${GRADE_COLORS[score.grade]}`}>
+                  <Badge
+                    variant="secondary"
+                    className={`text-xs gap-1 ${GRADE_COLORS[score.grade]}`}
+                  >
                     <Award className="h-3 w-3" />
                     {score.total}/100 {score.grade} — {score.gradeLabel}
                   </Badge>
                 )}
-                <span className="text-xs text-muted-foreground">{durationMs.toLocaleString()}ms</span>
+                <span className="text-xs text-muted-foreground">
+                  {durationMs.toLocaleString()}ms
+                </span>
               </>
             )}
           </div>
@@ -448,7 +519,9 @@ function ResultRow({ result }: { result: QuestionResult }) {
                 {tools.length > 0 && (
                   <div className="flex gap-1 flex-wrap mt-1">
                     {tools.map((t, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px]">{t}</Badge>
+                      <Badge key={i} variant="outline" className="text-[10px]">
+                        {t}
+                      </Badge>
                     ))}
                   </div>
                 )}
@@ -460,7 +533,8 @@ function ResultRow({ result }: { result: QuestionResult }) {
           {score && score.checks.length > 0 && (
             <div className="mt-2 rounded-md border bg-muted/20 p-2">
               <p className="text-xs font-semibold text-muted-foreground mb-1">
-                Scoring Checks ({score.checks.filter((c) => c.passed).length}/{score.checks.length} passed):
+                Scoring Checks ({score.checks.filter((c) => c.passed).length}/{score.checks.length}{' '}
+                passed):
               </p>
               <div className="space-y-0.5">
                 {score.checks.map((check, i) => (
@@ -489,11 +563,7 @@ function CheckRow({ check }: { check: ThirtyQCheckResult }) {
         {check.name}
         <span className="text-muted-foreground ml-1">({check.weight}pts)</span>
       </span>
-      {check.detail && (
-        <span className="text-muted-foreground truncate">
-          — {check.detail}
-        </span>
-      )}
+      {check.detail && <span className="text-muted-foreground truncate">— {check.detail}</span>}
     </div>
   );
 }

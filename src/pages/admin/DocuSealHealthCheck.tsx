@@ -77,13 +77,15 @@ const STATUS_BG = {
   skip: 'bg-zinc-500/10 border-zinc-500/20',
 };
 
+const DOCUSEAL_STORAGE_KEY = 'sourceco-docuseal-test-results';
+
 // ── Component ──────────────────────────────────────
 
 export default function DocuSealHealthCheck() {
   const [runState, setRunState] = useState<RunState>('idle');
   const [response, setResponse] = useState<TestResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [_lastRun, setLastRun] = useState<string | null>(null);
+  const [, setLastRun] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggleExpand = useCallback((id: string) => {
@@ -112,6 +114,14 @@ export default function DocuSealHealthCheck() {
       if (data?.error) {
         setRunState('error');
         setErrorMsg(data.error);
+        try {
+          localStorage.setItem(
+            DOCUSEAL_STORAGE_KEY,
+            JSON.stringify({ error: data.error, results: [] }),
+          );
+        } catch {
+          /* ignore */
+        }
         return;
       }
 
