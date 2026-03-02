@@ -463,8 +463,8 @@ export default function BuyerRecommendationTest() {
             <>
               <div className="flex items-center gap-4 text-sm">
                 <span>Total: <strong>{String(scoreResult.total ?? 0)}</strong></span>
-                {scoreResult.cached && <Badge variant="secondary">Cached</Badge>}
-                {scoreResult.scored_at && (
+                {Boolean(scoreResult.cached) && <Badge variant="secondary">Cached</Badge>}
+                {String(scoreResult.scored_at ?? '') !== '' && (
                   <span className="text-xs text-muted-foreground">
                     Scored: {new Date(String(scoreResult.scored_at)).toLocaleString()}
                   </span>
@@ -538,16 +538,16 @@ export default function BuyerRecommendationTest() {
               <div className="flex items-center gap-4 text-sm flex-wrap">
                 <span>Total: <strong>{String(seedResult.total ?? 0)}</strong></span>
                 {Number(seedResult.inserted) > 0 && (
-                  <Badge className="bg-green-100 text-green-800">{seedResult.inserted} New</Badge>
+                  <Badge className="bg-green-100 text-green-800">{String(seedResult.inserted)} New</Badge>
                 )}
                 {Number(seedResult.enriched_existing) > 0 && (
-                  <Badge className="bg-blue-100 text-blue-800">{seedResult.enriched_existing} Updated</Badge>
+                  <Badge className="bg-blue-100 text-blue-800">{String(seedResult.enriched_existing)} Updated</Badge>
                 )}
                 {Number(seedResult.probable_duplicates) > 0 && (
-                  <Badge variant="secondary">{seedResult.probable_duplicates} Dupes</Badge>
+                  <Badge variant="secondary">{String(seedResult.probable_duplicates)} Dupes</Badge>
                 )}
-                {seedResult.cached && <Badge variant="secondary">Cached</Badge>}
-                {seedResult.model && (
+                {Boolean(seedResult.cached) && <Badge variant="secondary">Cached</Badge>}
+                {String(seedResult.model ?? '') !== '' && (
                   <span className="text-xs text-muted-foreground">Model: {String(seedResult.model)}</span>
                 )}
               </div>
@@ -614,7 +614,7 @@ export default function BuyerRecommendationTest() {
       {dbSnapshot && (
         <SectionCard title="Database State" icon={<Database className="h-5 w-5" />}>
           {/* Deal info */}
-          {dbSnapshot.deal && (
+          {Boolean(dbSnapshot.deal) && (
             <div>
               <p className="text-xs font-medium mb-1">Deal Profile</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border rounded p-3 bg-muted/30">
