@@ -71,62 +71,69 @@ export const AssociatedContactsDisplay = ({
             Other contacts from the same firm interested in this listing:
           </div>
 
-          {contactsList.map((contact, _index) => (
-            <Card key={contact.id} className="border border-border/30">
-              <CardContent className="p-3">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <User className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs font-medium">
-                        {contact.relationship_metadata?.name || 'Unknown'}
-                      </span>
+          {contactsList.map((contact, _index) => {
+            const meta = contact.relationship_metadata as
+              | {
+                  name?: string;
+                  email?: string;
+                  company?: string;
+                  phone?: string;
+                  role?: string;
+                  source?: string;
+                }
+              | undefined;
+            return (
+              <Card key={contact.id} className="border border-border/30">
+                <CardContent className="p-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <User className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs font-medium">{meta?.name || 'Unknown'}</span>
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {meta?.source === 'inbound_lead' ? 'Lead' : 'Request'}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs">
-                      {contact.relationship_metadata?.source === 'inbound_lead'
-                        ? 'Lead'
-                        : 'Request'}
-                    </Badge>
+
+                    <div className="grid grid-cols-1 gap-1 text-xs text-muted-foreground">
+                      {meta?.email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-3 w-3" />
+                          <a
+                            href={`mailto:${meta.email}`}
+                            className="hover:text-primary transition-colors"
+                          >
+                            {meta.email}
+                          </a>
+                        </div>
+                      )}
+
+                      {meta?.company && (
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-3 w-3" />
+                          <span>{meta.company}</span>
+                        </div>
+                      )}
+
+                      {meta?.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3 w-3" />
+                          <span>{meta.phone}</span>
+                        </div>
+                      )}
+
+                      {meta?.role && (
+                        <div className="text-xs">
+                          <span className="font-medium">Role:</span> {meta.role}
+                        </div>
+                      )}
+                    </div>
                   </div>
-
-                  <div className="grid grid-cols-1 gap-1 text-xs text-muted-foreground">
-                    {contact.relationship_metadata?.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3 w-3" />
-                        <a
-                          href={`mailto:${contact.relationship_metadata.email}`}
-                          className="hover:text-primary transition-colors"
-                        >
-                          {contact.relationship_metadata.email}
-                        </a>
-                      </div>
-                    )}
-
-                    {contact.relationship_metadata?.company && (
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-3 w-3" />
-                        <span>{contact.relationship_metadata.company}</span>
-                      </div>
-                    )}
-
-                    {contact.relationship_metadata?.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-3 w-3" />
-                        <span>{contact.relationship_metadata.phone}</span>
-                      </div>
-                    )}
-
-                    {contact.relationship_metadata?.role && (
-                      <div className="text-xs">
-                        <span className="font-medium">Role:</span>{' '}
-                        {contact.relationship_metadata.role}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
 
           <div className="pt-2 border-t border-border/30">
             <Button

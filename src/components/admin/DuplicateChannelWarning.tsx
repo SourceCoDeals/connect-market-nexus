@@ -56,13 +56,13 @@ export const DuplicateChannelWarning = ({
                   <Separator className="my-2 bg-amber-200" />
                   <p className="text-xs text-amber-600">
                     Merged on {mergedAt}
-                    {sourceMetadata.original_lead_email && (
+                    {!!sourceMetadata.original_lead_email && (
                       <span className="ml-2">
                         • Original lead email:{' '}
                         {sourceMetadata.original_lead_email as React.ReactNode}
                       </span>
                     )}
-                    {sourceMetadata.linked_lead_id && (
+                    {!!sourceMetadata.linked_lead_id && (
                       <span className="ml-2">
                         • Linked lead ID: {sourceMetadata.linked_lead_id as React.ReactNode}
                       </span>

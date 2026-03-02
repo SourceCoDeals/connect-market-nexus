@@ -159,12 +159,12 @@ export function AdminNotificationBell() {
                       <p className="text-xs text-muted-foreground line-clamp-2">
                         {notification.message}
                       </p>
-                      {notification.metadata?.title && (
+                      {!!notification.metadata?.title && (
                         <p className="text-xs text-muted-foreground/70 flex items-center gap-1">
                           <span className="font-medium">
                             {notification.metadata.title as React.ReactNode}
                           </span>
-                          {notification.metadata.priority && (
+                          {!!notification.metadata.priority && (
                             <span
                               className={cn(
                                 'px-1 py-0.5 rounded text-[9px] font-medium uppercase',
