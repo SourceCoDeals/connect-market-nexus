@@ -11,6 +11,7 @@ import {
   Packer,
   Paragraph,
   TextRun,
+  ImageRun,
   HeadingLevel,
   AlignmentType,
   BorderStyle,
@@ -23,11 +24,19 @@ interface MemoSection {
   content: string;
 }
 
+interface CompanyInfo {
+  company_name?: string;
+  company_address?: string;
+  company_website?: string;
+  company_phone?: string;
+}
+
 interface GenerateMemoDocxParams {
   sections: MemoSection[];
   memoType: 'anonymous_teaser' | 'full_memo';
   dealTitle: string;
   branding: string;
+  companyInfo?: CompanyInfo;
 }
 
 /**
@@ -38,6 +47,7 @@ export async function generateMemoDocx({
   memoType,
   dealTitle,
   branding,
+  companyInfo,
 }: GenerateMemoDocxParams): Promise<void> {
   const isAnonymous = memoType === 'anonymous_teaser';
   const memoLabel = isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo';
@@ -50,24 +60,94 @@ export async function generateMemoDocx({
   // Build document children
   const children: Paragraph[] = [];
 
-  // ─── Header Block ───
+  // ─── Letterhead with Logo ───
+  // Try to fetch the SourceCo logo for embedding
+  let logoImageRun: ImageRun | null = null;
+  try {
+    const logoResponse = await fetch('/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png');
+    if (logoResponse.ok) {
+      const logoBuffer = await logoResponse.arrayBuffer();
+      logoImageRun = new ImageRun({
+        data: new Uint8Array(logoBuffer),
+        transformation: { width: 50, height: 50 },
+      });
+    }
+  } catch {
+    // Logo fetch failed — continue without it
+  }
+
+  // Letterhead line with logo + brand name
+  const letterheadRuns: (TextRun | ImageRun)[] = [];
+  if (logoImageRun) {
+    letterheadRuns.push(logoImageRun);
+    letterheadRuns.push(new TextRun({ text: '  ', size: 28, font: 'Arial' }));
+  }
+  letterheadRuns.push(
+    new TextRun({
+      text: branding.toUpperCase(),
+      bold: true,
+      size: 36,
+      font: 'Arial',
+      color: '1A1A2E',
+      characterSpacing: 80,
+    }),
+  );
+
+  children.push(
+    new Paragraph({
+      spacing: { after: 100 },
+      border: {
+        bottom: { style: BorderStyle.THICK_THIN_SMALL_GAP, size: 3, color: '1A1A2E' },
+      },
+      children: letterheadRuns,
+    }),
+  );
+
+  // ─── Company Info Block ───
+  if (companyInfo?.company_name || companyInfo?.company_address || companyInfo?.company_website) {
+    if (companyInfo.company_name) {
+      children.push(
+        new Paragraph({
+          spacing: { before: 200, after: 40 },
+          children: [
+            new TextRun({
+              text: companyInfo.company_name,
+              bold: true,
+              size: 26,
+              font: 'Arial',
+              color: '1A1A2E',
+            }),
+          ],
+        }),
+      );
+    }
+    const detailLines = [
+      companyInfo.company_address,
+      companyInfo.company_website,
+      companyInfo.company_phone,
+    ].filter(Boolean);
+    for (const line of detailLines) {
+      children.push(
+        new Paragraph({
+          spacing: { after: 20 },
+          children: [
+            new TextRun({
+              text: line!,
+              size: 20,
+              font: 'Arial',
+              color: '555555',
+            }),
+          ],
+        }),
+      );
+    }
+  }
+
+  // ─── Memo Type & Date ───
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 100 },
-      children: [
-        new TextRun({
-          text: branding,
-          bold: true,
-          size: 28,
-          font: 'Arial',
-          color: '333333',
-        }),
-      ],
-    }),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 50 },
+      spacing: { before: 200, after: 50 },
       children: [
         new TextRun({
           text: memoLabel.toUpperCase(),
@@ -107,11 +187,14 @@ export async function generateMemoDocx({
           italics: true,
         }),
       ],
-    })
+    }),
   );
 
-  // ─── Memo Sections ───
-  for (const section of sections) {
+  // ─── Memo Sections (skip header_block and contact_information) ───
+  const filteredSections = sections.filter(
+    (s) => s.key !== 'header_block' && s.key !== 'contact_information',
+  );
+  for (const section of filteredSections) {
     // Section heading
     children.push(
       new Paragraph({
@@ -129,7 +212,7 @@ export async function generateMemoDocx({
             color: '1A1A2E',
           }),
         ],
-      })
+      }),
     );
 
     // Section content — parse markdown-like formatting
@@ -138,8 +221,8 @@ export async function generateMemoDocx({
   }
 
   // ─── Data Needed Flags ───
-  const dataNeededSections = sections.filter(s =>
-    s.content.includes('[DATA NEEDED:') || s.content.includes('[VERIFY:')
+  const dataNeededSections = sections.filter(
+    (s) => s.content.includes('[DATA NEEDED:') || s.content.includes('[VERIFY:'),
   );
 
   if (dataNeededSections.length > 0) {
@@ -168,7 +251,7 @@ export async function generateMemoDocx({
             italics: true,
           }),
         ],
-      })
+      }),
     );
 
     for (const section of dataNeededSections) {
@@ -192,7 +275,7 @@ export async function generateMemoDocx({
                 color: 'CC6600',
               }),
             ],
-          })
+          }),
         );
       }
     }
@@ -246,7 +329,7 @@ function parseContentToParagraphs(content: string): Paragraph[] {
           bullet: { level: 0 },
           spacing: { after: 50 },
           children: parseInlineFormatting(trimmed.slice(2)),
-        })
+        }),
       );
       continue;
     }
@@ -256,7 +339,7 @@ function parseContentToParagraphs(content: string): Paragraph[] {
       // Skip separator rows
       if (trimmed.match(/^\|[\s\-|]+\|$/)) continue;
       // Parse as a regular paragraph for now (tables in docx are complex)
-      const cells = trimmed.split('|').filter(c => c.trim());
+      const cells = trimmed.split('|').filter((c) => c.trim());
       paragraphs.push(
         new Paragraph({
           spacing: { after: 50 },
@@ -267,7 +350,7 @@ function parseContentToParagraphs(content: string): Paragraph[] {
               font: 'Arial',
             }),
           ],
-        })
+        }),
       );
       continue;
     }
@@ -277,7 +360,7 @@ function parseContentToParagraphs(content: string): Paragraph[] {
       new Paragraph({
         spacing: { after: 120 },
         children: parseInlineFormatting(trimmed),
-      })
+      }),
     );
   }
 
@@ -299,7 +382,7 @@ function parseInlineFormatting(text: string): TextRun[] {
           bold: true,
           size: 20,
           font: 'Arial',
-        })
+        }),
       );
     } else if (match[3]) {
       // Italic text
@@ -309,7 +392,7 @@ function parseInlineFormatting(text: string): TextRun[] {
           italics: true,
           size: 20,
           font: 'Arial',
-        })
+        }),
       );
     } else if (match[4]) {
       // Regular text — check for [DATA NEEDED:] and [VERIFY:] flags
@@ -325,7 +408,7 @@ function parseInlineFormatting(text: string): TextRun[] {
               text: flagText.slice(lastIndex, flagMatch.index),
               size: 20,
               font: 'Arial',
-            })
+            }),
           );
         }
         runs.push(
@@ -336,7 +419,7 @@ function parseInlineFormatting(text: string): TextRun[] {
             color: 'CC6600',
             bold: true,
             highlight: 'yellow',
-          })
+          }),
         );
         lastIndex = flagMatch.index + flagMatch[0].length;
       }
@@ -347,7 +430,7 @@ function parseInlineFormatting(text: string): TextRun[] {
             text: flagText.slice(lastIndex),
             size: 20,
             font: 'Arial',
-          })
+          }),
         );
       }
     }

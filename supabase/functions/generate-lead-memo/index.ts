@@ -32,6 +32,10 @@ interface MemoContent {
   memo_type: string;
   branding: string;
   generated_at: string;
+  company_name: string;
+  company_address: string;
+  company_website: string;
+  company_phone: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -133,12 +137,21 @@ Deno.serve(async (req: Request) => {
     // Generate memo(s)
     const results: Record<string, Record<string, unknown>> = {};
 
+    // Extract company info from deal for memo metadata
+    const companyMeta = {
+      company_name: (deal.internal_company_name || deal.title || '') as string,
+      company_address: [deal.address_city, deal.address_state].filter(Boolean).join(', ') as string,
+      company_website: (deal.website || '') as string,
+      company_phone: (deal.main_contact_phone || '') as string,
+    };
+
     if (memo_type === 'anonymous_teaser' || memo_type === 'both') {
       const teaserContent = await generateMemo(
         anthropicApiKey,
         dataContext,
         'anonymous_teaser',
         branding,
+        companyMeta,
       );
 
       // Save to lead_memos
@@ -149,7 +162,7 @@ Deno.serve(async (req: Request) => {
           memo_type: 'anonymous_teaser',
           branding,
           content: teaserContent,
-          html_content: sectionsToHtml(teaserContent.sections, 'anonymous_teaser', branding),
+          html_content: sectionsToHtml(teaserContent, 'anonymous_teaser', branding),
           status: 'draft',
           generated_from: {
             sources: dataContext.sources,
@@ -191,14 +204,17 @@ Deno.serve(async (req: Request) => {
         listingUpdate.description_html = htmlContent;
       }
 
-      await supabaseAdmin
-        .from('listings')
-        .update(listingUpdate)
-        .eq('id', deal_id);
+      await supabaseAdmin.from('listings').update(listingUpdate).eq('id', deal_id);
     }
 
     if (memo_type === 'full_memo' || memo_type === 'both') {
-      const fullContent = await generateMemo(anthropicApiKey, dataContext, 'full_memo', branding);
+      const fullContent = await generateMemo(
+        anthropicApiKey,
+        dataContext,
+        'full_memo',
+        branding,
+        companyMeta,
+      );
 
       const { data: fullMemo, error: fullError } = await supabaseAdmin
         .from('lead_memos')
@@ -207,7 +223,7 @@ Deno.serve(async (req: Request) => {
           memo_type: 'full_memo',
           branding,
           content: fullContent,
-          html_content: sectionsToHtml(fullContent.sections, 'full_memo', branding),
+          html_content: sectionsToHtml(fullContent, 'full_memo', branding),
           status: 'draft',
           generated_from: {
             sources: dataContext.sources,
@@ -413,6 +429,12 @@ async function generateMemo(
   context: DataContext,
   memoType: 'anonymous_teaser' | 'full_memo',
   branding: string,
+  companyMeta: {
+    company_name: string;
+    company_address: string;
+    company_website: string;
+    company_phone: string;
+  },
 ): Promise<MemoContent> {
   const isAnonymous = memoType === 'anonymous_teaser';
 
@@ -612,12 +634,13 @@ Generate the memo now. Return ONLY the JSON object with "sections" array.`;
     memo_type: memoType,
     branding,
     generated_at: new Date().toISOString(),
+    ...companyMeta,
   };
 }
 
 // ─── HTML Generation ───
 
-function sectionsToHtml(sections: MemoSection[], memoType: string, branding: string): string {
+function sectionsToHtml(memo: MemoContent, memoType: string, branding: string): string {
   const brandName =
     branding === 'sourceco'
       ? 'SourceCo'
@@ -630,20 +653,56 @@ function sectionsToHtml(sections: MemoSection[], memoType: string, branding: str
             : branding;
 
   const isAnonymous = memoType === 'anonymous_teaser';
+  const dateStr = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
-  let html = `<div class="lead-memo ${memoType}">`;
-  html += `<div class="memo-header">`;
-  html += `<h1>Lead Memo</h1>`;
-  html += `<p class="brand">${brandName}</p>`;
-  html += `<p class="memo-type">${isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}</p>`;
-  html += `<p class="date">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>`;
+  let html = `<div class="lead-memo ${memoType}" style="font-family: Arial, Helvetica, sans-serif; max-width: 800px; margin: 0 auto; color: #333; line-height: 1.6;">`;
+
+  // Professional letterhead
+  html += `<div class="memo-letterhead" style="text-align: center; padding-bottom: 20px; border-bottom: 3px solid #1a1a2e; margin-bottom: 24px;">`;
+  html += `<p style="font-size: 22px; font-weight: bold; letter-spacing: 2px; color: #1a1a2e; margin: 0 0 4px 0;">${brandName.toUpperCase()}</p>`;
   html += `</div>`;
 
-  for (const section of sections) {
-    html += `<div class="memo-section" data-key="${section.key}">`;
-    html += `<h2>${section.title}</h2>`;
-    // Convert markdown-like content to basic HTML
-    html += `<div class="section-content">${markdownToHtml(section.content)}</div>`;
+  // Company info block at top
+  if (memo.company_name || memo.company_address || memo.company_website) {
+    html += `<div class="company-info" style="margin-bottom: 20px; padding: 16px; background: #f8f9fa; border-left: 4px solid #1a1a2e;">`;
+    if (memo.company_name) {
+      html += `<p style="font-size: 18px; font-weight: bold; margin: 0 0 4px 0; color: #1a1a2e;">${memo.company_name}</p>`;
+    }
+    if (memo.company_address) {
+      html += `<p style="font-size: 14px; margin: 0 0 2px 0; color: #555;">${memo.company_address}</p>`;
+    }
+    if (memo.company_website) {
+      html += `<p style="font-size: 14px; margin: 0 0 2px 0; color: #555;">${memo.company_website}</p>`;
+    }
+    if (memo.company_phone) {
+      html += `<p style="font-size: 14px; margin: 0; color: #555;">${memo.company_phone}</p>`;
+    }
+    html += `</div>`;
+  }
+
+  // Memo type and date
+  html += `<div style="text-align: center; margin-bottom: 24px;">`;
+  html += `<p style="font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 4px 0;">${isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}</p>`;
+  html += `<p style="font-size: 13px; color: #888; margin: 0;">${dateStr}</p>`;
+  html += `</div>`;
+
+  // Confidential disclaimer
+  html += `<div style="text-align: center; padding: 8px; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; margin-bottom: 24px;">`;
+  html += `<p style="font-size: 11px; color: #cc0000; font-style: italic; margin: 0;">CONFIDENTIAL — FOR INTENDED RECIPIENT ONLY</p>`;
+  html += `</div>`;
+
+  // Sections as continuous document
+  for (const section of memo.sections) {
+    // Skip header_block and contact_information since info is now in the letterhead
+    if (section.key === 'header_block' || section.key === 'contact_information') continue;
+
+    html += `<div class="memo-section" data-key="${section.key}" style="margin-bottom: 20px;">`;
+    html += `<h2 style="font-size: 16px; margin: 0 0 8px 0; color: #1a1a2e; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px;">${section.title}</h2>`;
+    html += `<div class="section-content" style="font-size: 14px;">${markdownToHtml(section.content)}</div>`;
     html += `</div>`;
   }
 
