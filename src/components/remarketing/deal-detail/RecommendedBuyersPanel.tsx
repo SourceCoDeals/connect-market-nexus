@@ -37,7 +37,7 @@ interface RecommendedBuyersPanelProps {
   listingId: string;
 }
 
-const MAX_BUYERS = 10;
+const MAX_BUYERS = 5;
 
 const TIER_CONFIG: Record<BuyerScore['tier'], { label: string; color: string; icon: typeof Zap }> = {
   move_now: { label: 'Move Now', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: Zap },
@@ -219,7 +219,7 @@ function BuyerCard({
         </div>
       </div>
 
-      {/* Match reason */}
+      {/* Why they're a good fit */}
       {buyer.fit_reason && (
         <p className="text-xs text-muted-foreground leading-relaxed mt-2.5 pt-2.5 border-t pl-11">
           {buyer.fit_reason}
@@ -424,11 +424,10 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   }
 
   const allBuyers = data?.buyers || [];
-  const buyers = allBuyers
-    .filter(b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id))
-    .slice(0, MAX_BUYERS);
-  const sponsors = buyers.filter(isSponsor);
-  const operatingCos = buyers.filter(b => !isSponsor(b));
+  const available = allBuyers.filter(b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id));
+  const sponsors = available.filter(isSponsor).slice(0, MAX_BUYERS);
+  const operatingCos = available.filter(b => !isSponsor(b)).slice(0, MAX_BUYERS);
+  const buyers = [...sponsors, ...operatingCos];
 
   return (
     <Card>
@@ -437,11 +436,6 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-4 w-4" />
             Recommended Buyers
-            {buyers.length > 0 && (
-              <Badge variant="secondary" className="text-xs ml-1">
-                Top {buyers.length}
-              </Badge>
-            )}
           </CardTitle>
           {buyers.length > 0 && <TierSummary buyers={buyers} />}
         </div>

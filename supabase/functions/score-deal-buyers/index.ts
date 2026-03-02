@@ -436,7 +436,7 @@ Deno.serve(async (req: Request) => {
           'target_geographies, geographic_footprint, ' +
           'target_ebitda_min, target_ebitda_max, ' +
           'has_fee_agreement, acquisition_appetite, total_acquisitions, ' +
-          'thesis_summary, ai_seeded, ai_seeded_from_deal_id, marketplace_firm_id',
+          'thesis_summary, ai_seeded, ai_seeded_from_deal_id, ai_seeded_at, marketplace_firm_id',
       )
       .eq('archived', false)
       .limit(10000);
@@ -512,7 +512,6 @@ Deno.serve(async (req: Request) => {
       );
 
       const fitSignals = [...svc.signals, ...geo.signals, ...size.signals, ...bonus.signals];
-      const tier = classifyTier(composite, !!buyer.has_fee_agreement, buyer.acquisition_appetite);
 
       // Derive source from buyer origin
       const source: BuyerScore['source'] = buyer.ai_seeded
@@ -521,21 +520,31 @@ Deno.serve(async (req: Request) => {
           ? 'marketplace'
           : 'scored';
 
-      // Build fit_reason from seed log (best), thesis_summary (fallback), or signals
+      // AI-seeded buyers for THIS deal get a score boost so they rank above generic pool matches
+      const aiBoost = (buyer.ai_seeded && buyer.ai_seeded_from_deal_id === listingId) ? 15 : 0;
+      const boostedComposite = Math.min(composite + aiBoost, 100);
+
+      const tier = classifyTier(boostedComposite, !!buyer.has_fee_agreement, buyer.acquisition_appetite);
+
+      // Build fit_reason: seed log why_relevant (best) > thesis_summary (good) > generated sentence
       const seedLogReason = seedLogMap.get(buyer.id);
       const thesisSentence = (buyer.thesis_summary || '').trim();
-      const topSignals = fitSignals.slice(0, 2).join(', ');
       let fit_reason: string;
       if (seedLogReason) {
         fit_reason = seedLogReason;
       } else if (thesisSentence) {
-        // Take first sentence; avoid double periods
         const firstSentence = thesisSentence.split('.').filter(s => s.trim())[0]?.trim() || thesisSentence;
-        fit_reason = topSignals
-          ? `${firstSentence}. ${topSignals}.`
-          : `${firstSentence}.`;
+        fit_reason = firstSentence.endsWith('.') ? firstSentence : `${firstSentence}.`;
       } else {
-        fit_reason = topSignals || 'Potential industry fit';
+        // Generate a human-readable sentence from scoring signals
+        const parts: string[] = [];
+        if (svc.score >= 60) parts.push(`aligns with ${dealIndustry || 'target'} industry focus`);
+        if (geo.score >= 60) parts.push(`geographic overlap in ${dealState?.toUpperCase() || 'target region'}`);
+        if (size.score >= 60) parts.push('EBITDA range fits deal size');
+        if (bonus.signals.length > 0) parts.push(bonus.signals[0].toLowerCase());
+        fit_reason = parts.length > 0
+          ? `${buyer.company_name} ${parts.join(', ')}.`
+          : 'Potential industry fit based on acquisition criteria.';
       }
 
       scored.push({
@@ -548,7 +557,7 @@ Deno.serve(async (req: Request) => {
         hq_city: buyer.hq_city,
         has_fee_agreement: !!buyer.has_fee_agreement,
         acquisition_appetite: buyer.acquisition_appetite,
-        composite_score: composite,
+        composite_score: boostedComposite,
         service_score: svc.score,
         geography_score: geo.score,
         size_score: size.score,
