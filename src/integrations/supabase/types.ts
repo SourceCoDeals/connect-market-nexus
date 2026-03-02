@@ -12312,6 +12312,110 @@ export type Database = {
           },
         ]
       }
+      test_run_results: {
+        Row: {
+          id: string
+          run_id: string
+          suite: string
+          test_id: string
+          test_name: string
+          category: string | null
+          status: string
+          error: string | null
+          duration_ms: number | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          run_id: string
+          suite: string
+          test_id: string
+          test_name: string
+          category?: string | null
+          status?: string
+          error?: string | null
+          duration_ms?: number | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          run_id?: string
+          suite?: string
+          test_id?: string
+          test_name?: string
+          category?: string | null
+          status?: string
+          error?: string | null
+          duration_ms?: number | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_run_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "test_run_tracking"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_run_tracking: {
+        Row: {
+          id: string
+          run_type: string
+          status: string
+          started_at: string
+          completed_at: string | null
+          total_tests: number
+          passed: number
+          failed: number
+          warnings: number
+          skipped: number
+          duration_ms: number | null
+          suites_completed: number | null
+          suites_total: number | null
+          error_summary: Json | null
+          triggered_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          run_type?: string
+          status?: string
+          started_at?: string
+          completed_at?: string | null
+          total_tests?: number
+          passed?: number
+          failed?: number
+          warnings?: number
+          skipped?: number
+          duration_ms?: number | null
+          suites_completed?: number | null
+          suites_total?: number | null
+          error_summary?: Json | null
+          triggered_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          run_type?: string
+          status?: string
+          started_at?: string
+          completed_at?: string | null
+          total_tests?: number
+          passed?: number
+          failed?: number
+          warnings?: number
+          skipped?: number
+          duration_ms?: number | null
+          suites_completed?: number | null
+          suites_total?: number | null
+          error_summary?: Json | null
+          triggered_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       trigger_logs: {
         Row: {
           created_at: string | null
