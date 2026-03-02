@@ -1,9 +1,18 @@
+/**
+ * DealImportDialog.tsx
+ *
+ * Multi-step dialog for importing deals from spreadsheets (CSV/XLS/XLSX).
+ * Orchestrates upload, AI column mapping, preview, and import steps.
+ * Heavy logic is delegated to:
+ *   - DealImportMapping   -- column mapping UI
+ *   - DealImportPreview   -- data preview UI
+ *   - useDealImportSubmit  -- import/merge logic
+ */
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -15,45 +24,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { 
-  Upload, 
-  FileSpreadsheet, 
-  Loader2, 
-  Check, 
+  Upload,
+  FileSpreadsheet,
+  Loader2,
+  Check,
   AlertCircle,
   Sparkles,
-  ArrowRight,
-  ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
-// Papa removed – using parseSpreadsheet instead
-import { normalizeDomain } from "@/lib/remarketing/normalizeDomain";
 import { parseSpreadsheet, SPREADSHEET_ACCEPT } from "@/lib/parseSpreadsheet";
-
-// Import from unified import engine
 import {
   type ColumnMapping,
   type MergeStats,
-  DEAL_IMPORT_FIELDS,
   normalizeHeader,
-  processRow,
   mergeColumnMappings,
-  sanitizeListingInsert,
 } from "@/lib/deal-csv-import";
+import { DealImportMapping } from "./deal-import/DealImportMapping";
+import { DealImportPreview } from "./deal-import/DealImportPreview";
+import { handleImport, type ImportResults } from "./deal-import/useDealImportSubmit";
 
 interface DealImportDialogProps {
   open: boolean;
@@ -86,12 +74,7 @@ export function DealImportDialog({
   const [isMapping, setIsMapping] = useState(false);
   const [mappingVersion, setMappingVersion] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState(0);
-  const [importResults, setImportResults] = useState<{
-    imported: number;
-    merged: number;
-    errors: string[];
-    importedIds: string[];
-  } | null>(null);
+  const [importResults, setImportResults] = useState<ImportResults | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [columnFilter, setColumnFilter] = useState("");
 
@@ -113,10 +96,8 @@ export function DealImportDialog({
         return;
       }
 
-      // Get sample data for context
       const sampleData = data.slice(0, 3);
 
-      // Try AI mapping
       setIsMapping(true);
       setStep("mapping");
 
@@ -134,19 +115,12 @@ export function DealImportDialog({
 
         if (error) throw error;
 
-        // Helps verify which backend deployment the UI is actually hitting
         setMappingVersion(mappingResult?._version ?? null);
 
-        // CRITICAL: Merge AI mappings with full column list
-        // This ensures all parsed columns are visible even if AI returns partial list
         const [merged, stats] = mergeColumnMappings(columns, mappingResult?.mappings);
-
-        // AI may return incomplete mappings — this is handled by the merge step above
-
         setColumnMappings(merged);
         setMappingStats(stats);
       } catch (error) {
-        // AI mapping failed — fallback to empty mapping, use merge to ensure all columns present
         const [merged, stats] = mergeColumnMappings(columns, []);
         setColumnMappings(merged);
         setMappingStats(stats);
@@ -168,260 +142,25 @@ export function DealImportDialog({
     );
   };
 
-  /**
-   * When a deal already exists (duplicate website), find the existing listing
-   * and fill in any null/empty fields with new CSV data.
-   * Returns the listing ID if fields were updated, null otherwise.
-   */
-  const tryMergeExistingListing = async (
-    newData: Record<string, unknown>,
-    mergeableFields: string[],
-  ): Promise<string | null> => {
-    try {
-      // Find existing listing by website domain or by title
-      const website = newData.website as string | undefined;
-      const title = newData.title as string | undefined;
-
-      let existingListing: Record<string, unknown> | null = null;
-
-      if (website) {
-        // Primary: use DB-level normalized domain matching via RPC
-        const { data: rpcData } = await supabase
-          .rpc('find_listing_by_normalized_domain', { target_domain: website })
-          .limit(1)
-          .maybeSingle();
-        existingListing = rpcData as Record<string, unknown> | null;
-
-        // Fallback: exact match for backward compat if RPC not yet available
-        if (!existingListing) {
-          const { data } = await supabase
-            .from('listings')
-            .select('*')
-            .eq('website', website)
-            .limit(1)
-            .maybeSingle();
-          existingListing = data as Record<string, unknown> | null;
-        }
-      }
-
-      // Fallback: try matching by title (case-insensitive) if website didn't match
-      if (!existingListing && title) {
-        const { data } = await supabase
-          .from('listings')
-          .select('*')
-          .ilike('title', title)
-          .limit(1)
-          .maybeSingle();
-        existingListing = data as Record<string, unknown> | null;
-      }
-
-      if (!existingListing) return null;
-
-      // Build update object: only fill in fields that are currently empty
-      const updates: Record<string, unknown> = {};
-
-      for (const field of mergeableFields) {
-        const newValue = newData[field];
-        const existingValue = existingListing[field];
-
-        // Skip if CSV doesn't have data for this field
-        if (newValue === undefined || newValue === null || newValue === '') continue;
-        // Skip default values that shouldn't overwrite
-        if (field === 'category' && newValue === 'Other') continue;
-
-        // Only fill if existing value is empty/null/default
-        const isEmpty =
-          existingValue === null
-          || existingValue === undefined
-          || existingValue === ''
-          || (field === 'description' && existingValue === (existingListing.title || ''))
-          || (field === 'category' && existingValue === 'Other')
-          || (field === 'location' && existingValue === 'Unknown');
-
-        if (isEmpty) {
-          updates[field] = newValue;
-        }
-      }
-
-      // Also update location if we have new address components and location was defaulted
-      if (
-        (updates.address_city || updates.address_state) &&
-        (existingListing.location === 'Unknown' || !existingListing.location)
-      ) {
-        const newCity = (updates.address_city || existingListing.address_city || '') as string;
-        const newState = (updates.address_state || existingListing.address_state || '') as string;
-        if (newCity && newState) {
-          updates.location = `${newCity}, ${newState}`;
-        } else if (newState || newCity) {
-          updates.location = newState || newCity;
-        }
-      }
-
-      // Also merge revenue/ebitda if existing is 0 (default) and CSV has real values
-      if (typeof newData.revenue === 'number' && newData.revenue > 0
-          && (existingListing.revenue === 0 || existingListing.revenue === null)) {
-        updates.revenue = newData.revenue;
-      }
-      if (typeof newData.ebitda === 'number' && newData.ebitda > 0
-          && (existingListing.ebitda === 0 || existingListing.ebitda === null)) {
-        updates.ebitda = newData.ebitda;
-      }
-
-      if (Object.keys(updates).length === 0) return null;
-
-      const { error: updateError } = await supabase
-        .from('listings')
-        .update(updates as never)
-        .eq('id', existingListing.id as string);
-
-      if (updateError) {
-        console.warn('Merge update failed:', updateError.message);
-        return null;
-      }
-
-      return existingListing.id as string;
-    } catch (err) {
-      console.warn('Merge lookup failed:', (err as Error).message);
-      return null;
-    }
-  };
-
-  const handleImport = async () => {
+  const doImport = async () => {
     setStep("importing");
     setIsImporting(true);
     setImportProgress(0);
 
-    const results = { imported: 0, merged: 0, errors: [] as string[], importedIds: [] as string[] };
-
-    // Fields that should be considered "empty" and eligible for merge-fill.
-    // Excludes system-managed fields and NOT NULL defaults (revenue=0, ebitda=0, etc.)
-    const MERGEABLE_FIELDS = [
-      'main_contact_name', 'main_contact_email', 'main_contact_phone', 'main_contact_title',
-      'description', 'executive_summary', 'general_notes', 'internal_notes', 'owner_goals',
-      'category', 'industry', 'address', 'address_city', 'address_state', 'address_zip',
-      'address_country', 'geographic_states', 'services', 'linkedin_url', 'fireflies_url',
-      'internal_company_name', 'full_time_employees', 'number_of_locations',
-      'google_review_count', 'google_rating',
-    ];
-
     try {
-      for (let i = 0; i < csvData.length; i++) {
-        const row = csvData[i];
-        setImportProgress(Math.round(((i + 1) / csvData.length) * 100));
-
-        try {
-          // Use unified row processor
-          const { data: parsedData, errors: rowErrors } = processRow(row, columnMappings, i + 2);
-
-          // Collect validation errors
-          if (rowErrors.length > 0) {
-            rowErrors.forEach(err => {
-              results.errors.push(`Row ${err.row}: ${err.message}`);
-            });
-          }
-
-          // Skip if no valid data
-          if (!parsedData) {
-            continue;
-          }
-
-          // listings.location is NOT NULL in schema; set a safe default.
-          // Guard against any non-string values coming from incorrect mappings.
-          const city = typeof parsedData.address_city === 'string' ? parsedData.address_city : '';
-          const state = typeof parsedData.address_state === 'string' ? parsedData.address_state : '';
-          const computedLocation = city && state ? `${city}, ${state}` : state || city || "Unknown";
-
-          // Build final listing object
-          const listingData = sanitizeListingInsert({
-            ...parsedData,
-            status: referralPartnerId ? 'pending_referral_review' : 'active',
-            location: computedLocation,
-            is_internal_deal: true,
-            ...(dealSource ? { deal_source: dealSource } : {}),
-            ...(hideFromAllDeals ? { pushed_to_all_deals: false } : {}),
-          });
-
-          // Hard requirements enforced by DB schema.
-          // Revenue/EBITDA/Description are NOT NULL in `listings`, but CSVs often omit them.
-          // Default them safely instead of failing the entire row.
-          if (typeof listingData.revenue !== 'number' || Number.isNaN(listingData.revenue)) {
-            (listingData as Record<string, unknown>).revenue = 0;
-          }
-          if (typeof listingData.ebitda !== 'number' || Number.isNaN(listingData.ebitda)) {
-            (listingData as Record<string, unknown>).ebitda = 0;
-          }
-          if (typeof listingData.description !== 'string') {
-            (listingData as Record<string, unknown>).description = '';
-          }
-
-          // Normalize website for dedup (ensures DB unique constraint catches variants)
-          if ((listingData as Record<string, unknown>).website) {
-            const normalized = normalizeDomain((listingData as Record<string, unknown>).website as string);
-            if (normalized) {
-              (listingData as Record<string, unknown>).website = normalized;
-            }
-          }
-
-          // Inject referral partner ID AFTER sanitization (critical — not part of CSV fields)
-          if (referralPartnerId) {
-            (listingData as Record<string, unknown>).referral_partner_id = referralPartnerId;
-          }
-
-          // Insert the listing
-          const { data: insertedData, error: insertError } = await supabase
-            .from("listings")
-            .insert(listingData as never)
-            .select('id')
-            .single();
-
-          if (insertError) {
-            // Check if this is a duplicate key error — if so, try to merge empty fields
-            const isDuplicate = insertError.message?.includes('duplicate key')
-              || insertError.message?.includes('unique constraint')
-              || insertError.code === '23505';
-
-            if (isDuplicate) {
-              // Try to find the existing listing and fill in empty fields
-              const merged = await tryMergeExistingListing(
-                listingData as Record<string, unknown>,
-                MERGEABLE_FIELDS,
-              );
-              if (merged) {
-                results.merged++;
-                results.importedIds.push(merged);
-              } else {
-                // Merge didn't find anything to update — record as already existing
-                results.errors.push(`Row ${i + 2}: duplicate key value violates unique constraint`);
-              }
-            } else {
-              throw insertError;
-            }
-          } else {
-            results.imported++;
-            if (insertedData?.id) {
-              results.importedIds.push(insertedData.id);
-            }
-          }
-        } catch (error) {
-          results.errors.push(`Row ${i + 2}: ${(error as Error).message}`);
-        }
-      }
+      const results = await handleImport({
+        csvData,
+        columnMappings,
+        referralPartnerId,
+        dealSource,
+        hideFromAllDeals,
+        onProgress: setImportProgress,
+        onImportComplete,
+        onImportCompleteWithIds,
+      });
 
       setImportResults(results);
       setStep("complete");
-
-      if (results.imported > 0 || results.merged > 0) {
-        const parts: string[] = [];
-        if (results.imported > 0) parts.push(`${results.imported} new`);
-        if (results.merged > 0) parts.push(`${results.merged} updated`);
-        const pendingMsg = referralPartnerId ? ' (pending review)' : '';
-        toast.success(`Successfully processed ${parts.join(', ')} deals${pendingMsg}`);
-        onImportComplete();
-        // Call the new callback with imported IDs if provided
-        if (onImportCompleteWithIds && results.importedIds.length > 0) {
-          onImportCompleteWithIds(results.importedIds);
-        }
-      }
     } catch (error) {
       toast.error(`Import failed: ${(error as Error).message}`);
       setStep("preview");
@@ -444,17 +183,6 @@ export function DealImportDialog({
     reset();
     onOpenChange(false);
   };
-
-  const getMappedFieldCount = () =>
-    columnMappings.filter((m) => m.targetField).length;
-
-  const filteredColumnMappings = columnMappings.filter((m) => {
-    const q = columnFilter.trim().toLowerCase();
-    if (!q) return true;
-    return m.csvColumn.toLowerCase().includes(q);
-  });
-
-  const hasRequiredField = columnMappings.some(m => m.targetField === "title");
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -504,211 +232,35 @@ export function DealImportDialog({
 
           {/* Step: Column Mapping */}
           {step === "mapping" && (
-            <div className="flex-1 flex flex-col min-h-0">
-              {isMapping ? (
-                <div className="flex-1 flex flex-col items-center justify-center">
-                  <Sparkles className="h-8 w-8 mb-4 text-primary animate-pulse" />
-                  <p className="font-medium">AI is analyzing your columns...</p>
-                  <p className="text-sm text-muted-foreground">This will just take a moment</p>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary">{csvData.length} rows</Badge>
-                      {mappingStats && (
-                        <Badge variant="secondary">
-                          Parsed: {mappingStats.parsedCount} cols
-                        </Badge>
-                      )}
-                      {mappingStats && mappingStats.aiReturnedCount > 0 && (
-                        <Badge variant="secondary">
-                          AI: {mappingStats.aiReturnedCount}
-                        </Badge>
-                      )}
-                      {mappingStats && mappingStats.filledCount > 0 && (
-                        <Badge variant="secondary">
-                          Filled: {mappingStats.filledCount}
-                        </Badge>
-                      )}
-                      <Badge variant="outline">
-                        {getMappedFieldCount()}/{columnMappings.length} mapped
-                      </Badge>
-                      {mappingVersion && (
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {mappingVersion}
-                        </Badge>
-                      )}
-                      {!hasRequiredField && (
-                        <Badge variant="destructive" className="gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Company Name required
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Map CSV columns to deal fields
-                    </p>
-                  </div>
-
-                   <div className="flex items-center gap-3 mb-3">
-                     <div className="flex-1">
-                       <Input
-                         value={columnFilter}
-                         onChange={(e) => setColumnFilter(e.target.value)}
-                         placeholder='Search columns (e.g. "Website", "EBITDA")'
-                       />
-                     </div>
-                     <div className="text-sm text-muted-foreground shrink-0">
-                       Showing {filteredColumnMappings.length} of {columnMappings.length}
-                     </div>
-                     {columnFilter.trim() && (
-                       <Button variant="outline" onClick={() => setColumnFilter("")}>
-                         Clear
-                       </Button>
-                     )}
-                   </div>
-
-                  <ScrollArea className="flex-1 min-h-0 border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[200px]">CSV Column</TableHead>
-                          <TableHead className="w-[250px]">Sample Value</TableHead>
-                          <TableHead className="w-[200px]">Map To</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                         {filteredColumnMappings.map((mapping) => (
-                          <TableRow key={mapping.csvColumn}>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium truncate max-w-[180px]">
-                                  {mapping.csvColumn}
-                                </span>
-                                {mapping.aiSuggested && mapping.targetField && (
-                                  <Badge variant="secondary" className="text-xs shrink-0">
-                                    <Sparkles className="h-3 w-3 mr-1" />
-                                    AI
-                                  </Badge>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-[250px]">
-                              <span className="truncate block text-muted-foreground text-sm">
-                                {csvData[0]?.[mapping.csvColumn]?.substring(0, 100) || "—"}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <Select
-                                value={mapping.targetField || "none"}
-                                onValueChange={(value) =>
-                                  updateMapping(
-                                    mapping.csvColumn,
-                                    value === "none" ? null : value
-                                  )
-                                }
-                              >
-                                <SelectTrigger className="w-[180px]">
-                                  <SelectValue placeholder="Don't import" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">Don't import</SelectItem>
-                                  {DEAL_IMPORT_FIELDS.map((field) => (
-                                    <SelectItem key={field.value} value={field.value}>
-                                      {field.label}
-                                      {field.required && " *"}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-
-                  <div className="pt-4 flex justify-between">
-                    <Button variant="outline" onClick={reset}>
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back
-                    </Button>
-                    <Button
-                      onClick={() => setStep("preview")}
-                      disabled={!hasRequiredField}
-                    >
-                      Preview Import
-                      <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
+            isMapping ? (
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <Sparkles className="h-8 w-8 mb-4 text-primary animate-pulse" />
+                <p className="font-medium">AI is analyzing your columns...</p>
+                <p className="text-sm text-muted-foreground">This will just take a moment</p>
+              </div>
+            ) : (
+              <DealImportMapping
+                csvData={csvData}
+                columnMappings={columnMappings}
+                mappingStats={mappingStats}
+                mappingVersion={mappingVersion}
+                columnFilter={columnFilter}
+                onColumnFilterChange={setColumnFilter}
+                onUpdateMapping={updateMapping}
+                onBack={reset}
+                onNext={() => setStep("preview")}
+              />
+            )
           )}
 
           {/* Step: Preview */}
           {step === "preview" && (
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="mb-4">
-                <p className="font-medium">Ready to import {csvData.length} deals</p>
-                <p className="text-sm text-muted-foreground">
-                  Mapped fields: {columnMappings.filter((m) => m.targetField).map((m) => 
-                    DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label
-                  ).join(", ")}
-                </p>
-              </div>
-
-              <ScrollArea className="flex-1 border rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      {columnMappings
-                        .filter((m) => m.targetField)
-                        .slice(0, 6)
-                        .map((m) => (
-                          <TableHead key={m.csvColumn}>
-                            {DEAL_IMPORT_FIELDS.find((f) => f.value === m.targetField)?.label}
-                          </TableHead>
-                        ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {csvData.slice(0, 10).map((row, i) => (
-                      <TableRow key={`row-${i}`}>
-                        <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-                        {columnMappings
-                          .filter((m) => m.targetField)
-                          .slice(0, 6)
-                          .map((m) => (
-                            <TableCell key={m.csvColumn} className="max-w-[150px] truncate">
-                              {row[m.csvColumn]?.substring(0, 50) || "—"}
-                            </TableCell>
-                          ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-
-              {csvData.length > 10 && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Showing first 10 of {csvData.length} rows
-                </p>
-              )}
-
-              <div className="pt-4 flex justify-between">
-                <Button variant="outline" onClick={() => setStep("mapping")}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Mapping
-                </Button>
-                <Button onClick={handleImport}>
-                  Import {csvData.length} Deals
-                  <Check className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
-            </div>
+            <DealImportPreview
+              csvData={csvData}
+              columnMappings={columnMappings}
+              onBack={() => setStep("mapping")}
+              onImport={doImport}
+            />
           )}
 
           {/* Step: Importing */}
@@ -752,10 +304,10 @@ export function DealImportDialog({
                   </p>
                 )}
                 {importResults.errors.length > 0 && (() => {
-                  const duplicateErrors = importResults.errors.filter(e => 
+                  const duplicateErrors = importResults.errors.filter(e =>
                     e.includes('duplicate key') || e.includes('unique constraint') || e.includes('idx_listings_unique')
                   );
-                  const otherErrors = importResults.errors.filter(e => 
+                  const otherErrors = importResults.errors.filter(e =>
                     !e.includes('duplicate key') && !e.includes('unique constraint') && !e.includes('idx_listings_unique')
                   );
 
