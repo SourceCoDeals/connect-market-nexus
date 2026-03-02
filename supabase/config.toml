@@ -76,8 +76,6 @@ verify_jwt = true
 verify_jwt = true
 [functions.send-user-notification]
 verify_jwt = false
-[functions.send-verification-email]
-verify_jwt = false
 [functions.enhanced-email-delivery]
 verify_jwt = false
 [functions.send-feedback-email]
@@ -101,8 +99,6 @@ verify_jwt = false
 [functions.send-owner-inquiry-notification]
 verify_jwt = false
 [functions.sync-missing-profiles]
-verify_jwt = false
-[functions.score-buyer-deal]
 verify_jwt = false
 [functions.map-csv-columns]
 verify_jwt = true
@@ -185,8 +181,6 @@ verify_jwt = false
 [functions.process-scoring-queue]
 verify_jwt = false
 [functions.generate-ma-guide-background]
-verify_jwt = false
-[functions.score-industry-alignment]
 verify_jwt = false
 [functions.data-room-upload]
 verify_jwt = false

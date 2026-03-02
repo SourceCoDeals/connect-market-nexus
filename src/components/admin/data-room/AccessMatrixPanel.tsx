@@ -2,13 +2,11 @@
  * AccessMatrixPanel: Buyer access management with tracked link distribution
  */
 
-import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -17,32 +15,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   Shield,
   UserPlus,
   AlertTriangle,
   Loader2,
-  Ban,
   Link2,
   Mail,
   Copy,
@@ -52,21 +30,16 @@ import {
   Check,
   ExternalLink,
   Send,
-  Building2,
-  User,
 } from 'lucide-react';
-import {
-  useDataRoomAccess,
-  useUpdateAccess,
-  useRevokeAccess,
-  useBulkUpdateAccess,
-  DataRoomAccessRecord,
-} from '@/hooks/admin/data-room/use-data-room';
-import { supabase } from '@/integrations/supabase/client';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Calendar } from '@/components/ui/calendar';
+import { useAccessMatrix } from './useAccessMatrix';
+import { AddAccessDialog } from './AddAccessDialog';
+import {
+  RevokeAccessButton,
+  SendEmailDialog,
+  ExpirationDialog,
+  FeeWarningDialog,
+} from './RevokeDialog';
 
 interface AccessMatrixPanelProps {
   dealId: string;
@@ -74,321 +47,54 @@ interface AccessMatrixPanelProps {
 }
 
 export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProps) {
-  const { data: accessRecords = [], isLoading } = useDataRoomAccess(dealId);
-  const updateAccess = useUpdateAccess();
-  const revokeAccess = useRevokeAccess();
-  const bulkUpdate = useBulkUpdateAccess();
-  const queryClient = useQueryClient();
+  const {
+    isLoading,
+    activeRecords,
+    filteredRecords,
+    availableBuyers,
 
-  const [showAddBuyer, setShowAddBuyer] = useState(false);
-  const [selectedBuyers, setSelectedBuyers] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
-  const [buyerSearch, setBuyerSearch] = useState('');
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [sendLinkRecord, setSendLinkRecord] = useState<DataRoomAccessRecord | null>(null);
-  const [sendEmail, setSendEmail] = useState('');
-  const [expirationRecord, setExpirationRecord] = useState<DataRoomAccessRecord | null>(null);
-  const [expirationDate, setExpirationDate] = useState<Date | undefined>();
-  const [addBuyerSelected, setAddBuyerSelected] = useState<Set<string>>(new Set());
-  const [showFeeWarning, setShowFeeWarning] = useState(false);
-  const [pendingUpdate, setPendingUpdate] = useState<{
-    deal_id: string;
-    remarketing_buyer_id?: string;
-    marketplace_user_id?: string;
-    can_view_teaser: boolean;
-    can_view_full_memo: boolean;
-    can_view_data_room: boolean;
-  } | null>(null);
-  const [overrideReason, setOverrideReason] = useState('');
+    searchQuery,
+    setSearchQuery,
 
-  // Fetch available buyers (firms + contacts) for add dialog
-  const { data: availableBuyers = [] } = useQuery({
-    queryKey: ['available-buyers-for-access', dealId, buyerSearch],
-    queryFn: async () => {
-      // Fetch firms from remarketing_buyers
-      let firmsQuery = supabase
-        .from('remarketing_buyers')
-        .select(
-          `
-          id, company_name, pe_firm_name, email_domain, buyer_type,
-          firm_agreement:firm_agreements!remarketing_buyers_marketplace_firm_id_fkey(
-            fee_agreement_signed
-          )
-        `,
-        )
-        .eq('archived', false)
-        .order('company_name')
-        .limit(100);
+    selectedBuyers,
+    setSelectedBuyers,
 
-      if (buyerSearch) {
-        firmsQuery = firmsQuery.or(
-          `company_name.ilike.%${buyerSearch}%,pe_firm_name.ilike.%${buyerSearch}%`,
-        );
-      }
+    expandedRows,
+    toggleRowExpanded,
 
-      // Fetch individual buyer contacts from unified contacts table
-      let contactsQuery = supabase
-        .from('contacts')
-        .select(
-          `
-          id, first_name, last_name, email, title,
-          buyer:remarketing_buyers!contacts_remarketing_buyer_id_fkey(id, company_name, pe_firm_name, buyer_type, archived)
-        `,
-        )
-        .eq('contact_type', 'buyer')
-        .eq('archived', false)
-        .not('remarketing_buyer_id', 'is', null)
-        .order('first_name')
-        .limit(100);
+    showAddBuyer,
+    setShowAddBuyer,
+    buyerSearch,
+    setBuyerSearch,
+    addBuyerSelected,
+    setAddBuyerSelected,
+    handleAddBuyers,
 
-      if (buyerSearch) {
-        contactsQuery = contactsQuery.or(
-          `first_name.ilike.%${buyerSearch}%,last_name.ilike.%${buyerSearch}%,email.ilike.%${buyerSearch}%`,
-        );
-      }
+    handleToggle,
+    handleBulkToggle,
 
-      const [firmsResult, contactsResult] = await Promise.all([firmsQuery, contactsQuery]);
+    showFeeWarning,
+    setShowFeeWarning,
+    setPendingUpdate,
+    overrideReason,
+    setOverrideReason,
+    handleFeeOverride,
 
-      if (firmsResult.error) throw firmsResult.error;
+    handleCopyLink,
+    sendLinkRecord,
+    setSendLinkRecord,
+    sendEmail,
+    setSendEmail,
+    handleSendEmail,
 
-      // Normalize into a unified list
-      type UnifiedBuyer = {
-        id: string;
-        remarketing_buyer_id: string;
-        display_name: string;
-        subtitle: string | null;
-        buyer_type: string | null;
-        has_fee_agreement: boolean;
-        entry_type: 'firm' | 'contact';
-      };
+    expirationRecord,
+    setExpirationRecord,
+    expirationDate,
+    setExpirationDate,
+    handleSetExpiration,
 
-      const firms: UnifiedBuyer[] = (firmsResult.data || []).map((b) => ({
-        id: b.id,
-        remarketing_buyer_id: b.id,
-        display_name: b.company_name || b.pe_firm_name || 'Unknown',
-        subtitle: b.email_domain || null,
-        buyer_type: b.buyer_type,
-        has_fee_agreement: !!b.firm_agreement?.fee_agreement_signed,
-        entry_type: 'firm' as const,
-      }));
-
-      const contacts: UnifiedBuyer[] = (contactsResult.data || []).map(
-        (c: {
-          id: string;
-          first_name: string | null;
-          last_name: string | null;
-          email: string | null;
-          title: string | null;
-          buyer: {
-            id: string;
-            company_name: string | null;
-            pe_firm_name: string | null;
-            buyer_type: string | null;
-            archived: boolean;
-          } | null;
-        }) => ({
-          id: `contact:${c.id}`,
-          remarketing_buyer_id: c.buyer?.id || '',
-          display_name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
-          subtitle: c.title
-            ? `${c.title} at ${c.buyer?.company_name || c.buyer?.pe_firm_name || ''}`
-            : c.buyer?.company_name || c.buyer?.pe_firm_name || null,
-          buyer_type: c.buyer?.buyer_type || null,
-          has_fee_agreement: false,
-          entry_type: 'contact' as const,
-        }),
-      );
-
-      // Firms first, then contacts
-      return [...firms, ...contacts];
-    },
-    enabled: showAddBuyer,
-  });
-
-  const activeRecords = accessRecords.filter((r) => !r.revoked_at);
-  const filteredRecords = activeRecords.filter(
-    (r) =>
-      !searchQuery ||
-      r.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.buyer_company?.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  const handleToggle = async (
-    record: DataRoomAccessRecord,
-    field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
-    newValue: boolean,
-  ) => {
-    const updates = {
-      deal_id: dealId,
-      remarketing_buyer_id: record.remarketing_buyer_id || undefined,
-      marketplace_user_id: record.marketplace_user_id || undefined,
-      can_view_teaser: field === 'can_view_teaser' ? newValue : record.can_view_teaser,
-      can_view_full_memo: field === 'can_view_full_memo' ? newValue : record.can_view_full_memo,
-      can_view_data_room: field === 'can_view_data_room' ? newValue : record.can_view_data_room,
-    };
-
-    // Full Memo and Data Room require a signed fee agreement — warn
-    if (
-      (field === 'can_view_full_memo' || field === 'can_view_data_room') &&
-      newValue &&
-      !record.fee_agreement_signed
-    ) {
-      setPendingUpdate(updates);
-      setShowFeeWarning(true);
-      return;
-    }
-
-    updateAccess.mutate(updates);
-  };
-
-  const handleFeeOverride = () => {
-    if (pendingUpdate) {
-      const params: Parameters<typeof updateAccess.mutate>[0] = {
-        ...pendingUpdate,
-        fee_agreement_override_reason: overrideReason,
-      };
-      updateAccess.mutate(params);
-    }
-    setShowFeeWarning(false);
-    setPendingUpdate(null);
-    setOverrideReason('');
-  };
-
-  const handleAddBuyers = () => {
-    // Resolve selected IDs to remarketing_buyer_ids (contacts map to their parent firm)
-    const buyerIdsToAdd = new Set<string>();
-    addBuyerSelected.forEach((selectedId) => {
-      const buyer = availableBuyers.find((b) => b.id === selectedId);
-      if (buyer?.remarketing_buyer_id) {
-        buyerIdsToAdd.add(buyer.remarketing_buyer_id);
-      }
-    });
-
-    buyerIdsToAdd.forEach((rmBuyerId) => {
-      updateAccess.mutate({
-        deal_id: dealId,
-        remarketing_buyer_id: rmBuyerId,
-        can_view_teaser: true,
-        can_view_full_memo: false,
-        can_view_data_room: false,
-      });
-    });
-    setShowAddBuyer(false);
-    setAddBuyerSelected(new Set());
-    setBuyerSearch('');
-  };
-
-  const handleCopyLink = async (record: DataRoomAccessRecord) => {
-    if (!record.access_token) {
-      toast.error('No access token generated for this buyer');
-      return;
-    }
-
-    const baseUrl = window.location.origin;
-    const link = `${baseUrl}/data-room/${dealId}?token=${record.access_token}`;
-
-    await navigator.clipboard.writeText(link);
-
-    // Update link tracking
-    await supabase
-      .from('data_room_access')
-      .update({
-        link_sent_at: new Date().toISOString(),
-        link_sent_via: 'manual_copy',
-      })
-      .eq('id', record.access_id);
-
-    queryClient.invalidateQueries({ queryKey: ['data-room-access', dealId] });
-    toast.success('Link copied to clipboard');
-  };
-
-  const handleSendEmail = async () => {
-    if (!sendLinkRecord || !sendEmail) return;
-
-    const baseUrl = window.location.origin;
-    const link = `${baseUrl}/data-room/${dealId}?token=${sendLinkRecord.access_token}`;
-
-    // Update link tracking
-    await supabase
-      .from('data_room_access')
-      .update({
-        link_sent_at: new Date().toISOString(),
-        link_sent_to_email: sendEmail,
-        link_sent_via: 'email',
-      })
-      .eq('id', sendLinkRecord.access_id);
-
-    // Open mailto with pre-filled content
-    const subject = encodeURIComponent(`${projectName || 'Deal'} — Document Access`);
-    const body = encodeURIComponent(
-      `You have been granted access to view documents.\n\nClick here to view: ${link}\n\nPlease do not share this link.`,
-    );
-    window.open(`mailto:${sendEmail}?subject=${subject}&body=${body}`, '_blank');
-
-    queryClient.invalidateQueries({ queryKey: ['data-room-access', dealId] });
-    setSendLinkRecord(null);
-    setSendEmail('');
-    toast.success('Email opened & link tracked');
-  };
-
-  const handleSetExpiration = async () => {
-    if (!expirationRecord || !expirationDate) return;
-
-    await supabase
-      .from('data_room_access')
-      .update({ expires_at: expirationDate.toISOString() })
-      .eq('id', expirationRecord.access_id);
-
-    queryClient.invalidateQueries({ queryKey: ['data-room-access', dealId] });
-    setExpirationRecord(null);
-    setExpirationDate(undefined);
-    toast.success('Expiration date set');
-  };
-
-  const toggleRowExpanded = (id: string) => {
-    const next = new Set(expandedRows);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setExpandedRows(next);
-  };
-
-  const handleBulkToggle = (
-    field: 'can_view_teaser' | 'can_view_full_memo' | 'can_view_data_room',
-    value: boolean,
-  ) => {
-    const eligibleRecords = Array.from(selectedBuyers)
-      .map((id) => activeRecords.find((r) => r.access_id === id))
-      .filter((record): record is DataRoomAccessRecord => {
-        if (!record) return false;
-        if (
-          (field === 'can_view_full_memo' || field === 'can_view_data_room') &&
-          value &&
-          !record.fee_agreement_signed
-        ) {
-          return false;
-        }
-        return true;
-      });
-
-    if (eligibleRecords.length === 0) {
-      toast.error('No eligible buyers. Selected buyers need a signed fee agreement first.');
-      return;
-    }
-
-    const buyerIds = eligibleRecords.map((record) => ({
-      remarketing_buyer_id: record.remarketing_buyer_id || undefined,
-      marketplace_user_id: record.marketplace_user_id || undefined,
-    }));
-
-    bulkUpdate.mutate({
-      deal_id: dealId,
-      buyer_ids: buyerIds,
-      can_view_teaser: field === 'can_view_teaser' ? value : false,
-      can_view_full_memo: field === 'can_view_full_memo' ? value : false,
-      can_view_data_room: field === 'can_view_data_room' ? value : false,
-    });
-    setSelectedBuyers(new Set());
-  };
+    revokeAccess,
+  } = useAccessMatrix(dealId, projectName);
 
   if (isLoading) {
     return (
@@ -674,37 +380,11 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
                               >
                                 <Clock className="h-3.5 w-3.5" />
                               </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive"
-                                  >
-                                    <Ban className="h-3.5 w-3.5" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Revoke access?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      This will immediately revoke all data room access for{' '}
-                                      {record.buyer_name}.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() =>
-                                        revokeAccess.mutate({ accessId: record.access_id, dealId })
-                                      }
-                                      className="bg-destructive text-destructive-foreground"
-                                    >
-                                      Revoke
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                              <RevokeAccessButton
+                                record={record}
+                                onRevoke={(params) => revokeAccess.mutate(params)}
+                                dealId={dealId}
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
@@ -789,254 +469,49 @@ export function AccessMatrixPanel({ dealId, projectName }: AccessMatrixPanelProp
       </Card>
 
       {/* Send Email Dialog */}
-      <Dialog
-        open={!!sendLinkRecord}
-        onOpenChange={(open) => {
-          if (!open) setSendLinkRecord(null);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" />
-              Send Tracked Link
-            </DialogTitle>
-            <DialogDescription>
-              Send a tracked document access link to {sendLinkRecord?.buyer_name} via email.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">Email address</label>
-              <Input
-                type="email"
-                placeholder="buyer@example.com"
-                value={sendEmail}
-                onChange={(e) => setSendEmail(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
-              <p className="font-medium mb-1">What happens:</p>
-              <ul className="space-y-0.5 list-disc list-inside">
-                <li>Your email client opens with a pre-filled message</li>
-                <li>The link will be tracked — you'll see when it's accessed</li>
-                <li>The send is logged in the buyer's audit trail</li>
-              </ul>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSendLinkRecord(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSendEmail} disabled={!sendEmail}>
-              <Send className="mr-2 h-4 w-4" />
-              Open Email
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SendEmailDialog
+        record={sendLinkRecord}
+        onClose={() => setSendLinkRecord(null)}
+        email={sendEmail}
+        onEmailChange={setSendEmail}
+        onSend={handleSendEmail}
+      />
 
       {/* Expiration Date Dialog */}
-      <Dialog
-        open={!!expirationRecord}
-        onOpenChange={(open) => {
-          if (!open) setExpirationRecord(null);
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Set Access Expiration
-            </DialogTitle>
-            <DialogDescription>
-              Set an expiration date for {expirationRecord?.buyer_name}'s access. After this date,
-              they won't be able to view documents.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={expirationDate}
-              onSelect={setExpirationDate}
-              disabled={(date) => date < new Date()}
-              className="rounded-md border"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setExpirationRecord(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSetExpiration} disabled={!expirationDate}>
-              Set Expiration
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ExpirationDialog
+        record={expirationRecord}
+        onClose={() => setExpirationRecord(null)}
+        date={expirationDate}
+        onDateChange={setExpirationDate}
+        onSave={handleSetExpiration}
+      />
 
       {/* Fee Agreement Warning Dialog */}
-      <Dialog open={showFeeWarning} onOpenChange={setShowFeeWarning}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Fee Agreement Required
-            </DialogTitle>
-            <DialogDescription>
-              This buyer does not have a signed fee agreement. Releasing the full memo reveals the
-              company name. Do you want to proceed anyway?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <label className="text-sm font-medium">Override reason (required)</label>
-            <Textarea
-              placeholder="Why is it okay to share the full memo without a fee agreement?"
-              value={overrideReason}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                setOverrideReason(e.target.value)
-              }
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowFeeWarning(false);
-                setPendingUpdate(null);
-                setOverrideReason('');
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleFeeOverride}
-              disabled={!overrideReason.trim()}
-              className="bg-amber-600 hover:bg-amber-700"
-            >
-              Override & Grant Access
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FeeWarningDialog
+        open={showFeeWarning}
+        onOpenChange={setShowFeeWarning}
+        overrideReason={overrideReason}
+        onOverrideReasonChange={setOverrideReason}
+        onOverride={handleFeeOverride}
+        onCancel={() => {
+          setShowFeeWarning(false);
+          setPendingUpdate(null);
+          setOverrideReason('');
+        }}
+      />
 
       {/* Add Buyer Dialog */}
-      <Dialog
+      <AddAccessDialog
         open={showAddBuyer}
-        onOpenChange={(open) => {
-          setShowAddBuyer(open);
-          if (!open) {
-            setAddBuyerSelected(new Set());
-            setBuyerSearch('');
-          }
-        }}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add Buyers to Data Room</DialogTitle>
-            <DialogDescription>
-              Select buyers or contacts to grant initial teaser access. Full memo and data room
-              access requires a signed fee agreement.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Input
-              placeholder="Search by company, firm, or contact name..."
-              value={buyerSearch}
-              onChange={(e) => setBuyerSearch(e.target.value)}
-            />
-            <div className="max-h-72 overflow-y-auto space-y-1 border rounded-md p-1">
-              {availableBuyers.map((buyer) => {
-                const alreadyAdded = activeRecords.some(
-                  (r) => r.remarketing_buyer_id === buyer.remarketing_buyer_id,
-                );
-                const isSelected = addBuyerSelected.has(buyer.id);
-                const typeLabel =
-                  buyer.buyer_type?.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) ||
-                  null;
-                return (
-                  <button
-                    key={buyer.id}
-                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-3
-                      ${alreadyAdded ? 'opacity-50 cursor-not-allowed bg-muted' : isSelected ? 'bg-primary/10 border border-primary/30' : 'hover:bg-accent cursor-pointer'}`}
-                    onClick={() => {
-                      if (alreadyAdded) return;
-                      const next = new Set(addBuyerSelected);
-                      if (next.has(buyer.id)) next.delete(buyer.id);
-                      else next.add(buyer.id);
-                      setAddBuyerSelected(next);
-                    }}
-                    disabled={alreadyAdded}
-                  >
-                    <Checkbox
-                      checked={isSelected || alreadyAdded}
-                      disabled={alreadyAdded}
-                      className="pointer-events-none"
-                    />
-                    <div className="flex-shrink-0">
-                      {buyer.entry_type === 'contact' ? (
-                        <User className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{buyer.display_name}</p>
-                        {typeLabel && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] px-1.5 py-0 flex-shrink-0"
-                          >
-                            {typeLabel}
-                          </Badge>
-                        )}
-                      </div>
-                      {buyer.subtitle && (
-                        <p className="text-xs text-muted-foreground truncate">{buyer.subtitle}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {buyer.has_fee_agreement && (
-                        <Badge
-                          variant="default"
-                          className="bg-green-100 text-green-800 text-[10px] px-1.5 py-0"
-                        >
-                          Fee Agmt
-                        </Badge>
-                      )}
-                      {alreadyAdded && (
-                        <Badge variant="secondary" className="text-xs">
-                          Added
-                        </Badge>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-              {availableBuyers.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  {buyerSearch ? 'No buyers match your search' : 'No buyers found'}
-                </p>
-              )}
-            </div>
-            {addBuyerSelected.size > 0 && (
-              <p className="text-xs text-muted-foreground">
-                {addBuyerSelected.size} buyer(s) selected
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddBuyer(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddBuyers} disabled={addBuyerSelected.size === 0}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add {addBuyerSelected.size > 0 ? `${addBuyerSelected.size} Buyer(s)` : 'Buyers'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setShowAddBuyer}
+        buyerSearch={buyerSearch}
+        onBuyerSearchChange={setBuyerSearch}
+        availableBuyers={availableBuyers}
+        activeRecords={activeRecords}
+        addBuyerSelected={addBuyerSelected}
+        onAddBuyerSelectedChange={setAddBuyerSelected}
+        onAddBuyers={handleAddBuyers}
+      />
     </div>
   );
 }

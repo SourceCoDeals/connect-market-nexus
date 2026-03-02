@@ -18,7 +18,7 @@ import {
   Calendar,
   } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ScoreBadge, ScoreTierBadge } from "@/components/remarketing";
+import { ScoreBadge } from "@/components/shared/ScoreBadge";
 import type { ScoreTier } from "@/types/remarketing";
 
 interface OutreachRecord {
@@ -84,7 +84,7 @@ export const IntroductionStatusCard = ({
           {/* Buyer Info */}
           <div className="flex items-center gap-3 min-w-[200px]">
             <div className="flex-shrink-0">
-              <ScoreBadge score={score} size="sm" />
+              <ScoreBadge variant="numeric" score={score} size="sm" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export const IntroductionStatusCard = ({
                 )}
               </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <ScoreTierBadge tier={tier} size="sm" />
+                <ScoreBadge variant="tier" tier={tier} size="sm" />
                 {buyerType && (
                   <Badge variant="outline" className="text-xs capitalize">
                     {buyerType.replace('_', ' ')}

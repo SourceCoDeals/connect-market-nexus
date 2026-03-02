@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { subDays, format, differenceInSeconds } from 'date-fns';
+import { generateAnonymousName } from '@/lib/anonymousNames';
 
 export interface UserEvent {
   id: string;
@@ -77,64 +78,7 @@ export interface UserDetailData {
   };
 }
 
-// Animal names for anonymous users
-const ANIMALS = [
-  'Wolf',
-  'Eagle',
-  'Lion',
-  'Tiger',
-  'Bear',
-  'Fox',
-  'Hawk',
-  'Panther',
-  'Falcon',
-  'Jaguar',
-  'Raven',
-  'Phoenix',
-  'Dragon',
-  'Serpent',
-  'Griffin',
-  'Owl',
-  'Shark',
-  'Dolphin',
-  'Whale',
-  'Orca',
-];
-
-const COLORS = [
-  'Azure',
-  'Crimson',
-  'Emerald',
-  'Golden',
-  'Ivory',
-  'Jade',
-  'Coral',
-  'Silver',
-  'Amber',
-  'Violet',
-  'Scarlet',
-  'Cobalt',
-  'Bronze',
-  'Indigo',
-  'Platinum',
-  'Onyx',
-  'Ruby',
-  'Sapphire',
-  'Topaz',
-  'Pearl',
-];
-
-function generateAnimalName(id: string): string {
-  // Generate consistent name from ID hash
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash << 5) - hash + id.charCodeAt(i);
-    hash = hash & hash;
-  }
-  const colorIndex = Math.abs(hash) % COLORS.length;
-  const animalIndex = Math.abs(hash >> 8) % ANIMALS.length;
-  return `${COLORS[colorIndex]} ${ANIMALS[animalIndex]}`;
-}
+// Anonymous name generation is now centralized in @/lib/anonymousNames
 
 // Discovery source priority: original_external_referrer > utm_source > referrer
 function getDiscoverySource(
@@ -330,7 +274,7 @@ export function useUserDetail(visitorId: string | null) {
       // Determine if anonymous
       const isAnonymous = !profile || (!profile.first_name && !profile.last_name);
       const name = isAnonymous
-        ? generateAnimalName(visitorId)
+        ? generateAnonymousName(visitorId)
         : [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || 'Anonymous';
 
       // Get latest session for geo/tech data
