@@ -8348,7 +8348,6 @@ export type Database = {
           main_contact_title: string | null
           management_depth: string | null
           manual_rank_override: number | null
-          market_position: Json | null
           metric_3_custom_label: string | null
           metric_3_custom_subtitle: string | null
           metric_3_custom_value: string | null
@@ -8388,7 +8387,6 @@ export type Database = {
           revenue_is_inferred: boolean | null
           revenue_metric_subtitle: string | null
           revenue_model: string | null
-          revenue_model_breakdown: Json | null
           revenue_score: number | null
           revenue_source_quote: string | null
           salesforce_account_id: string | null
@@ -8431,7 +8429,6 @@ export type Database = {
           timeline_notes: string | null
           timeline_preference: string | null
           title: string
-          transaction_preferences: Json | null
           transition_preferences: string | null
           universe_build_flagged: boolean | null
           universe_build_flagged_at: string | null
@@ -8542,7 +8539,6 @@ export type Database = {
           main_contact_title?: string | null
           management_depth?: string | null
           manual_rank_override?: number | null
-          market_position?: Json | null
           metric_3_custom_label?: string | null
           metric_3_custom_subtitle?: string | null
           metric_3_custom_value?: string | null
@@ -8582,7 +8578,6 @@ export type Database = {
           revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
           revenue_model?: string | null
-          revenue_model_breakdown?: Json | null
           revenue_score?: number | null
           revenue_source_quote?: string | null
           salesforce_account_id?: string | null
@@ -8625,7 +8620,6 @@ export type Database = {
           timeline_notes?: string | null
           timeline_preference?: string | null
           title: string
-          transaction_preferences?: Json | null
           transition_preferences?: string | null
           universe_build_flagged?: boolean | null
           universe_build_flagged_at?: string | null
@@ -8736,7 +8730,6 @@ export type Database = {
           main_contact_title?: string | null
           management_depth?: string | null
           manual_rank_override?: number | null
-          market_position?: Json | null
           metric_3_custom_label?: string | null
           metric_3_custom_subtitle?: string | null
           metric_3_custom_value?: string | null
@@ -8776,7 +8769,6 @@ export type Database = {
           revenue_is_inferred?: boolean | null
           revenue_metric_subtitle?: string | null
           revenue_model?: string | null
-          revenue_model_breakdown?: Json | null
           revenue_score?: number | null
           revenue_source_quote?: string | null
           salesforce_account_id?: string | null
@@ -8819,7 +8811,6 @@ export type Database = {
           timeline_notes?: string | null
           timeline_preference?: string | null
           title?: string
-          transaction_preferences?: Json | null
           transition_preferences?: string | null
           universe_build_flagged?: boolean | null
           universe_build_flagged_at?: string | null
@@ -14254,7 +14245,6 @@ export type Database = {
           main_contact_title: string | null
           management_depth: string | null
           manual_rank_override: number | null
-          market_position: Json | null
           metric_3_custom_label: string | null
           metric_3_custom_subtitle: string | null
           metric_3_custom_value: string | null
@@ -14294,7 +14284,6 @@ export type Database = {
           revenue_is_inferred: boolean | null
           revenue_metric_subtitle: string | null
           revenue_model: string | null
-          revenue_model_breakdown: Json | null
           revenue_score: number | null
           revenue_source_quote: string | null
           salesforce_account_id: string | null
@@ -14337,7 +14326,6 @@ export type Database = {
           timeline_notes: string | null
           timeline_preference: string | null
           title: string
-          transaction_preferences: Json | null
           transition_preferences: string | null
           universe_build_flagged: boolean | null
           universe_build_flagged_at: string | null
