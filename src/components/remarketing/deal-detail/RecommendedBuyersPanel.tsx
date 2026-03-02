@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useNewRecommendedBuyers,
   type BuyerScore,
@@ -26,6 +27,8 @@ import {
   CheckCircle,
   X,
   Briefcase,
+  Landmark,
+  Building2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -57,6 +60,16 @@ function formatBuyerType(type: string | null): string {
     family_office: 'Family Office',
   };
   return map[type] || type.replace('_', ' ');
+}
+
+/** Sponsors = PE firms, independent sponsors, family offices, search funds */
+const SPONSOR_TYPES = new Set(['pe_firm', 'family_office', 'independent_sponsor', 'search_fund']);
+
+function isSponsor(buyer: BuyerScore): boolean {
+  if (buyer.buyer_type && SPONSOR_TYPES.has(buyer.buyer_type)) return true;
+  // If buyer has a PE firm attached, treat as sponsor
+  if (buyer.pe_firm_name) return true;
+  return false;
 }
 
 function TierSummary({ buyers }: { buyers: BuyerScore[] }) {
@@ -436,6 +449,8 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   const buyers = allBuyers
     .filter(b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id))
     .slice(0, MAX_BUYERS);
+  const sponsors = buyers.filter(isSponsor);
+  const operatingCos = buyers.filter(b => !isSponsor(b));
 
   return (
     <Card>
@@ -487,23 +502,66 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
             </p>
           </div>
         ) : (
-          <div className="space-y-1.5">
-            {buyers.map(buyer => (
-              <BuyerCard
-                key={buyer.buyer_id}
-                buyer={buyer}
-                onAccept={handleAccept}
-                onReject={handleReject}
-                isAccepting={acceptingIds.has(buyer.buyer_id)}
-              />
-            ))}
+          <Tabs defaultValue="sponsors" className="w-full">
+            <TabsList className="mb-3">
+              <TabsTrigger value="sponsors" className="gap-1.5">
+                <Landmark className="h-3.5 w-3.5" />
+                Sponsors
+                {sponsors.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-0.5">
+                    {sponsors.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="operating" className="gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                Operating Companies
+                {operatingCos.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-0.5">
+                    {operatingCos.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="sponsors" className="space-y-1.5 mt-0">
+              {sponsors.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No sponsors found</p>
+              ) : (
+                sponsors.map(buyer => (
+                  <BuyerCard
+                    key={buyer.buyer_id}
+                    buyer={buyer}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    isAccepting={acceptingIds.has(buyer.buyer_id)}
+                  />
+                ))
+              )}
+            </TabsContent>
+
+            <TabsContent value="operating" className="space-y-1.5 mt-0">
+              {operatingCos.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">No operating companies found</p>
+              ) : (
+                operatingCos.map(buyer => (
+                  <BuyerCard
+                    key={buyer.buyer_id}
+                    buyer={buyer}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    isAccepting={acceptingIds.has(buyer.buyer_id)}
+                  />
+                ))
+              )}
+            </TabsContent>
 
             {data?.cached && (
-              <p className="text-[10px] text-muted-foreground text-right">
+              <p className="text-[10px] text-muted-foreground text-right mt-2">
                 Cached results from {new Date(data.scored_at).toLocaleString()}
               </p>
             )}
-          </div>
+          </Tabs>
         )}
       </CardContent>
     </Card>
