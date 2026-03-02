@@ -254,7 +254,7 @@ Extract all available criteria using the extract_criteria function. Be thorough 
     const cleanedData = cleanExtractedData(extractedData);
 
     console.log(
-      `Extracted criteria with ${Math.round((cleanedData.confidence || 0.5) * 100)}% confidence`,
+      `Extracted criteria with ${Math.round((Number(cleanedData.confidence) || 0.5) * 100)}% confidence`,
     );
 
     return new Response(
