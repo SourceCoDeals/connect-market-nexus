@@ -32,6 +32,7 @@ const SmartleadTestPage = lazy(() => import('@/pages/admin/SmartleadTestPage'));
 const ThirtyQuestionTest = lazy(() => import('@/pages/admin/ThirtyQuestionTest'));
 const ListingPipelineTest = lazy(() => import('@/pages/admin/ListingPipelineTest'));
 const BuyerRecommendationTest = lazy(() => import('@/pages/admin/BuyerRecommendationTest'));
+const TestRunTracker = lazy(() => import('@/pages/admin/TestRunTracker'));
 
 // Storage keys — must match individual tab components exactly
 const SYSTEM_TEST_KEY = 'sourceco-system-tests';
@@ -145,7 +146,7 @@ export default function TestingHub() {
   const tab = searchParams.get('tab') || 'enrichment';
   const [progress, setProgress] = useState<RunAllProgress | null>(null);
   const abortRef = useRef(false);
-  const [showTracker, setShowTracker] = useState(true);
+  const [showTracker, setShowTracker] = useState(false);
 
   // ── Test Run Tracking (persists to Supabase) ──
   const tracking = useTestRunTracking();
@@ -598,6 +599,20 @@ export default function TestingHub() {
           )}
         </div>
       </div>
+
+      {showTracker && (
+        <div className="px-8 pt-6">
+          <Suspense fallback={<Loading />}>
+            <TestRunTracker
+              runs={tracking.runs}
+              loading={tracking.loading}
+              onRefresh={tracking.fetchRuns}
+              onDelete={tracking.deleteRun}
+              onFetchResults={tracking.fetchRunResults}
+            />
+          </Suspense>
+        </div>
+      )}
 
       <div className="px-8 py-6">
         <Tabs value={tab} onValueChange={setTab}>
