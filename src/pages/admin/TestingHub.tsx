@@ -140,7 +140,7 @@ async function runTestLoop<Ctx>(
 }
 
 // ── Suite count ──
-const SUITE_COUNT = 3; // System Tests, DocuSeal, Chatbot Infra
+const SUITE_COUNT = 5; // System Tests, DocuSeal, Chatbot Infra, Chatbot Scenarios, 30-Question QA
 
 const Loading = () => (
   <div className="flex items-center justify-center py-20">
@@ -367,6 +367,201 @@ export default function TestingHub() {
       }
 
       suitesCompleted = 3;
+      if (trackingRunId) await tracking.updateProgress(trackingRunId, suitesCompleted);
+      if (abortRef.current) throw new Error('aborted');
+
+      // --- Suite 4: Chatbot Scenarios (auto-runnable only) ---
+      const { getChatbotTestScenarios, runAutoChecks: runScenarioAutoChecks } =
+        await import('./chatbot-test-runner/chatbotTestScenarios');
+      const { sendAIQuery } = await import('./chatbot-test-runner/chatbotInfraTests');
+      const { SCENARIO_STORAGE_KEY } = await import('./chatbot-test-runner/types');
+      const allScenarios = getChatbotTestScenarios();
+      const autoRunnable = allScenarios.filter((s) => !s.skipAutoRun);
+
+      updateProgress('Chatbot Scenarios', 0, autoRunnable.length);
+
+      const scenarioResultsMap: Record<string, unknown> = {};
+
+      for (let si = 0; si < autoRunnable.length; si++) {
+        if (abortRef.current) break;
+        const scenario = autoRunnable[si];
+        updateProgress('Chatbot Scenarios', si, autoRunnable.length);
+
+        const start = performance.now();
+        try {
+          const response = await sendAIQuery(scenario.userMessage, 45000);
+          const durationMs = Math.round(performance.now() - start);
+          const autoChecks = runScenarioAutoChecks(scenario, response);
+          const allPassed =
+            autoChecks.length > 0 && autoChecks.every((c: { passed: boolean }) => c.passed);
+          const anyFailed = autoChecks.some((c: { passed: boolean }) => !c.passed);
+          const status = response.error ? 'fail' : allPassed ? 'pass' : anyFailed ? 'fail' : 'pass';
+
+          scenarioResultsMap[scenario.id] = {
+            id: scenario.id,
+            status,
+            notes: '',
+            testedAt: new Date().toISOString(),
+            aiResponse: response.text,
+            toolsCalled: response.toolCalls.map((t: { name: string }) => t.name),
+            routeCategory: response.routeInfo?.category ?? undefined,
+            durationMs,
+            autoChecks,
+            error: response.error ?? undefined,
+          };
+
+          if (status === 'pass') {
+            totalPassed++;
+          } else {
+            totalFailed++;
+            if (response.error)
+              errorEntries.push({
+                testId: scenario.id,
+                testName: scenario.name,
+                suite: 'chatbot_scenarios',
+                error: response.error,
+              });
+          }
+        } catch (err) {
+          const durationMs = Math.round(performance.now() - start);
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          scenarioResultsMap[scenario.id] = {
+            id: scenario.id,
+            status: 'fail',
+            notes: '',
+            testedAt: new Date().toISOString(),
+            error: errorMsg,
+            durationMs,
+            autoChecks: [],
+          };
+          totalFailed++;
+          errorEntries.push({
+            testId: scenario.id,
+            testName: scenario.name,
+            suite: 'chatbot_scenarios',
+            error: errorMsg,
+          });
+        }
+      }
+
+      totalRun += autoRunnable.length;
+      try {
+        localStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify(scenarioResultsMap));
+      } catch {
+        /* ignore */
+      }
+
+      // Persist chatbot scenario results to Supabase
+      if (trackingRunId) {
+        const scenarioTrackingResults = Object.values(scenarioResultsMap).map((r: unknown) => {
+          const sr = r as { id: string; status: string; error?: string; durationMs?: number };
+          const scenarioDef = autoRunnable.find((s) => s.id === sr.id);
+          return {
+            id: sr.id,
+            name: scenarioDef?.name || sr.id,
+            category: scenarioDef?.category || 'Scenario',
+            status: sr.status,
+            error: sr.error,
+            durationMs: sr.durationMs,
+          };
+        });
+        await tracking.saveResults(trackingRunId, 'chatbot_scenarios', scenarioTrackingResults);
+      }
+
+      updateProgress('Chatbot Scenarios', autoRunnable.length, autoRunnable.length);
+      suitesCompleted = 4;
+      if (trackingRunId) await tracking.updateProgress(trackingRunId, suitesCompleted);
+      if (abortRef.current) throw new Error('aborted');
+
+      // --- Suite 5: 30-Question QA ---
+      const { THIRTY_Q_SUITE } = await import('./chatbot-test-runner/thirtyQuestionSuite');
+
+      updateProgress('30-Question QA', 0, THIRTY_Q_SUITE.length);
+
+      const thirtyQResults: TestResult[] = [];
+
+      for (let qi = 0; qi < THIRTY_Q_SUITE.length; qi++) {
+        if (abortRef.current) break;
+        const q = THIRTY_Q_SUITE[qi];
+        updateProgress('30-Question QA', qi, THIRTY_Q_SUITE.length);
+
+        const start = performance.now();
+        try {
+          const res = await sendAIQuery(q.question, 60000);
+          const durationMs = Math.round(performance.now() - start);
+          const hasError = !!res.error;
+          const hasResponse = !!res.text?.trim();
+
+          const status = hasError ? 'fail' : hasResponse ? 'pass' : 'fail';
+          thirtyQResults.push({
+            id: `30q-${q.id}`,
+            name: `Q${q.id}: ${q.question.substring(0, 80)}`,
+            category: q.category,
+            status: status as TestResult['status'],
+            error: res.error || undefined,
+            durationMs,
+          });
+
+          if (status === 'pass') totalPassed++;
+          else {
+            totalFailed++;
+            if (res.error)
+              errorEntries.push({
+                testId: `30q-${q.id}`,
+                testName: `Q${q.id}`,
+                suite: '30q',
+                error: res.error,
+              });
+          }
+        } catch (err) {
+          const durationMs = Math.round(performance.now() - start);
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          thirtyQResults.push({
+            id: `30q-${q.id}`,
+            name: `Q${q.id}: ${q.question.substring(0, 80)}`,
+            category: q.category,
+            status: 'fail',
+            error: errorMsg,
+            durationMs,
+          });
+          totalFailed++;
+          errorEntries.push({
+            testId: `30q-${q.id}`,
+            testName: `Q${q.id}`,
+            suite: '30q',
+            error: errorMsg,
+          });
+        }
+      }
+
+      totalRun += THIRTY_Q_SUITE.length;
+      try {
+        // Save as the same format ThirtyQuestionTest uses so results show in that tab
+        const thirtyQStorage = THIRTY_Q_SUITE.map((q, i) => {
+          const result = thirtyQResults[i];
+          return {
+            question: q,
+            status:
+              result?.status === 'pass' ? 'pass' : result?.status === 'fail' ? 'fail' : 'error',
+            actualResponse: '',
+            routeCategory: '',
+            tools: [],
+            durationMs: result?.durationMs || 0,
+            error: result?.error,
+          };
+        });
+        localStorage.setItem('sourceco-30q-test-results', JSON.stringify(thirtyQStorage));
+        localStorage.setItem('sourceco-30q-test-results-ts', new Date().toISOString());
+      } catch {
+        /* ignore */
+      }
+
+      if (trackingRunId) {
+        await tracking.saveResults(trackingRunId, '30q', thirtyQResults);
+      }
+
+      updateProgress('30-Question QA', THIRTY_Q_SUITE.length, THIRTY_Q_SUITE.length);
+      suitesCompleted = 5;
 
       // Complete the tracking run
       if (trackingRunId) {
@@ -581,15 +776,15 @@ export default function TestingHub() {
     <div className="min-h-screen bg-background">
       <div className="border-b bg-background/95 backdrop-blur sticky top-0 z-40">
         <div className="px-8 py-6">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1 min-w-0">
               <h1 className="text-2xl font-semibold tracking-tight">Testing & Diagnostics</h1>
               <p className="text-sm text-muted-foreground">
                 Enrichment tests, system integration tests, DocuSeal health checks, Smartlead
                 integration, and AI chatbot QA.
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 shrink-0">
               {progress ? (
                 <Button variant="destructive" onClick={stopAll} className="gap-2">
                   <Square className="h-4 w-4" />
