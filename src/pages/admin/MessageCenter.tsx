@@ -11,7 +11,7 @@ import {
   LayoutList,
   FolderOpen,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
