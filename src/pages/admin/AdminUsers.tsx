@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAdmin } from "@/hooks/use-admin";
-import { AlertCircle, RefreshCw, Building2, Loader2 } from "lucide-react";
+import { AlertCircle, RefreshCw, Building2, Loader2, Phone, XCircle, ThumbsDown } from "lucide-react";
 import { UsersTable } from "@/components/admin/UsersTable";
 import { MobileUsersTable } from "@/components/admin/MobileUsersTable";
 import { User } from "@/types";
 import { UserActions } from "@/components/admin/UserActions";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useRealtimeAdmin } from "@/hooks/use-realtime-admin";
@@ -29,6 +30,20 @@ import { ApprovalSuccessDialog } from "@/components/admin/ApprovalSuccessDialog"
 import { UserConfirmationDialog } from "@/components/admin/UserConfirmationDialog";
 import { useAICommandCenterContext } from "@/components/ai-command-center/AICommandCenterProvider";
 import { useAIUIActionHandler } from "@/hooks/useAIUIActionHandler";
+import { PushToDialerModal } from "@/components/remarketing/PushToDialerModal";
+import { PushToSmartleadModal } from "@/components/remarketing/PushToSmartleadModal";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast as toastDirect } from "@/hooks/use-toast";
 
 type PrimaryView = 'buyers' | 'owners';
 type SecondaryView = 'marketplace' | 'non-marketplace';
@@ -44,12 +59,24 @@ const AdminUsers = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   useRealtimeAdmin();
+
+  const [searchParams] = useSearchParams();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [filteredOwnerLeads, setFilteredOwnerLeads] = useState<OwnerLead[]>([]);
-  const [primaryView, setPrimaryView] = useState<PrimaryView>('buyers');
+  const [primaryView, setPrimaryView] = useState<PrimaryView>(
+    searchParams.get('view') === 'owners' ? 'owners' : 'buyers'
+  );
   const [secondaryView, setSecondaryView] = useState<SecondaryView>('marketplace');
   const { markAsViewed: markUsersAsViewed } = useMarkUsersViewed();
   const { markAsViewed: markOwnerLeadsAsViewed } = useMarkOwnerLeadsViewed();
+
+  // Owner bulk-action state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [hideNotFit, setHideNotFit] = useState(true);
+  const [showNotFitDialog, setShowNotFitDialog] = useState(false);
+  const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
 
   // Register AI Command Center context
   const { setPageContext } = useAICommandCenterContext();
@@ -61,6 +88,12 @@ const AdminUsers = () => {
   useAIUIActionHandler({
     table: 'buyers',
   });
+
+  // Sync ?view= param
+  useEffect(() => {
+    const viewParam = searchParams.get('view');
+    if (viewParam === 'owners') setPrimaryView('owners');
+  }, [searchParams]);
 
   useEffect(() => {
     markUsersAsViewed();
@@ -79,6 +112,11 @@ const AdminUsers = () => {
   useEffect(() => {
     setFilteredOwnerLeads(ownerLeads);
   }, [ownerLeads]);
+
+  // Clear selection when switching views
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [primaryView]);
 
   const {
     handleUserApproval,
@@ -132,6 +170,37 @@ const AdminUsers = () => {
   const handleOwnerContactedChange = (id: string, contacted: boolean) => {
     updateOwnerContacted.mutate({ id, contacted });
   };
+
+  const handleMarkNotFit = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setIsMarkingNotFit(true);
+    try {
+      const { error } = await supabase
+        .from('inbound_leads')
+        .update({ status: 'not_a_fit', updated_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+      toastDirect({
+        title: 'Marked as Not a Fit',
+        description: `${ids.length} lead(s) marked as not a fit.`,
+      });
+      setSelectedIds(new Set());
+    } catch {
+      toastDirect({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to mark leads as not a fit.',
+      });
+    } finally {
+      setIsMarkingNotFit(false);
+    }
+  };
+
+  // Apply hideNotFit filter on top of filtered leads
+  const displayedLeads = hideNotFit
+    ? filteredOwnerLeads.filter((l) => l.status !== 'not_a_fit')
+    : filteredOwnerLeads;
 
   if (error) {
     return (
@@ -214,9 +283,8 @@ const AdminUsers = () => {
           />
         </div>
 
-        {/* Stats & Filters - Keep both mounted, toggle visibility with CSS */}
+        {/* Stats & Filters */}
         <div className="mb-6">
-          {/* Buyers stats/filters - hidden when owners view */}
           <div className={cn(!isBuyersView && "hidden")}>
             <EnhancedUserManagement
               users={usersData}
@@ -229,7 +297,6 @@ const AdminUsers = () => {
             />
           </div>
 
-          {/* Owners stats/filters - hidden when buyers view */}
           <div className={cn(!isOwnersView && "hidden", "space-y-6")}>
             <OwnerLeadsStats leads={ownerLeads} />
             <OwnerLeadsFilters 
@@ -239,7 +306,25 @@ const AdminUsers = () => {
           </div>
         </div>
 
-        {/* Table Container - Keep all tables mounted, toggle visibility */}
+        {/* Hide Not Fit Toggle - only for owners view */}
+        {isOwnersView && (
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => setHideNotFit(!hideNotFit)}
+              className={cn(
+                'flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border transition-colors',
+                hideNotFit
+                  ? 'bg-orange-100 border-orange-300 text-orange-700 font-medium'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50',
+              )}
+            >
+              <ThumbsDown className="h-3.5 w-3.5" />
+              {hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
+            </button>
+          </div>
+        )}
+
+        {/* Table Container */}
         <div className="bg-card rounded-lg border overflow-hidden">
           {/* Buyers table - marketplace */}
           <div className={cn(!(isBuyersView && secondaryView === 'marketplace') && "hidden")}>
@@ -292,26 +377,119 @@ const AdminUsers = () => {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : filteredOwnerLeads.length === 0 ? (
+            ) : displayedLeads.length === 0 ? (
               <div className="text-center py-12">
                 <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-1">No owner inquiries yet</h3>
                 <p className="text-sm text-muted-foreground">
-                  Owner inquiries from the /sell form will appear here.
+                  {hideNotFit && filteredOwnerLeads.length > 0
+                    ? 'All leads in this view are marked as "Not a Fit". Toggle the filter above to see them.'
+                    : 'Owner inquiries from the /sell form will appear here.'}
                 </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <OwnerLeadsTableContent
-                  leads={filteredOwnerLeads}
+                  leads={displayedLeads}
                   onStatusChange={handleOwnerStatusChange}
                   onNotesUpdate={handleOwnerNotesUpdate}
                   onContactedChange={handleOwnerContactedChange}
+                  selectedIds={selectedIds}
+                  onSelectionChange={setSelectedIds}
                 />
               </div>
             )}
           </div>
         </div>
+
+        {/* Owner bulk actions floating bar */}
+        {isOwnersView && selectedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 p-3 bg-background border border-primary/20 rounded-lg shadow-lg">
+            <Badge variant="secondary" className="text-sm font-medium">
+              {selectedIds.size} selected
+            </Badge>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              <XCircle className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+            <div className="h-5 w-px bg-border" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setDialerOpen(true)}
+              className="gap-2"
+            >
+              <Phone className="h-4 w-4" />
+              Push to Dialer
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setSmartleadOpen(true)}
+              className="gap-2"
+            >
+              <Phone className="h-4 w-4" />
+              Push to Smartlead
+            </Button>
+            <div className="h-5 w-px bg-border" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowNotFitDialog(true)}
+              disabled={isMarkingNotFit}
+              className="gap-2 text-orange-600 border-orange-200 hover:bg-orange-50"
+            >
+              {isMarkingNotFit ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ThumbsDown className="h-4 w-4" />
+              )}
+              Not a Fit
+            </Button>
+          </div>
+        )}
+
+        {/* Not a Fit Confirmation Dialog */}
+        <AlertDialog open={showNotFitDialog} onOpenChange={setShowNotFitDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Mark {selectedIds.size} Lead(s) as Not a Fit?</AlertDialogTitle>
+              <AlertDialogDescription>
+                These leads will be marked as "Not a Fit" and hidden from the default view. You can
+                show them again using the "Show Not Fit" toggle.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  handleMarkNotFit();
+                  setShowNotFitDialog(false);
+                }}
+                disabled={isMarkingNotFit}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {isMarkingNotFit ? 'Marking...' : 'Mark as Not a Fit'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Dialer & Smartlead modals for owner leads */}
+        <PushToDialerModal
+          open={dialerOpen}
+          onOpenChange={setDialerOpen}
+          contactIds={Array.from(selectedIds)}
+          contactCount={selectedIds.size}
+          entityType="leads"
+        />
+        <PushToSmartleadModal
+          open={smartleadOpen}
+          onOpenChange={setSmartleadOpen}
+          contactIds={Array.from(selectedIds)}
+          contactCount={selectedIds.size}
+          entityType="leads"
+        />
 
         {/* Dialogs */}
         <ApprovalEmailDialog

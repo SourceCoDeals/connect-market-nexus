@@ -148,6 +148,12 @@ export function UnifiedAdminSidebar({
             icon: <UserCog className="h-4 w-4" />,
             badge: unviewedUsersCount,
           },
+          {
+            label: 'Owner/Seller Leads',
+            href: '/admin/marketplace/users?view=owners',
+            icon: <ClipboardList className="h-4 w-4" />,
+            badge: unviewedOwnerLeadsCount,
+          },
         ],
       },
       {
@@ -235,12 +241,6 @@ export function UnifiedAdminSidebar({
             label: 'Referral Partners',
             href: '/admin/remarketing/leads/referrals',
             icon: <Handshake className="h-4 w-4" />,
-          },
-          {
-            label: 'Owner/Seller Leads',
-            href: '/admin/settings/owner-leads',
-            icon: <ClipboardList className="h-4 w-4" />,
-            badge: unviewedOwnerLeadsCount,
           },
         ],
       },
@@ -365,12 +365,17 @@ export function UnifiedAdminSidebar({
     for (const section of sections) {
       for (const item of section.items) {
         if (item.external) continue;
-        if (item.exact && location.pathname === item.href) return section.id;
-        if (!item.exact && location.pathname.startsWith(item.href)) return section.id;
+        const [itemPath, itemSearch] = item.href.split('?');
+        if (item.exact && location.pathname === itemPath) {
+          if (!itemSearch || location.search.includes(itemSearch)) return section.id;
+        }
+        if (!item.exact && location.pathname.startsWith(itemPath)) {
+          if (!itemSearch || location.search.includes(itemSearch)) return section.id;
+        }
       }
     }
     return null;
-  }, [location.pathname, sections]);
+  }, [location.pathname, location.search, sections]);
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => {
     const initial = new Set<string>();
@@ -392,8 +397,13 @@ export function UnifiedAdminSidebar({
 
   const isItemActive = (item: NavItem) => {
     if (item.external) return false;
-    if (item.exact) return location.pathname === item.href;
-    return location.pathname.startsWith(item.href);
+    const [itemPath, itemSearch] = item.href.split('?');
+    const pathMatch = item.exact
+      ? location.pathname === itemPath
+      : location.pathname.startsWith(itemPath);
+    if (!pathMatch) return false;
+    if (itemSearch) return location.search.includes(itemSearch);
+    return true;
   };
 
   const sectionHasBadge = (section: NavSection) =>
