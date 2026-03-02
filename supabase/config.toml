@@ -244,3 +244,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.salesforce-remarketing-webhook]
 verify_jwt = false
+[functions.score-deal-buyers]
+verify_jwt = false
+[functions.seed-buyers]
+verify_jwt = false

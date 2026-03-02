@@ -46,7 +46,9 @@ export function useDealDetail() {
     enabled: !!dealId,
   });
 
-  // Score stats removed — old scoring engine decommissioned
+  // Score stats decommissioned — old scoring engine removed.
+  // Downstream components (DataRoomTab, OverviewTab, WebsiteActionsCard) accept
+  // scoreStats as an optional prop and gracefully handle undefined.
   const scoreStats = undefined as
     | { count: number; approved: number; passed: number; avgScore: number }
     | undefined;

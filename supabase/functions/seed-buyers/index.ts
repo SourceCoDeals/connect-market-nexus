@@ -19,6 +19,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { callClaude, CLAUDE_MODELS } from '../_shared/claude-client.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 
 // ── Types ──
 
@@ -56,6 +57,7 @@ interface SeedResult {
 // ── Helpers ──
 
 function buildCacheKey(deal: {
+  id: string;
   industry: string | null;
   categories: string[] | null;
   address_state: string | null;
@@ -347,6 +349,7 @@ Deno.serve(async (req: Request) => {
     // ── Deduplicate and insert ──
     const results: SeedResult[] = [];
     const newBuyerIds: string[] = [];
+    const seedLogEntries: Record<string, unknown>[] = [];
     const now = new Date().toISOString();
 
     for (const suggested of suggestedBuyers) {
@@ -382,7 +385,12 @@ Deno.serve(async (req: Request) => {
         const domainBuyer = (existingBuyers || []).find(
           b => extractDomain(b.company_website) === domain,
         );
-        buyerId = domainBuyer?.id || 'unknown';
+        if (!domainBuyer) {
+          // Cannot resolve the duplicate — skip to avoid corrupting UUID[] cache
+          console.warn(`Domain match for ${domain} but could not resolve buyer ID, skipping`);
+          continue;
+        }
+        buyerId = domainBuyer.id;
       } else {
         // New buyer — insert
         action = 'inserted';
@@ -426,8 +434,8 @@ Deno.serve(async (req: Request) => {
 
       newBuyerIds.push(buyerId);
 
-      // Log to buyer_seed_log
-      await supabase.from('buyer_seed_log').insert({
+      // Collect log entry for batch insert after the loop
+      seedLogEntries.push({
         remarketing_buyer_id: buyerId,
         source_deal_id: listingId,
         why_relevant: suggested.why_relevant,
@@ -445,6 +453,14 @@ Deno.serve(async (req: Request) => {
         why_relevant: suggested.why_relevant,
         was_new_record: wasNew,
       });
+    }
+
+    // ── Batch insert seed log entries ──
+    if (seedLogEntries.length > 0) {
+      const { error: logError } = await supabase.from('buyer_seed_log').insert(seedLogEntries);
+      if (logError) {
+        console.error('Batch seed log insert failed (non-fatal):', logError.message);
+      }
     }
 
     // ── Update seed cache ──
