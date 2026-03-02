@@ -52,7 +52,7 @@ const AdminLogin = () => {
         description: 'Redirecting to admin panel...',
       });
     } catch (err: unknown) {
-      setError(err.message || 'Failed to sign in');
+      setError((err as Error).message || 'Failed to sign in');
     } finally {
       setIsSubmitting(false);
     }

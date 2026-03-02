@@ -27,8 +27,12 @@ export function NumberValueInput({
   placeholder,
 }: NumberValueInputProps) {
   if (dual) {
-    const min = value?.min ?? '';
-    const max = value?.max ?? '';
+    const rangeValue = (typeof value === 'object' && value !== null ? value : {}) as {
+      min?: number | string;
+      max?: number | string;
+    };
+    const min = rangeValue.min ?? '';
+    const max = rangeValue.max ?? '';
     return (
       <div className="flex items-center gap-1.5">
         <Input
@@ -59,7 +63,7 @@ export function NumberValueInput({
       )}
       <Input
         type="number"
-        value={value ?? ''}
+        value={typeof value === 'string' || typeof value === 'number' ? value : ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? (isCurrency ? '0' : 'value')}
         className={`h-8 text-sm w-[130px] ${isCurrency ? 'pl-6' : ''}`}

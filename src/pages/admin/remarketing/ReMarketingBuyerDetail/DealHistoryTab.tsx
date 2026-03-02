@@ -11,8 +11,17 @@ import {
 } from '@/components/ui/table';
 import { BarChart3 } from 'lucide-react';
 
+interface ScoreRecord {
+  id: string;
+  listing?: { id: string; title?: string };
+  composite_score: number;
+  tier: string;
+  status: string;
+  created_at: string;
+}
+
 interface DealHistoryTabProps {
-  recentScores: unknown[];
+  recentScores: ScoreRecord[];
 }
 
 export const DealHistoryTab = ({ recentScores }: DealHistoryTabProps) => {
@@ -40,59 +49,50 @@ export const DealHistoryTab = ({ recentScores }: DealHistoryTabProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentScores?.map(
-                (score: {
-                  id: string;
-                  listing?: { id: string; title?: string };
-                  composite_score: number;
-                  tier: string;
-                  status: string;
-                  created_at: string;
-                }) => (
-                  <TableRow key={score.id}>
-                    <TableCell>
-                      <Link
-                        to={`/admin/remarketing/matching/${score.listing?.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {score.listing?.title || 'Unknown'}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {Math.round(score.composite_score)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          score.tier === 'A'
-                            ? 'default'
-                            : score.tier === 'B'
-                              ? 'secondary'
-                              : 'outline'
-                        }
-                      >
-                        Tier {score.tier}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          score.status === 'approved'
-                            ? 'default'
-                            : score.status === 'passed'
-                              ? 'secondary'
-                              : 'outline'
-                        }
-                      >
-                        {score.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(score.created_at).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ),
-              )}
+              {recentScores?.map((score) => (
+                <TableRow key={score.id}>
+                  <TableCell>
+                    <Link
+                      to={`/admin/remarketing/matching/${score.listing?.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {score.listing?.title || 'Unknown'}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    {Math.round(score.composite_score)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        score.tier === 'A'
+                          ? 'default'
+                          : score.tier === 'B'
+                            ? 'secondary'
+                            : 'outline'
+                      }
+                    >
+                      Tier {score.tier}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        score.status === 'approved'
+                          ? 'default'
+                          : score.status === 'passed'
+                            ? 'secondary'
+                            : 'outline'
+                      }
+                    >
+                      {score.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {new Date(score.created_at).toLocaleDateString()}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         )}

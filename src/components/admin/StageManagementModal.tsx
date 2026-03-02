@@ -40,15 +40,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { 
-  Plus, 
-  GripVertical, 
-  Edit, 
-  Trash2, 
-  Check, 
-  X 
-} from 'lucide-react';
-import { useDealStages, useCreateDealStage, useUpdateDealStageData, useDeleteDealStage, useStageDealCount } from '@/hooks/admin/use-deals';
+import { Plus, GripVertical, Edit, Trash2, Check, X } from 'lucide-react';
+import {
+  useDealStages,
+  useCreateDealStage,
+  useUpdateDealStageData,
+  useDeleteDealStage,
+  useStageDealCount,
+} from '@/hooks/admin/use-deals';
 import { DealStage } from '@/hooks/admin/use-deals';
 import { useToast } from '@/hooks/use-toast';
 import { Lock } from 'lucide-react';
@@ -68,8 +67,14 @@ interface StageManagementModalProps {
 }
 
 const STAGE_COLORS = [
-  '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
-  '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'
+  '#3b82f6',
+  '#ef4444',
+  '#10b981',
+  '#f59e0b',
+  '#8b5cf6',
+  '#ec4899',
+  '#06b6d4',
+  '#84cc16',
 ];
 
 // Sortable Stage Card Component
@@ -84,15 +89,19 @@ interface SortableStageCardProps {
   dealCount?: number;
 }
 
-function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCancel, editForm, dealCount = 0 }: SortableStageCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: stage.id });
+function SortableStageCard({
+  stage,
+  isEditing,
+  onEdit,
+  onDelete,
+  onSave,
+  onCancel,
+  editForm,
+  dealCount = 0,
+}: SortableStageCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: stage.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -101,7 +110,7 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
   };
 
   return (
-    <Card ref={setNodeRef} style={style} className={cn("relative", isDragging && "shadow-lg")}>
+    <Card ref={setNodeRef} style={style} className={cn('relative', isDragging && 'shadow-lg')}>
       {isEditing ? (
         <CardContent className="p-4">
           <Form {...editForm}>
@@ -153,10 +162,7 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        className="min-h-[80px]"
-                        {...field} 
-                      />
+                      <Textarea className="min-h-[80px]" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -164,12 +170,7 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
               />
 
               <div className="flex justify-end space-x-2">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={onCancel}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={onCancel}>
                   <X className="h-4 w-4" />
                 </Button>
                 <Button type="submit" size="sm">
@@ -186,7 +187,7 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
               <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing">
                 <GripVertical className="h-5 w-5 text-muted-foreground" />
               </div>
-              <div 
+              <div
                 className="w-4 h-4 rounded-full flex-shrink-0"
                 style={{ backgroundColor: stage.color }}
               />
@@ -214,20 +215,18 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
                   )}
                 </div>
                 {stage.description && (
-                  <p className="text-sm text-muted-foreground mt-1 truncate">
-                    {stage.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1 truncate">{stage.description}</p>
                 )}
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onEdit}
                 disabled={stage.is_system_stage}
-                title={stage.is_system_stage ? "System stages cannot be edited" : "Edit stage"}
+                title={stage.is_system_stage ? 'System stages cannot be edited' : 'Edit stage'}
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -237,7 +236,11 @@ function SortableStageCard({ stage, isEditing, onEdit, onDelete, onSave, onCance
                   size="sm"
                   onClick={onDelete}
                   className="text-destructive hover:text-destructive"
-                  title={dealCount > 0 ? `Cannot delete: ${dealCount} active deals in this stage` : "Delete stage"}
+                  title={
+                    dealCount > 0
+                      ? `Cannot delete: ${dealCount} active deals in this stage`
+                      : 'Delete stage'
+                  }
                   disabled={dealCount > 0}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -290,7 +293,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   const updateStageMutation = useUpdateDealStageData();
   const deleteStageMutation = useDeleteDealStage();
   const { toast } = useToast();
-  
+
   const [editingStage, setEditingStage] = useState<DealStage | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [localStages, setLocalStages] = useState<DealStage[]>([]);
@@ -299,7 +302,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   React.useEffect(() => {
@@ -307,7 +310,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   }, [stages]);
 
   const form = useForm<StageFormData>({
-    resolver: zodResolver(stageSchema as Parameters<typeof zodResolver>[0]),
+    resolver: zodResolver(stageSchema as unknown as Parameters<typeof zodResolver>[0]),
     defaultValues: {
       name: '',
       description: '',
@@ -316,7 +319,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   });
 
   const editForm = useForm<StageFormData>({
-    resolver: zodResolver(stageSchema as Parameters<typeof zodResolver>[0]),
+    resolver: zodResolver(stageSchema as unknown as Parameters<typeof zodResolver>[0]),
   });
 
   React.useEffect(() => {
@@ -348,7 +351,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
 
   const onEditSubmit = async (data: StageFormData) => {
     if (!editingStage) return;
-    
+
     try {
       await updateStageMutation.mutateAsync({
         stageId: editingStage.id,
@@ -365,28 +368,28 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
   };
 
   const handleDeleteStage = async (stageId: string, dealCount: number) => {
-    const stage = localStages.find(s => s.id === stageId);
-    
+    const stage = localStages.find((s) => s.id === stageId);
+
     if (stage?.is_system_stage) {
       toast({
-        title: "Cannot delete system stage",
-        description: "System stages (New Inquiry, Closed Won, Closed Lost) cannot be deleted.",
-        variant: "destructive",
+        title: 'Cannot delete system stage',
+        description: 'System stages (New Inquiry, Closed Won, Closed Lost) cannot be deleted.',
+        variant: 'destructive',
       });
       return;
     }
-    
+
     if (dealCount > 0) {
       toast({
-        title: "Cannot delete stage",
+        title: 'Cannot delete stage',
         description: `This stage has ${dealCount} active ${dealCount === 1 ? 'deal' : 'deals'}. Please move or delete the deals first.`,
-        variant: "destructive",
+        variant: 'destructive',
       });
       return;
     }
-    
+
     const confirmMessage = `Are you sure you want to delete "${stage?.name}"? This will remove it from all custom views. This action cannot be undone.`;
-    
+
     if (window.confirm(confirmMessage)) {
       try {
         // First, fetch all pipeline views that include this stage
@@ -395,16 +398,18 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
           .select('id, stage_config')
           .eq('is_active', true);
         if (viewsError) throw viewsError;
-        
+
         // Delete the stage
         await deleteStageMutation.mutateAsync(stageId);
-        
+
         // Update all affected views to remove this stage from their stage_config
         if (views && views.length > 0) {
           for (const view of views) {
             if (view.stage_config && Array.isArray(view.stage_config)) {
-              const updatedConfig = (view.stage_config as Array<{ stageId: string }>).filter((sc) => sc.stageId !== stageId);
-              
+              const updatedConfig = (view.stage_config as Array<{ stageId: string }>).filter(
+                (sc) => sc.stageId !== stageId,
+              );
+
               if (updatedConfig.length !== view.stage_config.length) {
                 await supabase
                   .from('pipeline_views')
@@ -414,16 +419,17 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
             }
           }
         }
-        
+
         toast({
-          title: "Stage deleted",
-          description: "The stage has been successfully deleted and removed from all views.",
+          title: 'Stage deleted',
+          description: 'The stage has been successfully deleted and removed from all views.',
         });
       } catch (error: unknown) {
         toast({
-          title: "Failed to delete stage",
-          description: error?.message || "An error occurred while deleting the stage.",
-          variant: "destructive",
+          title: 'Failed to delete stage',
+          description:
+            error instanceof Error ? error.message : 'An error occurred while deleting the stage.',
+          variant: 'destructive',
         });
       }
     }
@@ -465,7 +471,8 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
         <DialogHeader>
           <DialogTitle>Stage Library</DialogTitle>
           <DialogDescription>
-            Manage the global stage library. Changes here affect all pipeline views. Drag to reorder stages globally.
+            Manage the global stage library. Changes here affect all pipeline views. Drag to reorder
+            stages globally.
           </DialogDescription>
         </DialogHeader>
 
@@ -474,8 +481,8 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
           <div className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium">Pipeline Stages</h3>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setShowCreateForm(!showCreateForm)}
               >
@@ -539,10 +546,10 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
                           <FormItem>
                             <FormLabel>Description (Optional)</FormLabel>
                             <FormControl>
-                              <Textarea 
+                              <Textarea
                                 placeholder="Brief description of this stage"
                                 className="min-h-[80px]"
-                                {...field} 
+                                {...field}
                               />
                             </FormControl>
                             <FormMessage />
@@ -551,17 +558,14 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
                       />
 
                       <div className="flex justify-end space-x-2">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          variant="outline"
                           onClick={() => setShowCreateForm(false)}
                         >
                           Cancel
                         </Button>
-                        <Button 
-                          type="submit" 
-                          disabled={createStageMutation.isPending}
-                        >
+                        <Button type="submit" disabled={createStageMutation.isPending}>
                           {createStageMutation.isPending ? 'Creating...' : 'Create Stage'}
                         </Button>
                       </div>
@@ -578,7 +582,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={localStages.map(s => s.id)}
+                items={localStages.map((s) => s.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-3">
@@ -590,9 +594,9 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
                       onEdit={() => {
                         if (stage.is_system_stage) {
                           toast({
-                            title: "Cannot edit system stage",
-                            description: "System stages have protected configurations.",
-                            variant: "destructive",
+                            title: 'Cannot edit system stage',
+                            description: 'System stages have protected configurations.',
+                            variant: 'destructive',
                           });
                           return;
                         }
@@ -617,9 +621,7 @@ export const StageManagementModal = ({ open, onOpenChange }: StageManagementModa
         </div>
 
         <div className="flex justify-end pt-4">
-          <Button onClick={() => onOpenChange(false)}>
-            Done
-          </Button>
+          <Button onClick={() => onOpenChange(false)}>Done</Button>
         </div>
       </DialogContent>
     </Dialog>
