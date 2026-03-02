@@ -524,12 +524,16 @@ Deno.serve(async (req: Request) => {
 
       // Build fit_reason: seed log why_relevant (best) > thesis_summary (good) > generated sentence
       const seedLogReason = seedLogMap.get(buyer.id);
-      const thesisSentence = (buyer.thesis_summary || '').trim();
+      const rawThesis = (buyer.thesis_summary || '').trim();
+      // Strip signal-like suffixes that may have been appended to thesis_summary by previous code
+      const thesisCleaned = rawThesis
+        .replace(/\.?\s*(Exact industry match:[^.]*|Adjacent industry:[^.]*|State match:[^.]*|Region match:[^.]*|National buyer|EBITDA [^.]*|Fee agreement signed|Aggressive [^.]*|\d+ acquisitions)\.?\s*/gi, '')
+        .trim();
       let fit_reason: string;
       if (seedLogReason) {
         fit_reason = seedLogReason;
-      } else if (thesisSentence) {
-        const firstSentence = thesisSentence.split('.').filter(s => s.trim())[0]?.trim() || thesisSentence;
+      } else if (thesisCleaned) {
+        const firstSentence = thesisCleaned.split('.').filter(s => s.trim())[0]?.trim() || thesisCleaned;
         fit_reason = firstSentence.endsWith('.') ? firstSentence : `${firstSentence}.`;
       } else {
         // Generate a human-readable sentence from scoring signals

@@ -228,23 +228,6 @@ function BuyerCard({
           {buyer.fit_reason}
         </p>
       )}
-
-      {/* Signal tags — max 3 */}
-      {buyer.fit_signals.length > 0 && (
-        <div className="flex flex-wrap gap-1 ml-6">
-          {buyer.fit_signals.slice(0, 3).map((signal, i) => (
-            <Badge key={i} variant="outline" className="text-[10px] font-normal">
-              {signal}
-            </Badge>
-          ))}
-          {buyer.fit_signals.length > 3 && (
-            <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-              +{buyer.fit_signals.length - 3} more
-            </Badge>
-          )}
-        </div>
-      )}
-
     </div>
   );
 }
