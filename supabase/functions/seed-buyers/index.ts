@@ -83,11 +83,16 @@ function extractDomain(url: string | null): string | null {
 }
 
 function normalizeCompanyName(name: string): string {
-  return name
+  let normalized = name
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+(inc|llc|corp|ltd|lp|group|partners|capital|holdings|company|co)\s*$/g, '')
     .trim();
+  // Strip known corporate suffixes iteratively (handles "ABC Holdings LLC" → "abc")
+  const suffixPattern = /\s+(inc|llc|corp|ltd|lp|group|partners|capital|holdings|company|co)\s*$/;
+  while (suffixPattern.test(normalized)) {
+    normalized = normalized.replace(suffixPattern, '').trim();
+  }
+  return normalized;
 }
 
 function buildSystemPrompt(): string {
@@ -314,10 +319,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Fetch existing buyers for deduplication ──
+    // Explicit limit required: Supabase config max_rows=1000 silently truncates without it
     const { data: existingBuyers } = await supabase
       .from('remarketing_buyers')
       .select('id, company_name, company_website')
-      .or('archived.is.null,archived.eq.false');
+      .eq('archived', false)
+      .limit(10000);
 
     const existingNameSet = new Set(
       (existingBuyers || []).map(b => normalizeCompanyName(b.company_name)),

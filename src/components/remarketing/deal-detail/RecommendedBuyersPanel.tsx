@@ -94,10 +94,12 @@ function BuyerCard({
   buyer,
   onAccept,
   onReject,
+  isAccepting,
 }: {
   buyer: BuyerScore;
   onAccept: (buyer: BuyerScore) => void;
   onReject: (buyer: BuyerScore) => void;
+  isAccepting?: boolean;
 }) {
   const tier = TIER_CONFIG[buyer.tier];
   const TierIcon = tier.icon;
@@ -168,9 +170,10 @@ function BuyerCard({
               size="sm"
               className="h-7 px-2 text-xs text-green-700 border-green-200 hover:bg-green-50"
               onClick={() => onAccept(buyer)}
+              disabled={isAccepting}
             >
               <CheckCircle className="h-3 w-3 mr-1" />
-              Accept
+              {isAccepting ? 'Adding...' : 'Accept'}
             </Button>
             <Button
               variant="outline"
@@ -271,6 +274,7 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   const [seedResults, setSeedResults] = useState<SeedBuyerResult[] | null>(null);
   const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+  const [acceptingIds, setAcceptingIds] = useState<Set<string>>(new Set());
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -305,6 +309,8 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   };
 
   const handleAccept = async (buyer: BuyerScore) => {
+    if (acceptingIds.has(buyer.buyer_id)) return; // prevent double-click
+    setAcceptingIds(prev => new Set([...prev, buyer.buyer_id]));
     try {
       await new Promise<void>((resolve, reject) => {
         createIntroduction(
@@ -324,6 +330,12 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
       setAcceptedIds(prev => new Set([...prev, buyer.buyer_id]));
     } catch {
       // onError in the mutation already shows a toast — buyer stays visible for retry
+    } finally {
+      setAcceptingIds(prev => {
+        const next = new Set(prev);
+        next.delete(buyer.buyer_id);
+        return next;
+      });
     }
   };
 
@@ -446,6 +458,7 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
                 buyer={buyer}
                 onAccept={handleAccept}
                 onReject={handleReject}
+                isAccepting={acceptingIds.has(buyer.buyer_id)}
               />
             ))}
 

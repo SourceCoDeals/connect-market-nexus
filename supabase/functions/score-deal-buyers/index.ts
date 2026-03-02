@@ -427,6 +427,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Fetch ALL active, non-archived buyers ──
+    // Explicit limit required: Supabase config max_rows=1000 silently truncates without it
     const { data: buyers, error: buyerError } = await supabase
       .from('remarketing_buyers')
       .select(
@@ -437,7 +438,8 @@ Deno.serve(async (req: Request) => {
           'has_fee_agreement, acquisition_appetite, total_acquisitions, ' +
           'thesis_summary, ai_seeded, ai_seeded_from_deal_id, marketplace_firm_id',
       )
-      .eq('archived', false);
+      .eq('archived', false)
+      .limit(10000);
 
     if (buyerError) {
       return new Response(
