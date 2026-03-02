@@ -23,7 +23,6 @@ export interface AIToolCallingActions {
   denyAction: () => void;
   stopStreaming: () => void;
   onUIAction: (handler: UIActionHandler) => void;
-  abortControllerRef: React.MutableRefObject<AbortController | null>;
 }
 
 export function useAIToolCalling(
@@ -32,6 +31,7 @@ export function useAIToolCalling(
   pageContext: PageContext | undefined,
   conversationIdRef: React.MutableRefObject<string>,
   pendingConfirmation: ConfirmationRequest | null,
+  abortControllerRef: React.MutableRefObject<AbortController | null>,
   setMessages: React.Dispatch<React.SetStateAction<AIMessage[]>>,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   setStreamingContent: React.Dispatch<React.SetStateAction<string>>,
@@ -41,7 +41,6 @@ export function useAIToolCalling(
   setPendingConfirmation: React.Dispatch<React.SetStateAction<ConfirmationRequest | null>>,
   setError: React.Dispatch<React.SetStateAction<string | null>>,
 ): AIToolCallingActions {
-  const abortControllerRef = useRef<AbortController | null>(null);
   const uiActionHandlerRef = useRef<UIActionHandler | null>(null);
 
   // Register a handler for UI actions (select_rows, filter, navigate)
@@ -367,6 +366,5 @@ export function useAIToolCalling(
     denyAction,
     stopStreaming,
     onUIAction,
-    abortControllerRef,
   };
 }

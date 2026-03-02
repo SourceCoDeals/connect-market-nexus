@@ -115,6 +115,7 @@ export function useAICommandCenter(pageContext?: PageContext) {
     pageContext,
     conversation.conversationIdRef,
     pendingConfirmation,
+    abortControllerRef,
     setMessages,
     setIsLoading,
     setStreamingContent,
@@ -124,9 +125,6 @@ export function useAICommandCenter(pageContext?: PageContext) {
     setPendingConfirmation,
     setError,
   );
-
-  // Keep the shared abort controller in sync with tool calling's ref
-  abortControllerRef.current = toolCalling.abortControllerRef.current;
 
   // Persist messages to sessionStorage + database on change
   useEffect(() => {
