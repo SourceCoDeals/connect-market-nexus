@@ -45,7 +45,7 @@ async function callFn(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(input.timeoutMs),
+    signal: AbortSignal.timeout(Math.min(input.timeoutMs, 20000)), // Cap individual call at 20s to leave headroom within the per-item budget
   });
 
   let json: Record<string, unknown> | null = null;

@@ -191,10 +191,9 @@ async function summarizeTranscriptToNotes(
   const { data: savedNote, error: noteError } = await supabase
     .from('deal_comments')
     .insert({
-      listing_id: dealId,
-      user_id: userId,
-      body: noteContent,
-      source: 'ai_transcript_summary',
+      deal_id: dealId,
+      admin_id: userId,
+      comment_text: noteContent,
     })
     .select('id')
     .single();

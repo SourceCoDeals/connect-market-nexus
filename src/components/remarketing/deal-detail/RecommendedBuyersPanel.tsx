@@ -210,6 +210,29 @@ function BuyerCard({
           )}
         </div>
       )}
+
+      {/* Sub-scores breakdown */}
+      <div className="grid grid-cols-4 gap-2">
+        {[
+          { label: 'Service', value: buyer.service_score, color: 'bg-violet-500' },
+          { label: 'Geography', value: buyer.geography_score, color: 'bg-sky-500' },
+          { label: 'Size', value: buyer.size_score, color: 'bg-teal-500' },
+          { label: 'Bonus', value: buyer.bonus_score, color: 'bg-amber-500' },
+        ].map((sub) => (
+          <div key={sub.label} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground">{sub.label}</span>
+              <span className="text-[10px] font-mono font-medium">{sub.value}</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+              <div
+                className={cn('h-full rounded-full transition-all', sub.color)}
+                style={{ width: `${sub.value}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
