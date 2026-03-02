@@ -108,7 +108,7 @@ function useDocumentTracking() {
       // Map firm_id to most recent deal request
       const firmDealMap: Record<string, { id: string; title: string }> = {};
       (requests || []).forEach(
-        (r: { id: string; firm_id: string; listing: { title: string } | null }) => {
+        (r: { id: string; firm_id: string | null; listing: { title: string } | null }) => {
           if (!firmDealMap[r.firm_id]) {
             firmDealMap[r.firm_id] = {
               id: r.id,

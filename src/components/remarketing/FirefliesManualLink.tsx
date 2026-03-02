@@ -1,11 +1,11 @@
-import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Loader2,
   Search,
@@ -18,7 +18,7 @@ import {
   AlertTriangle,
   FileText,
   Info,
-} from "lucide-react";
+} from 'lucide-react';
 
 interface FirefliesManualLinkProps {
   listingId: string;
@@ -48,7 +48,7 @@ export const FirefliesManualLink = ({
   const [linking, setLinking] = useState<string | null>(null);
 
   // Link by URL state
-  const [firefliesUrl, setFirefliesUrl] = useState("");
+  const [firefliesUrl, setFirefliesUrl] = useState('');
   const [linkingUrl, setLinkingUrl] = useState(false);
 
   // File upload state
@@ -57,14 +57,15 @@ export const FirefliesManualLink = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // URL validation
-  const isValidFirefliesUrl = firefliesUrl.trim() && /fireflies\.ai\/view\/[^/?#]+/.test(firefliesUrl.trim());
+  const isValidFirefliesUrl =
+    firefliesUrl.trim() && /fireflies\.ai\/view\/[^/?#]+/.test(firefliesUrl.trim());
   const hasUrlInput = firefliesUrl.trim().length > 0;
   const showUrlWarning = hasUrlInput && !isValidFirefliesUrl && firefliesUrl.trim().length > 10;
 
   const handleSearch = async () => {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) {
-      toast.error("Please enter a search query");
+      toast.error('Please enter a search query');
       return;
     }
 
@@ -72,20 +73,25 @@ export const FirefliesManualLink = ({
     const toastId = toast.loading(`Searching Fireflies for "${trimmedQuery}"...`);
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        'search-fireflies-for-buyer',
-        { body: { query: trimmedQuery, limit: 30 } }
-      );
+      const { data, error } = await supabase.functions.invoke('search-fireflies-for-buyer', {
+        body: { query: trimmedQuery, limit: 30 },
+      });
       if (error) throw error;
 
       setResults(data.results || []);
       if (data.results.length === 0) {
         toast.info(`No Fireflies calls found for "${trimmedQuery}"`, { id: toastId });
       } else {
-        toast.success(`Found ${data.results.length} matching call${data.results.length !== 1 ? 's' : ''}`, { id: toastId });
+        toast.success(
+          `Found ${data.results.length} matching call${data.results.length !== 1 ? 's' : ''}`,
+          { id: toastId },
+        );
       }
     } catch (error) {
-      toast.error(error instanceof Error ? `Search failed: ${error.message}` : "Failed to search Fireflies", { id: toastId });
+      toast.error(
+        error instanceof Error ? `Search failed: ${error.message}` : 'Failed to search Fireflies',
+        { id: toastId },
+      );
     } finally {
       setLoading(false);
     }
@@ -101,24 +107,26 @@ export const FirefliesManualLink = ({
         transcript_url: transcript.meeting_url,
         title: transcript.title,
         call_date: transcript.date,
-        participants: transcript.participants,
+        participants: transcript.participants as Record<string, unknown>[],
         duration_minutes: transcript.duration_minutes,
         transcript_text: transcript.summary || 'Fireflies transcript',
         source: 'fireflies',
         auto_linked: false,
-      });
+      } as Record<string, unknown>);
 
       if (error) {
         if (error.code === '23505') {
-          toast.info("This transcript is already linked to this deal");
+          toast.info('This transcript is already linked to this deal');
         } else throw error;
       } else {
-        toast.success("Transcript linked to deal");
-        setResults(results.filter(r => r.id !== transcript.id));
+        toast.success('Transcript linked to deal');
+        setResults(results.filter((r) => r.id !== transcript.id));
         onTranscriptLinked?.();
       }
     } catch (error) {
-      toast.error(error instanceof Error ? `Failed to link: ${error.message}` : "Failed to link transcript");
+      toast.error(
+        error instanceof Error ? `Failed to link: ${error.message}` : 'Failed to link transcript',
+      );
     } finally {
       setLinking(null);
     }
@@ -147,7 +155,7 @@ export const FirefliesManualLink = ({
     }
 
     setLinkingUrl(true);
-    const toastId = toast.loading("Linking Fireflies transcript...");
+    const toastId = toast.loading('Linking Fireflies transcript...');
 
     try {
       const transcriptId = match[1];
@@ -160,19 +168,24 @@ export const FirefliesManualLink = ({
         transcript_text: 'Linked via URL - content will be fetched automatically',
         source: 'fireflies',
         auto_linked: false,
-      });
+      } as Record<string, unknown>);
 
       if (error) {
         if (error.code === '23505') {
-          toast.info("This transcript is already linked", { id: toastId });
+          toast.info('This transcript is already linked', { id: toastId });
         } else throw error;
       } else {
-        toast.success("Transcript linked — content will be fetched when you open it", { id: toastId });
-        setFirefliesUrl("");
+        toast.success('Transcript linked — content will be fetched when you open it', {
+          id: toastId,
+        });
+        setFirefliesUrl('');
         onTranscriptLinked?.();
       }
     } catch (error) {
-      toast.error(error instanceof Error ? `Failed: ${error.message}` : "Failed to link transcript", { id: toastId });
+      toast.error(
+        error instanceof Error ? `Failed: ${error.message}` : 'Failed to link transcript',
+        { id: toastId },
+      );
     } finally {
       setLinkingUrl(false);
     }
@@ -183,7 +196,7 @@ export const FirefliesManualLink = ({
     if (!files || files.length === 0) return;
 
     setUploading(true);
-    setUploadedFileNames(Array.from(files).map(f => f.name));
+    setUploadedFileNames(Array.from(files).map((f) => f.name));
     let successCount = 0;
 
     for (const file of Array.from(files)) {
@@ -191,7 +204,7 @@ export const FirefliesManualLink = ({
 
       try {
         const textTypes = ['.txt', '.vtt', '.srt', '.md'];
-        const isTextFile = textTypes.some(ext => file.name.toLowerCase().endsWith(ext));
+        const isTextFile = textTypes.some((ext) => file.name.toLowerCase().endsWith(ext));
 
         let transcriptText = '';
 
@@ -202,7 +215,7 @@ export const FirefliesManualLink = ({
         }
 
         const docTypes = ['.pdf', '.doc', '.docx'];
-        const isDocFile = docTypes.some(ext => file.name.toLowerCase().endsWith(ext));
+        const isDocFile = docTypes.some((ext) => file.name.toLowerCase().endsWith(ext));
 
         if (isDocFile) {
           try {
@@ -229,7 +242,7 @@ export const FirefliesManualLink = ({
           transcript_text: transcriptText || `Uploaded: ${file.name}`,
           source: 'upload',
           auto_linked: false,
-        });
+        } as Record<string, unknown>);
 
         if (error) {
           if (error.code === '23505') {
@@ -285,11 +298,7 @@ export const FirefliesManualLink = ({
                 onKeyDown={(e) => e.key === 'Enter' && !loading && handleSearch()}
                 className="flex-1"
               />
-              <Button
-                onClick={handleSearch}
-                disabled={loading || !query.trim()}
-                size="sm"
-              >
+              <Button onClick={handleSearch} disabled={loading || !query.trim()} size="sm">
                 {loading ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
@@ -303,9 +312,12 @@ export const FirefliesManualLink = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    {results.length} result{results.length !== 1 ? 's' : ''} — click title to view in Fireflies
+                    {results.length} result{results.length !== 1 ? 's' : ''} — click title to view
+                    in Fireflies
                   </p>
-                  <Button variant="ghost" size="sm" onClick={() => setResults([])}>Clear</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setResults([])}>
+                    Clear
+                  </Button>
                 </div>
 
                 {results.map((result) => (
@@ -329,26 +341,48 @@ export const FirefliesManualLink = ({
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              {new Date(result.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {new Date(result.date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
                             </span>
                             {result.duration_minutes && <span>{result.duration_minutes} min</span>}
                             {result.participants.length > 0 && (
                               <span className="flex items-center gap-1">
                                 <Users className="h-3 w-3" />
-                                {result.participants.length} participant{result.participants.length !== 1 ? 's' : ''}
+                                {result.participants.length} participant
+                                {result.participants.length !== 1 ? 's' : ''}
                               </span>
                             )}
                           </div>
                         </div>
-                        <Button size="sm" onClick={() => handleLinkResult(result)} disabled={linking === result.id}>
-                          {linking === result.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Link className="h-4 w-4 mr-1" />Link</>}
+                        <Button
+                          size="sm"
+                          onClick={() => handleLinkResult(result)}
+                          disabled={linking === result.id}
+                        >
+                          {linking === result.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Link className="h-4 w-4 mr-1" />
+                              Link
+                            </>
+                          )}
                         </Button>
                       </div>
-                      {result.summary && <p className="text-xs text-muted-foreground line-clamp-2 italic">{result.summary}</p>}
+                      {result.summary && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 italic">
+                          {result.summary}
+                        </p>
+                      )}
                       {result.keywords.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {result.keywords.slice(0, 4).map((keyword) => (
-                            <Badge key={keyword} variant="outline" className="text-xs">{keyword}</Badge>
+                            <Badge key={keyword} variant="outline" className="text-xs">
+                              {keyword}
+                            </Badge>
                           ))}
                         </div>
                       )}
@@ -361,7 +395,9 @@ export const FirefliesManualLink = ({
             {!loading && results.length === 0 && (
               <div className="text-center py-4 bg-muted/30 rounded-lg">
                 <Search className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
-                <p className="text-xs text-muted-foreground">Search Fireflies to find and link call transcripts</p>
+                <p className="text-xs text-muted-foreground">
+                  Search Fireflies to find and link call transcripts
+                </p>
               </div>
             )}
           </TabsContent>
@@ -399,7 +435,8 @@ export const FirefliesManualLink = ({
             ) : (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Info className="h-3 w-3" />
-                Paste a Fireflies transcript URL — the transcript content will be fetched automatically when you open it
+                Paste a Fireflies transcript URL — the transcript content will be fetched
+                automatically when you open it
               </p>
             )}
           </TabsContent>
@@ -426,7 +463,12 @@ export const FirefliesManualLink = ({
                   <div className="text-left">
                     <span>Uploading...</span>
                     {uploadedFileNames.length > 0 && (
-                      <p className="text-xs text-muted-foreground">{uploadedFileNames[0]}{uploadedFileNames.length > 1 ? ` +${uploadedFileNames.length - 1} more` : ''}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {uploadedFileNames[0]}
+                        {uploadedFileNames.length > 1
+                          ? ` +${uploadedFileNames.length - 1} more`
+                          : ''}
+                      </p>
                     )}
                   </div>
                 </div>

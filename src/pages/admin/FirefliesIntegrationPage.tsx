@@ -399,7 +399,7 @@ export default function FirefliesIntegrationPage() {
                             month: 'short',
                             day: 'numeric',
                           })
-                        : new Date(t.created_at).toLocaleDateString('en-US', {
+                        : new Date(t.created_at!).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                           })}
@@ -464,7 +464,7 @@ export default function FirefliesIntegrationPage() {
                               month: 'short',
                               day: 'numeric',
                             })
-                          : new Date(t.created_at).toLocaleDateString('en-US', {
+                          : new Date(t.created_at!).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
                             })}

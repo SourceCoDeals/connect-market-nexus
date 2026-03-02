@@ -1,10 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DollarSign, Pencil } from "lucide-react";
-import { formatCurrency } from "./helpers";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DollarSign, Pencil } from 'lucide-react';
+import { formatCurrency } from './helpers';
 
 interface FinancialOverviewCardProps {
   deal: any;
@@ -58,7 +58,7 @@ export function FinancialOverviewCard({ deal, onEditClick }: FinancialOverviewCa
                 />
               </>
             ) : (
-              <span className="text-2xl font-bold text-muted-foreground">{"\u2013"}</span>
+              <span className="text-2xl font-bold text-muted-foreground">{'\u2013'}</span>
             )}
           </div>
         </div>
@@ -68,7 +68,12 @@ export function FinancialOverviewCard({ deal, onEditClick }: FinancialOverviewCa
 }
 
 function FinancialMetric({
-  label, value, sourceQuote, isInferred, extractionSources, sourceKey,
+  label,
+  value,
+  sourceQuote,
+  isInferred,
+  extractionSources,
+  sourceKey,
 }: {
   label: string;
   value: number | null;
@@ -78,7 +83,7 @@ function FinancialMetric({
   sourceKey: string;
 }) {
   const sources = extractionSources as Record<string, unknown> | null;
-  const source = sources?.[sourceKey];
+  const source = sources?.[sourceKey] as Record<string, unknown> | undefined;
   const sourceType = source?.source as string | undefined;
   const transcriptTitle = source?.transcriptTitle as string | undefined;
   const hasQuote = !!sourceQuote;
@@ -102,16 +107,21 @@ function FinancialMetric({
           <PopoverContent className="w-80">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className={
-                  isManual ? "bg-blue-50 text-blue-700 border-blue-200 text-xs"
-                  : isTranscript ? "bg-purple-50 text-purple-700 border-purple-200 text-xs"
-                  : "bg-gray-50 text-gray-600 border-gray-200 text-xs"
-                }>
+                <Badge
+                  variant="outline"
+                  className={
+                    isManual
+                      ? 'bg-blue-50 text-blue-700 border-blue-200 text-xs'
+                      : isTranscript
+                        ? 'bg-purple-50 text-purple-700 border-purple-200 text-xs'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 text-xs'
+                  }
+                >
                   {isManual ? 'Manual' : isTranscript ? 'Transcript' : sourceType || 'Unknown'}
                 </Badge>
                 {source?.timestamp && (
                   <span className="text-xs text-muted-foreground">
-                    {new Date(source.timestamp).toLocaleDateString()}
+                    {new Date(source.timestamp as string).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -122,12 +132,18 @@ function FinancialMetric({
               )}
               {hasQuote && (
                 <>
-                  <p className="text-xs font-medium text-muted-foreground uppercase">Source Quote</p>
-                  <p className="text-sm italic border-l-2 border-primary/30 pl-2">"{sourceQuote}"</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase">
+                    Source Quote
+                  </p>
+                  <p className="text-sm italic border-l-2 border-primary/30 pl-2">
+                    "{sourceQuote}"
+                  </p>
                 </>
               )}
               {isManual && !hasQuote && (
-                <p className="text-xs text-muted-foreground">Value was entered manually by a team member.</p>
+                <p className="text-xs text-muted-foreground">
+                  Value was entered manually by a team member.
+                </p>
               )}
               {isInferred && (
                 <p className="text-xs text-amber-600">Inferred from other financial data</p>

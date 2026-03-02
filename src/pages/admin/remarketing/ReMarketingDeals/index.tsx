@@ -47,7 +47,7 @@ import { DealTableRow } from '../components/DealTableRow';
 import { DealsKPICards } from '../components/DealsKPICards';
 import { DealsActionDialogs } from '../components/DealsActionDialogs';
 
-import type { Operator } from '@/components/filters/filter-definitions/types';
+import type { Operator, FilterRule } from '@/components/filters/filter-definitions/types';
 import { useReMarketingDeals } from './useReMarketingDeals';
 import {
   formatCurrency,
@@ -112,11 +112,11 @@ const ReMarketingDeals = () => {
         value: f.value,
       }));
       if (clearExisting) {
-        h.setFilterState({ rules, conjunction: 'and', search: '' });
+        h.setFilterState({ rules: rules as FilterRule[], conjunction: 'and', search: '' });
       } else {
         h.setFilterState((prev) => ({
           ...prev,
-          rules: [...prev.rules, ...rules],
+          rules: [...prev.rules, ...rules] as FilterRule[],
         }));
       }
     },

@@ -78,7 +78,8 @@ export function useConnectionMessages(connectionRequestId: string | undefined) {
     queryKey: ['connection-messages', connectionRequestId],
     queryFn: async () => {
       if (!connectionRequestId) return [];
-      const { data, error } = await supabase.from('connection_messages' as never)
+      const { data, error } = await supabase
+        .from('connection_messages' as never)
         .select(
           `
           *,
@@ -114,7 +115,8 @@ export function useSendMessage() {
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase.from('connection_messages' as never)
+      const { data, error } = await supabase
+        .from('connection_messages' as never)
         .insert({
           connection_request_id: params.connection_request_id,
           sender_id: user.id,
@@ -123,7 +125,7 @@ export function useSendMessage() {
           message_type: params.message_type || 'message',
           is_read_by_admin: params.sender_role === 'admin',
           is_read_by_buyer: params.sender_role === 'buyer',
-        })
+        } as never)
         .select()
         .single();
 
@@ -169,8 +171,9 @@ export function useMarkMessagesReadByAdmin() {
 
   return useMutation({
     mutationFn: async (connectionRequestId: string) => {
-      const { error } = await supabase.from('connection_messages' as never)
-        .update({ is_read_by_admin: true })
+      const { error } = await supabase
+        .from('connection_messages' as never)
+        .update({ is_read_by_admin: true } as never)
         .eq('connection_request_id', connectionRequestId)
         .eq('is_read_by_admin', false);
 
@@ -193,8 +196,9 @@ export function useMarkMessagesReadByBuyer() {
 
   return useMutation({
     mutationFn: async (connectionRequestId: string) => {
-      const { error } = await supabase.from('connection_messages' as never)
-        .update({ is_read_by_buyer: true })
+      const { error } = await supabase
+        .from('connection_messages' as never)
+        .update({ is_read_by_buyer: true } as never)
         .eq('connection_request_id', connectionRequestId)
         .eq('is_read_by_buyer', false);
 
@@ -217,7 +221,8 @@ export function useUnreadMessageCounts() {
     queryKey: ['unread-message-counts'],
     queryFn: async () => {
       // Fetch all unread-by-admin messages grouped by request
-      const { data, error } = await supabase.from('connection_messages' as never)
+      const { data, error } = await supabase
+        .from('connection_messages' as never)
         .select('connection_request_id')
         .eq('is_read_by_admin', false)
         .eq('sender_role', 'buyer');
@@ -257,7 +262,8 @@ export function useUnreadBuyerMessageCounts() {
       const requestIds = (requests || []).map((r) => r.id);
       if (requestIds.length === 0) return { byRequest: {} as Record<string, number>, total: 0 };
 
-      const { data, error } = await supabase.from('connection_messages' as never)
+      const { data, error } = await supabase
+        .from('connection_messages' as never)
         .select('connection_request_id')
         .eq('is_read_by_buyer', false)
         .eq('sender_role', 'admin')
@@ -298,7 +304,8 @@ export function useMessageCenterThreads() {
     queryKey: ['message-center-threads'],
     queryFn: async () => {
       // Fetch all messages with request + buyer + listing info
-      const { data: messages, error } = await supabase.from('connection_messages' as never)
+      const { data: messages, error } = await supabase
+        .from('connection_messages' as never)
         .select(
           `
           id, connection_request_id, sender_role, body, message_type,
@@ -331,7 +338,12 @@ export function useMessageCenterThreads() {
           status: string;
           user_id: string | null;
           listing_id: string;
-          user?: { first_name: string | null; last_name: string | null; email: string | null; company: string | null } | null;
+          user?: {
+            first_name: string | null;
+            last_name: string | null;
+            email: string | null;
+            company: string | null;
+          } | null;
           listing?: { title: string | null } | null;
         } | null;
       }

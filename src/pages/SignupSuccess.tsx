@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { CheckCircle, Mail, ArrowRight, Clock, Shield } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { CountdownTimer } from "@/components/ui/countdown-timer";
-import { APP_CONFIG } from "@/config/app";
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Mail, ArrowRight, Clock, Shield } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
+import { CountdownTimer } from '@/components/ui/countdown-timer';
+import { APP_CONFIG } from '@/config/app';
 
 const SignupSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -20,7 +20,10 @@ const SignupSuccess = () => {
     // Check if email is already verified (rare but possible)
     const checkEmailStatus = async () => {
       try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError) throw authError;
         if (user?.email_confirmed_at) {
           setEmailVerified(true);
@@ -29,16 +32,16 @@ const SignupSuccess = () => {
         // Ignore - user not logged in yet
       }
     };
-    
+
     checkEmailStatus();
   }, []);
 
   const handleResendVerification = async () => {
     if (!email) {
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No email address found. Please try signing up again.",
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No email address found. Please try signing up again.',
       });
       return;
     }
@@ -49,46 +52,51 @@ const SignupSuccess = () => {
         type: 'signup',
         email: email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
-        }
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
 
       if (error) throw error;
 
       toast({
-        title: "Email sent!",
+        title: 'Email sent!',
         description: "We've sent another verification email to your inbox.",
       });
     } catch (error: unknown) {
       console.error('Resend verification error:', error);
-      
-      setAttemptCount(prev => prev + 1);
-      
-      let errorMessage = "Failed to resend verification email. Please try again.";
+
+      setAttemptCount((prev) => prev + 1);
+
+      let errorMessage = 'Failed to resend verification email. Please try again.';
       let waitTime = 60; // Default 60 seconds
-      
-      if (error.message?.includes('already verified')) {
-        errorMessage = "Your email is already verified! You can now log in.";
+
+      if ((error as Error).message?.includes('already verified')) {
+        errorMessage = 'Your email is already verified! You can now log in.';
         setEmailVerified(true);
-      } else if (error.message?.includes('rate limit') || error.message?.includes('too many requests')) {
+      } else if (
+        (error as Error).message?.includes('rate limit') ||
+        (error as Error).message?.includes('too many requests')
+      ) {
         // Parse rate limit time from error message if possible
-        const timeMatch = error.message.match(/(\d+)\s*(second|minute)/i);
+        const timeMatch = (error as Error).message.match(/(\d+)\s*(second|minute)/i);
         if (timeMatch) {
           const time = parseInt(timeMatch[1]);
           waitTime = timeMatch[2].toLowerCase() === 'minute' ? time * 60 : time;
         }
-        
+
         setRateLimitRemaining(waitTime);
         errorMessage = `Please wait ${waitTime} seconds before requesting another email.`;
-        
+
         if (attemptCount > 0) {
           errorMessage += ` This is attempt ${attemptCount + 1}.`;
         }
       }
-      
+
       toast({
-        variant: error.message?.includes('already verified') ? "default" : "destructive",
-        title: error.message?.includes('already verified') ? "Already verified" : "Rate Limited",
+        variant: (error as Error).message?.includes('already verified') ? 'default' : 'destructive',
+        title: (error as Error).message?.includes('already verified')
+          ? 'Already verified'
+          : 'Rate Limited',
         description: errorMessage,
       });
     } finally {
@@ -115,7 +123,7 @@ const SignupSuccess = () => {
               </CardDescription>
             </div>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             {/* Progress Steps */}
             <div className="space-y-4">
@@ -128,10 +136,12 @@ const SignupSuccess = () => {
                   <p className="text-xs text-muted-foreground">✓ Completed</p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <div className={`rounded-full p-1.5 ${emailVerified ? 'bg-primary' : 'bg-muted'}`}>
-                  <Mail className={`h-4 w-4 ${emailVerified ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
+                  <Mail
+                    className={`h-4 w-4 ${emailVerified ? 'text-primary-foreground' : 'text-muted-foreground'}`}
+                  />
                 </div>
                 <div>
                   <p className="font-medium text-sm">Email Verification</p>
@@ -140,7 +150,7 @@ const SignupSuccess = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3">
                 <div className="rounded-full bg-muted p-1.5">
                   <Shield className="h-4 w-4 text-muted-foreground" />
@@ -158,12 +168,24 @@ const SignupSuccess = () => {
                 <Clock className="h-4 w-4 text-primary" />
                 <p className="font-medium text-sm">What happens next?</p>
               </div>
-              
+
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p><strong>1. Check your email</strong> - Click the verification link we sent to {email}</p>
-                <p><strong>2. Admin review</strong> - Our team will approve your account (usually within 24 hours)</p>
-                <p><strong>3. Get notified</strong> - You'll receive an email when your account is approved</p>
-                <p><strong>4. Start browsing</strong> - Access thousands of business listings once approved</p>
+                <p>
+                  <strong>1. Check your email</strong> - Click the verification link we sent to{' '}
+                  {email}
+                </p>
+                <p>
+                  <strong>2. Admin review</strong> - Our team will approve your account (usually
+                  within 24 hours)
+                </p>
+                <p>
+                  <strong>3. Get notified</strong> - You'll receive an email when your account is
+                  approved
+                </p>
+                <p>
+                  <strong>4. Start browsing</strong> - Access thousands of business listings once
+                  approved
+                </p>
               </div>
             </div>
 
@@ -171,7 +193,7 @@ const SignupSuccess = () => {
             <div className="space-y-3">
               {!emailVerified && (
                 <div className="space-y-2">
-                  <Button 
+                  <Button
                     onClick={handleResendVerification}
                     disabled={isResending || rateLimitRemaining > 0}
                     variant="outline"
@@ -185,7 +207,8 @@ const SignupSuccess = () => {
                     ) : rateLimitRemaining > 0 ? (
                       <>
                         <Clock className="h-4 w-4 mr-2" />
-                        Resend Email <CountdownTimer seconds={rateLimitRemaining} variant="compact" />
+                        Resend Email{' '}
+                        <CountdownTimer seconds={rateLimitRemaining} variant="compact" />
                       </>
                     ) : (
                       <>
@@ -199,27 +222,28 @@ const SignupSuccess = () => {
                       </>
                     )}
                   </Button>
-                  
+
                   {rateLimitRemaining > 0 && (
-                    <CountdownTimer 
-                      seconds={rateLimitRemaining} 
+                    <CountdownTimer
+                      seconds={rateLimitRemaining}
                       onComplete={() => setRateLimitRemaining(0)}
                       className="justify-center text-center p-2 bg-muted/30 rounded-md"
                     />
                   )}
-                  
+
                   {attemptCount > 1 && (
                     <div className="text-xs text-muted-foreground text-center p-2 bg-amber-50 dark:bg-amber-950/20 rounded-md">
-                      💡 <strong>Tip:</strong> Check your spam folder or try a different email client if you're not receiving emails.
+                      💡 <strong>Tip:</strong> Check your spam folder or try a different email
+                      client if you're not receiving emails.
                     </div>
                   )}
                 </div>
               )}
-              
+
               <Link to="/login" className="block">
                 <Button className="w-full">
                   <ArrowRight className="h-4 w-4 mr-2" />
-                  {emailVerified ? 'Continue to Login' : 'I\'ll verify later - Take me to Login'}
+                  {emailVerified ? 'Continue to Login' : "I'll verify later - Take me to Login"}
                 </Button>
               </Link>
             </div>
@@ -228,7 +252,10 @@ const SignupSuccess = () => {
             <div className="text-center">
               <p className="text-xs text-muted-foreground">
                 Need help? Contact us at{' '}
-                <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary hover:underline">
+                <a
+                  href={`mailto:${APP_CONFIG.adminEmail}`}
+                  className="text-primary hover:underline"
+                >
                   {APP_CONFIG.adminEmail}
                 </a>
               </p>

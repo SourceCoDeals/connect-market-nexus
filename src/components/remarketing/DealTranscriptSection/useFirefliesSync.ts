@@ -137,15 +137,18 @@ export function useFirefliesSync({
         transcript_url: transcript.meeting_url,
         title: transcript.title,
         call_date: transcript.date,
-        participants: transcript.participants,
+        participants: transcript.participants as Record<string, unknown>[],
         duration_minutes: transcript.duration_minutes,
         transcript_text: transcript.summary || 'Fireflies transcript',
         source: 'fireflies',
         auto_linked: false,
         has_content: transcript.has_content !== false,
         match_type: transcript.match_type || 'email',
-        external_participants: transcript.external_participants || [],
-      });
+        external_participants: (transcript.external_participants || []) as Record<
+          string,
+          unknown
+        >[],
+      } as Record<string, unknown>);
       if (error) {
         if (error.code === '23505') toast.info('Already linked');
         else throw error;
@@ -208,7 +211,7 @@ export function useFirefliesSync({
         transcript_text: 'Linked via URL - content will be fetched automatically',
         source: 'fireflies',
         auto_linked: false,
-      });
+      } as Record<string, unknown>);
       if (error) {
         if (error.code === '23505') toast.info('This transcript is already linked to this deal');
         else throw error;
@@ -262,7 +265,7 @@ export function useFirefliesSync({
           transcript_text: transcriptText || `Uploaded: ${file.name}`,
           source: 'upload',
           auto_linked: false,
-        });
+        } as Record<string, unknown>);
         if (error) {
           if (error.code === '23505') toast.info(`${file.name} already linked`, { id: toastId });
           else throw error;

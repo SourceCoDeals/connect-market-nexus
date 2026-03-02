@@ -29,11 +29,11 @@ export default function ScoringSection({ addLog, dealId, runRef }: Props) {
     setScores(null);
     const t0 = Date.now();
     try {
-      const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
+      const { queueDealQualityScoring } = await import('@/lib/remarketing/queueScoring');
       const result = await queueDealQualityScoring({ listingIds: [dealId] });
       const dur = Date.now() - t0;
       if (result.errors > 0) {
-        setError("Scoring failed");
+        setError('Scoring failed');
         addLog(`calculate-deal-quality for ${dealId.slice(0, 8)}…`, dur, false);
         return;
       }
@@ -52,8 +52,8 @@ export default function ScoringSection({ addLog, dealId, runRef }: Props) {
       );
     } catch (e: unknown) {
       const dur = Date.now() - t0;
-      setError(e.message);
-      addLog(`scoring — ${e.message}`, dur, false);
+      setError((e as Error).message);
+      addLog(`scoring — ${(e as Error).message}`, dur, false);
     } finally {
       setLoading(false);
     }

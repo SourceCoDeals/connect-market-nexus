@@ -56,7 +56,7 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
         <MemosTab
           dealId={dealId}
           dealTitle={deal.internal_company_name || deal.title}
-          projectName={deal.project_name}
+          projectName={deal.project_name ?? undefined}
         />
       </TabsContent>
 
@@ -112,9 +112,9 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
           <DealPipelinePanel listingId={dealId} />
           <DealMarketplacePanel
             listingId={dealId}
-            isInternalDeal={deal.is_internal_deal}
-            status={deal.status}
-            title={deal.title}
+            isInternalDeal={deal.is_internal_deal ?? null}
+            status={deal.status ?? null}
+            title={deal.title ?? null}
           />
         </div>
 

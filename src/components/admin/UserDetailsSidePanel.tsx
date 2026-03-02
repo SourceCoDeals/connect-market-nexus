@@ -1,12 +1,20 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useUserDetails } from "@/hooks/use-user-details";
-import { useUserSessions } from "@/hooks/use-user-sessions";
-import { Skeleton } from "@/components/ui/skeleton";
-import { User, Calendar, Globe, Link as LinkIcon, Monitor, Smartphone, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
-import SessionEventsDialog from "./SessionEventsDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useUserDetails } from '@/hooks/use-user-details';
+import { useUserSessions } from '@/hooks/use-user-sessions';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  User,
+  Calendar,
+  Globe,
+  Link as LinkIcon,
+  Monitor,
+  Smartphone,
+  ExternalLink,
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
+import SessionEventsDialog from './SessionEventsDialog';
 
 interface UserDetailsSidePanelProps {
   userId: string | null;
@@ -21,9 +29,9 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
 
   const getShortReferrer = (url: string | null) => {
-    if (!url) return "Direct";
+    if (!url) return 'Direct';
     try {
-      const hostname = new URL(url).hostname.replace("www.", "");
+      const hostname = new URL(url).hostname.replace('www.', '');
       return hostname;
     } catch {
       return url;
@@ -32,15 +40,15 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
 
   const getMarketingChannel = (referrer: string | null, utmSource: string | null) => {
     if (utmSource) return utmSource;
-    if (!referrer || referrer === "Direct") return "Direct";
-    
+    if (!referrer || referrer === 'Direct') return 'Direct';
+
     const lower = referrer.toLowerCase();
-    if (lower.includes("google")) return "Google";
-    if (lower.includes("facebook") || lower.includes("fb")) return "Facebook";
-    if (lower.includes("linkedin")) return "LinkedIn";
-    if (lower.includes("twitter") || lower.includes("x.com")) return "Twitter";
-    
-    return "Referral";
+    if (lower.includes('google')) return 'Google';
+    if (lower.includes('facebook') || lower.includes('fb')) return 'Facebook';
+    if (lower.includes('linkedin')) return 'LinkedIn';
+    if (lower.includes('twitter') || lower.includes('x.com')) return 'Twitter';
+
+    return 'Referral';
   };
 
   return (
@@ -59,9 +67,9 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
             </div>
             <div>
               <SheetTitle className="text-base font-semibold text-foreground">
-                {userDetails 
-                  ? `${userDetails.first_name} ${userDetails.last_name}`.trim() || "Unidentified"
-                  : "Unidentified"}
+                {userDetails
+                  ? `${userDetails.first_name} ${userDetails.last_name}`.trim() || 'Unidentified'
+                  : 'Unidentified'}
               </SheetTitle>
               {userDetails?.email && (
                 <p className="text-xs text-muted-foreground mt-0.5">{userDetails.email}</p>
@@ -93,9 +101,7 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                     <p className="text-xs font-mono text-muted-foreground truncate">
                       {session.session_id.slice(0, 16)}...
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {session.formatted_time}
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{session.formatted_time}</p>
                   </div>
                   <Badge variant="secondary" className="ml-2 text-xs">
                     {session.event_count} events
@@ -135,10 +141,10 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                 </span>
                 <span className="text-xs font-medium text-foreground">
                   {userDetails?.initial_session?.first_seen_at
-                    ? format(new Date(userDetails.initial_session.first_seen_at), "MMMM d, yyyy")
+                    ? format(new Date(userDetails.initial_session.first_seen_at), 'MMMM d, yyyy')
                     : userDetails?.created_at
-                    ? format(new Date(userDetails.created_at), "MMMM d, yyyy")
-                    : "N/A"}
+                      ? format(new Date(userDetails.created_at), 'MMMM d, yyyy')
+                      : 'N/A'}
                 </span>
               </div>
 
@@ -150,9 +156,9 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                     Initial Location
                   </span>
                   <span className="text-xs font-medium text-foreground">
-                    {userDetails.initial_session.location.city || "N/A"}
+                    {(userDetails.initial_session.location.city as string) || 'N/A'}
                     {userDetails.initial_session.location.state &&
-                      `, ${userDetails.initial_session.location.state}`}
+                      `, ${userDetails.initial_session.location.state as string}`}
                   </span>
                 </div>
               )}
@@ -278,7 +284,7 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                   <span className="text-xs font-medium text-foreground">
                     {getMarketingChannel(
                       userDetails?.initial_session?.referrer || null,
-                      userDetails?.initial_session?.utm_source || null
+                      userDetails?.initial_session?.utm_source || null,
                     )}
                   </span>
                 </div>
@@ -311,25 +317,29 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                 )}
 
                 {/* Deal Sourcing Methods */}
-                {userDetails?.deal_sourcing_methods && Array.isArray(userDetails.deal_sourcing_methods) && userDetails.deal_sourcing_methods.length > 0 && (
-                  <div className="flex items-start justify-between py-2">
-                    <span className="text-xs text-muted-foreground">Deal Sourcing</span>
-                    <div className="text-right max-w-[60%]">
-                      <div className="flex flex-wrap justify-end gap-1">
-                        {(userDetails.deal_sourcing_methods as string[]).map((method: string) => (
-                          <Badge key={method} variant="secondary" className="text-xs capitalize">
-                            {method.replace(/_/g, ' ')}
-                          </Badge>
-                        ))}
+                {userDetails?.deal_sourcing_methods &&
+                  Array.isArray(userDetails.deal_sourcing_methods) &&
+                  userDetails.deal_sourcing_methods.length > 0 && (
+                    <div className="flex items-start justify-between py-2">
+                      <span className="text-xs text-muted-foreground">Deal Sourcing</span>
+                      <div className="text-right max-w-[60%]">
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {(userDetails.deal_sourcing_methods as string[]).map((method: string) => (
+                            <Badge key={method} variant="secondary" className="text-xs capitalize">
+                              {method.replace(/_/g, ' ')}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Target Acquisition Volume */}
                 {userDetails?.target_acquisition_volume && (
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-xs text-muted-foreground">Target Acquisitions (12mo)</span>
+                    <span className="text-xs text-muted-foreground">
+                      Target Acquisitions (12mo)
+                    </span>
                     <Badge variant="outline" className="text-xs capitalize">
                       {userDetails.target_acquisition_volume.replace(/_/g, ' ')}
                     </Badge>
@@ -342,11 +352,11 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                     <span className="text-xs text-muted-foreground">Approval Status</span>
                     <Badge
                       variant={
-                        userDetails.approval_status === "approved"
-                          ? "default"
-                          : userDetails.approval_status === "rejected"
-                          ? "destructive"
-                          : "secondary"
+                        userDetails.approval_status === 'approved'
+                          ? 'default'
+                          : userDetails.approval_status === 'rejected'
+                            ? 'destructive'
+                            : 'secondary'
                       }
                       className="text-xs"
                     >

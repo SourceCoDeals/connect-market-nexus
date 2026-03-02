@@ -114,23 +114,23 @@ export function createUserObject(profile: Record<string, unknown>): UserWithData
     ideal_target_description: (profile.ideal_target_description as string) || '',
     business_categories: businessCategories,
     target_locations: safeArray(profile.target_locations),
-    revenue_range_min: (profile.revenue_range_min as string) || null,
-    revenue_range_max: (profile.revenue_range_max as string) || null,
+    revenue_range_min: (profile.revenue_range_min as string) || undefined,
+    revenue_range_max: (profile.revenue_range_max as string) || undefined,
     specific_business_search: (profile.specific_business_search as string) || '',
     onboarding_completed: Boolean(profile.onboarding_completed),
     job_title: (profile.job_title as string) || '',
 
     // Fee agreement tracking fields
     fee_agreement_signed: Boolean(profile.fee_agreement_signed),
-    fee_agreement_signed_at: (profile.fee_agreement_signed_at as string) || null,
+    fee_agreement_signed_at: (profile.fee_agreement_signed_at as string) || undefined,
     fee_agreement_email_sent: Boolean(profile.fee_agreement_email_sent),
-    fee_agreement_email_sent_at: (profile.fee_agreement_email_sent_at as string) || null,
+    fee_agreement_email_sent_at: (profile.fee_agreement_email_sent_at as string) || undefined,
 
     // NDA tracking fields
     nda_signed: Boolean(profile.nda_signed),
-    nda_signed_at: (profile.nda_signed_at as string) || null,
+    nda_signed_at: (profile.nda_signed_at as string) || undefined,
     nda_email_sent: Boolean(profile.nda_email_sent),
-    nda_email_sent_at: (profile.nda_email_sent_at as string) || null,
+    nda_email_sent_at: (profile.nda_email_sent_at as string) || undefined,
 
     // All comprehensive buyer-specific fields
     // Private Equity
@@ -147,21 +147,21 @@ export function createUserObject(profile: Record<string, unknown>): UserWithData
     committed_equity_band: (profile.committed_equity_band as string) || '',
     equity_source: safeArray(profile.equity_source),
     deployment_timing: (profile.deployment_timing as string) || '',
-    target_deal_size_min: (profile.target_deal_size_min as number) || null,
-    target_deal_size_max: (profile.target_deal_size_max as number) || null,
+    target_deal_size_min: (profile.target_deal_size_min as number) || undefined,
+    target_deal_size_max: (profile.target_deal_size_max as number) || undefined,
     geographic_focus: safeArray(profile.geographic_focus),
     industry_expertise: safeArray(profile.industry_expertise),
     deal_structure_preference: (profile.deal_structure_preference as string) || '',
-    permanent_capital: (profile.permanent_capital as boolean) || null,
+    permanent_capital: (profile.permanent_capital as boolean) || undefined,
     operating_company_targets: safeArray(profile.operating_company_targets),
-    flex_subxm_ebitda: (profile.flex_subxm_ebitda as boolean) ?? null,
-    flex_subXm_ebitda: (profile.flex_subxm_ebitda as boolean) ?? null,
+    flex_subxm_ebitda: (profile.flex_subxm_ebitda as boolean) ?? undefined,
+    flex_subXm_ebitda: (profile.flex_subxm_ebitda as boolean) ?? undefined,
     // Search Fund
     search_type: (profile.search_type as string) || '',
     acq_equity_band: (profile.acq_equity_band as string) || '',
     financing_plan: safeArray(profile.financing_plan),
     search_stage: (profile.search_stage as string) || '',
-    flex_sub2m_ebitda: (profile.flex_sub2m_ebitda as boolean) || null,
+    flex_sub2m_ebitda: (profile.flex_sub2m_ebitda as boolean) || undefined,
     // Advisor/Banker
     on_behalf_of_buyer: (profile.on_behalf_of_buyer as string) || '',
     buyer_role: (profile.buyer_role as string) || '',
@@ -183,12 +183,12 @@ export function createUserObject(profile: Record<string, unknown>): UserWithData
     include_keywords: safeArray(profile.include_keywords),
 
     // Referral source tracking (Step 3)
-    referral_source: (profile.referral_source as string) || null,
-    referral_source_detail: (profile.referral_source_detail as string) || null,
+    referral_source: (profile.referral_source as string) || undefined,
+    referral_source_detail: (profile.referral_source_detail as string) || undefined,
 
     // Deal sourcing questions (Step 3)
     deal_sourcing_methods: dealSourcingMethods,
-    target_acquisition_volume: (profile.target_acquisition_volume as string) || null,
+    target_acquisition_volume: (profile.target_acquisition_volume as string) || undefined,
 
     // Buyer Quality Score fields
     buyer_quality_score: (profile.buyer_quality_score as number) ?? null,

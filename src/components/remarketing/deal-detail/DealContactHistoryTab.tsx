@@ -82,7 +82,7 @@ export function DealContactHistoryTab({
           contact_email: string | null;
           contact_phone: string | null;
           remarketing_buyer_id: string | null;
-          remarketing_buyers: { company_name: string; buyer_type: string } | null;
+          remarketing_buyers: { company_name: string; buyer_type: string | null } | null;
         }) => ({
           id: d.id,
           dealId: d.id,

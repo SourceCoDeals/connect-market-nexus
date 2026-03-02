@@ -216,7 +216,7 @@ export function StripeOverviewTab() {
       // Update last activity time if this is more recent
       if (new Date(activity.created_at) > new Date(userGroup.lastActivityTime)) {
         userGroup.lastActivityTime = activity.created_at;
-        userGroup.mostRecentSession = activity;
+        userGroup.mostRecentSession = activity as Record<string, unknown>;
       }
 
       // Set date first seen to user signup date (profiles.created_at)
@@ -428,13 +428,25 @@ export function StripeOverviewTab() {
                             })}
                           </p>
                           <ActivityDetailsDropdown
-                            session_id={userGroup.mostRecentSession?.session_id}
-                            referrer={userGroup.mostRecentSession?.referrer}
-                            time_on_page={userGroup.mostRecentSession?.time_on_page}
-                            scroll_depth={userGroup.mostRecentSession?.scroll_depth}
-                            page_title={userGroup.mostRecentSession?.page_title}
-                            event_category={userGroup.mostRecentSession?.event_category}
-                            event_label={userGroup.mostRecentSession?.event_label}
+                            session_id={
+                              userGroup.mostRecentSession?.session_id as string | undefined
+                            }
+                            referrer={userGroup.mostRecentSession?.referrer as string | undefined}
+                            time_on_page={
+                              userGroup.mostRecentSession?.time_on_page as number | undefined
+                            }
+                            scroll_depth={
+                              userGroup.mostRecentSession?.scroll_depth as number | undefined
+                            }
+                            page_title={
+                              userGroup.mostRecentSession?.page_title as string | undefined
+                            }
+                            event_category={
+                              userGroup.mostRecentSession?.event_category as string | undefined
+                            }
+                            event_label={
+                              userGroup.mostRecentSession?.event_label as string | undefined
+                            }
                           />
                         </div>
                         <Button
@@ -463,13 +475,16 @@ export function StripeOverviewTab() {
                               Initial Location
                             </div>
                             <div className="text-xs text-foreground mt-0.5">
-                              {[
-                                userGroup.mostRecentSession.location.city,
-                                userGroup.mostRecentSession.location.region,
-                                userGroup.mostRecentSession.location.country,
-                              ]
-                                .filter(Boolean)
-                                .join(', ') || 'Unknown'}
+                              {(() => {
+                                const loc = userGroup.mostRecentSession.location as
+                                  | { city?: string; region?: string; country?: string }
+                                  | undefined;
+                                return (
+                                  [loc?.city, loc?.region, loc?.country]
+                                    .filter(Boolean)
+                                    .join(', ') || 'Unknown'
+                                );
+                              })()}
                             </div>
                           </div>
                         )}

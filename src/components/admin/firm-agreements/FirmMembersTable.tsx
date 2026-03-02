@@ -161,9 +161,9 @@ function MemberRow({ member }: { member: FirmMember }) {
                         (deal: {
                           id: string;
                           title: string;
-                          created_at: string;
-                          value?: number;
-                          stage?: string;
+                          created_at: string | null;
+                          value?: number | null;
+                          stage?: { name: string; color: string | null };
                         }) => (
                           <div
                             key={deal.id}
@@ -174,7 +174,11 @@ function MemberRow({ member }: { member: FirmMember }) {
                                 {deal.title}
                               </div>
                               <div className="flex items-center gap-2 text-xs text-slate-600 mt-0.5">
-                                <span>{format(new Date(deal.created_at), 'MMM d, yyyy')}</span>
+                                <span>
+                                  {deal.created_at
+                                    ? format(new Date(deal.created_at), 'MMM d, yyyy')
+                                    : 'N/A'}
+                                </span>
                                 {deal.value && (
                                   <>
                                     <span>•</span>

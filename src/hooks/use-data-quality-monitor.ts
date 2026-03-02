@@ -60,7 +60,13 @@ export const useDataQualityMonitor = () => {
 
       if (funnelError) throw funnelError;
 
-      const calculatedMetrics = calculateMetrics(profiles || [], funnelData || []);
+      const calculatedMetrics = calculateMetrics(
+        (profiles as unknown as (Record<string, unknown> & {
+          created_at: string;
+          onboarding_completed?: boolean;
+        })[]) || [],
+        funnelData || [],
+      );
       setMetrics(calculatedMetrics);
 
       const generatedAlerts = generateAlerts(calculatedMetrics);

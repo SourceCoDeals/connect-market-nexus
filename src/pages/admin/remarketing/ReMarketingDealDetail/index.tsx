@@ -102,7 +102,7 @@ const ReMarketingDealDetail = () => {
           <DealHeader
             deal={deal}
             backTo={backTo}
-            navigate={navigate}
+            navigate={(to: string | number) => navigate(to as string)}
             displayName={displayName}
             listedName={listedName}
             dataCompleteness={dataCompleteness}

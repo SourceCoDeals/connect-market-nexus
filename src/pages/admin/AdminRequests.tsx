@@ -11,7 +11,14 @@ import { ConnectionRequestDialog } from '@/components/admin/ConnectionRequestDia
 import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
 import { PipelineMetricsCard } from '@/components/admin/PipelineMetricsCard';
 import { PipelineFilters } from '@/components/admin/PipelineFilters';
-import { usePipelineFilters, type StatusFilter, type BuyerTypeFilter, type NdaFilter, type FeeAgreementFilter, type SortOption } from '@/hooks/admin/use-pipeline-filters';
+import {
+  usePipelineFilters,
+  type StatusFilter,
+  type BuyerTypeFilter,
+  type NdaFilter,
+  type FeeAgreementFilter,
+  type SortOption,
+} from '@/hooks/admin/use-pipeline-filters';
 import { toast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileConnectionRequests } from '@/components/admin/MobileConnectionRequests';
@@ -294,13 +301,13 @@ const AdminRequests = () => {
           description: 'Connection request has been rejected',
         });
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
     } catch (error: unknown) {
       console.error(`[AdminRequests] handleAction failed:`, error);
       toast({
         variant: 'destructive',
         title: 'Update failed',
-        description: error?.message || 'Could not update connection request status',
+        description: (error as Error)?.message || 'Could not update connection request status',
       });
     }
   };
@@ -339,13 +346,13 @@ const AdminRequests = () => {
         setIsDialogOpen(false);
         setSelectedRequest(null);
         setActionType(null);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } catch (error: unknown) {
         console.error(`[AdminRequests] confirmAction failed:`, error);
         toast({
           variant: 'destructive',
           title: 'Update failed',
-          description: error?.message || 'Could not update connection request status',
+          description: (error as Error)?.message || 'Could not update connection request status',
         });
       }
     }

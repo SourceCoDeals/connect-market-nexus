@@ -33,16 +33,21 @@ function useTeamMembers() {
       if (!user?.id) return [];
 
       // First get the current user's firm_id
-      const { data: membership } = await (supabase.from('firm_members' as never) as unknown as ReturnType<typeof supabase.from>)
+      const { data: membership } = await (
+        supabase.from('firm_members' as never) as unknown as ReturnType<typeof supabase.from>
+      )
         .select('firm_id')
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
 
-      if (!membership?.firm_id) return [];
+      const membershipData = membership as unknown as { firm_id: string } | null;
+      if (!membershipData?.firm_id) return [];
 
       // Then get all members of that firm, joined with profiles
-      const { data: members, error } = await (supabase.from('firm_members' as never) as unknown as ReturnType<typeof supabase.from>)
+      const { data: members, error } = await (
+        supabase.from('firm_members' as never) as unknown as ReturnType<typeof supabase.from>
+      )
         .select(
           `
           id,
@@ -58,11 +63,11 @@ function useTeamMembers() {
           )
         `,
         )
-        .eq('firm_id', membership.firm_id)
+        .eq('firm_id', membershipData.firm_id)
         .order('is_primary_contact', { ascending: false });
 
       if (error) throw error;
-      return (members || []) as TeamMember[];
+      return (members || []) as unknown as TeamMember[];
     },
     enabled: !!user?.id,
   });
@@ -102,7 +107,7 @@ export function ProfileTeamMembers() {
       toast({
         variant: 'destructive',
         title: 'Failed to send invite',
-        description: error.message || 'Something went wrong. Please try again.',
+        description: (error as Error).message || 'Something went wrong. Please try again.',
       });
     } finally {
       setIsSending(false);
