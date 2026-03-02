@@ -41,6 +41,9 @@ const DOCUSEAL_STORAGE_KEY = 'sourceco-docuseal-test-results';
 const CHATBOT_INFRA_STORAGE_KEY = 'sourceco-chatbot-infra-test-results';
 const SCENARIO_STORAGE_KEY = 'sourceco-chatbot-scenario-results';
 const THIRTY_Q_STORAGE_KEY = 'sourceco-30q-test-results';
+const ENRICHMENT_STORAGE_KEY = 'sourceco-enrichment-test-results';
+const PIPELINE_STORAGE_KEY = 'sourceco-pipeline-test-results';
+const SMARTLEAD_STORAGE_KEY = 'sourceco-smartlead-test-results';
 
 // Warning heuristics — must match individual tab components
 const isSystemTestWarning = (msg: string) =>
@@ -53,7 +56,7 @@ const isChatbotTestWarning = (msg: string) =>
   msg.includes('empty') ||
   msg.includes('Expected multiple');
 
-const SUITE_COUNT = 3;
+const SUITE_COUNT = 8;
 
 interface RunAllProgress {
   suiteName: string;
@@ -149,10 +152,8 @@ export default function TestingHub() {
     setSearchParams({ tab: value }, { replace: true });
   };
 
-  // ── Run All Automated Suites ──────────────────────────────────────
-  // Runs System Tests, DocuSeal Health, and Chatbot Infra sequentially.
-  // Suites that require user input (Enrichment, Smartlead, Listing Pipeline)
-  // and long-running AI suites (30Q, Scenarios) are skipped.
+  // ── Run All Suites ───────────────────────────────────────────────
+  // Runs all 8 suites sequentially, auto-selecting test data where needed.
 
   const runAllSuites = useCallback(async () => {
     setIsRunningAll(true);
@@ -161,9 +162,12 @@ export default function TestingHub() {
 
     try {
       // Dynamic imports so we don't bloat the initial bundle
-      const [testDefs, chatbotInfra] = await Promise.all([
+      const [testDefs, chatbotInfra, pipelineMod, thirtyQMod, scenarioMod] = await Promise.all([
         import('./system-test-runner/testDefinitions'),
         import('./chatbot-test-runner/chatbotInfraTests'),
+        import('./listing-pipeline/runPipelineChecks'),
+        import('./chatbot-test-runner/thirtyQuestionSuite'),
+        import('./chatbot-test-runner/chatbotTestScenarios'),
       ]);
 
       // ─── Suite 1: System Tests ───
@@ -237,6 +241,507 @@ export default function TestingHub() {
           setProgress,
           jsonStringifyTs: true,
         });
+      }
+
+      // ─── Suite 4: Enrichment (auto-selected deal + buyer) ───
+      if (!abortRef.current) {
+        setProgress({
+          suiteName: 'Enrichment (auto-select)',
+          testIndex: 0,
+          testCount: 4,
+          suiteIndex,
+          suiteCount: SUITE_COUNT,
+        });
+
+        const enrichResults: Array<{
+          id: string;
+          name: string;
+          status: string;
+          detail: string;
+          durationMs?: number;
+        }> = [];
+
+        try {
+          // Step 1: Auto-select a deal (prefer unenriched)
+          setProgress({
+            suiteName: 'Enrichment',
+            testIndex: 1,
+            testCount: 4,
+            suiteIndex,
+            suiteCount: SUITE_COUNT,
+          });
+          let { data: deals } = await supabase
+            .from('listings')
+            .select('id, title, internal_company_name')
+            .is('enriched_at', null)
+            .limit(50);
+          if (!deals?.length) {
+            const res = await supabase
+              .from('listings')
+              .select('id, title, internal_company_name')
+              .limit(50);
+            deals = res.data;
+          }
+          const deal = deals?.length ? deals[Math.floor(Math.random() * deals.length)] : null;
+
+          // Auto-select a buyer (prefer unenriched)
+          let { data: buyers } = await supabase
+            .from('remarketing_buyers')
+            .select('id, company_name')
+            .is('data_last_updated', null)
+            .limit(50);
+          if (!buyers?.length) {
+            const res = await supabase
+              .from('remarketing_buyers')
+              .select('id, company_name')
+              .limit(50);
+            buyers = res.data;
+          }
+          const buyer = buyers?.length ? buyers[Math.floor(Math.random() * buyers.length)] : null;
+
+          if (!deal) {
+            enrichResults.push({
+              id: 'auto-select',
+              name: 'Auto-select test data',
+              status: 'fail',
+              detail: 'No deals found in the database',
+            });
+          } else {
+            enrichResults.push({
+              id: 'auto-select',
+              name: 'Auto-select test data',
+              status: 'pass',
+              detail: `Deal: ${deal.internal_company_name || deal.title || deal.id}${buyer ? ` | Buyer: ${buyer.company_name || buyer.id}` : ' | No buyers found'}`,
+            });
+
+            // Step 2: Queue deal enrichment + poll
+            if (!abortRef.current) {
+              setProgress({
+                suiteName: 'Enrichment – Deal',
+                testIndex: 2,
+                testCount: 4,
+                suiteIndex,
+                suiteCount: SUITE_COUNT,
+              });
+              const start = performance.now();
+              try {
+                const { queueDealEnrichment } = await import('@/lib/remarketing/queueEnrichment');
+                await queueDealEnrichment([deal.id]);
+                let attempts = 0;
+                let done = false;
+                while (attempts < 45 && !done && !abortRef.current) {
+                  await new Promise((r) => setTimeout(r, 4000));
+                  attempts++;
+                  const { data: q } = await supabase
+                    .from('enrichment_queue')
+                    .select('status')
+                    .eq('listing_id', deal.id)
+                    .order('queued_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                  if (q?.status === 'completed' || q?.status === 'failed') done = true;
+                }
+                const ms = Math.round(performance.now() - start);
+                enrichResults.push({
+                  id: 'deal-enrich',
+                  name: 'Deal enrichment',
+                  status: done ? 'pass' : abortRef.current ? 'skip' : 'warn',
+                  detail: done
+                    ? `Completed in ${attempts} poll cycles`
+                    : abortRef.current
+                      ? 'Aborted'
+                      : `Timed out after ${attempts} polls`,
+                  durationMs: ms,
+                });
+              } catch (err: unknown) {
+                enrichResults.push({
+                  id: 'deal-enrich',
+                  name: 'Deal enrichment',
+                  status: 'fail',
+                  detail: err instanceof Error ? err.message : String(err),
+                  durationMs: Math.round(performance.now() - start),
+                });
+              }
+            }
+
+            // Step 3: Queue buyer enrichment + poll
+            if (!abortRef.current && buyer) {
+              setProgress({
+                suiteName: 'Enrichment – Buyer',
+                testIndex: 3,
+                testCount: 4,
+                suiteIndex,
+                suiteCount: SUITE_COUNT,
+              });
+              const start = performance.now();
+              try {
+                const { queueBuyerEnrichment } = await import('@/lib/remarketing/queueEnrichment');
+                await queueBuyerEnrichment([buyer.id]);
+                let attempts = 0;
+                let done = false;
+                while (attempts < 45 && !done && !abortRef.current) {
+                  await new Promise((r) => setTimeout(r, 4000));
+                  attempts++;
+                  const { data: q } = await supabase
+                    .from('buyer_enrichment_queue')
+                    .select('status')
+                    .eq('buyer_id', buyer.id)
+                    .order('queued_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                  if (q?.status === 'completed' || q?.status === 'failed') done = true;
+                }
+                const ms = Math.round(performance.now() - start);
+                enrichResults.push({
+                  id: 'buyer-enrich',
+                  name: 'Buyer enrichment',
+                  status: done ? 'pass' : abortRef.current ? 'skip' : 'warn',
+                  detail: done
+                    ? `Completed in ${attempts} poll cycles`
+                    : abortRef.current
+                      ? 'Aborted'
+                      : `Timed out after ${attempts} polls`,
+                  durationMs: ms,
+                });
+              } catch (err: unknown) {
+                enrichResults.push({
+                  id: 'buyer-enrich',
+                  name: 'Buyer enrichment',
+                  status: 'fail',
+                  detail: err instanceof Error ? err.message : String(err),
+                  durationMs: Math.round(performance.now() - start),
+                });
+              }
+            }
+
+            // Step 4: Deal quality scoring
+            if (!abortRef.current) {
+              setProgress({
+                suiteName: 'Enrichment – Scoring',
+                testIndex: 4,
+                testCount: 4,
+                suiteIndex,
+                suiteCount: SUITE_COUNT,
+              });
+              const start = performance.now();
+              try {
+                const { queueDealQualityScoring } = await import('@/lib/remarketing/queueScoring');
+                const scoreResult = await queueDealQualityScoring({ listingIds: [deal.id] });
+                enrichResults.push({
+                  id: 'scoring',
+                  name: 'Deal quality scoring',
+                  status: scoreResult.errors === 0 ? 'pass' : 'warn',
+                  detail: `Scored: ${scoreResult.scored}, Errors: ${scoreResult.errors}`,
+                  durationMs: Math.round(performance.now() - start),
+                });
+              } catch (err: unknown) {
+                enrichResults.push({
+                  id: 'scoring',
+                  name: 'Deal quality scoring',
+                  status: 'fail',
+                  detail: err instanceof Error ? err.message : String(err),
+                  durationMs: Math.round(performance.now() - start),
+                });
+              }
+            }
+          }
+        } catch (err: unknown) {
+          enrichResults.push({
+            id: 'enrichment-error',
+            name: 'Enrichment suite',
+            status: 'fail',
+            detail: err instanceof Error ? err.message : String(err),
+          });
+        }
+
+        const ts = new Date().toISOString();
+        localStorage.setItem(ENRICHMENT_STORAGE_KEY, JSON.stringify(enrichResults));
+        localStorage.setItem(ENRICHMENT_STORAGE_KEY + '-ts', ts);
+        suiteIndex++;
+      }
+
+      // ─── Suite 5: Listing Pipeline (auto-selected pushed deal) ───
+      if (!abortRef.current) {
+        setProgress({
+          suiteName: 'Listing Pipeline',
+          testIndex: 1,
+          testCount: 1,
+          suiteIndex,
+          suiteCount: SUITE_COUNT,
+        });
+
+        try {
+          // Auto-select a recently pushed deal
+          const { data: pushedDeals } = await supabase
+            .from('listings')
+            .select('id, internal_company_name, title')
+            .eq('pushed_to_marketplace', true)
+            .eq('remarketing_status', 'active')
+            .order('pushed_to_marketplace_at', { ascending: false })
+            .limit(5);
+
+          if (!pushedDeals?.length) {
+            // Fall back to any deal
+            const { data: anyDeal } = await supabase
+              .from('listings')
+              .select('id')
+              .limit(1)
+              .maybeSingle();
+            if (anyDeal) {
+              const report = await pipelineMod.runPipelineChecks(anyDeal.id);
+              localStorage.setItem(PIPELINE_STORAGE_KEY, JSON.stringify(report));
+            } else {
+              localStorage.setItem(
+                PIPELINE_STORAGE_KEY,
+                JSON.stringify({ error: 'No deals found', checks: [] }),
+              );
+            }
+          } else {
+            const pick = pushedDeals[Math.floor(Math.random() * pushedDeals.length)];
+            const report = await pipelineMod.runPipelineChecks(pick.id);
+            localStorage.setItem(PIPELINE_STORAGE_KEY, JSON.stringify(report));
+          }
+        } catch (err: unknown) {
+          localStorage.setItem(
+            PIPELINE_STORAGE_KEY,
+            JSON.stringify({ error: err instanceof Error ? err.message : String(err), checks: [] }),
+          );
+        }
+
+        localStorage.setItem(PIPELINE_STORAGE_KEY + '-ts', new Date().toISOString());
+        suiteIndex++;
+      }
+
+      // ─── Suite 6: Smartlead Diagnostics (DB-only checks) ───
+      if (!abortRef.current) {
+        setProgress({
+          suiteName: 'Smartlead Diagnostics',
+          testIndex: 0,
+          testCount: 3,
+          suiteIndex,
+          suiteCount: SUITE_COUNT,
+        });
+        const slResults: Array<{
+          id: string;
+          name: string;
+          status: string;
+          detail: string;
+          durationMs?: number;
+        }> = [];
+
+        // Campaign tables
+        setProgress({
+          suiteName: 'Smartlead Diagnostics',
+          testIndex: 1,
+          testCount: 3,
+          suiteIndex,
+          suiteCount: SUITE_COUNT,
+        });
+        const s1 = performance.now();
+        const { data: campaigns, error: campErr } = await supabase
+          .from('smartlead_campaigns')
+          .select('id, name, status, lead_count, smartlead_campaign_id, created_at, last_synced_at')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        slResults.push({
+          id: 'campaigns',
+          name: 'Campaign database tables',
+          status: campErr ? 'fail' : 'pass',
+          detail: campErr ? campErr.message : `${campaigns?.length || 0} campaign(s) found`,
+          durationMs: Math.round(performance.now() - s1),
+        });
+
+        // Campaign stats
+        if (!abortRef.current) {
+          setProgress({
+            suiteName: 'Smartlead Diagnostics',
+            testIndex: 2,
+            testCount: 3,
+            suiteIndex,
+            suiteCount: SUITE_COUNT,
+          });
+          const s2 = performance.now();
+          const { data: stats, error: statsErr } = await supabase
+            .from('smartlead_campaign_stats')
+            .select('*')
+            .limit(5);
+          slResults.push({
+            id: 'stats',
+            name: 'Campaign stats table',
+            status: statsErr ? 'fail' : 'pass',
+            detail: statsErr ? statsErr.message : `${stats?.length || 0} stat snapshot(s)`,
+            durationMs: Math.round(performance.now() - s2),
+          });
+        }
+
+        // Webhook events
+        if (!abortRef.current) {
+          setProgress({
+            suiteName: 'Smartlead Diagnostics',
+            testIndex: 3,
+            testCount: 3,
+            suiteIndex,
+            suiteCount: SUITE_COUNT,
+          });
+          const s3 = performance.now();
+          const { data: events, error: evtErr } = await supabase
+            .from('smartlead_webhook_events')
+            .select('id, event_type, lead_email, processed, created_at')
+            .order('created_at', { ascending: false })
+            .limit(20);
+          if (evtErr) {
+            slResults.push({
+              id: 'webhooks',
+              name: 'Webhook events',
+              status: 'fail',
+              detail: evtErr.message,
+              durationMs: Math.round(performance.now() - s3),
+            });
+          } else {
+            const summary: Record<string, number> = {};
+            for (const evt of events || [])
+              summary[evt.event_type] = (summary[evt.event_type] || 0) + 1;
+            slResults.push({
+              id: 'webhooks',
+              name: 'Webhook events',
+              status: 'pass',
+              detail: `${events?.length || 0} event(s)${
+                Object.keys(summary).length > 0
+                  ? `: ${Object.entries(summary)
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .join(', ')}`
+                  : ''
+              }`,
+              durationMs: Math.round(performance.now() - s3),
+            });
+          }
+        }
+
+        localStorage.setItem(SMARTLEAD_STORAGE_KEY, JSON.stringify(slResults));
+        localStorage.setItem(SMARTLEAD_STORAGE_KEY + '-ts', new Date().toISOString());
+        suiteIndex++;
+      }
+
+      // ─── Suite 7: 30-Question QA (35 AI calls) ───
+      if (!abortRef.current) {
+        const questions = thirtyQMod.THIRTY_Q_SUITE;
+        const qResults: Array<{
+          question: { id: number; category: string; question: string };
+          status: string;
+          actualResponse: string;
+          routeCategory: string;
+          tools: string[];
+          durationMs: number;
+          score?: unknown;
+        }> = [];
+
+        for (let i = 0; i < questions.length; i++) {
+          if (abortRef.current) break;
+          setProgress({
+            suiteName: '30-Question QA',
+            testIndex: i + 1,
+            testCount: questions.length,
+            suiteIndex,
+            suiteCount: SUITE_COUNT,
+          });
+
+          const q = questions[i];
+          const start = performance.now();
+          try {
+            const res = await chatbotInfra.sendAIQuery(q.question, 60000);
+            const durationMs = Math.round(performance.now() - start);
+            const toolNames = res.toolCalls.map((t: { name: string }) => t.name);
+            const routeCategory = res.routeInfo?.category || 'unknown';
+            const hasResponse = !!(res.text && res.text.trim().length > 0);
+            const hasError = !!res.error;
+            const score = thirtyQMod.scoreThirtyQResponse(q, {
+              text: res.text || '',
+              tools: toolNames,
+              routeCategory,
+              error: res.error || undefined,
+              durationMs,
+            });
+            qResults.push({
+              question: { id: q.id, category: q.category, question: q.question },
+              status: hasError ? 'fail' : hasResponse ? 'pass' : 'fail',
+              actualResponse: res.text || res.error || '(empty)',
+              routeCategory,
+              tools: toolNames,
+              durationMs,
+              score,
+            });
+          } catch (err: unknown) {
+            qResults.push({
+              question: { id: q.id, category: q.category, question: q.question },
+              status: 'fail',
+              actualResponse: err instanceof Error ? err.message : String(err),
+              routeCategory: '',
+              tools: [],
+              durationMs: Math.round(performance.now() - start),
+            });
+          }
+        }
+
+        localStorage.setItem(THIRTY_Q_STORAGE_KEY, JSON.stringify(qResults));
+        localStorage.setItem(THIRTY_Q_STORAGE_KEY + '-ts', new Date().toISOString());
+        suiteIndex++;
+      }
+
+      // ─── Suite 8: Chatbot Scenarios (126+ AI calls) ───
+      if (!abortRef.current) {
+        const allScenarios = scenarioMod.getChatbotTestScenarios();
+        const autoScenarios = allScenarios.filter((s: { skipAutoRun?: boolean }) => !s.skipAutoRun);
+        const scenarioResults: Record<string, unknown> = {};
+
+        for (let i = 0; i < autoScenarios.length; i++) {
+          if (abortRef.current) break;
+          setProgress({
+            suiteName: 'Chatbot Scenarios',
+            testIndex: i + 1,
+            testCount: autoScenarios.length,
+            suiteIndex,
+            suiteCount: SUITE_COUNT,
+          });
+
+          const scenario = autoScenarios[i];
+          const start = performance.now();
+          try {
+            const res = await chatbotInfra.sendAIQuery(scenario.userMessage, 45000);
+            const durationMs = Math.round(performance.now() - start);
+            const toolNames = res.toolCalls.map((t: { name: string }) => t.name);
+            const routeCategory = res.routeInfo?.category || 'unknown';
+            const autoChecks = scenarioMod.runAutoChecks(scenario, {
+              text: res.text || '',
+              toolCalls: res.toolCalls,
+              routeInfo: res.routeInfo,
+              error: res.error,
+            });
+            const allPassed = autoChecks.every((c: { passed: boolean }) => c.passed);
+            scenarioResults[scenario.id] = {
+              id: scenario.id,
+              status: allPassed ? 'pass' : 'fail',
+              notes: '',
+              testedAt: new Date().toISOString(),
+              aiResponse: res.text || res.error || '(empty)',
+              toolsCalled: toolNames,
+              routeCategory,
+              durationMs,
+              autoChecks,
+            };
+          } catch (err: unknown) {
+            scenarioResults[scenario.id] = {
+              id: scenario.id,
+              status: 'fail',
+              notes: '',
+              testedAt: new Date().toISOString(),
+              error: err instanceof Error ? err.message : String(err),
+              durationMs: Math.round(performance.now() - start),
+            };
+          }
+        }
+
+        localStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify(scenarioResults));
+        suiteIndex++;
       }
 
       toast.success(
@@ -356,6 +861,64 @@ export default function TestingHub() {
         suites.thirtyQuestionQA = {
           name: '30-Question QA',
           lastRunAt: readTs(THIRTY_Q_STORAGE_KEY + '-ts'),
+          summary: summarize(results),
+          results,
+        };
+      }
+    } catch {
+      /* skip */
+    }
+
+    // Enrichment Test
+    try {
+      const raw = localStorage.getItem(ENRICHMENT_STORAGE_KEY);
+      if (raw) {
+        const results = JSON.parse(raw);
+        suites.enrichmentTest = {
+          name: 'Enrichment Test (auto-selected)',
+          lastRunAt: readTs(ENRICHMENT_STORAGE_KEY + '-ts'),
+          summary: summarize(results),
+          results,
+        };
+      }
+    } catch {
+      /* skip */
+    }
+
+    // Listing Pipeline
+    try {
+      const raw = localStorage.getItem(PIPELINE_STORAGE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.error) {
+          suites.listingPipeline = {
+            name: 'Listing Pipeline',
+            lastRunAt: readTs(PIPELINE_STORAGE_KEY + '-ts'),
+            error: data.error,
+          };
+        } else {
+          suites.listingPipeline = {
+            name: 'Listing Pipeline',
+            lastRunAt: readTs(PIPELINE_STORAGE_KEY + '-ts') || data.ranAt,
+            dealId: data.dealId,
+            dealTitle: data.dealTitle,
+            summary: summarize(data.checks || []),
+            checks: data.checks,
+          };
+        }
+      }
+    } catch {
+      /* skip */
+    }
+
+    // Smartlead Diagnostics
+    try {
+      const raw = localStorage.getItem(SMARTLEAD_STORAGE_KEY);
+      if (raw) {
+        const results = JSON.parse(raw);
+        suites.smartleadDiagnostics = {
+          name: 'Smartlead Diagnostics',
+          lastRunAt: readTs(SMARTLEAD_STORAGE_KEY + '-ts'),
           summary: summarize(results),
           results,
         };
