@@ -30,23 +30,7 @@ function buildDocItem(
   draftUrl: string | null,
   pendingNotifications: Record<string, unknown>[],
 ): DocItem {
-  const status = resolveAgreementStatus(!!signed, docusealStatus);
-
-  const notif = pendingNotifications.find(
-    (n: Record<string, unknown>) =>
-      (n.metadata as Record<string, unknown>)?.document_type === type,
-  );
-
-  const statusLabels: Record<AgreementDisplayStatus, string> = {
-    signed: 'Signed',
-    declined: 'Declined',
-    expired: 'Expired',
-    viewed: 'Viewed',
-    sent: 'Ready to Sign',
-    pending: 'Ready to Sign',
-    not_sent: 'Ready to Sign',
-    no_firm: 'No Firm',
-  };
+  const _status = resolveAgreementStatus(!!signed, docusealStatus);
 
   const descriptions: Record<AgreementDisplayStatus, string> = {
     signed: signedAt ? `Signed ${formatDistanceToNow(new Date(signedAt), { addSuffix: true })}` : 'Signed',
