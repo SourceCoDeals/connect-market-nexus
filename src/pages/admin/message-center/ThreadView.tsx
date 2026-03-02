@@ -193,7 +193,8 @@ export function ThreadView({ thread, onBack, adminProfiles }: ThreadViewProps) {
       : null;
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex h-full min-h-0">
+    <div className="flex flex-col flex-1 min-h-0 min-w-0">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-border flex-shrink-0">
         <Button variant="ghost" size="sm" onClick={onBack} className="md:hidden h-8 w-8 p-0">
@@ -241,6 +242,23 @@ export function ThreadView({ thread, onBack, adminProfiles }: ThreadViewProps) {
 
         {/* Quick actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Context panel toggle */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setShowContext(!showContext)}
+                >
+                  {showContext ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{showContext ? 'Hide buyer context' : 'Show buyer context'}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           {/* Pipeline link */}
           {thread.pipeline_deal_id && (
             <TooltipProvider>
