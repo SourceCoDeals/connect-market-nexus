@@ -80,19 +80,30 @@ export function useCreateDealForm(
     }
   }, [selectedStageId, stages, form]);
 
-  // Check for duplicates
+  // Check for duplicates — look in connection_requests by lead_email + listing_id
   const checkDuplicates = async (email: string, listingId: string): Promise<DuplicateDeal[]> => {
     try {
       const { data, error } = await supabase
-        .from('deals')
-        .select('id, title, contact_name, created_at')
-        .eq('contact_email', email)
+        .from('connection_requests')
+        .select('id, listing_id, lead_name, created_at, deal_pipeline:deal_pipeline!deal_pipeline_connection_request_id_fkey(id, title)')
+        .eq('lead_email', email)
         .eq('listing_id', listingId)
         .order('created_at', { ascending: false })
         .limit(5);
 
       if (error) throw error;
-      return data || [];
+      // Map to DuplicateDeal shape
+      return (data || [])
+        .filter((cr: Record<string, unknown>) => cr.deal_pipeline)
+        .map((cr: Record<string, unknown>) => {
+          const dp = cr.deal_pipeline as Record<string, unknown>;
+          return {
+            id: dp.id as string,
+            title: (dp.title as string) || '',
+            contact_name: (cr.lead_name as string) || null,
+            created_at: cr.created_at as string,
+          };
+        });
     } catch (error) {
       console.error('Error checking duplicates:', error);
       return [];
@@ -164,14 +175,48 @@ export function useCreateDealForm(
         }
       }
 
+      // Create buyer contact record if we have contact info and no marketplace user
+      let buyerContactId: string | null = null;
+      if (data.contact_email && !selectedUserId) {
+        const nameParts = (data.contact_name || '').split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        // Upsert contact by email
+        const { data: contact } = await supabase
+          .from('contacts')
+          .upsert(
+            {
+              first_name: firstName,
+              last_name: lastName,
+              email: data.contact_email.toLowerCase().trim(),
+              phone: data.contact_phone || null,
+              title: data.contact_role || null,
+              contact_type: 'buyer',
+              source: 'manual_deal_creation',
+            },
+            { onConflict: 'email' }
+          )
+          .select('id')
+          .single();
+
+        if (contact) {
+          buyerContactId = contact.id;
+        }
+      }
+
+      // Strip contact_* fields — they no longer exist on deal_pipeline
+      const { contact_name, contact_email, contact_company, contact_phone, contact_role, ...dealFields } = data;
+
       const payload: Record<string, unknown> = {
-        ...data,
+        ...dealFields,
         source: 'manual',
         nda_status: 'not_sent',
         fee_agreement_status: 'not_sent',
         buyer_priority_score: 0,
         assigned_to: data.assigned_to && data.assigned_to !== '' ? data.assigned_to : null,
         connection_request_id: connectionRequestId,
+        buyer_contact_id: buyerContactId,
       };
       const newDeal = await createDealMutation.mutateAsync(payload);
 

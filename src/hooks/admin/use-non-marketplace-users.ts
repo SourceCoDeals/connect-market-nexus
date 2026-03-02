@@ -51,26 +51,34 @@ export function useNonMarketplaceUsers(options?: { enabled?: boolean }) {
 
       if (ilError) throw ilError;
 
-      // Fetch deals with contact information AND listing title
+      // Fetch deals with buyer contact info from connection_requests and contacts
       const { data: deals, error: dealsError } = await supabase
-        .from('deals')
+        .from('deal_pipeline')
         .select(`
           id,
           title,
-          contact_email,
-          contact_name,
-          contact_company,
-          contact_role,
-          contact_phone,
           created_at,
           nda_status,
           fee_agreement_status,
+          connection_request:connection_requests(
+            lead_email,
+            lead_name,
+            lead_company,
+            lead_role,
+            lead_phone
+          ),
+          buyer_contact:contacts!deal_pipeline_buyer_contact_id_fkey(
+            email,
+            first_name,
+            last_name,
+            phone,
+            title
+          ),
           listing:listings(
             id,
             title
           )
-        `)
-        .not('contact_email', 'is', null);
+        `);
 
       if (dealsError) throw dealsError;
 
@@ -194,9 +202,18 @@ export function useNonMarketplaceUsers(options?: { enabled?: boolean }) {
         if (il.created_at > data.latest_date) data.latest_date = il.created_at;
       });
 
-      // Process deals
+      // Process deals — derive contact info from connection_requests or contacts
       deals?.forEach((deal) => {
-        const email = deal.contact_email?.toLowerCase();
+        const cr = deal.connection_request as { lead_email: string | null; lead_name: string | null; lead_company: string | null; lead_role: string | null; lead_phone: string | null } | null;
+        const bc = deal.buyer_contact as { email: string | null; first_name: string | null; last_name: string | null; phone: string | null; title: string | null } | null;
+
+        const contactEmail = bc?.email || cr?.lead_email;
+        const contactName = bc ? `${bc.first_name || ''} ${bc.last_name || ''}`.trim() : cr?.lead_name;
+        const contactCompany = cr?.lead_company;
+        const contactRole = bc?.title || cr?.lead_role;
+        const contactPhone = bc?.phone || cr?.lead_phone;
+
+        const email = contactEmail?.toLowerCase();
         if (!email) return;
 
         if (!emailMap.has(email)) {
@@ -218,11 +235,11 @@ export function useNonMarketplaceUsers(options?: { enabled?: boolean }) {
         }
 
         const data = emailMap.get(email)!;
-        if (deal.contact_email) data.emails.add(deal.contact_email);
-        if (deal.contact_name) data.names.add(deal.contact_name);
-        if (deal.contact_company) data.companies.add(deal.contact_company);
-        if (deal.contact_role) data.roles.add(deal.contact_role);
-        if (deal.contact_phone) data.phones.add(deal.contact_phone);
+        if (contactEmail) data.emails.add(contactEmail);
+        if (contactName) data.names.add(contactName);
+        if (contactCompany) data.companies.add(contactCompany);
+        if (contactRole) data.roles.add(contactRole);
+        if (contactPhone) data.phones.add(contactPhone);
         data.sources.add('deal');
 
         // Extract listing name from deal

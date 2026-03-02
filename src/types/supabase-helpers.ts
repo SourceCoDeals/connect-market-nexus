@@ -55,10 +55,10 @@ export type ConnectionRequestRow = TableRow<'connection_requests'>;
 export type ConnectionRequestInsert = TableInsert<'connection_requests'>;
 export type ConnectionRequestUpdate = TableUpdate<'connection_requests'>;
 
-// Deals (the `deals` table holds PIPELINE ENTRIES — a buyer pursuing a listing/company)
-export type DealRow = TableRow<'deals'>;
-export type DealInsert = TableInsert<'deals'>;
-export type DealUpdate = TableUpdate<'deals'>;
+// Deal Pipeline (the `deal_pipeline` table holds PIPELINE ENTRIES — a buyer pursuing a listing/company)
+export type DealRow = TableRow<'deal_pipeline'>;
+export type DealInsert = TableInsert<'deal_pipeline'>;
+export type DealUpdate = TableUpdate<'deal_pipeline'>;
 
 // Semantic aliases — see CompanyRow above for context.
 export type PipelineEntryRow = DealRow;

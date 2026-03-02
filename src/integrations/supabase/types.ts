@@ -124,7 +124,7 @@ export type Database = {
             foreignKeyName: "admin_notifications_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
           {
@@ -2758,7 +2758,7 @@ export type Database = {
             foreignKeyName: "daily_standup_tasks_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
           {
@@ -3022,7 +3022,7 @@ export type Database = {
             foreignKeyName: "deal_activities_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
         ]
@@ -3103,7 +3103,7 @@ export type Database = {
             foreignKeyName: "deal_comments_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
         ]
@@ -3255,7 +3255,7 @@ export type Database = {
             foreignKeyName: "deal_documents_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
         ]
@@ -3442,7 +3442,7 @@ export type Database = {
             foreignKeyName: "deal_scoring_adjustments_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
           {
@@ -3524,7 +3524,7 @@ export type Database = {
             foreignKeyName: "deal_sourcing_requests_converted_to_deal_id_fkey"
             columns: ["converted_to_deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
           {
@@ -3685,7 +3685,7 @@ export type Database = {
             foreignKeyName: "deal_tasks_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
         ]
@@ -3782,19 +3782,12 @@ export type Database = {
           },
         ]
       }
-      deals: {
+      deal_pipeline: {
         Row: {
           assigned_to: string | null
           buyer_contact_id: string | null
           buyer_priority_score: number | null
-          company_address: string | null
           connection_request_id: string | null
-          contact_company: string | null
-          contact_email: string | null
-          contact_name: string | null
-          contact_phone: string | null
-          contact_role: string | null
-          contact_title: string | null
           created_at: string | null
           deal_score: number | null
           deleted_at: string | null
@@ -3831,14 +3824,7 @@ export type Database = {
           assigned_to?: string | null
           buyer_contact_id?: string | null
           buyer_priority_score?: number | null
-          company_address?: string | null
           connection_request_id?: string | null
-          contact_company?: string | null
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          contact_role?: string | null
-          contact_title?: string | null
           created_at?: string | null
           deal_score?: number | null
           deleted_at?: string | null
@@ -3875,14 +3861,7 @@ export type Database = {
           assigned_to?: string | null
           buyer_contact_id?: string | null
           buyer_priority_score?: number | null
-          company_address?: string | null
           connection_request_id?: string | null
-          contact_company?: string | null
-          contact_email?: string | null
-          contact_name?: string | null
-          contact_phone?: string | null
-          contact_role?: string | null
-          contact_title?: string | null
           created_at?: string | null
           deal_score?: number | null
           deleted_at?: string | null
@@ -6106,7 +6085,6 @@ export type Database = {
           is_priority_target: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
-          lead_source_id: string | null
           linkedin_boost: number | null
           linkedin_employee_count: number | null
           linkedin_employee_range: string | null
@@ -6166,8 +6144,6 @@ export type Database = {
           revenue_source_quote: string | null
           salesforce_account_id: string | null
           scoring_notes: string | null
-          seller_interest_analyzed_at: string | null
-          seller_interest_notes: Json | null
           seller_interest_score: number | null
           seller_involvement_preference: string | null
           seller_motivation: string | null
@@ -6297,7 +6273,6 @@ export type Database = {
           is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
-          lead_source_id?: string | null
           linkedin_boost?: number | null
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
@@ -6357,8 +6332,6 @@ export type Database = {
           revenue_source_quote?: string | null
           salesforce_account_id?: string | null
           scoring_notes?: string | null
-          seller_interest_analyzed_at?: string | null
-          seller_interest_notes?: Json | null
           seller_interest_score?: number | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
@@ -6488,7 +6461,6 @@ export type Database = {
           is_priority_target?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
-          lead_source_id?: string | null
           linkedin_boost?: number | null
           linkedin_employee_count?: number | null
           linkedin_employee_range?: string | null
@@ -6548,8 +6520,6 @@ export type Database = {
           revenue_source_quote?: string | null
           salesforce_account_id?: string | null
           scoring_notes?: string | null
-          seller_interest_analyzed_at?: string | null
-          seller_interest_notes?: Json | null
           seller_interest_score?: number | null
           seller_involvement_preference?: string | null
           seller_motivation?: string | null
@@ -7096,7 +7066,7 @@ export type Database = {
             foreignKeyName: "owner_intro_notifications_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "deal_pipeline"
             referencedColumns: ["id"]
           },
           {
@@ -10165,7 +10135,7 @@ export type Database = {
             Returns: number
           }
       calculate_deal_buyer_priority: {
-        Args: { deal_row: Database["public"]["Tables"]["deals"]["Row"] }
+        Args: { deal_row: Database["public"]["Tables"]["deal_pipeline"]["Row"] }
         Returns: number
       }
       calculate_engagement_score: {
@@ -10353,7 +10323,6 @@ export type Database = {
           is_priority_target: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
-          lead_source_id: string | null
           linkedin_boost: number | null
           linkedin_employee_count: number | null
           linkedin_employee_range: string | null
@@ -10413,8 +10382,6 @@ export type Database = {
           revenue_source_quote: string | null
           salesforce_account_id: string | null
           scoring_notes: string | null
-          seller_interest_analyzed_at: string | null
-          seller_interest_notes: Json | null
           seller_interest_score: number | null
           seller_involvement_preference: string | null
           seller_motivation: string | null
