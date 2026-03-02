@@ -36,7 +36,7 @@ const BuyerRecommendationTest = lazy(() => import('@/pages/admin/BuyerRecommenda
 const TestRunTracker = lazy(() => import('@/pages/admin/TestRunTracker'));
 
 // Storage keys — must match individual tab components exactly
-const SYSTEM_TEST_KEY = 'sourceco-system-tests';
+const SYSTEM_TEST_KEY = 'sourceco-system-test-results';
 const DOCUSEAL_KEY = 'sourceco-docuseal-test-results';
 const CHATBOT_INFRA_KEY = 'sourceco-chatbot-infra-test-results';
 const SCENARIO_KEY = 'sourceco-chatbot-scenario-results';
