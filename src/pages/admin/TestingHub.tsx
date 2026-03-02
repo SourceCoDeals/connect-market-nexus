@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useCallback, useRef } from 'react';
+import { lazy, Suspense, useState, useCallback, useRef, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -154,9 +154,20 @@ export default function TestingHub() {
   const [progress, setProgress] = useState<RunAllProgress | null>(null);
   const abortRef = useRef(false);
   const [showTracker, setShowTracker] = useState(false);
+  const trackerRef = useRef<HTMLDivElement>(null);
 
   // ── Test Run Tracking (persists to Supabase) ──
   const tracking = useTestRunTracking();
+
+  // Scroll the History panel into view when opened
+  useEffect(() => {
+    if (showTracker) {
+      // Small delay to let React render the panel before scrolling
+      requestAnimationFrame(() => {
+        trackerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  }, [showTracker]);
 
   const setTab = (value: string) => {
     setSearchParams({ tab: value }, { replace: true });
@@ -629,7 +640,7 @@ export default function TestingHub() {
       </div>
 
       {showTracker && (
-        <div className="px-8 pt-6">
+        <div ref={trackerRef} className="px-8 pt-6">
           <Suspense fallback={<Loading />}>
             <TestRunTracker
               runs={tracking.runs}
