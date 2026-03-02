@@ -175,14 +175,59 @@ Return a JSON array of up to ${maxBuyers} buyers. Each object must have:
 Return ONLY the JSON array. No markdown, no explanation.`;
 }
 
-function parseClaudeResponse(responseText: string): AISuggestedBuyer[] {
-  // Strip any markdown fences if present
-  let cleaned = responseText.trim();
-  if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+function repairAndParseJson(raw: string): unknown {
+  // Remove markdown code fences
+  let cleaned = raw
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
+
+  // Find JSON array boundaries
+  const jsonStart = cleaned.indexOf('[');
+  if (jsonStart === -1) throw new Error('No JSON array found in response');
+
+  const jsonEnd = cleaned.lastIndexOf(']');
+  cleaned = jsonEnd > jsonStart
+    ? cleaned.substring(jsonStart, jsonEnd + 1)
+    : cleaned.substring(jsonStart); // truncated — no closing bracket
+
+  // First attempt: direct parse
+  try { return JSON.parse(cleaned); } catch { /* continue */ }
+
+  // Second attempt: strip trailing commas and control chars
+  cleaned = cleaned
+    .replace(/,\s*}/g, '}')
+    .replace(/,\s*]/g, ']')
+    .replace(/[\x00-\x1F\x7F]/g, ' ');
+
+  try { return JSON.parse(cleaned); } catch { /* continue */ }
+
+  // Third attempt: repair unbalanced braces/brackets from truncation
+  // Find the last complete object (ends with })
+  const lastCompleteObj = cleaned.lastIndexOf('}');
+  if (lastCompleteObj > 0) {
+    let repaired = cleaned.substring(0, lastCompleteObj + 1);
+    // Remove any trailing comma after the last complete object
+    repaired = repaired.replace(/,\s*$/, '');
+    // Close the array
+    if (!repaired.endsWith(']')) repaired += ']';
+    // Ensure it starts with [
+    if (!repaired.startsWith('[')) repaired = '[' + repaired;
+
+    try { return JSON.parse(repaired); } catch { /* continue */ }
+
+    // Final attempt: also fix trailing commas inside
+    repaired = repaired
+      .replace(/,\s*}/g, '}')
+      .replace(/,\s*]/g, ']');
+    try { return JSON.parse(repaired); } catch { /* continue */ }
   }
 
-  const parsed = JSON.parse(cleaned);
+  throw new Error(`Cannot parse Claude response as JSON (length=${raw.length})`);
+}
+
+function parseClaudeResponse(responseText: string): AISuggestedBuyer[] {
+  const parsed = repairAndParseJson(responseText);
   if (!Array.isArray(parsed)) {
     throw new Error('Expected JSON array from Claude');
   }
