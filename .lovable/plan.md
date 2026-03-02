@@ -1,24 +1,13 @@
 
 
-## Fix "Update criteria" Link
+# Deploy Two Edge Functions
 
-**Problem:** The "Update criteria" button in the Matched Deals section links to `/welcome` (the public onboarding page), which redirects externally. It should link to the user's profile page where acquisition criteria can be edited.
+Deploy `score-deal-buyers` and `seed-buyers` to Supabase using the edge function deployment tool.
 
-**Fix:** In `src/components/marketplace/MatchedDealsSection.tsx` (line 138), change:
+## Steps
 
-```
-<Link to="/welcome">
-```
-to:
-```
-<Link to="/profile">
-```
+1. Deploy both functions in a single call: `score-deal-buyers`, `seed-buyers`
+2. Verify deployment succeeded
 
-This routes to the existing `/profile` page (under buyer routes) where users can update their acquisition preferences, target industries, geography, and revenue ranges -- the same criteria used for deal matching.
-
-**Files to change:** 1 file, 1 line.
-
-| File | Change |
-|------|--------|
-| `src/components/marketplace/MatchedDealsSection.tsx` | Line 138: `/welcome` to `/profile` |
+No code changes required -- this is a deployment-only action.
 

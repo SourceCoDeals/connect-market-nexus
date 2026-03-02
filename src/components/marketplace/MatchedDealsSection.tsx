@@ -135,7 +135,7 @@ export function MatchedDealsSection() {
               </p>
             )}
           </div>
-          <Link to="/welcome">
+          <Link to="/profile">
             <Button variant="ghost" size="sm" className="text-xs gap-1.5 text-muted-foreground">
               <Settings2 className="h-3 w-3" />
               Update criteria
