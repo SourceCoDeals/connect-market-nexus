@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Send, Paperclip, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';

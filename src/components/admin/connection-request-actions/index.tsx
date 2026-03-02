@@ -235,7 +235,7 @@ export function ConnectionRequestActions({
             hasFeeAgreement={actions.hasFeeAgreement}
             ndaStatus={actions.ndaStatus}
             feeStatus={actions.feeStatus}
-            firmId={actions.firmInfo?.firm_id}
+            firmId={actions.firmInfo?.firm_id ?? undefined}
             onSendAgreement={(type) => {
               actions.setSendAgreementType(type);
               actions.setSendAgreementOpen(true);

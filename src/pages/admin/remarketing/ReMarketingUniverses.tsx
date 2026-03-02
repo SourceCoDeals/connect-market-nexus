@@ -81,7 +81,7 @@ const ReMarketingUniverses = () => {
 
     // Sort state
     sortField,
-    sortOrder,
+    sortOrder: _sortOrder,
     handleSort,
 
     // Search state
@@ -383,7 +383,7 @@ const ReMarketingUniverses = () => {
                     sortedUniverses.map((universe) => (
                       <UniverseRow
                         key={universe.id}
-                        universe={universe}
+                        universe={{ ...universe, fee_agreement_required: universe.fee_agreement_required ?? false }}
                         stats={
                           buyerStats?.[universe.id] || {
                             total: 0,

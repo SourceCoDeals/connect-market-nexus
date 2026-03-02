@@ -27,7 +27,7 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
   const { data: messages = [], isLoading } = useConnectionMessages(thread.connection_request_id);
   const sendMsg = useSendMessage();
   const markRead = useMarkMessagesReadByBuyer();
-  const { toast } = useToast();
+  useToast();
   const [newMessage, setNewMessage] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -188,7 +188,10 @@ export function BuyerThreadView({ thread, onBack }: { thread: BuyerThread; onBac
 
       {/* Messages */}
       <MessageList
-        messages={messages}
+        messages={messages.map(m => ({
+          ...m,
+          sender: m.sender ? { first_name: m.sender.first_name ?? undefined } : undefined,
+        }))}
         isLoading={isLoading}
         isAdminTyping={isAdminTyping}
         messagesEndRef={messagesEndRef}
