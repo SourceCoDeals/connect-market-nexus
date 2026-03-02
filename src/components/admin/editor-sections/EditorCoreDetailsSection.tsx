@@ -88,7 +88,7 @@ export function EditorCoreDetailsSection({ form }: EditorCoreDetailsSectionProps
                       "flex-1 px-3 py-1.5 text-sm font-medium rounded-md",
                       EDITOR_DESIGN.transition,
                       field.value === 'platform'
-                        ? "bg-background text-foreground shadow-sm"
+                        ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
@@ -101,7 +101,7 @@ export function EditorCoreDetailsSection({ form }: EditorCoreDetailsSectionProps
                       "flex-1 px-3 py-1.5 text-sm font-medium rounded-md",
                       EDITOR_DESIGN.transition,
                       field.value === 'add_on'
-                        ? "bg-background text-foreground shadow-sm"
+                        ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
@@ -114,7 +114,7 @@ export function EditorCoreDetailsSection({ form }: EditorCoreDetailsSectionProps
                       "flex-1 px-3 py-1.5 text-sm font-medium rounded-md",
                       EDITOR_DESIGN.transition,
                       !field.value || field.value === 'none'
-                        ? "bg-background text-foreground shadow-sm"
+                        ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
                     )}
                   >
