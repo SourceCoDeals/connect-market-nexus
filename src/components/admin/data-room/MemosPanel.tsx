@@ -1,12 +1,11 @@
 /**
- * MemosPanel: AI lead memo generation, editing, and publishing
+ * MemosPanel: AI lead memo generation and publishing
  *
  * Features:
  * - Generate anonymous teaser or full memo via AI
- * - Rich text editor (TipTap) for section-by-section editing
  * - Branding selection
  * - Publish to data room
- * - Export PDF
+ * - Export PDF with professional letterhead
  * - Send via email with AI-drafted outreach
  * - Manual log send
  */
@@ -33,8 +32,6 @@ import {
   CheckCircle,
   Clock,
   Archive,
-  Copy,
-  Check,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -43,15 +40,9 @@ import {
   usePublishMemo,
   LeadMemo,
 } from '@/hooks/admin/data-room/use-data-room';
-import { MemoEditor } from './MemoEditor';
 import { SendMemoDialog } from './SendMemoDialog';
 import { ManualLogDialog } from './ManualLogDialog';
-import {
-  extractCompanyInfo,
-  memoToPlainText,
-  copyToClipboard,
-  getBrandingLabel,
-} from '@/lib/memo-utils';
+import { extractCompanyInfo, getBrandingLabel } from '@/lib/memo-utils';
 
 interface MemosPanelProps {
   dealId: string;
@@ -80,7 +71,6 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
     'both',
   );
   const [branding, setBranding] = useState('sourceco');
-  const [editingMemo, setEditingMemo] = useState<LeadMemo | null>(null);
   const [sendingMemo, setSendingMemo] = useState<LeadMemo | null>(null);
   const [loggingMemo, setLoggingMemo] = useState<LeadMemo | null>(null);
 
@@ -205,11 +195,6 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
     );
   }
 
-  // If editing a memo, show the editor
-  if (editingMemo) {
-    return <MemoEditor memo={editingMemo} dealId={dealId} onClose={() => setEditingMemo(null)} />;
-  }
-
   return (
     <div className="space-y-4">
       {/* Generate Section */}
@@ -269,8 +254,8 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            AI will draft from transcripts, enrichment data, and manual entries. You can edit before
-            publishing.
+            AI will draft from transcripts, enrichment data, and manual entries. Download the .docx
+            to edit in Word.
           </p>
         </CardContent>
       </Card>
@@ -290,7 +275,6 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
             <MemoSection
               title="Anonymous Teasers"
               memos={teaserMemos}
-              onEdit={setEditingMemo}
               onPublish={handlePublish}
               onExportPdf={handleExportPdf}
               onSendEmail={setSendingMemo}
@@ -303,7 +287,6 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
             <MemoSection
               title="Full Lead Memos"
               memos={fullMemos}
-              onEdit={setEditingMemo}
               onPublish={handlePublish}
               onExportPdf={handleExportPdf}
               onSendEmail={setSendingMemo}
@@ -331,7 +314,6 @@ export function MemosPanel({ dealId, dealTitle }: MemosPanelProps) {
 function MemoSection({
   title,
   memos,
-  onEdit,
   onPublish,
   onExportPdf,
   onSendEmail,
@@ -339,23 +321,11 @@ function MemoSection({
 }: {
   title: string;
   memos: LeadMemo[];
-  onEdit: (memo: LeadMemo) => void;
   onPublish: (memoId: string) => void;
   onExportPdf: (memo: LeadMemo) => void;
   onSendEmail: (memo: LeadMemo) => void;
   onManualLog: (memo: LeadMemo) => void;
 }) {
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  const handleCopyAll = async (memo: LeadMemo) => {
-    const text = memoToPlainText(memo.content, memo.branding);
-    const success = await copyToClipboard(text);
-    if (success) {
-      setCopiedId(memo.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    }
-  };
-
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -366,7 +336,6 @@ function MemoSection({
           {memos.map((memo) => {
             const statusInfo = STATUS_BADGES[memo.status];
             const StatusIcon = statusInfo.icon;
-            const isCopied = copiedId === memo.id;
 
             return (
               <div key={memo.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
@@ -394,22 +363,6 @@ function MemoSection({
                   </p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopyAll(memo)}
-                    title="Copy All (for AI editing)"
-                    className={isCopied ? 'text-green-600' : ''}
-                  >
-                    {isCopied ? (
-                      <Check className="h-3.5 w-3.5" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" />
-                    )}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onEdit(memo)} title="Edit">
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"

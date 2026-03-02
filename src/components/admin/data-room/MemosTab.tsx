@@ -27,8 +27,6 @@ import {
   Calendar,
   Eye,
   BookOpen,
-  Copy,
-  Check,
 } from 'lucide-react';
 import {
   useDataRoomDocuments,
@@ -42,7 +40,7 @@ import {
 } from '@/hooks/admin/data-room/use-data-room';
 import { generateMemoDocx } from '@/lib/generate-memo-docx';
 import { format } from 'date-fns';
-import { extractCompanyInfo, memoToPlainText, copyToClipboard } from '@/lib/memo-utils';
+import { extractCompanyInfo } from '@/lib/memo-utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -592,7 +590,7 @@ function MemoSlotCard({
   );
 }
 
-// ─── Preview Dialog with Copy All ───
+// ─── Preview Dialog ───
 
 function PreviewDialog({
   draft,
@@ -605,42 +603,11 @@ function PreviewDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyAll = async () => {
-    const text = memoToPlainText(draft.content, draft.branding);
-    const success = await copyToClipboard(text);
-    if (success) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh]">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle>{title} — Draft Preview</DialogTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyAll}
-              className={copied ? 'text-green-600 border-green-300' : ''}
-            >
-              {copied ? (
-                <>
-                  <Check className="h-3.5 w-3.5 mr-1.5" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 mr-1.5" />
-                  Copy All
-                </>
-              )}
-            </Button>
-          </div>
+          <DialogTitle>{title} — Draft Preview</DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
           <DraftPreview draft={draft} />
