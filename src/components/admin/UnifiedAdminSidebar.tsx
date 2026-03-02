@@ -264,9 +264,14 @@ export function UnifiedAdminSidebar({
         icon: <BarChart3 className="h-4 w-4" />,
         items: [
           {
-            label: 'Analytics',
-            href: '/admin/analytics',
-            icon: <BarChart3 className="h-4 w-4" />,
+            label: 'Website Analytics',
+            href: '/admin/analytics/website',
+            icon: <Globe2 className="h-4 w-4" />,
+          },
+          {
+            label: 'Remarketing Analytics',
+            href: '/admin/analytics/remarketing',
+            icon: <Target className="h-4 w-4" />,
           },
           {
             label: 'Transcript Analytics',
@@ -483,14 +488,26 @@ export function UnifiedAdminSidebar({
 
         {/* Scrollable sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
-          {sections.map((section) => {
+          {sections.map((section, index) => {
+            // Section group dividers
+            const groupDividers: Record<string, string> = {
+              marketplace: 'User-Facing',
+              deals: 'Operations',
+              analytics: 'Insights',
+              admin: 'System',
+            };
+            const dividerLabel = groupDividers[section.id];
             const isExpanded = expandedSections.has(section.id);
             const isActive = activeSectionId === section.id;
             const hasBadge = sectionHasBadge(section);
 
             if (collapsed) {
               return (
-                <Tooltip key={section.id}>
+                <div key={section.id}>
+                  {dividerLabel && index > 0 && (
+                    <div className="my-2 border-t border-border/30" />
+                  )}
+                <Tooltip>
                   <TooltipTrigger asChild>
                     <button
                       className={cn(
@@ -510,11 +527,21 @@ export function UnifiedAdminSidebar({
                     {section.label}
                   </TooltipContent>
                 </Tooltip>
+                </div>
               );
             }
 
             return (
               <div key={section.id}>
+                {dividerLabel && index > 0 && (
+                  <div className="flex items-center gap-2 mt-3 mb-1 px-2">
+                    <div className="flex-1 border-t border-border/30" />
+                    <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/40 select-none">
+                      {dividerLabel}
+                    </span>
+                    <div className="flex-1 border-t border-border/30" />
+                  </div>
+                )}
                 <button
                   onClick={() => toggleSection(section.id)}
                   className={cn(

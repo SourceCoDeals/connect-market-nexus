@@ -28,6 +28,9 @@ const WebhooksPage = lazyWithRetry(() => import('@/pages/admin/settings/Webhooks
 const TranscriptAnalytics = lazyWithRetry(
   () => import('@/pages/admin/analytics/TranscriptAnalytics'),
 );
+const WebsiteAnalytics = lazyWithRetry(
+  () => import('@/pages/admin/analytics/WebsiteAnalytics'),
+);
 const EnrichmentTest = lazyWithRetry(() => import('@/pages/admin/EnrichmentTest'));
 const EnrichmentQueue = lazyWithRetry(() => import('@/pages/admin/EnrichmentQueue'));
 const DataRecoveryPage = lazyWithRetry(() => import('@/pages/admin/DataRecoveryPage'));
@@ -262,7 +265,9 @@ export function AdminRoutes() {
       <Route path="daily-tasks/analytics" element={<DailyTaskAnalytics />} />
 
       {/* ANALYTICS */}
-      <Route path="analytics" element={<ReMarketingAnalytics />} />
+      <Route path="analytics" element={<Navigate to="/admin/analytics/website" replace />} />
+      <Route path="analytics/website" element={<WebsiteAnalytics />} />
+      <Route path="analytics/remarketing" element={<ReMarketingAnalytics />} />
       <Route path="analytics/transcripts" element={<TranscriptAnalytics />} />
 
       {/* ADMIN / SETTINGS */}
