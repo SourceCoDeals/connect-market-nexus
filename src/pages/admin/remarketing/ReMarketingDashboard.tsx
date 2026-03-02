@@ -1,6 +1,13 @@
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+/**
+ * ReMarketingDashboard.tsx
+ *
+ * Main dashboard layout for the ReMarketing module. Orchestrates data fetching,
+ * filters, charts, and metric panels. Heavy lifting is delegated to:
+ *   - useDashboardData  -- all queries and derived metrics
+ *   - DashboardFilters  -- timeframe selector
+ *   - DashboardCharts   -- SVG line chart
+ */
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
@@ -9,277 +16,35 @@ import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { formatDistanceToNow } from 'date-fns';
 import { BarChart3, ArrowUpRight, Zap, Clock } from 'lucide-react';
 
-// ─── Types ───
-
-type Timeframe = 'today' | '7d' | '14d' | '30d' | '90d' | 'all';
-
-// ─── Helpers ───
-
-function getFromDate(tf: Timeframe): string | null {
-  if (tf === 'all') return null;
-  const now = new Date();
-  const days = tf === 'today' ? 1 : tf === '7d' ? 7 : tf === '14d' ? 14 : tf === '30d' ? 30 : 90;
-  now.setDate(now.getDate() - days);
-  return now.toISOString();
-}
-
-function formatCurrency(value: number | null | undefined): string {
-  if (value == null || isNaN(value)) return '—';
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
-  return `$${value.toLocaleString()}`;
-}
-
-function scorePillClass(score: number | null): string {
-  if (score == null) return 'bg-gray-100 text-gray-600';
-  if (score >= 80) return 'bg-emerald-100 text-emerald-800';
-  if (score >= 60) return 'bg-blue-100 text-blue-800';
-  if (score >= 40) return 'bg-amber-100 text-amber-800';
-  if (score >= 20) return 'bg-orange-100 text-orange-800';
-  return 'bg-gray-100 text-gray-600';
-}
-
-function initials(first: string | null, last: string | null): string {
-  return `${(first || '?')[0]}${(last || '')[0] || ''}`.toUpperCase();
-}
-
-function formatWeekLabel(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-// ─── Source colors ───
-
-const SOURCE_COLORS: Record<string, string> = {
-  captarget: '#2563eb',
-  gp_partners: '#ea580c',
-  referral: '#7c3aed',
-  marketplace: '#16a34a',
-  valuation_calculator: '#10b981',
-  manual: '#94a3b8',
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  captarget: 'CapTarget',
-  gp_partners: 'GP Partners',
-  referral: 'Referral',
-  marketplace: 'Marketplace',
-  valuation_calculator: 'Calculator',
-  manual: 'Manual',
-};
-
-// ─── Component ───
+import { DashboardFilters } from './DashboardFilters';
+import { WeeklyChart } from './DashboardCharts';
+import {
+  useDashboardData,
+  formatCurrency,
+  scorePillClass,
+  initials,
+  SOURCE_COLORS,
+  SOURCE_LABELS,
+  type Timeframe,
+} from './useDashboardData';
 
 const ReMarketingDashboard = () => {
   const [timeframe, setTimeframe] = useState<Timeframe>('30d');
-  const fromDate = getFromDate(timeframe);
-
   const { data: adminProfiles } = useAdminProfiles();
 
-  // ── Single RPC call replaces 8+ sequential batch fetches ──
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['dashboard', 'remarketing-stats', fromDate],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_remarketing_dashboard_stats', {
-        p_from_date: fromDate ?? undefined,
-      });
-      if (error) throw error;
-      // RPC returns untyped JSON; define the shape based on usage
-      interface DashboardStats {
-        cards: Record<string, number>;
-        new_by_source: Record<string, number>;
-        all_by_source: Record<string, number>;
-        team: Array<Record<string, unknown>>;
-        score_dist: Record<string, number>;
-        top_deals: Array<Record<string, unknown>>;
-        weekly: Record<string, number>;
-        recent_activity: Array<Record<string, unknown>>;
-      }
-      return data as unknown as DashboardStats;
-    },
-    staleTime: 30_000,
-  });
-
-  // ── Buyer universes (small dataset, keep as-is) ──
-  const { data: universes, isLoading: universesLoading } = useQuery({
-    queryKey: ['dashboard', 'universes'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('remarketing_buyer_universes')
-        .select('id, name')
-        .eq('archived', false);
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 60_000,
-  });
-
-  // ── Scores per universe (small dataset) ──
-  const { data: scoreData } = useQuery({
-    queryKey: ['dashboard', 'scores'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('remarketing_scores')
-        .select('universe_id, status');
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 60_000,
-  });
-
-  // ── Buyers per universe (small dataset) ──
-  const { data: buyerData } = useQuery({
-    queryKey: ['dashboard', 'buyers'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('remarketing_buyers')
-        .select('universe_id')
-        .eq('archived', false);
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 60_000,
-  });
-
-  // ── Extract metrics from RPC result ──
-  const cards = stats?.cards;
-  const newBySource = stats?.new_by_source || {};
-  const allBySource = stats?.all_by_source || {};
-  const teamData = stats?.team || [];
-  const scoreDist = stats?.score_dist;
-  const topDeals = stats?.top_deals || [];
-  const weeklyData = stats?.weekly || {};
-  const recentActivity = stats?.recent_activity || [];
-
-  // ── Universe metrics ──
-  const universeMetrics = useMemo(() => {
-    if (!universes || !scoreData || !buyerData) return null;
-    return universes
-      .map((u) => {
-        const scores = scoreData.filter((s) => s.universe_id === u.id);
-        const approved = scores.filter((s) => s.status === 'approved').length;
-        const buyers = buyerData.filter((b) => b.universe_id === u.id).length;
-        return { ...u, totalScored: scores.length, approved, buyers };
-      })
-      .sort((a, b) => b.approved - a.approved);
-  }, [universes, scoreData, buyerData]);
-
-  const TF_OPTIONS: { key: Timeframe; label: string }[] = [
-    { key: 'today', label: 'Today' },
-    { key: '7d', label: '7d' },
-    { key: '14d', label: '14d' },
-    { key: '30d', label: '30d' },
-    { key: '90d', label: '90d' },
-    { key: 'all', label: 'All' },
-  ];
-
-  const loading = statsLoading;
-
-  // Score buckets from RPC
-  const scoreBuckets = scoreDist
-    ? [
-        { label: '80–100', tag: 'Top Tier', color: '#16a34a', count: scoreDist.tier_80_100 || 0 },
-        { label: '60–79', tag: 'Strong', color: '#2563eb', count: scoreDist.tier_60_79 || 0 },
-        { label: '40–59', tag: 'Average', color: '#ca8a04', count: scoreDist.tier_40_59 || 0 },
-        { label: '20–39', tag: 'Below Avg', color: '#ea580c', count: scoreDist.tier_20_39 || 0 },
-        { label: '0–19', tag: 'Low', color: '#94a3b8', count: scoreDist.tier_0_19 || 0 },
-      ]
-    : [];
-
-  // ── SVG Line Chart ──
-  const WeeklyChart = () => {
-    const weeks = Object.entries(weeklyData as Record<string, number>).sort(([a], [b]) =>
-      a.localeCompare(b),
-    );
-    if (weeks.length === 0)
-      return <div className="text-center py-10 text-gray-400 text-sm">No data for chart</div>;
-
-    const values = weeks.map(([, v]) => v);
-    const max = Math.max(...values, 1);
-    const total = values.reduce((s, v) => s + v, 0);
-
-    const W = 440;
-    const H = 160;
-    const PL = 30;
-    const PR = 10;
-    const PT = 25;
-    const PB = 30;
-    const chartW = W - PL - PR;
-    const chartH = H - PT - PB;
-
-    const points = values.map((v, i) => ({
-      x: PL + (i / (values.length - 1 || 1)) * chartW,
-      y: PT + chartH - (v / max) * chartH,
-      v,
-    }));
-
-    const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
-    const areaPath = `${linePath} L${points[points.length - 1]?.x ?? PL},${PT + chartH} L${PL},${PT + chartH} Z`;
-
-    const gridLines = [0, 0.25, 0.5, 0.75, 1].map((pct) => ({
-      y: PT + chartH - pct * chartH,
-      label: Math.round(pct * max),
-    }));
-
-    return (
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-            Deals Added to Active Deals
-          </h3>
-          <span className="text-xs text-gray-400">{total} total (8 weeks)</span>
-        </div>
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
-          <defs>
-            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.01" />
-            </linearGradient>
-          </defs>
-          {gridLines.map((g) => (
-            <g key={g.y}>
-              <line x1={PL} y1={g.y} x2={W - PR} y2={g.y} stroke="#f1f5f9" strokeWidth="1" />
-              <text x={PL - 4} y={g.y + 3} textAnchor="end" className="fill-gray-400" fontSize="8">
-                {g.label}
-              </text>
-            </g>
-          ))}
-          <path d={areaPath} fill="url(#chartGrad)" />
-          <path
-            d={linePath}
-            fill="none"
-            stroke="#2563eb"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {points.map((p, i) => (
-            <g key={`point-${p.x}-${p.y}`}>
-              <circle cx={p.x} cy={p.y} r="4" fill="white" stroke="#2563eb" strokeWidth="2" />
-              <text
-                x={p.x}
-                y={p.y - 8}
-                textAnchor="middle"
-                className="fill-gray-700 font-medium"
-                fontSize="9"
-              >
-                {p.v}
-              </text>
-              <text
-                x={p.x}
-                y={PT + chartH + 14}
-                textAnchor="middle"
-                className="fill-gray-400"
-                fontSize="8"
-              >
-                {formatWeekLabel(weeks[i][0])}
-              </text>
-            </g>
-          ))}
-        </svg>
-      </div>
-    );
-  };
+  const {
+    loading,
+    universesLoading,
+    cards,
+    newBySource,
+    allBySource,
+    teamData,
+    topDeals,
+    weeklyData,
+    recentActivity,
+    scoreBuckets,
+    universeMetrics,
+  } = useDashboardData(timeframe);
 
   return (
     <div className="p-6 space-y-5 bg-gray-50/50 min-h-screen">
@@ -289,19 +54,7 @@ const ReMarketingDashboard = () => {
           <h1 className="text-2xl font-bold tracking-tight">Remarketing Dashboard</h1>
           <p className="text-sm text-muted-foreground">Deal pipeline overview</p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border bg-white p-0.5">
-          {TF_OPTIONS.map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setTimeframe(opt.key)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                timeframe === opt.key ? 'bg-gray-900 text-white' : 'text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
+        <DashboardFilters timeframe={timeframe} onTimeframeChange={setTimeframe} />
       </div>
 
       {/* ROW 1: Headline Metric Cards */}
@@ -358,7 +111,11 @@ const ReMarketingDashboard = () => {
       {/* ROW 2: Weekly Chart + CT + GP */}
       <div className="grid gap-4 lg:grid-cols-4">
         <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
-          {loading ? <Skeleton className="h-48 w-full" /> : <WeeklyChart />}
+          {loading ? (
+            <Skeleton className="h-48 w-full" />
+          ) : (
+            <WeeklyChart weeklyData={weeklyData as Record<string, number>} />
+          )}
         </div>
 
         {/* CapTarget panel */}
@@ -678,7 +435,7 @@ const ReMarketingDashboard = () => {
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
               Buyer Universes
             </h3>
-            <span className="text-xs text-gray-400">{universes?.length || 0} active</span>
+            <span className="text-xs text-gray-400">{universeMetrics?.length || 0} active</span>
           </div>
           {universesLoading ? (
             <Skeleton className="h-40 w-full" />
