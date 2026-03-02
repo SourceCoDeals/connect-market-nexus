@@ -2,6 +2,10 @@
  * Utility for transforming deal data into anonymized marketplace listing data.
  * Strips company names, contact info, website domains, and other identifying
  * information from text fields while mapping deal fields to listing fields.
+ *
+ * Content sections (custom_sections) are populated by the lead memo generator
+ * (generate-lead-memo edge function), NOT by this module. This module only
+ * handles the structural/metadata anonymization for initial listing creation.
  */
 
 export interface DealData {
@@ -30,7 +34,7 @@ export interface DealData {
   main_contact_title: string | null;
   geographic_states: string[] | null;
   internal_deal_memo_link: string | null;
-  // Enrichment fields for landing page content
+  // Enrichment fields
   customer_geography?: string | null;
   customer_types?: string | null;
   business_model?: string | null;
@@ -78,19 +82,6 @@ export interface AnonymizedListingData {
   internal_company_name: string;
   internal_notes: string;
   company_website: string;
-  // Landing page content fields (GAP 4+7)
-  investment_thesis: string;
-  custom_sections: Array<{ title: string; description: string }>;
-  services: string[];
-  growth_drivers: string[];
-  ownership_structure: string;
-  seller_motivation: string;
-  business_model: string;
-  customer_geography: string;
-  customer_types: string;
-  revenue_model: string;
-  end_market_description: string;
-  competitive_position: string;
   // Custom metrics (GAP 6)
   metric_3_type: 'employees' | 'custom';
   metric_3_custom_label: string;
@@ -411,116 +402,16 @@ function formatRevenue(value: number): string {
 }
 
 /**
- * Build investment thesis from available deal data.
- */
-function buildInvestmentThesis(deal: DealData): string {
-  const points: string[] = [];
-  const industry = deal.industry || deal.category || 'services';
-  const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
-
-  if (deal.investment_thesis) {
-    return stripIdentifyingInfo(deal.investment_thesis, deal);
-  }
-
-  // Build from available signals
-  if (margin > 20) {
-    points.push(
-      `The Company operates at attractive ${margin}% EBITDA margins, reflecting operational efficiency and pricing power in its ${industry.toLowerCase()} end market.`,
-    );
-  }
-
-  const thesisSmArr = toStringArray(deal.service_mix);
-  if (thesisSmArr.length > 2) {
-    points.push(
-      `Revenue is diversified across ${thesisSmArr.length} service lines, reducing concentration risk and providing cross-sell opportunities for a new owner.`,
-    );
-  }
-
-  if (deal.geographic_states && deal.geographic_states.length > 1) {
-    points.push(
-      `Multi-state operations provide a platform for continued geographic expansion through organic growth and bolt-on acquisitions.`,
-    );
-  }
-
-  const employees = deal.full_time_employees || deal.linkedin_employee_count;
-  if (employees && employees > 20) {
-    points.push(
-      `A team of ${employees}+ employees provides operational depth and reduces key-person dependency, facilitating an ownership transition.`,
-    );
-  }
-
-  if (points.length === 0) {
-    points.push(
-      `The Company represents an acquisition opportunity in the ${industry.toLowerCase()} sector, offering a platform for operational improvement and growth.`,
-    );
-  }
-
-  return points.join('\n\n');
-}
-
-/**
- * Build custom sections for the landing page content area.
- */
-function buildCustomSections(deal: DealData): Array<{ title: string; description: string }> {
-  const sections: Array<{ title: string; description: string }> = [];
-  // const industry = deal.industry || deal.category || 'services';
-  const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
-
-  // Revenue quality section if we have financial data
-  if (deal.revenue && deal.revenue > 0) {
-    let revDesc = `The Company generates ${formatRevenue(deal.revenue)} in annual revenue`;
-    if (deal.ebitda) revDesc += ` with ${formatRevenue(deal.ebitda)} in EBITDA (${margin}% margin)`;
-    revDesc += '.';
-    if (deal.business_model)
-      revDesc += ` Revenue is driven by a ${deal.business_model.toLowerCase()} model.`;
-    if (deal.revenue_model) revDesc += ` ${stripIdentifyingInfo(deal.revenue_model, deal)}`;
-    sections.push({ title: 'Revenue Quality & Financial Profile', description: revDesc });
-  }
-
-  // Services & operations section
-  const sectionSmArr = toStringArray(deal.service_mix);
-  if (sectionSmArr.length > 0) {
-    const serviceList = sectionSmArr.map((s) => `- ${s}`).join('\n');
-    let svcDesc = `Core service offerings include:\n${serviceList}`;
-    if (deal.number_of_locations && deal.number_of_locations > 1) {
-      svcDesc += `\n\nOperations span ${deal.number_of_locations} locations.`;
-    }
-    sections.push({ title: 'Services & Operations', description: svcDesc });
-  }
-
-  // Growth section
-  const sectionGdArr = toStringArray(deal.growth_drivers);
-  if (sectionGdArr.length > 0) {
-    const growthList = sectionGdArr.map((g) => `- ${stripIdentifyingInfo(g, deal)}`).join('\n');
-    sections.push({ title: 'Growth Acceleration Opportunity', description: growthList });
-  } else if (deal.geographic_states && deal.geographic_states.length > 0) {
-    sections.push({
-      title: 'Growth Acceleration Opportunity',
-      description: `Geographic expansion opportunity across adjacent markets. The Company currently serves ${deal.geographic_states.length} state${deal.geographic_states.length > 1 ? 's' : ''} with room for additional territory coverage, bolt-on acquisitions, and service line extensions.`,
-    });
-  }
-
-  // Market position section
-  if (deal.competitive_position || deal.end_market_description) {
-    const text = deal.competitive_position || deal.end_market_description || '';
-    sections.push({
-      title: 'Market Position & Competitive Landscape',
-      description: stripIdentifyingInfo(text, deal),
-    });
-  }
-
-  return sections;
-}
-
-/**
  * Main function: transforms deal data into anonymized listing form data.
  * Returns pre-filled values for the listing editor form.
- * Maps all available enrichment data to landing page content fields.
+ *
+ * NOTE: custom_sections are NOT generated here. They come from the lead memo
+ * generator (generate-lead-memo edge function) which produces the same 9
+ * sections as the anonymous teaser memo. This keeps content in one place.
  */
 export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
   // Normalize fields that may arrive as strings from the DB but are used as arrays
   const serviceMix = toStringArray(deal.service_mix);
-  const growthDriversRaw = toStringArray(deal.growth_drivers);
 
   const categories: string[] = [];
   if (deal.category) categories.push(deal.category);
@@ -542,18 +433,6 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
     });
   }
 
-  // Build growth drivers
-  const growthDrivers: string[] = growthDriversRaw.map((g) => stripIdentifyingInfo(g, deal));
-
-  // Determine customer geography
-  let customerGeo = deal.customer_geography || '';
-  if (!customerGeo && deal.geographic_states && deal.geographic_states.length > 0) {
-    customerGeo =
-      deal.geographic_states.length > 3
-        ? `Multi-State — ${deal.geographic_states.length} states`
-        : deal.geographic_states.join(', ');
-  }
-
   return {
     title: generateAnonymousTitle(deal),
     description: generateAnonymousDescription(deal),
@@ -567,29 +446,6 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
     internal_company_name: deal.internal_company_name || '',
     internal_notes: `Created from deal: ${deal.internal_company_name || deal.id}`,
     company_website: deal.website || '',
-    // Landing page content fields (GAP 4+7)
-    investment_thesis: buildInvestmentThesis(deal),
-    custom_sections: buildCustomSections(deal),
-    services,
-    growth_drivers: growthDrivers,
-    ownership_structure: deal.ownership_structure
-      ? stripIdentifyingInfo(deal.ownership_structure, deal)
-      : '',
-    seller_motivation: deal.seller_motivation
-      ? stripIdentifyingInfo(deal.seller_motivation, deal)
-      : deal.owner_goals
-        ? stripIdentifyingInfo(deal.owner_goals, deal)
-        : '',
-    business_model: deal.business_model || '',
-    customer_geography: customerGeo,
-    customer_types: deal.customer_types || '',
-    revenue_model: deal.revenue_model ? stripIdentifyingInfo(deal.revenue_model, deal) : '',
-    end_market_description: deal.end_market_description
-      ? stripIdentifyingInfo(deal.end_market_description, deal)
-      : '',
-    competitive_position: deal.competitive_position
-      ? stripIdentifyingInfo(deal.competitive_position, deal)
-      : '',
     // Custom metrics (GAP 6) — auto-populate from deal data
     metric_3_type: services.length > 0 ? 'custom' : 'employees',
     metric_3_custom_label: services.length > 0 ? 'Service Lines' : '',

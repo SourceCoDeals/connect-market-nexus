@@ -48,6 +48,9 @@ const MARKETPLACE_SAFE_COLUMNS = [
   'metric_4_custom_subtitle',
   'revenue_metric_subtitle',
   'ebitda_metric_subtitle',
+  'custom_sections',
+  'presented_by_admin_id',
+  'owner_notes',
 ].join(', ');
 
 // Fetch listings with filters and pagination

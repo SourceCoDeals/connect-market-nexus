@@ -12,7 +12,6 @@ import { ChevronLeft, ExternalLink, Shield } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-utils';
 import ConnectionButton from '@/components/listing-detail/ConnectionButton';
 import BlurredFinancialTeaser from '@/components/listing-detail/BlurredFinancialTeaser';
-import { EnhancedInvestorDashboard } from '@/components/listing-detail/EnhancedInvestorDashboard';
 import { CustomSection } from '@/components/listing-detail/CustomSection';
 import { ExecutiveSummaryGenerator } from '@/components/listing-detail/ExecutiveSummaryGenerator';
 import { ListingHeader } from '@/components/listing-detail/ListingHeader';
@@ -269,14 +268,6 @@ const ListingDetail = () => {
               />
             )}
 
-            {/* Financial Summary */}
-            <div>
-              <EnhancedInvestorDashboard
-                listing={listing as unknown as import('@/types/admin').AdminListing}
-                formatCurrency={formatCurrency}
-              />
-            </div>
-
             {/* Business Overview */}
             <div className="py-8 border-t border-slate-100">
               <div className="space-y-4">
@@ -292,107 +283,7 @@ const ListingDetail = () => {
               </div>
             </div>
 
-            {/* Ownership Structure */}
-            {(listing.ownership_structure || listing.seller_motivation) && (
-              <div className="document-section py-8 border-t border-slate-100">
-                <div className="space-y-5">
-                  <h2 className="text-sm font-medium leading-5 mb-4">
-                    Ownership & Transaction Overview
-                  </h2>
-
-                  <div className="bg-sourceco-background rounded-lg p-6 space-y-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center border border-sourceco-form">
-                        <div className="w-8 h-8 bg-sourceco-accent rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium text-xs">CEO</span>
-                        </div>
-                      </div>
-                      <div className="flex-1 space-y-4">
-                        <div>
-                          <h4 className="text-base font-semibold text-slate-900 mb-2">
-                            Current Ownership Structure
-                          </h4>
-                          <p className="document-subtitle">
-                            {listing.ownership_structure === 'individual' &&
-                              'Individual founder-owner operating the business with full control and deep operational knowledge.'}
-                            {listing.ownership_structure === 'family' &&
-                              'Family-owned enterprise with established governance and multi-generational involvement.'}
-                            {listing.ownership_structure === 'corporate' &&
-                              'Corporate-owned subsidiary with professional management structure and reporting protocols.'}
-                            {listing.ownership_structure === 'private_equity' &&
-                              'Private equity-backed company with institutional ownership and growth capital experience.'}
-                            {!listing.ownership_structure &&
-                              'Established business ownership with proven operational track record.'}
-                          </p>
-                        </div>
-
-                        {listing.seller_motivation && (
-                          <div>
-                            <h4 className="text-base font-semibold text-slate-900 mb-2">
-                              Transaction Motivation
-                            </h4>
-                            <p className="document-subtitle">
-                              Owner is seeking a{' '}
-                              {listing.seller_motivation === 'retirement' &&
-                                'retirement-focused exit with comprehensive succession planning and knowledge transfer'}
-                              {listing.seller_motivation === 'succession' &&
-                                'strategic succession partnership ensuring long-term business continuity and growth'}
-                              {listing.seller_motivation === 'growth_capital' &&
-                                'growth capital partnership while maintaining significant ownership and operational control'}
-                              {listing.seller_motivation === 'liquidity_event' &&
-                                'partial liquidity event while retaining operational involvement and upside participation'}
-                              {!listing.seller_motivation &&
-                                'strategic partnership to accelerate growth and market expansion'}
-                              .
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Transaction Preferences */}
-            {(listing.seller_motivation ||
-              listing.timeline_preference ||
-              listing.seller_involvement_preference) && (
-              <div className="document-section py-8 border-t border-slate-100">
-                <div className="space-y-4">
-                  <span className="document-label">Transaction Preferences</span>
-                  {listing.seller_motivation && (
-                    <div className="space-y-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">
-                        Seller Motivation
-                      </span>
-                      <p className="document-subtitle">{listing.seller_motivation}</p>
-                    </div>
-                  )}
-                  {listing.timeline_preference && (
-                    <div className="space-y-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">
-                        Timeline Preference
-                      </span>
-                      <p className="document-subtitle">{listing.timeline_preference}</p>
-                    </div>
-                  )}
-                  {listing.seller_involvement_preference && (
-                    <div className="space-y-2">
-                      <span className="text-xs text-slate-500 uppercase tracking-wider">
-                        Post-Sale Role
-                      </span>
-                      <p className="document-subtitle">{listing.seller_involvement_preference}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Similar Listings Carousel */}
-            {listing && <SimilarListingsCarousel currentListing={listing} />}
-
-            {/* Custom Sections */}
+            {/* Content Sections (from lead memo) */}
             {listing.custom_sections &&
               Array.isArray(listing.custom_sections) &&
               listing.custom_sections.length > 0 && (
@@ -406,6 +297,9 @@ const ListingDetail = () => {
                   </div>
                 </div>
               )}
+
+            {/* Similar Listings Carousel */}
+            {listing && <SimilarListingsCarousel currentListing={listing} />}
 
             {/* Financial Teaser */}
             <div className="py-8 border-t border-slate-100">
