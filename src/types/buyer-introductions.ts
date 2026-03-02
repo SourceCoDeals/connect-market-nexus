@@ -69,6 +69,7 @@ export interface IntroductionActivity {
 }
 
 export interface CreateBuyerIntroductionInput {
+  contact_id?: string;
   buyer_name: string;
   buyer_firm_name: string;
   buyer_email?: string;
