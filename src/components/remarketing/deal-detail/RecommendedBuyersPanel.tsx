@@ -209,7 +209,7 @@ function SeedResultsSummary({ results }: { results: SeedBuyerResult[] }) {
     <div className="border rounded-lg bg-muted/30 p-3 space-y-2">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Sparkles className="h-4 w-4 text-purple-600" />
-        AI Seeding Results
+        AI Search Results
       </div>
       <div className="flex items-center gap-3 text-xs">
         {inserted > 0 && (
@@ -403,7 +403,7 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
             disabled={seedMutation.isPending}
           >
             <Sparkles className={cn('h-3.5 w-3.5 mr-1.5', seedMutation.isPending && 'animate-pulse')} />
-            {seedMutation.isPending ? 'Seeding...' : 'AI Seed'}
+            {seedMutation.isPending ? 'Searching...' : 'AI Search for Buyers'}
           </Button>
           <Button
             variant="outline"
