@@ -1,7 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
-import { callClaude, CLAUDE_MODELS } from '../_shared/claude-client.ts';
+import {
+  GEMINI_API_URL,
+  DEFAULT_GEMINI_MODEL,
+  getGeminiHeaders,
+  callGeminiWithRetry,
+} from '../_shared/ai-providers.ts';
 
 // ── Types ──
 
@@ -370,12 +375,13 @@ function quickClassify(buyer: { buyer_type: string | null; company_name: string;
 
 /**
  * For buyers that can't be classified by type alone (buyer_type = 'other' | null),
- * batch-classify them using Haiku. Results are persisted to remarketing_buyers.buyer_type
+ * batch-classify them using Gemini Flash. Results are persisted to remarketing_buyers.buyer_type
  * so this only runs once per buyer.
  */
 async function aiClassifyBuyers(
   buyers: Array<{ id: string; company_name: string; thesis_summary: string | null; buyer_type: string | null }>,
   supabase: ReturnType<typeof createClient>,
+  geminiApiKey: string,
 ): Promise<Map<string, 'sponsor' | 'operating_company'>> {
   const result = new Map<string, 'sponsor' | 'operating_company'>();
   if (buyers.length === 0) return result;
@@ -387,26 +393,39 @@ async function aiClassifyBuyers(
     thesis: (b.thesis_summary || '').slice(0, 200),
   }));
 
-  try {
-    const response = await callClaude({
-      model: CLAUDE_MODELS.haiku,
-      maxTokens: 1024,
-      systemPrompt: `You classify M&A buyers as either "sponsor" or "operating_company".
+  const systemPrompt = `You classify M&A buyers as either "sponsor" or "operating_company".
 
 SPONSOR = financial buyer: PE firm, family office, growth equity fund, independent sponsor, search fund, investment firm, holding company whose primary business is investing capital. Key signals: name contains "capital", "partners", "equity", "fund", "ventures", "investment", "advisors", "holdings", "group", "management"; thesis mentions "we invest", "we partner with", "looking for", "lower middle market", "portfolio companies", "buyout".
 
 OPERATING_COMPANY = actual business that delivers services or products: platform companies (even if PE-backed), strategic acquirers, regional/national service providers, manufacturers, distributors. These companies have employees who do real work — construction, metering, HVAC, healthcare delivery, etc.
 
 Respond with ONLY a JSON array of objects: [{"idx": 0, "cat": "sponsor"}, {"idx": 1, "cat": "operating_company"}]
-No markdown, no explanation.`,
-      messages: [{
-        role: 'user',
-        content: `Classify each buyer:\n${JSON.stringify(buyerList)}`,
-      }],
-      timeoutMs: 15000,
-    });
+No markdown, no explanation.`;
 
-    const text = response.content.filter(b => b.type === 'text').map(b => b.text).join('');
+  try {
+    const response = await callGeminiWithRetry(
+      GEMINI_API_URL,
+      getGeminiHeaders(geminiApiKey),
+      {
+        model: DEFAULT_GEMINI_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Classify each buyer:\n${JSON.stringify(buyerList)}` },
+        ],
+        temperature: 0,
+        max_tokens: 1024,
+      },
+      15000,
+      'score-deal-buyers/classify',
+    );
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Gemini API ${response.status}: ${errText.substring(0, 200)}`);
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || '';
     // Parse the response — handle potential markdown fences
     const cleaned = text.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
     const parsed = JSON.parse(cleaned);
@@ -465,6 +484,14 @@ Deno.serve(async (req: Request) => {
 
   try {
     // ── Auth guard (shared helper) ──
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
+      return new Response(
+        JSON.stringify({ error: 'GEMINI_API_KEY is not configured' }),
+        { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -580,7 +607,7 @@ Deno.serve(async (req: Request) => {
     // ── Classify ambiguous buyers (buyer_type = 'other' or null) via AI ──
     const ambiguousBuyers = buyers.filter(b => !b.buyer_type || b.buyer_type === 'other');
     const aiClassifications = ambiguousBuyers.length > 0
-      ? await aiClassifyBuyers(ambiguousBuyers, supabase)
+      ? await aiClassifyBuyers(ambiguousBuyers, supabase, geminiApiKey)
       : new Map<string, 'sponsor' | 'operating_company'>();
 
     // Build buyer category map for ALL buyers (rule-based + AI fallback)
@@ -706,11 +733,7 @@ Deno.serve(async (req: Request) => {
         deal.executive_summary ? deal.executive_summary.substring(0, 400) : deal.description ? deal.description.substring(0, 400) : '',
       ].filter(Boolean).join('. ');
 
-      try {
-        const reasonResponse = await callClaude({
-          model: CLAUDE_MODELS.haiku,
-          maxTokens: 2048,
-          systemPrompt: `You write deal-specific buyer fit reasons for M&A recommendations. For each buyer, write 2-3 sentences explaining why they are a compelling fit for THIS specific deal. Be concrete and specific:
+      const reasonSystemPrompt = `You write deal-specific buyer fit reasons for M&A recommendations. For each buyer, write 2-3 sentences explaining why they are a compelling fit for THIS specific deal. Be concrete and specific:
 - Reference the buyer's specific portfolio companies, acquisitions, or thesis focus
 - Explain the geographic, service, or strategic overlap with THIS deal
 - If the buyer has a platform in the same space, name it and explain how this deal would be a complementary add-on
@@ -718,15 +741,32 @@ Deno.serve(async (req: Request) => {
 - If you don't have enough info about the buyer, focus on the scoring signals and explain the strategic logic
 
 Respond with ONLY a JSON array: [{"idx": 0, "reason": "2-3 sentence fit reason"}, ...]
-No markdown, no explanation.`,
-          messages: [{
-            role: 'user',
-            content: `DEAL: ${dealSummary}\n\nBUYERS:\n${JSON.stringify(reasonBatch)}`,
-          }],
-          timeoutMs: 20000,
-        });
+No markdown, no explanation.`;
 
-        const reasonText = reasonResponse.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      try {
+        const reasonResponse = await callGeminiWithRetry(
+          GEMINI_API_URL,
+          getGeminiHeaders(geminiApiKey),
+          {
+            model: DEFAULT_GEMINI_MODEL,
+            messages: [
+              { role: 'system', content: reasonSystemPrompt },
+              { role: 'user', content: `DEAL: ${dealSummary}\n\nBUYERS:\n${JSON.stringify(reasonBatch)}` },
+            ],
+            temperature: 0,
+            max_tokens: 2048,
+          },
+          20000,
+          'score-deal-buyers/fit-reasons',
+        );
+
+        if (!reasonResponse.ok) {
+          const errText = await reasonResponse.text();
+          throw new Error(`Gemini API ${reasonResponse.status}: ${errText.substring(0, 200)}`);
+        }
+
+        const reasonData = await reasonResponse.json();
+        const reasonText = reasonData.choices?.[0]?.message?.content || '';
         const cleanedReasons = reasonText.replace(/```json?\s*/gi, '').replace(/```/g, '').trim();
         const parsedReasons = JSON.parse(cleanedReasons);
 

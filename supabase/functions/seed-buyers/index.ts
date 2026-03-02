@@ -630,7 +630,7 @@ Deno.serve(async (req: Request) => {
         cached: false,
         seeded_at: now,
         cache_key: cacheKey,
-        model: CLAUDE_MODELS.sonnet,
+        model: CLAUDE_MODELS.opus,
         usage: claudeResponse.usage,
       }),
       { headers: { ...headers, 'Content-Type': 'application/json' } },
