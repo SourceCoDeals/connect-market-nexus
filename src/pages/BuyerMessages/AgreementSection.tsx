@@ -73,6 +73,7 @@ export function PendingAgreementBanner() {
 
   const items: DocItem[] = [];
 
+  // NDA
   if (firmStatus?.nda_signed) {
     items.push({
       key: 'nda-signed',
@@ -83,26 +84,30 @@ export function PendingAgreementBanner() {
       documentUrl: firmStatus.nda_signed_document_url,
       draftUrl: firmStatus.nda_document_url,
     });
-  } else {
+  } else if (firmStatus) {
     const ndaNotif = pendingNotifications.find(
       (n: Record<string, unknown>) =>
         (n.metadata as Record<string, unknown>)?.document_type === 'nda',
     );
-    if (ndaNotif || firmStatus?.nda_docuseal_status) {
-      items.push({
-        key: 'nda-pending',
-        type: 'nda',
-        label: 'NDA',
-        signed: false,
-        signedAt: null,
-        documentUrl: null,
-        draftUrl: firmStatus?.nda_document_url || null,
-        notificationMessage: ndaNotif?.message,
-        notificationTime: ndaNotif?.created_at ?? undefined,
-      });
-    }
+    const status = firmStatus.nda_docuseal_status as string | null;
+    items.push({
+      key: status === 'declined' ? 'nda-declined' : 'nda-pending',
+      type: 'nda',
+      label: 'NDA',
+      signed: false,
+      signedAt: null,
+      documentUrl: null,
+      draftUrl: firmStatus.nda_document_url || null,
+      notificationMessage: status === 'declined'
+        ? 'Your NDA was declined. Please contact us if you have questions.'
+        : ndaNotif?.message,
+      notificationTime: ndaNotif?.created_at ?? undefined,
+      declined: status === 'declined',
+      awaiting: !status && !ndaNotif,
+    });
   }
 
+  // Fee Agreement
   if (firmStatus?.fee_agreement_signed) {
     items.push({
       key: 'fee-signed',
@@ -113,24 +118,27 @@ export function PendingAgreementBanner() {
       documentUrl: firmStatus.fee_signed_document_url,
       draftUrl: firmStatus.fee_agreement_document_url,
     });
-  } else {
+  } else if (firmStatus) {
     const feeNotif = pendingNotifications.find(
       (n: Record<string, unknown>) =>
         (n.metadata as Record<string, unknown>)?.document_type === 'fee_agreement',
     );
-    if (feeNotif || firmStatus?.fee_docuseal_status) {
-      items.push({
-        key: 'fee-pending',
-        type: 'fee_agreement',
-        label: 'Fee Agreement',
-        signed: false,
-        signedAt: null,
-        documentUrl: null,
-        draftUrl: firmStatus?.fee_agreement_document_url || null,
-        notificationMessage: feeNotif?.message,
-        notificationTime: feeNotif?.created_at ?? undefined,
-      });
-    }
+    const status = firmStatus.fee_docuseal_status as string | null;
+    items.push({
+      key: status === 'declined' ? 'fee-declined' : 'fee-pending',
+      type: 'fee_agreement',
+      label: 'Fee Agreement',
+      signed: false,
+      signedAt: null,
+      documentUrl: null,
+      draftUrl: firmStatus.fee_agreement_document_url || null,
+      notificationMessage: status === 'declined'
+        ? 'Your Fee Agreement was declined. Please contact us if you have questions.'
+        : feeNotif?.message,
+      notificationTime: feeNotif?.created_at ?? undefined,
+      declined: status === 'declined',
+      awaiting: !status && !feeNotif,
+    });
   }
 
   if (items.length === 0) return null;
