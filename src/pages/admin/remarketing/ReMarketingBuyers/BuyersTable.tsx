@@ -10,10 +10,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useMemo } from 'react';
 import { Users, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import BuyerTableRow from './BuyerTableRow';
 import { PAGE_SIZE } from './constants';
 import type { BuyerTab } from './constants';
+import { useEntityTaskCounts } from '@/hooks/useEntityTasks';
 
 interface BuyerRecord {
   id: string;
@@ -83,6 +85,13 @@ const BuyersTable = ({
   handleEnrichBuyer,
   deleteMutation,
 }: BuyersTableProps) => {
+  // Batch-fetch open task counts for the current page of buyers
+  const pagedBuyerIds = useMemo(
+    () => pagedBuyers.map((b) => (b as BuyerRecord).id),
+    [pagedBuyers],
+  );
+  const { data: buyerTaskCounts } = useEntityTaskCounts('buyer', pagedBuyerIds);
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -219,6 +228,7 @@ const BuyersTable = ({
                     buyers={buyers}
                     platformCountsByFirm={platformCountsByFirm}
                     buyerIdsWithTranscripts={buyerIdsWithTranscripts}
+                    pendingTaskCount={buyerTaskCounts?.get(b.id) || 0}
                     toggleSelect={toggleSelect}
                     handleEnrichBuyer={handleEnrichBuyer}
                     deleteMutation={deleteMutation}

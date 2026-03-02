@@ -62,6 +62,37 @@ export function useEntityTasks({
 }
 
 /**
+ * Batch-fetch open task counts for a list of entity IDs.
+ * Returns a Map<entityId, number> of pending task counts.
+ * Designed for list views to avoid N+1 queries.
+ */
+export function useEntityTaskCounts(entityType: TaskEntityType, entityIds: string[]) {
+  return useQuery({
+    queryKey: [ENTITY_TASKS_KEY, 'counts', entityType, entityIds],
+    enabled: entityIds.length > 0,
+    queryFn: async () => {
+      const counts = new Map<string, number>();
+      for (let i = 0; i < entityIds.length; i += 100) {
+        const chunk = entityIds.slice(i, i + 100);
+        const { data, error } = await supabase
+          .from('daily_standup_tasks' as never)
+          .select('entity_id, status')
+          .eq('entity_type', entityType)
+          .in('entity_id', chunk)
+          .in('status', ['pending', 'pending_approval', 'in_progress', 'overdue']);
+
+        if (error) throw error;
+        for (const row of (data || []) as { entity_id: string; status: string }[]) {
+          counts.set(row.entity_id, (counts.get(row.entity_id) || 0) + 1);
+        }
+      }
+      return counts;
+    },
+    staleTime: 30_000,
+  });
+}
+
+/**
  * Fetch tasks where the entity is the secondary entity (e.g. tasks for a
  * buyer that are linked to deals but have the buyer as secondary_entity).
  */

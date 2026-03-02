@@ -10,9 +10,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
+import {
   MoreVertical,
-  ArrowUpDown
+  ArrowUpDown,
+  ListChecks,
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { formatDistanceToNow } from 'date-fns';
@@ -122,6 +123,7 @@ export function PipelineTableView({ pipeline }: PipelineTableViewProps) {
                 <TableHead>Stage</TableHead>
                 <TableHead>Probability</TableHead>
                 <TableHead>Priority</TableHead>
+                <TableHead>Tasks</TableHead>
                 <TableHead>Documents</TableHead>
                 <TableHead>Expected Close</TableHead>
                 <TableHead className="w-12"></TableHead>
@@ -182,6 +184,19 @@ export function PipelineTableView({ pipeline }: PipelineTableViewProps) {
                         {deal.deal_priority}
                       </Badge>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    {deal.pending_tasks > 0 ? (
+                      <div className="flex items-center gap-1 text-xs font-medium text-red-700">
+                        <ListChecks className="h-3.5 w-3.5" />
+                        {deal.pending_tasks}
+                      </div>
+                    ) : deal.total_tasks > 0 ? (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <ListChecks className="h-3.5 w-3.5" />
+                        {deal.completed_tasks}/{deal.total_tasks}
+                      </div>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
