@@ -25,7 +25,7 @@ interface ImportData {
  * Validate the import data structure before processing
  * Returns { valid: true } or { valid: false, errors: string[] }
  */
-function validateImportData(data: Record<string, unknown>): { valid: boolean; errors: string[] } {
+function validateImportData(data: ImportData): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (!data || typeof data !== 'object') {
@@ -315,7 +315,7 @@ serve(async (req) => {
 
       // Step 1: Import Universes (industry_trackers -> remarketing_buyer_universes)
       console.log(`Importing ${data.universes?.length || 0} universes...`);
-      for (const row of (data.universes || [])) {
+      for (const row of (data.universes || []) as Record<string, unknown>[]) {
         try {
           const universeData = {
             name: row.industry_name || 'Unknown',
@@ -325,10 +325,10 @@ serve(async (req) => {
             geography_criteria: parseJson(row.geography_criteria) || {},
             service_criteria: parseJson(row.service_criteria) || {},
             buyer_types_criteria: parseJson(row.buyer_types_criteria) || {},
-            geography_weight: parseInt(row.geography_weight) || 25,
-            size_weight: parseInt(row.size_weight) || 25,
-            service_weight: parseInt(row.service_mix_weight) || 25,
-            owner_goals_weight: parseInt(row.owner_goals_weight) || 25,
+            geography_weight: parseInt(String(row.geography_weight)) || 25,
+            size_weight: parseInt(String(row.size_weight)) || 25,
+            service_weight: parseInt(String(row.service_mix_weight)) || 25,
+            owner_goals_weight: parseInt(String(row.owner_goals_weight)) || 25,
             scoring_behavior: parseJson(row.scoring_behavior) || {},
             ma_guide_content: row.industry_template || row.ma_guide_content || null,
             documents: parseJson(row.documents) || [],
@@ -344,7 +344,7 @@ serve(async (req) => {
           if (error) {
             results.universes.errors.push(`Universe ${row.industry_name}: ${error.message}`);
           } else {
-            universeIdMap[row.id] = inserted.id;
+            universeIdMap[String(row.id)] = inserted.id;
             results.universes.imported++;
           }
         } catch (e) {
@@ -355,21 +355,21 @@ serve(async (req) => {
 
       // Step 2: Import Buyers
       console.log(`Importing ${data.buyers?.length || 0} buyers...`);
-      for (const row of (data.buyers || [])) {
+      for (const row of (data.buyers || []) as Record<string, unknown>[]) {
         try {
-          const mappedUniverseId = universeIdMap[row.tracker_id] || null;
+          const mappedUniverseId = universeIdMap[String(row.tracker_id)] || null;
 
           const buyerData = {
             universe_id: mappedUniverseId,
             company_name: row.platform_company_name || row.company_name || 'Unknown',
-            company_website: normalizeDomainUrl(row.platform_website) || null,
+            company_website: normalizeDomainUrl(row.platform_website as string | null | undefined) || null,
             buyer_type: row.pe_firm_name ? 'platform' : 'strategic',
             thesis_summary: row.thesis_summary || null,
 
-            target_revenue_min: parseFloat(row.min_revenue) || null,
-            target_revenue_max: parseFloat(row.max_revenue) || null,
-            target_ebitda_min: parseFloat(row.min_ebitda) || null,
-            target_ebitda_max: parseFloat(row.max_ebitda) || null,
+            target_revenue_min: parseFloat(String(row.min_revenue)) || null,
+            target_revenue_max: parseFloat(String(row.max_revenue)) || null,
+            target_ebitda_min: parseFloat(String(row.min_ebitda)) || null,
+            target_ebitda_max: parseFloat(String(row.max_ebitda)) || null,
             target_geographies: parseArray(row.target_geographies) || [],
             target_services: parseArray(row.services_offered) || [],
             target_industries: parseArray(row.target_industries) || [],
@@ -384,7 +384,7 @@ serve(async (req) => {
             hq_state: row.hq_state || null,
             hq_country: row.hq_country || 'United States',
             hq_region: row.hq_region || null,
-            pe_firm_website: normalizeDomainUrl(row.pe_firm_website) || null,
+            pe_firm_website: normalizeDomainUrl(row.pe_firm_website as string | null | undefined) || null,
             buyer_linkedin: row.buyer_linkedin || null,
             pe_firm_linkedin: row.pe_firm_linkedin || null,
             business_summary: row.business_summary || null,
@@ -392,7 +392,7 @@ serve(async (req) => {
             specialized_focus: row.specialized_focus || null,
             acquisition_appetite: row.acquisition_appetite || null,
             strategic_priorities: parseArray(row.strategic_priorities) || [],
-            total_acquisitions: parseInt(row.total_acquisitions) || null,
+            total_acquisitions: parseInt(String(row.total_acquisitions)) || null,
             acquisition_frequency: row.acquisition_frequency || null,
             fee_agreement_status: row.fee_agreement_status || null,
           };
@@ -406,7 +406,7 @@ serve(async (req) => {
           if (error) {
             results.buyers.errors.push(`Buyer ${row.platform_company_name || row.company_name}: ${error.message}`);
           } else {
-            buyerIdMap[row.id] = inserted.id;
+            buyerIdMap[String(row.id)] = inserted.id;
             results.buyers.imported++;
           }
         } catch (e) {
@@ -447,21 +447,21 @@ serve(async (req) => {
       }
       
       // Then map companies data
-      for (const company of (data.companies || [])) {
+      for (const company of (data.companies || []) as Record<string, unknown>[]) {
         let matchedListingId = null;
         
         if (listings) {
           // Try domain match first
-          if (company.domain && !company.domain.startsWith('manual-')) {
+          if (company.domain && !(company.domain as string).startsWith('manual-')) {
             const domainMatch = listings.find(l => 
-              l.title?.toLowerCase().includes(company.domain.replace(/\.com|\.net|\.org/g, '').toLowerCase())
+              l.title?.toLowerCase().includes((company.domain as string).replace(/\.com|\.net|\.org/g, '').toLowerCase())
             );
             if (domainMatch) matchedListingId = domainMatch.id;
           }
           
           // Try name match
           if (!matchedListingId && company.company_name) {
-            const nameWords = company.company_name.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+            const nameWords = (company.company_name as string).toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
             const nameMatch = listings.find(l => {
               const titleLower = l.title?.toLowerCase() || '';
               return nameWords.some((word: string) => titleLower.includes(word));
@@ -471,7 +471,7 @@ serve(async (req) => {
         }
         
         if (matchedListingId) {
-          dealIdMap[company.id] = matchedListingId;
+          dealIdMap[String(company.id)] = matchedListingId;
         }
       }
       results.dealMappings = dealIdMap;
@@ -479,9 +479,9 @@ serve(async (req) => {
 
       // Step 4: Import Contacts
       console.log(`Importing ${data.contacts?.length || 0} contacts...`);
-      for (const row of (data.contacts || [])) {
+      for (const row of (data.contacts || []) as Record<string, unknown>[]) {
         try {
-          const mappedBuyerId = buyerIdMap[row.buyer_id];
+          const mappedBuyerId = buyerIdMap[String(row.buyer_id)];
           if (!mappedBuyerId) {
             results.contacts.errors.push(`Contact ${row.name}: No buyer mapping`);
             continue;
@@ -497,7 +497,7 @@ serve(async (req) => {
             is_primary: row.is_primary_contact === 'true',
             notes: null,
             company_type: row.company_type || null,
-            priority_level: parseInt(row.priority_level) || 3,
+            priority_level: parseInt(String(row.priority_level)) || 3,
             email_confidence: row.email_confidence || null,
             is_deal_team: row.is_deal_team === 'true',
             role_category: row.role_category || null,
@@ -522,9 +522,9 @@ serve(async (req) => {
 
       // Step 5: Import Transcripts
       console.log(`Importing ${data.transcripts?.length || 0} transcripts...`);
-      for (const row of (data.transcripts || [])) {
+      for (const row of (data.transcripts || []) as Record<string, unknown>[]) {
         try {
-          const mappedBuyerId = buyerIdMap[row.buyer_id];
+          const mappedBuyerId = buyerIdMap[String(row.buyer_id)];
           if (!mappedBuyerId) {
             console.log(`Transcript: No buyer mapping for ${row.buyer_id}`);
             results.transcripts.errors.push(`Transcript ${row.title || row.id}: No buyer mapping for ${row.buyer_id}`);
@@ -536,7 +536,7 @@ serve(async (req) => {
           const validSources = ['call', 'meeting', 'email', 'other'];
           let sourceValue = 'other';
           if (row.transcript_type) {
-            const typeLC = row.transcript_type.toLowerCase();
+            const typeLC = (row.transcript_type as string).toLowerCase();
             if (typeLC.includes('call')) sourceValue = 'call';
             else if (typeLC.includes('meeting')) sourceValue = 'meeting';
             else if (typeLC.includes('email')) sourceValue = 'email';
@@ -573,13 +573,13 @@ serve(async (req) => {
       console.log(`Available deal mappings: ${JSON.stringify(Object.keys(dealIdMap))}`);
       
       // Sample unique deal IDs from scores to understand what we need to map
-      const uniqueDealIds = [...new Set((data.scores || []).map((s: { deal_id?: string }) => s.deal_id))];
+      const uniqueDealIds = [...new Set((data.scores || []).map((s: Record<string, unknown>) => s.deal_id))];
       console.log(`Unique deal IDs in scores: ${JSON.stringify(uniqueDealIds.slice(0, 10))}...`);
       
-      for (const row of (data.scores || [])) {
+      for (const row of (data.scores || []) as Record<string, unknown>[]) {
         try {
-          const mappedBuyerId = buyerIdMap[row.buyer_id];
-          const mappedListingId = dealIdMap[row.deal_id];
+          const mappedBuyerId = buyerIdMap[String(row.buyer_id)];
+          const mappedListingId = dealIdMap[String(row.deal_id)];
           
           if (!mappedBuyerId) {
             results.scores.errors.push(`Score: No buyer mapping for ${row.buyer_id}`);
@@ -598,16 +598,16 @@ serve(async (req) => {
             buyer_id: mappedBuyerId,
             listing_id: mappedListingId,
             universe_id: null,
-            composite_score: parseFloat(row.composite_score) || 0,
-            geography_score: parseFloat(row.geography_score) || 0,
+            composite_score: parseFloat(String(row.composite_score)) || 0,
+            geography_score: parseFloat(String(row.geography_score)) || 0,
             size_score: 0,
-            service_score: parseFloat(row.service_score) || 0,
+            service_score: parseFloat(String(row.service_score)) || 0,
             owner_goals_score: 0,
-            tier: calculateTier(parseFloat(row.composite_score) || 0),
+            tier: calculateTier(parseFloat(String(row.composite_score)) || 0),
             fit_reasoning: row.fit_reasoning || null,
             status: row.selected_for_outreach === 'true' ? 'approved' : 'pending',
-            human_override_score: parseFloat(row.human_override_score) || null,
-            scored_at: row.scored_at || new Date().toISOString(),
+            human_override_score: parseFloat(String(row.human_override_score)) || null,
+            scored_at: (row.scored_at as string) || new Date().toISOString(),
             pass_reason: row.pass_reason || null,
             pass_category: row.pass_category || null,
           };
@@ -629,10 +629,10 @@ serve(async (req) => {
 
       // Step 7: Import Learning History
       console.log(`Importing ${data.learningHistory?.length || 0} learning history records...`);
-      for (const row of (data.learningHistory || [])) {
+      for (const row of (data.learningHistory || []) as Record<string, unknown>[]) {
         try {
-          const mappedBuyerId = buyerIdMap[row.buyer_id];
-          const mappedListingId = dealIdMap[row.deal_id];
+          const mappedBuyerId = buyerIdMap[String(row.buyer_id)];
+          const mappedListingId = dealIdMap[String(row.deal_id)];
           
           console.log(`Learning: buyer ${row.buyer_id} -> ${mappedBuyerId}, deal ${row.deal_id} -> ${mappedListingId}`);
           
@@ -650,7 +650,7 @@ serve(async (req) => {
           // Map action_type to allowed values: 'approved', 'passed', 'hidden'
           // CSV has: not_a_fit, approved, hidden, etc.
           let mappedAction = 'passed'; // default
-          const actionType = (row.action_type || '').toLowerCase();
+          const actionType = (String(row.action_type || '')).toLowerCase();
           if (actionType === 'approved' || actionType === 'approve') {
             mappedAction = 'approved';
           } else if (actionType === 'hidden' || actionType === 'hide') {

@@ -219,7 +219,8 @@ export async function callGeminiWithTool(
       openAITool = tool;
     }
 
-    const toolName = openAITool.function?.name || openAITool.name || 'unknown';
+    const fnObj = openAITool.function as Record<string, unknown> | undefined;
+    const toolName = (fnObj?.name as string) || (openAITool.name as string) || 'unknown';
 
     // Wait for rate limiter slot if configured
     if (rateLimitConfig?.supabase) {
