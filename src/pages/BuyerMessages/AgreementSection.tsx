@@ -73,6 +73,7 @@ export function PendingAgreementBanner() {
 
   const items: DocItem[] = [];
 
+  // NDA
   if (firmStatus?.nda_signed) {
     items.push({
       key: 'nda-signed',
@@ -83,26 +84,30 @@ export function PendingAgreementBanner() {
       documentUrl: firmStatus.nda_signed_document_url,
       draftUrl: firmStatus.nda_document_url,
     });
-  } else {
+  } else if (firmStatus) {
     const ndaNotif = pendingNotifications.find(
       (n: Record<string, unknown>) =>
         (n.metadata as Record<string, unknown>)?.document_type === 'nda',
     );
-    if (ndaNotif || firmStatus?.nda_docuseal_status) {
-      items.push({
-        key: 'nda-pending',
-        type: 'nda',
-        label: 'NDA',
-        signed: false,
-        signedAt: null,
-        documentUrl: null,
-        draftUrl: firmStatus?.nda_document_url || null,
-        notificationMessage: ndaNotif?.message,
-        notificationTime: ndaNotif?.created_at ?? undefined,
-      });
-    }
+    const status = firmStatus.nda_docuseal_status as string | null;
+    items.push({
+      key: status === 'declined' ? 'nda-declined' : 'nda-pending',
+      type: 'nda',
+      label: 'NDA',
+      signed: false,
+      signedAt: null,
+      documentUrl: null,
+      draftUrl: firmStatus.nda_document_url || null,
+      notificationMessage: status === 'declined'
+        ? 'Your NDA was declined. Please contact us if you have questions.'
+        : ndaNotif?.message,
+      notificationTime: ndaNotif?.created_at ?? undefined,
+      declined: status === 'declined',
+      awaiting: !status && !ndaNotif,
+    });
   }
 
+  // Fee Agreement
   if (firmStatus?.fee_agreement_signed) {
     items.push({
       key: 'fee-signed',
@@ -113,24 +118,27 @@ export function PendingAgreementBanner() {
       documentUrl: firmStatus.fee_signed_document_url,
       draftUrl: firmStatus.fee_agreement_document_url,
     });
-  } else {
+  } else if (firmStatus) {
     const feeNotif = pendingNotifications.find(
       (n: Record<string, unknown>) =>
         (n.metadata as Record<string, unknown>)?.document_type === 'fee_agreement',
     );
-    if (feeNotif || firmStatus?.fee_docuseal_status) {
-      items.push({
-        key: 'fee-pending',
-        type: 'fee_agreement',
-        label: 'Fee Agreement',
-        signed: false,
-        signedAt: null,
-        documentUrl: null,
-        draftUrl: firmStatus?.fee_agreement_document_url || null,
-        notificationMessage: feeNotif?.message,
-        notificationTime: feeNotif?.created_at ?? undefined,
-      });
-    }
+    const status = firmStatus.fee_docuseal_status as string | null;
+    items.push({
+      key: status === 'declined' ? 'fee-declined' : 'fee-pending',
+      type: 'fee_agreement',
+      label: 'Fee Agreement',
+      signed: false,
+      signedAt: null,
+      documentUrl: null,
+      draftUrl: firmStatus.fee_agreement_document_url || null,
+      notificationMessage: status === 'declined'
+        ? 'Your Fee Agreement was declined. Please contact us if you have questions.'
+        : feeNotif?.message,
+      notificationTime: feeNotif?.created_at ?? undefined,
+      declined: status === 'declined',
+      awaiting: !status && !feeNotif,
+    });
   }
 
   if (items.length === 0) return null;
@@ -176,7 +184,7 @@ export function PendingAgreementBanner() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium" style={{ color: '#0E101A' }}>
-                    {item.signed ? `${item.label} \u2014 Signed` : `${item.label} Ready to Sign`}
+                    {item.signed ? `${item.label} \u2014 Signed` : item.declined ? `${item.label} \u2014 Declined` : item.awaiting ? `${item.label} \u2014 Pending` : `${item.label} Ready to Sign`}
                   </p>
                   {item.signed && (
                     <CheckCircle className="h-3.5 w-3.5 shrink-0" style={{ color: '#DEC76B' }} />
@@ -187,8 +195,10 @@ export function PendingAgreementBanner() {
                     ? item.signedAt
                       ? `Signed ${formatDistanceToNow(new Date(item.signedAt), { addSuffix: true })}`
                       : 'Signed'
-                    : item.notificationMessage ||
-                      `A ${item.label} has been prepared for your review. You can sign, or download and send us a redline.`}
+                    : item.awaiting
+                      ? `Your ${item.label} will be sent to you shortly for review and signing.`
+                      : item.notificationMessage ||
+                        `A ${item.label} has been prepared for your review. You can sign, or download and send us a redline.`}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -212,15 +222,46 @@ export function PendingAgreementBanner() {
                       Questions?
                     </Button>
                   </>
+                ) : item.declined ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDocMessageType(item.type);
+                      setDocMessageOpen(true);
+                    }}
+                  >
+                    <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
+                    Contact Us
+                  </Button>
+                ) : item.awaiting ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDocMessageType(item.type);
+                      setDocMessageOpen(true);
+                    }}
+                  >
+                    <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
+                    Questions?
+                  </Button>
                 ) : (
                   <>
-                    <DownloadDocButton
-                      documentUrl={null}
-                      draftUrl={item.draftUrl}
-                      documentType={item.type}
-                      label="Download Draft"
-                      variant="outline"
-                    />
+                    {item.draftUrl ? (
+                      <DownloadDocButton
+                        documentUrl={null}
+                        draftUrl={item.draftUrl}
+                        documentType={item.type}
+                        label="Download Draft"
+                        variant="outline"
+                      />
+                    ) : (
+                      <Button variant="outline" size="sm" disabled>
+                        <FileSignature className="h-3.5 w-3.5 mr-1.5" />
+                        Draft Not Available
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
