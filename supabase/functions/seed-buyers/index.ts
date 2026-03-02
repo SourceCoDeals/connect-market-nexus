@@ -64,7 +64,9 @@ function buildCacheKey(deal: {
   const industry = (deal.industry || 'unknown').toLowerCase().trim();
   const cats = (deal.categories || []).sort().join(',').toLowerCase();
   const state = (deal.address_state || 'unknown').toLowerCase().trim();
-  const ebitdaBucket = deal.ebitda ? Math.floor(deal.ebitda / 500_000) * 500_000 : 0;
+  const ebitdaBucket = deal.ebitda
+    ? Math.floor(deal.ebitda / 500_000) * 500_000
+    : 0;
   return `seed:${industry}:${cats}:${state}:${ebitdaBucket}`;
 }
 
@@ -101,20 +103,19 @@ CRITICAL RULES:
 You must respond with valid JSON only. No markdown, no code fences, no explanatory text outside the JSON.`;
 }
 
-function buildUserPrompt(
-  deal: {
-    industry: string | null;
-    category: string | null;
-    categories: string[] | null;
-    ebitda: number | null;
-    address_state: string | null;
-    geographic_states: string[] | null;
-    title: string | null;
-    business_description: string | null;
-  },
-  maxBuyers: number,
-): string {
-  const ebitdaStr = deal.ebitda ? `$${(deal.ebitda / 1_000_000).toFixed(1)}M` : 'Unknown';
+function buildUserPrompt(deal: {
+  industry: string | null;
+  category: string | null;
+  categories: string[] | null;
+  ebitda: number | null;
+  address_state: string | null;
+  geographic_states: string[] | null;
+  title: string | null;
+  business_description: string | null;
+}, maxBuyers: number): string {
+  const ebitdaStr = deal.ebitda
+    ? `$${(deal.ebitda / 1_000_000).toFixed(1)}M`
+    : 'Unknown';
 
   const categories = deal.categories?.length
     ? deal.categories.join(', ')
@@ -169,34 +170,24 @@ function parseClaudeResponse(responseText: string): AISuggestedBuyer[] {
   }
 
   // Validate and clean each buyer
-  return parsed
-    .map((b: Record<string, unknown>) => ({
-      company_name: String(b.company_name || '').trim(),
-      company_website: b.company_website ? String(b.company_website).trim() : null,
-      buyer_type: (['pe_firm', 'platform', 'strategic', 'family_office'].includes(
-        String(b.buyer_type),
-      )
-        ? String(b.buyer_type)
-        : 'strategic') as AISuggestedBuyer['buyer_type'],
-      pe_firm_name: b.pe_firm_name ? String(b.pe_firm_name).trim() : null,
-      hq_city: b.hq_city ? String(b.hq_city).trim() : null,
-      hq_state: b.hq_state ? String(b.hq_state).trim().toUpperCase().slice(0, 2) : null,
-      thesis_summary: String(b.thesis_summary || '').trim(),
-      why_relevant: String(b.why_relevant || '').trim(),
-      target_services: Array.isArray(b.target_services) ? b.target_services.map(String) : [],
-      target_industries: Array.isArray(b.target_industries) ? b.target_industries.map(String) : [],
-      target_geographies: Array.isArray(b.target_geographies)
-        ? b.target_geographies.map(String)
-        : [],
-      known_acquisitions: Array.isArray(b.known_acquisitions)
-        ? b.known_acquisitions.map(String)
-        : [],
-      estimated_ebitda_min:
-        typeof b.estimated_ebitda_min === 'number' ? b.estimated_ebitda_min : null,
-      estimated_ebitda_max:
-        typeof b.estimated_ebitda_max === 'number' ? b.estimated_ebitda_max : null,
-    }))
-    .filter((b) => b.company_name.length > 0);
+  return parsed.map((b: Record<string, unknown>) => ({
+    company_name: String(b.company_name || '').trim(),
+    company_website: b.company_website ? String(b.company_website).trim() : null,
+    buyer_type: (['pe_firm', 'platform', 'strategic', 'family_office'].includes(String(b.buyer_type))
+      ? String(b.buyer_type)
+      : 'strategic') as AISuggestedBuyer['buyer_type'],
+    pe_firm_name: b.pe_firm_name ? String(b.pe_firm_name).trim() : null,
+    hq_city: b.hq_city ? String(b.hq_city).trim() : null,
+    hq_state: b.hq_state ? String(b.hq_state).trim().toUpperCase().slice(0, 2) : null,
+    thesis_summary: String(b.thesis_summary || '').trim(),
+    why_relevant: String(b.why_relevant || '').trim(),
+    target_services: Array.isArray(b.target_services) ? b.target_services.map(String) : [],
+    target_industries: Array.isArray(b.target_industries) ? b.target_industries.map(String) : [],
+    target_geographies: Array.isArray(b.target_geographies) ? b.target_geographies.map(String) : [],
+    known_acquisitions: Array.isArray(b.known_acquisitions) ? b.known_acquisitions.map(String) : [],
+    estimated_ebitda_min: typeof b.estimated_ebitda_min === 'number' ? b.estimated_ebitda_min : null,
+    estimated_ebitda_max: typeof b.estimated_ebitda_max === 'number' ? b.estimated_ebitda_max : null,
+  })).filter(b => b.company_name.length > 0);
 }
 
 // ── Main handler ──
@@ -213,42 +204,33 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get('Authorization') || '';
     const callerToken = authHeader.replace('Bearer ', '').trim();
     if (!callerToken) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Use persistSession:false for server-side Deno context (no browser storage)
     const callerClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { Authorization: `Bearer ${callerToken}` } },
     });
-    const {
-      data: { user: callerUser },
-      error: callerError,
-    } = await callerClient.auth.getUser(callerToken);
+    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser();
     if (callerError || !callerUser) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data: isAdmin, error: adminCheckError } = await supabase.rpc('is_admin', { user_id: callerUser.id });
-    if (adminCheckError) {
-      console.error('is_admin RPC error:', adminCheckError.message);
-    }
-    if (adminCheckError || !isAdmin) {
-      return new Response(JSON.stringify({ error: 'Forbidden: admin access required' }), {
-        status: 403,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: callerUser.id });
+    if (!isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: admin access required' }),
+        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
     }
     // ── End auth guard ──
 
@@ -256,18 +238,16 @@ Deno.serve(async (req: Request) => {
     const { listingId, maxBuyers = 15, forceRefresh = false } = body;
 
     if (!listingId) {
-      return new Response(JSON.stringify({ error: 'listingId is required' }), {
-        status: 400,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'listingId is required' }),
+        { status: 400, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
     }
 
     // ── Fetch deal ──
     const { data: deal, error: dealError } = await supabase
       .from('listings')
-      .select(
-        'id, title, industry, category, categories, ebitda, address_state, geographic_states, business_description',
-      )
+      .select('id, title, industry, category, categories, ebitda, address_state, geographic_states, business_description')
       .eq('id', listingId)
       .single();
 
@@ -298,7 +278,7 @@ Deno.serve(async (req: Request) => {
 
         return new Response(
           JSON.stringify({
-            seeded_buyers: (cachedBuyers || []).map((b) => ({
+            seeded_buyers: (cachedBuyers || []).map(b => ({
               buyer_id: b.id,
               company_name: b.company_name,
               action: 'cached' as const,
@@ -319,19 +299,19 @@ Deno.serve(async (req: Request) => {
     const { data: existingBuyers } = await supabase
       .from('remarketing_buyers')
       .select('id, company_name, company_website')
-      .eq('archived', false);
+      .or('archived.is.null,archived.eq.false');
 
     const existingNameSet = new Set(
-      (existingBuyers || []).map((b) => normalizeCompanyName(b.company_name)),
+      (existingBuyers || []).map(b => normalizeCompanyName(b.company_name)),
     );
     const existingDomainSet = new Set(
       (existingBuyers || [])
-        .map((b) => extractDomain(b.company_website))
+        .map(b => extractDomain(b.company_website))
         .filter(Boolean) as string[],
     );
     // Map normalized name → existing buyer id for enrichment
     const nameToId = new Map(
-      (existingBuyers || []).map((b) => [normalizeCompanyName(b.company_name), b.id]),
+      (existingBuyers || []).map(b => [normalizeCompanyName(b.company_name), b.id]),
     );
 
     // ── Call Claude to discover buyers ──
@@ -340,14 +320,16 @@ Deno.serve(async (req: Request) => {
       model: CLAUDE_MODELS.sonnet,
       maxTokens: 4096,
       systemPrompt: buildSystemPrompt(),
-      messages: [{ role: 'user', content: buildUserPrompt(deal, cappedMax) }],
+      messages: [
+        { role: 'user', content: buildUserPrompt(deal, cappedMax) },
+      ],
       timeoutMs: 60000,
     });
 
     // Extract text from response
     const responseText = claudeResponse.content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
       .join('');
 
     if (!responseText) {
@@ -398,7 +380,7 @@ Deno.serve(async (req: Request) => {
         // Probable duplicate via domain
         action = 'probable_duplicate';
         const domainBuyer = (existingBuyers || []).find(
-          (b) => extractDomain(b.company_website) === domain,
+          b => extractDomain(b.company_website) === domain,
         );
         buyerId = domainBuyer?.id || 'unknown';
       } else {
@@ -466,19 +448,21 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Update seed cache ──
-    await supabase.from('buyer_seed_cache').upsert(
-      {
-        cache_key: cacheKey,
-        buyer_ids: newBuyerIds,
-        seeded_at: now,
-        expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-      },
-      { onConflict: 'cache_key' },
-    );
+    await supabase
+      .from('buyer_seed_cache')
+      .upsert(
+        {
+          cache_key: cacheKey,
+          buyer_ids: newBuyerIds,
+          seeded_at: now,
+          expires_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        { onConflict: 'cache_key' },
+      );
 
-    const inserted = results.filter((r) => r.action === 'inserted').length;
-    const enriched = results.filter((r) => r.action === 'enriched_existing').length;
-    const dupes = results.filter((r) => r.action === 'probable_duplicate').length;
+    const inserted = results.filter(r => r.action === 'inserted').length;
+    const enriched = results.filter(r => r.action === 'enriched_existing').length;
+    const dupes = results.filter(r => r.action === 'probable_duplicate').length;
 
     return new Response(
       JSON.stringify({
@@ -499,7 +483,7 @@ Deno.serve(async (req: Request) => {
     console.error('seed-buyers error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: String(error) }),
-      { status: 500, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+      { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } },
     );
   }
 });
