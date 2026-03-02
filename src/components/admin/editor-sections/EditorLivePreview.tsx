@@ -50,14 +50,14 @@ export function EditorLivePreview({ formValues, imagePreview }: EditorLivePrevie
       items.push({ label: 'Geographic location', complete: false });
     }
 
-    if (formValues.revenue && parseFloat(formValues.revenue) > 0) {
+    if (formValues.revenue && parseFloat(String(formValues.revenue)) > 0) {
       score += 15;
       items.push({ label: 'Revenue data', complete: true });
     } else {
       items.push({ label: 'Revenue data', complete: false });
     }
 
-    if (formValues.ebitda && parseFloat(formValues.ebitda) > 0) {
+    if (formValues.ebitda && parseFloat(String(formValues.ebitda)) > 0) {
       score += 15;
       items.push({ label: 'EBITDA data', complete: true });
     } else {

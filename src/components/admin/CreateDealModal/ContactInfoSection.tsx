@@ -20,8 +20,17 @@ interface ContactInfoSectionProps {
   isSelectingUser: boolean;
   selectedUserId: string | null;
   selectedCompanyName: string | null;
-  marketplaceUsers: unknown[] | undefined;
-  marketplaceCompanies: unknown[] | undefined;
+  marketplaceUsers: { id: string; buyer_type?: string | null }[] | undefined;
+  marketplaceCompanies:
+    | {
+        value: string;
+        label: string;
+        searchTerms: string;
+        userCount: number;
+        buyerTypes: string[];
+        userEmails: string[];
+      }[]
+    | undefined;
   userOptions: { value: string; label: string; searchTerms: string }[];
   handleUserSelect: (userId: string) => void;
   handleToggleUserSelection: () => void;
@@ -48,8 +57,7 @@ export function ContactInfoSection({
           <p className="text-xs text-muted-foreground mt-1">
             {isSelectingUser
               ? 'Select an existing marketplace user or switch to manual entry'
-              : 'Enter contact details manually or select an existing user'
-            }
+              : 'Enter contact details manually or select an existing user'}
           </p>
         </div>
         <Button
@@ -88,7 +96,7 @@ export function ContactInfoSection({
             {selectedUserId && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Badge variant="secondary" className="text-xs">
-                  {marketplaceUsers?.find(u => u.id === selectedUserId)?.buyer_type || 'Buyer'}
+                  {marketplaceUsers?.find((u) => u.id === selectedUserId)?.buyer_type || 'Buyer'}
                 </Badge>
                 <span>User will be linked to this deal</span>
               </div>
@@ -114,129 +122,140 @@ export function ContactInfoSection({
         </>
       ) : (
         <>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="contact_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Contact Name *</FormLabel>
-                <FormControl>
-                  <Input placeholder="John Doe" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="contact_email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email *</FormLabel>
-                <FormControl>
-                  <Input type="email" placeholder="john@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="contact_company"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company</FormLabel>
-                <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="contact_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact Name *</FormLabel>
                   <FormControl>
-                    <Combobox
-                      options={marketplaceCompanies?.map(c => ({
-                        value: c.value,
-                        label: c.label,
-                        searchTerms: c.searchTerms,
-                      })) || []}
-                      value={field.value || ''}
-                      onValueChange={(value) => {
-                        handleCompanySelect(value);
-                        field.onChange(value);
-                      }}
-                      placeholder="Select or type company name..."
-                      emptyText="No companies found"
-                      searchPlaceholder="Search companies..."
-                      allowCustomValue={true}
-                      onCustomValueCreate={() => {}}
-                    />
+                    <Input placeholder="John Doe" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                  {/* Show metadata if existing company selected */}
-                  {selectedCompanyName && marketplaceCompanies && (() => {
-                    const companyData = marketplaceCompanies.find(c => c.value === selectedCompanyName);
-                    if (!companyData) return null;
+            <FormField
+              control={form.control}
+              name="contact_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email *</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="john@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
-                    return (
-                      <div className="text-xs bg-muted/50 p-2 rounded-md space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className="text-xs">
-                            {companyData.userCount} existing user{companyData.userCount !== 1 ? 's' : ''}
-                          </Badge>
-                          {companyData.buyerTypes.map((type: string) => (
-                            <Badge key={type} variant="secondary" className="text-xs capitalize">
-                              {type}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="text-muted-foreground">
-                          Users: {companyData.userEmails.slice(0, 3).join(', ')}
-                          {companyData.userEmails.length > 3 && ` +${companyData.userEmails.length - 3} more`}
-                        </div>
-                      </div>
-                    );
-                  })()}
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="contact_company"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company</FormLabel>
+                  <div className="space-y-2">
+                    <FormControl>
+                      <Combobox
+                        options={
+                          marketplaceCompanies?.map((c) => ({
+                            value: c.value,
+                            label: c.label,
+                            searchTerms: c.searchTerms,
+                          })) || []
+                        }
+                        value={field.value || ''}
+                        onValueChange={(value) => {
+                          handleCompanySelect(value);
+                          field.onChange(value);
+                        }}
+                        placeholder="Select or type company name..."
+                        emptyText="No companies found"
+                        searchPlaceholder="Search companies..."
+                        allowCustomValue={true}
+                        onCustomValueCreate={() => {}}
+                      />
+                    </FormControl>
 
-                  <FormDescription className="text-xs">
-                    Select an existing company or type a new one
-                  </FormDescription>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                    {/* Show metadata if existing company selected */}
+                    {selectedCompanyName &&
+                      marketplaceCompanies &&
+                      (() => {
+                        const companyData = marketplaceCompanies.find(
+                          (c) => c.value === selectedCompanyName,
+                        );
+                        if (!companyData) return null;
+
+                        return (
+                          <div className="text-xs bg-muted/50 p-2 rounded-md space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant="outline" className="text-xs">
+                                {companyData.userCount} existing user
+                                {companyData.userCount !== 1 ? 's' : ''}
+                              </Badge>
+                              {companyData.buyerTypes.map((type: string) => (
+                                <Badge
+                                  key={type}
+                                  variant="secondary"
+                                  className="text-xs capitalize"
+                                >
+                                  {type}
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="text-muted-foreground">
+                              Users: {companyData.userEmails.slice(0, 3).join(', ')}
+                              {companyData.userEmails.length > 3 &&
+                                ` +${companyData.userEmails.length - 3} more`}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                    <FormDescription className="text-xs">
+                      Select an existing company or type a new one
+                    </FormDescription>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="contact_phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone</FormLabel>
+                  <FormControl>
+                    <Input type="tel" placeholder="+1 (555) 000-0000" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}
-            name="contact_phone"
+            name="contact_role"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Phone</FormLabel>
+                <FormLabel>Role/Title</FormLabel>
                 <FormControl>
-                  <Input type="tel" placeholder="+1 (555) 000-0000" {...field} />
+                  <Input placeholder="e.g., CEO, Managing Partner" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="contact_role"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Role/Title</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., CEO, Managing Partner" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-          </>
-        )}
+        </>
+      )}
     </div>
   );
 }

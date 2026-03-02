@@ -133,38 +133,76 @@ function ValueInput({
 }) {
   switch (fieldDef.type) {
     case 'text':
-      return <TextValueInput value={value ?? ''} onChange={onChange} />;
+      return <TextValueInput value={(value as string) ?? ''} onChange={onChange} />;
     case 'number':
-      return <NumberValueInput value={value} onChange={onChange} dual={isDual} />;
+      return (
+        <NumberValueInput
+          value={value as number | string | { min?: number | string; max?: number | string } | null}
+          onChange={
+            onChange as (
+              value: number | string | { min?: number | string; max?: number | string } | null,
+            ) => void
+          }
+          dual={isDual}
+        />
+      );
     case 'currency':
-      return <NumberValueInput value={value} onChange={onChange} dual={isDual} isCurrency />;
+      return (
+        <NumberValueInput
+          value={value as number | string | { min?: number | string; max?: number | string } | null}
+          onChange={
+            onChange as (
+              value: number | string | { min?: number | string; max?: number | string } | null,
+            ) => void
+          }
+          dual={isDual}
+          isCurrency
+        />
+      );
     case 'select':
       return (
         <SelectValueInput
-          value={value ?? (isMulti ? [] : '')}
+          value={(value as string | string[]) ?? (isMulti ? [] : '')}
           onChange={onChange}
           options={options}
           multi={isMulti}
         />
       );
     case 'multi_select':
-      return <SelectValueInput value={value ?? []} onChange={onChange} options={options} multi />;
+      return (
+        <SelectValueInput
+          value={(value as string | string[]) ?? []}
+          onChange={onChange}
+          options={options}
+          multi
+        />
+      );
     case 'date':
       return (
         <DateValueInput
-          value={value}
-          onChange={onChange}
+          value={
+            value as Date | string | { min?: Date | string; max?: Date | string } | number | null
+          }
+          onChange={
+            onChange as (
+              value: Date | string | { min?: Date | string; max?: Date | string } | number | null,
+            ) => void
+          }
           dual={isDual}
           isLastNDays={operator === 'last_n_days'}
         />
       );
     case 'user':
       return (
-        <UserValueInput value={value ?? (isMulti ? [] : '')} onChange={onChange} multi={isMulti} />
+        <UserValueInput
+          value={(value as string | string[]) ?? (isMulti ? [] : '')}
+          onChange={onChange}
+          multi={isMulti}
+        />
       );
     case 'boolean':
       return null; // no value needed
     default:
-      return <TextValueInput value={value ?? ''} onChange={onChange} />;
+      return <TextValueInput value={(value as string) ?? ''} onChange={onChange} />;
   }
 }

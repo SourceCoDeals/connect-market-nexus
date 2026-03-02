@@ -67,9 +67,27 @@ const Signup = () => {
   // GAP 16+18: Capture deal context from URL params or localStorage
   const dealContext = useMemo(() => {
     const fromDealParam = searchParams.get('from_deal');
-    const firstDeal = (() => { try { return localStorage.getItem('sourceco_first_deal_viewed'); } catch { return null; } })();
-    const lastDeal = (() => { try { return localStorage.getItem('sourceco_last_deal_viewed'); } catch { return null; } })();
-    const lastDealTitle = (() => { try { return localStorage.getItem('sourceco_last_deal_title'); } catch { return null; } })();
+    const firstDeal = (() => {
+      try {
+        return localStorage.getItem('sourceco_first_deal_viewed');
+      } catch {
+        return null;
+      }
+    })();
+    const lastDeal = (() => {
+      try {
+        return localStorage.getItem('sourceco_last_deal_viewed');
+      } catch {
+        return null;
+      }
+    })();
+    const lastDealTitle = (() => {
+      try {
+        return localStorage.getItem('sourceco_last_deal_title');
+      } catch {
+        return null;
+      }
+    })();
 
     return {
       from_deal_id: fromDealParam || lastDeal || null,
@@ -100,7 +118,9 @@ const Signup = () => {
       if (params.get('email') && !base.email) base.email = params.get('email') || '';
       if (params.get('phone') && !base.phoneNumber) base.phoneNumber = params.get('phone') || '';
       if (params.get('company') && !base.company) base.company = params.get('company') || '';
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     return base;
   });
@@ -115,7 +135,9 @@ const Signup = () => {
     if (dealContext.from_deal_id) {
       try {
         localStorage.setItem('sourceco_signup_deal_context', JSON.stringify(dealContext));
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   }, [dealContext]);
 
@@ -152,11 +174,12 @@ const Signup = () => {
     } catch (error: unknown) {
       console.error('Signup error:', error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
-      if (error.message?.includes('User already registered'))
+      if ((error as Error).message?.includes('User already registered'))
         errorMessage = 'An account with this email already exists.';
-      else if (error.message?.includes('Password')) errorMessage = 'Password requirements not met.';
-      else if (error.message?.includes('Email')) errorMessage = 'Invalid email address.';
-      else if (error.message) errorMessage = error.message;
+      else if ((error as Error).message?.includes('Password'))
+        errorMessage = 'Password requirements not met.';
+      else if ((error as Error).message?.includes('Email')) errorMessage = 'Invalid email address.';
+      else if ((error as Error).message) errorMessage = (error as Error).message;
       toast({ variant: 'destructive', title: 'Signup failed', description: errorMessage });
     } finally {
       setIsSubmitting(false);
@@ -300,7 +323,9 @@ const Signup = () => {
           {dealContext.is_landing_page_referral && dealContext.deal_title && currentStep === 0 && (
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 mb-6">
               <p className="text-xs text-muted-foreground font-['Inter',system-ui,sans-serif]">
-                Sign up to receive full details on <span className="font-semibold text-foreground">{dealContext.deal_title}</span> and access 50+ additional off-market deals.
+                Sign up to receive full details on{' '}
+                <span className="font-semibold text-foreground">{dealContext.deal_title}</span> and
+                access 50+ additional off-market deals.
               </p>
             </div>
           )}

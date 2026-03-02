@@ -106,7 +106,7 @@ export function BuyerTranscriptLinkPanel({
         title: `Fireflies: ${transcriptId}`,
         transcript_text: 'Linked via URL - content will be fetched automatically',
         source: 'fireflies',
-      });
+      } as never);
 
       if (error) {
         if (error.code === '23505') toast.info('This transcript is already linked');
@@ -225,11 +225,11 @@ export function BuyerTranscriptLinkPanel({
         transcript_url: transcript.meeting_url,
         title: transcript.title,
         call_date: transcript.date,
-        participants: transcript.participants,
+        participants: transcript.participants as Record<string, unknown>[],
         duration_minutes: transcript.duration_minutes,
         transcript_text: transcript.summary || 'Fireflies transcript',
         source: 'fireflies',
-      });
+      } as never);
 
       if (error) {
         if (error.code === '23505') toast.info('Already linked');

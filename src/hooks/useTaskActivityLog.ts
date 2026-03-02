@@ -23,7 +23,7 @@ export function useTaskActivityLog(taskId: string | null) {
           user:profiles!rm_task_activity_log_user_id_fkey(id, first_name, last_name)
         `,
         )
-        .eq('task_id', taskId)
+        .eq('task_id', taskId!)
         .order('created_at', { ascending: false })
         .limit(50);
 

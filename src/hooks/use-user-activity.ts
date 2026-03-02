@@ -122,7 +122,7 @@ export function useRecentUserActivity() {
             email: profile?.email ?? 'Unknown User',
             first_name: (profile?.first_name ?? '') || '',
             last_name: (profile?.last_name ?? '') || '',
-            metadata: item.metadata,
+            metadata: (item.metadata as Record<string, unknown>) ?? undefined,
           };
         }),
       ];

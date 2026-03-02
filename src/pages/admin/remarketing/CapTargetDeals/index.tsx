@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
-import type { Operator } from '@/components/filters';
+import type { Operator, FilterRule } from '@/components/filters';
 import type { SortColumn } from './types';
 
 // Sub-components
@@ -53,7 +53,6 @@ import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadMo
 // Local hooks & types
 import { useCapTargetData } from './useCapTargetData';
 import { useCapTargetActions } from './useCapTargetActions';
-import type { SortColumn } from './types';
 import { PAGE_SIZE } from './types';
 
 export default function CapTargetDeals() {
@@ -95,8 +94,13 @@ export default function CapTargetDeals() {
         operator: f.operator as Operator,
         value: f.value,
       }));
-      if (clearExisting) data.setFilterState({ rules, conjunction: 'and', search: '' });
-      else data.setFilterState((prev) => ({ ...prev, rules: [...prev.rules, ...rules] }));
+      if (clearExisting)
+        data.setFilterState({ rules: rules as FilterRule[], conjunction: 'and', search: '' });
+      else
+        data.setFilterState((prev) => ({
+          ...prev,
+          rules: [...prev.rules, ...rules] as FilterRule[],
+        }));
     },
     onSortColumn: (field) => {
       const fieldMap: Record<string, string> = {
@@ -239,7 +243,15 @@ export default function CapTargetDeals() {
 
       {/* Exclusion Log */}
       <CapTargetExclusionLog
-        exclusionLog={data.exclusionLog || []}
+        exclusionLog={
+          (data.exclusionLog || []) as {
+            id: string;
+            company_name?: string;
+            exclusion_reason: string;
+            source?: string;
+            excluded_at?: string;
+          }[]
+        }
         showExclusionLog={actions.showExclusionLog}
         setShowExclusionLog={actions.setShowExclusionLog}
         isCleaningUp={actions.isCleaningUp}
@@ -452,10 +464,7 @@ export default function CapTargetDeals() {
                   <TableBody>
                     {data.paginatedDeals.length === 0 ? (
                       <TableRow>
-                        <TableCell
-                          colSpan={17}
-                          className="text-center py-12 text-muted-foreground"
-                        >
+                        <TableCell colSpan={17} className="text-center py-12 text-muted-foreground">
                           <Building2 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
                           <p className="font-medium">No CapTarget deals found</p>
                           <p className="text-sm mt-1">
@@ -523,8 +532,7 @@ export default function CapTargetDeals() {
                   value={data.safePage}
                   onChange={(e) => {
                     const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 1 && val <= data.totalPages)
-                      data.setCurrentPage(val);
+                    if (!isNaN(val) && val >= 1 && val <= data.totalPages) data.setCurrentPage(val);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {

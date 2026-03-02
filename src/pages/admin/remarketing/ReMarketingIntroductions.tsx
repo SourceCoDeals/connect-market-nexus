@@ -355,158 +355,149 @@ const ReMarketingIntroductions = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredIntroductions?.map(
-                  (intro: {
-                    id: string;
-                    tier?: string;
-                    buyer_id: string;
-                    composite_score: number;
-                    buyer?: { id: string; company_name: string; buyer_type?: string };
-                    outreach?: {
-                      contacted_at?: string;
-                      nda_sent_at?: string;
-                      nda_signed_at?: string;
-                      cim_sent_at?: string;
-                      meeting_scheduled_at?: string;
-                      outcome?: string;
-                    } | null;
-                  }) => {
-                    const tier = (intro.tier || 'D') as ScoreTier;
-                    const outreach = intro.outreach;
-                    void (outreach?.outcome ? outcomeConfig[outreach.outcome]?.icon : null); // OutcomeIcon reserved
+                {filteredIntroductions?.map((intro) => {
+                  const tier = (intro.tier || 'D') as ScoreTier;
+                  const outreach = intro.outreach;
+                  void (outreach?.outcome ? outcomeConfig[outreach.outcome]?.icon : null); // OutcomeIcon reserved
 
-                    return (
-                      <TableRow key={intro.id}>
-                        <TableCell>
-                          <Collapsible>
-                            <CollapsibleTrigger asChild>
-                              <div className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-1 -m-1 rounded">
-                                <div>
-                                  <Link
-                                    to={`/admin/buyers/${intro.buyer?.id}`}
-                                    className="font-medium hover:underline"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {intro.buyer?.company_name}
-                                  </Link>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    <ScoreTierBadge tier={tier} size="sm" showLabel={false} />
-                                    <span className="text-xs text-muted-foreground">
-                                      {intro.buyer?.buyer_type?.replace('_', ' ')}
-                                    </span>
-                                  </div>
+                  return (
+                    <TableRow key={intro.id}>
+                      <TableCell>
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 p-1 -m-1 rounded">
+                              <div>
+                                <Link
+                                  to={`/admin/buyers/${intro.buyer?.id}`}
+                                  className="font-medium hover:underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {intro.buyer?.company_name}
+                                </Link>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <ScoreTierBadge tier={tier} size="sm" showLabel={false} />
+                                  <span className="text-xs text-muted-foreground">
+                                    {intro.buyer?.buyer_type?.replace('_', ' ')}
+                                  </span>
                                 </div>
                               </div>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="pt-2">
-                              <OutreachTimeline outreach={outreach} className="pl-1" />
-                            </CollapsibleContent>
-                          </Collapsible>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <ScoreBadge score={intro.composite_score || 0} size="sm" />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <Checkbox
-                              checked={!!outreach?.contacted_at}
-                              onCheckedChange={(checked) =>
-                                handleCheckboxChange(intro.buyer_id, 'contacted_at', !!checked)
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-2">
+                            <OutreachTimeline
+                              outreach={
+                                (outreach ?? null) as React.ComponentProps<
+                                  typeof OutreachTimeline
+                                >['outreach']
                               }
+                              className="pl-1"
                             />
-                            {outreach?.contacted_at && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(outreach.contacted_at), 'MMM d')}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <Checkbox
-                              checked={!!outreach?.nda_sent_at}
-                              onCheckedChange={(checked) =>
-                                handleCheckboxChange(intro.buyer_id, 'nda_sent_at', !!checked)
-                              }
-                            />
-                            {outreach?.nda_sent_at && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(outreach.nda_sent_at), 'MMM d')}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <Checkbox
-                              checked={!!outreach?.nda_signed_at}
-                              onCheckedChange={(checked) =>
-                                handleCheckboxChange(intro.buyer_id, 'nda_signed_at', !!checked)
-                              }
-                            />
-                            {outreach?.nda_signed_at && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(outreach.nda_signed_at), 'MMM d')}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <Checkbox
-                              checked={!!outreach?.cim_sent_at}
-                              onCheckedChange={(checked) =>
-                                handleCheckboxChange(intro.buyer_id, 'cim_sent_at', !!checked)
-                              }
-                            />
-                            {outreach?.cim_sent_at && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(outreach.cim_sent_at), 'MMM d')}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <Checkbox
-                              checked={!!outreach?.meeting_scheduled_at}
-                              onCheckedChange={(checked) =>
-                                handleCheckboxChange(
-                                  intro.buyer_id,
-                                  'meeting_scheduled_at',
-                                  !!checked,
-                                )
-                              }
-                            />
-                            {outreach?.meeting_scheduled_at && (
-                              <span className="text-xs text-muted-foreground">
-                                {format(new Date(outreach.meeting_scheduled_at), 'MMM d')}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={outreach?.outcome || 'none'}
-                            onValueChange={(value) => handleOutcomeChange(intro.buyer_id, value)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Set outcome" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">No outcome</SelectItem>
-                              <SelectItem value="in_progress">In Progress</SelectItem>
-                              <SelectItem value="won">Won</SelectItem>
-                              <SelectItem value="lost">Lost</SelectItem>
-                              <SelectItem value="withdrawn">Withdrawn</SelectItem>
-                              <SelectItem value="no_response">No Response</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  },
-                )}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <ScoreBadge score={intro.composite_score || 0} size="sm" />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Checkbox
+                            checked={!!outreach?.contacted_at}
+                            onCheckedChange={(checked) =>
+                              handleCheckboxChange(intro.buyer_id, 'contacted_at', !!checked)
+                            }
+                          />
+                          {outreach?.contacted_at && (
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(outreach.contacted_at), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Checkbox
+                            checked={!!outreach?.nda_sent_at}
+                            onCheckedChange={(checked) =>
+                              handleCheckboxChange(intro.buyer_id, 'nda_sent_at', !!checked)
+                            }
+                          />
+                          {outreach?.nda_sent_at && (
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(outreach.nda_sent_at), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Checkbox
+                            checked={!!outreach?.nda_signed_at}
+                            onCheckedChange={(checked) =>
+                              handleCheckboxChange(intro.buyer_id, 'nda_signed_at', !!checked)
+                            }
+                          />
+                          {outreach?.nda_signed_at && (
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(outreach.nda_signed_at), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Checkbox
+                            checked={!!outreach?.cim_sent_at}
+                            onCheckedChange={(checked) =>
+                              handleCheckboxChange(intro.buyer_id, 'cim_sent_at', !!checked)
+                            }
+                          />
+                          {outreach?.cim_sent_at && (
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(outreach.cim_sent_at), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Checkbox
+                            checked={!!outreach?.meeting_scheduled_at}
+                            onCheckedChange={(checked) =>
+                              handleCheckboxChange(
+                                intro.buyer_id,
+                                'meeting_scheduled_at',
+                                !!checked,
+                              )
+                            }
+                          />
+                          {outreach?.meeting_scheduled_at && (
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(outreach.meeting_scheduled_at), 'MMM d')}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={outreach?.outcome || 'none'}
+                          onValueChange={(value) => handleOutcomeChange(intro.buyer_id, value)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Set outcome" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No outcome</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="won">Won</SelectItem>
+                            <SelectItem value="lost">Lost</SelectItem>
+                            <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                            <SelectItem value="no_response">No Response</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

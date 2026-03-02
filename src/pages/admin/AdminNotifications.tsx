@@ -114,12 +114,12 @@ export default function AdminNotifications() {
                             <CardDescription className="mt-1">
                               {notification.message}
                             </CardDescription>
-                            {notification.metadata?.deal_title && (
+                            {!!notification.metadata?.deal_title && (
                               <div className="mt-2 flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-medium text-foreground/80">
-                                  {notification.metadata.deal_title}
+                                  {String(notification.metadata.deal_title)}
                                 </span>
-                                {notification.metadata.priority && (
+                                {!!notification.metadata.priority && (
                                   <span
                                     className={cn(
                                       'px-2 py-0.5 rounded text-xs font-medium uppercase',
@@ -131,7 +131,7 @@ export default function AdminNotifications() {
                                         'bg-blue-100 text-blue-700',
                                     )}
                                   >
-                                    {notification.metadata.priority}
+                                    {String(notification.metadata.priority)}
                                   </span>
                                 )}
                               </div>

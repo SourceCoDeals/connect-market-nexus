@@ -112,8 +112,9 @@ export default function ReMarketingReferralPartners() {
         if (listingsError) throw listingsError;
 
         const countMap: Record<string, number> = {};
-        listings?.forEach((l: { referral_partner_id: string }) => {
-          countMap[l.referral_partner_id] = (countMap[l.referral_partner_id] || 0) + 1;
+        listings?.forEach((l: { referral_partner_id: string | null }) => {
+          if (l.referral_partner_id)
+            countMap[l.referral_partner_id] = (countMap[l.referral_partner_id] || 0) + 1;
         });
 
         return (data as ReferralPartner[]).map((p) => ({

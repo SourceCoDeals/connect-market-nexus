@@ -202,7 +202,7 @@ export function BulkDealImportDialog({
             return;
           }
 
-          results.data.forEach((row: Record<string, string>, index) => {
+          (results.data as Record<string, string>[]).forEach((row, index) => {
             const rowNumber = index + 2;
             const dealErrors: string[] = [];
 

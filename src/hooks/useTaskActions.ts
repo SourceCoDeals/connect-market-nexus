@@ -33,7 +33,7 @@ export function useSnoozeTask() {
         .update({
           status: 'snoozed',
           snoozed_until: snoozedUntil,
-        })
+        } as never)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -44,7 +44,7 @@ export function useSnoozeTask() {
         user_id: user?.id,
         action: 'snoozed',
         new_value: { snoozed_until: snoozedUntil, days },
-      });
+      } as never);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
@@ -66,7 +66,7 @@ export function useUnsnoozeTask() {
         .update({
           status: 'pending',
           snoozed_until: null,
-        })
+        } as never)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -77,7 +77,7 @@ export function useUnsnoozeTask() {
         action: 'status_changed',
         old_value: { status: 'snoozed' },
         new_value: { status: 'pending' },
-      });
+      } as never);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
@@ -102,7 +102,7 @@ export function useConfirmAITask() {
 
       const { error } = await supabase
         .from('daily_standup_tasks' as never)
-        .update(updates)
+        .update(updates as never)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -112,7 +112,7 @@ export function useConfirmAITask() {
         user_id: user?.id,
         action: 'confirmed',
         new_value: updates,
-      });
+      } as never);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
@@ -134,7 +134,7 @@ export function useDismissAITask() {
         .update({
           dismissed_at: new Date().toISOString(),
           status: 'cancelled',
-        })
+        } as never)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -143,7 +143,7 @@ export function useDismissAITask() {
         task_id: taskId,
         user_id: user?.id,
         action: 'dismissed',
-      });
+      } as never);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
@@ -162,7 +162,7 @@ export function useCancelTask() {
     mutationFn: async (taskId: string) => {
       const { error } = await supabase
         .from('daily_standup_tasks' as never)
-        .update({ status: 'cancelled' })
+        .update({ status: 'cancelled' } as never)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -171,7 +171,7 @@ export function useCancelTask() {
         task_id: taskId,
         user_id: user?.id,
         action: 'cancelled',
-      });
+      } as never);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY] });
@@ -226,7 +226,7 @@ export function useApplyTaskTemplate() {
 
         const { data, error } = await supabase
           .from('daily_standup_tasks' as never)
-          .insert(insertData)
+          .insert(insertData as never)
           .select('id')
           .single();
 
@@ -239,7 +239,7 @@ export function useApplyTaskTemplate() {
           user_id: user?.id,
           action: 'created',
           new_value: { source: 'template', template_stage: template.name },
-        });
+        } as never);
       }
 
       return createdTaskIds;
@@ -294,7 +294,7 @@ export function useAddEntityTask() {
           extraction_confidence: 'high',
           needs_review: false,
           created_by: user?.id,
-        })
+        } as never)
         .select()
         .single();
 
@@ -306,7 +306,7 @@ export function useAddEntityTask() {
         user_id: user?.id,
         action: 'created',
         new_value: { entity_type: task.entity_type, entity_id: task.entity_id },
-      });
+      } as never);
 
       // Deal activity logging when task is linked to a deal
       if (task.entity_type === 'deal' && task.entity_id) {
@@ -334,7 +334,11 @@ export function useAddEntityTask() {
                 .select('id, email, first_name, last_name')
                 .eq('id', task.assignee_id)
                 .single(),
-              supabase.from('profiles').select('first_name, last_name').eq('id', user?.id!).single(),
+              supabase
+                .from('profiles')
+                .select('first_name, last_name')
+                .eq('id', user?.id ?? '')
+                .single(),
               task.entity_type === 'deal'
                 ? supabase.from('deals').select('title').eq('id', task.entity_id).single()
                 : Promise.resolve({ data: null }),

@@ -9,7 +9,7 @@
  */
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  delay: number
+  delay: number,
 ): T & { cancel: () => void; flush: () => void } {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let lastArgs: Parameters<T> | null = null;
@@ -53,7 +53,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
  */
 export function throttle<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  interval: number
+  interval: number,
 ): T & { cancel: () => void } {
   let lastCallTime = 0;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -98,7 +98,7 @@ export function memoize<T extends (...args: unknown[]) => unknown>(
   options: {
     maxSize?: number;
     keyFn?: (...args: Parameters<T>) => string;
-  } = {}
+  } = {},
 ): T & { cache: Map<string, ReturnType<T>>; clear: () => void } {
   const { maxSize = 100, keyFn } = options;
   const cache = new Map<string, ReturnType<T>>();
@@ -148,17 +148,17 @@ export function memoize<T extends (...args: unknown[]) => unknown>(
  */
 export function scheduleIdleWork(
   callback: (deadline: { timeRemaining: () => number; didTimeout: boolean }) => void,
-  options?: { timeout?: number }
+  options?: { timeout?: number },
 ): number {
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     return window.requestIdleCallback(callback, options);
   }
 
-  if (typeof window === "undefined") return 0 as unknown as number;
+  if (typeof window === 'undefined') return 0 as unknown as number;
 
   // Fallback: use setTimeout with 1ms delay, simulating idle behavior
   const start = Date.now();
-  return window.setTimeout(() => {
+  return (window as Window).setTimeout(() => {
     callback({
       timeRemaining: () => Math.max(0, 50 - (Date.now() - start)),
       didTimeout: false,
@@ -170,7 +170,7 @@ export function scheduleIdleWork(
  * Cancel a scheduled idle work callback.
  */
 export function cancelIdleWork(id: number): void {
-  if (typeof window !== "undefined" && "cancelIdleCallback" in window) {
+  if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
     window.cancelIdleCallback(id);
   } else {
     clearTimeout(id);
@@ -181,10 +181,7 @@ export function cancelIdleWork(id: number): void {
  * Run a list of tasks during idle periods, processing one per idle callback.
  * Useful for non-urgent background work like preloading or analytics.
  */
-export function runIdleTasks(
-  tasks: Array<() => void>,
-  options?: { timeout?: number }
-): () => void {
+export function runIdleTasks(tasks: Array<() => void>, options?: { timeout?: number }): () => void {
   let cancelled = false;
   let currentId: number | null = null;
   let taskIndex = 0;
@@ -192,20 +189,17 @@ export function runIdleTasks(
   function processNext() {
     if (cancelled || taskIndex >= tasks.length) return;
 
-    currentId = scheduleIdleWork(
-      (deadline) => {
-        while (taskIndex < tasks.length && (deadline.timeRemaining() > 0 || deadline.didTimeout)) {
-          if (cancelled) return;
-          tasks[taskIndex]();
-          taskIndex++;
-        }
+    currentId = scheduleIdleWork((deadline) => {
+      while (taskIndex < tasks.length && (deadline.timeRemaining() > 0 || deadline.didTimeout)) {
+        if (cancelled) return;
+        tasks[taskIndex]();
+        taskIndex++;
+      }
 
-        if (taskIndex < tasks.length) {
-          processNext();
-        }
-      },
-      options
-    );
+      if (taskIndex < tasks.length) {
+        processNext();
+      }
+    }, options);
   }
 
   processNext();

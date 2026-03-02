@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { AdminListing } from '@/types/admin';
 import { toast } from '@/hooks/use-toast';
@@ -23,7 +22,7 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all', enabled
   })();
 
   const isAdminUser = user?.is_admin === true || cachedAuthState?.is_admin === true;
-  const shouldEnable = (authChecked || cachedAuthState) && isAdminUser && (enabled !== false);
+  const shouldEnable = (authChecked || cachedAuthState) && isAdminUser && enabled !== false;
 
   return useTabAwareQuery(
     ['admin-listings', status],
@@ -36,35 +35,37 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all', enabled
           if (!isAdminUser) {
             throw new Error('Admin authentication required');
           }
-          
+
           let query = supabase
             .from('listings')
-            .select('id, title, status, category, categories, revenue, ebitda, location, created_at, updated_at, deleted_at, hero_description, description, tags, image_url')
+            .select(
+              'id, title, status, category, categories, revenue, ebitda, location, created_at, updated_at, deleted_at, hero_description, description, tags, image_url',
+            )
             .is('deleted_at', null);
-          
+
           if (status && status !== 'all') {
             query = query.eq('status', status);
           }
-          
+
           const { data, error } = await query.order('created_at', { ascending: false });
 
           if (error) {
             throw error;
           }
-          
+
           // Retrieved listings with status filter
-          
-          const mappedData = data?.map(listing => ({
+
+          const mappedData = data?.map((listing) => ({
             ...listing,
-            categories: listing.categories || (listing.category ? [listing.category] : [])
+            categories: listing.categories || (listing.category ? [listing.category] : []),
           }));
-          
+
           return mappedData as AdminListing[];
         } catch (error: unknown) {
           toast({
             variant: 'destructive',
             title: 'Error fetching listings',
-            description: error.message,
+            description: (error as Error).message,
           });
           return [];
         }
@@ -80,6 +81,6 @@ export function useListingsQuery(status?: 'active' | 'inactive' | 'all', enabled
         }
         return failureCount < 2;
       },
-    }
+    },
   );
 }

@@ -113,11 +113,11 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
         if (type === 'nda') {
           updates.lead_nda_signed = isSigned;
           updates.lead_nda_signed_at = isSigned ? new Date().toISOString() : null;
-          updates.lead_nda_signed_by = isSigned ? signerId : null;
+          updates.lead_nda_signed_by = isSigned ? (signerId ?? null) : null;
         } else {
           updates.lead_fee_agreement_signed = isSigned;
           updates.lead_fee_agreement_signed_at = isSigned ? new Date().toISOString() : null;
-          updates.lead_fee_agreement_signed_by = isSigned ? signerId : null;
+          updates.lead_fee_agreement_signed_by = isSigned ? (signerId ?? null) : null;
         }
 
         // Update connection requests
@@ -183,7 +183,14 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
       if (membersError) throw membersError;
 
       if (members && members.length > 0) {
-        setFirmMembers(members);
+        setFirmMembers(
+          members.map((m) => ({
+            id: m.user_id || '',
+            first_name: (m.profiles as { first_name?: string } | null)?.first_name ?? null,
+            last_name: (m.profiles as { last_name?: string } | null)?.last_name ?? null,
+            email: '',
+          })),
+        );
         setShowDialog(true);
         return;
       }
@@ -257,9 +264,8 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
               </SelectTrigger>
               <SelectContent>
                 {firmMembers.map((member) => (
-                  <SelectItem key={member.user_id} value={member.user_id}>
-                    {`${member.profiles?.first_name ?? ''} ${member.profiles?.last_name ?? ''}`.trim() ||
-                      'Unknown'}
+                  <SelectItem key={member.id} value={member.id}>
+                    {`${member.first_name ?? ''} ${member.last_name ?? ''}`.trim() || 'Unknown'}
                   </SelectItem>
                 ))}
               </SelectContent>

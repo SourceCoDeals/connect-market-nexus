@@ -47,7 +47,7 @@ import { DealTableRow } from '../components/DealTableRow';
 import { DealsKPICards } from '../components/DealsKPICards';
 import { DealsActionDialogs } from '../components/DealsActionDialogs';
 
-import type { Operator } from '@/components/filters/filter-definitions/types';
+import type { Operator, FilterRule } from '@/components/filters/filter-definitions/types';
 import { useReMarketingDeals } from './useReMarketingDeals';
 import {
   formatCurrency,
@@ -112,11 +112,11 @@ const ReMarketingDeals = () => {
         value: f.value,
       }));
       if (clearExisting) {
-        h.setFilterState({ rules, conjunction: 'and', search: '' });
+        h.setFilterState({ rules: rules as FilterRule[], conjunction: 'and', search: '' });
       } else {
         h.setFilterState((prev) => ({
           ...prev,
-          rules: [...prev.rules, ...rules],
+          rules: [...prev.rules, ...rules] as FilterRule[],
         }));
       }
     },
@@ -636,8 +636,14 @@ const ReMarketingDeals = () => {
                             key={listing.id}
                             listing={listing}
                             index={index}
-                            stats={h.scoreStats?.[listing.id]}
-                            navigate={h.navigate}
+                            stats={
+                              (h.scoreStats?.[listing.id] as {
+                                totalMatches?: number;
+                                approved?: number;
+                                passed?: number;
+                              }) ?? null
+                            }
+                            navigate={(path: string) => h.navigate(path)}
                             formatCurrency={formatCurrency}
                             formatWebsiteDomain={formatWebsiteDomain}
                             getEffectiveWebsite={getEffectiveWebsite}
@@ -764,7 +770,14 @@ const ReMarketingDeals = () => {
         setShowAddDealDialog={h.setShowAddDealDialog}
         showEnrichmentSummary={h.showEnrichmentSummary}
         dismissSummary={h.dismissSummary}
-        enrichmentSummary={h.enrichmentSummary}
+        enrichmentSummary={
+          h.enrichmentSummary as {
+            total?: number;
+            success?: number;
+            failed?: number;
+            errors?: { id: string; error: string }[];
+          } | null
+        }
         handleRetryFailedEnrichment={h.handleRetryFailedEnrichment}
       />
     </div>

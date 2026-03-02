@@ -1,36 +1,36 @@
-import { useState, useMemo } from "react";
-import { useShiftSelect } from "@/hooks/useShiftSelect";
-import { useSearchParams } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { normalizeDomain } from "@/lib/remarketing/normalizeDomain";
-import type { BuyerType } from "@/types/remarketing";
-import { isSponsorType, PAGE_SIZE } from "./constants";
-import type { BuyerTab } from "./constants";
+import { useState, useMemo } from 'react';
+import { useShiftSelect } from '@/hooks/useShiftSelect';
+import { useSearchParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { normalizeDomain } from '@/lib/remarketing/normalizeDomain';
+import type { BuyerType } from '@/types/remarketing';
+import { isSponsorType, PAGE_SIZE } from './constants';
+import type { BuyerTab } from './constants';
 
 export const useBuyersData = () => {
   const queryClient = useQueryClient();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [search, setSearch] = useState("");
-  const initialTab = (searchParams.get("tab") as BuyerTab) || 'all';
+  const [search, setSearch] = useState('');
+  const initialTab = (searchParams.get('tab') as BuyerTab) || 'all';
   const [activeTab, setActiveTab] = useState<BuyerTab>(initialTab);
-  const universeFilter = searchParams.get("universe") ?? "all";
+  const universeFilter = searchParams.get('universe') ?? 'all';
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
-  const sortColumn = searchParams.get("sort") ?? "company_name";
-  const sortDirection = (searchParams.get("dir") as "asc" | "desc") ?? "asc";
+  const sortColumn = searchParams.get('sort') ?? 'company_name';
+  const sortDirection = (searchParams.get('dir') as 'asc' | 'desc') ?? 'asc';
   // New buyer form state
   const [newBuyer, setNewBuyer] = useState({
-    company_name: "",
-    company_website: "",
-    buyer_type: "" as BuyerType | "",
-    universe_id: "",
-    thesis_summary: "",
-    notes: "",
+    company_name: '',
+    company_website: '',
+    buyer_type: '' as BuyerType | '',
+    universe_id: '',
+    thesis_summary: '',
+    notes: '',
   });
 
   // Fetch buyers with universe + firm agreement info (for NDA/marketplace)
@@ -39,7 +39,8 @@ export const useBuyersData = () => {
     queryFn: async () => {
       let query = supabase
         .from('remarketing_buyers')
-        .select(`
+        .select(
+          `
           *,
           universe:remarketing_buyer_universes(id, name),
           firm_agreement:firm_agreements!remarketing_buyers_marketplace_firm_id_fkey(
@@ -50,19 +51,20 @@ export const useBuyersData = () => {
             fee_agreement_signed_at,
             primary_company_name
           )
-        `)
+        `,
+        )
         .eq('archived', false)
         .order('company_name');
 
       // Filter by universe
-      if (universeFilter !== "all") {
+      if (universeFilter !== 'all') {
         query = query.eq('universe_id', universeFilter);
       }
 
       const { data, error } = await query;
       if (error) throw error;
       return data;
-    }
+    },
   });
 
   // Fetch buyer IDs that have transcripts - needed to determine "Strong" vs "Some Intel"
@@ -105,13 +107,15 @@ export const useBuyersData = () => {
 
       if (error) throw error;
       return data;
-    }
+    },
   });
 
   // Compute tab counts from loaded buyers
   const tabCounts = useMemo(() => {
     if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0 };
-    let pe_firm = 0, platform = 0, needs_agreements = 0;
+    let pe_firm = 0,
+      platform = 0,
+      needs_agreements = 0;
     buyers.forEach((b) => {
       if (isSponsorType(b.buyer_type)) pe_firm++;
       if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
@@ -136,7 +140,8 @@ export const useBuyersData = () => {
   const createMutation = useMutation({
     mutationFn: async () => {
       // Normalize website for dedup
-      const normalizedWebsite = normalizeDomain(newBuyer.company_website) || newBuyer.company_website?.trim() || null;
+      const normalizedWebsite =
+        normalizeDomain(newBuyer.company_website) || newBuyer.company_website?.trim() || null;
       const universeId = newBuyer.universe_id || null;
 
       // Check for duplicate buyer by domain
@@ -154,28 +159,26 @@ export const useBuyersData = () => {
         }
 
         const { data: existingBuyers } = await query;
-        const duplicate = existingBuyers?.find(b =>
-          normalizeDomain(b.company_website) === normalizedWebsite
+        const duplicate = existingBuyers?.find(
+          (b) => normalizeDomain(b.company_website) === normalizedWebsite,
         );
         if (duplicate) {
           throw new Error(`A buyer with this website already exists: "${duplicate.company_name}"`);
         }
       }
 
-      const { error } = await supabase
-        .from('remarketing_buyers')
-        .insert({
-          company_name: newBuyer.company_name,
-          company_website: normalizedWebsite,
-          buyer_type: newBuyer.buyer_type || null,
-          universe_id: universeId,
-          thesis_summary: newBuyer.thesis_summary || null,
-          notes: newBuyer.notes || null,
-        });
+      const { error } = await supabase.from('remarketing_buyers').insert({
+        company_name: newBuyer.company_name,
+        company_website: normalizedWebsite,
+        buyer_type: newBuyer.buyer_type || null,
+        universe_id: universeId,
+        thesis_summary: newBuyer.thesis_summary || null,
+        notes: newBuyer.notes || null,
+      });
 
       if (error) {
         if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
-          throw new Error("A buyer with this website already exists.");
+          throw new Error('A buyer with this website already exists.');
         }
         throw error;
       }
@@ -183,28 +186,32 @@ export const useBuyersData = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing'] });
       toast.success(`${newBuyer.company_name} has been added.`);
-      setNewBuyer({ company_name: "", company_website: "", buyer_type: "", universe_id: "", thesis_summary: "", notes: "" });
+      setNewBuyer({
+        company_name: '',
+        company_website: '',
+        buyer_type: '',
+        universe_id: '',
+        thesis_summary: '',
+        notes: '',
+      });
       setIsAddDialogOpen(false);
     },
     onError: (error: Error) => {
       toast.error(error.message);
-    }
+    },
   });
 
   // Delete buyer mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('remarketing_buyers')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('remarketing_buyers').delete().eq('id', id);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing'] });
-      toast.success("Buyer deleted");
-    }
+      toast.success('Buyer deleted');
+    },
   });
 
   // Filter buyers by tab + search
@@ -215,23 +222,24 @@ export const useBuyersData = () => {
     // Tab filter
     switch (activeTab) {
       case 'pe_firm':
-        result = result.filter(b => isSponsorType(b.buyer_type));
+        result = result.filter((b) => isSponsorType(b.buyer_type));
         break;
       case 'platform':
-        result = result.filter(b => b.buyer_type === 'platform' || !b.buyer_type);
+        result = result.filter((b) => b.buyer_type === 'platform' || !b.buyer_type);
         break;
       case 'needs_agreements':
-        result = result.filter(b => !b.has_fee_agreement);
+        result = result.filter((b) => !b.has_fee_agreement);
         break;
     }
 
     if (search) {
       const searchLower = search.toLowerCase();
-      result = result.filter(b =>
-        b.company_name?.toLowerCase().includes(searchLower) ||
-        b.company_website?.toLowerCase().includes(searchLower) ||
-        b.thesis_summary?.toLowerCase().includes(searchLower) ||
-        b.pe_firm_name?.toLowerCase().includes(searchLower)
+      result = result.filter(
+        (b) =>
+          b.company_name?.toLowerCase().includes(searchLower) ||
+          b.company_website?.toLowerCase().includes(searchLower) ||
+          b.thesis_summary?.toLowerCase().includes(searchLower) ||
+          b.pe_firm_name?.toLowerCase().includes(searchLower),
       );
     }
 
@@ -280,15 +288,15 @@ export const useBuyersData = () => {
   // Enrich single buyer via enrichment queue
   const handleEnrichBuyer = async (e: React.MouseEvent, buyerId: string) => {
     e.stopPropagation();
-    setEnrichingIds(prev => new Set(prev).add(buyerId));
+    setEnrichingIds((prev) => new Set(prev).add(buyerId));
     try {
-      const { queueBuyerEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      const { queueBuyerEnrichment } = await import('@/lib/remarketing/queueEnrichment');
       await queueBuyerEnrichment([buyerId]);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'buyers'] });
     } catch {
       // Toast shown by queue utility
     } finally {
-      setEnrichingIds(prev => {
+      setEnrichingIds((prev) => {
         const next = new Set(prev);
         next.delete(buyerId);
         return next;
@@ -297,25 +305,31 @@ export const useBuyersData = () => {
   };
 
   const handleSort = (column: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (next.get("sort") === column) {
-        next.set("dir", next.get("dir") === "asc" ? "desc" : "asc");
-      } else {
-        next.set("sort", column);
-        next.set("dir", "asc");
-      }
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (next.get('sort') === column) {
+          next.set('dir', next.get('dir') === 'asc' ? 'desc' : 'asc');
+        } else {
+          next.set('sort', column);
+          next.set('dir', 'asc');
+        }
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const setUniverseFilter = (value: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (value === "all") next.delete("universe");
-      else next.set("universe", value);
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === 'all') next.delete('universe');
+        else next.set('universe', value);
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   // Selection helpers (shift-click multi-select)
@@ -332,24 +346,37 @@ export const useBuyersData = () => {
   // Export CSV
   const handleExportCSV = () => {
     const rows = filteredBuyers.filter((b) => selectedIds.size === 0 || selectedIds.has(b.id));
-    const headers = ['Company Name', 'Buyer Type', 'PE Firm', 'Website', 'Location', 'Thesis', 'Fee Agreement', 'NDA'];
+    const headers = [
+      'Company Name',
+      'Buyer Type',
+      'PE Firm',
+      'Website',
+      'Location',
+      'Thesis',
+      'Fee Agreement',
+      'NDA',
+    ];
     const csv = [
       headers.join(','),
-      ...rows.map((b) => [
-        `"${(b.company_name || '').replace(/"/g, '""')}"`,
-        b.buyer_type || '',
-        `"${(b.pe_firm_name || '').replace(/"/g, '""')}"`,
-        b.company_website || '',
-        [b.hq_city, b.hq_state].filter(Boolean).join(' '),
-        `"${(b.thesis_summary || '').replace(/"/g, '""').substring(0, 200)}"`,
-        b.has_fee_agreement ? 'Yes' : 'No',
-        b.nda_signed ? 'Yes' : 'No',
-      ].join(','))
+      ...rows.map((b) =>
+        [
+          `"${(b.company_name || '').replace(/"/g, '""')}"`,
+          b.buyer_type || '',
+          `"${(b.pe_firm_name || '').replace(/"/g, '""')}"`,
+          b.company_website || '',
+          [b.hq_city, b.hq_state].filter(Boolean).join(' '),
+          `"${(b.thesis_summary || '').replace(/"/g, '""').substring(0, 200)}"`,
+          b.has_fee_agreement ? 'Yes' : 'No',
+          (b as Record<string, unknown>).nda_signed ? 'Yes' : 'No',
+        ].join(','),
+      ),
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'buyers.csv'; a.click();
+    a.href = url;
+    a.download = 'buyers.csv';
+    a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${rows.length} buyers`);
   };

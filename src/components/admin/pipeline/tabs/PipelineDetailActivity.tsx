@@ -205,15 +205,15 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
                           {/* Activity Metadata */}
                           {activity.metadata &&
                             activity.type === 'stage_change' &&
-                            activity.metadata.from_stage && (
+                            !!activity.metadata.from_stage && (
                               <div className="pt-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs px-2 py-0.5 rounded-md bg-muted/50 text-muted-foreground font-mono">
-                                    {activity.metadata.from_stage}
+                                    {activity.metadata.from_stage as string}
                                   </span>
-                                  <span className="text-muted-foreground/40">→</span>
+                                  <span className="text-muted-foreground/40">{'\u2192'}</span>
                                   <span className="text-xs px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono">
-                                    {activity.metadata.to_stage}
+                                    {activity.metadata.to_stage as string}
                                   </span>
                                 </div>
                               </div>

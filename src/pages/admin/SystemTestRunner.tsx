@@ -3,8 +3,8 @@
  * Runs all user stories and integration tests, reports pass/fail, persists results.
  */
 
-import { useState, useCallback, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { useState, useCallback, useRef } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   CheckCircle2,
   XCircle,
@@ -15,15 +15,15 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   type TestStatus,
   type TestResult,
   type TestContext,
   STORAGE_KEY,
   buildTests,
-} from "./system-test-runner/testDefinitions";
+} from './system-test-runner/testDefinitions';
 
 // ═══════════════════════════════════════════
 // Component
@@ -34,14 +34,16 @@ export default function SystemTestRunner() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) return JSON.parse(stored);
-    } catch { /* ignore parse errors */ }
+    } catch {
+      /* ignore parse errors */
+    }
     return [];
   });
   const [isRunning, setIsRunning] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [lastRunAt, setLastRunAt] = useState<string | null>(() => {
     try {
-      return localStorage.getItem(STORAGE_KEY + "-ts");
+      return localStorage.getItem(STORAGE_KEY + '-ts');
     } catch {
       return null;
     }
@@ -51,8 +53,10 @@ export default function SystemTestRunner() {
   const persist = useCallback((res: TestResult[], ts: string) => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(res));
-      localStorage.setItem(STORAGE_KEY + "-ts", ts);
-    } catch { /* ignore storage errors */ }
+      localStorage.setItem(STORAGE_KEY + '-ts', ts);
+    } catch {
+      /* ignore storage errors */
+    }
   }, []);
 
   const runTests = useCallback(
@@ -62,7 +66,7 @@ export default function SystemTestRunner() {
 
       const allTests = buildTests();
       const testsToRun = onlyFailed
-        ? allTests.filter((t) => results.find((r) => r.id === t.id && r.status === "fail"))
+        ? allTests.filter((t) => results.find((r) => r.id === t.id && r.status === 'fail'))
         : allTests;
 
       // Initialize results
@@ -73,7 +77,7 @@ export default function SystemTestRunner() {
           id: t.id,
           name: t.name,
           category: t.category,
-          status: shouldRun ? "pending" : existing?.status || "pending",
+          status: shouldRun ? 'pending' : existing?.status || 'pending',
           error: shouldRun ? undefined : existing?.error,
           durationMs: shouldRun ? undefined : existing?.durationMs,
         };
@@ -96,7 +100,7 @@ export default function SystemTestRunner() {
         if (abortRef.current) break;
 
         const idx = updatedResults.findIndex((r) => r.id === test.id);
-        updatedResults[idx] = { ...updatedResults[idx], status: "running" };
+        updatedResults[idx] = { ...updatedResults[idx], status: 'running' };
         setResults([...updatedResults]);
 
         const start = performance.now();
@@ -104,19 +108,20 @@ export default function SystemTestRunner() {
           await test.fn(ctx);
           updatedResults[idx] = {
             ...updatedResults[idx],
-            status: "pass",
+            status: 'pass',
             durationMs: Math.round(performance.now() - start),
             error: undefined,
           };
         } catch (err: unknown) {
-          const msg = err?.message || String(err);
+          const msg = (err as Error)?.message || String(err);
           // Treat missing test data preconditions and some errors as warnings
-          const isWarning = (msg.includes("does not exist") && !msg.includes("table"))
-            || msg.includes("No documents exist")
-            || msg.includes("No test ");
+          const isWarning =
+            (msg.includes('does not exist') && !msg.includes('table')) ||
+            msg.includes('No documents exist') ||
+            msg.includes('No test ');
           updatedResults[idx] = {
             ...updatedResults[idx],
-            status: isWarning ? "warn" : "fail",
+            status: isWarning ? 'warn' : 'fail',
             error: msg,
             durationMs: Math.round(performance.now() - start),
           };
@@ -129,39 +134,43 @@ export default function SystemTestRunner() {
       persist(updatedResults, ts);
       setIsRunning(false);
     },
-    [results, persist]
+    [results, persist],
   );
 
   const toggleCategory = (cat: string) => {
     setCollapsedCategories((prev) => {
       const next = new Set(prev);
-      if (next.has(cat)) { next.delete(cat); } else { next.add(cat); }
+      if (next.has(cat)) {
+        next.delete(cat);
+      } else {
+        next.add(cat);
+      }
       return next;
     });
   };
 
   const copyFailed = () => {
-    const failed = results.filter((r) => r.status === "fail");
-    const text = failed.map((r) => `❌ [${r.category}] ${r.name}\n   ${r.error}`).join("\n\n");
-    navigator.clipboard.writeText(text || "No failures!");
+    const failed = results.filter((r) => r.status === 'fail');
+    const text = failed.map((r) => `❌ [${r.category}] ${r.name}\n   ${r.error}`).join('\n\n');
+    navigator.clipboard.writeText(text || 'No failures!');
   };
 
   // Group by category
   const categories = Array.from(new Set(results.map((r) => r.category)));
-  const passCount = results.filter((r) => r.status === "pass").length;
-  const failCount = results.filter((r) => r.status === "fail").length;
-  const warnCount = results.filter((r) => r.status === "warn").length;
+  const passCount = results.filter((r) => r.status === 'pass').length;
+  const failCount = results.filter((r) => r.status === 'fail').length;
+  const warnCount = results.filter((r) => r.status === 'warn').length;
   const totalCount = results.length;
 
   const statusIcon = (status: TestStatus) => {
     switch (status) {
-      case "pass":
+      case 'pass':
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-      case "fail":
+      case 'fail':
         return <XCircle className="h-4 w-4 text-destructive" />;
-      case "warn":
+      case 'warn':
         return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case "running":
+      case 'running':
         return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
       default:
         return <div className="h-4 w-4 rounded-full border border-muted-foreground/30" />;
@@ -180,7 +189,11 @@ export default function SystemTestRunner() {
         </div>
         <div className="flex gap-2">
           <Button onClick={() => runTests(false)} disabled={isRunning}>
-            {isRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+            {isRunning ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="mr-2 h-4 w-4" />
+            )}
             Run All Tests
           </Button>
           {failCount > 0 && (
@@ -219,8 +232,8 @@ export default function SystemTestRunner() {
       <div className="space-y-2">
         {categories.map((cat) => {
           const catResults = results.filter((r) => r.category === cat);
-          const catPassed = catResults.filter((r) => r.status === "pass").length;
-          const catFailed = catResults.filter((r) => r.status === "fail").length;
+          const catPassed = catResults.filter((r) => r.status === 'pass').length;
+          const catFailed = catResults.filter((r) => r.status === 'fail').length;
           const isCollapsed = collapsedCategories.has(cat);
 
           return (
@@ -250,18 +263,22 @@ export default function SystemTestRunner() {
                     <div
                       key={r.id}
                       className={cn(
-                        "flex items-start gap-3 px-4 py-2 text-sm",
-                        r.status === "fail" && "bg-destructive/5"
+                        'flex items-start gap-3 px-4 py-2 text-sm',
+                        r.status === 'fail' && 'bg-destructive/5',
                       )}
                     >
                       <div className="mt-0.5">{statusIcon(r.status)}</div>
                       <div className="flex-1 min-w-0">
                         <span className="font-medium">{r.name}</span>
                         {r.durationMs !== undefined && (
-                          <span className="ml-2 text-xs text-muted-foreground">{r.durationMs}ms</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {r.durationMs}ms
+                          </span>
                         )}
                         {r.error && (
-                          <p className="text-xs text-destructive mt-1 break-all font-mono">{r.error}</p>
+                          <p className="text-xs text-destructive mt-1 break-all font-mono">
+                            {r.error}
+                          </p>
                         )}
                       </div>
                     </div>

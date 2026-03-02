@@ -20,6 +20,19 @@ import {
   Info,
 } from 'lucide-react';
 
+interface FirefliesSearchResultItem {
+  id: string;
+  title?: string;
+  date?: string;
+  meeting_url?: string;
+  duration_minutes?: number;
+  has_content?: boolean;
+  match_type?: string;
+  summary?: string | { short_summary?: string };
+  external_participants?: { name: string; email?: string }[];
+  participants?: unknown[];
+}
+
 interface FirefliesLinkPanelProps {
   contactEmail?: string | null;
   contactEmails?: string[];
@@ -53,6 +66,7 @@ interface FirefliesLinkPanelProps {
     match_type?: string;
     summary?: string | { short_summary?: string };
     external_participants?: { name: string; email?: string }[];
+    participants?: unknown[];
   }) => void;
 }
 
@@ -193,7 +207,7 @@ export function FirefliesLinkPanel({
                 </p>
               </div>
               <div className="space-y-2 max-h-72 overflow-auto">
-                {ffResults.map((r) => (
+                {(ffResults as FirefliesSearchResultItem[]).map((r) => (
                   <div
                     key={r.id}
                     className={`border rounded-lg p-3 space-y-2 transition-colors ${r.has_content === false ? 'opacity-60 bg-muted/30' : 'hover:bg-muted/30'}`}
@@ -236,7 +250,7 @@ export function FirefliesLinkPanel({
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {new Date(r.date).toLocaleDateString('en-US', {
+                        {new Date(r.date!).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
@@ -246,10 +260,7 @@ export function FirefliesLinkPanel({
                       {r.external_participants && r.external_participants.length > 0 && (
                         <span className="flex items-center gap-1">
                           <Users className="h-3 w-3" />
-                          With:{' '}
-                          {r.external_participants
-                            .map((p: unknown) => (p as { name: string }).name)
-                            .join(', ')}
+                          With: {r.external_participants.map((p) => p.name).join(', ')}
                         </span>
                       )}
                     </div>

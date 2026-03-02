@@ -1,12 +1,6 @@
 // React is auto-imported via JSX transform
 import { UseFormReturn } from 'react-hook-form';
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -20,8 +14,8 @@ import { CreateDealFormData } from './schema';
 
 interface BasicInfoSectionProps {
   form: UseFormReturn<CreateDealFormData>;
-  listings: unknown[] | undefined;
-  stages: unknown[] | undefined;
+  listings: { id: string; title: string; internal_company_name?: string }[] | undefined;
+  stages: { id: string; name: string; color: string }[] | undefined;
 }
 
 export function BasicInfoSection({ form, listings, stages }: BasicInfoSectionProps) {
@@ -63,7 +57,8 @@ export function BasicInfoSection({ form, listings, stages }: BasicInfoSectionPro
                 <SelectContent className="max-h-[300px]">
                   {listings?.map((listing) => (
                     <SelectItem key={listing.id} value={listing.id}>
-                      {listing.title} {listing.internal_company_name && `(${listing.internal_company_name})`}
+                      {listing.title}{' '}
+                      {listing.internal_company_name && `(${listing.internal_company_name})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -141,7 +136,9 @@ export function BasicInfoSection({ form, listings, stages }: BasicInfoSectionPro
                   type="number"
                   placeholder="0"
                   {...field}
-                  onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                  onChange={(e) =>
+                    field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)
+                  }
                   value={field.value || ''}
                 />
               </FormControl>

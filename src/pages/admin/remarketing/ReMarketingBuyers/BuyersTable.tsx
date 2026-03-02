@@ -15,6 +15,12 @@ import BuyerTableRow from './BuyerTableRow';
 import { PAGE_SIZE } from './constants';
 import type { BuyerTab } from './constants';
 
+interface BuyerRecord {
+  id: string;
+  company_name: string;
+  [key: string]: unknown;
+}
+
 interface BuyersTableProps {
   activeTab: BuyerTab;
   buyersLoading: boolean;
@@ -200,12 +206,13 @@ const BuyersTable = ({
                 </TableCell>
               </TableRow>
             ) : (
-              pagedBuyers.map((buyer: { id: string }, pageIdx: number) => {
+              pagedBuyers.map((buyer: unknown, pageIdx: number) => {
+                const b = buyer as BuyerRecord;
                 const globalIdx = (currentPage - 1) * PAGE_SIZE + pageIdx + 1;
                 return (
                   <BuyerTableRow
-                    key={buyer.id}
-                    buyer={buyer}
+                    key={b.id}
+                    buyer={b}
                     globalIdx={globalIdx}
                     activeTab={activeTab}
                     selectedIds={selectedIds}

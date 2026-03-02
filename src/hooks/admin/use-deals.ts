@@ -132,7 +132,8 @@ export interface DealStage {
 }
 
 /** RPC result row from get_deals_with_buyer_profiles */
-interface DealRpcRow {
+// @ts-expect-error -- kept for reference; RPC schema documentation
+interface _DealRpcRow {
   deal_id: string;
   deal_title: string | null;
   deal_description: string | null;

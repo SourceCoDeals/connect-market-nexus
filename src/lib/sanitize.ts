@@ -19,22 +19,51 @@ import DOMPurify from 'dompurify';
 const STRICT_SANITIZE_CONFIG: Record<string, unknown> = {
   ALLOWED_TAGS: [
     // Text formatting
-    'p', 'br', 'strong', 'em', 'u', 's', 'span', 'sub', 'sup',
+    'p',
+    'br',
+    'strong',
+    'em',
+    'u',
+    's',
+    'span',
+    'sub',
+    'sup',
     // Headings
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
     // Lists
-    'ul', 'ol', 'li',
+    'ul',
+    'ol',
+    'li',
     // Block elements
-    'blockquote', 'div', 'pre', 'code', 'hr',
+    'blockquote',
+    'div',
+    'pre',
+    'code',
+    'hr',
     // Links (href only, target only)
     'a',
     // Tables
-    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption',
+    'table',
+    'thead',
+    'tbody',
+    'tfoot',
+    'tr',
+    'th',
+    'td',
+    'caption',
   ],
   ALLOWED_ATTR: [
-    'href', 'target', 'rel',
+    'href',
+    'target',
+    'rel',
     // Table attributes
-    'colspan', 'rowspan',
+    'colspan',
+    'rowspan',
   ],
   ALLOW_DATA_ATTR: false,
   // Force all links to open safely
@@ -63,13 +92,10 @@ export function sanitizeHtml(dirty: string, allowLinks = true): string {
   }
 
   // Add noopener noreferrer to all links after sanitization
-  const clean = DOMPurify.sanitize(dirty, config as DOMPurify.Config);
+  const clean = DOMPurify.sanitize(dirty, config as Parameters<typeof DOMPurify.sanitize>[1]);
 
   // Post-process: ensure all <a> tags have rel="noopener noreferrer"
-  return String(clean).replace(
-    /<a\s/g,
-    '<a rel="noopener noreferrer" '
-  );
+  return String(clean).replace(/<a\s/g, '<a rel="noopener noreferrer" ');
 }
 
 /**
@@ -98,19 +124,21 @@ export function stripHtml(dirty: string): string {
 export function escapeSqlString(input: string): string {
   if (!input || typeof input !== 'string') return '';
 
-  return input
-    // Escape backslashes first
-    .replace(/\\/g, '\\\\')
-    // Escape single quotes (SQL standard)
-    .replace(/'/g, "''")
-    // Remove null bytes
-    .replace(/\0/g, '')
-    // Escape semicolons to prevent statement chaining
-    .replace(/;/g, '\\;')
-    // Remove comment markers
-    .replace(/--/g, '')
-    .replace(/\/\*/g, '')
-    .replace(/\*\//g, '');
+  return (
+    input
+      // Escape backslashes first
+      .replace(/\\/g, '\\\\')
+      // Escape single quotes (SQL standard)
+      .replace(/'/g, "''")
+      // Remove null bytes
+      .replace(/\0/g, '')
+      // Escape semicolons to prevent statement chaining
+      .replace(/;/g, '\\;')
+      // Remove comment markers
+      .replace(/--/g, '')
+      .replace(/\/\*/g, '')
+      .replace(/\*\//g, '')
+  );
 }
 
 /**
@@ -212,7 +240,8 @@ export function isValidEmail(email: string | null | undefined): boolean {
   if (!domain || domain.length > 253) return false;
 
   // RFC 5322 compliant email regex
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+  const emailRegex =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
 
   return emailRegex.test(trimmed);
 }
@@ -239,13 +268,15 @@ export function sanitizeEmail(email: string | null | undefined): string {
 export function sanitizeTextInput(input: string | null | undefined): string {
   if (!input || typeof input !== 'string') return '';
 
-  return input
-    // Remove null bytes
-    .replace(/\0/g, '')
-    // Remove other control characters (except newline, tab, carriage return)
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    .trim();
+  return (
+    input
+      // Remove null bytes
+      .replace(/\0/g, '')
+      // Remove other control characters (except newline, tab, carriage return)
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x01-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      .trim()
+  );
 }
 
 /**

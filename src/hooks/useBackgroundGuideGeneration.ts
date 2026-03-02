@@ -204,8 +204,8 @@ export function useBackgroundGuideGeneration({
 
     setIsGenerating(false);
 
-    const content = generation.generated_content?.content || '';
-    const criteria = generation.generated_content?.criteria || null;
+    const content = (generation.generated_content?.content as string) || '';
+    const criteria = (generation.generated_content?.criteria as Record<string, unknown>) || null;
 
     toast.success('M&A Guide generation completed!', { duration: 5000 });
 

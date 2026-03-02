@@ -409,11 +409,13 @@ export function useDealsData() {
           aVal = a.manual_rank_override ?? 9999;
           bVal = b.manual_rank_override ?? 9999;
       }
-      if (typeof aVal === 'string') {
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
         const c = aVal.localeCompare(bVal);
         return sortDirection === 'asc' ? c : -c;
       }
-      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      return sortDirection === 'asc'
+        ? (aVal as number) - (bVal as number)
+        : (bVal as number) - (aVal as number);
     });
   }, [filteredListings, sortColumn, sortDirection, scoreStats]);
 

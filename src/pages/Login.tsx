@@ -1,18 +1,24 @@
-
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
-import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { toast } from '@/hooks/use-toast';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, isLoading, authChecked, login } = useAuth();
   const navigate = useNavigate();
@@ -20,11 +26,11 @@ const Login = () => {
   // Simple redirect if already logged in - route based on approval status
   useEffect(() => {
     if (authChecked && user) {
-      let redirectPath = "/marketplace";
+      let redirectPath = '/marketplace';
       if (user.is_admin) {
-        redirectPath = "/admin";
+        redirectPath = '/admin';
       } else if (user.approval_status !== 'approved') {
-        redirectPath = "/pending-approval";
+        redirectPath = '/pending-approval';
       }
       navigate(redirectPath, { replace: true });
     }
@@ -32,28 +38,28 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setIsSubmitting(true);
-    
+
     if (!email.trim() || !password) {
-      setError("Email and password are required");
+      setError('Email and password are required');
       setIsSubmitting(false);
       return;
     }
-    
+
     try {
       await login(email, password);
       toast({
-        title: "Welcome back",
-        description: "You have successfully logged in.",
+        title: 'Welcome back',
+        description: 'You have successfully logged in.',
       });
     } catch (err: unknown) {
       // Error logged by error handler
-      setError(err.message || "Failed to sign in");
+      setError((err as Error).message || 'Failed to sign in');
       toast({
-        variant: "destructive",
-        title: "Login failed",
-        description: err.message || "Please check your credentials and try again"
+        variant: 'destructive',
+        title: 'Login failed',
+        description: (err as Error).message || 'Please check your credentials and try again',
       });
     } finally {
       setIsSubmitting(false);
@@ -78,9 +84,9 @@ const Login = () => {
       <header className="w-full py-6 px-4">
         <div className="max-w-5xl mx-auto flex justify-center">
           <Link to="/welcome" className="flex items-center space-x-2">
-            <img 
-              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" 
-              alt="SourceCo Logo" 
+            <img
+              src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png"
+              alt="SourceCo Logo"
               className="h-8 w-8"
             />
             <div className="flex items-baseline">
@@ -111,7 +117,7 @@ const Login = () => {
                     <div>{error}</div>
                   </div>
                 )}
-                
+
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-xs font-medium">
                     Email
@@ -132,17 +138,14 @@ const Login = () => {
                     <label htmlFor="password" className="text-xs font-medium">
                       Password
                     </label>
-                    <Link
-                      to="/forgot-password"
-                      className="text-xs text-primary hover:underline"
-                    >
+                    <Link to="/forgot-password" className="text-xs text-primary hover:underline">
                       Forgot password?
                     </Link>
                   </div>
                   <div className="relative">
                     <Input
                       id="password"
-                      type={showPassword ? "text" : "password"}
+                      type={showPassword ? 'text' : 'password'}
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -160,23 +163,15 @@ const Login = () => {
                     </button>
                   </div>
                 </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="sm"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Signing in..." : "Sign in"}
+                <Button type="submit" className="w-full" size="sm" disabled={isSubmitting}>
+                  {isSubmitting ? 'Signing in...' : 'Sign in'}
                 </Button>
               </form>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
               <div className="text-xs text-center text-muted-foreground">
                 <span>Don't have an account? </span>
-                <Link
-                  to="/welcome"
-                  className="text-primary font-medium hover:underline"
-                >
+                <Link to="/welcome" className="text-primary font-medium hover:underline">
                   Get started
                 </Link>
               </div>

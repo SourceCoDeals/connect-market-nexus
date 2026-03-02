@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Json } from "@/integrations/supabase/types";
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
 
 export interface UserDetails {
   id: string;
@@ -38,30 +38,30 @@ export interface UserDetails {
 
 export const useUserDetails = (userId: string | null) => {
   return useQuery({
-    queryKey: ["user-details", userId],
+    queryKey: ['user-details', userId],
     queryFn: async () => {
       if (!userId) return null;
 
       // Fetch profile data
       const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
         .single();
 
       if (profileError) throw profileError;
 
       // Fetch initial session data
       const { data: initialSession, error: sessionError } = await supabase
-        .from("user_initial_session")
-        .select("*")
-        .eq("user_id", userId)
+        .from('user_initial_session')
+        .select('*')
+        .eq('user_id', userId)
         .single();
       if (sessionError && sessionError.code !== 'PGRST116') throw sessionError;
 
       const userDetails: UserDetails = {
         ...profile,
-        initial_session: initialSession || null,
+        initial_session: (initialSession as UserDetails['initial_session']) ?? null,
       };
 
       return userDetails;

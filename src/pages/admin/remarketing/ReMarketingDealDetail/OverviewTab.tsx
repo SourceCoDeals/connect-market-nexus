@@ -22,8 +22,71 @@ import { WebsiteActionsCard } from './WebsiteActionsCard';
 import { FinancialOverviewCard } from './FinancialOverviewCard';
 import type { DealTranscript } from '../types';
 
+/** Local type covering all deal fields accessed in OverviewTab */
+interface DealRecord {
+  internal_company_name: string | null;
+  title: string | null;
+  location: string | null;
+  address: string | null;
+  founded_year: number | null;
+  full_time_employees: number | null;
+  part_time_employees: number | null;
+  industry: string | null;
+  number_of_locations: number | null;
+  location_radius_requirement: string | null;
+  category: string | null;
+  status: string;
+  street_address: string | null;
+  address_city: string | null;
+  address_state: string | null;
+  address_zip: string | null;
+  address_country: string | null;
+  google_review_count: number | null;
+  google_rating: number | null;
+  google_maps_url: string | null;
+  linkedin_url: string | null;
+  linkedin_employee_count: number | null;
+  linkedin_employee_range: string | null;
+  deal_total_score: number | null;
+  revenue: number | null;
+  ebitda: number | null;
+  executive_summary: string | null;
+  service_mix: string | null;
+  geographic_states: string[] | null;
+  owner_goals: string | null;
+  ownership_structure: string | null;
+  special_requirements: string | null;
+  owner_response: string | null;
+  key_quotes: string[] | null;
+  main_contact_name: string | null;
+  main_contact_email: string | null;
+  main_contact_phone: string | null;
+  customer_types: string | null;
+  customer_concentration: number | string | null;
+  customer_geography: string | null;
+  owner_notes: string | null;
+  internal_notes: string | null;
+  key_risks: string | null;
+  technology_systems: string | null;
+  real_estate_info: string | null;
+  growth_trajectory: string | null;
+  description: string | null;
+  extraction_sources: Record<string, unknown> | null;
+  general_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  // Fields needed by WebsiteActionsCard
+  needs_owner_contact?: boolean | null;
+  universe_build_flagged?: boolean | null;
+  pushed_to_marketplace?: boolean | null;
+  pushed_to_marketplace_at?: string | null;
+  website?: string | null;
+  // Allow additional unknown fields
+  [key: string]: unknown;
+}
+
 interface OverviewTabProps {
-  deal: Record<string, unknown>;
+  deal: DealRecord;
   dealId: string;
   scoreStats: { count: number; approved: number; passed: number; avgScore: number } | undefined;
   pipelineStats:
@@ -315,7 +378,7 @@ export function OverviewTab({
         transcripts={(transcripts || []) as unknown as DealTranscript[]}
         isLoading={transcriptsLoading}
         dealInfo={{
-          company_name: deal.internal_company_name || deal.title,
+          company_name: (deal.internal_company_name || deal.title) ?? undefined,
           main_contact_email: deal.main_contact_email ?? undefined,
         }}
         contactEmail={deal.main_contact_email ?? null}
