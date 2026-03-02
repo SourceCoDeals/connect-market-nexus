@@ -1,5 +1,5 @@
 import { User, BuyerType } from '@/types';
-import { BUYER_TYPE_FIELD_MAPPINGS, FIELD_LABELS } from '@/lib/buyer-type-fields';
+import { FIELD_LABELS } from '@/lib/buyer-type-fields';
 
 // Core required fields every buyer must have
 const UNIVERSAL_REQUIRED_FIELDS = [
@@ -33,9 +33,10 @@ function hasValue(value: unknown): boolean {
 
 /** Get all required field keys for a given buyer type. */
 export const getRequiredFields = (buyerType?: BuyerType): string[] => {
-  const fields = [...UNIVERSAL_REQUIRED_FIELDS];
+  const fields: string[] = [...UNIVERSAL_REQUIRED_FIELDS];
   if (buyerType && BUYER_TYPE_REQUIRED_FIELDS[buyerType]) {
     fields.push(...BUYER_TYPE_REQUIRED_FIELDS[buyerType]);
+  }
   }
   return fields;
 };
