@@ -54,6 +54,11 @@ export function invalidateAgreementQueries(
     ['admin-document-tracking'],
     ['recent-agreement-signatures'],
     ['connection-request-firm'],
+    ['thread-buyer-firm'],
+    ['user-activity-timeline'],
+    ['user-all-threads'],
+    ['user-firm'],
+    ['check-email-coverage'],
   ];
 
   // Immediate invalidation

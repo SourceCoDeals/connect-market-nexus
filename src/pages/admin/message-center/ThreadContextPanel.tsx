@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -266,6 +267,7 @@ const TIMELINE_ICONS: Record<string, { icon: typeof Check; color: string }> = {
 // ─── Main component ───
 
 export function ThreadContextPanel({ userId, buyerName, buyerEmail, buyerCompany }: ThreadContextPanelProps) {
+  useAgreementStatusSync();
   const { data: firm, isLoading: firmLoading } = useThreadBuyerFirm(userId);
   const { data: allThreads = [], isLoading: threadsLoading } = useUserAllThreads(userId);
   const { data: timeline = [], isLoading: timelineLoading } = useUserActivityTimeline(userId);
