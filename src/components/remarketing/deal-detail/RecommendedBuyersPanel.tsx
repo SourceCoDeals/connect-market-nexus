@@ -37,7 +37,7 @@ interface RecommendedBuyersPanelProps {
   listingId: string;
 }
 
-const MAX_BUYERS = 10;
+const MAX_BUYERS = 5;
 
 const TIER_CONFIG: Record<BuyerScore['tier'], { label: string; color: string; icon: typeof Zap }> = {
   move_now: { label: 'Move Now', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: Zap },
@@ -219,51 +219,12 @@ function BuyerCard({
         </div>
       </div>
 
-      {/* Match reason */}
+      {/* Why they're a good fit */}
       {buyer.fit_reason && (
         <p className="text-xs text-muted-foreground leading-relaxed mt-2.5 pt-2.5 border-t pl-11">
           {buyer.fit_reason}
         </p>
       )}
-
-      {/* Signal tags — max 3 */}
-      {buyer.fit_signals.length > 0 && (
-        <div className="flex flex-wrap gap-1 ml-6">
-          {buyer.fit_signals.slice(0, 3).map((signal, i) => (
-            <Badge key={i} variant="outline" className="text-[10px] font-normal">
-              {signal}
-            </Badge>
-          ))}
-          {buyer.fit_signals.length > 3 && (
-            <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-              +{buyer.fit_signals.length - 3} more
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* Sub-scores breakdown */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { label: 'Service', value: buyer.service_score, color: 'bg-violet-500' },
-          { label: 'Geography', value: buyer.geography_score, color: 'bg-sky-500' },
-          { label: 'Size', value: buyer.size_score, color: 'bg-teal-500' },
-          { label: 'Bonus', value: buyer.bonus_score, color: 'bg-amber-500' },
-        ].map((sub) => (
-          <div key={sub.label} className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">{sub.label}</span>
-              <span className="text-[10px] font-mono font-medium">{sub.value}</span>
-            </div>
-            <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
-              <div
-                className={cn('h-full rounded-full transition-all', sub.color)}
-                style={{ width: `${sub.value}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -446,11 +407,10 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
   }
 
   const allBuyers = data?.buyers || [];
-  const buyers = allBuyers
-    .filter(b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id))
-    .slice(0, MAX_BUYERS);
-  const sponsors = buyers.filter(isSponsor);
-  const operatingCos = buyers.filter(b => !isSponsor(b));
+  const available = allBuyers.filter(b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id));
+  const sponsors = available.filter(isSponsor).slice(0, MAX_BUYERS);
+  const operatingCos = available.filter(b => !isSponsor(b)).slice(0, MAX_BUYERS);
+  const buyers = [...sponsors, ...operatingCos];
 
   return (
     <Card>
@@ -459,11 +419,6 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-4 w-4" />
             Recommended Buyers
-            {buyers.length > 0 && (
-              <Badge variant="secondary" className="text-xs ml-1">
-                Top {buyers.length}
-              </Badge>
-            )}
           </CardTitle>
           {buyers.length > 0 && <TierSummary buyers={buyers} />}
         </div>
