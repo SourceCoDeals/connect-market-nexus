@@ -157,8 +157,8 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
                   </span>
                   <span className="text-xs font-medium text-foreground">
                     {(userDetails.initial_session.location.city as string) || 'N/A'}
-                    {userDetails.initial_session.location.state &&
-                      `, ${userDetails.initial_session.location.state as string}`}
+                    {(userDetails.initial_session.location.state as string) &&
+                      `, ${String(userDetails.initial_session.location.state)}`}
                   </span>
                 </div>
               )}

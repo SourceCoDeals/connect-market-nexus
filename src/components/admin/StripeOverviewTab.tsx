@@ -23,7 +23,13 @@ interface GroupedUserActivity {
   first_name?: string;
   last_name?: string;
   user_name: string;
-  activities: unknown[];
+  activities: Array<{
+    activity_type?: string;
+    action_type?: string;
+    description?: string;
+    created_at?: string;
+    [key: string]: unknown;
+  }>;
   lastActivityTime: string;
   totalActivities: number;
   actionCounts: {
@@ -32,6 +38,9 @@ interface GroupedUserActivity {
     connections: number;
     pageViews: number;
   };
+  mostRecentSession?: Record<string, unknown>;
+  dateFirstSeen?: string;
+  sessionReferrer?: string;
 }
 
 export function StripeOverviewTab() {
@@ -216,7 +225,7 @@ export function StripeOverviewTab() {
       // Update last activity time if this is more recent
       if (new Date(activity.created_at) > new Date(userGroup.lastActivityTime)) {
         userGroup.lastActivityTime = activity.created_at;
-        userGroup.mostRecentSession = activity as Record<string, unknown>;
+        userGroup.mostRecentSession = activity as unknown as Record<string, unknown>;
       }
 
       // Set date first seen to user signup date (profiles.created_at)

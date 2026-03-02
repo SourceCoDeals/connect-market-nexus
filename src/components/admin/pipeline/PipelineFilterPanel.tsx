@@ -96,8 +96,28 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     const filters = preset.filters;
     if (filters.statusFilter) pipeline.setStatusFilter(filters.statusFilter as string);
     if (filters.documentStatusFilter)
-      pipeline.setDocumentStatusFilter(filters.documentStatusFilter as string);
-    if (filters.buyerTypeFilter) pipeline.setBuyerTypeFilter(filters.buyerTypeFilter as string);
+      pipeline.setDocumentStatusFilter(
+        filters.documentStatusFilter as
+          | 'all'
+          | 'nda_signed'
+          | 'fee_signed'
+          | 'both_signed'
+          | 'none_signed'
+          | 'overdue_followup',
+      );
+    if (filters.buyerTypeFilter)
+      pipeline.setBuyerTypeFilter(
+        filters.buyerTypeFilter as
+          | 'all'
+          | 'privateEquity'
+          | 'familyOffice'
+          | 'searchFund'
+          | 'corporate'
+          | 'individual'
+          | 'independentSponsor'
+          | 'advisor'
+          | 'businessOwner',
+      );
     if (filters.companyFilter) pipeline.setCompanyFilter(filters.companyFilter as string[]);
     if (filters.adminFilter) pipeline.setAdminFilter(filters.adminFilter as string);
     if (filters.createdDateRange)

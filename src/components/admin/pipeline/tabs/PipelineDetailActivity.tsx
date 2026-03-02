@@ -205,7 +205,7 @@ export function PipelineDetailActivity({ deal }: PipelineDetailActivityProps) {
                           {/* Activity Metadata */}
                           {activity.metadata &&
                             activity.type === 'stage_change' &&
-                            activity.metadata.from_stage && (
+                            !!activity.metadata.from_stage && (
                               <div className="pt-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs px-2 py-0.5 rounded-md bg-muted/50 text-muted-foreground font-mono">

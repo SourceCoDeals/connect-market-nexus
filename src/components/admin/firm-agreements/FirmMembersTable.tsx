@@ -192,11 +192,11 @@ function MemberRow({ member }: { member: FirmMember }) {
                             {deal.stage && (
                               <span
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-white border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.06)] text-[11px] font-medium tracking-[0.02em] whitespace-nowrap"
-                                style={{ color: deal.stage.color }}
+                                style={{ color: deal.stage.color || undefined }}
                               >
                                 <span
                                   className="w-1.5 h-1.5 rounded-full"
-                                  style={{ backgroundColor: deal.stage.color }}
+                                  style={{ backgroundColor: deal.stage.color || undefined }}
                                 />
                                 {deal.stage.name}
                               </span>

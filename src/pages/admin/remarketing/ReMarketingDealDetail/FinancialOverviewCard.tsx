@@ -119,7 +119,7 @@ function FinancialMetric({
                 >
                   {isManual ? 'Manual' : isTranscript ? 'Transcript' : sourceType || 'Unknown'}
                 </Badge>
-                {source?.timestamp && (
+                {!!source?.timestamp && (
                   <span className="text-xs text-muted-foreground">
                     {new Date(source.timestamp as string).toLocaleDateString()}
                   </span>
