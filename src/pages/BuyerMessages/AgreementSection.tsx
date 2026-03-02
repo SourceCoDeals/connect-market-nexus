@@ -195,8 +195,10 @@ export function PendingAgreementBanner() {
                     ? item.signedAt
                       ? `Signed ${formatDistanceToNow(new Date(item.signedAt), { addSuffix: true })}`
                       : 'Signed'
-                    : item.notificationMessage ||
-                      `A ${item.label} has been prepared for your review. You can sign, or download and send us a redline.`}
+                    : item.awaiting
+                      ? `Your ${item.label} will be sent to you shortly for review and signing.`
+                      : item.notificationMessage ||
+                        `A ${item.label} has been prepared for your review. You can sign, or download and send us a redline.`}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -220,15 +222,46 @@ export function PendingAgreementBanner() {
                       Questions?
                     </Button>
                   </>
+                ) : item.declined ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDocMessageType(item.type);
+                      setDocMessageOpen(true);
+                    }}
+                  >
+                    <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
+                    Contact Us
+                  </Button>
+                ) : item.awaiting ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDocMessageType(item.type);
+                      setDocMessageOpen(true);
+                    }}
+                  >
+                    <MessageSquarePlus className="h-3.5 w-3.5 mr-1.5" />
+                    Questions?
+                  </Button>
                 ) : (
                   <>
-                    <DownloadDocButton
-                      documentUrl={null}
-                      draftUrl={item.draftUrl}
-                      documentType={item.type}
-                      label="Download Draft"
-                      variant="outline"
-                    />
+                    {item.draftUrl ? (
+                      <DownloadDocButton
+                        documentUrl={null}
+                        draftUrl={item.draftUrl}
+                        documentType={item.type}
+                        label="Download Draft"
+                        variant="outline"
+                      />
+                    ) : (
+                      <Button variant="outline" size="sm" disabled>
+                        <FileSignature className="h-3.5 w-3.5 mr-1.5" />
+                        Draft Not Available
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -249,6 +282,9 @@ export function PendingAgreementBanner() {
                       style={{ backgroundColor: '#0E101A', color: '#FFFFFF' }}
                     >
                       Sign Now
+                    </Button>
+                  </>
+                )}
                     </Button>
                   </>
                 )}
