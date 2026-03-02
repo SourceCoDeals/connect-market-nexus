@@ -525,6 +525,7 @@ function DetailPanel({
               ndaSigned={ndaSigned}
               feeCovered={feeCovered}
               feeStatus={feeStatus}
+              requestCreatedAt={request.created_at}
             />
 
             {/* Post-rejection panel */}

@@ -48,12 +48,14 @@ function formatEbitdaCompact(ebitda: number): string {
   return `$${ebitda}`;
 }
 
-function getStatusLabel(status: string, ndaSigned?: boolean): string {
+function getStatusLabel(status: string, ndaSigned?: boolean): { label: string; needsAction: boolean } {
   switch (status) {
-    case 'pending': return ndaSigned ? 'Under Review' : 'Pending';
-    case 'approved': return 'Connected';
-    case 'rejected': return 'Not Selected';
-    default: return 'Under Review';
+    case 'pending':
+      if (ndaSigned === false) return { label: 'Action Needed', needsAction: true };
+      return { label: 'Under Review', needsAction: false };
+    case 'approved': return { label: 'Connected', needsAction: false };
+    case 'rejected': return { label: 'Not Selected', needsAction: false };
+    default: return { label: 'Under Review', needsAction: false };
   }
 }
 
