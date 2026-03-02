@@ -175,6 +175,24 @@ Return a JSON array of up to ${maxBuyers} buyers. Each object must have:
 Return ONLY the JSON array. No markdown, no explanation.`;
 }
 
+function findLastCompleteObject(text: string): number {
+  // Walk backward through the string to find the last '}' that is NOT inside
+  // an unterminated string literal. We track whether we're inside a string.
+  let inString = false;
+  let lastGoodClose = -1;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === '\\') { i++; continue; } // skip escaped char
+      if (ch === '"') inString = false;
+    } else {
+      if (ch === '"') inString = true;
+      else if (ch === '}') lastGoodClose = i;
+    }
+  }
+  return lastGoodClose;
+}
+
 function repairAndParseJson(raw: string): unknown {
   // Remove markdown code fences
   let cleaned = raw
@@ -191,35 +209,30 @@ function repairAndParseJson(raw: string): unknown {
     ? cleaned.substring(jsonStart, jsonEnd + 1)
     : cleaned.substring(jsonStart); // truncated — no closing bracket
 
+  // Remove control chars that break JSON
+  cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, ' ');
+
   // First attempt: direct parse
   try { return JSON.parse(cleaned); } catch { /* continue */ }
 
-  // Second attempt: strip trailing commas and control chars
-  cleaned = cleaned
+  // Second attempt: strip trailing commas
+  let repaired = cleaned
     .replace(/,\s*}/g, '}')
-    .replace(/,\s*]/g, ']')
-    .replace(/[\x00-\x1F\x7F]/g, ' ');
+    .replace(/,\s*]/g, ']');
 
-  try { return JSON.parse(cleaned); } catch { /* continue */ }
+  try { return JSON.parse(repaired); } catch { /* continue */ }
 
-  // Third attempt: repair unbalanced braces/brackets from truncation
-  // Find the last complete object (ends with })
-  const lastCompleteObj = cleaned.lastIndexOf('}');
-  if (lastCompleteObj > 0) {
-    let repaired = cleaned.substring(0, lastCompleteObj + 1);
-    // Remove any trailing comma after the last complete object
+  // Third attempt: find the last properly-closed object (not inside a string)
+  // This handles truncated output where a string literal is unterminated
+  const lastGood = findLastCompleteObject(cleaned);
+  if (lastGood > 0) {
+    repaired = cleaned.substring(0, lastGood + 1);
+    // Remove trailing comma before we close
     repaired = repaired.replace(/,\s*$/, '');
-    // Close the array
     if (!repaired.endsWith(']')) repaired += ']';
-    // Ensure it starts with [
     if (!repaired.startsWith('[')) repaired = '[' + repaired;
+    repaired = repaired.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
 
-    try { return JSON.parse(repaired); } catch { /* continue */ }
-
-    // Final attempt: also fix trailing commas inside
-    repaired = repaired
-      .replace(/,\s*}/g, '}')
-      .replace(/,\s*]/g, ']');
     try { return JSON.parse(repaired); } catch { /* continue */ }
   }
 
