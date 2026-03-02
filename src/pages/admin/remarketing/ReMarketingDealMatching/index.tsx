@@ -36,7 +36,7 @@ export default function ReMarketingDealMatching() {
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <MatchingHeader
-        listing={data.listing}
+        listing={data.listing ?? null}
         listingLoading={data.listingLoading}
         listingId={listingId!}
         totalScores={data.stats.total}
@@ -184,7 +184,7 @@ export default function ReMarketingDealMatching() {
             return (
               <BuyerMatchCard
                 key={score.id}
-                score={score as React.ComponentProps<typeof BuyerMatchCard>['score']}
+                score={score as unknown as React.ComponentProps<typeof BuyerMatchCard>['score']}
                 listingId={listingId}
                 outreach={outreach as React.ComponentProps<typeof BuyerMatchCard>['outreach']}
                 firmFeeAgreement={

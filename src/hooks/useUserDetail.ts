@@ -354,10 +354,10 @@ export function useUserDetail(visitorId: string | null) {
       let timeToConvert: number | undefined;
       let convertedAt: string | undefined;
       if (connections.length > 0 && actualFirstSession) {
-        const firstConnectionDate = new Date(connections[0].created_at);
+        const firstConnectionDate = new Date(connections[0].created_at!);
         const firstSessionDate = new Date(actualFirstSession.started_at ?? Date.now());
         timeToConvert = differenceInSeconds(firstConnectionDate, firstSessionDate);
-        convertedAt = connections[0].created_at;
+        convertedAt = connections[0].created_at ?? undefined;
       }
 
       // Build event timeline
@@ -395,8 +395,8 @@ export function useUserDetail(visitorId: string | null) {
       for (let i = 6; i >= 0; i--) {
         const date = subDays(new Date(), i);
         const dateStr = format(date, 'yyyy-MM-dd');
-        const dayViews = pageViews.filter(
-          (pv) => format(new Date(pv.created_at), 'yyyy-MM-dd') === dateStr,
+        const dayViews = pageViews.filter((pv) =>
+          pv.created_at ? format(new Date(pv.created_at), 'yyyy-MM-dd') === dateStr : false,
         ).length;
         last7Days.push({
           date: dateStr,
@@ -410,8 +410,8 @@ export function useUserDetail(visitorId: string | null) {
       for (let i = 180; i >= 0; i--) {
         const date = subDays(new Date(), i);
         const dateStr = format(date, 'yyyy-MM-dd');
-        const dayViews = pageViews.filter(
-          (pv) => format(new Date(pv.created_at), 'yyyy-MM-dd') === dateStr,
+        const dayViews = pageViews.filter((pv) =>
+          pv.created_at ? format(new Date(pv.created_at), 'yyyy-MM-dd') === dateStr : false,
         ).length;
         activityHeatmap.push({
           date: dateStr,
@@ -454,24 +454,30 @@ export function useUserDetail(visitorId: string | null) {
         activityHeatmap,
         source: {
           // Use smart first-touch: find first session with meaningful attribution
-          referrer: getDiscoverySource(attributionSession) || attributionSession?.referrer,
+          referrer:
+            getDiscoverySource(attributionSession) || attributionSession?.referrer || undefined,
           landingPage:
             attributionSession?.first_touch_landing_page ||
-            actualFirstSession?.first_touch_landing_page,
+            actualFirstSession?.first_touch_landing_page ||
+            undefined,
           channel: categorizeChannel(
             getDiscoverySource(attributionSession),
-            attributionSession?.utm_source,
-            attributionSession?.utm_medium,
+            attributionSession?.utm_source ?? null,
+            attributionSession?.utm_medium ?? null,
           ),
-          utmSource: attributionSession?.utm_source || actualFirstSession?.utm_source,
-          utmMedium: attributionSession?.utm_medium || actualFirstSession?.utm_medium,
-          utmCampaign: attributionSession?.utm_campaign || actualFirstSession?.utm_campaign,
+          utmSource: attributionSession?.utm_source || actualFirstSession?.utm_source || undefined,
+          utmMedium: attributionSession?.utm_medium || actualFirstSession?.utm_medium || undefined,
+          utmCampaign:
+            attributionSession?.utm_campaign || actualFirstSession?.utm_campaign || undefined,
           // Cross-domain journey tracking
           originalExternalReferrer:
             attributionSession?.original_external_referrer ||
-            actualFirstSession?.original_external_referrer,
+            actualFirstSession?.original_external_referrer ||
+            undefined,
           blogLandingPage:
-            attributionSession?.blog_landing_page || actualFirstSession?.blog_landing_page,
+            attributionSession?.blog_landing_page ||
+            actualFirstSession?.blog_landing_page ||
+            undefined,
           // Full journey history - all sessions with their referrers
           allSessions: sessions.map((s) => ({
             referrer: s.referrer,

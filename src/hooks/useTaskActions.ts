@@ -294,7 +294,7 @@ export function useAddEntityTask() {
           extraction_confidence: 'high',
           needs_review: false,
           created_by: user?.id,
-        })
+        } as never)
         .select()
         .single();
 
@@ -306,7 +306,7 @@ export function useAddEntityTask() {
         user_id: user?.id,
         action: 'created',
         new_value: { entity_type: task.entity_type, entity_id: task.entity_id },
-      });
+      } as never);
 
       // Deal activity logging when task is linked to a deal
       if (task.entity_type === 'deal' && task.entity_id) {

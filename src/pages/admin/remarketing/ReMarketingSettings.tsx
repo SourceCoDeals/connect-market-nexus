@@ -23,7 +23,7 @@ function useAutoApproveSetting() {
         .eq('key', 'task_auto_approve_high_confidence')
         .single();
       if (!data) return true; // default: enabled
-      const val = (data as Record<string, unknown>).value;
+      const val = (data as unknown as Record<string, unknown>).value;
       return val === 'true' || val === true;
     },
     staleTime: 60_000,
@@ -38,10 +38,9 @@ function useUpdateAutoApproveSetting() {
     mutationFn: async (enabled: boolean) => {
       const { error } = await supabase
         .from('app_settings' as UntypedTable)
-        .upsert(
-          { key: 'task_auto_approve_high_confidence', value: String(enabled) } as never,
-          { onConflict: 'key' },
-        );
+        .upsert({ key: 'task_auto_approve_high_confidence', value: String(enabled) } as never, {
+          onConflict: 'key',
+        });
       if (error) throw error;
     },
     onSuccess: (_, enabled) => {

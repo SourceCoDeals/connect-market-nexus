@@ -1,24 +1,39 @@
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Mail, FileText, Clock, Loader2, Building2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { User } from "@/types";
-import { useUpdateAgreementViaUser, useUserFirm } from "@/hooks/admin/use-firm-agreement-actions";
-import { useState } from "react";
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Mail, FileText, Clock, Loader2, Building2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { User } from '@/types';
+import { useUpdateAgreementViaUser, useUserFirm } from '@/hooks/admin/use-firm-agreement-actions';
+import { useState } from 'react';
 
 interface DualFeeAgreementToggleProps {
   user: User;
   onSendEmail?: (user: User) => void;
-  size?: "sm" | "default";
+  size?: 'sm' | 'default';
 }
 
-export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: DualFeeAgreementToggleProps) {
+export function DualFeeAgreementToggle({
+  user,
+  onSendEmail,
+  size = 'default',
+}: DualFeeAgreementToggleProps) {
   const [isUpdatingSigned, setIsUpdatingSigned] = useState(false);
   const [isUpdatingEmailSent, setIsUpdatingEmailSent] = useState(false);
   const updateAgreement = useUpdateAgreementViaUser();
-  const { data: firm } = useUserFirm(user.id);
+  const { data: rawFirm } = useUserFirm(user.id);
+  const firm = rawFirm as
+    | {
+        primary_company_name?: string;
+        fee_agreement_signed?: boolean | null;
+        fee_agreement_signed_at?: string | null;
+        fee_agreement_signed_by_name?: string | null;
+        fee_agreement_email_sent?: boolean | null;
+        fee_agreement_email_sent_at?: string | null;
+      }
+    | null
+    | undefined;
 
   // Use firm-level status if available, fallback to profile
   const isSigned = firm?.fee_agreement_signed ?? (user.fee_agreement_signed || false);
@@ -68,7 +83,7 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
 
   const isPending = updateAgreement.isPending;
 
-  if (size === "sm") {
+  if (size === 'sm') {
     return (
       <div className="flex items-center gap-3">
         {/* Firm indicator */}
@@ -78,7 +93,9 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
               <TooltipTrigger asChild>
                 <Building2 className="h-3 w-3 text-muted-foreground/60" />
               </TooltipTrigger>
-              <TooltipContent><p>Firm: {firmName}</p></TooltipContent>
+              <TooltipContent>
+                <p>Firm: {firmName}</p>
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
@@ -99,7 +116,10 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Email {emailSent ? 'Sent' : 'Not Sent'}{firmName ? ` (${firmName})` : ''}</p>
+              <p>
+                Email {emailSent ? 'Sent' : 'Not Sent'}
+                {firmName ? ` (${firmName})` : ''}
+              </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -120,7 +140,10 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Agreement {isSigned ? 'Signed' : 'Not Signed'}{firmName ? ` (${firmName})` : ''}</p>
+              <p>
+                Agreement {isSigned ? 'Signed' : 'Not Signed'}
+                {firmName ? ` (${firmName})` : ''}
+              </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -134,7 +157,9 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
                   <Mail className="h-3 w-3" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent><p>Send Fee Agreement</p></TooltipContent>
+              <TooltipContent>
+                <p>Send Fee Agreement</p>
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
@@ -169,8 +194,8 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
               className="data-[state=checked]:bg-blue-600"
             />
             {(isUpdatingEmailSent || isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
-            <Badge variant={emailSent ? "default" : "secondary"}>
-              {emailSent ? "Sent" : "Not Sent"}
+            <Badge variant={emailSent ? 'default' : 'secondary'}>
+              {emailSent ? 'Sent' : 'Not Sent'}
             </Badge>
           </div>
         </div>
@@ -197,8 +222,8 @@ export function DualFeeAgreementToggle({ user, onSendEmail, size = "default" }: 
               className="data-[state=checked]:bg-green-600"
             />
             {(isUpdatingSigned || isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
-            <Badge variant={isSigned ? "success" : "secondary"}>
-              {isSigned ? "Signed" : "Not Signed"}
+            <Badge variant={isSigned ? 'success' : 'secondary'}>
+              {isSigned ? 'Signed' : 'Not Signed'}
             </Badge>
           </div>
         </div>

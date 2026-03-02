@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Users, Mail, Phone, Building2, User, Plus } from "lucide-react";
-import { useAssociatedContactsQuery } from "@/hooks/admin/use-associated-contacts";
-import { AdminConnectionRequest } from "@/types/admin";
-import { AddAssociatedContactDialog } from "./AddAssociatedContactDialog";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, ChevronUp, Users, Mail, Phone, Building2, User, Plus } from 'lucide-react';
+import { useAssociatedContactsQuery } from '@/hooks/admin/use-associated-contacts';
+import { AdminConnectionRequest } from '@/types/admin';
+import { AddAssociatedContactDialog } from './AddAssociatedContactDialog';
 
 interface AssociatedContactsDisplayProps {
   connectionRequest: AdminConnectionRequest;
@@ -15,17 +15,19 @@ interface AssociatedContactsDisplayProps {
 
 export const AssociatedContactsDisplay = ({
   connectionRequest,
-  className = ""
+  className = '',
 }: AssociatedContactsDisplayProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data: contacts = [], isLoading } = useAssociatedContactsQuery(connectionRequest.id);
+  const { data: contacts, isLoading } = useAssociatedContactsQuery(connectionRequest.id);
+  const contactsList = contacts ?? [];
 
   // Get company name from connection request
-  const companyName = connectionRequest.lead_company ||
-                      connectionRequest.user?.company_name ||
-                      connectionRequest.source_metadata?.company ||
-                      'Unknown Company';
+  const companyName =
+    connectionRequest.lead_company ||
+    connectionRequest.user?.company_name ||
+    connectionRequest.source_metadata?.company ||
+    'Unknown Company';
 
   if (isLoading) {
     return (
@@ -39,7 +41,7 @@ export const AssociatedContactsDisplay = ({
     );
   }
 
-  if (contacts?.length === 0 || !Array.isArray(contacts)) {
+  if (contactsList.length === 0 || !Array.isArray(contactsList)) {
     return null; // Don't show the section if no contacts
   }
 
@@ -47,14 +49,11 @@ export const AssociatedContactsDisplay = ({
     <div className={`space-y-3 ${className}`}>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CollapsibleTrigger asChild>
-          <Button
-            variant="ghost"
-            className="w-full p-0 h-auto justify-start hover:bg-transparent"
-          >
+          <Button variant="ghost" className="w-full p-0 h-auto justify-start hover:bg-transparent">
             <div className="flex items-center gap-2 pb-1 border-b border-border/40 w-full">
               <Users className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs font-semibold text-card-foreground">
-                Associated Contacts ({contacts?.length || 0})
+                Associated Contacts ({contactsList.length})
               </span>
               <div className="ml-auto">
                 {isOpen ? (
@@ -66,13 +65,13 @@ export const AssociatedContactsDisplay = ({
             </div>
           </Button>
         </CollapsibleTrigger>
-        
+
         <CollapsibleContent className="space-y-3 pt-3">
           <div className="text-xs text-muted-foreground mb-3">
             Other contacts from the same firm interested in this listing:
           </div>
-          
-          {contacts?.map((contact, _index) => (
+
+          {contactsList.map((contact, _index) => (
             <Card key={contact.id} className="border border-border/30">
               <CardContent className="p-3">
                 <div className="space-y-2">
@@ -84,15 +83,17 @@ export const AssociatedContactsDisplay = ({
                       </span>
                     </div>
                     <Badge variant="outline" className="text-xs">
-                      {contact.relationship_metadata?.source === 'inbound_lead' ? 'Lead' : 'Request'}
+                      {contact.relationship_metadata?.source === 'inbound_lead'
+                        ? 'Lead'
+                        : 'Request'}
                     </Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 gap-1 text-xs text-muted-foreground">
                     {contact.relationship_metadata?.email && (
                       <div className="flex items-center gap-2">
                         <Mail className="h-3 w-3" />
-                        <a 
+                        <a
                           href={`mailto:${contact.relationship_metadata.email}`}
                           className="hover:text-primary transition-colors"
                         >
@@ -100,24 +101,25 @@ export const AssociatedContactsDisplay = ({
                         </a>
                       </div>
                     )}
-                    
+
                     {contact.relationship_metadata?.company && (
                       <div className="flex items-center gap-2">
                         <Building2 className="h-3 w-3" />
                         <span>{contact.relationship_metadata.company}</span>
                       </div>
                     )}
-                    
+
                     {contact.relationship_metadata?.phone && (
                       <div className="flex items-center gap-2">
                         <Phone className="h-3 w-3" />
                         <span>{contact.relationship_metadata.phone}</span>
                       </div>
                     )}
-                    
+
                     {contact.relationship_metadata?.role && (
                       <div className="text-xs">
-                        <span className="font-medium">Role:</span> {contact.relationship_metadata.role}
+                        <span className="font-medium">Role:</span>{' '}
+                        {contact.relationship_metadata.role}
                       </div>
                     )}
                   </div>
@@ -125,7 +127,7 @@ export const AssociatedContactsDisplay = ({
               </CardContent>
             </Card>
           ))}
-          
+
           <div className="pt-2 border-t border-border/30">
             <Button
               size="sm"

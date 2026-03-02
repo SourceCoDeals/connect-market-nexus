@@ -24,7 +24,7 @@ export function useTaskComments(taskId: string | null) {
           user:profiles!rm_task_comments_user_id_fkey(id, first_name, last_name, email)
         `,
         )
-        .eq('task_id', taskId)
+        .eq('task_id', taskId!)
         .order('created_at', { ascending: true });
 
       if (error) throw error;

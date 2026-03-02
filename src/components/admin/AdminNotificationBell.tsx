@@ -1,5 +1,10 @@
 import { Bell, CheckCheck, Clock, ListTodo } from 'lucide-react';
-import { useAdminNotifications, useMarkNotificationAsRead, useMarkAllNotificationsAsRead, GroupedNotification } from '@/hooks/admin/use-admin-notifications';
+import {
+  useAdminNotifications,
+  useMarkNotificationAsRead,
+  useMarkAllNotificationsAsRead,
+  GroupedNotification,
+} from '@/hooks/admin/use-admin-notifications';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -38,7 +43,10 @@ export function AdminNotificationBell() {
     markAsRead.mutate(idsToMark);
 
     // Handle remarketing notifications - check as string to avoid type issues
-    if ((notification.notification_type as string) === 'remarketing_a_tier_match' && notification.action_url) {
+    if (
+      (notification.notification_type as string) === 'remarketing_a_tier_match' &&
+      notification.action_url
+    ) {
       navigate(notification.action_url.split('?')[0]);
       setOpen(false);
       return;
@@ -50,10 +58,10 @@ export function AdminNotificationBell() {
       const urlParams = new URLSearchParams(notification.action_url.split('?')[1]);
       const dealId = urlParams.get('deal');
       const tab = urlParams.get('tab');
-      
+
       // Navigate to pipeline
       navigate('/admin/deals/pipeline');
-      
+
       // Use a slight delay to ensure the page has loaded before trying to open the deal
       setTimeout(() => {
         // Trigger the deal panel to open with URL params
@@ -61,18 +69,20 @@ export function AdminNotificationBell() {
         if (dealId) params.set('deal', dealId);
         if (tab) params.set('tab', tab);
         window.history.replaceState(null, '', `/admin/deals/pipeline?${params.toString()}`);
-        
+
         // Dispatch custom event to open the deal panel
-        window.dispatchEvent(new CustomEvent('open-deal-from-notification', { 
-          detail: { dealId, tab } 
-        }));
+        window.dispatchEvent(
+          new CustomEvent('open-deal-from-notification', {
+            detail: { dealId, tab },
+          }),
+        );
       }, 100);
-      
+
       setOpen(false);
     }
   };
 
-  const unreadNotifications = notifications.filter(n => !n.is_read);
+  const unreadNotifications = notifications.filter((n) => !n.is_read);
   const hasUnread = unreadCount > 0;
 
   return (
@@ -114,9 +124,7 @@ export function AdminNotificationBell() {
             <div className="p-8 text-center">
               <Bell className="w-12 h-12 mx-auto mb-3 text-muted-foreground/30" />
               <p className="text-sm font-medium text-muted-foreground">No notifications</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">
-                You're all caught up!
-              </p>
+              <p className="text-xs text-muted-foreground/70 mt-1">You're all caught up!</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -126,8 +134,8 @@ export function AdminNotificationBell() {
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
                   className={cn(
-                    "w-full px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                    !notification.is_read && "bg-primary/5"
+                    'w-full px-4 py-3 text-left transition-colors hover:bg-muted/50',
+                    !notification.is_read && 'bg-primary/5',
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -153,22 +161,33 @@ export function AdminNotificationBell() {
                       </p>
                       {notification.metadata?.title && (
                         <p className="text-xs text-muted-foreground/70 flex items-center gap-1">
-                          <span className="font-medium">{notification.metadata.title}</span>
+                          <span className="font-medium">
+                            {notification.metadata.title as React.ReactNode}
+                          </span>
                           {notification.metadata.priority && (
-                            <span className={cn(
-                              "px-1 py-0.5 rounded text-[9px] font-medium uppercase",
-                              notification.metadata.priority === 'high' && "bg-red-100 text-red-700",
-                              notification.metadata.priority === 'medium' && "bg-yellow-100 text-yellow-700",
-                              notification.metadata.priority === 'low' && "bg-blue-100 text-blue-700"
-                            )}>
-                              {notification.metadata.priority}
+                            <span
+                              className={cn(
+                                'px-1 py-0.5 rounded text-[9px] font-medium uppercase',
+                                notification.metadata.priority === 'high' &&
+                                  'bg-red-100 text-red-700',
+                                notification.metadata.priority === 'medium' &&
+                                  'bg-yellow-100 text-yellow-700',
+                                notification.metadata.priority === 'low' &&
+                                  'bg-blue-100 text-blue-700',
+                              )}
+                            >
+                              {notification.metadata.priority as React.ReactNode}
                             </span>
                           )}
                         </p>
                       )}
                       <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
                         <Clock className="w-3 h-3" />
-                        <span>{formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}</span>
+                        <span>
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                          })}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -176,31 +195,38 @@ export function AdminNotificationBell() {
               ))}
 
               {/* Read notifications */}
-              {notifications.filter(n => n.is_read).slice(0, 5).map((notification) => (
-                <button
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/50 opacity-60"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex-shrink-0">
-                      {getNotificationIcon(notification.notification_type)}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <p className="text-sm font-medium text-foreground leading-snug">
-                        {notification.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground line-clamp-1">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
-                        <Clock className="w-3 h-3" />
-                        <span>{formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}</span>
+              {notifications
+                .filter((n) => n.is_read)
+                .slice(0, 5)
+                .map((notification) => (
+                  <button
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className="w-full px-4 py-3 text-left transition-colors hover:bg-muted/50 opacity-60"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex-shrink-0">
+                        {getNotificationIcon(notification.notification_type)}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="text-sm font-medium text-foreground leading-snug">
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground line-clamp-1">
+                          {notification.message}
+                        </p>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
+                          <Clock className="w-3 h-3" />
+                          <span>
+                            {formatDistanceToNow(new Date(notification.created_at), {
+                              addSuffix: true,
+                            })}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
             </div>
           )}
         </ScrollArea>
