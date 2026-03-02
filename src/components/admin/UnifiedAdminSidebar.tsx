@@ -49,7 +49,6 @@ import {
   FlaskConical,
   ExternalLink,
   Plus,
-  List,
   ListChecks,
   Contact,
   Mail,
@@ -117,56 +116,6 @@ export function UnifiedAdminSidebar({
   const sections: NavSection[] = useMemo(
     () => [
       {
-        id: 'deals',
-        label: 'Deals',
-        icon: <Briefcase className="h-4 w-4" />,
-        items: [
-          {
-            label: 'Active Deals',
-            href: '/admin/deals',
-            icon: <Building2 className="h-4 w-4" />,
-          },
-          {
-            label: 'Pipeline',
-            href: '/admin/deals/pipeline',
-            icon: <GitBranch className="h-4 w-4" />,
-          },
-        ],
-      },
-      {
-        id: 'buyers',
-        label: 'Buyers',
-        icon: <Users className="h-4 w-4" />,
-        items: [
-          {
-            label: 'All Buyers',
-            href: '/admin/buyers',
-            icon: <Users className="h-4 w-4" />,
-          },
-          {
-            label: 'Buyer Universes',
-            href: '/admin/buyers/universes',
-            icon: <Globe2 className="h-4 w-4" />,
-          },
-          {
-            label: 'Deal Sourcing',
-            href: '/admin/buyers/deal-sourcing',
-            icon: <Sparkles className="h-4 w-4" />,
-            badge: unviewedDealSourcingCount,
-          },
-          {
-            label: 'Buyer Contacts',
-            href: '/admin/buyers/contacts',
-            icon: <Contact className="h-4 w-4" />,
-          },
-          {
-            label: 'Document Tracking',
-            href: '/admin/documents',
-            icon: <FileCheck className="h-4 w-4" />,
-          },
-        ],
-      },
-      {
         id: 'marketplace',
         label: 'Marketplace',
         icon: <Store className="h-4 w-4" />,
@@ -202,6 +151,61 @@ export function UnifiedAdminSidebar({
         ],
       },
       {
+        id: 'deals',
+        label: 'Deals',
+        icon: <Briefcase className="h-4 w-4" />,
+        items: [
+          {
+            label: 'Active Deals',
+            href: '/admin/deals',
+            icon: <Building2 className="h-4 w-4" />,
+          },
+          {
+            label: 'Pipeline',
+            href: '/admin/deals/pipeline',
+            icon: <GitBranch className="h-4 w-4" />,
+          },
+          {
+            label: 'Deal Sourcing',
+            href: '/admin/buyers/deal-sourcing',
+            icon: <Sparkles className="h-4 w-4" />,
+            badge: unviewedDealSourcingCount,
+          },
+          {
+            label: 'Document Tracking',
+            href: '/admin/documents',
+            icon: <FileCheck className="h-4 w-4" />,
+          },
+          {
+            label: 'Lists',
+            href: '/admin/lists',
+            icon: <ListChecks className="h-4 w-4" />,
+          },
+        ],
+      },
+      {
+        id: 'buyers',
+        label: 'Buyers',
+        icon: <Users className="h-4 w-4" />,
+        items: [
+          {
+            label: 'All Buyers',
+            href: '/admin/buyers',
+            icon: <Users className="h-4 w-4" />,
+          },
+          {
+            label: 'Buyer Universes',
+            href: '/admin/buyers/universes',
+            icon: <Globe2 className="h-4 w-4" />,
+          },
+          {
+            label: 'Buyer Contacts',
+            href: '/admin/buyers/contacts',
+            icon: <Contact className="h-4 w-4" />,
+          },
+        ],
+      },
+      {
         id: 'remarketing',
         label: 'Remarketing',
         icon: <Target className="h-4 w-4" />,
@@ -213,15 +217,9 @@ export function UnifiedAdminSidebar({
             exact: true,
           },
           {
-            label: 'Remarketing Deals',
-            href: '/admin/deals',
-            icon: <Building2 className="h-4 w-4" />,
-          },
-          {
             label: 'CapTarget Deals',
             href: '/admin/remarketing/leads/captarget',
             icon: <Crosshair className="h-4 w-4" />,
-            separator: 'Lead Sources',
           },
           {
             label: 'GP Partner Deals',
@@ -243,18 +241,6 @@ export function UnifiedAdminSidebar({
             href: '/admin/settings/owner-leads',
             icon: <ClipboardList className="h-4 w-4" />,
             badge: unviewedOwnerLeadsCount,
-          },
-        ],
-      },
-      {
-        id: 'lists',
-        label: 'Lists',
-        icon: <List className="h-4 w-4" />,
-        items: [
-          {
-            label: 'Lists',
-            href: '/admin/lists',
-            icon: <ListChecks className="h-4 w-4" />,
           },
         ],
       },
@@ -281,8 +267,8 @@ export function UnifiedAdminSidebar({
         ],
       },
       {
-        id: 'admin',
-        label: 'Admin',
+        id: 'settings',
+        label: 'Settings',
         icon: <Settings className="h-4 w-4" />,
         items: [
           {
@@ -295,7 +281,6 @@ export function UnifiedAdminSidebar({
             href: '/admin/settings/notifications',
             icon: <Bell className="h-4 w-4" />,
           },
-          // Settings pages hidden from team members (moderator role)
           ...(canAccessSettings
             ? [
                 {
@@ -330,7 +315,7 @@ export function UnifiedAdminSidebar({
                   label: 'Webhook Settings',
                   href: '/admin/settings/webhooks',
                   icon: <Webhook className="h-4 w-4" />,
-                  separator: 'Settings',
+                  separator: 'Advanced',
                 },
                 {
                   label: 'Enrichment Queue',
@@ -489,14 +474,8 @@ export function UnifiedAdminSidebar({
         {/* Scrollable sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
           {sections.map((section, index) => {
-            // Section group dividers
-            const groupDividers: Record<string, string> = {
-              marketplace: 'User-Facing',
-              deals: 'Operations',
-              analytics: 'Insights',
-              admin: 'System',
-            };
-            const dividerLabel = groupDividers[section.id];
+            // Thin separator between groups (no text labels)
+            const showSeparator = index > 0;
             const isExpanded = expandedSections.has(section.id);
             const isActive = activeSectionId === section.id;
             const hasBadge = sectionHasBadge(section);
@@ -504,7 +483,7 @@ export function UnifiedAdminSidebar({
             if (collapsed) {
               return (
                 <div key={section.id}>
-                  {dividerLabel && index > 0 && (
+                  {showSeparator && (
                     <div className="my-2 border-t border-border/30" />
                   )}
                 <Tooltip>
@@ -533,14 +512,8 @@ export function UnifiedAdminSidebar({
 
             return (
               <div key={section.id}>
-                {dividerLabel && index > 0 && (
-                  <div className="flex items-center gap-2 mt-3 mb-1 px-2">
-                    <div className="flex-1 border-t border-border/30" />
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/40 select-none">
-                      {dividerLabel}
-                    </span>
-                    <div className="flex-1 border-t border-border/30" />
-                  </div>
+                {showSeparator && (
+                  <div className="mt-3 mb-1 mx-2 border-t border-border/30" />
                 )}
                 <button
                   onClick={() => toggleSection(section.id)}
