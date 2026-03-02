@@ -45,7 +45,8 @@ function useTeamMembers() {
       if (!membershipData?.firm_id) return [];
 
       // Then get all members of that firm, joined with profiles
-      const { data: members, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: members, error } = await (supabase as any)
         .from('firm_members')
         .select(
           `

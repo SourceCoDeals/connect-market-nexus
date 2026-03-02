@@ -219,7 +219,7 @@ export function StripeOverviewTab() {
       }
 
       const userGroup = userMap.get(userId)!;
-      userGroup.activities.push(activity as (typeof userGroup.activities)[number]);
+      userGroup.activities.push(activity as unknown as (typeof userGroup.activities)[number]);
       userGroup.totalActivities++;
 
       // Update last activity time if this is more recent

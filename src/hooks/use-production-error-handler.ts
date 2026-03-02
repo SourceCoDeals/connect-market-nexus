@@ -24,7 +24,7 @@ export const useProductionErrorHandler = (componentName: string) => {
       errorHandler(error, context, severity);
       errorLogger.logError(
         error,
-        context as Record<string, unknown>,
+        context as unknown as Record<string, unknown>,
         severity === 'low' ? 'info' : 'error',
       );
     },

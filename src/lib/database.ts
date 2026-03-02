@@ -200,7 +200,7 @@ export async function fetchRows<T extends TableName>(
       query = query.range(from, to);
     }
 
-    return query;
+    return query as unknown as { data: Row<T>[] | null; error: unknown; count?: number | null };
   });
 }
 

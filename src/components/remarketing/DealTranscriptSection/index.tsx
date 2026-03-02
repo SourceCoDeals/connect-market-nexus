@@ -193,7 +193,10 @@ export function DealTranscriptSection({
       ffResults={ff.ffResults}
       ffLinking={ff.ffLinking}
       onLinkSearchResult={
-        ff.handleLinkSearchResult as (transcript: { id: string; [key: string]: unknown }) => void
+        ff.handleLinkSearchResult as unknown as (transcript: {
+          id: string;
+          [key: string]: unknown;
+        }) => void
       }
     />
   );

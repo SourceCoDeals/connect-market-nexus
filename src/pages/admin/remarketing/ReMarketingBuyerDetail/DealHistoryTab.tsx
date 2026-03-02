@@ -13,9 +13,9 @@ import { BarChart3 } from 'lucide-react';
 
 interface ScoreRecord {
   id: string;
-  listing?: { id: string; title?: string };
+  listing?: { id: string; title?: string } | null;
   composite_score: number;
-  tier: string;
+  tier: string | null;
   status: string;
   created_at: string;
 }

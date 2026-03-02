@@ -17,7 +17,12 @@ import { ContactInfoSection } from './ContactInfoSection';
 import { AdditionalDetailsSection } from './AdditionalDetailsSection';
 import { DuplicateWarningDialog } from './DuplicateWarningDialog';
 
-export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCreated }: CreateDealModalProps) {
+export function CreateDealModal({
+  open,
+  onOpenChange,
+  prefilledStageId,
+  onDealCreated,
+}: CreateDealModalProps) {
   const {
     form,
     stages,
@@ -67,11 +72,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
               )}
 
               {/* Basic Information */}
-              <BasicInfoSection
-                form={form}
-                listings={listings}
-                stages={stages}
-              />
+              <BasicInfoSection form={form} listings={listings} stages={stages} />
 
               {/* Contact Information */}
               <ContactInfoSection
@@ -79,7 +80,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
                 isSelectingUser={isSelectingUser}
                 selectedUserId={selectedUserId}
                 selectedCompanyName={selectedCompanyName}
-                marketplaceUsers={marketplaceUsers}
+                marketplaceUsers={marketplaceUsers as { id: string; buyer_type?: string }[]}
                 marketplaceCompanies={marketplaceCompanies}
                 userOptions={userOptions}
                 handleUserSelect={handleUserSelect}
@@ -88,10 +89,7 @@ export function CreateDealModal({ open, onOpenChange, prefilledStageId, onDealCr
               />
 
               {/* Additional Details */}
-              <AdditionalDetailsSection
-                form={form}
-                adminUsers={adminUsers}
-              />
+              <AdditionalDetailsSection form={form} adminUsers={adminUsers} />
 
               {/* Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t">
