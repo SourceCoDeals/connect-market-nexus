@@ -7,8 +7,6 @@ import {
   MessageSquare,
   Send,
   ArrowLeft,
-  Building2,
-  FileText,
   Archive,
   ExternalLink,
   UserCheck,
@@ -190,21 +188,6 @@ export function ThreadView({ thread, onBack, adminProfiles }: ThreadViewProps) {
 
     return combined;
   }, [thread, messages]);
-
-  const conversationStateLabel = (() => {
-    switch (thread.conversation_state) {
-      case 'waiting_on_admin':
-        return { label: 'Needs Reply', color: 'text-destructive bg-destructive/10' };
-      case 'waiting_on_buyer':
-        return { label: 'Waiting on Buyer', color: 'text-amber-600 bg-amber-50' };
-      case 'claimed':
-        return { label: 'Claimed', color: 'text-primary bg-primary/10' };
-      case 'closed':
-        return { label: 'Closed', color: 'text-muted-foreground bg-muted' };
-      default:
-        return { label: 'New', color: 'text-blue-600 bg-blue-50' };
-    }
-  })();
 
   const claimedByName =
     thread.claimed_by && adminProfiles?.[thread.claimed_by]
