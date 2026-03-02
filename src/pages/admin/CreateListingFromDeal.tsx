@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,6 +27,8 @@ export default function CreateListingFromDeal() {
   const dealId = searchParams.get('fromDeal');
 
   const { mutateAsync: createListing, isPending: isCreating } = useRobustListingCreation();
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const contentGenerationTriggered = useRef(false);
 
   // Fetch the deal data
   const {
@@ -105,8 +107,7 @@ export default function CreateListingFromDeal() {
         metric_4_custom_label: anonymized.metric_4_custom_label,
         metric_4_custom_value: anonymized.metric_4_custom_value,
         metric_4_custom_subtitle: anonymized.metric_4_custom_subtitle,
-        // custom_sections starts empty — populated by lead memo generation
-        custom_sections: [],
+        custom_sections: anonymized.custom_sections || [],
         tags: [],
         status: 'active',
         created_at: new Date().toISOString(),
@@ -114,6 +115,45 @@ export default function CreateListingFromDeal() {
       });
     }
   }, [deal, prefilled]);
+
+  // Auto-trigger AI content generation when prefilled data is ready
+  useEffect(() => {
+    if (!prefilled || !dealId || contentGenerationTriggered.current) return;
+    // Only trigger if custom_sections is empty (no content yet)
+    if (prefilled.custom_sections && (prefilled.custom_sections as unknown[]).length > 0) return;
+    contentGenerationTriggered.current = true;
+    setIsGeneratingContent(true);
+
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-lead-memo', {
+          body: { listing_id: dealId },
+        });
+        if (error) {
+          console.error('AI content generation failed:', error);
+          toast.info('AI content generation could not complete. You can fill in content manually.');
+          return;
+        }
+        // Update prefilled with generated content
+        if (data?.buyer_universe_label || data?.buyer_universe_description) {
+          setPrefilled((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              title: data.title || prev.title,
+              description: data.description || prev.description,
+              hero_description: data.hero_description || prev.hero_description,
+            };
+          });
+          toast.success('AI content generated — review and edit before saving.');
+        }
+      } catch (err) {
+        console.error('AI content generation error:', err);
+      } finally {
+        setIsGeneratingContent(false);
+      }
+    })();
+  }, [prefilled, dealId]);
 
   const handleSubmit = async (data: Record<string, unknown>, image?: File | null) => {
     try {
@@ -226,6 +266,14 @@ export default function CreateListingFromDeal() {
           </div>
         </div>
       </div>
+      {isGeneratingContent && (
+        <div className="max-w-[1920px] mx-auto px-12">
+          <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-4">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            AI is generating listing content (title, description, teaser)...
+          </div>
+        </div>
+      )}
       <ImprovedListingEditor listing={prefilled} onSubmit={handleSubmit} isLoading={isCreating} />
     </div>
   );

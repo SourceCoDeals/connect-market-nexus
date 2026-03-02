@@ -217,10 +217,7 @@ export function useSimpleListings(state: PaginationState, buyerTier?: number | n
       buyerTier,
     ],
     queryFn: () => {
-      console.time('listings-fetch');
-      return fetchListings(state, buyerTier).finally(() => {
-        console.timeEnd('listings-fetch');
-      });
+      return fetchListings(state, buyerTier);
     },
     staleTime: 30_000, // 30 seconds — prevents aggressive refetch on every navigation
     refetchOnWindowFocus: false,

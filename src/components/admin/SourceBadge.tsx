@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { ExternalLink, User, Upload, Bot, MousePointer, Mail, Link, Users } from 'lucide-react';
 
 interface SourceBadgeProps {
-  source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email';
+  source: 'marketplace' | 'webflow' | 'manual' | 'import' | 'api' | 'website' | 'referral' | 'cold_outreach' | 'networking' | 'linkedin' | 'email' | 'landing_page' | 'landing_page_email_capture';
   className?: string;
 }
 
@@ -51,6 +51,13 @@ export const SourceBadge = memo(function SourceBadge({ source, className }: Sour
           label: 'Email',
           className: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
           icon: <Mail className="h-3 w-3 mr-1" />
+        };
+      case 'landing_page':
+      case 'landing_page_email_capture':
+        return {
+          label: 'Landing Page',
+          className: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
+          icon: <ExternalLink className="h-3 w-3 mr-1" />
         };
       case 'manual':
         return {

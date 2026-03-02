@@ -384,7 +384,7 @@ export const BuyerTableEnhanced = ({
                 <ResizeHandle column="platform" />
               </TableHead>
               <TableHead className="relative" style={{ width: columnWidths.industryFit }}>
-                <SortButton label="Industry Fit" sortKey="alignment_score" />
+                <SortButton label="Acquisition Fit" sortKey="alignment_score" />
                 <ResizeHandle column="industryFit" />
               </TableHead>
               {showPEColumn && (

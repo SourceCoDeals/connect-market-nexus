@@ -13,6 +13,9 @@ const TIER_COLORS: Record<string, string> = {
   B: 'hsl(217, 91%, 60%)', // blue-500
   C: 'hsl(45, 93%, 47%)', // amber-500
   D: 'hsl(0, 72%, 51%)', // red-500
+  move_now: 'hsl(142, 76%, 36%)', // emerald-600
+  strong: 'hsl(217, 91%, 60%)', // blue-500
+  speculative: 'hsl(45, 93%, 47%)', // amber-500
 };
 
 const TIER_LABELS: Record<string, string> = {
@@ -20,6 +23,9 @@ const TIER_LABELS: Record<string, string> = {
   B: 'Good Fit',
   C: 'Moderate Fit',
   D: 'Low Fit',
+  move_now: 'Move Now',
+  strong: 'Strong Candidate',
+  speculative: 'Speculative',
 };
 
 export function TierDistributionChart({ data, className }: TierDistributionChartProps) {

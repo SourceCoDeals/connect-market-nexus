@@ -42,6 +42,10 @@ import { taskTools, executeTaskTool } from './task-tools.ts';
 import { industryResearchTools, executeIndustryResearchTool } from './industry-research-tools.ts';
 import { firefliesSummaryTools, executeFirefliesSummaryTool } from './fireflies-summary-tools.ts';
 import { alertTools, executeAlertTool } from './alert-tools.ts';
+import {
+  recommendedBuyerTools,
+  executeRecommendedBuyerTool,
+} from './recommended-buyer-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -81,6 +85,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...industryResearchTools,
   ...firefliesSummaryTools,
   ...alertTools,
+  ...recommendedBuyerTools,
 ];
 
 // ---------- Backward-compat: old tool name → executor mapping ----------

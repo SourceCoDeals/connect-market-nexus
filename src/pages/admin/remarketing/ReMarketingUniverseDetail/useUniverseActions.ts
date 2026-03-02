@@ -9,6 +9,43 @@ import {
 import { toast } from 'sonner';
 import type { UseUniverseDataReturn } from './useUniverseData';
 
+/**
+ * T33 FIX: Sync key fields from marketplace firm_agreements to remarketing_buyers
+ * so the same buyer shows consistent data across both views.
+ */
+async function syncBuyerFromMarketplace(
+  client: typeof supabase,
+  buyerId: string,
+  firmId: string,
+) {
+  try {
+    const { data: firmAgreement } = await client
+      .from('firm_agreements')
+      .select('company_name, buyer_type')
+      .eq('firm_id', firmId)
+      .maybeSingle();
+
+    if (firmAgreement) {
+      const updates: Record<string, unknown> = {};
+      if (firmAgreement.company_name) {
+        updates.company_name = firmAgreement.company_name;
+      }
+      if (firmAgreement.buyer_type) {
+        updates.buyer_type = firmAgreement.buyer_type;
+      }
+      if (Object.keys(updates).length > 0) {
+        await client
+          .from('remarketing_buyers')
+          .update(updates)
+          .eq('id', buyerId);
+      }
+    }
+  } catch (err) {
+    // Non-blocking: log but don't fail the main operation
+    console.warn('[T33] Failed to sync buyer fields from marketplace:', err);
+  }
+}
+
 export function useUniverseActions(data: UseUniverseDataReturn) {
   const {
     id,
@@ -199,11 +236,19 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
               .from('remarketing_buyers')
               .update({ marketplace_firm_id: firmId })
               .eq('id', buyerId);
+
+            // T33 FIX: Sync key fields from firm_agreements to remarketing_buyers
+            // so the same buyer shows consistent data across marketplace and remarketing views
+            await syncBuyerFromMarketplace(supabase, buyerId, firmId);
           }
         }
       }
 
       if (firmId) {
+        // T33 FIX: Always sync key fields when marketplace_firm_id link exists
+        // (covers the case where firmId was already set on the buyer)
+        await syncBuyerFromMarketplace(supabase, buyerId, firmId);
+
         // Sign the fee agreement on the marketplace side (uses existing cascading function)
         await supabase.rpc('update_fee_agreement_firm_status', {
           p_firm_id: firmId,

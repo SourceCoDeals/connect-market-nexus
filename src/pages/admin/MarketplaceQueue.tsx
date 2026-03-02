@@ -45,7 +45,7 @@ interface MarketplaceQueueDeal {
 }
 
 const formatCurrency = (value: number | null) => {
-  if (!value) return '—';
+  if (value == null) return '—';
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
   return `$${value}`;
@@ -70,7 +70,6 @@ const MarketplaceQueue = () => {
            deal_source`,
         )
         .eq('pushed_to_marketplace', true)
-        .eq('remarketing_status', 'active')
         .order('pushed_to_marketplace_at', { ascending: false });
 
       if (error) throw error;
@@ -310,7 +309,7 @@ const MarketplaceQueue = () => {
                           className="h-8 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate('/admin/deals?tab=marketplace');
+                            navigate(`/admin/deals/${existingListing.id}?tab=marketplace`);
                           }}
                         >
                           <Eye className="h-3.5 w-3.5 mr-1" />

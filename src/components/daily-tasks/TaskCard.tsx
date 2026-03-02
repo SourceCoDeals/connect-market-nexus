@@ -398,8 +398,15 @@ export function TaskCard({
                       ? 'Completed'
                       : task.status === 'pending_approval'
                         ? 'Awaiting Approval'
-                        : 'Pending'}
+                        : task.status === 'snoozed'
+                          ? 'Snoozed'
+                          : 'Pending'}
                 </Badge>
+                {task.status === 'snoozed' && task.snoozed_until && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Snoozed until {format(parseISO(task.snoozed_until), 'MMM d, yyyy')}
+                  </p>
+                )}
               </div>
 
               {/* Assignee – editable dropdown */}

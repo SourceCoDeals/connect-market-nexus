@@ -22,10 +22,11 @@ interface RoleGateProps {
 }
 
 export function RoleGate({ children, min }: RoleGateProps) {
-  const { teamRole, isLoading } = useAuth();
+  const { teamRole, isLoading, authChecked } = useAuth();
 
-  // While auth is loading, show nothing to prevent flash of unauthorized content
-  if (isLoading) return null;
+  // While auth is loading or role hasn't resolved yet, show nothing to prevent
+  // flash redirect to /unauthorized before teamRole is available
+  if (isLoading || !authChecked || teamRole === null) return null;
 
   if (!meetsRole(teamRole, min)) {
     return <Navigate to="/unauthorized" replace />;

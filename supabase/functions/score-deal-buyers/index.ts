@@ -120,7 +120,7 @@ function scoreService(
   const buyerTerms = [...buyerServices, ...buyerIndustries, buyerIndustryVertical].filter(Boolean);
 
   if (dealTerms.length === 0 || buyerTerms.length === 0) {
-    return { score: 30, signals: [] }; // Partial data — baseline
+    return { score: 0, signals: [] }; // No data — cannot score, don't inflate
   }
 
   let bestMatch = 0;

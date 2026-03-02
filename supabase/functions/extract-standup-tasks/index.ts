@@ -34,6 +34,12 @@ const TASK_TYPES = [
   'send_materials',
   'update_pipeline',
   'schedule_call',
+  'nda_execution',
+  'ioi_loi_process',
+  'due_diligence',
+  'buyer_qualification',
+  'seller_relationship',
+  'buyer_ic_followup',
   'other',
 ];
 
@@ -54,9 +60,15 @@ const DEAL_STAGE_SCORES: Record<string, number> = {
 
 const TASK_TYPE_SCORES: Record<string, number> = {
   contact_owner: 90,
+  ioi_loi_process: 88,
+  due_diligence: 85,
+  nda_execution: 82,
   schedule_call: 80,
+  buyer_ic_followup: 78,
   follow_up_with_buyer: 75,
+  seller_relationship: 72,
   send_materials: 70,
+  buyer_qualification: 60,
   build_buyer_universe: 50,
   other: 40,
   update_pipeline: 30,
@@ -164,6 +176,12 @@ ${memberList}
 - send_materials: Send teasers, CIMs, or other deal documents
 - update_pipeline: Update CRM records, deal status, or notes
 - schedule_call: Arrange a call with an owner, buyer, or internal team
+- nda_execution: Send, follow up on, or finalize an NDA
+- ioi_loi_process: Manage IOI or LOI submission, review, or negotiation
+- due_diligence: Coordinate or follow up on due diligence activities
+- buyer_qualification: Qualify or vet a potential buyer
+- seller_relationship: Maintain or strengthen the relationship with a seller/owner
+- buyer_ic_followup: Follow up with a buyer's investment committee or decision-makers
 - other: Tasks that don't fit above categories
 
 ## Extraction Rules
@@ -414,7 +432,7 @@ serve(async (req) => {
     // 5. Try to match deal references to actual deals
     async function matchDeal(
       dealRef: string,
-    ): Promise<{ id: string; ebitda: number | null; stage_name: string | null } | null> {
+    ): Promise<{ id: string; listing_id: string; ebitda: number | null; stage_name: string | null } | null> {
       if (!dealRef) return null;
       // Sanitize dealRef to prevent PostgREST filter injection
       // Remove characters that could break the .or() filter syntax
@@ -435,6 +453,7 @@ serve(async (req) => {
         const deal = deals[0] as { id: string; listing_id: string; stage_id: string; deal_stages: { name: string } | null; listings: { ebitda: number | null; title: string; internal_company_name: string } };
         return {
           id: deal.id,
+          listing_id: deal.listing_id,
           ebitda: deal.listings?.ebitda ?? null,
           stage_name: deal.deal_stages?.name ?? null,
         };
@@ -527,6 +546,9 @@ serve(async (req) => {
         is_manual: false,
         approved_by: shouldAutoApprove ? 'system' : null,
         approved_at: shouldAutoApprove ? new Date().toISOString() : null,
+        source: 'ai',
+        entity_type: dealMatch ? 'listing' : null,
+        entity_id: dealMatch?.listing_id || null,
       });
     }
 
