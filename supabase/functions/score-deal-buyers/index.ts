@@ -74,7 +74,6 @@ function scoreService(
   buyerIndustries: string[],
   buyerIndustryVertical: string,
 ): { score: number; signals: string[] } {
-  const signals: string[] = [];
   const dealTerms = [...dealCategories, dealIndustry].filter(Boolean);
   const buyerTerms = [...buyerServices, ...buyerIndustries, buyerIndustryVertical].filter(Boolean);
 
@@ -83,19 +82,20 @@ function scoreService(
   }
 
   let bestMatch = 0;
+  let bestSignal = '';
   for (const dt of dealTerms) {
     for (const bt of buyerTerms) {
-      if (dt === bt) {
+      if (dt === bt && bestMatch < 100) {
         bestMatch = 100;
-        signals.push(`Exact industry match: ${bt}`);
+        bestSignal = `Exact industry match: ${bt}`;
       } else if (bestMatch < 60 && (dt.includes(bt) || bt.includes(dt))) {
         bestMatch = 60;
-        signals.push(`Adjacent industry: ${bt}`);
+        bestSignal = `Adjacent industry: ${bt}`;
       }
     }
   }
 
-  return { score: bestMatch, signals };
+  return { score: bestMatch, signals: bestSignal ? [bestSignal] : [] };
 }
 
 function scoreGeography(
@@ -149,12 +149,12 @@ function scoreSize(
 ): { score: number; signals: string[] } {
   const signals: string[] = [];
 
-  if (!dealEbitda || (!buyerMin && !buyerMax)) {
+  if (dealEbitda == null || (buyerMin == null && buyerMax == null)) {
     return { score: 50, signals: [] }; // No data — neutral
   }
 
-  const min = buyerMin || 0;
-  const max = buyerMax || Number.MAX_SAFE_INTEGER;
+  const min = buyerMin ?? 0;
+  const max = buyerMax ?? Number.MAX_SAFE_INTEGER;
 
   if (dealEbitda >= min && dealEbitda <= max) {
     signals.push(`EBITDA in range ($${(dealEbitda / 1_000_000).toFixed(1)}M)`);
@@ -183,19 +183,19 @@ function scoreBonus(
   const signals: string[] = [];
 
   if (buyer.has_fee_agreement) {
-    points += 5;
+    points += 34;
     signals.push('Fee agreement signed');
   }
   if (norm(buyer.acquisition_appetite) === 'aggressive') {
-    points += 5;
+    points += 33;
     signals.push('Aggressive acquisition appetite');
   }
   if ((buyer.total_acquisitions || 0) > 3) {
-    points += 5;
+    points += 33;
     signals.push(`${buyer.total_acquisitions} acquisitions`);
   }
 
-  return { score: Math.min(points, 20), signals };
+  return { score: Math.min(points, 100), signals };
 }
 
 function classifyTier(
@@ -312,7 +312,7 @@ Deno.serve(async (req: Request) => {
         'target_ebitda_min, target_ebitda_max, ' +
         'has_fee_agreement, acquisition_appetite, total_acquisitions',
       )
-      .or('archived.is.null,archived.eq.false');
+      .eq('archived', false);
 
     if (buyerError) {
       return new Response(
