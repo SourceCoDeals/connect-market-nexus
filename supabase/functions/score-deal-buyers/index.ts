@@ -136,8 +136,14 @@ function extractDealKeywords(deal: Record<string, unknown>): string[] {
     deal.investment_thesis, deal.end_market_description,
   ].filter(Boolean).join(' ').toLowerCase();
 
+  // Use word boundary matching to prevent false positives
+  // (e.g. "dental" matching inside "accidental")
   const knownTerms = Object.keys(SECTOR_SYNONYMS);
-  return knownTerms.filter(term => richText.includes(term));
+  return knownTerms.filter(term => {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`);
+    return regex.test(richText);
+  });
 }
 
 // ── Helper: normalize strings for comparison ──
@@ -514,10 +520,21 @@ Deno.serve(async (req: Request) => {
           : 'scored';
 
       // Build fit_reason from seed log (best), thesis_summary (fallback), or signals
-      const fit_reason = seedLogMap.get(buyer.id)
-        || (buyer.thesis_summary
-             ? `${buyer.thesis_summary.split('.')[0]}. ${fitSignals.slice(0, 2).join(', ')}.`
-             : fitSignals.slice(0, 2).join(' · ') || 'Potential industry fit');
+      const seedLogReason = seedLogMap.get(buyer.id);
+      const thesisSentence = (buyer.thesis_summary || '').trim();
+      const topSignals = fitSignals.slice(0, 2).join(', ');
+      let fit_reason: string;
+      if (seedLogReason) {
+        fit_reason = seedLogReason;
+      } else if (thesisSentence) {
+        // Take first sentence; avoid double periods
+        const firstSentence = thesisSentence.split('.').filter(s => s.trim())[0]?.trim() || thesisSentence;
+        fit_reason = topSignals
+          ? `${firstSentence}. ${topSignals}.`
+          : `${firstSentence}.`;
+      } else {
+        fit_reason = topSignals || 'Potential industry fit';
+      }
 
       scored.push({
         buyer_id: buyer.id,

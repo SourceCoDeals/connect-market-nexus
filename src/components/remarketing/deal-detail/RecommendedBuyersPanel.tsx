@@ -296,20 +296,35 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           `AI seeded ${result.total} buyers: ${result.inserted || 0} new, ${result.enriched_existing || 0} updated`,
         );
       }
+      // Auto-refresh scores with forceRefresh so newly seeded buyers appear
+      // (the server-side 4h score cache would otherwise return stale data)
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to seed buyers');
     }
   };
 
-  const handleAccept = (buyer: BuyerScore) => {
-    createIntroduction({
-      listing_id: listingId,
-      buyer_name: buyer.company_name,
-      buyer_firm_name: buyer.pe_firm_name || '',
-      company_name: buyer.company_name,
-      targeting_reason: buyer.fit_reason,
-    });
-    setAcceptedIds(prev => new Set([...prev, buyer.buyer_id]));
+  const handleAccept = async (buyer: BuyerScore) => {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        createIntroduction(
+          {
+            listing_id: listingId,
+            buyer_name: buyer.company_name,
+            buyer_firm_name: buyer.pe_firm_name || '',
+            company_name: buyer.company_name,
+            targeting_reason: buyer.fit_reason,
+          },
+          {
+            onSuccess: () => resolve(),
+            onError: (err: Error) => reject(err),
+          },
+        );
+      });
+      setAcceptedIds(prev => new Set([...prev, buyer.buyer_id]));
+    } catch {
+      // onError in the mutation already shows a toast — buyer stays visible for retry
+    }
   };
 
   const handleReject = (buyer: BuyerScore) => {
@@ -370,7 +385,9 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
     b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id)
   );
   const totalPages = Math.ceil(buyers.length / PAGE_SIZE);
-  const paginatedBuyers = buyers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Clamp page to valid range when filtering shrinks the list
+  const clampedPage = totalPages > 0 ? Math.min(page, totalPages - 1) : 0;
+  const paginatedBuyers = buyers.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
 
   return (
     <Card>
@@ -435,7 +452,7 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
             {totalPages > 1 && (
               <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-muted-foreground">
-                  Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, buyers.length)} of {buyers.length}
+                  Showing {clampedPage * PAGE_SIZE + 1}-{Math.min((clampedPage + 1) * PAGE_SIZE, buyers.length)} of {buyers.length}
                 </p>
                 <div className="flex items-center gap-1">
                   <Button
@@ -443,17 +460,17 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
                     size="icon"
                     className="h-7 w-7"
                     onClick={() => setPage(p => p - 1)}
-                    disabled={page === 0}
+                    disabled={clampedPage === 0}
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
-                  <span className="text-xs px-2">{page + 1} / {totalPages}</span>
+                  <span className="text-xs px-2">{clampedPage + 1} / {totalPages}</span>
                   <Button
                     variant="outline"
                     size="icon"
                     className="h-7 w-7"
                     onClick={() => setPage(p => p + 1)}
-                    disabled={page >= totalPages - 1}
+                    disabled={clampedPage >= totalPages - 1}
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Button>

@@ -471,8 +471,19 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Batch insert seed log entries ──
+    // ── Batch insert seed log entries (delete stale entries for this deal first) ──
     if (seedLogEntries.length > 0) {
+      const buyerIdsToLog = seedLogEntries.map(e => e.remarketing_buyer_id as string);
+      // Remove previous seed log entries for these buyer+deal pairs to prevent unbounded growth
+      const { error: deleteError } = await supabase
+        .from('buyer_seed_log')
+        .delete()
+        .eq('source_deal_id', listingId)
+        .in('remarketing_buyer_id', buyerIdsToLog);
+      if (deleteError) {
+        console.error('Seed log cleanup failed (non-fatal):', deleteError.message);
+      }
+
       const { error: logError } = await supabase.from('buyer_seed_log').insert(seedLogEntries);
       if (logError) {
         console.error('Batch seed log insert failed (non-fatal):', logError.message);
