@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Check access
-    const { data: isAdmin } = await supabaseAdmin.rpc("is_admin", { _user_id: auth.userId });
+    const { data: isAdmin } = await supabaseAdmin.rpc("is_admin", { user_id: auth.userId });
 
     if (!isAdmin) {
       // Buyer access check

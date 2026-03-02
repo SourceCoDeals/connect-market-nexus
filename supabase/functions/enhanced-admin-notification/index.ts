@@ -38,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
     const supabaseAdmin = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: callerUser.id });
+    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { user_id: callerUser.id });
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders },

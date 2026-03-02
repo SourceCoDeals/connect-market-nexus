@@ -53,6 +53,8 @@ interface QuestionResult {
   score?: ThirtyQScore;
 }
 
+const THIRTY_Q_STORAGE_KEY = 'sourceco-30q-test-results';
+
 // ---------- Helpers ----------
 
 const THIRTY_Q_STORAGE_KEY = 'sourceco-30q-test-results';
@@ -88,6 +90,21 @@ export default function ThirtyQuestionTest() {
   );
   const [runStatus, setRunStatus] = useState<RunStatus>('idle');
   const abortRef = useRef<AbortController | null>(null);
+
+  // Persist results to localStorage once when a run finishes so Export All can pick them up
+  const prevRunStatus = useRef<RunStatus>('idle');
+  useEffect(() => {
+    const wasRunning = prevRunStatus.current === 'running';
+    prevRunStatus.current = runStatus;
+    if (wasRunning && (runStatus === 'done' || runStatus === 'cancelled')) {
+      try {
+        localStorage.setItem(THIRTY_Q_STORAGE_KEY, JSON.stringify(results));
+        localStorage.setItem(THIRTY_Q_STORAGE_KEY + '-ts', new Date().toISOString());
+      } catch {
+        /* ignore storage errors */
+      }
+    }
+  }, [runStatus, results]);
 
   // ---------- Run all ----------
 

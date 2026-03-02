@@ -46,6 +46,15 @@ async function extractEdgeFunctionError(error: unknown): Promise<string> {
   return String(error);
 }
 
+/** Validate edge function response shape to prevent cache corruption */
+function validateSeedResult(data: unknown): SeedBuyersResponse {
+  const d = data as SeedBuyersResponse;
+  if (!d || !Array.isArray(d.seeded_buyers) || typeof d.total !== 'number') {
+    throw new Error('Unexpected response shape from seed-buyers');
+  }
+  return d;
+}
+
 export function useSeedBuyers() {
   const queryClient = useQueryClient();
 
@@ -58,7 +67,7 @@ export function useSeedBuyers() {
         const msg = await extractEdgeFunctionError(error);
         throw new Error(msg);
       }
-      return data as SeedBuyersResponse;
+      return validateSeedResult(data);
     },
     onSuccess: (_data, variables) => {
       // Invalidate recommended buyers so the list refreshes with newly seeded buyers

@@ -66,7 +66,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       // Allow both admins AND the alert owner to trigger
-      const { data: isAdmin } = await supabaseClient.rpc("is_admin", { _user_id: callerUser.id });
+      const { data: isAdmin } = await supabaseClient.rpc("is_admin", { user_id: callerUser.id });
       // If not admin, we still allow — deal alerts are triggered by listing creation
       // which can happen from any authenticated user context
     }

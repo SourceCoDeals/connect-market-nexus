@@ -16,7 +16,7 @@ import { PipelineDetailNotes } from './tabs/PipelineDetailNotes';
 import { PipelineDetailDataRoom } from './tabs/PipelineDetailDataRoom';
 import { PipelineDetailDealInfo } from './tabs/PipelineDetailDealInfo';
 import { PipelineDetailOtherBuyers } from './tabs/PipelineDetailOtherBuyers';
-import { EntityTasksTab } from '@/components/daily-tasks';
+import { EntityTasksTab, CreateTaskButton } from '@/components/daily-tasks';
 import { DeleteDealDialog } from '@/components/admin/deals/DeleteDealDialog';
 
 interface PipelineDetailPanelProps {
@@ -70,6 +70,12 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
           </div>
 
           <div className="flex items-center gap-1">
+            <CreateTaskButton
+              entityType="deal"
+              entityId={selectedDeal.deal_id}
+              entityName={selectedDeal.title}
+              dealId={selectedDeal.deal_id}
+            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button

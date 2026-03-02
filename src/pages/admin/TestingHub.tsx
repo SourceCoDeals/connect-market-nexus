@@ -141,6 +141,112 @@ const Loading = () => (
   </div>
 );
 
+// localStorage keys — must match individual tab components
+const SYSTEM_STORAGE_KEY = 'sourceco-system-test-results';
+const DOCUSEAL_STORAGE_KEY = 'sourceco-docuseal-test-results';
+const CHATBOT_INFRA_STORAGE_KEY = 'sourceco-chatbot-infra-test-results';
+const SCENARIO_STORAGE_KEY = 'sourceco-chatbot-scenario-results';
+const THIRTY_Q_STORAGE_KEY = 'sourceco-30q-test-results';
+const ENRICHMENT_STORAGE_KEY = 'sourceco-enrichment-test-results';
+const PIPELINE_STORAGE_KEY = 'sourceco-pipeline-test-results';
+const SMARTLEAD_STORAGE_KEY = 'sourceco-smartlead-test-results';
+
+// Warning heuristics — must match individual tab components
+const isSystemTestWarning = (msg: string) =>
+  (msg.includes('does not exist') && !msg.includes('table')) ||
+  msg.includes('No documents exist') ||
+  msg.includes('No test ');
+
+const isChatbotTestWarning = (msg: string) =>
+  (msg.includes('does not exist') && !msg.includes('table')) ||
+  msg.includes('empty') ||
+  msg.includes('Expected multiple');
+
+const SUITE_COUNT = 8;
+
+interface RunAllProgress {
+  suiteName: string;
+  testIndex: number;
+  testCount: number;
+  suiteIndex: number;
+  suiteCount: number;
+}
+
+/** Shared test-runner loop used by System Tests and Chatbot Infra suites. */
+async function runTestLoop<Ctx>(opts: {
+  tests: Array<{ id: string; name: string; category: string; fn: (ctx: Ctx) => Promise<void> }>;
+  ctx: Ctx;
+  storageKey: string;
+  suiteName: string;
+  isWarning: (msg: string) => boolean;
+  suiteIndex: number;
+  abortRef: { current: boolean };
+  setProgress: (p: RunAllProgress) => void;
+  jsonStringifyTs?: boolean;
+}): Promise<void> {
+  const {
+    tests,
+    ctx,
+    storageKey,
+    suiteName,
+    isWarning,
+    suiteIndex,
+    abortRef,
+    setProgress,
+    jsonStringifyTs,
+  } = opts;
+
+  setProgress({
+    suiteName,
+    testIndex: 0,
+    testCount: tests.length,
+    suiteIndex,
+    suiteCount: SUITE_COUNT,
+  });
+
+  const results = tests.map((t) => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    status: 'pending' as const,
+    error: undefined as string | undefined,
+    durationMs: undefined as number | undefined,
+  }));
+
+  for (let i = 0; i < tests.length; i++) {
+    if (abortRef.current) break;
+    setProgress({
+      suiteName,
+      testIndex: i + 1,
+      testCount: tests.length,
+      suiteIndex,
+      suiteCount: SUITE_COUNT,
+    });
+
+    const start = performance.now();
+    try {
+      await tests[i].fn(ctx);
+      results[i] = {
+        ...results[i],
+        status: 'pass',
+        durationMs: Math.round(performance.now() - start),
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results[i] = {
+        ...results[i],
+        status: isWarning(msg) ? 'warn' : 'fail',
+        error: msg,
+        durationMs: Math.round(performance.now() - start),
+      };
+    }
+  }
+
+  const ts = new Date().toISOString();
+  localStorage.setItem(storageKey, JSON.stringify(results));
+  localStorage.setItem(storageKey + '-ts', jsonStringifyTs ? JSON.stringify(ts) : ts);
+}
+
 export default function TestingHub() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'enrichment';
@@ -599,18 +705,34 @@ export default function TestingHub() {
           )}
         </div>
       </div>
-      <div className="px-8 py-6 space-y-6">
-        {/* Test Run History Panel */}
-        {showTracker && (
-          <TestRunTracker
-            runs={tracking.runs}
-            loading={tracking.loading}
-            onRefresh={tracking.fetchRuns}
-            onDelete={tracking.deleteRun}
-            onFetchResults={tracking.fetchRunResults}
-          />
-        )}
 
+      {/* Run All progress bar */}
+      {progress && (
+        <div className="border-b bg-muted/30 px-8 py-3">
+          <div className="flex items-center gap-4">
+            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between text-sm mb-1">
+                <span className="font-medium">{progress.suiteName}</span>
+                <span className="text-muted-foreground text-xs">
+                  Suite {progress.suiteIndex + 1}/{progress.suiteCount}
+                  {progress.testCount > 1 && ` · Test ${progress.testIndex}/${progress.testCount}`}
+                </span>
+              </div>
+              <Progress
+                value={
+                  ((progress.suiteIndex + progress.testIndex / Math.max(progress.testCount, 1)) /
+                    progress.suiteCount) *
+                  100
+                }
+                className="h-2"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="px-8 py-6">
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-6">
             <TabsTrigger value="enrichment" className="gap-2">

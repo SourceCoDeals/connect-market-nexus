@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     }
 
     // Check admin role via DB function (server-side, not from JWT claims)
-    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { _user_id: callerUser.id });
+    const { data: isAdmin } = await supabaseAdmin.rpc('is_admin', { user_id: callerUser.id });
     if (!isAdmin) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: admin access required' }),

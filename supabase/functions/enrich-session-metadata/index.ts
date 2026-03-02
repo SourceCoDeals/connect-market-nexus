@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     // Admin-only: this function modifies ALL user sessions
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: isAdmin } = await supabase.rpc('is_admin', { _user_id: user.id });
+    const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id });
     if (!isAdmin) {
       return new Response(
         JSON.stringify({ error: 'Forbidden: admin access required' }),

@@ -313,10 +313,12 @@ export function useDeals() {
         meeting_scheduled: row.meeting_scheduled ?? false,
       }));
 
-      // Batch-fetch memo distribution and data room documents by listing_id
+      // Batch-fetch memo distribution, data room documents, and task counts
       const listingIds = [...new Set(mapped.map((d) => d.listing_id).filter(Boolean))] as string[];
+      const dealIds = mapped.map((d) => d.deal_id);
       const memoSentListings = new Set<string>();
       const dataRoomListings = new Set<string>();
+      const taskCountMap = new Map<string, { pending: number; completed: number; total: number }>();
 
       if (listingIds.length > 0) {
         for (let i = 0; i < listingIds.length; i += 100) {
@@ -336,9 +338,39 @@ export function useDeals() {
         }
       }
 
+      // Batch-fetch task counts per deal from daily_standup_tasks
+      if (dealIds.length > 0) {
+        for (let i = 0; i < dealIds.length; i += 100) {
+          const chunk = dealIds.slice(i, i + 100);
+          const { data: taskRows, error: taskErr } = await supabase
+            .from('daily_standup_tasks' as never)
+            .select('entity_id, status')
+            .eq('entity_type', 'deal')
+            .in('entity_id', chunk);
+
+          if (taskErr) throw taskErr;
+          for (const row of (taskRows || []) as { entity_id: string; status: string }[]) {
+            const entry = taskCountMap.get(row.entity_id) || { pending: 0, completed: 0, total: 0 };
+            entry.total++;
+            if (['pending', 'pending_approval', 'in_progress', 'overdue'].includes(row.status)) {
+              entry.pending++;
+            } else if (row.status === 'completed') {
+              entry.completed++;
+            }
+            taskCountMap.set(row.entity_id, entry);
+          }
+        }
+      }
+
       mapped.forEach((deal) => {
         deal.memo_sent = memoSentListings.has(deal.listing_id as string);
         deal.has_data_room = dataRoomListings.has(deal.listing_id as string);
+        const tc = taskCountMap.get(deal.deal_id);
+        if (tc) {
+          deal.total_tasks = tc.total;
+          deal.pending_tasks = tc.pending;
+          deal.completed_tasks = tc.completed;
+        }
       });
 
       return mapped as unknown as Deal[];

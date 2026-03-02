@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
     }
 
     // Verify admin status via user_roles table (authoritative RBAC source)
-    const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin', { _user_id: user.id });
+    const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin', { user_id: user.id });
     if (adminCheckError || !isAdmin) {
       console.error('Admin check failed:', adminCheckError);
       return new Response(
