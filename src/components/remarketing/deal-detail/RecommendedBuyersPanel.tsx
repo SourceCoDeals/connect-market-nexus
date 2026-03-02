@@ -154,12 +154,12 @@ function BuyerCard({
               Fee
             </span>
           )}
-          {buyer.fit_signals.length > 0 && (
-            <span className="text-muted-foreground/70 truncate">
-              {buyer.fit_signals.slice(0, 2).join(' · ')}
-            </span>
-          )}
         </div>
+        {buyer.fit_reason && (
+          <p className="text-[11px] text-muted-foreground/80 leading-snug mt-0.5 line-clamp-2">
+            {buyer.fit_reason}
+          </p>
+        )}
       </div>
 
       {/* Source */}
