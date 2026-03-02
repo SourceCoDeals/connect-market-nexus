@@ -20,7 +20,7 @@ interface ContactInfoSectionProps {
   isSelectingUser: boolean;
   selectedUserId: string | null;
   selectedCompanyName: string | null;
-  marketplaceUsers: { id: string; buyer_type?: string }[] | undefined;
+  marketplaceUsers: { id: string; buyer_type?: string | null }[] | undefined;
   marketplaceCompanies:
     | {
         value: string;

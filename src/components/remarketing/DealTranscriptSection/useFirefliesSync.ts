@@ -148,7 +148,7 @@ export function useFirefliesSync({
           string,
           unknown
         >[],
-      } as Record<string, unknown>);
+      } as never);
       if (error) {
         if (error.code === '23505') toast.info('Already linked');
         else throw error;
@@ -211,7 +211,7 @@ export function useFirefliesSync({
         transcript_text: 'Linked via URL - content will be fetched automatically',
         source: 'fireflies',
         auto_linked: false,
-      } as Record<string, unknown>);
+      } as never);
       if (error) {
         if (error.code === '23505') toast.info('This transcript is already linked to this deal');
         else throw error;
@@ -265,7 +265,7 @@ export function useFirefliesSync({
           transcript_text: transcriptText || `Uploaded: ${file.name}`,
           source: 'upload',
           auto_linked: false,
-        } as Record<string, unknown>);
+        } as never);
         if (error) {
           if (error.code === '23505') toast.info(`${file.name} already linked`, { id: toastId });
           else throw error;

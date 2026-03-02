@@ -77,15 +77,15 @@ function formatValue(
     !Array.isArray(value) &&
     !(value instanceof Date)
   ) {
-    const rangeVal = value as { min: number; max: number };
+    const rangeVal = value as { min: number | Date; max: number | Date };
     if (rangeVal.min) {
       const minStr =
         rangeVal.min instanceof Date
-          ? (rangeVal.min as unknown as Date).toLocaleDateString()
+          ? rangeVal.min.toLocaleDateString()
           : new Date(rangeVal.min).toLocaleDateString();
       const maxStr = rangeVal.max
         ? rangeVal.max instanceof Date
-          ? (rangeVal.max as unknown as Date).toLocaleDateString()
+          ? rangeVal.max.toLocaleDateString()
           : new Date(rangeVal.max).toLocaleDateString()
         : '?';
       return `${minStr} - ${maxStr}`;

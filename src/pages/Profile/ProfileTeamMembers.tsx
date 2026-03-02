@@ -45,9 +45,8 @@ function useTeamMembers() {
       if (!membershipData?.firm_id) return [];
 
       // Then get all members of that firm, joined with profiles
-      const { data: members, error } = await (
-        supabase.from('firm_members' as never) as unknown as ReturnType<typeof supabase.from>
-      )
+      const { data: members, error } = await supabase
+        .from('firm_members')
         .select(
           `
           id,

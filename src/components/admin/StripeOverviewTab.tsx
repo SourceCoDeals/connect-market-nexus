@@ -38,7 +38,7 @@ interface GroupedUserActivity {
     connections: number;
     pageViews: number;
   };
-  mostRecentSession?: Record<string, unknown>;
+  mostRecentSession?: Record<string, unknown> | null;
   dateFirstSeen?: string;
   sessionReferrer?: string;
 }
@@ -219,7 +219,7 @@ export function StripeOverviewTab() {
       }
 
       const userGroup = userMap.get(userId)!;
-      userGroup.activities.push(activity);
+      userGroup.activities.push(activity as (typeof userGroup.activities)[number]);
       userGroup.totalActivities++;
 
       // Update last activity time if this is more recent
@@ -259,7 +259,9 @@ export function StripeOverviewTab() {
     if (activityFilter === 'all') return true;
     if (activityFilter === 'users') {
       return userGroup.activities.some(
-        (a) => a.activity_type === 'user_event' || a.description.toLowerCase().includes('signup'),
+        (a) =>
+          a.activity_type === 'user_event' ||
+          (a.description ?? '').toLowerCase().includes('signup'),
       );
     }
     if (activityFilter === 'listings') {
@@ -478,7 +480,7 @@ export function StripeOverviewTab() {
                             {format(new Date(userGroup.dateFirstSeen), 'MMM d, yyyy')}
                           </div>
                         </div>
-                        {userGroup.mostRecentSession?.location && (
+                        {!!userGroup.mostRecentSession?.location && (
                           <div>
                             <div className="text-xs font-medium text-muted-foreground/70">
                               Initial Location

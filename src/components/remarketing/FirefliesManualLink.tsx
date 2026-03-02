@@ -112,7 +112,7 @@ export const FirefliesManualLink = ({
         transcript_text: transcript.summary || 'Fireflies transcript',
         source: 'fireflies',
         auto_linked: false,
-      } as Record<string, unknown>);
+      } as never);
 
       if (error) {
         if (error.code === '23505') {
@@ -168,7 +168,7 @@ export const FirefliesManualLink = ({
         transcript_text: 'Linked via URL - content will be fetched automatically',
         source: 'fireflies',
         auto_linked: false,
-      } as Record<string, unknown>);
+      } as never);
 
       if (error) {
         if (error.code === '23505') {
@@ -242,7 +242,7 @@ export const FirefliesManualLink = ({
           transcript_text: transcriptText || `Uploaded: ${file.name}`,
           source: 'upload',
           auto_linked: false,
-        } as Record<string, unknown>);
+        } as never);
 
         if (error) {
           if (error.code === '23505') {

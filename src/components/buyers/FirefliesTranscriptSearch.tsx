@@ -124,7 +124,7 @@ export const FirefliesTranscriptSearch = ({
         summary: transcript.summary,
         key_points: transcript.keywords,
         notes: linkingNotes[transcript.id] || null,
-      });
+      } as never);
 
       if (error) {
         if (error.code === '23505') {

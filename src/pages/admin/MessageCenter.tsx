@@ -28,9 +28,8 @@ function useInboxThreads() {
   return useQuery({
     queryKey: ['inbox-threads'],
     queryFn: async () => {
-      const { data: requestsRaw, error: reqError } = await (
-        supabase.from('connection_requests') as unknown as ReturnType<typeof supabase.from>
-      )
+      const { data: requestsRaw, error: reqError } = await supabase
+        .from('connection_requests')
         .select(
           `
           id, status, user_id, listing_id, user_message, created_at,

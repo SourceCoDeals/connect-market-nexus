@@ -166,7 +166,9 @@ export function useFirmAgreements() {
         if (dealsDataError) throw dealsDataError;
 
         (dealsData || []).forEach((d: { connection_request_id: string | null }) => {
-          const firmId = requestToFirm[d.connection_request_id];
+          const firmId = d.connection_request_id
+            ? requestToFirm[d.connection_request_id]
+            : undefined;
           if (firmId) {
             dealCounts[firmId] = (dealCounts[firmId] || 0) + 1;
           }

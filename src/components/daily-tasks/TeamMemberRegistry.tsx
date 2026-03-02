@@ -36,14 +36,14 @@ export function TeamMemberRegistry() {
         .select('*');
 
       const aliasMap = new Map<string, { id: string; alias: string }[]>();
-      for (const a of (aliases || []) as AliasRow[]) {
+      for (const a of (aliases || []) as unknown as AliasRow[]) {
         const existing = aliasMap.get(a.profile_id) || [];
         existing.push({ id: a.id, alias: a.alias });
         aliasMap.set(a.profile_id, existing);
       }
 
-      return (roles || []).map(
-        (r: {
+      return (
+        (roles || []) as unknown as Array<{
           user_id: string;
           role: string;
           profiles: {
@@ -52,16 +52,16 @@ export function TeamMemberRegistry() {
             last_name: string | null;
             email: string;
           };
-        }) => ({
-          // Use user_id directly from user_roles (matches auth.uid()) to ensure
-          // consistent IDs with the assignee_id filter in useDailyTasks.
-          id: r.user_id,
-          name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
-          email: r.profiles.email,
-          role: r.role,
-          aliases: aliasMap.get(r.user_id) || [],
-        }),
-      );
+        }>
+      ).map((r) => ({
+        // Use user_id directly from user_roles (matches auth.uid()) to ensure
+        // consistent IDs with the assignee_id filter in useDailyTasks.
+        id: r.user_id,
+        name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
+        email: r.profiles.email,
+        role: r.role,
+        aliases: aliasMap.get(r.user_id) || [],
+      }));
     },
     staleTime: 60_000,
   });

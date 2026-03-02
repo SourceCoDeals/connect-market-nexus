@@ -126,7 +126,7 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
 
       // Transform raw database response to Listing interface with computed properties
       const listings = (
-        (rawListings || []) as Array<
+        (rawListings || []) as unknown as Array<
           Record<string, unknown> & {
             owner_notes?: string;
             created_at: string;

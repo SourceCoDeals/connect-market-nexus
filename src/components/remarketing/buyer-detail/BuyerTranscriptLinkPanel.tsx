@@ -106,7 +106,7 @@ export function BuyerTranscriptLinkPanel({
         title: `Fireflies: ${transcriptId}`,
         transcript_text: 'Linked via URL - content will be fetched automatically',
         source: 'fireflies',
-      } as Record<string, unknown>);
+      } as never);
 
       if (error) {
         if (error.code === '23505') toast.info('This transcript is already linked');
@@ -229,7 +229,7 @@ export function BuyerTranscriptLinkPanel({
         duration_minutes: transcript.duration_minutes,
         transcript_text: transcript.summary || 'Fireflies transcript',
         source: 'fireflies',
-      } as Record<string, unknown>);
+      } as never);
 
       if (error) {
         if (error.code === '23505') toast.info('Already linked');

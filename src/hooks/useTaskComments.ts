@@ -46,7 +46,7 @@ export function useAddTaskComment() {
           task_id: taskId,
           user_id: user?.id,
           body: body.trim(),
-        })
+        } as never)
         .select()
         .single();
 
@@ -58,7 +58,7 @@ export function useAddTaskComment() {
         user_id: user?.id,
         action: 'commented',
         new_value: { body: body.trim() },
-      });
+      } as never);
 
       return data;
     },

@@ -192,7 +192,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         event_action: eventType,
         page_path: location.pathname,
         metadata: (eventData || {}) as Record<string, unknown>,
-      } as Record<string, unknown>);
+      } as never);
 
       if (error) {
         throw error;
@@ -367,7 +367,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         filters_applied: (filters || {}) as Record<string, unknown>,
         results_count: results || 0,
         no_results: (results || 0) === 0,
-      } as Record<string, unknown>);
+      } as never);
 
       if (error) {
         throw error;

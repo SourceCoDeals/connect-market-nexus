@@ -38,7 +38,7 @@ export function useUpdateAgreementViaUser() {
       });
 
       if (error) throw error;
-      return data as AgreementResult;
+      return data as unknown as AgreementResult;
     },
     onSuccess: (data) => {
       // Invalidate all related queries

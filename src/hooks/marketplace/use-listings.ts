@@ -169,7 +169,7 @@ export const useListings = (filters: FilterOptions = {}) => {
         }
 
         // Transform data to include computed properties
-        const listings = (data as Record<string, unknown>[])?.map(
+        const listings = (data as unknown as Record<string, unknown>[])?.map(
           (item: Record<string, unknown>) => {
             const listing: Listing = {
               ...(item as unknown as Listing),
