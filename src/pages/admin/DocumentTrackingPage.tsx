@@ -195,61 +195,6 @@ function useRealtimeFirmAgreements() {
   }, [queryClient]);
 }
 
-// ─── Status Badge Helper ─────────────────────────────────────────────
-
-function getStatusBadge(status: AgreementStatus) {
-  switch (status) {
-    case 'signed':
-      return (
-        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 gap-1">
-          <CheckCircle2 className="h-3 w-3" /> Signed
-        </Badge>
-      );
-    case 'sent':
-      return (
-        <Badge className="bg-amber-100 text-amber-800 border-amber-200 gap-1">
-          <Send className="h-3 w-3" /> Sent
-        </Badge>
-      );
-    case 'declined':
-      return (
-        <Badge className="bg-red-100 text-red-800 border-red-200 gap-1">
-          <XCircle className="h-3 w-3" /> Declined
-        </Badge>
-      );
-    case 'expired':
-      return (
-        <Badge className="bg-gray-100 text-gray-700 border-gray-200 gap-1">
-          <Clock className="h-3 w-3" /> Expired
-        </Badge>
-      );
-    case 'redlined':
-      return (
-        <Badge className="bg-orange-100 text-orange-800 border-orange-200 gap-1">
-          <AlertCircle className="h-3 w-3" /> Redlined
-        </Badge>
-      );
-    case 'under_review':
-      return (
-        <Badge className="bg-blue-100 text-blue-800 border-blue-200 gap-1">
-          <Clock className="h-3 w-3" /> Under Review
-        </Badge>
-      );
-    case 'not_started':
-      return (
-        <Badge variant="outline" className="gap-1 text-muted-foreground">
-          <Clock className="h-3 w-3" /> Not Started
-        </Badge>
-      );
-    default:
-      return (
-        <Badge variant="outline" className="gap-1">
-          <Clock className="h-3 w-3" /> {status}
-        </Badge>
-      );
-  }
-}
-
 // ─── Component ───────────────────────────────────────────────────────
 
 type FilterStatus = 'all' | 'signed' | 'sent' | 'not_started' | 'unsigned' | 'needs_attention';
