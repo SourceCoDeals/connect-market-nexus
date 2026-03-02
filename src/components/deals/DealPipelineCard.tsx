@@ -245,13 +245,6 @@ function getRequestStatusColors(status: string): { bg: string; text: string; bor
  * deal.  Returns null if no immediate action is available (e.g. under
  * review with nothing pending).
  */
-function getCtaLabel(status: string, ndaSigned?: boolean, hasCim?: boolean): string | null {
-  if (status === 'rejected') return null;
-  if (!ndaSigned) return 'Sign NDA';
-  if (hasCim) return 'View Deal Memo';
-  // NDA signed but not yet under review
-  return null;
-}
 
 /* ─── Component ────────────────────────────────────────────────────────── */
 
