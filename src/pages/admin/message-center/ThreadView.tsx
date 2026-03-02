@@ -13,6 +13,8 @@ import {
   Archive,
   ExternalLink,
   UserCheck,
+  PanelRightOpen,
+  PanelRightClose,
 } from 'lucide-react';
 import {
   useConnectionMessages,
@@ -25,6 +27,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import type { InboxThread } from './types';
+import { ThreadContextPanel } from './ThreadContextPanel';
 
 // ─── Hooks (used only by ThreadView) ───
 
@@ -97,6 +100,7 @@ export function ThreadView({ thread, onBack, adminProfiles }: ThreadViewProps) {
   const navigate = useNavigate();
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showContext, setShowContext] = useState(true);
 
   // Get current admin ID for claim
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
