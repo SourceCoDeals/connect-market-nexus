@@ -6,8 +6,6 @@ import {
   Building2,
   FileText,
   UserCheck,
-  Shield,
-  FileSignature,
   Check,
   Send,
   Eye,

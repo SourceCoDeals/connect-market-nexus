@@ -94,8 +94,8 @@ function useInboxThreads() {
           .in('user_id', uniqueUserIds);
 
         const userFirmMap: Record<string, string> = {};
-        (memberships || []).forEach((m: { user_id: string; firm_id: string }) => {
-          userFirmMap[m.user_id] = m.firm_id;
+        (memberships || []).forEach((m: { user_id: string | null; firm_id: string }) => {
+          if (m.user_id) userFirmMap[m.user_id] = m.firm_id;
         });
 
         // Also check firm_id from connection_requests
