@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,7 @@ import {
   type BuyerScore,
 } from '@/hooks/admin/use-new-recommended-buyers';
 import { useSeedBuyers, type SeedBuyerResult } from '@/hooks/admin/use-seed-buyers';
+import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
 import {
   RefreshCw,
   Users,
@@ -24,6 +26,8 @@ import {
   Plus,
   Check,
   Copy,
+  CheckCircle,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -39,6 +43,23 @@ const TIER_CONFIG: Record<BuyerScore['tier'], { label: string; color: string; ic
   strong: { label: 'Strong', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Star },
   speculative: { label: 'Speculative', color: 'bg-amber-100 text-amber-800 border-amber-200', icon: HelpCircle },
 };
+
+const SOURCE_BADGE: Record<BuyerScore['source'], { label: string; color: string }> = {
+  ai_seeded:   { label: 'AI Search',   color: 'bg-purple-100 text-purple-700' },
+  marketplace: { label: 'Marketplace', color: 'bg-blue-100 text-blue-700' },
+  scored:      { label: 'Buyer Pool',  color: 'bg-gray-100 text-gray-600' },
+};
+
+function formatBuyerType(type: string | null): string {
+  if (!type) return '';
+  const map: Record<string, string> = {
+    pe_firm: 'PE Firm',
+    platform: 'Platform',
+    strategic: 'Strategic',
+    family_office: 'Family Office',
+  };
+  return map[type] || type.replace('_', ' ');
+}
 
 function TierSummary({ buyers }: { buyers: BuyerScore[] }) {
   const moveNow = buyers.filter(b => b.tier === 'move_now').length;
@@ -69,63 +90,122 @@ function TierSummary({ buyers }: { buyers: BuyerScore[] }) {
   );
 }
 
-function BuyerCard({ buyer }: { buyer: BuyerScore }) {
+function BuyerCard({
+  buyer,
+  onAccept,
+  onReject,
+  isAccepting,
+}: {
+  buyer: BuyerScore;
+  onAccept: (buyer: BuyerScore) => void;
+  onReject: (buyer: BuyerScore) => void;
+  isAccepting?: boolean;
+}) {
   const tier = TIER_CONFIG[buyer.tier];
   const TierIcon = tier.icon;
+  const sourceBadge = SOURCE_BADGE[buyer.source] || SOURCE_BADGE.scored;
 
   return (
     <div className="border rounded-lg p-4 space-y-3 hover:border-primary/30 transition-colors">
       <div className="flex items-start justify-between gap-3">
+        {/* Left zone */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-            <h4 className="font-medium text-sm truncate">{buyer.company_name}</h4>
+            <Link to={`/admin/buyers/${buyer.buyer_id}`}>
+              <span className="font-semibold text-sm text-blue-700 hover:underline truncate">
+                {buyer.company_name}
+              </span>
+            </Link>
           </div>
           {buyer.pe_firm_name && (
-            <p className="text-xs text-muted-foreground mt-0.5 ml-6 truncate">
-              {buyer.pe_firm_name}
-            </p>
+            <div className="mt-0.5 ml-6">
+              {buyer.pe_firm_id ? (
+                <Link to={`/admin/buyers/pe-firms/${buyer.pe_firm_id}`}>
+                  <span className="text-xs text-muted-foreground hover:underline">
+                    {buyer.pe_firm_name}
+                  </span>
+                </Link>
+              ) : (
+                <span className="text-xs text-muted-foreground">{buyer.pe_firm_name}</span>
+              )}
+            </div>
           )}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 ml-6">
+            {buyer.buyer_type && (
+              <span>{formatBuyerType(buyer.buyer_type)}</span>
+            )}
+            {buyer.hq_state && (
+              <span className="flex items-center gap-0.5">
+                <MapPin className="h-3 w-3" />
+                {buyer.hq_city ? `${buyer.hq_city}, ${buyer.hq_state}` : buyer.hq_state}
+              </span>
+            )}
+            {buyer.has_fee_agreement && (
+              <span className="flex items-center gap-0.5 text-green-600">
+                <FileCheck className="h-3 w-3" />
+                Fee Agreement
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Badge variant="outline" className={cn('text-xs', tier.color)}>
-            <TierIcon className="h-3 w-3 mr-1" />
-            {tier.label}
+
+        {/* Right zone */}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className={cn('text-xs', tier.color)}>
+              <TierIcon className="h-3 w-3 mr-1" />
+              {tier.label}
+            </Badge>
+            <Badge variant="secondary" className="text-xs font-mono">
+              {buyer.composite_score}
+            </Badge>
+          </div>
+          <Badge variant="outline" className={cn('text-[10px]', sourceBadge.color)}>
+            {sourceBadge.label}
           </Badge>
-          <Badge variant="secondary" className="text-xs font-mono">
-            {buyer.composite_score}
-          </Badge>
+          <div className="flex items-center gap-1 mt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs text-green-700 border-green-200 hover:bg-green-50"
+              onClick={() => onAccept(buyer)}
+              disabled={isAccepting}
+            >
+              <CheckCircle className="h-3 w-3 mr-1" />
+              {isAccepting ? 'Adding...' : 'Accept'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs text-red-700 border-red-200 hover:bg-red-50"
+              onClick={() => onReject(buyer)}
+            >
+              <X className="h-3 w-3 mr-1" />
+              Reject
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        {buyer.buyer_type && (
-          <span className="capitalize">{buyer.buyer_type.replace('_', ' ')}</span>
-        )}
-        {buyer.hq_state && (
-          <span className="flex items-center gap-0.5">
-            <MapPin className="h-3 w-3" />
-            {buyer.hq_city ? `${buyer.hq_city}, ${buyer.hq_state}` : buyer.hq_state}
-          </span>
-        )}
-        {buyer.has_fee_agreement && (
-          <span className="flex items-center gap-0.5 text-green-600">
-            <FileCheck className="h-3 w-3" />
-            Fee Agreement
-          </span>
-        )}
-      </div>
+      {/* Fit reason paragraph */}
+      {buyer.fit_reason && (
+        <p className="text-sm italic text-muted-foreground ml-6">
+          {buyer.fit_reason}
+        </p>
+      )}
 
+      {/* Signal tags — max 3 */}
       {buyer.fit_signals.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {buyer.fit_signals.slice(0, 4).map((signal, i) => (
+        <div className="flex flex-wrap gap-1 ml-6">
+          {buyer.fit_signals.slice(0, 3).map((signal, i) => (
             <Badge key={i} variant="outline" className="text-[10px] font-normal">
               {signal}
             </Badge>
           ))}
-          {buyer.fit_signals.length > 4 && (
+          {buyer.fit_signals.length > 3 && (
             <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-              +{buyer.fit_signals.length - 4} more
+              +{buyer.fit_signals.length - 3} more
             </Badge>
           )}
         </div>
@@ -188,9 +268,13 @@ function SeedResultsSummary({ results }: { results: SeedBuyerResult[] }) {
 export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProps) {
   const { data, isLoading, isError, error, refresh } = useNewRecommendedBuyers(listingId);
   const seedMutation = useSeedBuyers();
+  const { createIntroduction } = useBuyerIntroductions(listingId);
   const [page, setPage] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [seedResults, setSeedResults] = useState<SeedBuyerResult[] | null>(null);
+  const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
+  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
+  const [acceptingIds, setAcceptingIds] = useState<Set<string>>(new Set());
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -216,9 +300,48 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           `AI seeded ${result.total} buyers: ${result.inserted || 0} new, ${result.enriched_existing || 0} updated`,
         );
       }
+      // Auto-refresh scores with forceRefresh so newly seeded buyers appear
+      // (the server-side 4h score cache would otherwise return stale data)
+      await refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to seed buyers');
     }
+  };
+
+  const handleAccept = async (buyer: BuyerScore) => {
+    if (acceptingIds.has(buyer.buyer_id)) return; // prevent double-click
+    setAcceptingIds(prev => new Set([...prev, buyer.buyer_id]));
+    try {
+      await new Promise<void>((resolve, reject) => {
+        createIntroduction(
+          {
+            listing_id: listingId,
+            buyer_name: buyer.company_name,
+            buyer_firm_name: buyer.pe_firm_name || '',
+            company_name: buyer.company_name,
+            targeting_reason: buyer.fit_reason,
+          },
+          {
+            onSuccess: () => resolve(),
+            onError: (err: Error) => reject(err),
+          },
+        );
+      });
+      setAcceptedIds(prev => new Set([...prev, buyer.buyer_id]));
+    } catch {
+      // onError in the mutation already shows a toast — buyer stays visible for retry
+    } finally {
+      setAcceptingIds(prev => {
+        const next = new Set(prev);
+        next.delete(buyer.buyer_id);
+        return next;
+      });
+    }
+  };
+
+  const handleReject = (buyer: BuyerScore) => {
+    setRejectedIds(prev => new Set([...prev, buyer.buyer_id]));
+    toast.info(`${buyer.company_name} removed from recommendations`);
   };
 
   if (isLoading) {
@@ -269,9 +392,14 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
     );
   }
 
-  const buyers = data?.buyers || [];
+  const allBuyers = data?.buyers || [];
+  const buyers = allBuyers.filter(
+    b => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id)
+  );
   const totalPages = Math.ceil(buyers.length / PAGE_SIZE);
-  const paginatedBuyers = buyers.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  // Clamp page to valid range when filtering shrinks the list
+  const clampedPage = totalPages > 0 ? Math.min(page, totalPages - 1) : 0;
+  const paginatedBuyers = buyers.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
 
   return (
     <Card>
@@ -325,13 +453,19 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
         ) : (
           <div className="space-y-3">
             {paginatedBuyers.map(buyer => (
-              <BuyerCard key={buyer.buyer_id} buyer={buyer} />
+              <BuyerCard
+                key={buyer.buyer_id}
+                buyer={buyer}
+                onAccept={handleAccept}
+                onReject={handleReject}
+                isAccepting={acceptingIds.has(buyer.buyer_id)}
+              />
             ))}
 
             {totalPages > 1 && (
               <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-muted-foreground">
-                  Showing {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, buyers.length)} of {buyers.length}
+                  Showing {clampedPage * PAGE_SIZE + 1}-{Math.min((clampedPage + 1) * PAGE_SIZE, buyers.length)} of {buyers.length}
                 </p>
                 <div className="flex items-center gap-1">
                   <Button
@@ -339,17 +473,17 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
                     size="icon"
                     className="h-7 w-7"
                     onClick={() => setPage(p => p - 1)}
-                    disabled={page === 0}
+                    disabled={clampedPage === 0}
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
-                  <span className="text-xs px-2">{page + 1} / {totalPages}</span>
+                  <span className="text-xs px-2">{clampedPage + 1} / {totalPages}</span>
                   <Button
                     variant="outline"
                     size="icon"
                     className="h-7 w-7"
                     onClick={() => setPage(p => p + 1)}
-                    disabled={page >= totalPages - 1}
+                    disabled={clampedPage >= totalPages - 1}
                   >
                     <ChevronRight className="h-3.5 w-3.5" />
                   </Button>

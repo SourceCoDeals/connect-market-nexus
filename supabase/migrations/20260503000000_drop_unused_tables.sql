@@ -9,13 +9,19 @@ DROP TABLE IF EXISTS marketplace_listings CASCADE;
 
 -- =============================================================================
 -- 2. Old Buyer Introduction System (replaced by buyer_contacts)
+-- NOTE: buyer_introductions and introduction_status_log are STILL actively used:
+--   - src/hooks/use-buyer-introductions.ts
+--   - src/components/remarketing/deal-detail/RecommendedBuyersPanel.tsx
+--   - src/types/buyer-introductions.ts
+--   - src/components/remarketing/deal-detail/BuyerIntroductionsList.tsx
+-- DO NOT drop them until those references are migrated.
 -- =============================================================================
-DROP TABLE IF EXISTS buyer_introductions CASCADE;
+-- DROP TABLE IF EXISTS buyer_introductions CASCADE;  -- KEPT: still in use
 DROP TABLE IF EXISTS buyer_introduction_summary CASCADE;
 DROP TABLE IF EXISTS introduced_and_passed_buyers CASCADE;
 DROP TABLE IF EXISTS not_yet_introduced_buyers CASCADE;
 DROP TABLE IF EXISTS introduction_activity CASCADE;
-DROP TABLE IF EXISTS introduction_status_log CASCADE;
+-- DROP TABLE IF EXISTS introduction_status_log CASCADE;  -- KEPT: still in use
 
 -- =============================================================================
 -- 3. Old Contact History System (replaced by contact_activities)
