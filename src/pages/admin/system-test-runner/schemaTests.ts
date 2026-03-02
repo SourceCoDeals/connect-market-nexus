@@ -134,6 +134,7 @@ export function buildSchemaTests(): TestDef[] {
   // ═══════════════════════════════════════════
   const C2 = '2. Contacts — Buyer Side';
   let testContactId: string | null = null;
+  let testLinkToken: string | null = null;
 
   add(C2, 'Create buyer contact', async (ctx) => {
     // Get first buyer
@@ -505,12 +506,13 @@ export function buildSchemaTests(): TestDef[] {
       .single();
     if (error) throw new Error(error.message);
     ctx.createdTrackedLinkIds.push(data.id);
+    testLinkToken = data.link_token;
   });
 
   add(C7, 'record-link-open edge function reachable', async (_ctx) => {
-    // Use a fake token to test reachability
+    // Use the real token from the tracked link created above
     await invokeEdgeFunction('record-link-open', {
-      link_token: '00000000-0000-0000-0000-000000000000',
+      link_token: testLinkToken || '00000000-0000-0000-0000-000000000000',
     });
   });
 
