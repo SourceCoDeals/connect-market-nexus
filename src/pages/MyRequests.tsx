@@ -31,7 +31,7 @@ import { BuyerProfileStatus } from '@/components/deals/BuyerProfileStatus';
 import { PostRejectionPanel } from '@/components/deals/PostRejectionPanel';
 import { DealDocumentsCard } from '@/components/deals/DealDocumentsCard';
 import { DealInfoCard } from '@/components/deals/DealInfoCard';
-import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import {
