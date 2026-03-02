@@ -474,13 +474,7 @@ export function UnifiedAdminSidebar({
         {/* Scrollable sections */}
         <nav className="flex-1 overflow-y-auto px-3 py-1 space-y-0.5">
           {sections.map((section, index) => {
-            // Section group dividers
-            const groupDividers: Record<string, string> = {
-              marketplace: 'User-Facing',
-              deals: 'Operations',
-              analytics: 'Insights',
-              admin: 'System',
-            };
+            // Thin separator between groups (no text labels)
             const dividerLabel = groupDividers[section.id];
             const isExpanded = expandedSections.has(section.id);
             const isActive = activeSectionId === section.id;
