@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { useState, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -8,18 +8,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  Download,
-  Upload,
-  Loader2,
-  FileSpreadsheet,
-  AlertCircle,
-  Check,
-} from "lucide-react";
-import { toast } from "sonner";
+} from '@/components/ui/table';
+import { Download, Upload, Loader2, FileSpreadsheet, AlertCircle, Check } from 'lucide-react';
+import { toast } from 'sonner';
 // Papa removed – using parseSpreadsheet instead
-import { parseSpreadsheet, SPREADSHEET_ACCEPT } from "@/lib/parseSpreadsheet";
+import { parseSpreadsheet, SPREADSHEET_ACCEPT } from '@/lib/parseSpreadsheet';
 
 interface ReferralCSVUploadProps {
   shareToken: string;
@@ -28,16 +21,16 @@ interface ReferralCSVUploadProps {
 }
 
 const TEMPLATE_HEADERS = [
-  "Company Name",
-  "Website",
-  "Industry",
-  "Revenue",
-  "EBITDA",
-  "Location",
-  "Contact Name",
-  "Contact Email",
-  "Contact Phone",
-  "Notes",
+  'Company Name',
+  'Website',
+  'Industry',
+  'Revenue',
+  'EBITDA',
+  'Location',
+  'Contact Name',
+  'Contact Email',
+  'Contact Phone',
+  'Notes',
 ];
 
 interface ParsedRow {
@@ -55,13 +48,13 @@ interface ParsedRow {
 
 function parseFinancialValue(str: string): number | null {
   if (!str || !str.trim()) return null;
-  const cleaned = str.replace(/[$,\s]/g, "").toUpperCase();
+  const cleaned = str.replace(/[$,\s]/g, '').toUpperCase();
   let multiplier = 1;
   let numStr = cleaned;
-  if (cleaned.endsWith("M")) {
+  if (cleaned.endsWith('M')) {
     multiplier = 1_000_000;
     numStr = cleaned.slice(0, -1);
-  } else if (cleaned.endsWith("K")) {
+  } else if (cleaned.endsWith('K')) {
     multiplier = 1_000;
     numStr = cleaned.slice(0, -1);
   }
@@ -70,11 +63,7 @@ function parseFinancialValue(str: string): number | null {
   return parsed * multiplier;
 }
 
-export function ReferralCSVUpload({
-  shareToken,
-  password,
-  onUploaded,
-}: ReferralCSVUploadProps) {
+export function ReferralCSVUpload({ shareToken, password, onUploaded }: ReferralCSVUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [skippedCount, setSkippedCount] = useState(0);
@@ -82,11 +71,11 @@ export function ReferralCSVUpload({
   const [showPreview, setShowPreview] = useState(false);
 
   const handleDownloadTemplate = () => {
-    const csvContent = TEMPLATE_HEADERS.join(",") + "\n";
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
+    const csvContent = TEMPLATE_HEADERS.join(',') + '\n';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = "referral-template.csv";
+    link.download = 'referral-template.csv';
     link.click();
     URL.revokeObjectURL(link.href);
   };
@@ -104,11 +93,14 @@ export function ReferralCSVUpload({
         // Normalize header keys (case-insensitive)
         const normalized: Record<string, string> = {};
         for (const [key, val] of Object.entries(row)) {
-          normalized[key.trim().toLowerCase()] = val?.toString().trim() || "";
+          normalized[key.trim().toLowerCase()] = val?.toString().trim() || '';
         }
 
         const companyName =
-          normalized["company name"] || normalized["company_name"] || normalized["companyname"] || "";
+          normalized['company name'] ||
+          normalized['company_name'] ||
+          normalized['companyname'] ||
+          '';
 
         if (!companyName.trim()) {
           skipped++;
@@ -117,15 +109,15 @@ export function ReferralCSVUpload({
 
         rows.push({
           company_name: companyName.trim(),
-          website: normalized["website"] || null,
-          industry: normalized["industry"] || null,
-          revenue: parseFinancialValue(normalized["revenue"] || ""),
-          ebitda: parseFinancialValue(normalized["ebitda"] || ""),
-          location: normalized["location"] || null,
-          contact_name: normalized["contact name"] || normalized["contact_name"] || null,
-          contact_email: normalized["contact email"] || normalized["contact_email"] || null,
-          contact_phone: normalized["contact phone"] || normalized["contact_phone"] || null,
-          notes: normalized["notes"] || null,
+          website: normalized['website'] || null,
+          industry: normalized['industry'] || null,
+          revenue: parseFinancialValue(normalized['revenue'] || ''),
+          ebitda: parseFinancialValue(normalized['ebitda'] || ''),
+          location: normalized['location'] || null,
+          contact_name: normalized['contact name'] || normalized['contact_name'] || null,
+          contact_email: normalized['contact email'] || normalized['contact_email'] || null,
+          contact_phone: normalized['contact phone'] || normalized['contact_phone'] || null,
+          notes: normalized['notes'] || null,
         });
       }
 
@@ -133,11 +125,11 @@ export function ReferralCSVUpload({
       setSkippedCount(skipped);
       setShowPreview(true);
     } catch (err: unknown) {
-      toast.error(`Failed to parse file: ${err.message}`);
+      toast.error(`Failed to parse file: ${err instanceof Error ? err.message : String(err)}`);
     }
 
     // Reset file input
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmitAll = async () => {
@@ -145,16 +137,13 @@ export function ReferralCSVUpload({
 
     setIsSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "submit-referral-deal",
-        {
-          body: {
-            shareToken,
-            password,
-            submissions: parsedRows,
-          },
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('submit-referral-deal', {
+        body: {
+          shareToken,
+          password,
+          submissions: parsedRows,
+        },
+      });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -165,7 +154,7 @@ export function ReferralCSVUpload({
       setSkippedCount(0);
       onUploaded();
     } catch (err: unknown) {
-      toast.error(err.message || "Failed to submit referrals");
+      toast.error(err instanceof Error ? err.message : 'Failed to submit referrals');
     } finally {
       setIsSubmitting(false);
     }
@@ -178,7 +167,7 @@ export function ReferralCSVUpload({
   };
 
   const formatCurrency = (value: number | null) => {
-    if (!value) return "-";
+    if (!value) return '-';
     if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
     if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
     return `$${value.toLocaleString()}`;
@@ -191,12 +180,12 @@ export function ReferralCSVUpload({
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
             <span className="font-medium">
-              {parsedRows.length} {parsedRows.length === 1 ? "company" : "companies"} found
+              {parsedRows.length} {parsedRows.length === 1 ? 'company' : 'companies'} found
             </span>
             {skippedCount > 0 && (
               <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                {skippedCount} {skippedCount === 1 ? "row" : "rows"} skipped (no company name)
+                {skippedCount} {skippedCount === 1 ? 'row' : 'rows'} skipped (no company name)
               </span>
             )}
           </div>
@@ -217,10 +206,10 @@ export function ReferralCSVUpload({
               {parsedRows.map((row) => (
                 <TableRow key={row.company_name}>
                   <TableCell className="font-medium">{row.company_name}</TableCell>
-                  <TableCell className="text-sm">{row.industry || "-"}</TableCell>
+                  <TableCell className="text-sm">{row.industry || '-'}</TableCell>
                   <TableCell className="text-sm">{formatCurrency(row.revenue)}</TableCell>
                   <TableCell className="text-sm">{formatCurrency(row.ebitda)}</TableCell>
-                  <TableCell className="text-sm">{row.location || "-"}</TableCell>
+                  <TableCell className="text-sm">{row.location || '-'}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -251,11 +240,7 @@ export function ReferralCSVUpload({
           <Download className="h-4 w-4 mr-2" />
           Download Template
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-        >
+        <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
           <Upload className="h-4 w-4 mr-2" />
           Upload Spreadsheet
         </Button>
@@ -268,7 +253,8 @@ export function ReferralCSVUpload({
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Download the template, fill in your companies (one per row), then upload the completed file (CSV, XLS, or XLSX).
+        Download the template, fill in your companies (one per row), then upload the completed file
+        (CSV, XLS, or XLSX).
       </p>
     </div>
   );

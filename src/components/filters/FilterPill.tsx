@@ -25,17 +25,30 @@ function formatValue(
 
   // Currency
   if (fieldDef.type === 'currency') {
-    if (typeof value === 'object' && value.min != null) {
-      const fmtMin = value.min ? `$${Number(value.min).toLocaleString()}` : '?';
-      const fmtMax = value.max ? `$${Number(value.max).toLocaleString()}` : '?';
+    if (
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      !(value instanceof Date) &&
+      (value as { min: number; max: number }).min != null
+    ) {
+      const rangeVal = value as { min: number; max: number };
+      const fmtMin = rangeVal.min ? `$${Number(rangeVal.min).toLocaleString()}` : '?';
+      const fmtMax = rangeVal.max ? `$${Number(rangeVal.max).toLocaleString()}` : '?';
       return `${fmtMin} - ${fmtMax}`;
     }
     return `$${Number(value).toLocaleString()}`;
   }
 
   // Number between
-  if (fieldDef.type === 'number' && typeof value === 'object' && value.min != null) {
-    return `${value.min} - ${value.max}`;
+  if (
+    fieldDef.type === 'number' &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    !(value instanceof Date) &&
+    (value as { min: number; max: number }).min != null
+  ) {
+    const rangeVal = value as { min: number; max: number };
+    return `${rangeVal.min} - ${rangeVal.max}`;
   }
 
   // Array (multi-select)
@@ -58,17 +71,25 @@ function formatValue(
   }
 
   // Date object
-  if (fieldDef.type === 'date' && typeof value === 'object' && value.min) {
-    const minStr =
-      value.min instanceof Date
-        ? value.min.toLocaleDateString()
-        : new Date(value.min).toLocaleDateString();
-    const maxStr = value.max
-      ? value.max instanceof Date
-        ? value.max.toLocaleDateString()
-        : new Date(value.max).toLocaleDateString()
-      : '?';
-    return `${minStr} - ${maxStr}`;
+  if (
+    fieldDef.type === 'date' &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    !(value instanceof Date)
+  ) {
+    const rangeVal = value as { min: number; max: number };
+    if (rangeVal.min) {
+      const minStr =
+        rangeVal.min instanceof Date
+          ? (rangeVal.min as unknown as Date).toLocaleDateString()
+          : new Date(rangeVal.min).toLocaleDateString();
+      const maxStr = rangeVal.max
+        ? rangeVal.max instanceof Date
+          ? (rangeVal.max as unknown as Date).toLocaleDateString()
+          : new Date(rangeVal.max).toLocaleDateString()
+        : '?';
+      return `${minStr} - ${maxStr}`;
+    }
   }
 
   if (value instanceof Date) return value.toLocaleDateString();

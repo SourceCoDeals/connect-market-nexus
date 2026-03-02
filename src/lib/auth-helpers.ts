@@ -61,7 +61,7 @@ export function createUserObject(profile: Record<string, unknown>): UserWithData
   if (!profile.id) {
     return createMinimalUser(
       'unknown-' + Date.now(),
-      profile.email || '',
+      (profile.email as string) || '',
       issues.concat(['Profile missing ID']),
     );
   }

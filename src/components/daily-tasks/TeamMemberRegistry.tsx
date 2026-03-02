@@ -31,7 +31,9 @@ export function TeamMemberRegistry() {
         .select('user_id, role, profiles!inner(id, first_name, last_name, email)')
         .in('role', ['owner', 'admin', 'moderator']);
 
-      const { data: aliases } = await supabase.from('team_member_aliases' as UntypedTable).select('*');
+      const { data: aliases } = await supabase
+        .from('team_member_aliases' as UntypedTable)
+        .select('*');
 
       const aliasMap = new Map<string, { id: string; alias: string }[]>();
       for (const a of (aliases || []) as AliasRow[]) {
@@ -40,15 +42,26 @@ export function TeamMemberRegistry() {
         aliasMap.set(a.profile_id, existing);
       }
 
-      return (roles || []).map((r: { user_id: string; role: string; profiles: { id: string; first_name: string | null; last_name: string | null; email: string } }) => ({
-        // Use user_id directly from user_roles (matches auth.uid()) to ensure
-        // consistent IDs with the assignee_id filter in useDailyTasks.
-        id: r.user_id,
-        name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
-        email: r.profiles.email,
-        role: r.role,
-        aliases: aliasMap.get(r.user_id) || [],
-      }));
+      return (roles || []).map(
+        (r: {
+          user_id: string;
+          role: string;
+          profiles: {
+            id: string;
+            first_name: string | null;
+            last_name: string | null;
+            email: string;
+          };
+        }) => ({
+          // Use user_id directly from user_roles (matches auth.uid()) to ensure
+          // consistent IDs with the assignee_id filter in useDailyTasks.
+          id: r.user_id,
+          name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
+          email: r.profiles.email,
+          role: r.role,
+          aliases: aliasMap.get(r.user_id) || [],
+        }),
+      );
     },
     staleTime: 60_000,
   });
@@ -60,7 +73,7 @@ export function TeamMemberRegistry() {
         profile_id: profileId,
         alias: alias.trim(),
         created_by: user?.id,
-      });
+      } as Record<string, unknown>);
       if (error) throw error;
     },
     onSuccess: () => {

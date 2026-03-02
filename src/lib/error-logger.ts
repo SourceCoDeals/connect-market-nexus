@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 interface ErrorLogEntry {
@@ -40,7 +39,7 @@ class ErrorLogger {
   async logError(
     error: Error | string,
     context: Record<string, unknown> = {},
-    level: 'error' | 'warning' | 'info' = 'error'
+    level: 'error' | 'warning' | 'info' = 'error',
   ): Promise<void> {
     if (!this.isEnabled) return;
 
@@ -56,7 +55,10 @@ class ErrorLogger {
 
     // Try to get current user ID
     try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (session?.user?.id) {
         entry.userId = session.user.id;
@@ -67,14 +69,14 @@ class ErrorLogger {
 
     // Add to buffer
     this.buffer.push(entry);
-    
+
     // Console log for development
     if (process.env.NODE_ENV === 'development') {
-      const logMethod = level === 'error' ? console.error : 
-                       level === 'warning' ? console.warn : console.log;
+      const logMethod =
+        level === 'error' ? console.error : level === 'warning' ? console.warn : console.log;
       logMethod(`[${level.toUpperCase()}] ${entry.message}`, {
         context,
-        stack: entry.stack
+        stack: entry.stack,
       });
     }
 
@@ -101,11 +103,13 @@ class ErrorLogger {
             metadata: {
               level: entry.level,
               message: entry.message,
-              context: entry.context,
+              context: entry.context as
+                | Record<string, string | number | boolean | null>
+                | undefined,
               url: entry.url,
-              timestamp: entry.timestamp
-            }
-          });
+              timestamp: entry.timestamp,
+            } as unknown,
+          } as never);
         }
       }
     } catch (error) {
@@ -133,12 +137,16 @@ class ErrorLogger {
   }
 
   // Performance tracking
-  async trackPerformance(metricName: string, value: number, context?: Record<string, unknown>): Promise<void> {
+  async trackPerformance(
+    metricName: string,
+    value: number,
+    context?: Record<string, unknown>,
+  ): Promise<void> {
     await this.info(`Performance: ${metricName}`, {
       metric: metricName,
       value,
       unit: 'ms',
-      ...context
+      ...context,
     });
   }
 }
@@ -151,13 +159,13 @@ if (typeof window !== 'undefined') {
     errorLogger.error(event.error || event.message, {
       filename: event.filename,
       lineno: event.lineno,
-      colno: event.colno
+      colno: event.colno,
     });
   });
 
   window.addEventListener('unhandledrejection', (event) => {
     errorLogger.error(event.reason instanceof Error ? event.reason : String(event.reason), {
-      type: 'unhandled_promise_rejection'
+      type: 'unhandled_promise_rejection',
     });
   });
 }

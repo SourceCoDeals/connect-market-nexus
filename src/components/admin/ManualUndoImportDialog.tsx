@@ -32,7 +32,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
   const [isDeleting, setIsDeleting] = useState(false);
   const [requestsToDelete, setRequestsToDelete] = useState<any[]>([]);
   const [strictMode, setStrictMode] = useState(true); // when more matches than expected, trim to expected by time proximity
-  
+
   const queryClient = useQueryClient();
 
   // Compute the effective set to delete based on strict mode and expected count
@@ -43,7 +43,11 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
     if (expected === 0 || requestsToDelete.length <= expected) return requestsToDelete;
     const targetTime = new Date(selectedBatch.import_date ?? 0).getTime();
     return [...requestsToDelete]
-      .sort((a, b) => Math.abs(new Date(a.created_at).getTime() - targetTime) - Math.abs(new Date(b.created_at).getTime() - targetTime))
+      .sort(
+        (a, b) =>
+          Math.abs(new Date(a.created_at).getTime() - targetTime) -
+          Math.abs(new Date(b.created_at).getTime() - targetTime),
+      )
       .slice(0, expected);
   }, [requestsToDelete, strictMode, selectedBatch]);
   // Load recent imports when dialog opens
@@ -68,7 +72,11 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       if (auditError) throw auditError;
 
       // Get admin names
-      const adminIds = [...new Set(auditLogs?.map(log => log.admin_id).filter((id): id is string => id !== null) || [])];
+      const adminIds = [
+        ...new Set(
+          auditLogs?.map((log) => log.admin_id).filter((id): id is string => id !== null) || [],
+        ),
+      ];
       const { data: adminProfiles, error: adminProfilesError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, email')
@@ -76,21 +84,30 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       if (adminProfilesError) throw adminProfilesError;
 
       const adminMap = new Map(
-        adminProfiles?.map(p => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email]) || []
+        adminProfiles?.map((p) => [
+          p.id,
+          `${p.first_name || ''} ${p.last_name || ''}`.trim() || p.email,
+        ]) || [],
       );
 
       // Get listing titles
-      const listingIds = [...new Set(auditLogs?.map(log => (log.metadata as Record<string, unknown>)?.listing_id as string).filter(Boolean) || [])];
+      const listingIds = [
+        ...new Set(
+          auditLogs
+            ?.map((log) => (log.metadata as Record<string, unknown>)?.listing_id as string)
+            .filter(Boolean) || [],
+        ),
+      ];
       const { data: listings, error: listingsError } = await supabase
         .from('listings')
         .select('id, title')
         .in('id', listingIds);
       if (listingsError) throw listingsError;
 
-      const listingMap = new Map(listings?.map(l => [l.id, l.title]) || []);
+      const listingMap = new Map(listings?.map((l) => [l.id, l.title]) || []);
 
       // Transform audit logs into import batches
-      const batches: ImportBatch[] = (auditLogs || []).map(log => {
+      const batches: ImportBatch[] = (auditLogs || []).map((log) => {
         const metadata = log.metadata as Record<string, unknown>;
         return {
           id: log.id,
@@ -111,7 +128,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       }
     } catch (error: unknown) {
       toast.error('Failed to load recent imports', {
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
       setIsLoading(false);
@@ -136,7 +153,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
       // Strategy 1: Match by batch_id if available (newer imports)
       if (batch.batch_id) {
-        filtered = (allRequests || []).filter(r => {
+        filtered = (allRequests || []).filter((r) => {
           const md = r.source_metadata as Record<string, unknown> | null;
           return md?.batch_id === batch.batch_id && md?.import_method === 'csv_bulk_upload';
         });
@@ -144,7 +161,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
       // Strategy 2: Match by exact CSV filename (for imports without batch_id)
       if (filtered.length === 0 && batch.csv_filename) {
-        filtered = (allRequests || []).filter(r => {
+        filtered = (allRequests || []).filter((r) => {
           const md = r.source_metadata as Record<string, unknown> | null;
           return md?.import_method === 'csv_bulk_upload' && md?.csv_filename === batch.csv_filename;
         });
@@ -160,7 +177,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       }
     } catch (error: unknown) {
       toast.error('Failed to load import details', {
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
       setIsLoading(false);
@@ -172,7 +189,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
 
     setIsDeleting(true);
     try {
-      const requestIds = effectiveRequests.map(r => r.id);
+      const requestIds = effectiveRequests.map((r) => r.id);
 
       // Delete all found connection requests
       const { error: deleteError } = await supabase
@@ -183,7 +200,10 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       if (deleteError) throw deleteError;
 
       // Log the manual cleanup
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (user) {
         await supabase.from('audit_logs').insert({
@@ -209,14 +229,14 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
       ]);
 
       toast.success(`Deleted ${effectiveRequests.length} connection requests`);
-      
+
       // Reset and close
       setSelectedBatch(null);
       setRequestsToDelete([]);
       loadRecentImports(); // Refresh the list
     } catch (error: unknown) {
       toast.error('Delete failed', {
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
       setIsDeleting(false);
@@ -245,7 +265,8 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
             <>
               <Alert>
                 <AlertDescription>
-                  Select a recent CSV import to undo. All connection requests from that import will be deleted.
+                  Select a recent CSV import to undo. All connection requests from that import will
+                  be deleted.
                 </AlertDescription>
               </Alert>
 
@@ -277,7 +298,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                               {batch.imported_count} requests
                             </Badge>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
                             <div className="flex items-center gap-2">
                               <Package className="h-3 w-3" />
@@ -285,7 +306,11 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                             </div>
                             <div className="flex items-center gap-2">
                               <Calendar className="h-3 w-3" />
-                              <span>{batch.import_date ? format(new Date(batch.import_date), 'MMM d, yyyy h:mm a') : 'N/A'}</span>
+                              <span>
+                                {batch.import_date
+                                  ? format(new Date(batch.import_date), 'MMM d, yyyy h:mm a')
+                                  : 'N/A'}
+                              </span>
                             </div>
                             <div className="flex items-center gap-2">
                               <User className="h-3 w-3" />
@@ -293,7 +318,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                           <Badge variant="outline">Select</Badge>
                         </div>
@@ -307,9 +332,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
             // Step 2: Show confirmation with details
             <>
               <Alert>
-                <AlertDescription>
-                  You selected the following import to undo:
-                </AlertDescription>
+                <AlertDescription>You selected the following import to undo:</AlertDescription>
               </Alert>
 
               <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
@@ -317,7 +340,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                   <FileText className="h-5 w-5 text-primary" />
                   <span className="font-medium text-lg">{selectedBatch.csv_filename}</span>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <div className="text-muted-foreground mb-1">Listing</div>
@@ -326,7 +349,9 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                   <div>
                     <div className="text-muted-foreground mb-1">Imported On</div>
                     <div className="font-medium">
-                      {selectedBatch.import_date ? format(new Date(selectedBatch.import_date), 'MMM d, yyyy h:mm a') : 'N/A'}
+                      {selectedBatch.import_date
+                        ? format(new Date(selectedBatch.import_date), 'MMM d, yyyy h:mm a')
+                        : 'N/A'}
                     </div>
                   </div>
                   <div>
@@ -352,7 +377,8 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                     </div>
                     {selectedBatch && requestsToDelete.length !== selectedBatch.imported_count && (
                       <div className="text-xs text-muted-foreground">
-                        Expected {selectedBatch.imported_count} from this import; matched {requestsToDelete.length}.
+                        Expected {selectedBatch.imported_count} from this import; matched{' '}
+                        {requestsToDelete.length}.
                         <label className="inline-flex items-center gap-2 ml-2">
                           <input
                             type="checkbox"
@@ -383,8 +409,8 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                   <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Warning:</strong> This will permanently delete {effectiveRequests.length} connection requests.
-                      This action cannot be undone.
+                      <strong>Warning:</strong> This will permanently delete{' '}
+                      {effectiveRequests.length} connection requests. This action cannot be undone.
                     </AlertDescription>
                   </Alert>
                 </>
@@ -403,8 +429,8 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
         <div className="flex justify-between gap-2 pt-4 border-t flex-shrink-0">
           {selectedBatch ? (
             <>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setSelectedBatch(null);
                   setRequestsToDelete([]);
@@ -418,11 +444,7 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
                   Cancel
                 </Button>
                 {effectiveRequests.length > 0 && (
-                  <Button 
-                    variant="destructive"
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                  >
+                  <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
                     {isDeleting ? 'Deleting...' : `Delete ${effectiveRequests.length} Requests`}
                   </Button>
                 )}
@@ -438,4 +460,3 @@ export function ManualUndoImportDialog({ isOpen, onClose }: ManualUndoImportDial
     </Dialog>
   );
 }
-

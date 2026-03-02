@@ -142,12 +142,10 @@ export async function fetchRows<T extends TableName>(
   table: T,
   options: QueryOptions<T> = {},
 ): Promise<DatabaseResult<Row<T>[]>> {
-  return safeQuery(async (): Promise<unknown> => {
+  return safeQuery(async () => {
     const { filters, order, pagination, select } = options;
 
-    let query = supabase
-      .from(table)
-      .select(select ?? '*', { count: 'exact' });
+    let query = supabase.from(table).select(select ?? '*', { count: 'exact' });
 
     // Apply filters
     if (filters) {

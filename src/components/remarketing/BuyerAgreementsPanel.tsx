@@ -161,7 +161,7 @@ export function BuyerAgreementsPanel({
                 (member: {
                   id: string;
                   role?: string;
-                  profile?: { first_name: string; last_name: string; email: string };
+                  profile?: { first_name: string; last_name: string; email: string } | null;
                 }) => (
                   <div
                     key={member.id}

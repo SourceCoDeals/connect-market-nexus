@@ -122,8 +122,8 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
       }
 
       // Transform data to include user info
-      return (data || []).map(
-        (request: {
+      return (
+        (data || []) as Array<{
           profiles?: {
             email?: string;
             first_name?: string;
@@ -132,20 +132,20 @@ export const useDealSourcingRequests = (filters?: DealSourcingFilters) => {
           } | null;
           assigned_admin?: { email?: string; first_name?: string; last_name?: string } | null;
           [key: string]: unknown;
-        }) => ({
-          ...request,
-          user_email: request.profiles?.email,
-          user_name:
-            request.profiles?.first_name && request.profiles?.last_name
-              ? `${request.profiles.first_name} ${request.profiles.last_name}`
-              : request.profiles?.email,
-          user_company: request.profiles?.company_name,
-          assigned_admin_name:
-            request.assigned_admin?.first_name && request.assigned_admin?.last_name
-              ? `${request.assigned_admin.first_name} ${request.assigned_admin.last_name}`
-              : request.assigned_admin?.email,
-        }),
-      ) as DealSourcingRequest[];
+        }>
+      ).map((request) => ({
+        ...request,
+        user_email: request.profiles?.email,
+        user_name:
+          request.profiles?.first_name && request.profiles?.last_name
+            ? `${request.profiles.first_name} ${request.profiles.last_name}`
+            : request.profiles?.email,
+        user_company: request.profiles?.company_name,
+        assigned_admin_name:
+          request.assigned_admin?.first_name && request.assigned_admin?.last_name
+            ? `${request.assigned_admin.first_name} ${request.assigned_admin.last_name}`
+            : request.assigned_admin?.email,
+      })) as DealSourcingRequest[];
     },
     {
       enabled: shouldEnable,
