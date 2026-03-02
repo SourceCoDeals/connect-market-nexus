@@ -283,11 +283,51 @@ serve(async (req) => {
     // Fetch full transcript from Fireflies API
     console.log(`Fetching content from Fireflies for transcript ${firefliesId}`);
 
-    const data = await firefliesGraphQL(GET_TRANSCRIPT_QUERY, {
+    let data = await firefliesGraphQL(GET_TRANSCRIPT_QUERY, {
       transcriptId: firefliesId,
     });
 
-    const transcript = data.transcript;
+    let transcript = data.transcript;
+
+    // Recovery: if firefliesId was a URL slug (e.g. "Meeting-Title::ActualId") rather than
+    // an API ID, the API returns null. Try extracting the real ID from after "::" and retry.
+    if (!transcript && firefliesId.includes('::')) {
+      const slugIdMatch = firefliesId.match(/::([a-zA-Z0-9]+)$/);
+      if (slugIdMatch) {
+        const extractedId = slugIdMatch[1];
+        console.log(`Stored ID looks like a URL slug, retrying with extracted ID: ${extractedId}`);
+        data = await firefliesGraphQL(GET_TRANSCRIPT_QUERY, { transcriptId: extractedId });
+        transcript = data.transcript;
+        if (transcript) {
+          // Save the correct API ID so future fetches succeed immediately
+          firefliesId = extractedId;
+          await supabase
+            .from('deal_transcripts')
+            .update({ fireflies_transcript_id: extractedId })
+            .eq('id', transcriptId);
+          console.log(`Fixed fireflies_transcript_id from slug to API ID: ${extractedId}`);
+        }
+      }
+    }
+
+    // Final fallback: if still not found and we have a Fireflies URL, search by URL
+    if (!transcript && hasFirefliesUrl) {
+      console.log(`API ID lookup failed, falling back to URL search: ${dealTranscript.transcript_url}`);
+      const resolvedId = await findFirefliesIdByUrl(dealTranscript.transcript_url!);
+      if (resolvedId) {
+        data = await firefliesGraphQL(GET_TRANSCRIPT_QUERY, { transcriptId: resolvedId });
+        transcript = data.transcript;
+        if (transcript) {
+          firefliesId = resolvedId;
+          await supabase
+            .from('deal_transcripts')
+            .update({ fireflies_transcript_id: resolvedId })
+            .eq('id', transcriptId);
+          console.log(`Resolved via URL search, saved API ID: ${resolvedId}`);
+        }
+      }
+    }
+
     if (!transcript) {
       throw new Error('Transcript not found in Fireflies');
     }

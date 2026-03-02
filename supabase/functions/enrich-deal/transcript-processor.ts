@@ -183,14 +183,18 @@ export async function processNewTranscripts(
   const transcriptErrors: string[] = [];
   const allFieldNames: string[] = [];
 
-  // Detect Fireflies URLs in link-type transcripts and convert them
-  const firefliesLinkPattern = /fireflies\.ai\/view\/[^:]+::([a-zA-Z0-9]+)/;
+  // Detect Fireflies URLs in link-type transcripts and convert them.
+  // Pattern 1: URLs with "::" separator (e.g. fireflies.ai/view/Title::ApiId)
+  // Pattern 2: URLs without "::" (e.g. fireflies.ai/view/SomeSlug) — convert to
+  //   source='fireflies' with no ID; fetch-fireflies-content will resolve via URL search.
+  const firefliesIdPattern = /fireflies\.ai\/view\/[^:]+::([a-zA-Z0-9]+)/;
+  const firefliesUrlPattern = /fireflies\.ai\/view\/[^/?#\s]+/;
   for (const t of needsExtraction) {
     if (t.source === 'link' && !t.fireflies_transcript_id) {
       const textToCheck = (t.transcript_text || '') + ' ' + (t.transcript_url || '');
-      const match = textToCheck.match(firefliesLinkPattern);
-      if (match) {
-        const ffId = match[1];
+      const idMatch = textToCheck.match(firefliesIdPattern);
+      if (idMatch) {
+        const ffId = idMatch[1];
         console.log(`[Transcripts] Detected Fireflies URL in link transcript ${t.id}, extracted ID: ${ffId}`);
         const { error: convertErr } = await supabase
           .from('deal_transcripts')
@@ -205,6 +209,17 @@ export async function processNewTranscripts(
           t.transcript_text = '';
         } else {
           console.warn(`[Transcripts] Failed to convert link transcript ${t.id}:`, convertErr);
+        }
+      } else if (textToCheck.match(firefliesUrlPattern)) {
+        // Fireflies URL without :: separator — convert source so content fetch resolves via URL
+        console.log(`[Transcripts] Detected Fireflies URL (no ID) in link transcript ${t.id}, converting to source=fireflies`);
+        const { error: convertErr } = await supabase
+          .from('deal_transcripts')
+          .update({ source: 'fireflies' })
+          .eq('id', t.id);
+        if (!convertErr) {
+          t.source = 'fireflies';
+          t.transcript_text = '';
         }
       }
     }

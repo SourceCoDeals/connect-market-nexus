@@ -318,14 +318,16 @@ serve(async (req) => {
       // (Fireflies may use AND logic for the participants array filter)
       for (const email of validEmails) {
         const individualResults = await paginatedSearchEmails([email], batchSize, maxPages);
+        let newFromIndividual = 0;
         for (const t of individualResults) {
           if (t.id && !seenIds.has(t.id)) {
             seenIds.add(t.id);
             matchingTranscripts.push(t);
             transcriptMatchType.set(t.id, 'email');
+            newFromIndividual++;
           }
         }
-        console.log(`Individual search [${email}] added ${individualResults.filter(t => !seenIds.has(t.id)).length} new transcripts`);
+        console.log(`Individual search [${email}] added ${newFromIndividual} new transcripts`);
       }
 
       // Also search each email as a keyword (catches organizer-only matches)
