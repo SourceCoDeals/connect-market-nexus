@@ -14,9 +14,47 @@ import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
+/** Shape of a lead memo section from the generate-lead-memo edge function */
+interface LeadMemoSection {
+  key: string;
+  title: string;
+  content: string;
+}
+
+/**
+ * Map anonymous teaser lead memo sections → listing custom_sections format.
+ * The lead memo is the single source of truth for marketplace listing content.
+ */
+function mapLeadMemoToListingContent(sections: LeadMemoSection[]): {
+  description: string;
+  custom_sections: Array<{ title: string; description: string }>;
+} {
+  let description = '';
+  const customSections: Array<{ title: string; description: string }> = [];
+
+  for (const section of sections) {
+    if (section.key === 'company_overview') {
+      // Use company overview as the listing description
+      description = section.content;
+    }
+    // Map all sections to custom_sections so the listing page renders them
+    customSections.push({
+      title: section.title,
+      description: section.content,
+    });
+  }
+
+  return { description, custom_sections: customSections };
+}
+
 /**
  * Page for creating a marketplace listing from a deal in the marketplace queue.
  * Fetches deal data, anonymizes it, and pre-fills the listing editor.
+ *
+ * Content priority:
+ * 1. Anonymous teaser lead memo (if exists) — single source of truth
+ * 2. generate-listing-content AI call — fallback if no lead memo
+ * 3. anonymizeDealToListing() — fallback from deal metadata
  */
 export default function CreateListingFromDeal() {
   const [searchParams] = useSearchParams();
@@ -80,16 +118,48 @@ export default function CreateListingFromDeal() {
     },
   });
 
+  // Fetch the latest anonymous teaser lead memo for this deal.
+  // If one exists, its sections become the listing's custom_sections
+  // (same content, same flow as the lead memo).
+  const { data: leadMemo, isLoading: memoLoading } = useQuery({
+    queryKey: ['lead-memo-for-listing', dealId],
+    enabled: !!dealId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lead_memos')
+        .select('id, content, status')
+        .eq('deal_id', dealId!)
+        .eq('memo_type', 'anonymous_teaser')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Build the pre-filled listing from anonymized deal data
   const [prefilled, setPrefilled] = useState<AdminListing | null>(null);
 
   useEffect(() => {
-    if (deal && !prefilled) {
+    if (deal && !prefilled && !memoLoading) {
       const anonymized = anonymizeDealToListing(deal as DealForAnonymizer);
+
+      // If an anonymous teaser lead memo exists, use its sections as the
+      // listing content. This ensures the marketplace listing matches the
+      // lead memo exactly — same sections, same flow, same anonymization.
+      const memoContent = leadMemo?.content as { sections?: LeadMemoSection[] } | null;
+      const memoSections = memoContent?.sections;
+      let memoOverrides: { description?: string; custom_sections?: Array<{ title: string; description: string }> } = {};
+      if (memoSections && memoSections.length > 0) {
+        memoOverrides = mapLeadMemoToListingContent(memoSections);
+      }
+
       setPrefilled({
         id: '', // New listing, no ID yet
         title: anonymized.title,
-        description: anonymized.description,
+        description: memoOverrides.description || anonymized.description,
         hero_description: anonymized.hero_description,
         categories: anonymized.categories,
         location: anonymized.location,
@@ -100,9 +170,9 @@ export default function CreateListingFromDeal() {
         internal_notes: anonymized.internal_notes,
         internal_deal_memo_link: deal.internal_deal_memo_link || '',
         company_website: anonymized.company_website || null,
-        // Landing page content fields (GAPs 4+7)
+        // Content: lead memo sections take priority over generated content
         investment_thesis: anonymized.investment_thesis,
-        custom_sections: anonymized.custom_sections,
+        custom_sections: memoOverrides.custom_sections || anonymized.custom_sections,
         services: anonymized.services,
         growth_drivers: anonymized.growth_drivers,
         ownership_structure: anonymized.ownership_structure,
@@ -128,12 +198,19 @@ export default function CreateListingFromDeal() {
         updated_at: new Date().toISOString(),
       });
     }
-  }, [deal, prefilled]);
+  }, [deal, prefilled, leadMemo, memoLoading]);
 
-  // Once we have the prefilled base data, automatically run AI generation
-  // using the deal's transcripts, notes, and enrichment. This replaces the
-  // manual "Generate All with AI" step so the editor opens ready to review.
+  // If a lead memo exists, we already have the content — no AI call needed.
+  // Only run AI generation as a fallback when no lead memo is available.
+  const hasLeadMemoContent = !!(leadMemo?.content as { sections?: unknown[] } | null)?.sections?.length;
+
   useEffect(() => {
+    // Skip AI generation if lead memo provided the content
+    if (hasLeadMemoContent) {
+      setAiApplied(true);
+      return;
+    }
+
     if (prefilled && dealId && !aiApplied && !isGenerating) {
       setAiApplied(true); // prevent double-fire
       generateContent(dealId)
@@ -166,7 +243,7 @@ export default function CreateListingFromDeal() {
           // Errors are already handled inside generateContent with a toast
         });
     }
-  }, [prefilled, dealId, aiApplied, isGenerating, generateContent]);
+  }, [prefilled, dealId, aiApplied, isGenerating, generateContent, hasLeadMemoContent]);
 
   const handleSubmit = async (data: Record<string, unknown>, image?: File | null) => {
     try {
@@ -212,7 +289,7 @@ export default function CreateListingFromDeal() {
     );
   }
 
-  if (dealLoading) {
+  if (dealLoading || memoLoading) {
     return (
       <div className="flex items-center justify-center py-24">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -253,7 +330,7 @@ export default function CreateListingFromDeal() {
     );
   }
 
-  if (!prefilled || isGenerating) {
+  if (!prefilled || (!hasLeadMemoContent && isGenerating)) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
