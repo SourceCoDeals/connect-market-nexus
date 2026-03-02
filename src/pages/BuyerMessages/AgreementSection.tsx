@@ -5,10 +5,13 @@ import {
   Shield,
   CheckCircle,
   MessageSquarePlus,
+  XCircle,
+  Clock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
 import { useAuth } from '@/context/AuthContext';
+import { resolveAgreementStatus, type AgreementDisplayStatus } from '@/lib/agreement-status';
 
 import {
   useFirmAgreementStatus,
@@ -19,8 +22,6 @@ import { DocumentDialog } from './DocumentDialog';
 import type { DocItem } from './types';
 
 // ─── DownloadDocButton ───
-// Downloads a signed or draft document PDF.
-
 function DownloadDocButton({
   documentUrl,
   draftUrl,
@@ -58,9 +59,62 @@ function DownloadDocButton({
   );
 }
 
-// ─── PendingAgreementBanner ───
-// Shows signed / pending document statuses and allows signing or asking questions.
+// ─── Helper to build DocItem from firm status using canonical mapper ───
+function buildDocItem(
+  type: 'nda' | 'fee_agreement',
+  label: string,
+  signed: boolean | null,
+  signedAt: string | null,
+  docusealStatus: string | null,
+  signedDocUrl: string | null,
+  draftUrl: string | null,
+  pendingNotifications: Record<string, unknown>[],
+): DocItem {
+  const status = resolveAgreementStatus(!!signed, docusealStatus);
 
+  const notif = pendingNotifications.find(
+    (n: Record<string, unknown>) =>
+      (n.metadata as Record<string, unknown>)?.document_type === type,
+  );
+
+  const statusLabels: Record<AgreementDisplayStatus, string> = {
+    signed: `${label} \u2014 Signed`,
+    declined: `${label} \u2014 Declined`,
+    expired: `${label} \u2014 Expired`,
+    viewed: `${label} \u2014 Viewed`,
+    sent: `${label} Ready to Sign`,
+    pending: `${label} \u2014 Pending`,
+    not_sent: `${label} \u2014 Pending`,
+    no_firm: `${label} \u2014 No Firm`,
+  };
+
+  const descriptions: Record<AgreementDisplayStatus, string> = {
+    signed: signedAt ? `Signed ${formatDistanceToNow(new Date(signedAt), { addSuffix: true })}` : 'Signed',
+    declined: 'Your agreement was declined. Please contact us if you have questions.',
+    expired: 'This agreement has expired. Please contact us for a new one.',
+    viewed: 'You\'ve viewed this agreement. Please sign to continue.',
+    sent: (notif as any)?.message || `A ${label} has been prepared for your review. You can sign, or download and send us a redline.`,
+    pending: `Your ${label} will be sent to you shortly for review and signing.`,
+    not_sent: `Your ${label} will be sent to you shortly for review and signing.`,
+    no_firm: 'No firm record found.',
+  };
+
+  return {
+    key: `${type}-${status}`,
+    type,
+    label: statusLabels[status],
+    signed: status === 'signed',
+    signedAt,
+    documentUrl: signedDocUrl,
+    draftUrl,
+    notificationMessage: descriptions[status],
+    notificationTime: (notif as any)?.created_at ?? undefined,
+    declined: status === 'declined',
+    awaiting: status === 'not_sent' || status === 'pending',
+  };
+}
+
+// ─── PendingAgreementBanner ───
 export function PendingAgreementBanner() {
   const { user } = useAuth();
   const [signingOpen, setSigningOpen] = useState(false);
@@ -71,77 +125,24 @@ export function PendingAgreementBanner() {
   const { data: firmStatus } = useFirmAgreementStatus();
   const { data: pendingNotifications = [] } = usePendingNotifications();
 
-  const items: DocItem[] = [];
+  if (!firmStatus) return null;
 
-  // NDA
-  if (firmStatus?.nda_signed) {
-    items.push({
-      key: 'nda-signed',
-      type: 'nda',
-      label: 'NDA',
-      signed: true,
-      signedAt: firmStatus.nda_signed_at,
-      documentUrl: firmStatus.nda_signed_document_url,
-      draftUrl: firmStatus.nda_document_url,
-    });
-  } else if (firmStatus) {
-    const ndaNotif = pendingNotifications.find(
-      (n: Record<string, unknown>) =>
-        (n.metadata as Record<string, unknown>)?.document_type === 'nda',
-    );
-    const status = firmStatus.nda_docuseal_status as string | null;
-    items.push({
-      key: status === 'declined' ? 'nda-declined' : 'nda-pending',
-      type: 'nda',
-      label: 'NDA',
-      signed: false,
-      signedAt: null,
-      documentUrl: null,
-      draftUrl: firmStatus.nda_document_url || null,
-      notificationMessage: status === 'declined'
-        ? 'Your NDA was declined. Please contact us if you have questions.'
-        : ndaNotif?.message,
-      notificationTime: ndaNotif?.created_at ?? undefined,
-      declined: status === 'declined',
-      awaiting: !status && !ndaNotif,
-    });
-  }
-
-  // Fee Agreement
-  if (firmStatus?.fee_agreement_signed) {
-    items.push({
-      key: 'fee-signed',
-      type: 'fee_agreement',
-      label: 'Fee Agreement',
-      signed: true,
-      signedAt: firmStatus.fee_agreement_signed_at,
-      documentUrl: firmStatus.fee_signed_document_url,
-      draftUrl: firmStatus.fee_agreement_document_url,
-    });
-  } else if (firmStatus) {
-    const feeNotif = pendingNotifications.find(
-      (n: Record<string, unknown>) =>
-        (n.metadata as Record<string, unknown>)?.document_type === 'fee_agreement',
-    );
-    const status = firmStatus.fee_docuseal_status as string | null;
-    items.push({
-      key: status === 'declined' ? 'fee-declined' : 'fee-pending',
-      type: 'fee_agreement',
-      label: 'Fee Agreement',
-      signed: false,
-      signedAt: null,
-      documentUrl: null,
-      draftUrl: firmStatus.fee_agreement_document_url || null,
-      notificationMessage: status === 'declined'
-        ? 'Your Fee Agreement was declined. Please contact us if you have questions.'
-        : feeNotif?.message,
-      notificationTime: feeNotif?.created_at ?? undefined,
-      declined: status === 'declined',
-      awaiting: !status && !feeNotif,
-    });
-  }
-
-  if (items.length === 0) return null;
+  const items: DocItem[] = [
+    buildDocItem(
+      'nda', 'NDA',
+      firmStatus.nda_signed, firmStatus.nda_signed_at,
+      firmStatus.nda_docuseal_status as string | null,
+      firmStatus.nda_signed_document_url, firmStatus.nda_document_url,
+      pendingNotifications as Record<string, unknown>[],
+    ),
+    buildDocItem(
+      'fee_agreement', 'Fee Agreement',
+      firmStatus.fee_agreement_signed, firmStatus.fee_agreement_signed_at,
+      firmStatus.fee_docuseal_status as string | null,
+      firmStatus.fee_signed_document_url, firmStatus.fee_agreement_document_url,
+      pendingNotifications as Record<string, unknown>[],
+    ),
+  ];
 
   const hasPending = items.some((i) => !i.signed);
   const allSigned = items.every((i) => i.signed);
@@ -167,38 +168,37 @@ export function PendingAgreementBanner() {
             <div key={item.key} className="flex items-center gap-4 px-5 py-3">
               <div
                 className="p-2 rounded-full"
-                style={{ backgroundColor: item.signed ? '#F7F4DD' : '#FCF9F0' }}
+                style={{ backgroundColor: item.signed ? '#F7F4DD' : item.declined ? '#FEE2E2' : '#FCF9F0' }}
               >
                 {item.type === 'nda' ? (
                   <Shield
                     className="h-5 w-5"
-                    style={{ color: item.signed ? '#DEC76B' : '#5A5A5A' }}
+                    style={{ color: item.signed ? '#DEC76B' : item.declined ? '#991B1B' : '#5A5A5A' }}
                   />
                 ) : (
                   <FileSignature
                     className="h-5 w-5"
-                    style={{ color: item.signed ? '#DEC76B' : '#5A5A5A' }}
+                    style={{ color: item.signed ? '#DEC76B' : item.declined ? '#991B1B' : '#5A5A5A' }}
                   />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium" style={{ color: '#0E101A' }}>
-                    {item.signed ? `${item.label} \u2014 Signed` : item.declined ? `${item.label} \u2014 Declined` : item.awaiting ? `${item.label} \u2014 Pending` : `${item.label} Ready to Sign`}
+                    {item.label}
                   </p>
                   {item.signed && (
                     <CheckCircle className="h-3.5 w-3.5 shrink-0" style={{ color: '#DEC76B' }} />
                   )}
+                  {item.declined && (
+                    <XCircle className="h-3.5 w-3.5 shrink-0" style={{ color: '#991B1B' }} />
+                  )}
+                  {item.awaiting && (
+                    <Clock className="h-3.5 w-3.5 shrink-0" style={{ color: '#5A5A5A' }} />
+                  )}
                 </div>
                 <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>
-                  {item.signed
-                    ? item.signedAt
-                      ? `Signed ${formatDistanceToNow(new Date(item.signedAt), { addSuffix: true })}`
-                      : 'Signed'
-                    : item.awaiting
-                      ? `Your ${item.label} will be sent to you shortly for review and signing.`
-                      : item.notificationMessage ||
-                        `A ${item.label} has been prepared for your review. You can sign, or download and send us a redline.`}
+                  {item.notificationMessage}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

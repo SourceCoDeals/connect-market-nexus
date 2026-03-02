@@ -2,9 +2,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+// ─── resolveThreadId ───
+// Helper: ensures a connection_request_id exists for the current buyer.
+async function resolveThreadId(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('resolve-buyer-message-thread');
+  if (error) throw new Error('Failed to resolve message thread');
+  return data?.connection_request_id;
+}
+
 // ─── useSendDocumentQuestion ───
 // Sends a document-related question (NDA or fee agreement) as a message
-// and notifies the admin via an edge function.
+// persisted in connection_messages AND notifies the admin.
 
 export function useSendDocumentQuestion() {
   const queryClient = useQueryClient();
@@ -23,42 +31,35 @@ export function useSendDocumentQuestion() {
       const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
       const messageBody = `\u{1F4C4} Question about ${docLabel}:\n\n${question}`;
 
-      const { data: activeRequest } = await supabase
-        .from('connection_requests')
-        .select('id')
-        .eq('user_id', userId)
-        .in('status', ['approved', 'on_hold', 'pending'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Always resolve a thread so the message persists
+      const threadId = await resolveThreadId();
 
+      // Insert message into connection_messages
+      const { error } = await supabase.from('connection_messages').insert({
+        connection_request_id: threadId,
+        sender_id: userId,
+        body: messageBody,
+        sender_role: 'buyer',
+      });
+      if (error) throw error;
+
+      // Also notify admin (fire-and-forget)
       const { OZ_ADMIN_ID } = await import('@/constants');
-
-      if (activeRequest) {
-        const { error } = await supabase.from('connection_messages').insert({
-          connection_request_id: activeRequest.id,
-          sender_id: userId,
-          body: messageBody,
-          sender_role: 'buyer',
-        });
-        if (error) throw error;
-      } else {
-        console.warn('No active connection request found for document question');
-      }
-
-      await supabase.functions.invoke('notify-admin-document-question', {
+      supabase.functions.invoke('notify-admin-document-question', {
         body: {
           admin_id: OZ_ADMIN_ID,
           user_id: userId,
           document_type: docLabel,
           question,
+          connection_request_id: threadId,
         },
-      });
+      }).catch((err) => console.warn('Admin notification failed:', err));
     },
     onSuccess: () => {
       toast({ title: 'Question Sent', description: 'Our team will review and respond shortly.' });
       queryClient.invalidateQueries({ queryKey: ['buyer-message-threads'] });
       queryClient.invalidateQueries({ queryKey: ['connection-messages'] });
+      queryClient.invalidateQueries({ queryKey: ['resolved-thread-id'] });
     },
     onError: () => {
       toast({
