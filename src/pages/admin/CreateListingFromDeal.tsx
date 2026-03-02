@@ -141,7 +141,9 @@ export default function CreateListingFromDeal() {
               'AI content requires a Full Lead Memo PDF to be uploaded first. You can fill in content manually.',
             );
           } else {
-            toast.info('AI content generation could not complete. You can fill in content manually.');
+            toast.info(
+              'AI content generation could not complete. You can fill in content manually.',
+            );
           }
           return;
         }
@@ -178,7 +180,9 @@ export default function CreateListingFromDeal() {
           });
           toast.success('AI content generated — review and edit before saving.');
         } else {
-          toast.info('AI generation returned no content sections. You can fill in content manually.');
+          toast.info(
+            'AI generation returned no content sections. You can fill in content manually.',
+          );
         }
       } catch (err) {
         console.error('AI content generation error:', err);
@@ -308,7 +312,12 @@ export default function CreateListingFromDeal() {
           </div>
         </div>
       )}
-      <ImprovedListingEditor listing={prefilled} onSubmit={handleSubmit} isLoading={isCreating} />
+      <ImprovedListingEditor
+        listing={prefilled}
+        onSubmit={handleSubmit}
+        isLoading={isCreating}
+        sourceDealId={dealId}
+      />
     </div>
   );
 }

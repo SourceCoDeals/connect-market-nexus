@@ -146,6 +146,8 @@ interface ImprovedListingEditorProps {
   listing?: AdminListing;
   isLoading?: boolean;
   targetType?: 'marketplace' | 'research';
+  /** When set, financial fields are locked — they're inherited from the source deal. */
+  sourceDealId?: string | null;
 }
 
 const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => {
@@ -195,7 +197,9 @@ export function ImprovedListingEditor({
   onSubmit,
   listing,
   isLoading = false,
+  sourceDealId,
 }: ImprovedListingEditorProps) {
+  const isDealSourced = !!sourceDealId;
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(listing?.image_url || null);
   const [isImageChanged, setIsImageChanged] = useState(false);
@@ -424,7 +428,7 @@ export function ImprovedListingEditor({
               />
 
               {/* Right: Financial */}
-              <EditorFinancialCard form={formForSections} />
+              <EditorFinancialCard form={formForSections} isReadOnly={isDealSourced} />
             </div>
 
             {/* FULL WIDTH - Description */}
