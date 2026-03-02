@@ -18,6 +18,7 @@ import {
   Trash2,
   ExternalLink,
   Sparkles,
+  ListChecks,
 } from 'lucide-react';
 import { IntelligenceBadge } from '@/components/remarketing';
 import { FlagForBuyerButton } from '@/components/daily-tasks/FlagForBuyerButton';
@@ -49,6 +50,7 @@ interface BuyerTableRowProps {
   buyers: unknown[] | undefined;
   platformCountsByFirm: Map<string, number>;
   buyerIdsWithTranscripts: Set<string> | undefined;
+  pendingTaskCount?: number;
   toggleSelect: (
     id: string,
     checked: boolean,
@@ -66,6 +68,7 @@ const BuyerTableRow = ({
   buyers,
   platformCountsByFirm,
   buyerIdsWithTranscripts,
+  pendingTaskCount = 0,
   toggleSelect,
   handleEnrichBuyer,
   deleteMutation,
@@ -111,6 +114,16 @@ const BuyerTableRow = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-medium text-foreground truncate">{buyer.company_name}</span>
+              {pendingTaskCount > 0 && (
+                <span
+                  className="flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: '#FFF0F0', color: '#8B0000' }}
+                  title={`${pendingTaskCount} open task${pendingTaskCount !== 1 ? 's' : ''}`}
+                >
+                  <ListChecks className="h-3 w-3" />
+                  {pendingTaskCount}
+                </span>
+              )}
             </div>
             {buyer.company_website && (
               <a

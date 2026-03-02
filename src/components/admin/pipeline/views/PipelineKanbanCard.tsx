@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, ListChecks } from 'lucide-react';
 import { Deal } from '@/hooks/admin/use-deals';
 import { cn } from '@/lib/utils';
 import { useAdminProfile } from '@/hooks/admin/use-admin-profiles';
@@ -233,6 +233,11 @@ export function PipelineKanbanCard({ deal, onDealClick, isDragging }: PipelineKa
         <button type="button" onClick={handleMeetingToggle} className="inline-flex items-center gap-1 rounded transition-colors hover:bg-accent p-0.5 -ml-0.5" title={`Meeting: ${deal.meeting_scheduled ? 'Yes' : 'No'}`}>
           Mtg <CalendarCheck className={cn('w-3 h-3', deal.meeting_scheduled ? 'text-emerald-500' : 'text-muted-foreground/30')} />
         </button>
+        {deal.pending_tasks > 0 && (
+          <span className="inline-flex items-center gap-1 ml-auto font-bold" style={{ color: '#8B0000' }} title={`${deal.pending_tasks} open task${deal.pending_tasks !== 1 ? 's' : ''}`}>
+            <ListChecks className="w-3 h-3" /> {deal.pending_tasks}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -3,13 +3,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  DollarSign, 
-  Calendar, 
+import {
+  DollarSign,
+  Calendar,
   User,
   Building2,
   MoreVertical,
-  Percent
+  Percent,
+  ListChecks,
 } from 'lucide-react';
 import { usePipelineCore } from '@/hooks/admin/use-pipeline-core';
 import { formatDistanceToNow } from 'date-fns';
@@ -185,7 +186,7 @@ export function PipelineListView({ pipeline }: PipelineListViewProps) {
                       </div>
                     </div>
                     
-                    {/* Documents */}
+                    {/* Documents & Tasks */}
                     <div className="flex items-center gap-2 mt-2">
                       {deal.nda_status === 'signed' && (
                         <Badge variant="outline" className="h-4 px-1 text-xs bg-green-50 text-green-700 border-green-200">
@@ -195,6 +196,12 @@ export function PipelineListView({ pipeline }: PipelineListViewProps) {
                       {deal.fee_agreement_status === 'signed' && (
                         <Badge variant="outline" className="h-4 px-1 text-xs bg-blue-50 text-blue-700 border-blue-200">
                           Fee
+                        </Badge>
+                      )}
+                      {deal.pending_tasks > 0 && (
+                        <Badge variant="outline" className="h-4 px-1.5 text-xs bg-red-50 text-red-700 border-red-200 gap-0.5">
+                          <ListChecks className="h-3 w-3" />
+                          {deal.pending_tasks} open
                         </Badge>
                       )}
                     </div>

@@ -27,7 +27,7 @@ import { NotesCallsTab } from "./NotesCallsTab";
 import { AddContactDialog } from "./AddContactDialog";
 import { AddPlatformDialog } from "./AddPlatformDialog";
 import { BuyerAgreementsPanel } from "@/components/remarketing/BuyerAgreementsPanel";
-import { EntityTasksTab } from "@/components/daily-tasks";
+import { EntityTasksTab, CreateTaskButton } from "@/components/daily-tasks";
 
 const PEFirmDetail = () => {
   const {
@@ -168,6 +168,7 @@ const PEFirmDetail = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            <CreateTaskButton entityType="buyer" entityId={firm.id} entityName={firm.company_name} />
             <Button variant="outline" size="sm" onClick={() => navigate(`/admin/buyers/${firm.id}`)}>
               View as Buyer
             </Button>

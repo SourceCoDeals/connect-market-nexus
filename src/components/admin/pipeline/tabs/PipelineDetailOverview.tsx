@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Linkedin, Building2, Mail, Phone, Send,
   AlertCircle, MessageSquare, User, Briefcase, DollarSign, MapPin,
-  CalendarDays, Clock, Star, FileText,
+  CalendarDays, Clock, Star, FileText, ListChecks,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
@@ -283,6 +283,14 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground flex items-center gap-1.5"><DollarSign className="h-3 w-3" /> Score</span>
                     <span className="text-foreground font-mono font-semibold">{deal.deal_score}</span>
+                  </div>
+                )}
+                {deal.total_tasks > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1.5"><ListChecks className="h-3 w-3" /> Tasks</span>
+                    <span className={cn('font-medium', deal.pending_tasks > 0 ? 'text-red-700' : 'text-foreground')}>
+                      {deal.pending_tasks > 0 ? `${deal.pending_tasks} open` : `${deal.completed_tasks}/${deal.total_tasks} done`}
+                    </span>
                   </div>
                 )}
               </div>
