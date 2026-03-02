@@ -512,14 +512,8 @@ export function UnifiedAdminSidebar({
 
             return (
               <div key={section.id}>
-                {dividerLabel && index > 0 && (
-                  <div className="flex items-center gap-2 mt-3 mb-1 px-2">
-                    <div className="flex-1 border-t border-border/30" />
-                    <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/40 select-none">
-                      {dividerLabel}
-                    </span>
-                    <div className="flex-1 border-t border-border/30" />
-                  </div>
+                {showSeparator && (
+                  <div className="mt-3 mb-1 mx-2 border-t border-border/30" />
                 )}
                 <button
                   onClick={() => toggleSection(section.id)}
