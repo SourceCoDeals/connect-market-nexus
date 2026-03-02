@@ -91,19 +91,8 @@ const listingFormSchema = z.object({
     .nullable()
     .optional(),
 
-  // Landing page content fields
-  investment_thesis: z.string().nullable().optional(),
+  // Content sections (populated by lead memo generator)
   custom_sections: z.unknown().nullable().optional(),
-  services: z.array(z.string()).nullable().optional(),
-  growth_drivers: z.unknown().nullable().optional(),
-  competitive_position: z.string().nullable().optional(),
-  ownership_structure: z.string().nullable().optional(),
-  seller_motivation: z.string().nullable().optional(),
-  business_model: z.string().nullable().optional(),
-  customer_geography: z.string().nullable().optional(),
-  customer_types: z.string().nullable().optional(),
-  revenue_model: z.string().nullable().optional(),
-  end_market_description: z.string().nullable().optional(),
 });
 
 type ListingFormInput = {
@@ -143,19 +132,8 @@ type ListingFormInput = {
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
   internal_notes?: string;
-  // Landing page content
-  investment_thesis?: string | null;
+  // Content sections (populated by lead memo generator)
   custom_sections?: unknown;
-  services?: string[] | null;
-  growth_drivers?: unknown;
-  competitive_position?: string | null;
-  ownership_structure?: string | null;
-  seller_motivation?: string | null;
-  business_model?: string | null;
-  customer_geography?: string | null;
-  customer_types?: string | null;
-  revenue_model?: string | null;
-  end_market_description?: string | null;
 };
 
 type ListingFormValues = z.infer<typeof listingFormSchema>;
@@ -208,19 +186,8 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     internal_deal_memo_link: listing?.internal_deal_memo_link || '',
     internal_contact_info: listing?.internal_contact_info || '',
     internal_notes: listing?.internal_notes || '',
-    // Landing page content
-    investment_thesis: listing?.investment_thesis || null,
+    // Content sections (populated by lead memo generator)
     custom_sections: listing?.custom_sections || null,
-    services: listing?.services || null,
-    growth_drivers: listing?.growth_drivers || null,
-    competitive_position: listing?.competitive_position || null,
-    ownership_structure: listing?.ownership_structure || null,
-    seller_motivation: listing?.seller_motivation || null,
-    business_model: listing?.business_model || null,
-    customer_geography: listing?.customer_geography || null,
-    customer_types: listing?.customer_types || null,
-    revenue_model: listing?.revenue_model || null,
-    end_market_description: listing?.end_market_description || null,
   };
 };
 
@@ -383,19 +350,8 @@ export function ImprovedListingEditor({
         internal_deal_memo_link: formData.internal_deal_memo_link || null,
         internal_contact_info: formData.internal_contact_info || null,
         internal_notes: formData.internal_notes || null,
-        // Landing page content
-        investment_thesis: formData.investment_thesis || null,
+        // Content sections (populated by lead memo generator)
         custom_sections: formData.custom_sections || null,
-        services: formData.services || null,
-        growth_drivers: formData.growth_drivers || null,
-        competitive_position: formData.competitive_position || null,
-        ownership_structure: formData.ownership_structure || null,
-        seller_motivation: formData.seller_motivation || null,
-        business_model: formData.business_model || null,
-        customer_geography: formData.customer_geography || null,
-        customer_types: formData.customer_types || null,
-        revenue_model: formData.revenue_model || null,
-        end_market_description: formData.end_market_description || null,
       };
 
       await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);
