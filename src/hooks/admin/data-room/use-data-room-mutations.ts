@@ -258,6 +258,7 @@ export function useGenerateMemo() {
       deal_id: string;
       memo_type: 'anonymous_teaser' | 'full_memo' | 'both';
       branding?: string;
+      project_name?: string;
     }) => {
       const response = await supabase.functions.invoke('generate-lead-memo', {
         body: params,
