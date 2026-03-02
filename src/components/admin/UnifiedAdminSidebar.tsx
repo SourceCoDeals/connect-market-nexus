@@ -148,6 +148,12 @@ export function UnifiedAdminSidebar({
             icon: <UserCog className="h-4 w-4" />,
             badge: unviewedUsersCount,
           },
+          {
+            label: 'Owner/Seller Leads',
+            href: '/admin/marketplace/users?view=owners',
+            icon: <ClipboardList className="h-4 w-4" />,
+            badge: unviewedOwnerLeadsCount,
+          },
         ],
       },
       {
@@ -235,12 +241,6 @@ export function UnifiedAdminSidebar({
             label: 'Referral Partners',
             href: '/admin/remarketing/leads/referrals',
             icon: <Handshake className="h-4 w-4" />,
-          },
-          {
-            label: 'Owner/Seller Leads',
-            href: '/admin/settings/owner-leads',
-            icon: <ClipboardList className="h-4 w-4" />,
-            badge: unviewedOwnerLeadsCount,
           },
         ],
       },
