@@ -1,105 +1,70 @@
 
-## Fix Document Sync, Tracking & Admin Toggles -- Complete Remediation
 
-### Issues Found
+## Restructure Message References -- Buyer and Admin Parity
 
-**1. CRITICAL: `update_firm_agreement_status` RPC references non-existent columns**
-The NDA branch of the RPC sets `nda_scope` and `nda_deal_id` -- but these columns don't exist in `firm_agreements`. Only `fee_agreement_scope` and `fee_agreement_deal_id` exist. This means **every NDA status toggle from the admin will fail silently or error out**.
+### Problem
 
-**2. `get_user_firm_agreement_status` RPC doesn't return document URLs**
-The buyer's `useFirmAgreementStatus` hook calls this RPC, then `AgreementSection.tsx` tries to read `nda_signed_document_url`, `nda_document_url`, `fee_signed_document_url`, `fee_agreement_document_url` from the result -- but the RPC only returns `firm_id, firm_name, nda_signed, nda_status, nda_docuseal_status, nda_signed_at, fee_agreement_signed, fee_agreement_status, fee_docuseal_status, fee_agreement_signed_at`. All document URLs are always null on the buyer side.
+The reference picker exists on the buyer side but is buried behind a small `@` button that's easy to miss. More critically, **the admin ThreadView does NOT parse references at all** -- it renders raw `[ref:document:nda:NDA]` tags as plain text, and uses legacy emoji-prefix detection instead. Admins also have no way to reference documents/deals when replying.
 
-**3. Admin `ThreadContextPanel` audit timeline doesn't show `changed_by_name`**
-The activity timeline fetches `agreement_audit_log` but only selects `id, agreement_type, old_status, new_status, created_at, notes` -- missing `changed_by_name`. So when Bill Martin toggles NDA off, the timeline says "NDA: not_started" but doesn't say who did it.
+### Changes
 
-**4. `DocumentTrackingPage` date columns don't show last admin action for non-signed states**
-When an admin resets a document from "signed" to "not_started", `nda_signed_at` becomes null and the date column shows "--". There's no indication of the last status change or who performed it.
+#### 1. Admin ThreadView: Parse and render reference chips
 
-**5. `AgreementStatusDropdown` has no "Reset to Not Started" for all states**
-The valid transitions don't include going from `signed` directly to `not_started`. The reset option exists as a separate menu item, but only for `currentStatus !== 'not_started'`. This is correct but the transitions from `signed` only allow `expired` -- there's no way to move `signed -> sent` to re-send.
+**File: `src/pages/admin/message-center/ThreadView.tsx`**
 
-**6. NDASection in connection request sidebar doesn't use `AgreementStatusDropdown`**
-It still uses a simple Signed/Sent/Not Sent text display with no toggle capability. Admins can't change status from this view.
+- Import `MessageBody` from `src/pages/BuyerMessages/MessageBody` and `ReferenceChip`/`parseReferences` from the buyer types
+- Replace the raw `msg.body` paragraph (line 449-454) with the shared `MessageBody` component so `[ref:...]` tags render as styled chips
+- Remove the legacy emoji-prefix detection (lines 432-447) -- the structured `[ref:...]` system supersedes it
+- The `MessageBody` component already handles reference parsing, attachment rendering, and URL linking
 
-### Implementation Plan
+#### 2. Admin compose bar: Add reference picker
 
-#### Phase 1: Fix the RPC -- add missing columns + expand return type
+**File: `src/pages/admin/message-center/ThreadView.tsx`**
 
-**DB Migration:**
-- Add `nda_scope` and `nda_deal_id` columns to `firm_agreements` (matching the fee_agreement equivalents)
-- Update `get_user_firm_agreement_status` RPC to also return: `nda_signed_document_url`, `nda_document_url`, `nda_signed_by_name`, `fee_signed_document_url`, `fee_agreement_document_url`, `fee_agreement_signed_by_name`
-- Update TypeScript types in `types.ts` to match expanded return
+- Import `ReferencePicker`, `ReferenceChip` from buyer-side components
+- Add `reference` state and `encodeReference` to the send handler
+- Replace the heavy border-2 Textarea compose bar with a cleaner single-line input matching the buyer-side pattern, with an `@` reference button
+- When a reference is selected, show the `ReferenceChip` above the input (same as buyer side)
+- On send, prepend `encodeReference(reference)` to the message body
+- Admin needs access to thread context (deal info, documents) to populate the picker -- derive from the current `thread` prop (deal title, listing_id) and hardcode NDA/Fee Agreement as document options
 
-#### Phase 2: Show admin identity on all audit entries
+#### 3. Buyer side: Make references more prominent
 
-**File: `src/pages/admin/message-center/ThreadContextPanel.tsx`**
-- Add `changed_by_name` to the audit log query select
-- Display admin name in timeline events for agreement status changes (e.g., "NDA: not_started -- by Bill Martin")
+**File: `src/pages/BuyerMessages/MessageInput.tsx`**
 
-**File: `src/pages/admin/DocumentTrackingPage.tsx`**
-- Add a "Last Action" column or enhance the date columns to show the last audit entry when status is not "signed"
-- Show: admin name, action, timestamp (e.g., "Reset by Bill Martin, Mar 2")
-- Fetch last audit entries for visible firms in a single batch query
+- Add a subtle prompt row above the input when no reference is selected: "Tap @ to reference a deal or document" (in muted text, disappears once used)
+- Make the `@` button slightly larger and add a label "Ref" next to it on wider screens
 
-#### Phase 3: Expand `AgreementStatusDropdown` transitions
+**File: `src/pages/BuyerMessages/ConversationList.tsx`**
 
-**File: `src/components/admin/firm-agreements/AgreementStatusDropdown.tsx`**
-- Add `signed -> sent` transition (re-send after signing)
-- Show the "Reset to Not Started" option for ALL non-not_started states (already works, just confirming)
-- Show signed document URL + draft URL in the hover metadata for all states where they exist
-- Display `changed_by_name` from last audit entry in the hover metadata
+- No structural changes needed -- already clean
 
-#### Phase 4: Upgrade NDASection sidebar to use dropdowns
+#### 4. Shared components: Export for cross-use
 
-**File: `src/components/admin/connection-request-actions/NDASection.tsx`**
-- Replace simple text display with `AgreementStatusDropdown` component
-- Pass firm data and members so admin can toggle status directly from the connection request sidebar
-- Keep the "Send" button for not_started state
+**File: `src/pages/BuyerMessages/MessageBody.tsx`** and **`src/pages/BuyerMessages/ReferencePicker.tsx`**
 
-#### Phase 5: Ensure buyer view shows all document URLs
+- These are already importable. No changes needed, just consumed from admin side.
 
-**File: `src/pages/BuyerMessages/AgreementSection.tsx`**
-- After Phase 1 RPC fix, document URLs will flow through correctly
-- Show both signed PDF download AND draft download when both exist (even when signed)
-- Show draft download when unsigned
+#### 5. Reference chip styling for admin context
 
-### Technical Details
+**File: `src/pages/BuyerMessages/ReferencePicker.tsx`**
 
-**DB Migration SQL:**
-```sql
--- Add missing columns
-ALTER TABLE firm_agreements ADD COLUMN IF NOT EXISTS nda_scope text DEFAULT 'blanket';
-ALTER TABLE firm_agreements ADD COLUMN IF NOT EXISTS nda_deal_id uuid;
+- The `ReferenceChip` already supports `variant: 'admin'` with appropriate styling
+- Ensure the admin variant uses a slightly different background to distinguish "admin is referencing" vs "buyer is referencing" in the thread -- use a subtle gold tint for admin references
 
--- Expand RPC return type to include document URLs
-CREATE OR REPLACE FUNCTION get_user_firm_agreement_status(p_user_id uuid)
-RETURNS TABLE(
-  firm_id uuid, firm_name text,
-  nda_signed boolean, nda_status text, nda_docuseal_status text,
-  nda_signed_at timestamptz, nda_signed_by_name text,
-  nda_signed_document_url text, nda_document_url text,
-  fee_agreement_signed boolean, fee_agreement_status text,
-  fee_docuseal_status text, fee_agreement_signed_at timestamptz,
-  fee_agreement_signed_by_name text,
-  fee_signed_document_url text, fee_agreement_document_url text
-) ...
-```
-
-**Files to modify:**
+### Technical Summary
 
 | File | Change |
 |------|--------|
-| DB migration | Add `nda_scope`, `nda_deal_id` columns; expand `get_user_firm_agreement_status` RPC |
-| `src/integrations/supabase/types.ts` | Update `get_user_firm_agreement_status` return type |
-| `src/pages/admin/message-center/ThreadContextPanel.tsx` | Add `changed_by_name` to audit query + display |
-| `src/pages/admin/DocumentTrackingPage.tsx` | Show last audit action in date columns when not signed |
-| `src/components/admin/firm-agreements/AgreementStatusDropdown.tsx` | Add `signed -> sent` transition, show doc URLs in metadata |
-| `src/components/admin/connection-request-actions/NDASection.tsx` | Replace text display with `AgreementStatusDropdown` |
-| `src/pages/BuyerMessages/AgreementSection.tsx` | Leverage expanded RPC data for dual doc URLs |
+| `src/pages/admin/message-center/ThreadView.tsx` | Use `MessageBody` for message rendering; add reference picker to compose bar; remove emoji detection |
+| `src/pages/BuyerMessages/MessageInput.tsx` | Add subtle prompt hint for `@` referencing |
+| `src/pages/BuyerMessages/ReferencePicker.tsx` | Minor: refine admin variant chip color |
 
 ### What This Fixes
-- NDA status toggles will stop failing (missing column fix)
-- Buyer sees document URLs (signed PDF + draft) in all states
-- Every admin toggle is attributed with admin name + exact timestamp
-- Admin can toggle status from both Document Tracking page and connection request sidebar
-- Activity timeline shows exactly who changed what and when
+
+- Admin inbox renders `[ref:document:nda:NDA]` as a styled chip with icon instead of raw text
+- Admins can reference documents, deals, and requests when replying to buyers
+- Buyers see a clearer prompt to use the reference feature
+- Both sides use the same `MessageBody` renderer, ensuring visual parity
+- Legacy emoji-prefix document detection is removed in favor of the structured system
+
