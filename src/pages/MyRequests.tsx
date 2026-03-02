@@ -101,6 +101,7 @@ import {
   useMarkAllUserNotificationsAsRead,
 } from '@/hooks/use-user-notifications';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
+import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useBuyerNdaStatus } from '@/hooks/admin/use-docuseal';
@@ -124,6 +125,7 @@ const MyRequests = () => {
   const { data: unreadMsgCounts } = useUnreadBuyerMessageCounts();
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
   const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
+  useAgreementStatusSync();
   const [sortBy, setSortBy] = useState<'recent' | 'action' | 'status'>('recent');
 
   /** Get the active inner tab for a specific deal (defaults to "overview") */
