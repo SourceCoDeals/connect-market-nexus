@@ -47,6 +47,15 @@ async function extractEdgeFunctionError(error: unknown): Promise<string> {
   return String(error);
 }
 
+/** Validate edge function response shape to prevent cache corruption */
+function validateResult(data: unknown): RecommendedBuyersResult {
+  const d = data as RecommendedBuyersResult;
+  if (!d || !Array.isArray(d.buyers) || typeof d.total !== 'number') {
+    throw new Error('Unexpected response shape from score-deal-buyers');
+  }
+  return d;
+}
+
 export function useNewRecommendedBuyers(listingId: string | null | undefined) {
   const queryClient = useQueryClient();
 
@@ -60,7 +69,7 @@ export function useNewRecommendedBuyers(listingId: string | null | undefined) {
         const msg = await extractEdgeFunctionError(error);
         throw new Error(msg);
       }
-      return data as RecommendedBuyersResult;
+      return validateResult(data);
     },
     enabled: !!listingId,
     staleTime: 4 * 60 * 60 * 1000, // 4 hours — matches server cache
@@ -75,8 +84,9 @@ export function useNewRecommendedBuyers(listingId: string | null | undefined) {
       const msg = await extractEdgeFunctionError(error);
       throw new Error(msg);
     }
-    queryClient.setQueryData(['new-recommended-buyers', listingId], data);
-    return data as RecommendedBuyersResult;
+    const validated = validateResult(data);
+    queryClient.setQueryData(['new-recommended-buyers', listingId], validated);
+    return validated;
   }, [listingId, queryClient]);
 
   return { ...query, refresh };
