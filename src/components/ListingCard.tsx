@@ -34,7 +34,7 @@ const ListingCard = memo(function ListingCard({
   const { useConnectionStatus, useSaveListingMutation, useSavedStatus, useRequestConnection } =
     useMarketplace();
 
-  const { user } = useAuth();
+  useAuth();
   const { data: connectionStatus } = useConnectionStatus(listing.id, connectionMap);
   const { data: isSaved = false } = useSavedStatus(listing.id, savedIds);
   const { mutate: toggleSave, isPending: isSaving } = useSaveListingMutation();
