@@ -42,6 +42,10 @@ import { taskTools, executeTaskTool } from './task-tools.ts';
 import { industryResearchTools, executeIndustryResearchTool } from './industry-research-tools.ts';
 import { firefliesSummaryTools, executeFirefliesSummaryTool } from './fireflies-summary-tools.ts';
 import { alertTools, executeAlertTool } from './alert-tools.ts';
+import {
+  recommendedBuyerTools,
+  executeRecommendedBuyerTool,
+} from './recommended-buyer-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -81,6 +85,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...industryResearchTools,
   ...firefliesSummaryTools,
   ...alertTools,
+  ...recommendedBuyerTools,
 ];
 
 // ---------- Backward-compat: old tool name → executor mapping ----------
@@ -164,6 +169,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'query_deals',
     'get_buyer_profile',
     'get_top_buyers_for_deal',
+    'get_recommended_buyers',
     'generate_buyer_narrative',
     'get_buyer_signals', // merged: was get_buyer_decisions
     'get_buyer_history', // merged: was get_score_history + get_buyer_learning_history
@@ -407,6 +413,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
 
   // Recommended buyers & strategy narrative (Feature 1)
   RECOMMENDED_BUYERS: [
+    'get_recommended_buyers',
     'generate_buyer_narrative',
     'get_deal_details',
     'get_buyer_profile',
@@ -546,6 +553,8 @@ export async function executeTool(
     'search_fireflies',
     'semantic_transcript_search',
     'research_industry',
+    'get_recommended_buyers',
+    'generate_buyer_narrative',
   ]);
   const timeoutMs = ENRICHMENT_TOOLS.has(toolName)
     ? 90000
@@ -631,6 +640,8 @@ async function _executeToolInternal(
     return executeFirefliesSummaryTool(supabase, toolName, resolvedArgs, userId);
   if (alertTools.some((t) => t.name === toolName))
     return executeAlertTool(supabase, toolName, resolvedArgs, userId);
+  if (recommendedBuyerTools.some((t) => t.name === toolName))
+    return executeRecommendedBuyerTool(supabase, toolName, resolvedArgs);
 
   // Backward compatibility: route old (merged) tool names to their new executors
   const legacyRouter = LEGACY_TOOL_ROUTING[toolName];

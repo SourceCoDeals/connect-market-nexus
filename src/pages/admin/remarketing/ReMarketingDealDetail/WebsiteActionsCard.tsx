@@ -265,10 +265,10 @@ function PushToMarketplaceButton({ deal, dealId }: { deal: DealForWebsiteActions
   if (!deal?.website)
     gaps.push('Website');
 
-  if (!deal?.revenue)
+  if (deal?.revenue == null)
     gaps.push('Revenue');
 
-  if (!deal?.ebitda)
+  if (deal?.ebitda == null)
     gaps.push('EBITDA');
 
   if (!deal?.address_state && !deal?.location)

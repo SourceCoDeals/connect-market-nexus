@@ -99,30 +99,8 @@ export function useConnectionRequestsMutation() {
           source_metadata: (requestData.source_metadata as Record<string, unknown>) || {}
         } as AdminConnectionRequest;
         
-        // Send rejection email when a connection request is rejected
-        if (status === 'rejected') {
-          const buyerEmail = user?.email || requestData.lead_email;
-          const buyerName = user
-            ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
-            : requestData.lead_name || '';
-          const companyName = listing?.title || 'the listing';
-
-          if (buyerEmail) {
-            try {
-              await supabase.functions.invoke('notify-buyer-rejection', {
-                body: {
-                  connectionRequestId: requestId,
-                  buyerEmail,
-                  buyerName: buyerName || buyerEmail,
-                  companyName,
-                },
-              });
-            } catch (emailErr) {
-              // Log but don't fail the status update
-              console.error('[rejection-email] Failed to send rejection email:', emailErr);
-            }
-          }
-        }
+        // Note: Rejection email is sent by useConnectionRequestActions.handleReject,
+        // not here, to avoid duplicate emails.
 
         return fullRequestData;
     },

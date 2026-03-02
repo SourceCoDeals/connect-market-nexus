@@ -59,8 +59,8 @@ export async function runPipelineChecks(dealId: string): Promise<PipelineReport>
   // 2. Push-to-marketplace gate checks
   const gateFields: Array<{ label: string; check: () => boolean }> = [
     { label: 'Website', check: () => !!deal.website },
-    { label: 'Revenue', check: () => !!deal.revenue },
-    { label: 'EBITDA', check: () => !!deal.ebitda },
+    { label: 'Revenue', check: () => deal.revenue != null },
+    { label: 'EBITDA', check: () => deal.ebitda != null },
     { label: 'Location', check: () => !!(deal.address_state || deal.location) },
     { label: 'Category / Industry', check: () => !!(deal.category || deal.industry) },
     { label: 'Description', check: () => !!(deal.executive_summary || deal.description) },

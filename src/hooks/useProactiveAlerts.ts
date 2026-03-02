@@ -28,7 +28,7 @@ async function fetchAlertCounts(): Promise<AlertCounts> {
   const thirtyDaysAgo = new Date(now - 30 * 86400000).toISOString();
 
   // Run parallel lightweight count queries matching backend alert types
-  const [overdueRes, signalsRes, staleRes, veryStalRes] = await Promise.all([
+  const [overdueRes, signalsRes, staleRes, veryStalRes, unsignedNdaRes, unsignedFeeRes] = await Promise.all([
     // Overdue tasks for this user
     supabase
       .from('daily_standup_tasks')
@@ -56,25 +56,44 @@ async function fetchAlertCounts(): Promise<AlertCounts> {
       .select('id', { count: 'exact', head: true })
       .in('status', ['active', 'new', 'under_review'])
       .lt('updated_at', thirtyDaysAgo),
+
+    // Unsigned NDAs (sent but not signed)
+    supabase
+      .from('firm_agreements')
+      .select('id', { count: 'exact', head: true })
+      .eq('nda_signed', false)
+      .in('nda_status', ['sent', 'viewed', 'pending']),
+
+    // Unsigned fee agreements (sent but not signed)
+    supabase
+      .from('firm_agreements')
+      .select('id', { count: 'exact', head: true })
+      .eq('fee_agreement_signed', false)
+      .in('fee_agreement_status', ['sent', 'viewed', 'pending']),
   ]);
 
   const overdueCount = overdueRes.count || 0;
   const signalCount = signalsRes.count || 0;
   const staleCount = staleRes.count || 0;
   const veryStaleCount = veryStalRes.count || 0;
+  const unsignedNdaCount = unsignedNdaRes.count || 0;
+  const unsignedFeeCount = unsignedFeeRes.count || 0;
+  const unsignedAgreements = unsignedNdaCount + unsignedFeeCount;
 
   // Map to severities matching backend logic:
   // - critical: very stale deals (30+ days) + unacknowledged critical signals
   // - warning: overdue tasks + moderately stale deals (14-29 days)
+  // - info: unsigned agreements (NDAs + fee agreements sent but not signed)
   const critical = veryStaleCount + signalCount;
   const warning = overdueCount + Math.max(0, staleCount - veryStaleCount);
-  const total = critical + warning;
+  const info = unsignedAgreements;
+  const total = critical + warning + info;
 
   return {
     total,
     critical,
     warning,
-    info: 0, // Info alerts (transcripts, unsigned agreements) omitted from badge
+    info,
   };
 }
 

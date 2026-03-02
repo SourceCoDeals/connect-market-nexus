@@ -5,7 +5,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Info, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface AlignmentScoreBadgeProps {
   score: number | null;
@@ -78,50 +78,54 @@ export function AlignmentScoreBadge({ score, reasoning, isScoring }: AlignmentSc
   const style = getBadgeStyle(score);
 
   return (
-    <TooltipProvider>
-      <Tooltip delayDuration={200}>
-        <TooltipTrigger asChild>
-          <div className="flex items-center gap-2 cursor-help">
-            <Badge 
-              variant="outline"
-              className={`font-mono ${style.bgColor} ${style.textColor} ${style.borderColor}`}
-            >
-              {score}%
-            </Badge>
-            <span className="text-xs text-muted-foreground hidden lg:inline">
-              {style.label}
-            </span>
-            {reasoning && (
-              <Info className="w-3 h-3 text-muted-foreground" />
-            )}
-          </div>
-        </TooltipTrigger>
-        {reasoning && (
-          <TooltipContent 
-            side="left" 
-            className="max-w-md p-4"
-            sideOffset={5}
-          >
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-base">
-                  Industry Alignment: {score}/100
-                </span>
-                <Badge 
-                  variant="outline"
-                  className={`text-xs ${style.bgColor} ${style.textColor} ${style.borderColor}`}
-                >
-                  {style.label}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {reasoning}
-              </p>
+    <div className="space-y-1">
+      <TooltipProvider>
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 cursor-help">
+              <Badge
+                variant="outline"
+                className={`font-mono ${style.bgColor} ${style.textColor} ${style.borderColor}`}
+              >
+                {score}%
+              </Badge>
+              <span className="text-xs text-muted-foreground hidden lg:inline">
+                {style.label}
+              </span>
             </div>
-          </TooltipContent>
-        )}
-      </Tooltip>
-    </TooltipProvider>
+          </TooltipTrigger>
+          {reasoning && (
+            <TooltipContent
+              side="left"
+              className="max-w-md p-4"
+              sideOffset={5}
+            >
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-base">
+                    Acquisition Fit: {score}/100
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${style.bgColor} ${style.textColor} ${style.borderColor}`}
+                  >
+                    {style.label}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {reasoning}
+                </p>
+              </div>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
+      {reasoning && (
+        <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">
+          {reasoning}
+        </p>
+      )}
+    </div>
   );
 }
 

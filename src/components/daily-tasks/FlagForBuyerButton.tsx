@@ -84,7 +84,7 @@ export function FlagForBuyerButton({
 
   const handleSubmit = async () => {
     const title = listingName
-      ? `Follow up with ${buyerName} re: ${listingName}`
+      ? `Introduce ${listingName} to ${buyerName}`
       : `Follow up with ${buyerName}`;
 
     try {
@@ -94,7 +94,7 @@ export function FlagForBuyerButton({
         assignee_id: assigneeId || user?.id || null,
         task_type: 'follow_up_with_buyer',
         due_date: dueDate,
-        priority: 'medium',
+        priority: 'high',
         entity_type: 'buyer',
         entity_id: buyerId,
         secondary_entity_type: dealId ? 'deal' : null,
@@ -159,7 +159,7 @@ export function FlagForBuyerButton({
             <p className="text-sm font-medium">Flag for Follow-up</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {listingName
-                ? `Follow up with ${buyerName} re: ${listingName}`
+                ? `Introduce ${listingName} to ${buyerName}`
                 : `Follow up with ${buyerName}`}
             </p>
           </div>

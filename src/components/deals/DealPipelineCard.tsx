@@ -43,7 +43,7 @@
  */
 
 import { formatDistanceToNow } from 'date-fns';
-import { cn, formatCompactCurrency } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Clock, ArrowRight } from 'lucide-react';
 import type { ConnectionRequest } from '@/types';
 import {
@@ -172,28 +172,57 @@ const stageColors: Record<PipelineStageId, { bg: string; text: string; border: s
 void stageColors;
 
 /**
- * Unified connection-request status label + colors.
+ * Unified connection-request status label using deal-lifecycle terminology.
  *
- * These labels match the helpers in BuyerMessages/helpers.ts and the
- * step labels in DealProcessSteps.tsx so that buyers see consistent
- * terminology across every surface: message threads, deal cards, and
- * the pipeline stepper.
- *
- *   pending  → "Under Review"  (amber)
- *   approved → "Connected"     (green)
- *   rejected → "Not Selected"  (muted)
+ * Labels reflect the buyer's actual position in the deal process:
+ *   pending  → "NDA Pending" (if NDA not yet signed) or "Under Review" (if NDA signed)
+ *   approved → "CIM Available" (if hasCim) or "NDA Signed" (if ndaSigned) or "Connected"
+ *   rejected → "Not Selected"
  */
-function getRequestStatusLabel(status: string): string {
+function getRequestStatusLabel(
+  status: string,
+  ndaSigned?: boolean,
+  hasCim?: boolean,
+): string {
   switch (status) {
     case 'pending':
-      return 'Under Review';
+      return ndaSigned ? 'Under Review' : 'NDA Pending';
     case 'approved':
+      if (hasCim) return 'CIM Available';
+      if (ndaSigned) return 'NDA Signed';
       return 'Connected';
     case 'rejected':
       return 'Not Selected';
     default:
       return 'Under Review';
   }
+}
+
+/**
+ * Format an EBITDA value as a range bracket.
+ *
+ * E.g. $1.2M → "$1M–$2M", $500K → "$500K–$1M", $3.7M → "$3M–$4M".
+ * This avoids exposing the exact figure on the pipeline card while still
+ * giving the buyer a useful sizing signal.
+ */
+function formatEbitdaRange(ebitda: number): string {
+  if (ebitda >= 1_000_000) {
+    const millions = ebitda / 1_000_000;
+    const lower = Math.floor(millions);
+    const upper = lower + 1;
+    return `$${lower}M–$${upper}M`;
+  }
+  if (ebitda >= 1_000) {
+    const thousands = ebitda / 1_000;
+    const lower = Math.floor(thousands / 100) * 100;
+    const upper = lower + 100;
+    if (upper >= 1_000) {
+      return `$${lower}K–$1M`;
+    }
+    return `$${lower}K–$${upper}K`;
+  }
+  // Sub-$1K — unlikely for EBITDA, but handle gracefully
+  return `$${Math.floor(ebitda / 100) * 100}–$${(Math.floor(ebitda / 100) + 1) * 100}`;
 }
 
 function getRequestStatusColors(status: string): { bg: string; text: string; border: string } {
@@ -241,11 +270,11 @@ export function DealPipelineCard({
   const isRejected = request.status === 'rejected';
 
   // Unified connection-request status (shown in the pill at the bottom)
-  const requestStatusLabel = getRequestStatusLabel(request.status);
+  const requestStatusLabel = getRequestStatusLabel(request.status, ndaSigned, hasCim);
   const requestStatusColors = getRequestStatusColors(request.status);
 
   const ebitdaDisplay = request.listing?.ebitda
-    ? formatCompactCurrency(request.listing.ebitda)
+    ? formatEbitdaRange(request.listing.ebitda)
     : null;
 
   const ctaLabel = getCtaLabel(request.status, ndaSigned, hasCim);

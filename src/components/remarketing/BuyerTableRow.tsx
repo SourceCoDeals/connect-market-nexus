@@ -179,7 +179,7 @@ export const BuyerTableRow = memo(function BuyerTableRow({
         </div>
       </TableCell>
 
-      {/* Industry Fit Column */}
+      {/* Acquisition Fit Column */}
       <TableCell>
         <AlignmentScoreBadge
           score={buyer.alignment_score ?? null}
@@ -221,18 +221,18 @@ export const BuyerTableRow = memo(function BuyerTableRow({
         </TableCell>
       )}
 
-      {/* Description Column */}
+      {/* Description Column — prefer alignment_reasoning when available */}
       <TableCell>
-        {(buyer.business_summary || buyer.thesis_summary) ? (
+        {(buyer.alignment_reasoning || buyer.business_summary || buyer.thesis_summary) ? (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <p className="text-sm text-muted-foreground line-clamp-2 cursor-help">
-                  {buyer.business_summary || buyer.thesis_summary}
+                  {buyer.alignment_reasoning || buyer.business_summary || buyer.thesis_summary}
                 </p>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-md whitespace-normal text-sm p-3">
-                {buyer.business_summary || buyer.thesis_summary}
+                {buyer.alignment_reasoning || buyer.business_summary || buyer.thesis_summary}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
