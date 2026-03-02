@@ -42,12 +42,100 @@ const CHATBOT_INFRA_STORAGE_KEY = 'sourceco-chatbot-infra-test-results';
 const SCENARIO_STORAGE_KEY = 'sourceco-chatbot-scenario-results';
 const THIRTY_Q_STORAGE_KEY = 'sourceco-30q-test-results';
 
+// Warning heuristics — must match individual tab components
+const isSystemTestWarning = (msg: string) =>
+  (msg.includes('does not exist') && !msg.includes('table')) ||
+  msg.includes('No documents exist') ||
+  msg.includes('No test ');
+
+const isChatbotTestWarning = (msg: string) =>
+  (msg.includes('does not exist') && !msg.includes('table')) ||
+  msg.includes('empty') ||
+  msg.includes('Expected multiple');
+
+const SUITE_COUNT = 3;
+
 interface RunAllProgress {
   suiteName: string;
   testIndex: number;
   testCount: number;
   suiteIndex: number;
   suiteCount: number;
+}
+
+/** Shared test-runner loop used by System Tests and Chatbot Infra suites. */
+async function runTestLoop<Ctx>(opts: {
+  tests: Array<{ id: string; name: string; category: string; fn: (ctx: Ctx) => Promise<void> }>;
+  ctx: Ctx;
+  storageKey: string;
+  suiteName: string;
+  isWarning: (msg: string) => boolean;
+  suiteIndex: number;
+  abortRef: { current: boolean };
+  setProgress: (p: RunAllProgress) => void;
+  jsonStringifyTs?: boolean;
+}): Promise<void> {
+  const {
+    tests,
+    ctx,
+    storageKey,
+    suiteName,
+    isWarning,
+    suiteIndex,
+    abortRef,
+    setProgress,
+    jsonStringifyTs,
+  } = opts;
+
+  setProgress({
+    suiteName,
+    testIndex: 0,
+    testCount: tests.length,
+    suiteIndex,
+    suiteCount: SUITE_COUNT,
+  });
+
+  const results = tests.map((t) => ({
+    id: t.id,
+    name: t.name,
+    category: t.category,
+    status: 'pending' as const,
+    error: undefined as string | undefined,
+    durationMs: undefined as number | undefined,
+  }));
+
+  for (let i = 0; i < tests.length; i++) {
+    if (abortRef.current) break;
+    setProgress({
+      suiteName,
+      testIndex: i + 1,
+      testCount: tests.length,
+      suiteIndex,
+      suiteCount: SUITE_COUNT,
+    });
+
+    const start = performance.now();
+    try {
+      await tests[i].fn(ctx);
+      results[i] = {
+        ...results[i],
+        status: 'pass',
+        durationMs: Math.round(performance.now() - start),
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results[i] = {
+        ...results[i],
+        status: isWarning(msg) ? 'warn' : 'fail',
+        error: msg,
+        durationMs: Math.round(performance.now() - start),
+      };
+    }
+  }
+
+  const ts = new Date().toISOString();
+  localStorage.setItem(storageKey, JSON.stringify(results));
+  localStorage.setItem(storageKey + '-ts', jsonStringifyTs ? JSON.stringify(ts) : ts);
 }
 
 export default function TestingHub() {
@@ -69,7 +157,6 @@ export default function TestingHub() {
   const runAllSuites = useCallback(async () => {
     setIsRunningAll(true);
     abortRef.current = false;
-    const suiteCount = 3;
     let suiteIndex = 0;
 
     try {
@@ -81,71 +168,24 @@ export default function TestingHub() {
 
       // ─── Suite 1: System Tests ───
       if (!abortRef.current) {
-        const tests = testDefs.buildTests();
-        setProgress({
+        await runTestLoop({
+          tests: testDefs.buildTests(),
+          ctx: {
+            createdContactIds: [],
+            createdAccessIds: [],
+            createdReleaseLogIds: [],
+            createdTrackedLinkIds: [],
+            testListingId: null,
+            testBuyerId: null,
+            testDealId: null,
+          } as TestContext,
+          storageKey: testDefs.STORAGE_KEY,
           suiteName: 'System Tests',
-          testIndex: 0,
-          testCount: tests.length,
-          suiteIndex,
-          suiteCount,
+          isWarning: isSystemTestWarning,
+          suiteIndex: suiteIndex++,
+          abortRef,
+          setProgress,
         });
-
-        const ctx: TestContext = {
-          createdContactIds: [],
-          createdAccessIds: [],
-          createdReleaseLogIds: [],
-          createdTrackedLinkIds: [],
-          testListingId: null,
-          testBuyerId: null,
-          testDealId: null,
-        };
-
-        const results = tests.map((t) => ({
-          id: t.id,
-          name: t.name,
-          category: t.category,
-          status: 'pending' as const,
-          error: undefined as string | undefined,
-          durationMs: undefined as number | undefined,
-        }));
-
-        for (let i = 0; i < tests.length; i++) {
-          if (abortRef.current) break;
-          setProgress({
-            suiteName: 'System Tests',
-            testIndex: i + 1,
-            testCount: tests.length,
-            suiteIndex,
-            suiteCount,
-          });
-
-          const start = performance.now();
-          try {
-            await tests[i].fn(ctx);
-            results[i] = {
-              ...results[i],
-              status: 'pass',
-              durationMs: Math.round(performance.now() - start),
-            };
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            const isWarn =
-              (msg.includes('does not exist') && !msg.includes('table')) ||
-              msg.includes('No documents exist') ||
-              msg.includes('No test ');
-            results[i] = {
-              ...results[i],
-              status: isWarn ? 'warn' : 'fail',
-              error: msg,
-              durationMs: Math.round(performance.now() - start),
-            };
-          }
-        }
-
-        const ts = new Date().toISOString();
-        localStorage.setItem(testDefs.STORAGE_KEY, JSON.stringify(results));
-        localStorage.setItem(testDefs.STORAGE_KEY + '-ts', ts);
-        suiteIndex++;
       }
 
       // ─── Suite 2: DocuSeal Health Check ───
@@ -155,7 +195,7 @@ export default function TestingHub() {
           testIndex: 1,
           testCount: 1,
           suiteIndex,
-          suiteCount,
+          suiteCount: SUITE_COUNT,
         });
 
         try {
@@ -182,67 +222,21 @@ export default function TestingHub() {
 
       // ─── Suite 3: Chatbot Infrastructure Tests ───
       if (!abortRef.current) {
-        const tests = chatbotInfra.buildChatbotTests();
-        setProgress({
+        await runTestLoop({
+          tests: chatbotInfra.buildChatbotTests(),
+          ctx: {
+            createdConversationIds: [],
+            createdAnalyticsIds: [],
+            createdFeedbackIds: [],
+          } as ChatbotTestContext,
+          storageKey: chatbotInfra.CHATBOT_INFRA_STORAGE_KEY,
           suiteName: 'Chatbot Infrastructure',
-          testIndex: 0,
-          testCount: tests.length,
-          suiteIndex,
-          suiteCount,
+          isWarning: isChatbotTestWarning,
+          suiteIndex: suiteIndex++,
+          abortRef,
+          setProgress,
+          jsonStringifyTs: true,
         });
-
-        const ctx: ChatbotTestContext = {
-          createdConversationIds: [],
-          createdAnalyticsIds: [],
-          createdFeedbackIds: [],
-        };
-
-        const results = tests.map((t) => ({
-          id: t.id,
-          name: t.name,
-          category: t.category,
-          status: 'pending' as const,
-          error: undefined as string | undefined,
-          durationMs: undefined as number | undefined,
-        }));
-
-        for (let i = 0; i < tests.length; i++) {
-          if (abortRef.current) break;
-          setProgress({
-            suiteName: 'Chatbot Infrastructure',
-            testIndex: i + 1,
-            testCount: tests.length,
-            suiteIndex,
-            suiteCount,
-          });
-
-          const start = performance.now();
-          try {
-            await tests[i].fn(ctx);
-            results[i] = {
-              ...results[i],
-              status: 'pass',
-              durationMs: Math.round(performance.now() - start),
-            };
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            const isWarn =
-              (msg.includes('does not exist') && !msg.includes('table')) ||
-              msg.includes('empty') ||
-              msg.includes('Expected multiple');
-            results[i] = {
-              ...results[i],
-              status: isWarn ? 'warn' : 'fail',
-              error: msg,
-              durationMs: Math.round(performance.now() - start),
-            };
-          }
-        }
-
-        const ts = new Date().toISOString();
-        localStorage.setItem(chatbotInfra.CHATBOT_INFRA_STORAGE_KEY, JSON.stringify(results));
-        localStorage.setItem(chatbotInfra.CHATBOT_INFRA_STORAGE_KEY + '-ts', JSON.stringify(ts));
-        suiteIndex++;
       }
 
       toast.success(

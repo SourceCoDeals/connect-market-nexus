@@ -85,7 +85,6 @@ export default function DocuSealHealthCheck() {
   const [runState, setRunState] = useState<RunState>('idle');
   const [response, setResponse] = useState<TestResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [_lastRun, setLastRun] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const toggleExpand = useCallback((id: string) => {
@@ -106,20 +105,35 @@ export default function DocuSealHealthCheck() {
       const { data, error } = await supabase.functions.invoke('docuseal-integration-test');
 
       if (error) {
+        const msg = error.message || 'Edge function invocation failed';
         setRunState('error');
-        setErrorMsg(error.message || 'Edge function invocation failed');
+        setErrorMsg(msg);
+        try {
+          localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify({ error: msg, results: [] }));
+          localStorage.setItem(DOCUSEAL_STORAGE_KEY + '-ts', new Date().toISOString());
+        } catch {
+          /* ignore storage errors */
+        }
         return;
       }
 
       if (data?.error) {
         setRunState('error');
         setErrorMsg(data.error);
+        try {
+          localStorage.setItem(
+            DOCUSEAL_STORAGE_KEY,
+            JSON.stringify({ error: data.error, results: [] }),
+          );
+          localStorage.setItem(DOCUSEAL_STORAGE_KEY + '-ts', new Date().toISOString());
+        } catch {
+          /* ignore storage errors */
+        }
         return;
       }
 
       const resp = data as TestResponse;
       setResponse(resp);
-      setLastRun(resp.ranAt);
       setRunState('done');
       // Persist to localStorage so Export All can pick up the results
       try {
@@ -135,8 +149,15 @@ export default function DocuSealHealthCheck() {
       }
       setExpanded(autoExpand);
     } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unexpected error';
       setRunState('error');
-      setErrorMsg(e instanceof Error ? e.message : 'Unexpected error');
+      setErrorMsg(msg);
+      try {
+        localStorage.setItem(DOCUSEAL_STORAGE_KEY, JSON.stringify({ error: msg, results: [] }));
+        localStorage.setItem(DOCUSEAL_STORAGE_KEY + '-ts', new Date().toISOString());
+      } catch {
+        /* ignore storage errors */
+      }
     }
   }, []);
 

@@ -89,9 +89,12 @@ export default function ThirtyQuestionTest() {
   const [runStatus, setRunStatus] = useState<RunStatus>('idle');
   const abortRef = useRef<AbortController | null>(null);
 
-  // Persist results to localStorage when a run finishes so Export All can pick them up
+  // Persist results to localStorage once when a run finishes so Export All can pick them up
+  const prevRunStatus = useRef<RunStatus>('idle');
   useEffect(() => {
-    if (runStatus === 'done' || runStatus === 'cancelled') {
+    const wasRunning = prevRunStatus.current === 'running';
+    prevRunStatus.current = runStatus;
+    if (wasRunning && (runStatus === 'done' || runStatus === 'cancelled')) {
       try {
         localStorage.setItem(THIRTY_Q_STORAGE_KEY, JSON.stringify(results));
         localStorage.setItem(THIRTY_Q_STORAGE_KEY + '-ts', new Date().toISOString());
@@ -214,6 +217,12 @@ export default function ThirtyQuestionTest() {
         durationMs: 0,
       })),
     );
+    try {
+      localStorage.removeItem(THIRTY_Q_STORAGE_KEY);
+      localStorage.removeItem(THIRTY_Q_STORAGE_KEY + '-ts');
+    } catch {
+      /* ignore storage errors */
+    }
   }, []);
 
   // ---------- Stats ----------
