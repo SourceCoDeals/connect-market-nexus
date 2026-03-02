@@ -21,6 +21,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useTestRunTracking } from '@/hooks/useTestRunTracking';
 import type { TestContext } from './system-test-runner/testDefinitions';
+import { INTER_TEST_DELAY_MS, sleep, withRateLimitRetry } from './system-test-runner/types';
 import type { ChatbotTestContext } from './chatbot-test-runner/chatbotInfraTests';
 
 // Lazy-loaded tab components
@@ -87,7 +88,7 @@ function isChatbotTestWarning(msg: string): boolean {
   );
 }
 
-// ── Generic test runner loop ──
+// ── Generic test runner loop (rate-limit aware) ──
 
 async function runTestLoop<Ctx>(
   tests: Array<{ id: string; name: string; category: string; fn: (ctx: Ctx) => Promise<void> }>,
@@ -110,7 +111,8 @@ async function runTestLoop<Ctx>(
 
     const start = performance.now();
     try {
-      await test.fn(ctx);
+      // Wrap each test in rate-limit retry so transient 429s don't fail the suite
+      await withRateLimitRetry(() => test.fn(ctx));
       results[i] = {
         ...results[i],
         status: 'pass',
@@ -127,6 +129,11 @@ async function runTestLoop<Ctx>(
       };
     }
     onProgress(i + 1);
+
+    // Small delay between tests to stay under Supabase rate limits
+    if (i < tests.length - 1 && !abortRef.current) {
+      await sleep(INTER_TEST_DELAY_MS);
+    }
   }
 
   return results;
@@ -167,7 +174,8 @@ export default function TestingHub() {
     let totalPassed = 0;
     let totalFailed = 0;
     let totalWarnings = 0;
-    const errorEntries: Array<{ testId: string; testName: string; suite: string; error: string }> = [];
+    const errorEntries: Array<{ testId: string; testName: string; suite: string; error: string }> =
+      [];
 
     const updateProgress = (suite: string, testsRun: number, testsTotal: number) => {
       setProgress({
@@ -232,7 +240,8 @@ export default function TestingHub() {
         if (r.status === 'pass') totalPassed++;
         else if (r.status === 'fail') {
           totalFailed++;
-          if (r.error) errorEntries.push({ testId: r.id, testName: r.name, suite: 'system', error: r.error });
+          if (r.error)
+            errorEntries.push({ testId: r.id, testName: r.name, suite: 'system', error: r.error });
         } else if (r.status === 'warn') totalWarnings++;
       }
 
@@ -270,13 +279,26 @@ export default function TestingHub() {
       const docuSealDuration = Math.round(performance.now() - docuSealStart);
       if (trackingRunId) {
         await tracking.saveResults(trackingRunId, 'docuseal', [
-          { id: 'docuseal-health', name: 'DocuSeal Health Check', category: 'Integration', status: docuSealStatus, error: docuSealError, durationMs: docuSealDuration },
+          {
+            id: 'docuseal-health',
+            name: 'DocuSeal Health Check',
+            category: 'Integration',
+            status: docuSealStatus,
+            error: docuSealError,
+            durationMs: docuSealDuration,
+          },
         ]);
       }
       if (docuSealStatus === 'pass') totalPassed++;
       else {
         totalFailed++;
-        if (docuSealError) errorEntries.push({ testId: 'docuseal-health', testName: 'DocuSeal Health Check', suite: 'docuseal', error: docuSealError });
+        if (docuSealError)
+          errorEntries.push({
+            testId: 'docuseal-health',
+            testName: 'DocuSeal Health Check',
+            suite: 'docuseal',
+            error: docuSealError,
+          });
       }
 
       totalRun += 1;
@@ -323,7 +345,13 @@ export default function TestingHub() {
         if (r.status === 'pass') totalPassed++;
         else if (r.status === 'fail') {
           totalFailed++;
-          if (r.error) errorEntries.push({ testId: r.id, testName: r.name, suite: 'chatbot_infra', error: r.error });
+          if (r.error)
+            errorEntries.push({
+              testId: r.id,
+              testName: r.name,
+              suite: 'chatbot_infra',
+              error: r.error,
+            });
         } else if (r.status === 'warn') totalWarnings++;
       }
 

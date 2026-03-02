@@ -37,6 +37,54 @@ export interface TestContext {
 
 export const STORAGE_KEY = 'sourceco-system-test-results';
 
+// ── Rate-limit aware helpers ──
+
+/** Milliseconds to pause between consecutive tests to avoid Supabase rate limits. */
+export const INTER_TEST_DELAY_MS = 120;
+
+/** Returns true if the error message looks like a Supabase rate-limit (429 / ThrottlerException). */
+export function isRateLimitError(msg: string): boolean {
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes('too many requests') ||
+    lower.includes('throttlerexception') ||
+    lower.includes('rate limit') ||
+    lower.includes('429')
+  );
+}
+
+/** Sleep helper. */
+export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Retry wrapper for test functions.
+ * If the test throws a rate-limit error it waits with exponential back-off and retries.
+ */
+export async function withRateLimitRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  baseDelayMs = 2000,
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!isRateLimitError(msg) || attempt === maxRetries) {
+        throw err;
+      }
+      lastError = err instanceof Error ? err : new Error(msg);
+      const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 1000;
+      console.warn(
+        `[TestRunner] Rate limited, retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})…`,
+      );
+      await sleep(delay);
+    }
+  }
+  throw lastError;
+}
+
 // ── Helpers ──
 
 // Dynamic table name type for test helper functions

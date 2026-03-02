@@ -23,6 +23,9 @@ import {
   type TestContext,
   STORAGE_KEY,
   buildTests,
+  INTER_TEST_DELAY_MS,
+  sleep,
+  withRateLimitRetry,
 } from './system-test-runner/testDefinitions';
 
 // ═══════════════════════════════════════════
@@ -96,8 +99,9 @@ export default function SystemTestRunner() {
 
       const updatedResults = [...initialResults];
 
-      for (const test of testsToRun) {
+      for (let i = 0; i < testsToRun.length; i++) {
         if (abortRef.current) break;
+        const test = testsToRun[i];
 
         const idx = updatedResults.findIndex((r) => r.id === test.id);
         updatedResults[idx] = { ...updatedResults[idx], status: 'running' };
@@ -105,7 +109,7 @@ export default function SystemTestRunner() {
 
         const start = performance.now();
         try {
-          await test.fn(ctx);
+          await withRateLimitRetry(() => test.fn(ctx));
           updatedResults[idx] = {
             ...updatedResults[idx],
             status: 'pass',
@@ -127,6 +131,11 @@ export default function SystemTestRunner() {
           };
         }
         setResults([...updatedResults]);
+
+        // Small delay between tests to stay under Supabase rate limits
+        if (i < testsToRun.length - 1 && !abortRef.current) {
+          await sleep(INTER_TEST_DELAY_MS);
+        }
       }
 
       const ts = new Date().toISOString();
