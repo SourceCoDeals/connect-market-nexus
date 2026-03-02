@@ -99,6 +99,18 @@ const AdminUsers = () => {
   const isMobile = useIsMobile();
   useRealtimeAdmin();
 
+  // Query remarketing buyers that have a marketplace_firm_id link
+  const { data: linkedBuyerCount = 0 } = useQuery({
+    queryKey: ['remarketing-buyers-marketplace-linked-count'],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('remarketing_buyers')
+        .select('id', { count: 'exact', head: true })
+        .not('marketplace_firm_id', 'is', null);
+      return count ?? 0;
+    },
+    staleTime: 60_000,
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [filteredOwnerLeads, setFilteredOwnerLeads] = useState<OwnerLead[]>([]);
@@ -305,6 +317,20 @@ const AdminUsers = () => {
 
       {/* Main content */}
       <div className="px-8 py-8">
+        {/* Remarketing linked buyers banner */}
+        {isBuyersView && linkedBuyerCount > 0 && (
+          <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+            <Users className="h-4 w-4 shrink-0" />
+            <span>
+              <strong>{linkedBuyerCount}</strong> remarketing{' '}
+              {linkedBuyerCount === 1 ? 'buyer' : 'buyers'} linked to marketplace firms.{' '}
+              <Link to="/admin/buyers" className="underline font-medium hover:text-blue-900">
+                View All Buyers
+              </Link>
+            </span>
+          </div>
+        )}
+
         {/* View Switcher */}
         <div className="mb-6">
           <UserViewSwitcher
@@ -369,27 +395,31 @@ const AdminUsers = () => {
               </div>
             ) : isMobile ? (
               <div className="p-4">
-                <MobileUsersTable
-                  users={filteredUsers}
-                  onApprove={approveUser}
-                  onMakeAdmin={makeAdmin}
-                  onRevokeAdmin={revokeAdmin}
-                  onDelete={deleteUser}
-                  isLoading={isLoading}
-                  onSendFeeAgreement={() => {}}
-                  onSendNDAEmail={() => {}}
-                />
+                <TableErrorBoundary>
+                  <MobileUsersTable
+                    users={filteredUsers}
+                    onApprove={approveUser}
+                    onMakeAdmin={makeAdmin}
+                    onRevokeAdmin={revokeAdmin}
+                    onDelete={deleteUser}
+                    isLoading={isLoading}
+                    onSendFeeAgreement={() => {}}
+                    onSendNDAEmail={() => {}}
+                  />
+                </TableErrorBoundary>
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <UsersTable
-                  users={filteredUsers}
-                  onApprove={approveUser}
-                  onMakeAdmin={makeAdmin}
-                  onRevokeAdmin={revokeAdmin}
-                  onDelete={deleteUser}
-                  isLoading={isLoading}
-                />
+                <TableErrorBoundary>
+                  <UsersTable
+                    users={filteredUsers}
+                    onApprove={approveUser}
+                    onMakeAdmin={makeAdmin}
+                    onRevokeAdmin={revokeAdmin}
+                    onDelete={deleteUser}
+                    isLoading={isLoading}
+                  />
+                </TableErrorBoundary>
               </div>
             )}
           </div>
