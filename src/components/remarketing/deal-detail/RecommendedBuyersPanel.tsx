@@ -335,6 +335,7 @@ export function RecommendedBuyersPanel({ listingId, listingTitle }: RecommendedB
       await new Promise<void>((resolve, reject) => {
         createIntroduction(
           {
+            contact_id: buyer.buyer_id,
             listing_id: listingId,
             buyer_name: buyer.company_name,
             buyer_firm_name: buyer.pe_firm_name || buyer.company_name,

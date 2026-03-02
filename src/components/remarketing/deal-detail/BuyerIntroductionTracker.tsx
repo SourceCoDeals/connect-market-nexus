@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,13 +14,14 @@ import {
   Search,
   UserPlus,
   Calendar,
-  Mail,
-  Phone,
-  ChevronRight,
-  Linkedin,
   Send,
+  Briefcase,
+  MapPin,
+  FileCheck,
+  ChevronRight,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 import type { BuyerIntroduction, IntroductionStatus } from '@/types/buyer-introductions';
 import { AddBuyerIntroductionDialog } from './AddBuyerIntroductionDialog';
 import { UpdateIntroductionStatusDialog } from './UpdateIntroductionStatusDialog';
@@ -154,7 +156,7 @@ export function BuyerIntroductionTracker({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-1.5">
           {filteredNotIntroduced.length === 0 ? (
             <div className="py-8 text-center">
               <Target className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
@@ -177,7 +179,7 @@ export function BuyerIntroductionTracker({
             </div>
           ) : (
             filteredNotIntroduced.map((buyer) => (
-              <NotIntroducedCard
+              <IntroductionBuyerRow
                 key={buyer.id}
                 buyer={buyer}
                 onSelect={(b) => {
@@ -223,7 +225,7 @@ export function BuyerIntroductionTracker({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-1.5">
           {filteredIntroducedPassed.length === 0 ? (
             <div className="py-8 text-center">
               <CheckCircle className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
@@ -235,7 +237,7 @@ export function BuyerIntroductionTracker({
             </div>
           ) : (
             filteredIntroducedPassed.map((buyer) => (
-              <IntroducedCard
+              <IntroducedBuyerRow
                 key={buyer.id}
                 buyer={buyer}
                 onSelect={(b) => {
@@ -271,8 +273,8 @@ export function BuyerIntroductionTracker({
   );
 }
 
-// ─── Not Introduced Buyer Card ───
-function NotIntroducedCard({
+// ─── Introduction Buyer Row (matches RecommendedBuyersPanel BuyerCard style) ───
+function IntroductionBuyerRow({
   buyer,
   onSelect,
 }: {
@@ -282,87 +284,103 @@ function NotIntroducedCard({
   const config = STATUS_CONFIG[buyer.introduction_status];
   const StatusIcon = config.icon;
 
+  const nameContent = (
+    <span className="font-semibold text-[13.5px] hover:underline truncate">
+      {buyer.buyer_name}
+    </span>
+  );
+
   return (
-    <div
-      onClick={() => onSelect(buyer)}
-      className="p-4 rounded-lg border border-border/40 hover:border-border/60 hover:bg-muted/30 transition-colors cursor-pointer space-y-3"
-    >
-      {/* Row 1: Name + Status */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm text-foreground">{buyer.buyer_name}</span>
-            <span className="text-xs text-muted-foreground">{buyer.buyer_firm_name}</span>
-          </div>
+    <div className="border rounded-lg px-3.5 py-3 hover:shadow-md transition-shadow shadow-sm">
+      {/* Top row — matches BuyerCard layout */}
+      <div className="flex items-center gap-3">
+        {/* Icon */}
+        <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+          <Briefcase className="h-4 w-4 text-muted-foreground" />
         </div>
-        <Badge variant="outline" className={`text-[10px] shrink-0 ${config.color}`}>
-          <StatusIcon className="h-3 w-3 mr-1" />
-          {config.label}
-        </Badge>
-      </div>
 
-      {/* Row 2: Key Details */}
-      <div className="grid grid-cols-3 gap-3 text-xs">
-        <div className="bg-muted/50 rounded p-2">
-          <div className="text-muted-foreground mb-0.5">Target Size</div>
-          <div className="font-medium">
-            {formatDealSize(buyer.expected_deal_size_low, buyer.expected_deal_size_high)}
+        {/* Name + firm */}
+        <div className="shrink-0 min-w-[160px]">
+          <div className="flex items-center gap-1.5">
+            {buyer.contact_id ? (
+              <Link to={`/admin/buyers/${buyer.contact_id}`}>{nameContent}</Link>
+            ) : (
+              nameContent
+            )}
+            {buyer.buyer_firm_name && buyer.buyer_firm_name !== buyer.buyer_name && (
+              <>
+                <span className="text-muted-foreground text-xs">/</span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {buyer.buyer_firm_name}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground mt-0.5">
+            {buyer.internal_champion && (
+              <>
+                <MapPin className="h-2.5 w-2.5" />
+                {buyer.internal_champion}
+              </>
+            )}
+            {buyer.expected_deal_size_low || buyer.expected_deal_size_high ? (
+              <span className="flex items-center gap-0.5 ml-1">
+                <FileCheck className="h-2.5 w-2.5" />
+                {formatDealSize(buyer.expected_deal_size_low, buyer.expected_deal_size_high)}
+              </span>
+            ) : null}
           </div>
         </div>
-        <div className="bg-muted/50 rounded p-2">
-          <div className="text-muted-foreground mb-0.5">Reason</div>
-          <div className="font-medium truncate">
-            {buyer.targeting_reason?.split(' - ')[0] || '--'}
-          </div>
-        </div>
-        <div className="bg-muted/50 rounded p-2">
-          <div className="text-muted-foreground mb-0.5">Champion</div>
-          <div className="font-medium">{buyer.internal_champion || '--'}</div>
-        </div>
-      </div>
 
-      {/* Row 3: Contact info + timestamps */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-        {buyer.buyer_email && (
-          <a
-            href={`mailto:${buyer.buyer_email}`}
-            className="flex items-center gap-1 hover:text-foreground"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Mail className="h-3 w-3" />
-            <span className="truncate max-w-[180px]">{buyer.buyer_email}</span>
-          </a>
-        )}
-        {buyer.buyer_phone && (
-          <span className="flex items-center gap-1">
-            <Phone className="h-3 w-3" />
-            {buyer.buyer_phone}
+        {/* Targeting reason tags */}
+        <div className="flex-1 flex flex-wrap gap-1 min-w-0">
+          {buyer.targeting_reason && (
+            <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium whitespace-nowrap truncate max-w-[200px]">
+              {buyer.targeting_reason.split(' - ')[0]}
+            </span>
+          )}
+        </div>
+
+        {/* Status badge + action */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className={cn('text-[11px] gap-0.5', config.color)}>
+            <StatusIcon className="h-3 w-3" />
+            {config.label}
+          </Badge>
+
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+            {format(new Date(buyer.created_at), 'MMM d')}
           </span>
-        )}
-        {buyer.buyer_linkedin_url && (
-          <a
-            href={
-              buyer.buyer_linkedin_url.startsWith('http')
-                ? buyer.buyer_linkedin_url
-                : `https://${buyer.buyer_linkedin_url}`
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 hover:text-foreground"
-            onClick={(e) => e.stopPropagation()}
+
+          <div className="w-px h-5 bg-border mx-0.5" />
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 text-xs gap-1 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(buyer);
+            }}
           >
-            <Linkedin className="h-3 w-3" />
-            LinkedIn
-          </a>
-        )}
-        <span className="ml-auto">Added {format(new Date(buyer.created_at), 'MMM d, yyyy')}</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+            Update
+          </Button>
+        </div>
       </div>
+
+      {/* Fit reason line */}
+      {buyer.targeting_reason && buyer.targeting_reason.includes(' - ') && (
+        <p className="text-xs text-muted-foreground leading-relaxed mt-2.5 pt-2.5 border-t pl-11">
+          {buyer.targeting_reason.split(' - ').slice(1).join(' - ')}
+        </p>
+      )}
     </div>
   );
 }
 
-// ─── Introduced & Passed Buyer Card ───
-function IntroducedCard({
+// ─── Introduced & Passed Buyer Row (same style) ───
+function IntroducedBuyerRow({
   buyer,
   onSelect,
 }: {
@@ -376,73 +394,102 @@ function IntroducedCard({
     ? Math.floor((Date.now() - new Date(buyer.introduction_date).getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
+  const nameContent = (
+    <span className="font-semibold text-[13.5px] hover:underline truncate">
+      {buyer.buyer_name}
+    </span>
+  );
+
   return (
-    <div
-      onClick={() => onSelect(buyer)}
-      className="p-4 rounded-lg border border-border/40 hover:border-border/60 hover:bg-muted/30 transition-colors cursor-pointer space-y-3"
-    >
-      {/* Row 1: Name + Status */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm text-foreground">{buyer.buyer_name}</span>
-            <span className="text-xs text-muted-foreground">{buyer.buyer_firm_name}</span>
+    <div className="border rounded-lg px-3.5 py-3 hover:shadow-md transition-shadow shadow-sm">
+      {/* Top row */}
+      <div className="flex items-center gap-3">
+        {/* Icon */}
+        <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+          <Briefcase className="h-4 w-4 text-muted-foreground" />
+        </div>
+
+        {/* Name + firm */}
+        <div className="shrink-0 min-w-[160px]">
+          <div className="flex items-center gap-1.5">
+            {buyer.contact_id ? (
+              <Link to={`/admin/buyers/${buyer.contact_id}`}>{nameContent}</Link>
+            ) : (
+              nameContent
+            )}
+            {buyer.buyer_firm_name && buyer.buyer_firm_name !== buyer.buyer_name && (
+              <>
+                <span className="text-muted-foreground text-xs">/</span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {buyer.buyer_firm_name}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[11.5px] text-muted-foreground mt-0.5">
+            {buyer.introduced_by && (
+              <>
+                <MapPin className="h-2.5 w-2.5" />
+                Intro by {buyer.introduced_by}
+              </>
+            )}
+            {daysSinceIntroduction !== null && (
+              <span className="ml-1">{daysSinceIntroduction}d in pipeline</span>
+            )}
           </div>
         </div>
-        <Badge variant="outline" className={`text-[10px] shrink-0 ${config.color}`}>
-          <StatusIcon className="h-3 w-3 mr-1" />
-          {config.label}
-        </Badge>
+
+        {/* Tags area */}
+        <div className="flex-1 flex flex-wrap gap-1 min-w-0">
+          {buyer.next_step && (
+            <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium whitespace-nowrap truncate max-w-[200px]">
+              Next: {buyer.next_step}
+            </span>
+          )}
+          {buyer.expected_next_step_date && (
+            <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium whitespace-nowrap">
+              <Calendar className="h-2.5 w-2.5 inline mr-0.5" />
+              {format(new Date(buyer.expected_next_step_date), 'MMM d')}
+            </span>
+          )}
+        </div>
+
+        {/* Status badge + actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="outline" className={cn('text-[11px] gap-0.5', config.color)}>
+            <StatusIcon className="h-3 w-3" />
+            {config.label}
+          </Badge>
+
+          {buyer.introduction_date && (
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+              {format(new Date(buyer.introduction_date), 'MMM d')}
+            </span>
+          )}
+
+          <div className="w-px h-5 bg-border mx-0.5" />
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5 text-xs gap-1 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(buyer);
+            }}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+            Update
+          </Button>
+        </div>
       </div>
 
-      {/* Row 2: Timeline Info */}
-      <div className="grid grid-cols-3 gap-3 text-xs">
-        <div className="bg-muted/50 rounded p-2">
-          <div className="text-muted-foreground mb-0.5">Introduced</div>
-          <div className="font-medium">
-            {buyer.introduction_date
-              ? format(new Date(buyer.introduction_date), 'MMM d, yyyy')
-              : '--'}
-          </div>
-        </div>
-        <div className="bg-muted/50 rounded p-2">
-          <div className="text-muted-foreground mb-0.5">By</div>
-          <div className="font-medium">{buyer.introduced_by || '--'}</div>
-        </div>
-        <div className="bg-muted/50 rounded p-2">
-          <div className="text-muted-foreground mb-0.5">In Pipeline</div>
-          <div className="font-medium">
-            {daysSinceIntroduction !== null ? `${daysSinceIntroduction}d` : '--'}
-          </div>
-        </div>
-      </div>
-
-      {/* Row 3: Feedback & Next Step */}
+      {/* Feedback line */}
       {buyer.buyer_feedback && (
-        <p className="text-xs text-muted-foreground italic border-l-2 border-muted pl-3">
+        <p className="text-xs text-muted-foreground leading-relaxed mt-2.5 pt-2.5 border-t pl-11 italic">
           &ldquo;{buyer.buyer_feedback}&rdquo;
         </p>
       )}
-
-      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-        {buyer.next_step && (
-          <span className="flex items-center gap-1">
-            <ChevronRight className="h-3 w-3" />
-            Next: {buyer.next_step}
-          </span>
-        )}
-        {buyer.expected_next_step_date && (
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
-            {format(new Date(buyer.expected_next_step_date), 'MMM d, yyyy')}
-          </span>
-        )}
-        {buyer.passed_date && (
-          <span className="ml-auto">
-            Passed {formatDistanceToNow(new Date(buyer.passed_date), { addSuffix: true })}
-          </span>
-        )}
-      </div>
     </div>
   );
 }
