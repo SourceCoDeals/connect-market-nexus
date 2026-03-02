@@ -100,7 +100,7 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
     } catch (error: unknown) {
       toast({
         title: 'Failed to invite',
-        description: error.message || 'Something went wrong.',
+        description: error instanceof Error ? error.message : 'Something went wrong.',
         variant: 'destructive',
       });
     } finally {
@@ -114,7 +114,8 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
         <DialogHeader>
           <DialogTitle>Invite Team Member</DialogTitle>
           <DialogDescription>
-            Add a new member to the SourceCo admin team. If they already have an account, their role will be updated.
+            Add a new member to the SourceCo admin team. If they already have an account, their role
+            will be updated.
           </DialogDescription>
         </DialogHeader>
 

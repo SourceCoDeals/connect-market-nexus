@@ -192,7 +192,12 @@ export function DealTranscriptSection({
       onFfQuickSearch={ff.handleFfQuickSearch}
       ffResults={ff.ffResults}
       ffLinking={ff.ffLinking}
-      onLinkSearchResult={ff.handleLinkSearchResult}
+      onLinkSearchResult={
+        ff.handleLinkSearchResult as unknown as (transcript: {
+          id: string;
+          [key: string]: unknown;
+        }) => void
+      }
     />
   );
 

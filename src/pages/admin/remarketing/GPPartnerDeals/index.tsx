@@ -32,7 +32,7 @@ import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { useGPPartnerDeals } from './useGPPartnerDeals';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
-import type { Operator } from '@/components/filters';
+import type { Operator, FilterRule } from '@/components/filters';
 import type { SortColumn } from './types';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { GPPartnerKPICards } from './GPPartnerKPICards';
@@ -111,29 +111,43 @@ export default function GPPartnerDeals() {
         .update({ remarketing_status: 'not_a_fit' } as never)
         .in('id', dealIds);
       if (error) throw error;
-      hook.toast({ title: 'Marked as Not a Fit', description: `${dealIds.length} deal(s) marked as not a fit` });
+      hook.toast({
+        title: 'Marked as Not a Fit',
+        description: `${dealIds.length} deal(s) marked as not a fit`,
+      });
       hook.setSelectedIds(new Set());
       hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
     } catch (err: unknown) {
-      hook.toast({ variant: 'destructive', title: 'Failed', description: err instanceof Error ? err.message : 'Unknown error' });
+      hook.toast({
+        variant: 'destructive',
+        title: 'Failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
     } finally {
       setIsMarkingNotFit(false);
     }
   }, [hook.selectedIds, hook.toast, hook.queryClient, hook.setSelectedIds]);
 
-  const handleMarkNotFitSingle = useCallback(async (dealId: string) => {
-    try {
-      const { error } = await supabase
-        .from('listings')
-        .update({ remarketing_status: 'not_a_fit' } as never)
-        .eq('id', dealId);
-      if (error) throw error;
-      hook.toast({ title: 'Marked as Not a Fit', description: '1 deal marked as not a fit' });
-      hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
-    } catch (err: unknown) {
-      hook.toast({ variant: 'destructive', title: 'Failed', description: err instanceof Error ? err.message : 'Unknown error' });
-    }
-  }, [hook.toast, hook.queryClient]);
+  const handleMarkNotFitSingle = useCallback(
+    async (dealId: string) => {
+      try {
+        const { error } = await supabase
+          .from('listings')
+          .update({ remarketing_status: 'not_a_fit' } as never)
+          .eq('id', dealId);
+        if (error) throw error;
+        hook.toast({ title: 'Marked as Not a Fit', description: '1 deal marked as not a fit' });
+        hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+      } catch (err: unknown) {
+        hook.toast({
+          variant: 'destructive',
+          title: 'Failed',
+          description: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    },
+    [hook.toast, hook.queryClient],
+  );
 
   const selectedDealsForList = useMemo((): DealForList[] => {
     if (!hook.filteredDeals || hook.selectedIds.size === 0) return [];
@@ -177,8 +191,13 @@ export default function GPPartnerDeals() {
         operator: f.operator as Operator,
         value: f.value,
       }));
-      if (clearExisting) hook.setFilterState({ rules, conjunction: 'and', search: '' });
-      else hook.setFilterState((prev) => ({ ...prev, rules: [...prev.rules, ...rules] }));
+      if (clearExisting)
+        hook.setFilterState({ rules: rules as FilterRule[], conjunction: 'and', search: '' });
+      else
+        hook.setFilterState((prev) => ({
+          ...prev,
+          rules: [...prev.rules, ...rules] as FilterRule[],
+        }));
     },
     onSortColumn: (field) => {
       const fieldMap: Record<string, string> = {
@@ -405,7 +424,6 @@ export default function GPPartnerDeals() {
         setAddDealOpen={hook.setAddDealOpen}
         setCsvUploadOpen={hook.setCsvUploadOpen}
         onMarkNotFit={handleMarkNotFitSingle}
-        
       />
 
       {/* Pagination */}

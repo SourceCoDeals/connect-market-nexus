@@ -92,20 +92,45 @@ export function PipelineFilterPanel({ pipeline }: PipelineFilterPanelProps) {
     sortOption: pipeline.sortOption, // Added: Include sort option in saved presets
   });
 
-  const loadPreset = (preset: {
-    filters: Record<string, string | string[] | [string, string]>;
-  }) => {
+  const loadPreset = (preset: { filters: Record<string, unknown> }) => {
     const filters = preset.filters;
-    if (filters.statusFilter) pipeline.setStatusFilter(filters.statusFilter);
+    if (filters.statusFilter) pipeline.setStatusFilter(filters.statusFilter as string);
     if (filters.documentStatusFilter)
-      pipeline.setDocumentStatusFilter(filters.documentStatusFilter);
-    if (filters.buyerTypeFilter) pipeline.setBuyerTypeFilter(filters.buyerTypeFilter);
-    if (filters.companyFilter) pipeline.setCompanyFilter(filters.companyFilter);
-    if (filters.adminFilter) pipeline.setAdminFilter(filters.adminFilter);
-    if (filters.createdDateRange) pipeline.setCreatedDateRange(filters.createdDateRange);
-    if (filters.lastActivityRange) pipeline.setLastActivityRange(filters.lastActivityRange);
-    if (filters.searchQuery) pipeline.setSearchQuery(filters.searchQuery);
-    if (filters.sortOption) pipeline.setSortOption(filters.sortOption); // Added: Restore sort option from presets
+      pipeline.setDocumentStatusFilter(
+        filters.documentStatusFilter as
+          | 'all'
+          | 'nda_signed'
+          | 'fee_signed'
+          | 'both_signed'
+          | 'none_signed'
+          | 'overdue_followup',
+      );
+    if (filters.buyerTypeFilter)
+      pipeline.setBuyerTypeFilter(
+        filters.buyerTypeFilter as
+          | 'all'
+          | 'privateEquity'
+          | 'familyOffice'
+          | 'searchFund'
+          | 'corporate'
+          | 'individual'
+          | 'independentSponsor'
+          | 'advisor'
+          | 'businessOwner',
+      );
+    if (filters.companyFilter) pipeline.setCompanyFilter(filters.companyFilter as string[]);
+    if (filters.adminFilter) pipeline.setAdminFilter(filters.adminFilter as string);
+    if (filters.createdDateRange)
+      pipeline.setCreatedDateRange(
+        filters.createdDateRange as { start: Date | null; end: Date | null },
+      );
+    if (filters.lastActivityRange)
+      pipeline.setLastActivityRange(
+        filters.lastActivityRange as { start: Date | null; end: Date | null },
+      );
+    if (filters.searchQuery) pipeline.setSearchQuery(filters.searchQuery as string);
+    if (filters.sortOption)
+      pipeline.setSortOption(filters.sortOption as typeof pipeline.sortOption); // Added: Restore sort option from presets
   };
 
   return (

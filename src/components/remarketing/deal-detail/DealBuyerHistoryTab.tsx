@@ -69,45 +69,35 @@ export function DealBuyerHistoryTab({ listingId, listingTitle }: DealBuyerHistor
 
       if (error) throw error;
 
-      return (data || []).map(
-        (d: {
-          id: string;
-          title: string | null;
-          contact_name: string | null;
-          contact_company: string | null;
-          contact_email: string | null;
-          contact_phone: string | null;
-          nda_status: string | null;
-          fee_agreement_status: string | null;
-          created_at: string;
-          updated_at: string | null;
-          remarketing_buyer_id: string | null;
-          connection_request_id: string | null;
-          deal_stages: { name: string; color: string } | null;
-          profiles: { first_name: string; last_name: string } | null;
-          remarketing_buyers: { company_name: string; buyer_type: string } | null;
-        }) => ({
-          id: d.id,
-          title: d.title,
-          contact_name: d.contact_name,
-          contact_company: d.contact_company,
-          contact_email: d.contact_email,
-          contact_phone: d.contact_phone,
-          nda_status: d.nda_status,
-          fee_agreement_status: d.fee_agreement_status,
+      return (data || []).map((d: Record<string, unknown>) => {
+        const deal_stages = d.deal_stages as { name: string; color: string } | null;
+        const profiles = d.profiles as { first_name: string; last_name: string } | null;
+        const remarketing_buyers = d.remarketing_buyers as {
+          company_name: string;
+          buyer_type: string;
+        } | null;
+        return {
+          id: d.id as string,
+          title: d.title as string | null,
+          contact_name: d.contact_name as string | null,
+          contact_company: d.contact_company as string | null,
+          contact_email: d.contact_email as string | null,
+          contact_phone: d.contact_phone as string | null,
+          nda_status: d.nda_status as string | null,
+          fee_agreement_status: d.fee_agreement_status as string | null,
           memo_sent: false,
-          created_at: d.created_at,
-          updated_at: d.updated_at,
-          stage_name: d.deal_stages?.name || null,
-          stage_color: d.deal_stages?.color || null,
-          owner_first: d.profiles?.first_name || null,
-          owner_last: d.profiles?.last_name || null,
-          remarketing_buyer_id: d.remarketing_buyer_id,
-          buyer_company_name: d.remarketing_buyers?.company_name || null,
-          buyer_type: d.remarketing_buyers?.buyer_type || null,
-          connection_request_id: d.connection_request_id,
-        }),
-      ) as BuyerHistoryEntry[];
+          created_at: d.created_at as string,
+          updated_at: d.updated_at as string | null,
+          stage_name: deal_stages?.name || null,
+          stage_color: deal_stages?.color || null,
+          owner_first: profiles?.first_name || null,
+          owner_last: profiles?.last_name || null,
+          remarketing_buyer_id: d.remarketing_buyer_id as string | null,
+          buyer_company_name: remarketing_buyers?.company_name || null,
+          buyer_type: remarketing_buyers?.buyer_type || null,
+          connection_request_id: d.connection_request_id as string | null,
+        };
+      }) as BuyerHistoryEntry[];
     },
     enabled: !!listingId,
   });

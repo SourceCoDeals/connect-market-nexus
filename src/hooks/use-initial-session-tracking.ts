@@ -45,7 +45,9 @@ function getFirstTouchAttribution(): {
 } {
   try {
     // Try new key first, then legacy key
-    const stored = localStorage.getItem('sourceco_first_touch') || localStorage.getItem('first_touch_attribution');
+    const stored =
+      localStorage.getItem('sourceco_first_touch') ||
+      localStorage.getItem('first_touch_attribution');
     if (stored) {
       const parsed = JSON.parse(stored);
       return {
@@ -86,22 +88,26 @@ export const useInitialSessionTracking = () => {
     const trackInitialSession = async () => {
       try {
         // Check if user is authenticated
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError) throw authError;
-        
+
         // Get GA4 client ID - try sync first, then async
         let ga4ClientId = getCurrentGA4ClientId();
         if (!ga4ClientId) {
           ga4ClientId = await getGA4ClientIdAsync();
         }
-        
+
         // Get first-touch attribution data from localStorage
         const firstTouchData = getFirstTouchAttribution();
 
         // Calculate time on page since navigation started for accurate initial duration
-        const timeOnPage = typeof performance !== 'undefined' && performance.timing
-          ? Math.max(0, Math.floor((Date.now() - performance.timing.navigationStart) / 1000))
-          : 0;
+        const timeOnPage =
+          typeof performance !== 'undefined' && performance.timing
+            ? Math.max(0, Math.floor((Date.now() - performance.timing.navigationStart) / 1000))
+            : 0;
 
         // Extract ALL cross-domain tracking params (passed from sourcecodeals.com)
         const SCO_SEARCH_STORAGE_KEY = 'sco_cross_domain_search';
@@ -199,14 +205,13 @@ export const useInitialSessionTracking = () => {
         }
 
         hasTracked.current = true;
-
       } catch (error) {
         console.error('❌ Unexpected error in session tracking:', error);
       }
     };
 
     // Track first-touch attribution for authenticated users
-    const trackInitialSessionForUser = async (userId: string, data: typeof trackingData) => {
+    const trackInitialSessionForUser = async (userId: string, data: Record<string, unknown>) => {
       try {
         const { error } = await supabase.functions.invoke('track-initial-session', {
           body: {
@@ -235,7 +240,7 @@ export const useInitialSessionTracking = () => {
 
     // Removed fallback session creation - track-session edge function is the single source of truth
     // This prevents race conditions that skip journey upsert logic
-    const createSessionDirectly = async (_data: typeof trackingData) => {
+    const createSessionDirectly = async (_data: Record<string, unknown>) => {
       hasTracked.current = true;
     };
 

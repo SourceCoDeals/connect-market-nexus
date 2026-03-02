@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { toast } from "sonner";
-import { getTierFromScore } from "@/components/remarketing";
-import { getEffectiveWebsite, calculateDataCompleteness } from "./helpers";
+import { useState, useRef, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
+import { toast } from 'sonner';
+import { getTierFromScore } from '@/components/remarketing';
+import { getEffectiveWebsite, calculateDataCompleteness } from './helpers';
 
 export function useDealDetail() {
   const { dealId } = useParams<{ dealId: string }>();
@@ -43,11 +43,13 @@ export function useDealDetail() {
       if (error) throw error;
       return data;
     },
-    enabled: !!dealId
+    enabled: !!dealId,
   });
 
   // Score stats removed — old scoring engine decommissioned
-  const scoreStats = undefined;
+  const scoreStats = undefined as
+    | { count: number; approved: number; passed: number; avgScore: number }
+    | undefined;
 
   // Fetch pipeline stats
   const { data: pipelineStats } = useQuery({
@@ -59,15 +61,15 @@ export function useDealDetail() {
         .eq('listing_id', dealId!);
       if (error) throw error;
       return {
-        contacted: data?.filter(o => o.status === 'contacted').length || 0,
-        responded: data?.filter(o => o.status === 'responded').length || 0,
-        meetingScheduled: data?.filter(o => o.status === 'meeting_scheduled').length || 0,
-        loiSent: data?.filter(o => o.status === 'loi_sent').length || 0,
-        closedWon: data?.filter(o => o.status === 'closed_won').length || 0,
-        closedLost: data?.filter(o => o.status === 'closed_lost').length || 0,
+        contacted: data?.filter((o) => o.status === 'contacted').length || 0,
+        responded: data?.filter((o) => o.status === 'responded').length || 0,
+        meetingScheduled: data?.filter((o) => o.status === 'meeting_scheduled').length || 0,
+        loiSent: data?.filter((o) => o.status === 'loi_sent').length || 0,
+        closedWon: data?.filter((o) => o.status === 'closed_won').length || 0,
+        closedLost: data?.filter((o) => o.status === 'closed_lost').length || 0,
       };
     },
-    enabled: !!dealId
+    enabled: !!dealId,
   });
 
   // Fetch transcripts
@@ -82,7 +84,7 @@ export function useDealDetail() {
       if (error) throw error;
       return data;
     },
-    enabled: !!dealId
+    enabled: !!dealId,
   });
 
   // Mutation to update deal fields
@@ -93,19 +95,25 @@ export function useDealDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
-    }
+    },
   });
 
   // Toggle universe build flag
   const toggleUniverseFlagMutation = useMutation({
     mutationFn: async (flagged: boolean) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
-      const { error } = await supabase.from('listings').update({
-        universe_build_flagged: flagged,
-        universe_build_flagged_at: flagged ? new Date().toISOString() : null,
-        universe_build_flagged_by: flagged ? user?.id : null,
-      }).eq('id', dealId!);
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          universe_build_flagged: flagged,
+          universe_build_flagged_at: flagged ? new Date().toISOString() : null,
+          universe_build_flagged_by: flagged ? user?.id : null,
+        })
+        .eq('id', dealId!);
       if (error) throw error;
     },
     onSuccess: (_, flagged) => {
@@ -118,19 +126,27 @@ export function useDealDetail() {
   // Toggle "needs owner contact" flag
   const toggleContactOwnerMutation = useMutation({
     mutationFn: async (flagged: boolean) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
-      const { error } = await supabase.from('listings').update({
-        needs_owner_contact: flagged,
-        needs_owner_contact_at: flagged ? new Date().toISOString() : null,
-        needs_owner_contact_by: flagged ? user?.id : null,
-      }).eq('id', dealId!);
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          needs_owner_contact: flagged,
+          needs_owner_contact_at: flagged ? new Date().toISOString() : null,
+          needs_owner_contact_by: flagged ? user?.id : null,
+        })
+        .eq('id', dealId!);
       if (error) throw error;
     },
     onSuccess: (_, flagged) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      toast.success(flagged ? 'Flagged: Owner needs to be contacted' : 'Contact owner flag cleared');
+      toast.success(
+        flagged ? 'Flagged: Owner needs to be contacted' : 'Contact owner flag cleared',
+      );
     },
     onError: () => toast.error('Failed to update flag'),
   });
@@ -138,7 +154,10 @@ export function useDealDetail() {
   // Company name editing
   const updateNameMutation = useMutation({
     mutationFn: async (newName: string) => {
-      const { error } = await supabase.from('listings').update({ internal_company_name: newName }).eq('id', dealId!);
+      const { error } = await supabase
+        .from('listings')
+        .update({ internal_company_name: newName })
+        .eq('id', dealId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -153,11 +172,17 @@ export function useDealDetail() {
 
   const handleSaveName = () => {
     const trimmed = editedName.trim();
-    if (!trimmed || trimmed === currentName) { setIsEditingName(false); return; }
+    if (!trimmed || trimmed === currentName) {
+      setIsEditingName(false);
+      return;
+    }
     updateNameMutation.mutate(trimmed);
   };
 
-  const handleCancelEdit = () => { setEditedName(currentName); setIsEditingName(false); };
+  const handleCancelEdit = () => {
+    setEditedName(currentName);
+    setIsEditingName(false);
+  };
 
   // Enrichment
   const handleEnrichFromWebsite = async () => {
@@ -166,27 +191,44 @@ export function useDealDetail() {
     setEnrichmentProgress(10);
     setEnrichmentStage('Scraping website...');
     progressTimerRef.current = setInterval(() => {
-      setEnrichmentProgress(prev => {
-        if (prev >= 85) { if (progressTimerRef.current) clearInterval(progressTimerRef.current); progressTimerRef.current = null; return 85; }
-        if (prev < 30) { setEnrichmentStage('Scraping website...'); return prev + 3; }
-        if (prev < 55) { setEnrichmentStage('Extracting business intelligence...'); return prev + 2; }
-        if (prev < 75) { setEnrichmentStage('Processing company data...'); return prev + 1.5; }
+      setEnrichmentProgress((prev) => {
+        if (prev >= 85) {
+          if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+          progressTimerRef.current = null;
+          return 85;
+        }
+        if (prev < 30) {
+          setEnrichmentStage('Scraping website...');
+          return prev + 3;
+        }
+        if (prev < 55) {
+          setEnrichmentStage('Extracting business intelligence...');
+          return prev + 2;
+        }
+        if (prev < 75) {
+          setEnrichmentStage('Processing company data...');
+          return prev + 1.5;
+        }
         setEnrichmentStage('Saving enriched data...');
         return prev + 1;
       });
     }, 500);
     try {
-      const { queueDealEnrichment } = await import("@/lib/remarketing/queueEnrichment");
+      const { queueDealEnrichment } = await import('@/lib/remarketing/queueEnrichment');
       await queueDealEnrichment([dealId!]);
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
       setEnrichmentProgress(100);
       setEnrichmentStage('Queued for background processing');
-      setTimeout(() => { setIsEnriching(false); setEnrichmentProgress(0); setEnrichmentStage(''); }, 1500);
+      setTimeout(() => {
+        setIsEnriching(false);
+        setEnrichmentProgress(0);
+        setEnrichmentStage('');
+      }, 1500);
     } catch (error: unknown) {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
-      toast.error(error.message || "Failed to queue enrichment");
+      toast.error((error instanceof Error ? error.message : null) || 'Failed to queue enrichment');
       setIsEnriching(false);
       setEnrichmentProgress(0);
       setEnrichmentStage('');
@@ -206,10 +248,10 @@ export function useDealDetail() {
         toast.success(`Extracted ${data.fieldsUpdated?.length || 0} fields from notes`);
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       } else {
-        toast.error(data?.error || "Failed to analyze notes");
+        toast.error(data?.error || 'Failed to analyze notes');
       }
     } catch (error: unknown) {
-      toast.error(error.message || "Failed to analyze notes");
+      toast.error((error instanceof Error ? error.message : null) || 'Failed to analyze notes');
     } finally {
       setIsAnalyzingNotes(false);
     }
@@ -217,24 +259,57 @@ export function useDealDetail() {
 
   // Derived values
   const effectiveWebsite = deal ? getEffectiveWebsite(deal) : null;
-  const dataCompleteness = deal ? calculateDataCompleteness(deal, effectiveWebsite) : 0;
-  const tier = scoreStats?.avgScore ? getTierFromScore(scoreStats.avgScore) : null;
+  const dataCompleteness = deal
+    ? calculateDataCompleteness(
+        deal as Parameters<typeof calculateDataCompleteness>[0],
+        effectiveWebsite,
+      )
+    : 0;
+  const tier = scoreStats ? getTierFromScore((scoreStats as { avgScore: number }).avgScore) : null;
   const displayName = deal?.internal_company_name || deal?.title || '';
-  const listedName = deal?.internal_company_name && deal?.title !== deal?.internal_company_name ? deal?.title : null;
+  const listedName =
+    deal?.internal_company_name && deal?.title !== deal?.internal_company_name ? deal?.title : null;
 
   return {
-    dealId, navigate, backTo, queryClient,
+    dealId,
+    navigate,
+    backTo,
+    queryClient,
     // Data
-    deal, dealLoading, scoreStats, pipelineStats, transcripts, transcriptsLoading,
+    deal,
+    dealLoading,
+    scoreStats,
+    pipelineStats,
+    transcripts,
+    transcriptsLoading,
     // Mutations
-    updateDealMutation, toggleUniverseFlagMutation, toggleContactOwnerMutation, updateNameMutation,
+    updateDealMutation,
+    toggleUniverseFlagMutation,
+    toggleContactOwnerMutation,
+    updateNameMutation,
     // UI state
-    isEnriching, enrichmentProgress, enrichmentStage, isAnalyzingNotes,
-    buyerHistoryOpen, setBuyerHistoryOpen, editFinancialsOpen, setEditFinancialsOpen,
-    isEditingName, setIsEditingName, editedName, setEditedName,
+    isEnriching,
+    enrichmentProgress,
+    enrichmentStage,
+    isAnalyzingNotes,
+    buyerHistoryOpen,
+    setBuyerHistoryOpen,
+    editFinancialsOpen,
+    setEditFinancialsOpen,
+    isEditingName,
+    setIsEditingName,
+    editedName,
+    setEditedName,
     // Handlers
-    handleEnrichFromWebsite, handleSaveName, handleCancelEdit, handleAnalyzeNotes,
+    handleEnrichFromWebsite,
+    handleSaveName,
+    handleCancelEdit,
+    handleAnalyzeNotes,
     // Derived
-    effectiveWebsite, dataCompleteness, tier, displayName, listedName,
+    effectiveWebsite,
+    dataCompleteness,
+    tier,
+    displayName,
+    listedName,
   };
 }

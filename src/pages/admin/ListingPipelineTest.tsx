@@ -22,9 +22,6 @@ import {
   Play,
   RotateCcw,
   Store,
-  FileText,
-  Sparkles,
-  Globe,
 } from 'lucide-react';
 
 // ─── Types ───
@@ -201,25 +198,19 @@ async function runPipelineChecks(dealId: string): Promise<PipelineReport> {
     const qualityIssues: string[] = [];
     if (!existingListing.title || existingListing.title.trim().length < 5)
       qualityIssues.push('Title < 5 chars');
-    if (!existingListing.image_url)
-      qualityIssues.push('No image');
+    if (!existingListing.image_url) qualityIssues.push('No image');
 
     // Fetch full listing data for deeper checks
     const { data: fullListing } = await supabase
       .from('listings')
-      .select(
-        'title, description, category, categories, location, revenue, ebitda, image_url',
-      )
+      .select('title, description, category, categories, location, revenue, ebitda, image_url')
       .eq('id', existingListing.id)
       .single();
 
     if (fullListing) {
       if (!fullListing.description || fullListing.description.trim().length < 50)
         qualityIssues.push('Description < 50 chars');
-      if (
-        !fullListing.category &&
-        (!fullListing.categories || fullListing.categories.length === 0)
-      )
+      if (!fullListing.category && (!fullListing.categories || fullListing.categories.length === 0))
         qualityIssues.push('No category');
       if (!fullListing.location) qualityIssues.push('No location');
       if (typeof fullListing.revenue !== 'number' || fullListing.revenue <= 0)
@@ -393,21 +384,27 @@ export default function ListingPipelineTest() {
                 Quick pick from marketplace queue
               </p>
               <div className="flex flex-wrap gap-2">
-                {queuedDeals.map((d: { id: string; internal_company_name: string | null; title: string | null }) => (
-                  <Button
-                    key={d.id}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    disabled={isRunning}
-                    onClick={() => {
-                      setDealId(d.id);
-                      runTest(d.id);
-                    }}
-                  >
-                    {d.internal_company_name || d.title || d.id.slice(0, 8)}
-                  </Button>
-                ))}
+                {queuedDeals.map(
+                  (d: {
+                    id: string;
+                    internal_company_name: string | null;
+                    title: string | null;
+                  }) => (
+                    <Button
+                      key={d.id}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      disabled={isRunning}
+                      onClick={() => {
+                        setDealId(d.id);
+                        runTest(d.id);
+                      }}
+                    >
+                      {d.internal_company_name || d.title || d.id.slice(0, 8)}
+                    </Button>
+                  ),
+                )}
               </div>
             </div>
           )}
@@ -419,9 +416,7 @@ export default function ListingPipelineTest() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">
-                Results: {report.dealTitle}
-              </CardTitle>
+              <CardTitle className="text-base">Results: {report.dealTitle}</CardTitle>
               <div className="flex items-center gap-2">
                 {failCount > 0 && (
                   <Badge variant="destructive" className="gap-1">
@@ -459,8 +454,7 @@ export default function ListingPipelineTest() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground font-mono">
-              Deal ID: {report.dealId} &middot; Ran at{' '}
-              {new Date(report.ranAt).toLocaleTimeString()}
+              Deal ID: {report.dealId} &middot; Ran at {new Date(report.ranAt).toLocaleTimeString()}
             </p>
           </CardHeader>
           <CardContent>
@@ -479,9 +473,7 @@ export default function ListingPipelineTest() {
                   }`}
                 >
                   <div className="mt-0.5">
-                    {check.status === 'pass' && (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    )}
+                    {check.status === 'pass' && <CheckCircle2 className="h-4 w-4 text-green-600" />}
                     {check.status === 'fail' && <XCircle className="h-4 w-4 text-red-600" />}
                     {check.status === 'warn' && (
                       <AlertTriangle className="h-4 w-4 text-amber-600" />

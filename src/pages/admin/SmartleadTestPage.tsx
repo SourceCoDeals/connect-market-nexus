@@ -503,8 +503,8 @@ function CampaignLeadsTest() {
             </SelectTrigger>
             <SelectContent>
               {(campaigns?.campaigns || []).map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name} ({c.lead_count || 0} leads)
+                <SelectItem key={c.id} value={String(c.id)}>
+                  {c.name} ({(c as unknown as { lead_count?: number }).lead_count || 0} leads)
                 </SelectItem>
               ))}
             </SelectContent>

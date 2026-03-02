@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type DealActivityType = 
+export type DealActivityType =
   | 'stage_change'
   | 'nda_status_changed'
   | 'nda_email_sent'
@@ -29,22 +29,23 @@ export async function logDealActivity({
   activityType,
   title,
   description,
-  metadata = {}
+  metadata = {},
 }: LogActivityParams): Promise<void> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError) throw authError;
-    
-    const { error } = await supabase
-      .from('deal_activities')
-      .insert({
-        deal_id: dealId,
-        admin_id: user?.id,
-        activity_type: activityType,
-        title,
-        description,
-        metadata
-      });
+
+    const { error } = await supabase.from('deal_activities').insert({
+      deal_id: dealId,
+      admin_id: user?.id,
+      activity_type: activityType,
+      title,
+      description,
+      metadata: metadata as unknown,
+    } as never);
 
     if (error) {
       console.error('Failed to log deal activity:', error);

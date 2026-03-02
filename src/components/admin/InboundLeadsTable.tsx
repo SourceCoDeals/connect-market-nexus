@@ -13,6 +13,7 @@ import {
 import { Plus, Upload, Search, CheckSquare } from 'lucide-react';
 import {
   InboundLead,
+  CreateInboundLeadData,
   useCreateInboundLead,
   useMapLeadToListing,
   useConvertLeadToRequest,
@@ -191,7 +192,7 @@ export const InboundLeadsTable = ({
     shouldConvert?: boolean,
   ) => {
     bulkImportWithMapping.mutate({
-      leads: leadsData,
+      leads: leadsData as CreateInboundLeadData[],
       listingId,
       listingTitle,
       shouldConvert,

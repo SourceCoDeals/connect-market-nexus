@@ -23,7 +23,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
   const [showCompose, setShowCompose] = useState(false);
   const [emailData, setEmailData] = useState({
     subject: '',
-    message: ''
+    message: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -81,9 +81,9 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
           metadata: {
             deal_id: deal.deal_id,
             title: deal.title,
-            contact_name: deal.contact_name
-          }
-        }
+            contact_name: deal.contact_name,
+          },
+        },
       });
 
       if (error) {
@@ -94,16 +94,16 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
         title: 'Email Sent',
         description: `Email sent successfully to ${deal.contact_email}`,
       });
-      
+
       setEmailData({ subject: '', message: '' });
       setShowCompose(false);
-      
+
       // Refresh email history
       setTimeout(() => refetchEmails(), 1000);
     } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: `Failed to send email: ${error.message}`,
+        description: `Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     } finally {
@@ -112,13 +112,13 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
   };
 
   // Use real email history from the database
-  const emailHistory = realEmailHistory.map(email => ({
+  const emailHistory = realEmailHistory.map((email) => ({
     id: email.id,
     type: email.email_type,
     subject: `Email to ${deal.contact_name || deal.contact_email}`,
     sent_at: email.sent_at,
     status: email.status,
-    sent_by: 'Admin' // Enhanced to show actual admin name from email metadata
+    sent_by: 'Admin', // Enhanced to show actual admin name from email metadata
   }));
 
   const handleFollowupToggle = async (type: 'positive' | 'negative', newValue: boolean) => {
@@ -130,7 +130,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
 
     // Get connection request IDs to update (current + selected others)
     const requestIdsToUpdate: string[] = [];
-    
+
     if (deal.connection_request_id) {
       requestIdsToUpdate.push(deal.connection_request_id);
     }
@@ -143,16 +143,16 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
     if (selectedDealsDataError) throw selectedDealsDataError;
 
     if (selectedDealsData) {
-      requestIdsToUpdate.push(...selectedDealsData
-        .map(d => d.connection_request_id)
-        .filter((id): id is string => !!id));
+      requestIdsToUpdate.push(
+        ...selectedDealsData.map((d) => d.connection_request_id).filter((id): id is string => !!id),
+      );
     }
 
     updateDealFollowup.mutate({
       dealId: deal.deal_id,
       connectionRequestIds: requestIdsToUpdate,
       isFollowedUp: newValue,
-      followupType: type
+      followupType: type,
     });
   };
 
@@ -162,12 +162,15 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
         {/* Follow-up Toggles */}
         <div className="space-y-4">
           <h2 className="text-sm font-medium text-foreground">Follow-up Status</h2>
-          
+
           <div className="space-y-4 p-6 border border-border/40 rounded-xl">
             {/* Positive Follow-up */}
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <Label htmlFor="positive-followup" className="text-sm font-medium text-foreground cursor-pointer">
+                <Label
+                  htmlFor="positive-followup"
+                  className="text-sm font-medium text-foreground cursor-pointer"
+                >
                   Positive Follow-up
                 </Label>
                 <p className="text-xs text-muted-foreground">
@@ -177,7 +180,9 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   <p className="text-xs text-muted-foreground/60 font-mono">
                     {formatDistanceToNow(new Date(deal.followed_up_at), { addSuffix: true })}
                     {deal.followed_up_by && allAdminProfiles?.[deal.followed_up_by] && (
-                      <span className="ml-1">by {allAdminProfiles[deal.followed_up_by].displayName}</span>
+                      <span className="ml-1">
+                        by {allAdminProfiles[deal.followed_up_by].displayName}
+                      </span>
                     )}
                   </p>
                 )}
@@ -192,18 +197,24 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
             {/* Negative Follow-up */}
             <div className="flex items-center justify-between pt-4 border-t border-border/20">
               <div className="space-y-1">
-                <Label htmlFor="negative-followup" className="text-sm font-medium text-foreground cursor-pointer">
+                <Label
+                  htmlFor="negative-followup"
+                  className="text-sm font-medium text-foreground cursor-pointer"
+                >
                   Rejection Notice
                 </Label>
-                <p className="text-xs text-muted-foreground">
-                  Send rejection notice to buyer
-                </p>
+                <p className="text-xs text-muted-foreground">Send rejection notice to buyer</p>
                 {negativeFollowedUp && deal.negative_followed_up_at && (
                   <p className="text-xs text-muted-foreground/60 font-mono">
-                    {formatDistanceToNow(new Date(deal.negative_followed_up_at), { addSuffix: true })}
-                    {deal.negative_followed_up_by && allAdminProfiles?.[deal.negative_followed_up_by] && (
-                      <span className="ml-1">by {allAdminProfiles[deal.negative_followed_up_by].displayName}</span>
-                    )}
+                    {formatDistanceToNow(new Date(deal.negative_followed_up_at), {
+                      addSuffix: true,
+                    })}
+                    {deal.negative_followed_up_by &&
+                      allAdminProfiles?.[deal.negative_followed_up_by] && (
+                        <span className="ml-1">
+                          by {allAdminProfiles[deal.negative_followed_up_by].displayName}
+                        </span>
+                      )}
                   </p>
                 )}
               </div>
@@ -230,7 +241,9 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                           if (checked) {
                             setSelectedOtherDeals([...selectedOtherDeals, otherDeal.id]);
                           } else {
-                            setSelectedOtherDeals(selectedOtherDeals.filter(id => id !== otherDeal.id));
+                            setSelectedOtherDeals(
+                              selectedOtherDeals.filter((id) => id !== otherDeal.id),
+                            );
                           }
                         }}
                       />
@@ -257,7 +270,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
         {/* Communication Overview - Apple Clean */}
         <div className="space-y-4">
           <h2 className="text-sm font-medium text-foreground">Email Communication</h2>
-          
+
           <div className="grid grid-cols-3 gap-8">
             <div className="text-center space-y-1">
               <div className="text-2xl font-light text-foreground">{emailHistory.length}</div>
@@ -265,13 +278,13 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
             </div>
             <div className="text-center space-y-1">
               <div className="text-2xl font-light text-emerald-600">
-                {emailHistory.filter(e => e.status === 'delivered').length}
+                {emailHistory.filter((e) => e.status === 'delivered').length}
               </div>
               <div className="text-xs text-muted-foreground/70 font-mono">Delivered</div>
             </div>
             <div className="text-center space-y-1">
               <div className="text-2xl font-light text-primary">
-                {emailHistory.filter(e => e.type === 'nda' || e.type === 'fee_agreement').length}
+                {emailHistory.filter((e) => e.type === 'nda' || e.type === 'fee_agreement').length}
               </div>
               <div className="text-xs text-muted-foreground/70 font-mono">Documents</div>
             </div>
@@ -281,7 +294,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
         {/* Quick Compose - Minimal */}
         <div className="space-y-4">
           <h2 className="text-sm font-medium text-foreground">Send Email</h2>
-          
+
           {!showCompose ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3 px-4 border border-border/40 rounded-xl">
@@ -291,7 +304,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                     To: {deal.contact_email || 'No email available'}
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowCompose(true)}
                   disabled={!deal.contact_email}
                   className="px-4 py-2 text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
@@ -299,16 +312,16 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   Compose
                 </button>
               </div>
-              
+
               {/* Quick Templates */}
               <div className="space-y-3">
                 <h3 className="text-xs text-muted-foreground/70 font-mono">Quick Templates</h3>
                 <div className="space-y-2">
-                  <button 
+                  <button
                     onClick={() => {
                       setEmailData({
                         subject: `Follow-up on ${deal.title}`,
-                        message: `Hi ${deal.contact_name || 'there'},\n\nI wanted to follow up on your interest in the ${deal.title} opportunity. Do you have any questions about the investment details?\n\nBest regards`
+                        message: `Hi ${deal.contact_name || 'there'},\n\nI wanted to follow up on your interest in the ${deal.title} opportunity. Do you have any questions about the investment details?\n\nBest regards`,
                       });
                       setShowCompose(true);
                     }}
@@ -316,15 +329,17 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   >
                     <div className="space-y-1">
                       <p className="text-sm text-foreground">Follow-up Email</p>
-                      <p className="text-xs text-muted-foreground/70">Standard follow-up template</p>
+                      <p className="text-xs text-muted-foreground/70">
+                        Standard follow-up template
+                      </p>
                     </div>
                   </button>
-                  
-                  <button 
+
+                  <button
                     onClick={() => {
                       setEmailData({
                         subject: `Additional Information - ${deal.title}`,
-                        message: `Hi ${deal.contact_name || 'there'},\n\nI'm attaching additional information about the ${deal.title} opportunity as requested.\n\nPlease let me know if you need any clarification.\n\nBest regards`
+                        message: `Hi ${deal.contact_name || 'there'},\n\nI'm attaching additional information about the ${deal.title} opportunity as requested.\n\nPlease let me know if you need any clarification.\n\nBest regards`,
                       });
                       setShowCompose(true);
                     }}
@@ -335,12 +350,12 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                       <p className="text-xs text-muted-foreground/70">Share additional details</p>
                     </div>
                   </button>
-                  
-                  <button 
+
+                  <button
                     onClick={() => {
                       setEmailData({
                         subject: `Schedule a Call - ${deal.title}`,
-                        message: `Hi ${deal.contact_name || 'there'},\n\nWould you be available for a call this week to discuss the ${deal.title} opportunity in more detail?\n\nI'm available at your convenience.\n\nBest regards`
+                        message: `Hi ${deal.contact_name || 'there'},\n\nWould you be available for a call this week to discuss the ${deal.title} opportunity in more detail?\n\nI'm available at your convenience.\n\nBest regards`,
                       });
                       setShowCompose(true);
                     }}
@@ -362,7 +377,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   To: {deal.contact_email}
                 </span>
               </div>
-              
+
               <div className="space-y-4">
                 <Input
                   placeholder="Email subject"
@@ -370,7 +385,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   onChange={(e) => setEmailData({ ...emailData, subject: e.target.value })}
                   className="border-0 bg-muted/20 focus:bg-muted/30"
                 />
-                
+
                 <Textarea
                   placeholder={`Hi ${deal.contact_name || 'there'},\n\nI wanted to follow up regarding the ${deal.title} opportunity...\n\nBest regards`}
                   value={emailData.message}
@@ -379,16 +394,16 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   className="border-0 bg-muted/20 focus:bg-muted/30"
                 />
               </div>
-              
+
               <div className="flex gap-3 pt-2">
-                <Button 
+                <Button
                   onClick={handleSendEmail}
                   disabled={!emailData.subject.trim() || !emailData.message.trim() || isLoading}
                   className="h-8 px-4 text-xs"
                 >
                   {isLoading ? 'Sending...' : 'Send Email'}
                 </Button>
-                <button 
+                <button
                   onClick={() => setShowCompose(false)}
                   className="h-8 px-4 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -402,7 +417,7 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
         {/* Email History - Minimal */}
         <div className="space-y-4">
           <h2 className="text-sm font-medium text-foreground">Email History</h2>
-          
+
           {emailHistory.length === 0 ? (
             <div className="py-12 text-center space-y-3">
               <div className="w-12 h-12 bg-muted/20 rounded-full flex items-center justify-center mx-auto">
@@ -410,7 +425,9 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">No emails sent yet</p>
-                <p className="text-xs text-muted-foreground/70">Send your first email to get started</p>
+                <p className="text-xs text-muted-foreground/70">
+                  Send your first email to get started
+                </p>
               </div>
             </div>
           ) : (
@@ -420,20 +437,27 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                   <div className="flex items-start justify-between">
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${
-                          email.status === 'delivered' ? 'bg-emerald-500' : 'bg-amber-500'
-                        }`} />
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            email.status === 'delivered' ? 'bg-emerald-500' : 'bg-amber-500'
+                          }`}
+                        />
                         <h3 className="text-sm font-medium text-foreground">{email.subject}</h3>
-                        <span className={`text-xs px-2 py-1 rounded-md font-mono ${
-                          email.type === 'nda' ? 'bg-blue-50 text-blue-700' :
-                          email.type === 'fee_agreement' ? 'bg-purple-50 text-purple-700' :
-                          email.type === 'followup' ? 'bg-emerald-50 text-emerald-700' :
-                          'bg-muted/50 text-muted-foreground'
-                        }`}>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-md font-mono ${
+                            email.type === 'nda'
+                              ? 'bg-blue-50 text-blue-700'
+                              : email.type === 'fee_agreement'
+                                ? 'bg-purple-50 text-purple-700'
+                                : email.type === 'followup'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : 'bg-muted/50 text-muted-foreground'
+                          }`}
+                        >
                           {email.type}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center gap-6 text-xs text-muted-foreground/70">
                         <span className="font-mono">Sent by {email.sent_by}</span>
                         <span className="font-mono">
@@ -441,12 +465,14 @@ export function PipelineDetailCommunication({ deal }: PipelineDetailCommunicatio
                         </span>
                       </div>
                     </div>
-                    
-                    <span className={`text-xs font-mono px-2 py-1 rounded-md ${
-                      email.status === 'delivered' 
-                        ? 'bg-emerald-50 text-emerald-700' 
-                        : 'bg-amber-50 text-amber-700'
-                    }`}>
+
+                    <span
+                      className={`text-xs font-mono px-2 py-1 rounded-md ${
+                        email.status === 'delivered'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}
+                    >
                       {email.status}
                     </span>
                   </div>

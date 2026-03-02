@@ -58,37 +58,23 @@ export function PipelineDetailOtherBuyers({ deal }: PipelineDetailOtherBuyersPro
 
       if (error) throw error;
 
-      return (data || []).map(
-        (d: {
-          id: string;
-          title: string;
-          contact_name?: string;
-          contact_company?: string;
-          contact_email?: string;
-          nda_status?: string;
-          fee_agreement_status?: string;
-          assigned_to?: string;
-          updated_at?: string;
-          created_at?: string;
-          deal_stages?: { name?: string; color?: string } | null;
-        }) => ({
-          id: d.id,
-          title: d.title,
-          contact_name: d.contact_name,
-          contact_company: d.contact_company,
-          contact_email: d.contact_email,
-          nda_status: d.nda_status,
-          fee_agreement_status: d.fee_agreement_status,
-          assigned_to: d.assigned_to,
-          updated_at: d.updated_at,
-          created_at: d.created_at,
-          stage_name: d.deal_stages?.name || null,
-          stage_color: d.deal_stages?.color || null,
-          owner_name: d.profiles
-            ? `${d.profiles.first_name || ''} ${d.profiles.last_name || ''}`.trim() || null
-            : null,
-        }),
-      ) as OtherBuyerDeal[];
+      return (data || []).map((d) => ({
+        id: d.id,
+        title: d.title,
+        contact_name: d.contact_name,
+        contact_company: d.contact_company,
+        contact_email: d.contact_email,
+        nda_status: d.nda_status,
+        fee_agreement_status: d.fee_agreement_status,
+        assigned_to: d.assigned_to,
+        updated_at: d.updated_at,
+        created_at: d.created_at,
+        stage_name: d.deal_stages?.name || null,
+        stage_color: d.deal_stages?.color || null,
+        owner_name: d.profiles
+          ? `${d.profiles.first_name || ''} ${d.profiles.last_name || ''}`.trim() || null
+          : null,
+      })) as OtherBuyerDeal[];
     },
     enabled: !!deal.listing_id,
     staleTime: 30_000,

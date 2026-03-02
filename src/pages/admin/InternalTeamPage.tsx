@@ -44,10 +44,10 @@ const InternalTeamPage = () => {
   // Convert role data to User-compatible shape for TeamMemberCard
   const toUserShape = (member: {
     user_id: string;
-    user_email?: string;
-    user_first_name?: string;
-    user_last_name?: string;
-    granted_at?: string;
+    user_email?: string | null;
+    user_first_name?: string | null;
+    user_last_name?: string | null;
+    granted_at?: string | null;
     role: string;
   }): User => {
     const firstName = member.user_first_name || '';

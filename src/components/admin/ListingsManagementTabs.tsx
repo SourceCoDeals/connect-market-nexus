@@ -20,9 +20,18 @@ const ListingsManagementTabs = () => {
   ) => {
     try {
       if (editingListing) {
-        await updateListing({ id: editingListing.id, listing: data, image });
+        await updateListing({
+          id: editingListing.id,
+          listing: data as Partial<Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>>,
+          image,
+        });
       } else {
-        await createListing({ listing: data, image, sendDealAlerts, targetType: 'marketplace' });
+        await createListing({
+          listing: data as Omit<AdminListing, 'id' | 'created_at' | 'updated_at'>,
+          image,
+          sendDealAlerts,
+          targetType: 'marketplace',
+        });
       }
       handleFormClose();
     } catch (error) {

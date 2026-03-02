@@ -582,7 +582,14 @@ export function ImprovedListingEditor({
                 onImageSelect={handleImageSelect}
                 onRemoveImage={handleRemoveImage}
               />
-              <EditorLivePreview formValues={form.watch()} imagePreview={imagePreview} />
+              <EditorLivePreview
+                formValues={
+                  form.watch() as unknown as React.ComponentProps<
+                    typeof EditorLivePreview
+                  >['formValues']
+                }
+                imagePreview={imagePreview}
+              />
             </div>
 
             {/* FOOTER - Actions */}

@@ -12,7 +12,10 @@ export type ListingType = 'marketplace' | 'research';
  * - marketplace: Public-facing listings (is_internal_deal = false, has image)
  * - research: Remarketing deals (is_internal_deal = true, no image - data-focused)
  */
-export function useListingsByType(type: ListingType, status?: 'active' | 'inactive' | 'archived' | 'all') {
+export function useListingsByType(
+  type: ListingType,
+  status?: 'active' | 'inactive' | 'archived' | 'all',
+) {
   const { user, authChecked } = useAuth();
 
   const cachedAuthState = (() => {
@@ -35,12 +38,9 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
           if (!isAdminUser) {
             throw new Error('Admin authentication required');
           }
-          
-          let query = supabase
-            .from('listings')
-            .select('*')
-            .is('deleted_at', null);
-          
+
+          let query = supabase.from('listings').select('*').is('deleted_at', null);
+
           // Filter by listing type with different image conditions
           if (type === 'marketplace') {
             // Marketplace: public-facing with images
@@ -50,32 +50,31 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
               .neq('image_url', '');
           } else {
             // Research: internal deals without images (remarketing deals)
-            query = query
-              .eq('is_internal_deal', true);
+            query = query.eq('is_internal_deal', true);
           }
-          
+
           // Apply status filter if provided
           if (status && status !== 'all') {
             query = query.eq('status', status);
           }
-          
+
           const { data, error } = await query.order('created_at', { ascending: false });
 
           if (error) {
             throw error;
           }
-          
-          const mappedData = data?.map(listing => ({
+
+          const mappedData = data?.map((listing) => ({
             ...listing,
-            categories: listing.categories || (listing.category ? [listing.category] : [])
+            categories: listing.categories || (listing.category ? [listing.category] : []),
           }));
-          
+
           return mappedData as unknown as AdminListing[];
         } catch (error: unknown) {
           toast({
             variant: 'destructive',
             title: 'Error fetching listings',
-            description: error.message,
+            description: (error as Error).message,
           });
           return [];
         }
@@ -90,7 +89,7 @@ export function useListingsByType(type: ListingType, status?: 'active' | 'inacti
         }
         return failureCount < 2;
       },
-    }
+    },
   );
 }
 
@@ -133,17 +132,17 @@ export function useListingTypeCounts() {
           .from('listings')
           .select('id', { count: 'exact', head: true })
           .is('deleted_at', null)
-          .eq('is_internal_deal', true)
+          .eq('is_internal_deal', true),
       ]);
 
       return {
         marketplace: marketplaceResult.count || 0,
-        research: researchResult.count || 0
+        research: researchResult.count || 0,
       };
     },
     {
       enabled: shouldEnable,
       staleTime: 1000 * 60 * 2,
-    }
+    },
   );
 }

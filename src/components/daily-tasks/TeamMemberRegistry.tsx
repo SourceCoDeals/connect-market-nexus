@@ -31,16 +31,29 @@ export function TeamMemberRegistry() {
         .select('user_id, role, profiles!inner(id, first_name, last_name, email)')
         .in('role', ['owner', 'admin', 'moderator']);
 
-      const { data: aliases } = await supabase.from('team_member_aliases' as UntypedTable).select('*');
+      const { data: aliases } = await supabase
+        .from('team_member_aliases' as UntypedTable)
+        .select('*');
 
       const aliasMap = new Map<string, { id: string; alias: string }[]>();
-      for (const a of (aliases || []) as AliasRow[]) {
+      for (const a of (aliases || []) as unknown as AliasRow[]) {
         const existing = aliasMap.get(a.profile_id) || [];
         existing.push({ id: a.id, alias: a.alias });
         aliasMap.set(a.profile_id, existing);
       }
 
-      return (roles || []).map((r: { user_id: string; role: string; profiles: { id: string; first_name: string | null; last_name: string | null; email: string } }) => ({
+      return (
+        (roles || []) as unknown as Array<{
+          user_id: string;
+          role: string;
+          profiles: {
+            id: string;
+            first_name: string | null;
+            last_name: string | null;
+            email: string;
+          };
+        }>
+      ).map((r) => ({
         // Use user_id directly from user_roles (matches auth.uid()) to ensure
         // consistent IDs with the assignee_id filter in useDailyTasks.
         id: r.user_id,
@@ -60,7 +73,7 @@ export function TeamMemberRegistry() {
         profile_id: profileId,
         alias: alias.trim(),
         created_by: user?.id,
-      });
+      } as Record<string, unknown>);
       if (error) throw error;
     },
     onSuccess: () => {

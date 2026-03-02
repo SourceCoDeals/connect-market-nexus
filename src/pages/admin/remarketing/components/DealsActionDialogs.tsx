@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -6,7 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,10 +16,14 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Calculator, Zap } from "lucide-react";
-import { DealImportDialog, AddDealDialog, DealEnrichmentSummaryDialog } from "@/components/remarketing";
-import { BulkAssignUniverseDialog } from "@/components/remarketing/BulkAssignUniverseDialog";
+} from '@/components/ui/alert-dialog';
+import { Calculator, Zap } from 'lucide-react';
+import {
+  DealImportDialog,
+  AddDealDialog,
+  DealEnrichmentSummaryDialog,
+} from '@/components/remarketing';
+import { BulkAssignUniverseDialog } from '@/components/remarketing/BulkAssignUniverseDialog';
 
 interface DealsActionDialogsProps {
   // Import dialog
@@ -65,7 +69,12 @@ interface DealsActionDialogsProps {
   // Enrichment summary
   showEnrichmentSummary: boolean;
   dismissSummary: () => void;
-  enrichmentSummary: { total?: number; success?: number; failed?: number; errors?: { id: string; error: string }[] } | null;
+  enrichmentSummary: {
+    total?: number;
+    success?: number;
+    failed?: number;
+    errors?: { id: string; error: string }[];
+  } | null;
   handleRetryFailedEnrichment: () => void;
 }
 
@@ -122,8 +131,8 @@ export const DealsActionDialogs = ({
         <AlertDialogHeader>
           <AlertDialogTitle>Archive {selectedDealsSize} Deal(s)?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will move the selected deals to the archive. They will no longer
-            appear in the active deals list.
+            This will move the selected deals to the archive. They will no longer appear in the
+            active deals list.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -133,7 +142,7 @@ export const DealsActionDialogs = ({
             disabled={isArchiving}
             className="bg-amber-600 hover:bg-amber-700"
           >
-            {isArchiving ? "Archiving..." : "Archive"}
+            {isArchiving ? 'Archiving...' : 'Archive'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -145,8 +154,8 @@ export const DealsActionDialogs = ({
         <AlertDialogHeader>
           <AlertDialogTitle>Permanently Delete {selectedDealsSize} Deal(s)?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will permanently delete the selected deals and all related data
-            (transcripts, scores, outreach records, etc.). This action cannot be undone.
+            This will permanently delete the selected deals and all related data (transcripts,
+            scores, outreach records, etc.). This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -156,7 +165,7 @@ export const DealsActionDialogs = ({
             disabled={isDeleting}
             className="bg-red-600 hover:bg-red-700"
           >
-            {isDeleting ? "Deleting..." : "Delete Permanently"}
+            {isDeleting ? 'Deleting...' : 'Delete Permanently'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -171,13 +180,16 @@ export const DealsActionDialogs = ({
     />
 
     {/* Single Delete Dialog */}
-    <AlertDialog open={!!singleDeleteTarget} onOpenChange={(open) => !open && setSingleDeleteTarget(null)}>
+    <AlertDialog
+      open={!!singleDeleteTarget}
+      onOpenChange={(open) => !open && setSingleDeleteTarget(null)}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Permanently Delete "{singleDeleteTarget?.name}"?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will permanently delete this deal and all related data
-            (transcripts, scores, outreach records, etc.). This action cannot be undone.
+            This will permanently delete this deal and all related data (transcripts, scores,
+            outreach records, etc.). This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -201,7 +213,8 @@ export const DealsActionDialogs = ({
             Calculate Deal Scores
           </DialogTitle>
           <DialogDescription>
-            Choose how you want to calculate quality scores. Both options will trigger website enrichment for accurate data.
+            Choose how you want to calculate quality scores. Both options will trigger website
+            enrichment for accurate data.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3 py-4">
@@ -299,7 +312,9 @@ export const DealsActionDialogs = ({
     <DealEnrichmentSummaryDialog
       open={showEnrichmentSummary}
       onOpenChange={(open) => !open && dismissSummary()}
-      summary={enrichmentSummary}
+      summary={
+        enrichmentSummary as React.ComponentProps<typeof DealEnrichmentSummaryDialog>['summary']
+      }
       onRetryFailed={handleRetryFailedEnrichment}
     />
   </>

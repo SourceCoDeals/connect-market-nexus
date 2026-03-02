@@ -18,7 +18,12 @@ export interface ErrorHandler {
 
 class ErrorManager {
   private static instance: ErrorManager;
-  private errorQueue: Array<{ error: Error | string; context?: ErrorContext; severity: ErrorSeverity; timestamp: Date }> = [];
+  private errorQueue: Array<{
+    error: Error | string;
+    context?: ErrorContext;
+    severity: ErrorSeverity;
+    timestamp: Date;
+  }> = [];
   private maxQueueSize = 100;
 
   static getInstance(): ErrorManager {
@@ -38,7 +43,7 @@ class ErrorManager {
 
     // Log to console with context
     const logMessage = `🚨 [${severity.toUpperCase()}] ${context.component || 'Unknown'}: ${errorMessage}`;
-    
+
     switch (severity) {
       case 'critical':
         console.error(logMessage, { error, context, stack: errorStack });
@@ -63,12 +68,21 @@ class ErrorManager {
     }
 
     // Always log to error logger for production monitoring
-    errorLogger.logError(error, context, severity === 'low' ? 'info' : 'error');
+    errorLogger.logError(
+      error,
+      context as Record<string, unknown>,
+      severity === 'low' ? 'info' : 'error',
+    );
   };
 
-  private addToQueue(errorEntry: { error: Error | string; context?: ErrorContext; severity: ErrorSeverity; timestamp: Date }) {
+  private addToQueue(errorEntry: {
+    error: Error | string;
+    context?: ErrorContext;
+    severity: ErrorSeverity;
+    timestamp: Date;
+  }) {
     this.errorQueue.push(errorEntry);
-    
+
     // Keep queue size manageable
     if (this.errorQueue.length > this.maxQueueSize) {
       this.errorQueue.shift(); // Remove oldest entry
@@ -108,7 +122,11 @@ class ErrorManager {
     }
   }
 
-  private async reportToExternalService(error: Error | string, context: ErrorContext, severity: ErrorSeverity) {
+  private async reportToExternalService(
+    error: Error | string,
+    context: ErrorContext,
+    severity: ErrorSeverity,
+  ) {
     try {
       // In a real application, you would send this to a service like Sentry, LogRocket, etc.
       const errorData = {
@@ -123,7 +141,7 @@ class ErrorManager {
       };
 
       console.warn('📊 Would report to external service:', errorData);
-      
+
       // Example: await fetch('/api/errors', { method: 'POST', body: JSON.stringify(errorData) });
     } catch (reportingError) {
       console.error('❌ Failed to report error to external service:', reportingError);
@@ -154,7 +172,11 @@ export const adminErrorHandler = (error: Error | string, operation = 'admin oper
 };
 
 export const networkErrorHandler = (error: Error | string, endpoint?: string) => {
-  errorHandler(error, { component: 'NetworkLayer', operation: `API call to ${endpoint}` }, 'medium');
+  errorHandler(
+    error,
+    { component: 'NetworkLayer', operation: `API call to ${endpoint}` },
+    'medium',
+  );
 };
 
 export const formErrorHandler = (error: Error | string, formName = 'form') => {
@@ -165,7 +187,7 @@ export const formErrorHandler = (error: Error | string, formName = 'form') => {
 export const enrichmentErrorHandler = (
   error: Error | { message: string; error_code?: string; recoverable?: boolean },
   entityType: 'buyer' | 'deal',
-  entityId: string
+  entityId: string,
 ) => {
   const errorCode = 'error_code' in error ? error.error_code : undefined;
   const isRecoverable = 'recoverable' in error ? error.recoverable : false;
@@ -173,25 +195,30 @@ export const enrichmentErrorHandler = (
 
   // Map error codes to user-friendly messages
   const userMessages: Record<string, string> = {
-    'concurrent_modification': 'This record was updated by another user. Please refresh and try again.',
-    'rate_limited': 'Too many requests. Please wait a moment and try again.',
-    'payment_required': 'AI credits depleted. Contact administrator.',
-    'db_update_failed': 'Failed to save enrichment data. Please try again.',
-    'ssrf_blocked': 'Invalid URL provided for enrichment.',
+    concurrent_modification:
+      'This record was updated by another user. Please refresh and try again.',
+    rate_limited: 'Too many requests. Please wait a moment and try again.',
+    payment_required: 'AI credits depleted. Contact administrator.',
+    db_update_failed: 'Failed to save enrichment data. Please try again.',
+    ssrf_blocked: 'Invalid URL provided for enrichment.',
   };
 
   const userMessage = errorCode ? userMessages[errorCode] || message : message;
-  const severity = errorCode === 'concurrent_modification' ? 'medium' :
-                   errorCode === 'payment_required' ? 'critical' : 'high';
+  const severity =
+    errorCode === 'concurrent_modification'
+      ? 'medium'
+      : errorCode === 'payment_required'
+        ? 'critical'
+        : 'high';
 
   errorHandler(
     new Error(userMessage),
     {
       component: 'EnrichmentService',
       operation: `enrich ${entityType}`,
-      metadata: { entityId, errorCode, isRecoverable }
+      metadata: { entityId, errorCode, isRecoverable },
     },
-    severity
+    severity,
   );
 
   return { userMessage, isRecoverable, errorCode };
@@ -210,14 +237,16 @@ export const scoringErrorHandler = (error: Error | string, operation = 'score') 
 // Error boundary helpers
 export const withErrorBoundary = <P extends object>(
   Component: React.ComponentType<P>,
-  errorFallback?: React.ComponentType<{ error: Error }>
+  errorFallback?: React.ComponentType<{ error: Error }>,
 ) => {
   return (props: P) => {
-    const fallbackElement = errorFallback ? React.createElement(errorFallback, { error: new Error('Component error') }) : undefined;
-    
-    return React.createElement(
-      ErrorBoundary,
-      { fallback: fallbackElement, children: React.createElement(Component, props) }
-    );
+    const fallbackElement = errorFallback
+      ? React.createElement(errorFallback, { error: new Error('Component error') })
+      : undefined;
+
+    return React.createElement(ErrorBoundary, {
+      fallback: fallbackElement,
+      children: React.createElement(Component, props),
+    });
   };
 };

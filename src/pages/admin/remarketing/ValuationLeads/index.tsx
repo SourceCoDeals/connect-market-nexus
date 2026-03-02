@@ -9,7 +9,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { FilterBar, TimeframeSelector, VALUATION_LEAD_FIELDS } from '@/components/filters';
-import { EnrichmentProgressIndicator, DealEnrichmentSummaryDialog, DealBulkActionBar } from '@/components/remarketing';
+import {
+  EnrichmentProgressIndicator,
+  DealEnrichmentSummaryDialog,
+  DealBulkActionBar,
+} from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import {
@@ -34,7 +38,7 @@ import { ValuationLeadsTable } from './ValuationLeadsTable';
 import { exportLeadsToCSV } from './helpers';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
-import type { Operator } from '@/components/filters';
+import type { Operator, FilterRule } from '@/components/filters';
 import type { SortColumn } from './types';
 
 // Re-export formatAge for any external importers
@@ -133,8 +137,10 @@ export default function ValuationLeads() {
         operator: f.operator as Operator,
         value: f.value,
       }));
-      if (clearExisting) setFilterState({ rules, conjunction: 'and', search: '' });
-      else setFilterState((prev) => ({ ...prev, rules: [...prev.rules, ...rules] }));
+      if (clearExisting)
+        setFilterState({ rules: rules as FilterRule[], conjunction: 'and', search: '' });
+      else
+        setFilterState((prev) => ({ ...prev, rules: [...prev.rules, ...rules] as FilterRule[] }));
     },
     onSortColumn: (field) => {
       const fieldMap: Record<string, string> = {

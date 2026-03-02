@@ -18,7 +18,9 @@ interface UseDealsActionsParams {
   setLocalOrder: React.Dispatch<React.SetStateAction<DealListing[]>>;
   sortedListingsRef: React.MutableRefObject<DealListing[]>;
   refetchListings: () => void;
-  adminProfiles: Record<string, unknown> | undefined;
+  adminProfiles:
+    | Record<string, { id: string; first_name: string; last_name: string; email: string }>
+    | undefined;
 }
 
 export function useDealsActions({
@@ -185,7 +187,11 @@ export function useDealsActions({
   );
 
   const orderedIds = useMemo(() => localOrder.map((d) => d.id), [localOrder]);
-  const { handleToggle: handleToggleSelect } = useShiftSelect(orderedIds, selectedDeals, setSelectedDeals);
+  const { handleToggle: handleToggleSelect } = useShiftSelect(
+    orderedIds,
+    selectedDeals,
+    setSelectedDeals,
+  );
 
   const handleSelectAll = useCallback(() => {
     if (selectedDeals.size === localOrder.length) setSelectedDeals(new Set());
@@ -229,7 +235,11 @@ export function useDealsActions({
       });
       refetchListings();
     } catch (error: unknown) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
     } finally {
       setSingleDeleteTarget(null);
     }
@@ -391,7 +401,11 @@ export function useDealsActions({
       setShowArchiveDialog(false);
       refetchListings();
     } catch (error: unknown) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
     } finally {
       setIsArchiving(false);
     }
@@ -435,7 +449,11 @@ export function useDealsActions({
       setShowDeleteDialog(false);
       refetchListings();
     } catch (error: unknown) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -445,11 +463,11 @@ export function useDealsActions({
     setShowCalculateDialog(false);
     setIsCalculating(true);
     try {
-      const { queueDealQualityScoring } = await import("@/lib/remarketing/queueScoring");
+      const { queueDealQualityScoring } = await import('@/lib/remarketing/queueScoring');
       await queueDealQualityScoring(
         mode === 'all'
           ? { mode: 'all', forceRecalculate: true, triggerEnrichment: true }
-          : { mode: 'unscored' }
+          : { mode: 'unscored' },
       );
       refetchListings();
     } catch {
@@ -528,7 +546,11 @@ export function useDealsActions({
         });
       refetchListings();
     } catch (error: unknown) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
     } finally {
       setIsEnrichingAll(false);
     }

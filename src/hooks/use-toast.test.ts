@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { reducer } from './use-toast';
 
-type TestToast = { id: string; title: string; open: boolean; onOpenChange?: (open: boolean) => void };
+type TestToast = {
+  id: string;
+  title: string;
+  open: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
 
 describe('toast reducer', () => {
   const initialState = { toasts: [] as TestToast[] };
@@ -18,7 +23,7 @@ describe('toast reducer', () => {
   });
 
   it('limits toast count to TOAST_LIMIT', () => {
-    let state = initialState;
+    let state: Parameters<typeof reducer>[0] = initialState;
     // Add multiple toasts (limit is 1)
     for (let i = 0; i < 5; i++) {
       state = reducer(state, {

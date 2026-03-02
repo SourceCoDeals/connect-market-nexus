@@ -323,7 +323,7 @@ async function triggerDealAlertsForListing(listing: Record<string, unknown>): Pr
   try {
     // Query deal alerts that match this listing
     const { data: matchingAlerts, error } = await supabase.rpc('match_deal_alerts_with_listing', {
-      listing_data: listing,
+      listing_data: listing as unknown as Record<string, never>,
     });
 
     if (error) {
@@ -336,9 +336,9 @@ async function triggerDealAlertsForListing(listing: Record<string, unknown>): Pr
         if (alert.alert_frequency === 'instant') {
           // Log delivery attempt
           await supabase.from('alert_delivery_logs').insert({
-            alert_id: alert.alert_id,
-            listing_id: listing.id,
-            user_id: alert.user_id,
+            alert_id: alert.alert_id as string,
+            listing_id: listing.id as string,
+            user_id: alert.user_id as string,
             delivery_status: 'pending',
           });
 

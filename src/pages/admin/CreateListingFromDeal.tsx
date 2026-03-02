@@ -5,7 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { ImprovedListingEditor } from '@/components/admin/ImprovedListingEditor';
 import { useRobustListingCreation } from '@/hooks/admin/listings/use-robust-listing-creation';
 import { useGenerateListingContent } from '@/hooks/admin/listings/use-generate-listing-content';
-import { anonymizeDealToListing, type DealData as DealForAnonymizer } from '@/lib/deal-to-listing-anonymizer';
+import {
+  anonymizeDealToListing,
+  type DealData as DealForAnonymizer,
+} from '@/lib/deal-to-listing-anonymizer';
 import { AdminListing } from '@/types/admin';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, AlertTriangle } from 'lucide-react';
@@ -133,33 +136,35 @@ export default function CreateListingFromDeal() {
   useEffect(() => {
     if (prefilled && dealId && !aiApplied && !isGenerating) {
       setAiApplied(true); // prevent double-fire
-      generateContent(dealId).then((content) => {
-        if (!content) return;
-        setPrefilled((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            title: content.title_options?.[0] || prev.title,
-            hero_description: content.hero_description || prev.hero_description,
-            description: content.description || prev.description,
-            investment_thesis: content.investment_thesis || prev.investment_thesis,
-            custom_sections: content.custom_sections || prev.custom_sections,
-            services: content.services || prev.services,
-            growth_drivers: content.growth_drivers || prev.growth_drivers,
-            competitive_position: content.competitive_position || prev.competitive_position,
-            ownership_structure: content.ownership_structure || prev.ownership_structure,
-            seller_motivation: content.seller_motivation || prev.seller_motivation,
-            business_model: content.business_model || prev.business_model,
-            customer_geography: content.customer_geography || prev.customer_geography,
-            customer_types: content.customer_types || prev.customer_types,
-            revenue_model: content.revenue_model || prev.revenue_model,
-            end_market_description: content.end_market_description || prev.end_market_description,
-          } as AdminListing;
+      generateContent(dealId)
+        .then((content) => {
+          if (!content) return;
+          setPrefilled((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              title: content.title_options?.[0] || prev.title,
+              hero_description: content.hero_description || prev.hero_description,
+              description: content.description || prev.description,
+              investment_thesis: content.investment_thesis || prev.investment_thesis,
+              custom_sections: content.custom_sections || prev.custom_sections,
+              services: content.services || prev.services,
+              growth_drivers: content.growth_drivers || prev.growth_drivers,
+              competitive_position: content.competitive_position || prev.competitive_position,
+              ownership_structure: content.ownership_structure || prev.ownership_structure,
+              seller_motivation: content.seller_motivation || prev.seller_motivation,
+              business_model: content.business_model || prev.business_model,
+              customer_geography: content.customer_geography || prev.customer_geography,
+              customer_types: content.customer_types || prev.customer_types,
+              revenue_model: content.revenue_model || prev.revenue_model,
+              end_market_description: content.end_market_description || prev.end_market_description,
+            } as AdminListing;
+          });
+          toast.success('AI content generated — review and adjust as needed.');
+        })
+        .catch(() => {
+          // Errors are already handled inside generateContent with a toast
         });
-        toast.success('AI content generated — review and adjust as needed.');
-      }).catch(() => {
-        // Errors are already handled inside generateContent with a toast
-      });
     }
   }, [prefilled, dealId, aiApplied, isGenerating, generateContent]);
 
@@ -172,7 +177,7 @@ export default function CreateListingFromDeal() {
         is_internal_deal: true,
       };
 
-      await createListing({ listing: listingData, image });
+      await createListing({ listing: listingData as never, image });
 
       // Invalidate relevant queries — the deal stays in the queue so the
       // "Listing Created" badge appears. The source_deal_id link is the
@@ -253,7 +258,9 @@ export default function CreateListingFromDeal() {
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {isGenerating ? 'AI is generating listing content from transcripts and notes…' : 'Loading deal data…'}
+          {isGenerating
+            ? 'AI is generating listing content from transcripts and notes…'
+            : 'Loading deal data…'}
         </p>
       </div>
     );
@@ -269,7 +276,10 @@ export default function CreateListingFromDeal() {
           </Button>
           <div className="text-sm text-muted-foreground">
             Creating anonymous listing from:{' '}
-            <strong>{(deal as Record<string, unknown> | null)?.internal_company_name as string || 'Unknown Deal'}</strong>
+            <strong>
+              {((deal as Record<string, unknown> | null)?.internal_company_name as string) ||
+                'Unknown Deal'}
+            </strong>
           </div>
         </div>
       </div>

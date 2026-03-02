@@ -17,8 +17,8 @@ export const useSignupAnalytics = (sessionId: string, email?: string) => {
         step_name: step.stepName,
         step_order: step.stepOrder,
         time_spent: step.timeSpent,
-        form_data: step.formData,
-        dropped_off: false
+        form_data: step.formData as import('@/integrations/supabase/types').Json,
+        dropped_off: false,
       });
     } catch (error) {
       // Debug log removed
@@ -33,9 +33,9 @@ export const useSignupAnalytics = (sessionId: string, email?: string) => {
         step_name: step.stepName,
         step_order: step.stepOrder,
         time_spent: step.timeSpent,
-        form_data: step.formData,
+        form_data: step.formData as import('@/integrations/supabase/types').Json,
         dropped_off: true,
-        drop_off_reason: step.dropOffReason
+        drop_off_reason: step.dropOffReason,
       });
     } catch (error) {
       // Debug log removed
@@ -49,7 +49,7 @@ export const useSignupAnalytics = (sessionId: string, email?: string) => {
         email,
         step_name: 'completed',
         step_order: 999,
-        dropped_off: false
+        dropped_off: false,
       });
     } catch (error) {
       // Debug log removed
@@ -59,6 +59,6 @@ export const useSignupAnalytics = (sessionId: string, email?: string) => {
   return {
     trackStep,
     trackDropOff,
-    trackCompletion
+    trackCompletion,
   };
 };
