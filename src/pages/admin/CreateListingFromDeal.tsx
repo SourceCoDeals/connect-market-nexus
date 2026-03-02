@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { ImprovedListingEditor } from '@/components/admin/ImprovedListingEditor';
 import { useRobustListingCreation } from '@/hooks/admin/listings/use-robust-listing-creation';
-import { useGenerateListingContent } from '@/hooks/admin/listings/use-generate-listing-content';
 import {
   anonymizeDealToListing,
   type DealData as DealForAnonymizer,
@@ -17,6 +16,9 @@ import { toast } from 'sonner';
 /**
  * Page for creating a marketplace listing from a deal in the marketplace queue.
  * Fetches deal data, anonymizes it, and pre-fills the listing editor.
+ *
+ * Content sections (custom_sections) are populated later when the lead memo
+ * is generated — not during listing creation.
  */
 export default function CreateListingFromDeal() {
   const [searchParams] = useSearchParams();
@@ -25,8 +27,6 @@ export default function CreateListingFromDeal() {
   const dealId = searchParams.get('fromDeal');
 
   const { mutateAsync: createListing, isPending: isCreating } = useRobustListingCreation();
-  const { generateContent, isGenerating } = useGenerateListingContent();
-  const [aiApplied, setAiApplied] = useState(false);
 
   // Fetch the deal data
   const {
@@ -48,11 +48,7 @@ export default function CreateListingFromDeal() {
           main_contact_name, main_contact_email, main_contact_phone, main_contact_title,
           geographic_states, internal_deal_memo_link,
           pushed_to_marketplace,
-          customer_geography, customer_types,
-          business_model, revenue_model, end_market_description,
-          competitive_position, ownership_structure, seller_motivation,
-          owner_goals, transition_preferences, growth_drivers,
-          investment_thesis, founded_year, number_of_locations
+          founded_year, number_of_locations
         `,
         )
         .eq('id', dealId!)
@@ -100,20 +96,7 @@ export default function CreateListingFromDeal() {
         internal_notes: anonymized.internal_notes,
         internal_deal_memo_link: deal.internal_deal_memo_link || '',
         company_website: anonymized.company_website || null,
-        // Landing page content fields (GAPs 4+7)
-        investment_thesis: anonymized.investment_thesis,
-        custom_sections: anonymized.custom_sections,
-        services: anonymized.services,
-        growth_drivers: anonymized.growth_drivers,
-        ownership_structure: anonymized.ownership_structure,
-        seller_motivation: anonymized.seller_motivation,
-        business_model: anonymized.business_model,
-        customer_geography: anonymized.customer_geography,
-        customer_types: anonymized.customer_types,
-        revenue_model: anonymized.revenue_model,
-        end_market_description: anonymized.end_market_description,
-        competitive_position: anonymized.competitive_position,
-        // Custom metrics (GAP 6)
+        // Custom metrics
         metric_3_type: anonymized.metric_3_type,
         metric_3_custom_label: anonymized.metric_3_custom_label,
         metric_3_custom_value: anonymized.metric_3_custom_value,
@@ -122,6 +105,8 @@ export default function CreateListingFromDeal() {
         metric_4_custom_label: anonymized.metric_4_custom_label,
         metric_4_custom_value: anonymized.metric_4_custom_value,
         metric_4_custom_subtitle: anonymized.metric_4_custom_subtitle,
+        // custom_sections starts empty — populated by lead memo generation
+        custom_sections: [],
         tags: [],
         status: 'active',
         created_at: new Date().toISOString(),
@@ -129,44 +114,6 @@ export default function CreateListingFromDeal() {
       });
     }
   }, [deal, prefilled]);
-
-  // Once we have the prefilled base data, automatically run AI generation
-  // using the deal's transcripts, notes, and enrichment. This replaces the
-  // manual "Generate All with AI" step so the editor opens ready to review.
-  useEffect(() => {
-    if (prefilled && dealId && !aiApplied && !isGenerating) {
-      setAiApplied(true); // prevent double-fire
-      generateContent(dealId)
-        .then((content) => {
-          if (!content) return;
-          setPrefilled((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              title: content.title_options?.[0] || prev.title,
-              hero_description: content.hero_description || prev.hero_description,
-              description: content.description || prev.description,
-              investment_thesis: content.investment_thesis || prev.investment_thesis,
-              custom_sections: content.custom_sections || prev.custom_sections,
-              services: content.services || prev.services,
-              growth_drivers: content.growth_drivers || prev.growth_drivers,
-              competitive_position: content.competitive_position || prev.competitive_position,
-              ownership_structure: content.ownership_structure || prev.ownership_structure,
-              seller_motivation: content.seller_motivation || prev.seller_motivation,
-              business_model: content.business_model || prev.business_model,
-              customer_geography: content.customer_geography || prev.customer_geography,
-              customer_types: content.customer_types || prev.customer_types,
-              revenue_model: content.revenue_model || prev.revenue_model,
-              end_market_description: content.end_market_description || prev.end_market_description,
-            } as AdminListing;
-          });
-          toast.success('AI content generated — review and adjust as needed.');
-        })
-        .catch(() => {
-          // Errors are already handled inside generateContent with a toast
-        });
-    }
-  }, [prefilled, dealId, aiApplied, isGenerating, generateContent]);
 
   const handleSubmit = async (data: Record<string, unknown>, image?: File | null) => {
     try {
@@ -253,15 +200,11 @@ export default function CreateListingFromDeal() {
     );
   }
 
-  if (!prefilled || isGenerating) {
+  if (!prefilled) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          {isGenerating
-            ? 'AI is generating listing content from transcripts and notes…'
-            : 'Loading deal data…'}
-        </p>
+        <p className="text-sm text-muted-foreground">Loading deal data…</p>
       </div>
     );
   }

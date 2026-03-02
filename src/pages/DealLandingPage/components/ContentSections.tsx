@@ -1,124 +1,117 @@
-import { User } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { LandingPageDeal } from '@/hooks/useDealLandingPage';
+import { stripIdentifyingInfo, type DealData } from '@/lib/deal-to-listing-anonymizer';
+import { RichTextDisplay } from '@/components/ui/rich-text-display';
 
 interface ContentSectionsProps {
   deal: LandingPageDeal;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * Build a minimal DealData object from the landing page listing data
+ * so we can reuse stripIdentifyingInfo for anonymization.
+ */
+function buildDealDataForAnonymization(deal: LandingPageDeal): DealData {
+  return {
+    id: deal.id,
+    title: deal.title,
+    internal_company_name: deal.internal_company_name ?? null,
+    executive_summary: null,
+    description: null,
+    revenue: deal.revenue,
+    ebitda: deal.ebitda,
+    location: deal.location,
+    address_state: null,
+    address_city: null,
+    category: deal.category ?? deal.categories?.[0] ?? null,
+    industry: null,
+    service_mix: null,
+    website: deal.company_website ?? null,
+    full_time_employees: deal.full_time_employees,
+    linkedin_employee_count: null,
+    main_contact_name: null,
+    main_contact_email: null,
+    main_contact_phone: null,
+    main_contact_title: null,
+    geographic_states: null,
+    internal_deal_memo_link: null,
+  };
+}
+
+function CollapsibleSection({
+  title,
+  children,
+  defaultOpen = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
   return (
-    <div className="py-6 border-b border-[#E5E7EB] last:border-b-0">
-      <h2 className="text-[18px] sm:text-[20px] font-semibold text-[#1A1A1A] mb-3 font-['Inter',system-ui,sans-serif]">
-        {title}
-      </h2>
-      {children}
+    <div className="border-b border-[#E5E7EB] last:border-b-0">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full py-5 text-left group"
+      >
+        <h2 className="text-sm font-medium text-[#1A1A1A] leading-5 font-['Inter',system-ui,sans-serif]">
+          {title}
+        </h2>
+        <ChevronDown
+          className={`w-4 h-4 text-[#9CA3AF] transition-transform duration-200 flex-shrink-0 ml-4 ${
+            isOpen ? 'rotate-0' : '-rotate-90'
+          }`}
+        />
+      </button>
+      {isOpen && <div className="pb-6">{children}</div>}
     </div>
   );
 }
 
-function Paragraph({ text }: { text: string }) {
+function AnonymizedContent({ text, dealData }: { text: string; dealData: DealData }) {
+  const anonymized = stripIdentifyingInfo(text, dealData);
   return (
-    <p className="text-[15px] leading-[1.6] text-[#374151] font-['Inter',system-ui,sans-serif]">
-      {text}
+    <p className="text-sm leading-relaxed text-[#374151] font-['Inter',system-ui,sans-serif] whitespace-pre-line">
+      {anonymized}
     </p>
   );
 }
 
 export default function ContentSections({ deal }: ContentSectionsProps) {
-  // Parse custom_sections from the deal data
+  const dealData = useMemo(() => buildDealDataForAnonymization(deal), [deal]);
+
+  /** Anonymize a text value using the same engine as the lead memo */
+  const anon = (text: string | null | undefined): string => {
+    if (!text) return '';
+    return stripIdentifyingInfo(text, dealData);
+  };
+
   const customSections = deal.custom_sections ?? [];
-
-  // Find specific sections by common title patterns
-  const findSection = (patterns: string[]) =>
-    customSections.find((s) =>
-      patterns.some((p) => s.title.toLowerCase().includes(p.toLowerCase())),
-    );
-
-  const strategicAssets = findSection(['strategic asset', 'strategic']);
-  const revenueQuality = findSection(['revenue quality', 'revenue']);
-  const growthSection = findSection(['growth', 'acceleration', 'opportunity']);
-
-  // Filter out sections that are already handled by dedicated fields or matched above
-  const matchedTitles = new Set(
-    [strategicAssets, revenueQuality, growthSection].filter(Boolean).map((s) => s!.title),
-  );
-  const additionalSections = customSections.filter((s) => !matchedTitles.has(s.title));
 
   return (
     <div>
-      {/* Investment Thesis */}
-      {deal.investment_thesis && (
-        <Section title="Investment Thesis">
-          <Paragraph text={deal.investment_thesis} />
-        </Section>
-      )}
-
-      {/* Strategic Assets */}
-      {strategicAssets && (
-        <Section title={strategicAssets.title}>
-          <Paragraph text={strategicAssets.description} />
-        </Section>
-      )}
-
-      {/* Revenue Quality */}
-      {revenueQuality && (
-        <Section title={revenueQuality.title}>
-          <Paragraph text={revenueQuality.description} />
-        </Section>
-      )}
-
-      {/* Growth Acceleration Opportunity */}
-      {growthSection && (
-        <Section title={growthSection.title}>
-          <Paragraph text={growthSection.description} />
-        </Section>
-      )}
-
-      {/* Additional custom sections */}
-      {additionalSections.map((section, i) => (
-        <Section key={i} title={section.title}>
-          <Paragraph text={section.description} />
-        </Section>
-      ))}
-
-      {/* Core Service Offerings */}
-      {deal.services && deal.services.length > 0 && (
-        <Section title="Core Service Offerings">
-          <ul className="list-disc list-inside space-y-1.5">
-            {deal.services.map((service, i) => (
-              <li
-                key={i}
-                className="text-[15px] leading-[1.6] text-[#374151] font-['Inter',system-ui,sans-serif]"
-              >
-                {service}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-      {/* Ownership Section */}
-      {(deal.ownership_structure || deal.seller_motivation) && (
-        <div className="my-6 bg-[#FAF8F5] rounded-xl p-6 sm:p-8">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-full bg-[#E5E7EB] flex items-center justify-center flex-shrink-0">
-              <User className="w-7 h-7 text-[#9CA3AF]" />
-            </div>
-            <div>
-              {deal.ownership_structure && (
-                <p className="text-[16px] font-semibold text-[#1A1A1A] mb-1 font-['Inter',system-ui,sans-serif]">
-                  {deal.ownership_structure}
-                </p>
-              )}
-              {deal.seller_motivation && (
-                <p className="text-[15px] leading-[1.6] text-[#374151] font-['Inter',system-ui,sans-serif]">
-                  {deal.seller_motivation}
-                </p>
-              )}
-            </div>
+      {/* Business Overview — the description, same as listing page */}
+      {(deal.description_html || deal.description) && (
+        <CollapsibleSection title="Business Overview">
+          <div className="prose prose-slate max-w-none text-sm [&_p]:text-sm [&_div]:text-sm [&_span]:text-sm">
+            {deal.description_html ? (
+              <RichTextDisplay content={anon(deal.description_html)} />
+            ) : (
+              <AnonymizedContent text={deal.description!} dealData={dealData} />
+            )}
           </div>
-        </div>
+        </CollapsibleSection>
       )}
+
+      {/* Custom Sections — the lead memo content sections, same as listing page */}
+      {customSections.map((section, i) => (
+        <CollapsibleSection key={i} title={anon(section.title)}>
+          <AnonymizedContent text={section.description} dealData={dealData} />
+        </CollapsibleSection>
+      ))}
     </div>
   );
 }

@@ -90,9 +90,11 @@ interface DatabaseListingInsert {
   // Source deal linkage
   source_deal_id?: string | null;
 
-  // Landing page content fields
-  investment_thesis?: string | null;
+  // Content sections (populated by lead memo generator)
   custom_sections?: Array<{ title: string; description: string }> | null;
+
+  // Deal detail fields (used in admin pipeline, remarketing, buyer universe)
+  investment_thesis?: string | null;
   services?: string[] | null;
   growth_drivers?: string[] | null;
   competitive_position?: string | null;
@@ -201,9 +203,11 @@ export function useRobustListingCreation() {
           // Source deal linkage
           source_deal_id: listing.source_deal_id || null,
 
-          // Landing page content fields
-          investment_thesis: listing.investment_thesis || null,
+          // Content sections (populated by lead memo generator)
           custom_sections: listing.custom_sections || null,
+
+          // Deal detail fields
+          investment_thesis: listing.investment_thesis || null,
           services: listing.services || null,
           growth_drivers: listing.growth_drivers || null,
           competitive_position: listing.competitive_position || null,

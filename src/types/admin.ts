@@ -34,14 +34,11 @@ export interface AdminListing {
   internal_contact_info?: string;
   internal_notes?: string;
 
-  // New investor-focused fields
+  // Deal metadata (used in admin pipeline, remarketing, buyer universe)
   ownership_structure?: string;
   seller_motivation?: string;
   management_depth?: string;
-  revenue_model_breakdown?: Record<string, number>;
   customer_concentration?: number;
-  market_position?: Record<string, unknown>;
-  transaction_preferences?: Record<string, unknown>;
   growth_drivers?: string[];
   key_risks?: string[];
   investment_thesis?: string;
@@ -87,8 +84,10 @@ export interface AdminListing {
   // Source deal linkage (marketplace listing created from a deal)
   source_deal_id?: string | null;
 
-  // Landing page content fields
+  // Content sections (populated by lead memo generator)
   custom_sections?: Array<{ title: string; description: string }> | null;
+
+  // Deal detail fields (used in admin pipeline, remarketing, buyer universe)
   services?: string[] | null;
   competitive_position?: string | null;
   business_model?: string | null;
@@ -129,14 +128,11 @@ export interface CreateListingData {
   internal_contact_info?: string;
   internal_notes?: string;
 
-  // New investor-focused fields
+  // Deal metadata (used in admin pipeline, remarketing, buyer universe)
   ownership_structure?: string;
   seller_motivation?: string;
   management_depth?: string;
-  revenue_model_breakdown?: Record<string, number>;
   customer_concentration?: number;
-  market_position?: Record<string, unknown>;
-  transaction_preferences?: Record<string, unknown>;
   growth_drivers?: string[];
   key_risks?: string[];
   investment_thesis?: string;

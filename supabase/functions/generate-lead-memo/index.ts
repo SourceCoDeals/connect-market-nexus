@@ -162,6 +162,39 @@ Deno.serve(async (req: Request) => {
 
       if (teaserError) throw teaserError;
       results.anonymous_teaser = teaser;
+
+      // Sync anonymous teaser sections to the listing's custom_sections.
+      // The lead memo is the single source of truth for listing content —
+      // this keeps the marketplace listing and landing page in sync with
+      // the anonymous teaser automatically.
+      const customSections = teaserContent.sections
+        .filter((s: MemoSection) => s.key !== 'header_block' && s.key !== 'contact_information')
+        .map((s: MemoSection) => ({ title: s.title, description: s.content }));
+
+      // Also use the company_overview section as the listing description
+      const companyOverview = teaserContent.sections.find(
+        (s: MemoSection) => s.key === 'company_overview',
+      );
+
+      const listingUpdate: Record<string, unknown> = {
+        custom_sections: customSections,
+      };
+      if (companyOverview) {
+        listingUpdate.description = companyOverview.content;
+        // Build basic HTML from the markdown content
+        const htmlContent = companyOverview.content
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/\n\n/g, '</p><p>')
+          .replace(/^/, '<p>')
+          .replace(/$/, '</p>');
+        listingUpdate.description_html = htmlContent;
+      }
+
+      await supabaseAdmin
+        .from('listings')
+        .update(listingUpdate)
+        .eq('id', deal_id);
     }
 
     if (memo_type === 'full_memo' || memo_type === 'both') {
