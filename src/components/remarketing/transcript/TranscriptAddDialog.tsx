@@ -169,8 +169,8 @@ export function TranscriptAddDialog({
                 </Button>
               </div>
               <div className="max-h-80 overflow-y-auto space-y-2">
-                {firefliesResults.map(
-                  (result: {
+                {(
+                  firefliesResults as Array<{
                     id: string;
                     title?: string;
                     date?: string;
@@ -179,73 +179,71 @@ export function TranscriptAddDialog({
                     match_type?: string;
                     summary?: string | { short_summary?: string };
                     external_participants?: { name: string; email?: string }[];
-                  }) => (
-                    <Card
-                      key={result.id}
-                      className={`p-3 cursor-pointer transition-colors ${
-                        selectedFirefliesIds.has(result.id)
-                          ? 'border-primary bg-primary/5'
-                          : 'hover:bg-muted/50'
-                      } ${result.has_content === false ? 'opacity-60' : ''}`}
-                      onClick={() => onToggleFirefliesId(result.id)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedFirefliesIds.has(result.id)}
-                          readOnly
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium truncate">{result.title}</p>
-                            {result.has_content === false && (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] h-4 text-amber-600 border-amber-300 shrink-0"
-                              >
-                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                                No Audio
-                              </Badge>
-                            )}
-                            {result.match_type === 'keyword' && (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] h-4 text-blue-600 border-blue-300 shrink-0"
-                              >
-                                Matched by Name
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex gap-3 text-xs text-muted-foreground mt-1">
-                            {result.date && (
-                              <span>{new Date(result.date).toLocaleDateString()}</span>
-                            )}
-                            {result.duration_minutes && <span>{result.duration_minutes} min</span>}
-                          </div>
-                          {/* Participant display */}
-                          {result.external_participants &&
-                            result.external_participants.length > 0 && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                <Users className="h-3 w-3" />
-                                With:{' '}
-                                {result.external_participants
-                                  .map((p: { name: string }) => p.name)
-                                  .join(', ')}
-                              </p>
-                            )}
-                          {result.summary && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                              {typeof result.summary === 'string'
-                                ? result.summary
-                                : result.summary.short_summary}
-                            </p>
+                  }>
+                ).map((result) => (
+                  <Card
+                    key={result.id}
+                    className={`p-3 cursor-pointer transition-colors ${
+                      selectedFirefliesIds.has(result.id)
+                        ? 'border-primary bg-primary/5'
+                        : 'hover:bg-muted/50'
+                    } ${result.has_content === false ? 'opacity-60' : ''}`}
+                    onClick={() => onToggleFirefliesId(result.id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedFirefliesIds.has(result.id)}
+                        readOnly
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">{result.title}</p>
+                          {result.has_content === false && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] h-4 text-amber-600 border-amber-300 shrink-0"
+                            >
+                              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                              No Audio
+                            </Badge>
+                          )}
+                          {result.match_type === 'keyword' && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] h-4 text-blue-600 border-blue-300 shrink-0"
+                            >
+                              Matched by Name
+                            </Badge>
                           )}
                         </div>
+                        <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                          {result.date && <span>{new Date(result.date).toLocaleDateString()}</span>}
+                          {result.duration_minutes && <span>{result.duration_minutes} min</span>}
+                        </div>
+                        {/* Participant display */}
+                        {result.external_participants &&
+                          result.external_participants.length > 0 && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                              <Users className="h-3 w-3" />
+                              With:{' '}
+                              {result.external_participants
+                                .map((p: { name: string }) => p.name)
+                                .join(', ')}
+                            </p>
+                          )}
+                        {result.summary && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {typeof result.summary === 'string'
+                              ? result.summary
+                              : result.summary.short_summary}
+                          </p>
+                        )}
                       </div>
-                    </Card>
-                  ),
-                )}
+                    </div>
+                  </Card>
+                ))}
               </div>
             </div>
           )}

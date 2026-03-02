@@ -636,8 +636,14 @@ const ReMarketingDeals = () => {
                             key={listing.id}
                             listing={listing}
                             index={index}
-                            stats={h.scoreStats?.[listing.id]}
-                            navigate={h.navigate}
+                            stats={
+                              (h.scoreStats?.[listing.id] as {
+                                totalMatches?: number;
+                                approved?: number;
+                                passed?: number;
+                              }) ?? null
+                            }
+                            navigate={(path: string) => h.navigate(path)}
                             formatCurrency={formatCurrency}
                             formatWebsiteDomain={formatWebsiteDomain}
                             getEffectiveWebsite={getEffectiveWebsite}
@@ -764,7 +770,14 @@ const ReMarketingDeals = () => {
         setShowAddDealDialog={h.setShowAddDealDialog}
         showEnrichmentSummary={h.showEnrichmentSummary}
         dismissSummary={h.dismissSummary}
-        enrichmentSummary={h.enrichmentSummary}
+        enrichmentSummary={
+          h.enrichmentSummary as {
+            total?: number;
+            success?: number;
+            failed?: number;
+            errors?: { id: string; error: string }[];
+          } | null
+        }
         handleRetryFailedEnrichment={h.handleRetryFailedEnrichment}
       />
     </div>

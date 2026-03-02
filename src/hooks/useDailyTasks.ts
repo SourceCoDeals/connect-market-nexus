@@ -130,7 +130,7 @@ export function useToggleTaskComplete() {
 
       const { error } = await supabase
         .from('daily_standup_tasks' as never)
-        .update(updates)
+        .update(updates as never)
         .eq('id', taskId);
 
       if (error) throw error;
@@ -199,7 +199,7 @@ export function useApproveTask() {
           status: 'pending' as TaskStatus,
           approved_by: user?.id,
           approved_at: new Date().toISOString(),
-        })
+        } as never)
         .eq('id', taskId)
         .eq('status', 'pending_approval');
 
@@ -226,7 +226,7 @@ export function useApproveAllTasks() {
           status: 'pending' as TaskStatus,
           approved_by: user?.id,
           approved_at: new Date().toISOString(),
-        })
+        } as never)
         .eq('status', 'pending_approval');
 
       if (error) throw error;
@@ -256,7 +256,7 @@ export function useReassignTask() {
 
       const { error } = await supabase
         .from('daily_standup_tasks' as never)
-        .update({ assignee_id: newAssigneeId, needs_review: false })
+        .update({ assignee_id: newAssigneeId, needs_review: false } as never)
         .eq('id', taskId);
       if (error) throw error;
 
@@ -291,7 +291,7 @@ export function useReassignTask() {
                 .eq('id', user?.id ?? '')
                 .single(),
               task.entity_type === 'deal'
-                ? supabase.from('deals').select('title').eq('id', task.entity_id).single()
+                ? supabase.from('deals').select('title').eq('id', task.entity_id!).single()
                 : Promise.resolve({ data: null }),
             ]);
 
@@ -366,7 +366,7 @@ export function useEditTask() {
     }) => {
       const { error } = await supabase
         .from('daily_standup_tasks' as never)
-        .update(updates)
+        .update(updates as never)
         .eq('id', taskId);
       if (error) throw error;
     },
@@ -404,7 +404,7 @@ export function useAddManualTask() {
           priority_score: 50, // default mid-range for manual tasks
           extraction_confidence: 'high',
           needs_review: false,
-        })
+        } as never)
         .select()
         .single();
 
@@ -468,7 +468,7 @@ export function usePinTask() {
           pinned_by: isPinning ? user?.id : null,
           pinned_at: isPinning ? new Date().toISOString() : null,
           pin_reason: isPinning ? reason || null : null,
-        })
+        } as never)
         .eq('id', taskId);
       if (error) throw error;
 
@@ -479,7 +479,7 @@ export function usePinTask() {
         pinned_rank: rank,
         reason: reason || null,
         performed_by: user?.id,
-      });
+      } as never);
 
       await recomputeRanks();
     },
@@ -535,8 +535,8 @@ async function recomputeRanks() {
   const pinnedSlots = new Map<number, string>();
   const pinnedTaskIds = new Set<string>();
   for (const p of validPinned) {
-    if (!pinnedSlots.has(p.pinned_rank)) {
-      pinnedSlots.set(p.pinned_rank, p.id);
+    if (!pinnedSlots.has(p.pinned_rank!)) {
+      pinnedSlots.set(p.pinned_rank!, p.id);
       pinnedTaskIds.add(p.id);
     }
   }
@@ -560,7 +560,7 @@ async function recomputeRanks() {
   for (const { id, rank } of ranked) {
     await supabase
       .from('daily_standup_tasks' as never)
-      .update({ priority_rank: rank })
+      .update({ priority_rank: rank } as never)
       .eq('id', id);
   }
 }

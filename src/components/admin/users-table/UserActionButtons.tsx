@@ -1,10 +1,23 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { User } from "@/types";
-import { MoreHorizontal, UserCheck, Trash2, Mail, Shield } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { User } from '@/types';
+import { MoreHorizontal, UserCheck, Trash2, Mail, Shield } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { usePermissions } from '@/hooks/permissions/usePermissions';
 import { useAuth } from '@/context/AuthContext';
 import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
@@ -12,7 +25,7 @@ import { RoleBadge } from '../permissions/RoleBadge';
 import { RoleSelector } from '../permissions/RoleSelector';
 import { AppRole } from '@/hooks/permissions/usePermissions';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from '@/hooks/use-toast';
 
 interface UserActionButtonsProps {
   user: User;
@@ -45,18 +58,18 @@ export function UserActionButtons({
   const handleSendPasswordReset = async () => {
     try {
       const { error } = await supabase.functions.invoke('password-reset', {
-        body: { action: 'request', email: user.email }
+        body: { action: 'request', email: user.email },
       });
       if (error) throw error;
       toast({
         title: 'Password reset initiated',
-        description: 'If the email exists, the user will receive a reset link.'
+        description: 'If the email exists, the user will receive a reset link.',
       });
     } catch (err: unknown) {
       toast({
         variant: 'destructive',
         title: 'Failed to send reset',
-        description: err.message || 'Please try again.'
+        description: err instanceof Error ? err.message : 'Please try again.',
       });
     }
   };
@@ -74,21 +87,15 @@ export function UserActionButtons({
             <DropdownMenuLabel>User Actions</DropdownMenuLabel>
             <DropdownMenuSeparator />
 
-            {user.approval_status === "pending" && (
-              <DropdownMenuItem
-                onClick={() => onApprove(user)}
-                className="text-green-600"
-              >
+            {user.approval_status === 'pending' && (
+              <DropdownMenuItem onClick={() => onApprove(user)} className="text-green-600">
                 <UserCheck className="h-4 w-4 mr-2" />
                 Approve User
               </DropdownMenuItem>
             )}
 
-            {user.approval_status === "rejected" && (
-              <DropdownMenuItem
-                onClick={() => onApprove(user)}
-                className="text-green-600"
-              >
+            {user.approval_status === 'rejected' && (
+              <DropdownMenuItem onClick={() => onApprove(user)} className="text-green-600">
                 <UserCheck className="h-4 w-4 mr-2" />
                 Approve User
               </DropdownMenuItem>
@@ -97,10 +104,7 @@ export function UserActionButtons({
             <DropdownMenuSeparator />
 
             {canManagePermissions && (
-              <DropdownMenuItem
-                onClick={() => setIsRoleDialogOpen(true)}
-                className="text-blue-600"
-              >
+              <DropdownMenuItem onClick={() => setIsRoleDialogOpen(true)} className="text-blue-600">
                 <Shield className="h-4 w-4 mr-2" />
                 Change Role
               </DropdownMenuItem>
@@ -116,7 +120,11 @@ export function UserActionButtons({
             {canManagePermissions && user.id !== currentUser?.id && (
               <DropdownMenuItem
                 onClick={() => {
-                  if (window.confirm(`Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`)) {
+                  if (
+                    window.confirm(
+                      `Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`,
+                    )
+                  ) {
                     onDelete(user);
                   }
                 }}

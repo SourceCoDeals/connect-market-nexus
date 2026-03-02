@@ -1,12 +1,12 @@
-import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 type UntypedTable = Parameters<typeof supabase.from>[0];
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   ClipboardList,
   Send,
@@ -17,10 +17,10 @@ import {
   Trash2,
   Mic,
   ExternalLink,
-} from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
-import { toast } from "sonner";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+} from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface ListingNote {
   id: string;
@@ -50,15 +50,15 @@ interface FirefliesTranscript {
 }
 
 type TimelineItem =
-  | { type: "note"; id: string; date: string; data: ListingNote }
-  | { type: "meeting"; id: string; date: string; data: FirefliesTranscript };
+  | { type: 'note'; id: string; date: string; data: ListingNote }
+  | { type: 'meeting'; id: string; date: string; data: FirefliesTranscript };
 
 /** Truncate a summary to at most 2 sentences. */
 function twoSentenceSummary(summary: string): string {
   // Split on sentence-ending punctuation followed by a space or end of string
   const sentences = summary.match(/[^.!?]*[.!?]+/g);
   if (!sentences || sentences.length <= 2) return summary.trim();
-  return sentences.slice(0, 2).join("").trim();
+  return sentences.slice(0, 2).join('').trim();
 }
 
 interface ListingNotesLogProps {
@@ -68,44 +68,46 @@ interface ListingNotesLogProps {
 
 export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogProps) {
   const [isOpen, setIsOpen] = useState(true);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch notes
   const { data: notes = [], isLoading: notesLoading } = useQuery<ListingNote[]>({
-    queryKey: ["listing-notes", listingId],
+    queryKey: ['listing-notes', listingId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("listing_notes" as UntypedTable)
+        .from('listing_notes' as UntypedTable)
         .select(`*, admin:admin_id(email, first_name, last_name)`)
-        .eq("listing_id", listingId)
-        .order("created_at", { ascending: false });
+        .eq('listing_id', listingId)
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as ListingNote[];
+      return (data || []) as unknown as ListingNote[];
     },
     enabled: !!listingId,
     staleTime: 30_000,
   });
 
   // Fetch Fireflies transcripts
-  const { data: transcripts = [], isLoading: transcriptsLoading } = useQuery<FirefliesTranscript[]>({
-    queryKey: ["deal-meeting-summaries", listingId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("deal_transcripts" as UntypedTable)
-        .select(
-          "id, title, call_date, duration_minutes, transcript_url, has_content, extracted_data, created_at"
-        )
-        .eq("listing_id", listingId)
-        .eq("source", "fireflies")
-        .order("call_date", { ascending: false, nullsFirst: false });
-      if (error) throw error;
-      return (data || []) as FirefliesTranscript[];
+  const { data: transcripts = [], isLoading: transcriptsLoading } = useQuery<FirefliesTranscript[]>(
+    {
+      queryKey: ['deal-meeting-summaries', listingId],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from('deal_transcripts' as UntypedTable)
+          .select(
+            'id, title, call_date, duration_minutes, transcript_url, has_content, extracted_data, created_at',
+          )
+          .eq('listing_id', listingId)
+          .eq('source', 'fireflies')
+          .order('call_date', { ascending: false, nullsFirst: false });
+        if (error) throw error;
+        return (data || []) as unknown as FirefliesTranscript[];
+      },
+      enabled: !!listingId,
+      staleTime: 60_000,
     },
-    enabled: !!listingId,
-    staleTime: 60_000,
-  });
+  );
 
   const isLoading = notesLoading || transcriptsLoading;
 
@@ -114,18 +116,16 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
     const items: TimelineItem[] = [];
 
     for (const n of notes) {
-      items.push({ type: "note", id: n.id, date: n.created_at, data: n });
+      items.push({ type: 'note', id: n.id, date: n.created_at, data: n });
     }
 
     const transcriptsWithContent = transcripts.filter(
-      (t) =>
-        t.has_content !== false &&
-        (t.extracted_data?.fireflies_summary || t.title)
+      (t) => t.has_content !== false && (t.extracted_data?.fireflies_summary || t.title),
     );
 
     for (const t of transcriptsWithContent) {
       items.push({
-        type: "meeting",
+        type: 'meeting',
         id: t.id,
         date: t.call_date || t.created_at,
         data: t,
@@ -138,8 +138,10 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
 
   const addNoteMutation = useMutation({
     mutationFn: async (noteText: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("listing_notes" as UntypedTable).insert({
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const { error } = await supabase.from('listing_notes' as UntypedTable).insert({
         listing_id: listingId,
         admin_id: user?.id,
         note: noteText,
@@ -147,30 +149,30 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
       if (error) throw error;
     },
     onSuccess: () => {
-      setNote("");
-      queryClient.invalidateQueries({ queryKey: ["listing-notes", listingId] });
-      toast.success("Note added");
+      setNote('');
+      queryClient.invalidateQueries({ queryKey: ['listing-notes', listingId] });
+      toast.success('Note added');
     },
     onError: () => {
-      toast.error("Failed to add note");
+      toast.error('Failed to add note');
     },
   });
 
   const deleteNoteMutation = useMutation({
     mutationFn: async (noteId: string) => {
       const { error } = await supabase
-        .from("listing_notes" as UntypedTable)
+        .from('listing_notes' as UntypedTable)
         .delete()
-        .eq("id", noteId);
+        .eq('id', noteId);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["listing-notes", listingId] });
-      toast.success("Note deleted");
+      queryClient.invalidateQueries({ queryKey: ['listing-notes', listingId] });
+      toast.success('Note deleted');
       setDeletingId(null);
     },
     onError: () => {
-      toast.error("Failed to delete note");
+      toast.error('Failed to delete note');
       setDeletingId(null);
     },
   });
@@ -215,15 +217,13 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
                 onChange={(e) => setNote(e.target.value)}
                 className="min-h-[80px] resize-y text-sm"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                     handleSubmit();
                   }
                 }}
               />
               <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  Press Cmd+Enter to submit
-                </p>
+                <p className="text-xs text-muted-foreground">Press Cmd+Enter to submit</p>
                 <Button
                   size="sm"
                   onClick={handleSubmit}
@@ -250,9 +250,12 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
                 <p className="text-sm">No notes yet</p>
               </div>
             ) : (
-              <div className="overflow-y-auto space-y-3 pr-1" style={{ maxHeight: maxHeight - 220 }}>
+              <div
+                className="overflow-y-auto space-y-3 pr-1"
+                style={{ maxHeight: maxHeight - 220 }}
+              >
                 {timeline.map((item) =>
-                  item.type === "note" ? (
+                  item.type === 'note' ? (
                     <NoteItem
                       key={`note-${item.id}`}
                       note={item.data}
@@ -264,7 +267,7 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
                     />
                   ) : (
                     <MeetingItem key={`meeting-${item.id}`} transcript={item.data} />
-                  )
+                  ),
                 )}
               </div>
             )}
@@ -285,21 +288,17 @@ function NoteItem({
   onDelete: (id: string) => void;
 }) {
   const adminName = note.admin?.first_name
-    ? `${note.admin.first_name}${note.admin.last_name ? ` ${note.admin.last_name}` : ""}`
-    : note.admin?.email ?? null;
+    ? `${note.admin.first_name}${note.admin.last_name ? ` ${note.admin.last_name}` : ''}`
+    : (note.admin?.email ?? null);
   const isDeleting = deletingId === note.id;
 
   return (
     <div className="rounded-lg border p-3 space-y-1.5 group relative bg-background">
       <div className="flex items-center gap-2 flex-wrap">
-        {adminName && (
-          <span className="text-xs font-medium text-foreground">
-            {adminName}
-          </span>
-        )}
+        {adminName && <span className="text-xs font-medium text-foreground">{adminName}</span>}
         <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1.5">
           <span className="font-medium text-foreground/70">
-            {format(new Date(note.created_at), "MMM d, yyyy · h:mm a")}
+            {format(new Date(note.created_at), 'MMM d, yyyy · h:mm a')}
           </span>
           <span className="text-muted-foreground/50">·</span>
           <span>{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
@@ -332,17 +331,20 @@ function MeetingItem({ transcript }: { transcript: FirefliesTranscript }) {
       <div className="flex items-center gap-2 flex-wrap">
         <span className="flex items-center gap-1.5 text-xs font-medium text-violet-700 dark:text-violet-400">
           <Mic className="h-3.5 w-3.5" />
-          Call: {transcript.title || "Untitled Meeting"}
+          Call: {transcript.title || 'Untitled Meeting'}
         </span>
         {transcript.duration_minutes != null && transcript.duration_minutes > 0 && (
-          <Badge variant="outline" className="text-[10px] gap-1 shrink-0 border-violet-200 dark:border-violet-800">
+          <Badge
+            variant="outline"
+            className="text-[10px] gap-1 shrink-0 border-violet-200 dark:border-violet-800"
+          >
             <Clock className="h-2.5 w-2.5" />
             {transcript.duration_minutes}m
           </Badge>
         )}
         <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1.5">
           <span className="font-medium text-foreground/70">
-            {format(new Date(displayDate), "MMM d, yyyy · h:mm a")}
+            {format(new Date(displayDate), 'MMM d, yyyy · h:mm a')}
           </span>
           <span className="text-muted-foreground/50">·</span>
           <span>{formatDistanceToNow(new Date(displayDate), { addSuffix: true })}</span>
@@ -359,11 +361,7 @@ function MeetingItem({ transcript }: { transcript: FirefliesTranscript }) {
           </a>
         )}
       </div>
-      {summary && (
-        <p className="text-sm text-muted-foreground">
-          {twoSentenceSummary(summary)}
-        </p>
-      )}
+      {summary && <p className="text-sm text-muted-foreground">{twoSentenceSummary(summary)}</p>}
     </div>
   );
 }

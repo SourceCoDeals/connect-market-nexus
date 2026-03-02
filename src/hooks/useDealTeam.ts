@@ -24,7 +24,7 @@ export function useDealTeam(listingId: string | null) {
           user:profiles!rm_deal_team_user_id_fkey(id, first_name, last_name, email)
         `,
         )
-        .eq('listing_id', listingId)
+        .eq('listing_id', listingId!)
         .order('role', { ascending: true });
 
       if (error) throw error;
@@ -49,7 +49,7 @@ export function useAddDealTeamMember() {
     }) => {
       const { data, error } = await supabase
         .from('rm_deal_team' as never)
-        .insert({ listing_id: listingId, user_id: userId, role })
+        .insert({ listing_id: listingId, user_id: userId, role } as never)
         .select()
         .single();
 
@@ -77,7 +77,7 @@ export function useUpdateDealTeamRole() {
     }) => {
       const { error } = await supabase
         .from('rm_deal_team' as never)
-        .update({ role })
+        .update({ role } as never)
         .eq('id', memberId);
 
       if (error) throw error;

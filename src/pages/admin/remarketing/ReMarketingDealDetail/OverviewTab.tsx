@@ -378,7 +378,7 @@ export function OverviewTab({
         transcripts={(transcripts || []) as unknown as DealTranscript[]}
         isLoading={transcriptsLoading}
         dealInfo={{
-          company_name: deal.internal_company_name || deal.title,
+          company_name: (deal.internal_company_name || deal.title) ?? undefined,
           main_contact_email: deal.main_contact_email ?? undefined,
         }}
         contactEmail={deal.main_contact_email ?? null}

@@ -191,8 +191,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         event_category: 'user_interaction',
         event_action: eventType,
         page_path: location.pathname,
-        metadata: eventData || {},
-      });
+        metadata: (eventData || {}) as Record<string, unknown>,
+      } as Record<string, unknown>);
 
       if (error) {
         throw error;
@@ -364,10 +364,10 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
         session_id: sessionIdRef.current,
         user_id: authState.user?.id || null,
         search_query: query,
-        filters_applied: filters || {},
+        filters_applied: (filters || {}) as Record<string, unknown>,
         results_count: results || 0,
         no_results: (results || 0) === 0,
-      });
+      } as Record<string, unknown>);
 
       if (error) {
         throw error;
