@@ -194,7 +194,7 @@ const ReMarketingDealDetail = () => {
           />
         </TabsContent>
 
-        <TabsContent value="data-room" className="space-y-6">
+        <TabsContent value="data-room" forceMount className="space-y-6 data-[state=inactive]:hidden">
           <DataRoomTab deal={deal} dealId={dealId!} scoreStats={scoreStats} />
         </TabsContent>
       </Tabs>
