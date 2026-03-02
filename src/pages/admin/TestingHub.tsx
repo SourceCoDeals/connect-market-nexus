@@ -86,7 +86,7 @@ function isChatbotTestWarning(msg: string): boolean {
 
 // ── Generic test runner loop ──
 
-async function runTestLoop<Ctx extends Record<string, unknown>>(
+async function runTestLoop<Ctx>(
   tests: Array<{ id: string; name: string; category: string; fn: (ctx: Ctx) => Promise<void> }>,
   ctx: Ctx,
   abortRef: React.MutableRefObject<boolean>,
