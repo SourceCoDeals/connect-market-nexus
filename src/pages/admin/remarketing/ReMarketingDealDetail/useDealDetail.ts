@@ -265,7 +265,7 @@ export function useDealDetail() {
         effectiveWebsite,
       )
     : 0;
-  const tier = scoreStats?.avgScore ? getTierFromScore(scoreStats.avgScore) : null;
+  const tier = scoreStats ? getTierFromScore((scoreStats as { avgScore: number }).avgScore) : null;
   const displayName = deal?.internal_company_name || deal?.title || '';
   const listedName =
     deal?.internal_company_name && deal?.title !== deal?.internal_company_name ? deal?.title : null;
