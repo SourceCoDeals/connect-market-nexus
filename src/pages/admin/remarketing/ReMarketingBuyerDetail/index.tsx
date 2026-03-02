@@ -356,7 +356,7 @@ const ReMarketingBuyerDetail = () => {
 
         {/* Deal History Tab */}
         <TabsContent value="history">
-          <DealHistoryTab recentScores={recentScores} />
+          <DealHistoryTab recentScores={recentScores as any} />
         </TabsContent>
 
         {/* Contacts Tab */}

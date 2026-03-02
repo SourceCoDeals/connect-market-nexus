@@ -47,9 +47,9 @@ export function useDealDetail() {
   });
 
   // Score stats removed — old scoring engine decommissioned
-  const scoreStats:
+  const scoreStats = undefined as
     | { count: number; approved: number; passed: number; avgScore: number }
-    | undefined = undefined;
+    | undefined;
 
   // Fetch pipeline stats
   const { data: pipelineStats } = useQuery({

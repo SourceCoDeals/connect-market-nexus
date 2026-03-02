@@ -55,7 +55,7 @@ export function DataRoomTab({ deal, dealId, scoreStats }: DataRoomTabProps) {
       <TabsContent value="memos" className="space-y-6">
         <MemosTab
           dealId={dealId}
-          dealTitle={(deal.internal_company_name || deal.title) ?? undefined}
+          dealTitle={deal.internal_company_name || deal.title || undefined}
           projectName={deal.project_name ?? undefined}
         />
       </TabsContent>

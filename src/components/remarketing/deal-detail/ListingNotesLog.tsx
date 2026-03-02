@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-type UntypedTable = Parameters<typeof supabase.from>[0];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type UntypedTable = any;
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,8 +77,9 @@ export function ListingNotesLog({ listingId, maxHeight = 480 }: ListingNotesLogP
   const { data: notes = [], isLoading: notesLoading } = useQuery<ListingNote[]>({
     queryKey: ['listing-notes', listingId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('listing_notes' as UntypedTable)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const q = supabase.from('listing_notes' as UntypedTable) as any;
+      const { data, error } = await q
         .select(`*, admin:admin_id(email, first_name, last_name)`)
         .eq('listing_id', listingId)
         .order('created_at', { ascending: false });

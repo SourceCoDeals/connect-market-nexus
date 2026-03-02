@@ -217,7 +217,7 @@ export function MatchList({
               return (
                 <BuyerMatchCard
                   key={score.id}
-                  score={score as never}
+                  score={score as any}
                   dealLocation={listing?.location ?? undefined}
                   isSelected={selectedIds.has(score.id)}
                   isHighlighted={highlightedBuyerIds.includes(

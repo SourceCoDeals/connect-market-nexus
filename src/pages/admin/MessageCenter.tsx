@@ -28,7 +28,8 @@ function useInboxThreads() {
   return useQuery({
     queryKey: ['inbox-threads'],
     queryFn: async () => {
-      const { data: requestsRaw, error: reqError } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: requestsRaw, error: reqError } = await (supabase as any)
         .from('connection_requests')
         .select(
           `

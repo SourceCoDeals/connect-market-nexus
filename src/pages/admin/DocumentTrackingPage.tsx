@@ -109,8 +109,9 @@ function useDocumentTracking() {
       const firmDealMap: Record<string, { id: string; title: string }> = {};
       (requests || []).forEach(
         (r: { id: string; firm_id: string | null; listing: { title: string } | null }) => {
-          if (r.firm_id && !firmDealMap[r.firm_id]) {
-            firmDealMap[r.firm_id] = {
+          const fid = r.firm_id;
+          if (fid && !firmDealMap[fid]) {
+            firmDealMap[fid] = {
               id: r.id,
               title: r.listing?.title || 'Untitled Deal',
             };
