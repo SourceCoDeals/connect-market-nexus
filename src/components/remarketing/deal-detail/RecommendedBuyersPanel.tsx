@@ -336,7 +336,7 @@ export function RecommendedBuyersPanel({ listingId }: RecommendedBuyersPanelProp
           {
             listing_id: listingId,
             buyer_name: buyer.company_name,
-            buyer_firm_name: buyer.pe_firm_name || '',
+            buyer_firm_name: buyer.pe_firm_name || buyer.company_name,
             company_name: buyer.company_name,
             targeting_reason: buyer.fit_reason,
           },
