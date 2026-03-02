@@ -11,7 +11,7 @@
  *  13. UI Smoke Tests
  */
 
-import type { TestDef, TestContext } from './types';
+import type { TestDef } from './types';
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, columnExists, tableReadable, invokeEdgeFunction } from './types';
 
 export function buildApiTests(): TestDef[] {

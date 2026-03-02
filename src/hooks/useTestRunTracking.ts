@@ -225,7 +225,7 @@ export function useTestRunTracking() {
             skipped: stats.skipped ?? 0,
             duration_ms: stats.durationMs,
             suites_completed: stats.suitesCompleted,
-            error_summary: (stats.errorSummary ?? []) as unknown,
+            error_summary: (stats.errorSummary ?? []) as unknown as import('@/integrations/supabase/types').Json,
           })
           .eq('id', runId);
 

@@ -69,11 +69,11 @@ export function TeamMemberRegistry() {
   // Add alias mutation
   const addAlias = useMutation({
     mutationFn: async ({ profileId, alias }: { profileId: string; alias: string }) => {
-      const { error } = await supabase.from('team_member_aliases' as UntypedTable).insert({
+      const { error } = await (supabase.from('team_member_aliases' as UntypedTable).insert as any)({
         profile_id: profileId,
         alias: alias.trim(),
         created_by: user?.id,
-      } as Record<string, unknown>);
+      });
       if (error) throw error;
     },
     onSuccess: () => {

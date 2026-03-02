@@ -27,7 +27,7 @@ function buildDealDataForAnonymization(deal: LandingPageDeal): DealData {
     category: deal.category ?? deal.categories?.[0] ?? null,
     industry: null,
     service_mix: null,
-    website: deal.company_website ?? null,
+    website: deal.website ?? null,
     full_time_employees: deal.full_time_employees,
     linkedin_employee_count: null,
     main_contact_name: null,

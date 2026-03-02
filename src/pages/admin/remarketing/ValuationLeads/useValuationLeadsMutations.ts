@@ -26,7 +26,7 @@ interface MutationDeps {
 }
 
 export function useValuationLeadsMutations(deps: MutationDeps) {
-  const { leads, filteredLeads, selectedIds, setSelectedIds, enrichmentSummary, dismissSummary } =
+  const { leads, filteredLeads, selectedIds: _selectedIds, setSelectedIds, enrichmentSummary, dismissSummary } =
     deps;
   const navigate = useNavigate();
   const queryClient = useQueryClient();

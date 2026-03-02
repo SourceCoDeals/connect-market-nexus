@@ -31,7 +31,7 @@ export interface LandingPageDeal {
   presented_by_admin_id: string | null;
   // Internal fields used only for anonymization — never displayed directly
   internal_company_name: string | null;
-  company_website: string | null;
+  website: string | null;
 }
 
 export interface RelatedDeal {
@@ -54,7 +54,7 @@ const LANDING_PAGE_FIELDS = `
   metric_4_type, metric_4_custom_label, metric_4_custom_value, metric_4_custom_subtitle,
   executive_summary, full_time_employees, part_time_employees,
   status, presented_by_admin_id,
-  internal_company_name, company_website
+  internal_company_name, website
 `;
 
 export function useDealLandingPage(dealId: string | undefined) {

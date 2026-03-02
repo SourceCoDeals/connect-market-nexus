@@ -328,7 +328,7 @@ export const AddDealDialog = ({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleAddFromMarketplace(
-                                    listing,
+                                    { id: listing.id, title: listing.title, internal_company_name: listing.internal_company_name ?? undefined },
                                     setAddingToRemarketing,
                                     (id) => setAddedIds((prev) => new Set(prev).add(id)),
                                   );

@@ -8,8 +8,6 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { OutreachStatus } from '@/components/remarketing/OutreachStatusDialog';
-import type { ParsedDeal } from './CsvParser';
 import type { ImportResult } from '@/hooks/admin/use-bulk-deal-import';
 
 export type DuplicateAction = 'skip' | 'merge' | 'replace' | 'create';

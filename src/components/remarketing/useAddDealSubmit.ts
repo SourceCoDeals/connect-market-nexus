@@ -6,7 +6,7 @@
  *
  * Extracted from AddDealDialog.tsx for maintainability.
  */
-import { useRef } from 'react';
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';

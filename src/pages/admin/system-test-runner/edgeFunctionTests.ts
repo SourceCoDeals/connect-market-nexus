@@ -7,7 +7,7 @@
  *  16. AI Buyer Recommendation Engine
  */
 
-import type { TestDef, TestContext } from './types';
+import type { TestDef } from './types';
 import { supabase, columnExists, tableReadable, invokeEdgeFunction } from './types';
 
 export function buildEdgeFunctionTests(): TestDef[] {
