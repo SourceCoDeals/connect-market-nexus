@@ -26,7 +26,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { resolveAgreementStatus, type AgreementDisplayStatus } from '@/lib/agreement-status';
 import { formatDistanceToNow, format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import type { UserActivityEvent } from './types';
 
 interface ThreadContextPanelProps {
@@ -132,7 +131,7 @@ function useUserActivityTimeline(userId: string | null) {
       // 1. Profile/signup info
       const { data: profile } = await supabase
         .from('profiles')
-        .select('created_at, first_name, last_name, approval_status, approved_at')
+        .select('created_at, first_name, last_name, approval_status')
         .eq('id', userId)
         .maybeSingle();
 
@@ -144,14 +143,6 @@ function useUserActivityTimeline(userId: string | null) {
           description: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() + ' signed up',
           timestamp: profile.created_at,
         });
-        if (profile.approved_at) {
-          events.push({
-            id: `approved-${userId}`,
-            type: 'approval',
-            title: 'Account Approved',
-            timestamp: profile.approved_at,
-          });
-        }
       }
 
       // 2. Connection requests
