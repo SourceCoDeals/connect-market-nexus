@@ -520,11 +520,7 @@ Deno.serve(async (req: Request) => {
           ? 'marketplace'
           : 'scored';
 
-      // AI-seeded buyers for THIS deal get a score boost so they rank above generic pool matches
-      const aiBoost = (buyer.ai_seeded && buyer.ai_seeded_from_deal_id === listingId) ? 15 : 0;
-      const boostedComposite = Math.min(composite + aiBoost, 100);
-
-      const tier = classifyTier(boostedComposite, !!buyer.has_fee_agreement, buyer.acquisition_appetite);
+      const tier = classifyTier(composite, !!buyer.has_fee_agreement, buyer.acquisition_appetite);
 
       // Build fit_reason: seed log why_relevant (best) > thesis_summary (good) > generated sentence
       const seedLogReason = seedLogMap.get(buyer.id);
@@ -557,7 +553,7 @@ Deno.serve(async (req: Request) => {
         hq_city: buyer.hq_city,
         has_fee_agreement: !!buyer.has_fee_agreement,
         acquisition_appetite: buyer.acquisition_appetite,
-        composite_score: boostedComposite,
+        composite_score: composite,
         service_score: svc.score,
         geography_score: geo.score,
         size_score: size.score,
