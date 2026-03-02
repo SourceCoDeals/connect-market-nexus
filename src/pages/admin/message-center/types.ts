@@ -20,6 +20,10 @@ export interface InboxThread {
   user_message: string | null;
   created_at: string;
   pipeline_deal_id: string | null;
+  // Agreement status fields (enriched)
+  nda_status: string | null;
+  fee_status: string | null;
+  firm_name: string | null;
 }
 
 export type InboxFilter = "all" | "unread" | "waiting_on_admin" | "waiting_on_buyer" | "claimed" | "closed";
@@ -31,4 +35,14 @@ export interface DealGroup {
   threads: InboxThread[];
   total_unread: number;
   last_activity: string;
+}
+
+// Activity timeline event for the user profile panel
+export interface UserActivityEvent {
+  id: string;
+  type: 'signup' | 'connection_request' | 'message_sent' | 'message_received' | 'nda_sent' | 'nda_signed' | 'fee_sent' | 'fee_signed' | 'status_change' | 'approval' | 'rejection';
+  title: string;
+  description?: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
 }
