@@ -14,6 +14,7 @@ const PRODUCTION_ALLOWED_ORIGINS = [
   "https://connect-market-nexus.lovable.app",
   "https://app.sourcecoconnect.com",
   "https://sourcecoconnect.com",
+  "https://marketplace.sourcecodeals.com",
 ];
 
 // N13 FIX: Localhost origins only included in non-production environments
