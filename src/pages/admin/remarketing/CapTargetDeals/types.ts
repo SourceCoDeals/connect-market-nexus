@@ -28,7 +28,7 @@ export interface CapTargetDeal {
   captarget_status: string | null;
   is_priority_target: boolean | null;
   need_buyer_universe: boolean | null;
-  need_owner_contact: boolean | null;
+  needs_owner_contact: boolean | null;
   category: string | null;
   executive_summary: string | null;
   industry: string | null;

@@ -51,7 +51,7 @@ export interface ValuationLead {
   needs_buyer_universe?: boolean | null;
   need_buyer_universe?: boolean | null;
   need_to_contact_owner?: boolean | null;
-  need_owner_contact?: boolean | null;
+  needs_owner_contact?: boolean | null;
   is_archived?: boolean | null;
   not_a_fit?: boolean | null;
   // Joined from listings (via pushed_listing_id) — populated by enrichment
@@ -59,20 +59,20 @@ export interface ValuationLead {
 }
 
 export type SortColumn =
-  | "display_name"
-  | "website"
-  | "industry"
-  | "location"
-  | "revenue"
-  | "ebitda"
-  | "valuation"
-  | "exit_timing"
-  | "intros"
-  | "quality"
-  | "score"
-  | "created_at"
-  | "pushed"
-  | "owner"
-  | "priority";
+  | 'display_name'
+  | 'website'
+  | 'industry'
+  | 'location'
+  | 'revenue'
+  | 'ebitda'
+  | 'valuation'
+  | 'exit_timing'
+  | 'intros'
+  | 'quality'
+  | 'score'
+  | 'created_at'
+  | 'pushed'
+  | 'owner'
+  | 'priority';
 
-export type SortDirection = "asc" | "desc";
+export type SortDirection = 'asc' | 'desc';

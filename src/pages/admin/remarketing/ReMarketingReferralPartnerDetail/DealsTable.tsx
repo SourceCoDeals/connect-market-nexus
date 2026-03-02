@@ -61,7 +61,7 @@ interface Deal {
   google_review_count: number | null;
   created_at: string;
   need_buyer_universe: boolean | null;
-  need_owner_contact: boolean | null;
+  needs_owner_contact: boolean | null;
   category: string | null;
   address_city: string | null;
   address_state: string | null;
@@ -404,10 +404,10 @@ export function DealsTable({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={async () => {
-                        const newVal = !deal.need_owner_contact;
+                        const newVal = !deal.needs_owner_contact;
                         const { error } = await supabase
                           .from('listings')
-                          .update({ need_owner_contact: newVal } as never)
+                          .update({ needs_owner_contact: newVal } as never)
                           .eq('id', deal.id);
                         if (!error) {
                           toast.success(newVal ? 'Flagged: Need to Contact Owner' : 'Flag removed');
@@ -416,12 +416,15 @@ export function DealsTable({
                           });
                         }
                       }}
-                      className={deal.need_owner_contact ? 'text-orange-600' : ''}
+                      className={deal.needs_owner_contact ? 'text-orange-600' : ''}
                     >
                       <Phone
-                        className={cn('h-3 w-3 mr-2', deal.need_owner_contact && 'text-orange-600')}
+                        className={cn(
+                          'h-3 w-3 mr-2',
+                          deal.needs_owner_contact && 'text-orange-600',
+                        )}
                       />
-                      {deal.need_owner_contact
+                      {deal.needs_owner_contact
                         ? 'Remove Contact Owner Flag'
                         : 'Flag: Need to Contact Owner'}
                     </DropdownMenuItem>

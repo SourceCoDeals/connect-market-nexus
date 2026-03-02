@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { z } from 'zod/v3';
 import { useForm } from 'react-hook-form';
@@ -146,6 +146,8 @@ interface ImprovedListingEditorProps {
   listing?: AdminListing;
   isLoading?: boolean;
   targetType?: 'marketplace' | 'research';
+  /** When set, financial fields are locked — they're inherited from the source deal. */
+  sourceDealId?: string | null;
 }
 
 const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => {
@@ -195,7 +197,9 @@ export function ImprovedListingEditor({
   onSubmit,
   listing,
   isLoading = false,
+  sourceDealId,
 }: ImprovedListingEditorProps) {
+  const isDealSourced = !!sourceDealId;
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(listing?.image_url || null);
   const [isImageChanged, setIsImageChanged] = useState(false);
@@ -208,6 +212,18 @@ export function ImprovedListingEditor({
     resolver: zodResolver(listingFormSchema as unknown as Parameters<typeof zodResolver>[0]),
     defaultValues: convertListingToFormInput(listing),
   });
+
+  // Reset form when the listing prop changes (e.g., after AI content generation
+  // updates prefilled data in CreateListingFromDeal). React Hook Form's
+  // defaultValues are only read on first render, so we must call reset() to
+  // pick up new values like custom_sections and description.
+  const prevListingRef = useRef(listing);
+  useEffect(() => {
+    if (listing && listing !== prevListingRef.current) {
+      prevListingRef.current = listing;
+      form.reset(convertListingToFormInput(listing));
+    }
+  }, [listing, form]);
 
   // Cast for child components that accept UseFormReturn<any>
   const formForSections = form as unknown as import('react-hook-form').UseFormReturn<
@@ -412,7 +428,7 @@ export function ImprovedListingEditor({
               />
 
               {/* Right: Financial */}
-              <EditorFinancialCard form={formForSections} />
+              <EditorFinancialCard form={formForSections} isReadOnly={isDealSourced} />
             </div>
 
             {/* FULL WIDTH - Description */}

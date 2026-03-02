@@ -67,7 +67,12 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { deal_id, memo_type, branding = 'sourceco', project_name: requestProjectName } = await req.json();
+    const {
+      deal_id,
+      memo_type,
+      branding = 'sourceco',
+      project_name: requestProjectName,
+    } = await req.json();
 
     if (!deal_id) {
       return new Response(JSON.stringify({ error: 'deal_id is required' }), {
@@ -217,7 +222,13 @@ Deno.serve(async (req: Request) => {
         listingUpdate.description_html = htmlContent;
       }
 
-      await supabaseAdmin.from('listings').update(listingUpdate).eq('id', deal_id);
+      const { error: syncError } = await supabaseAdmin
+        .from('listings')
+        .update(listingUpdate)
+        .eq('id', deal_id);
+      if (syncError) {
+        console.error('Failed to sync teaser sections to listing:', syncError);
+      }
     }
 
     if (memo_type === 'full_memo' || memo_type === 'both') {
@@ -252,8 +263,8 @@ Deno.serve(async (req: Request) => {
       results.full_memo = fullMemo;
     }
 
-    // Log audit event
-    await supabaseAdmin.rpc('log_data_room_event', {
+    // Log audit event (non-blocking — don't fail the request if audit logging fails)
+    const { error: auditError } = await supabaseAdmin.rpc('log_data_room_event', {
       p_deal_id: deal_id,
       p_user_id: auth.userId,
       p_action: 'generate_memo',
@@ -266,6 +277,9 @@ Deno.serve(async (req: Request) => {
       p_ip_address: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
       p_user_agent: req.headers.get('user-agent') || null,
     });
+    if (auditError) {
+      console.error('Audit log failed (non-blocking):', auditError);
+    }
 
     return new Response(JSON.stringify({ success: true, memos: results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -475,7 +489,19 @@ function enforceAnonymization(
   if (companyName) {
     identifyingTerms.push(companyName);
     // Also strip without common suffixes
-    const suffixes = [' Inc', ' Inc.', ' LLC', ' Corp', ' Corp.', ' Ltd', ' Ltd.', ' Co', ' Co.', ' LP', ' LLP'];
+    const suffixes = [
+      ' Inc',
+      ' Inc.',
+      ' LLC',
+      ' Corp',
+      ' Corp.',
+      ' Ltd',
+      ' Ltd.',
+      ' Co',
+      ' Co.',
+      ' LP',
+      ' LLP',
+    ];
     for (const suffix of suffixes) {
       if (companyName.endsWith(suffix)) {
         identifyingTerms.push(companyName.slice(0, -suffix.length).trim());
@@ -486,7 +512,10 @@ function enforceAnonymization(
 
   if (website) {
     identifyingTerms.push(website);
-    const domain = website.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+    const domain = website
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/.*$/, '');
     identifyingTerms.push(domain);
     const domainBase = domain.split('.')[0];
     if (domainBase && domainBase.length >= 4) identifyingTerms.push(domainBase);
@@ -496,7 +525,9 @@ function enforceAnonymization(
     identifyingTerms.push(contactName);
     const parts = contactName.split(/\s+/);
     if (parts.length >= 2) {
-      parts.forEach((p) => { if (p.length >= 3) identifyingTerms.push(p); });
+      parts.forEach((p) => {
+        if (p.length >= 3) identifyingTerms.push(p);
+      });
     }
   }
   if (contactEmail) identifyingTerms.push(contactEmail);
@@ -508,22 +539,64 @@ function enforceAnonymization(
 
   // Build state-specific terms to replace
   const stateNames: Record<string, string> = {
-    AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
-    CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
-    HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
-    KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
-    MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
-    MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
-    NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
-    OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
-    SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
-    VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+    AL: 'Alabama',
+    AK: 'Alaska',
+    AZ: 'Arizona',
+    AR: 'Arkansas',
+    CA: 'California',
+    CO: 'Colorado',
+    CT: 'Connecticut',
+    DE: 'Delaware',
+    FL: 'Florida',
+    GA: 'Georgia',
+    HI: 'Hawaii',
+    ID: 'Idaho',
+    IL: 'Illinois',
+    IN: 'Indiana',
+    IA: 'Iowa',
+    KS: 'Kansas',
+    KY: 'Kentucky',
+    LA: 'Louisiana',
+    ME: 'Maine',
+    MD: 'Maryland',
+    MA: 'Massachusetts',
+    MI: 'Michigan',
+    MN: 'Minnesota',
+    MS: 'Mississippi',
+    MO: 'Missouri',
+    MT: 'Montana',
+    NE: 'Nebraska',
+    NV: 'Nevada',
+    NH: 'New Hampshire',
+    NJ: 'New Jersey',
+    NM: 'New Mexico',
+    NY: 'New York',
+    NC: 'North Carolina',
+    ND: 'North Dakota',
+    OH: 'Ohio',
+    OK: 'Oklahoma',
+    OR: 'Oregon',
+    PA: 'Pennsylvania',
+    RI: 'Rhode Island',
+    SC: 'South Carolina',
+    SD: 'South Dakota',
+    TN: 'Tennessee',
+    TX: 'Texas',
+    UT: 'Utah',
+    VT: 'Vermont',
+    VA: 'Virginia',
+    WA: 'Washington',
+    WV: 'West Virginia',
+    WI: 'Wisconsin',
+    WY: 'Wyoming',
     DC: 'Washington D.C.',
   };
   // Collect specific states from the deal's geographic_states and address_state
   const statesInDeal: string[] = [];
   if (addressState) statesInDeal.push(addressState.toUpperCase());
-  const geoStates = Array.isArray(deal.geographic_states) ? deal.geographic_states as string[] : [];
+  const geoStates = Array.isArray(deal.geographic_states)
+    ? (deal.geographic_states as string[])
+    : [];
   for (const s of geoStates) {
     if (s) statesInDeal.push(s.toUpperCase());
   }
@@ -659,8 +732,9 @@ async function generateMemo(
   const companyWebsite = (context.deal.website || '') as string;
   const contactName = (context.deal.main_contact_name || '') as string;
   const addressCity = (context.deal.address_city || '') as string;
-  const addressState = (context.deal.address_state || '') as string;
-  const geoStates = Array.isArray(context.deal.geographic_states) ? context.deal.geographic_states : [];
+  const geoStates = Array.isArray(context.deal.geographic_states)
+    ? context.deal.geographic_states
+    : [];
 
   const systemPrompt = `You are a VP at a buy-side investment bank writing an investment memo for the partners at a private equity firm. This memo will go to the investment committee.
 ...
@@ -680,7 +754,14 @@ CRITICAL ANONYMITY RULES — VIOLATION OF ANY OF THESE WILL RESULT IN THE MEMO B
 - Services described generically (e.g., "automotive maintenance and repair" not the brand name of the service)
 - NO founding dates that combined with other details could identify the company — use approximate years in operation (e.g., "approximately 3–5 years")
 ${companyName ? `- BANNED TERMS (these are the actual company identifiers — NEVER include them): "${companyName}"` : ''}
-${companyWebsite ? `, "${companyWebsite}", "${companyWebsite.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '')}"` : ''}
+${
+  companyWebsite
+    ? `, "${companyWebsite}", "${companyWebsite
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .replace(/\/.*$/, '')}"`
+    : ''
+}
 ${contactName ? `, "${contactName}"` : ''}
 ${addressCity ? `\n- BANNED LOCATION: "${addressCity}" — do NOT mention this city` : ''}
 ${geoStates.length > 0 ? `\n- BANNED STATES: ${geoStates.map((s: string) => `"${s}"`).join(', ')} — do NOT name these states individually` : ''}
@@ -824,7 +905,12 @@ Generate the memo now. Return ONLY the JSON object with "sections" array.`;
   // Post-process: for anonymous teasers, enforce anonymization by stripping any
   // identifying information that may have leaked through the AI
   if (isAnonymous) {
-    cleanedSections = enforceAnonymization(cleanedSections, context.deal, projectCodename, regionName);
+    cleanedSections = enforceAnonymization(
+      cleanedSections,
+      context.deal,
+      projectCodename,
+      regionName,
+    );
   }
 
   return {
@@ -838,6 +924,15 @@ Generate the memo now. Return ONLY the JSON object with "sections" array.`;
 
 // ─── HTML Generation ───
 
+function escapeHtmlForMemo(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function sectionsToHtml(memo: MemoContent, memoType: string, branding: string): string {
   const brandName =
     branding === 'sourceco'
@@ -848,7 +943,7 @@ function sectionsToHtml(memo: MemoContent, memoType: string, branding: string): 
           ? 'Renovus Capital'
           : branding === 'cortec'
             ? 'Cortec Group'
-            : branding;
+            : escapeHtmlForMemo(branding);
 
   const isAnonymous = memoType === 'anonymous_teaser';
   const dateStr = new Date().toLocaleDateString('en-US', {
@@ -869,22 +964,22 @@ function sectionsToHtml(memo: MemoContent, memoType: string, branding: string): 
     // For anonymous teasers, only show the project codename if provided
     if (memo.company_name) {
       html += `<div class="company-info" style="margin-bottom: 20px; padding: 16px; background: #f8f9fa; border-left: 4px solid #1a1a2e;">`;
-      html += `<p style="font-size: 18px; font-weight: bold; margin: 0; color: #1a1a2e;">${memo.company_name}</p>`;
+      html += `<p style="font-size: 18px; font-weight: bold; margin: 0; color: #1a1a2e;">${escapeHtmlForMemo(memo.company_name)}</p>`;
       html += `</div>`;
     }
   } else if (memo.company_name || memo.company_address || memo.company_website) {
     html += `<div class="company-info" style="margin-bottom: 20px; padding: 16px; background: #f8f9fa; border-left: 4px solid #1a1a2e;">`;
     if (memo.company_name) {
-      html += `<p style="font-size: 18px; font-weight: bold; margin: 0 0 4px 0; color: #1a1a2e;">${memo.company_name}</p>`;
+      html += `<p style="font-size: 18px; font-weight: bold; margin: 0 0 4px 0; color: #1a1a2e;">${escapeHtmlForMemo(memo.company_name)}</p>`;
     }
     if (memo.company_address) {
-      html += `<p style="font-size: 14px; margin: 0 0 2px 0; color: #555;">${memo.company_address}</p>`;
+      html += `<p style="font-size: 14px; margin: 0 0 2px 0; color: #555;">${escapeHtmlForMemo(memo.company_address)}</p>`;
     }
     if (memo.company_website) {
-      html += `<p style="font-size: 14px; margin: 0 0 2px 0; color: #555;">${memo.company_website}</p>`;
+      html += `<p style="font-size: 14px; margin: 0 0 2px 0; color: #555;">${escapeHtmlForMemo(memo.company_website)}</p>`;
     }
     if (memo.company_phone) {
-      html += `<p style="font-size: 14px; margin: 0; color: #555;">${memo.company_phone}</p>`;
+      html += `<p style="font-size: 14px; margin: 0; color: #555;">${escapeHtmlForMemo(memo.company_phone)}</p>`;
     }
     html += `</div>`;
   }
@@ -905,8 +1000,8 @@ function sectionsToHtml(memo: MemoContent, memoType: string, branding: string): 
     // Skip header_block and contact_information since info is now in the letterhead
     if (section.key === 'header_block' || section.key === 'contact_information') continue;
 
-    html += `<div class="memo-section" data-key="${section.key}" style="margin-bottom: 20px;">`;
-    html += `<h2 style="font-size: 16px; margin: 0 0 8px 0; color: #1a1a2e; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px;">${section.title}</h2>`;
+    html += `<div class="memo-section" data-key="${escapeHtmlForMemo(section.key)}" style="margin-bottom: 20px;">`;
+    html += `<h2 style="font-size: 16px; margin: 0 0 8px 0; color: #1a1a2e; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px;">${escapeHtmlForMemo(section.title)}</h2>`;
     html += `<div class="section-content" style="font-size: 14px;">${markdownToHtml(section.content)}</div>`;
     html += `</div>`;
   }
@@ -917,15 +1012,61 @@ function sectionsToHtml(memo: MemoContent, memoType: string, branding: string): 
 
 function markdownToHtml(text: string): string {
   if (!text) return '';
+
+  // Split on double newlines into blocks, process each block independently
+  const blocks = text.split(/\n\n+/);
+  const htmlBlocks: string[] = [];
+
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+
+    const lines = trimmed.split('\n');
+
+    // Check if this block is a list (all lines start with "- ")
+    const isList = lines.every((line) => line.trimStart().startsWith('- '));
+
+    if (isList) {
+      const items = lines
+        .map((line) => line.trimStart().replace(/^- /, ''))
+        .map((item) => `<li>${applyInlineFormatting(item)}</li>`)
+        .join('');
+      htmlBlocks.push(`<ul>${items}</ul>`);
+    } else if (
+      lines.length >= 2 &&
+      lines[0].includes('|') &&
+      /^\|?\s*[-:]+\s*(\|\s*[-:]+\s*)+\|?\s*$/.test(lines[1])
+    ) {
+      // Markdown table: header row + separator row + data rows
+      const headerCells = lines[0].split('|').map((c) => c.trim()).filter(Boolean);
+      let tableHtml = '<table style="width:100%;border-collapse:collapse;margin:12px 0;"><thead><tr>';
+      for (const cell of headerCells) {
+        tableHtml += `<th style="border:1px solid #ddd;padding:8px;text-align:left;background:#f5f5f5;">${applyInlineFormatting(cell)}</th>`;
+      }
+      tableHtml += '</tr></thead><tbody>';
+      for (let r = 2; r < lines.length; r++) {
+        if (!lines[r].includes('|')) break;
+        const cells = lines[r].split('|').map((c) => c.trim()).filter(Boolean);
+        tableHtml += '<tr>';
+        for (const cell of cells) {
+          tableHtml += `<td style="border:1px solid #ddd;padding:8px;">${applyInlineFormatting(cell)}</td>`;
+        }
+        tableHtml += '</tr>';
+      }
+      tableHtml += '</tbody></table>';
+      htmlBlocks.push(tableHtml);
+    } else {
+      // Regular paragraph — join internal newlines with <br>
+      const formatted = lines.map((line) => applyInlineFormatting(line)).join('<br>');
+      htmlBlocks.push(`<p>${formatted}</p>`);
+    }
+  }
+
+  return htmlBlocks.join('');
+}
+
+function applyInlineFormatting(text: string): string {
   return text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/^- (.*)/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>')
-    .replace(/^(.+)$/gm, (match) => {
-      if (match.startsWith('<')) return match;
-      return `<p>${match}</p>`;
-    });
+    .replace(/\*(.*?)\*/g, '<em>$1</em>');
 }

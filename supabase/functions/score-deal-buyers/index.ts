@@ -15,7 +15,6 @@ interface BuyerScore {
   pe_firm_name: string | null;
   pe_firm_id: string | null;
   buyer_type: string | null;
-  buyer_category: 'sponsor' | 'operating_company';
   hq_state: string | null;
   hq_city: string | null;
   has_fee_agreement: boolean;
@@ -349,27 +348,6 @@ function classifyTier(
   return 'speculative';
 }
 
-// ── Rule-based buyer classification ──
-
-/** Sponsor buyer_types */
-const SPONSOR_TYPES = new Set(['pe_firm', 'family_office', 'independent_sponsor', 'search_fund']);
-/** Operating company buyer_types */
-const OPERATING_TYPES = new Set(['platform', 'strategic']);
-/** Keywords in company name that suggest a financial sponsor */
-const SPONSOR_NAME_KEYWORDS = /\b(capital|partners|equity|investment|ventures|advisors|fund|holdings|group)\b/i;
-
-function classifyBuyer(buyer: { buyer_type: string | null; company_name: string; pe_firm_name: string | null }): 'sponsor' | 'operating_company' {
-  const bt = buyer.buyer_type?.toLowerCase();
-  if (bt && SPONSOR_TYPES.has(bt)) return 'sponsor';
-  if (bt && OPERATING_TYPES.has(bt)) return 'operating_company';
-  // pe_firm_name set AND different from company_name → platform company backed by PE
-  if (buyer.pe_firm_name && buyer.pe_firm_name !== buyer.company_name) return 'operating_company';
-  // Name-based heuristic for untyped buyers
-  if (SPONSOR_NAME_KEYWORDS.test(buyer.company_name)) return 'sponsor';
-  // Default: operating company
-  return 'operating_company';
-}
-
 // ── Main handler ──
 
 Deno.serve(async (req: Request) => {
@@ -569,15 +547,12 @@ Deno.serve(async (req: Request) => {
           : 'Potential industry fit based on acquisition criteria.';
       }
 
-      const buyer_category = classifyBuyer(buyer);
-
       scored.push({
         buyer_id: buyer.id,
         company_name: buyer.company_name,
         pe_firm_name: buyer.pe_firm_name,
         pe_firm_id: buyer.pe_firm_id || null,
         buyer_type: buyer.buyer_type,
-        buyer_category,
         hq_state: buyer.hq_state,
         hq_city: buyer.hq_city,
         has_fee_agreement: !!buyer.has_fee_agreement,

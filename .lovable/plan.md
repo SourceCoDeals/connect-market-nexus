@@ -1,105 +1,75 @@
 
-## Fix Document Sync, Tracking & Admin Toggles -- Complete Remediation
 
-### Issues Found
+## My Deals -- Left Panel + Signing + Data Room Polish
 
-**1. CRITICAL: `update_firm_agreement_status` RPC references non-existent columns**
-The NDA branch of the RPC sets `nda_scope` and `nda_deal_id` -- but these columns don't exist in `firm_agreements`. Only `fee_agreement_scope` and `fee_agreement_deal_id` exist. This means **every NDA status toggle from the admin will fail silently or error out**.
+### Problems Identified
 
-**2. `get_user_firm_agreement_status` RPC doesn't return document URLs**
-The buyer's `useFirmAgreementStatus` hook calls this RPC, then `AgreementSection.tsx` tries to read `nda_signed_document_url`, `nda_document_url`, `fee_signed_document_url`, `fee_agreement_document_url` from the result -- but the RPC only returns `firm_id, firm_name, nda_signed, nda_status, nda_docuseal_status, nda_signed_at, fee_agreement_signed, fee_agreement_status, fee_docuseal_status, fee_agreement_signed_at`. All document URLs are always null on the buyer side.
+1. **Left panel sidebar still feels heavy** -- The category icon boxes (32px dark squares), the sort dropdown, and the overall spacing create visual noise. The "General Inquiry" card also still shows with an "Internal" label and "0" which looks broken.
 
-**3. Admin `ThreadContextPanel` audit timeline doesn't show `changed_by_name`**
-The activity timeline fetches `agreement_audit_log` but only selects `id, agreement_type, old_status, new_status, created_at, notes` -- missing `changed_by_name`. So when Bill Martin toggles NDA off, the timeline says "NDA: not_started" but doesn't say who did it.
+2. **Document signing not prominent enough** -- The AccountDocumentsBanner at the top is easy to miss. The DealDocumentsCard shows signing buttons but it's buried in the overview grid below the fold. A buyer who hasn't signed NDA should see it front-and-center, impossible to miss.
 
-**4. `DocumentTrackingPage` date columns don't show last admin action for non-signed states**
-When an admin resets a document from "signed" to "not_started", `nda_signed_at` becomes null and the date column shows "--". There's no indication of the last status change or who performed it.
+3. **Data Room preview is too vague** -- Currently says "Available after your request is approved" with no specifics. It should tease what becomes available: the actual company name, a deal memo/CIM, and confidential details -- giving buyers motivation to sign and complete the process.
 
-**5. `AgreementStatusDropdown` has no "Reset to Not Started" for all states**
-The valid transitions don't include going from `signed` directly to `not_started`. The reset option exists as a separate menu item, but only for `currentStatus !== 'not_started'`. This is correct but the transitions from `signed` only allow `expired` -- there's no way to move `signed -> sent` to re-send.
+4. **"General Inquiry" sidebar card** -- Shows "Internal" category and "$0" EBITDA which looks broken. Needs special handling.
 
-**6. NDASection in connection request sidebar doesn't use `AgreementStatusDropdown`**
-It still uses a simple Signed/Sent/Not Sent text display with no toggle capability. Admins can't change status from this view.
+### Changes
 
-### Implementation Plan
+#### 1. Sidebar Cards (`DealPipelineCard.tsx`) -- Cleaner
 
-#### Phase 1: Fix the RPC -- add missing columns + expand return type
+- Remove the icon box entirely (the 32x32 dark square is heavy). Use a simple thin left-edge color indicator instead
+- Tighter padding: reduce from `px-4 py-3.5` to `px-3.5 py-3`
+- Row 1: Just the title, bold, truncated, with unread dot
+- Row 2: Category + EBITDA in lighter text
+- Row 3: Status label + time
+- For "General Inquiry" type listings (no category, $0 EBITDA): show just "General Inquiry" with no financial data
+- Selected state: clean `bg-[#FAFAF8]` background + left gold bar (keep) + slightly darker border
+- Remove the `border` on each card -- use hover backgrounds only for cleaner look
 
-**DB Migration:**
-- Add `nda_scope` and `nda_deal_id` columns to `firm_agreements` (matching the fee_agreement equivalents)
-- Update `get_user_firm_agreement_status` RPC to also return: `nda_signed_document_url`, `nda_document_url`, `nda_signed_by_name`, `fee_signed_document_url`, `fee_agreement_document_url`, `fee_agreement_signed_by_name`
-- Update TypeScript types in `types.ts` to match expanded return
+#### 2. Sidebar Header -- Simpler
 
-#### Phase 2: Show admin identity on all audit entries
+- Remove the sort dropdown (it adds clutter, most buyers have 1-3 deals)
+- Just show "DEALS" label + count badge
+- Or simplify the sort to a tiny icon-only toggle
 
-**File: `src/pages/admin/message-center/ThreadContextPanel.tsx`**
-- Add `changed_by_name` to the audit log query select
-- Display admin name in timeline events for agreement status changes (e.g., "NDA: not_started -- by Bill Martin")
+#### 3. Action Card (`DealActionCard.tsx`) -- Make signing unmissable
 
-**File: `src/pages/admin/DocumentTrackingPage.tsx`**
-- Add a "Last Action" column or enhance the date columns to show the last audit entry when status is not "signed"
-- Show: admin name, action, timestamp (e.g., "Reset by Bill Martin, Mar 2")
-- Fetch last audit entries for visible firms in a single batch query
+- When NDA is unsigned: use a full gold background with large text and a prominent black button
+- Add a subtitle explaining what signing unlocks: "Once signed, you'll receive access to the company name, confidential deal memo, and detailed financials"
+- Make the CTA button larger (full width on mobile, right-aligned on desktop)
 
-#### Phase 3: Expand `AgreementStatusDropdown` transitions
+#### 4. Documents Card (`DealDocumentsCard.tsx`) -- Tease Data Room contents
 
-**File: `src/components/admin/firm-agreements/AgreementStatusDropdown.tsx`**
-- Add `signed -> sent` transition (re-send after signing)
-- Show the "Reset to Not Started" option for ALL non-not_started states (already works, just confirming)
-- Show signed document URL + draft URL in the hover metadata for all states where they exist
-- Display `changed_by_name` from last audit entry in the hover metadata
+- When request is pending and NDA not signed: Show what's waiting behind the gate:
+  - "Confidential Company Information" (locked icon)
+  - "Deal Memorandum / CIM" (locked icon)  
+  - "Detailed Financial Statements" (locked icon)
+  - Subtitle: "Sign your NDA and complete the review process to unlock"
+- When approved with access: Show actual document names and counts
+- When approved without access yet: "Documents are being prepared by our team"
+- Add a visual distinction -- the locked items should feel premium and exclusive, not just greyed out
 
-#### Phase 4: Upgrade NDASection sidebar to use dropdowns
+#### 5. Remove AccountDocumentsBanner from top
 
-**File: `src/components/admin/connection-request-actions/NDASection.tsx`**
-- Replace simple text display with `AgreementStatusDropdown` component
-- Pass firm data and members so admin can toggle status directly from the connection request sidebar
-- Keep the "Send" button for not_started state
+- The banner at the very top of the container is redundant now that the DealActionCard and DealDocumentsCard both handle signing prominently
+- Removing it simplifies the layout and removes duplicate signing triggers
 
-#### Phase 5: Ensure buyer view shows all document URLs
+#### 6. Detail Header (`DealDetailHeader.tsx`) -- Minor fix
 
-**File: `src/pages/BuyerMessages/AgreementSection.tsx`**
-- After Phase 1 RPC fix, document URLs will flow through correctly
-- Show both signed PDF download AND draft download when both exist (even when signed)
-- Show draft download when unsigned
+- Handle edge case where listing has no EBITDA (General Inquiry) gracefully
 
-### Technical Details
-
-**DB Migration SQL:**
-```sql
--- Add missing columns
-ALTER TABLE firm_agreements ADD COLUMN IF NOT EXISTS nda_scope text DEFAULT 'blanket';
-ALTER TABLE firm_agreements ADD COLUMN IF NOT EXISTS nda_deal_id uuid;
-
--- Expand RPC return type to include document URLs
-CREATE OR REPLACE FUNCTION get_user_firm_agreement_status(p_user_id uuid)
-RETURNS TABLE(
-  firm_id uuid, firm_name text,
-  nda_signed boolean, nda_status text, nda_docuseal_status text,
-  nda_signed_at timestamptz, nda_signed_by_name text,
-  nda_signed_document_url text, nda_document_url text,
-  fee_agreement_signed boolean, fee_agreement_status text,
-  fee_docuseal_status text, fee_agreement_signed_at timestamptz,
-  fee_agreement_signed_by_name text,
-  fee_signed_document_url text, fee_agreement_document_url text
-) ...
-```
-
-**Files to modify:**
+### Files to Modify
 
 | File | Change |
 |------|--------|
-| DB migration | Add `nda_scope`, `nda_deal_id` columns; expand `get_user_firm_agreement_status` RPC |
-| `src/integrations/supabase/types.ts` | Update `get_user_firm_agreement_status` return type |
-| `src/pages/admin/message-center/ThreadContextPanel.tsx` | Add `changed_by_name` to audit query + display |
-| `src/pages/admin/DocumentTrackingPage.tsx` | Show last audit action in date columns when not signed |
-| `src/components/admin/firm-agreements/AgreementStatusDropdown.tsx` | Add `signed -> sent` transition, show doc URLs in metadata |
-| `src/components/admin/connection-request-actions/NDASection.tsx` | Replace text display with `AgreementStatusDropdown` |
-| `src/pages/BuyerMessages/AgreementSection.tsx` | Leverage expanded RPC data for dual doc URLs |
+| `src/components/deals/DealPipelineCard.tsx` | Remove icon box, tighter layout, handle General Inquiry edge case, cleaner cards |
+| `src/components/deals/DealActionCard.tsx` | Bolder signing CTA with description of what signing unlocks |
+| `src/components/deals/DealDocumentsCard.tsx` | Tease locked data room contents (company name, memo, financials), better gating copy |
+| `src/pages/MyRequests.tsx` | Remove AccountDocumentsBanner, simplify sidebar header (remove or minimize sort dropdown) |
 
-### What This Fixes
-- NDA status toggles will stop failing (missing column fix)
-- Buyer sees document URLs (signed PDF + draft) in all states
-- Every admin toggle is attributed with admin name + exact timestamp
-- Admin can toggle status from both Document Tracking page and connection request sidebar
-- Activity timeline shows exactly who changed what and when
+### Technical Notes
+
+- No data layer changes needed
+- The `internal_company_name` field exists on listings but should NOT be exposed to buyers pre-approval -- the teaser should say "Confidential Company Information" generically
+- All existing signing modal integration (`AgreementSigningModal`) stays the same
+- The `DealInfoCard`, `DealStatusSection`, `DealMessageEditor`, `BuyerProfileStatus` components remain unchanged
+
