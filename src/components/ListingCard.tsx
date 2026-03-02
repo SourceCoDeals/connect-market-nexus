@@ -1,4 +1,4 @@
-import { useContext, useMemo, memo } from 'react';
+import { useContext, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMarketplace } from '@/hooks/use-marketplace';
 import { useAuth } from '@/context/AuthContext';
