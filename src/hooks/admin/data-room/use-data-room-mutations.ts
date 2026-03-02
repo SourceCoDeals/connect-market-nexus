@@ -7,6 +7,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import type { Json } from '@/integrations/supabase/types';
 
+function getFunctionsBaseUrl(): string {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const resolvedUrl = supabaseUrl || (projectId ? `https://${projectId}.supabase.co` : '');
+
+  if (!resolvedUrl) {
+    throw new Error('Supabase URL is not configured');
+  }
+
+  return `${resolvedUrl}/functions/v1`;
+}
+
 // ─── Upload Document ───
 
 export function useUploadDocument() {
@@ -37,16 +49,13 @@ export function useUploadDocument() {
       if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-room-upload`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch(`${getFunctionsBaseUrl()}/data-room-upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
 
       if (!response.ok) {
         let errorMessage = 'Upload failed';
@@ -224,7 +233,7 @@ export function useDocumentUrl() {
       if (sessionError) throw sessionError;
       if (!session) throw new Error('Not authenticated');
 
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/data-room-download?document_id=${documentId}&action=${action}`;
+      const url = `${getFunctionsBaseUrl()}/data-room-download?document_id=${documentId}&action=${action}`;
       const resp = await fetch(url, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
