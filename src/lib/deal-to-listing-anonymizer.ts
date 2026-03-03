@@ -230,10 +230,10 @@ const TITLE_GENERATORS: Array<(industry: string, state: string, deal: DealData) 
     if (state) return `Profitable ${industry} Business in ${state}`;
     return `Profitable ${industry} Business`;
   },
-  // Pattern 3: Years-anchored
+  // Pattern 3: Tenure-anchored (use vague ranges to avoid identifying the company)
   (industry, state, deal) => {
     const years = deal.founded_year ? new Date().getFullYear() - deal.founded_year : 0;
-    const yearsDesc = years >= 20 ? `${years}+ Year` : years >= 10 ? 'Multi-Decade' : 'Established';
+    const yearsDesc = years >= 20 ? 'Long-Standing' : years >= 10 ? 'Multi-Decade' : 'Established';
     if (state) return `${yearsDesc} ${industry} Business in ${state}`;
     return `${yearsDesc} ${industry} Business`;
   },
@@ -285,23 +285,18 @@ function generateAnonymousDescription(deal: DealData): string {
   const industry = deal.industry || deal.category || 'services';
   const state = deal.address_state || deal.location;
   const employees = deal.full_time_employees || deal.linkedin_employee_count;
-  const years = deal.founded_year ? new Date().getFullYear() - deal.founded_year : 0;
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
   const services = toStringArray(deal.service_mix);
   const servicesList = deal.services || [];
   const allServices = [...new Set([...services, ...servicesList])];
 
-  // Paragraph 1: Company overview — what they do, where, how long, team size
+  // Paragraph 1: Company overview — what they do, where, team size
+  // NOTE: Founding year and exact years in operation are EXCLUDED from anonymous
+  // listings because they can help identify the company when combined with
+  // industry and geography.
   const p1Parts: string[] = [];
   let p1 = `The Company is an established ${industry.toLowerCase()} business`;
   if (state) p1 += ` headquartered in ${state}`;
-  if (years >= 20) {
-    p1 += `, with over ${years} years of continuous operation`;
-  } else if (years >= 5) {
-    p1 += `, operating since ${deal.founded_year}`;
-  } else if (years > 0) {
-    p1 += `, founded ${deal.founded_year}`;
-  }
   p1 += '.';
   p1Parts.push(p1);
 
@@ -404,21 +399,15 @@ function generateHeroDescription(deal: DealData): string {
   const industry = deal.industry || deal.category || 'services';
   const state = deal.address_state || deal.location;
   const employees = deal.full_time_employees || deal.linkedin_employee_count;
-  const years = deal.founded_year ? new Date().getFullYear() - deal.founded_year : 0;
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
   const services = toStringArray(deal.service_mix);
   const servicesList = deal.services || [];
   const allServices = [...new Set([...services, ...servicesList])];
 
-  // Sentence 1: What the company is — industry, geography, tenure
-  let sentence1 = '';
-  if (years >= 20) {
-    sentence1 = `Established ${industry.toLowerCase()} business with ${years}+ years of operating history`;
-  } else if (years >= 5) {
-    sentence1 = `${industry} business with a ${years}-year track record`;
-  } else {
-    sentence1 = `${industry} business`;
-  }
+  // Sentence 1: What the company is — industry, geography
+  // NOTE: Founding year / exact years in operation are excluded from anonymous
+  // listings to prevent identification.
+  let sentence1 = `Established ${industry.toLowerCase()} business`;
   if (state) sentence1 += ` based in ${state}`;
   sentence1 += '.';
 

@@ -839,7 +839,7 @@ CRITICAL ANONYMITY RULES — VIOLATION OF ANY OF THESE WILL RESULT IN THE MEMO B
 - NO branded service program names that could identify the company
 - Financial data as ranges only (e.g., "$4.5M–$5.5M revenue", "28%–32% EBITDA margin")
 - Services described generically (e.g., "automotive maintenance and repair" not the brand name of the service)
-- NO founding dates that combined with other details could identify the company — use approximate years in operation (e.g., "approximately 3–5 years")
+- NO founding year, founding date, or specific years in operation — these combined with industry and geography can identify the company. Do NOT write "founded in 2005" or "25+ years in operation." Instead, use only vague descriptors like "long-standing" or "well-established" without any numbers
 ${companyName ? `- BANNED TERMS (these are the actual company identifiers — NEVER include them): "${companyName}"` : ''}
 ${
   companyWebsite
@@ -856,7 +856,7 @@ ${geoStates.length > 0 ? `\n- BANNED STATES: ${geoStates.map((s: string) => `"${
 REQUIRED SECTIONS (9 sections — follow this exact structure — be EXHAUSTIVE with detail, this is a comprehensive investment document for an investment committee, NOT a short summary):
 1. key: "company_overview" / title: "Company Overview" — THIS IS THE MOST IMPORTANT SECTION. It becomes the primary listing description buyers see. Write 4-6 rich, substantive paragraphs. This must read like a compelling investment thesis, NOT a generic template.
    - Paragraph 1: What the company does, its business model (how it makes money — B2B/B2C/mixed, recurring/project/contract-based, subscription/transactional), and how services interrelate. Be specific about what sets the revenue model apart.
-   - Paragraph 2: Geographic presence (region only — NEVER name states or cities), operational scale (employee count range, number of locations), and years in operation (approximate range). Paint a picture of the operational footprint.
+   - Paragraph 2: Geographic presence (region only — NEVER name states or cities), operational scale (employee count range, number of locations). Do NOT include years in operation or founding year — these are identifying. Paint a picture of the operational footprint.
    - Paragraph 3: Competitive advantages and market position — certifications (described generically), preferred relationships, proprietary processes or technology, customer lock-in mechanisms, brand reputation, barriers to entry. What makes this business hard to replicate?
    - Paragraph 4: Customer base quality — types of customers served (without naming specific accounts), recurring/repeat dynamics, contract vs. spot revenue, customer diversification or concentration characteristics, end-market exposure.
    - Paragraph 5 (if data supports): Growth trajectory and acquisition attractiveness — how the business has grown, why a PE buyer would want this (platform potential, add-on opportunity, geographic gap-filler), and what investment would unlock.
@@ -912,7 +912,7 @@ Example 1 — Anonymous Teaser Company Overview (Correct depth and detail — th
 Company Overview:
 "${projectCodename} is a full-service restoration and reconstruction business operating across the ${regionName} United States, providing fire restoration, water mitigation, mold remediation, and commercial roofing services. The company operates on a hybrid revenue model combining insurance-referred restoration work (approximately 55%–65% of revenue) with direct-to-consumer retail projects, creating a diversified demand profile that provides resilience across economic cycles.
 
-The business operates from two locations in the ${regionName} region with a team of approximately 40–50 full-time employees, including dedicated project managers, certified technicians, and administrative support staff. The company has been in continuous operation for approximately 15–20 years, building deep institutional knowledge of regional building codes, insurance carrier processes, and subcontractor networks.
+The business operates from two locations in the ${regionName} region with a team of approximately 40–50 full-time employees, including dedicated project managers, certified technicians, and administrative support staff. The company has built deep institutional knowledge of regional building codes, insurance carrier processes, and subcontractor networks over an extended period of operation.
 
 The company maintains multiple industry-standard certifications and preferred vendor relationships with several national insurance carriers, which serve as a recurring referral pipeline and create meaningful barriers to entry for competitors. The company's in-house textile cleaning capability eliminates reliance on third-party vendors for contents restoration, improving both margins and turnaround times. These operational advantages, combined with a decades-long regional reputation, create a defensible market position.
 
