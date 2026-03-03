@@ -55,8 +55,9 @@ export function EditorDescriptionSection({
         )}
       </div>
       <p className="text-xs text-muted-foreground mb-4">
-        The full listing description shown to buyers. Use headings, bold text, bullet points, and
-        clear paragraph breaks to create a professional, scannable layout.
+        The full listing description shown to buyers. Use section headings, concise sentences, and
+        bullet points for key data — present information in the cleanest, most digestible way
+        possible.
       </p>
 
       <FormField

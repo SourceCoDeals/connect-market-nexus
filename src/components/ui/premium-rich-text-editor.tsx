@@ -493,19 +493,23 @@ export function PremiumRichTextEditor({ content, onChange }: PremiumRichTextEdit
           </summary>
           <div className="mt-3 space-y-3">
             <div>
-              <p className="font-medium text-foreground mb-1">Required Structure:</p>
+              <p className="font-medium text-foreground mb-1">Formatting:</p>
               <ul className="space-y-1 list-disc list-inside">
                 <li>
-                  Use <strong>H2 headings</strong> for each section (Business Overview, Financial
-                  Highlights, Market Position, Growth Opportunities)
+                  Use <strong>H2 headings</strong> to define each section (Business Overview,
+                  Financial Highlights, Market Position, Growth Opportunities)
                 </li>
                 <li>
-                  Use <strong>bullet points</strong> for key data points, metrics, and lists
+                  Write <strong>short, direct sentences</strong> to introduce each section — then
+                  use <strong>bullet points</strong> for metrics, lists, and key data
                 </li>
                 <li>
-                  Use <strong>bold text</strong> for important numbers, percentages, and key terms
+                  Use <strong>bold</strong> for important numbers, percentages, and key terms
                 </li>
-                <li>Break content into clear paragraphs — no walls of text</li>
+                <li>
+                  Break content into clear paragraphs — no walls of text. The goal is a clean,
+                  scannable layout
+                </li>
               </ul>
             </div>
             <div>

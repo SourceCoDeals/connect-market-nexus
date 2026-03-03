@@ -316,7 +316,8 @@ function formatIntoParagraphs(text: string): string {
  * Generate an anonymous description from executive summary or description.
  * Builds a comprehensive, well-structured overview using ALL available deal data.
  * This is the primary text buyers see — it must be detailed, compelling, and
- * properly formatted with clear section headings and bullet points.
+ * formatted with a clean mix of concise narrative sentences and bullet points
+ * where data is best presented as a list. The goal is maximum readability.
  */
 function generateAnonymousDescription(deal: DealData): string {
   const source = deal.executive_summary || deal.description || '';
@@ -328,7 +329,7 @@ function generateAnonymousDescription(deal: DealData): string {
   }
 
   // Otherwise build a structured description from deal fields — be EXHAUSTIVE
-  // Use clear section headings and bullet points for readability
+  // Mix short narrative sentences with bullet points for clean, digestible content
   const sections: string[] = [];
   const industry = deal.industry || deal.category || 'services';
   const state = deal.address_state || deal.location;
@@ -338,95 +339,140 @@ function generateAnonymousDescription(deal: DealData): string {
   const servicesList = deal.services || [];
   const allServices = [...new Set([...services, ...servicesList])];
 
-  // Section 1: Business Overview
-  const overviewLines: string[] = [];
+  // Section 1: Business Overview — narrative intro + key facts as bullets
+  const overviewParts: string[] = [];
   let intro = `The Company is an established ${industry.toLowerCase()} business`;
   if (state) intro += ` headquartered in ${state}`;
+  if (employees && employees > 0) intro += ` with a team of approximately ${employees} employees`;
   intro += '.';
-  overviewLines.push(intro);
+  overviewParts.push(intro);
 
-  const overviewBullets: string[] = [];
   if (allServices.length > 0) {
-    overviewBullets.push(`Diversified service portfolio: ${allServices.slice(0, 5).join(', ')}`);
+    if (allServices.length > 3) {
+      overviewParts.push(
+        `The company offers a diversified service portfolio spanning ${allServices.length} service lines, including ${allServices.slice(0, 4).join(', ')}, and other complementary offerings.`,
+      );
+    } else {
+      overviewParts.push(`Core capabilities include ${allServices.join(', ')}.`);
+    }
   }
-  if (employees && employees > 0) {
-    overviewBullets.push(`Team of approximately ${employees} employees`);
-  }
+
+  // Only bullet out operational details when there are multiple discrete facts
+  const opsBullets: string[] = [];
   if (deal.number_of_locations && deal.number_of_locations > 1) {
-    overviewBullets.push(`${deal.number_of_locations} physical locations`);
+    opsBullets.push(`${deal.number_of_locations} physical locations`);
   }
   if (deal.geographic_states && deal.geographic_states.length > 1) {
-    overviewBullets.push(`Operations across ${deal.geographic_states.length} states`);
+    opsBullets.push(`Operations across ${deal.geographic_states.length} states`);
   }
 
-  if (overviewBullets.length > 0) {
-    overviewLines.push('');
-    overviewBullets.forEach((b) => overviewLines.push(`- ${b}`));
+  let overviewContent = overviewParts.join(' ');
+  if (opsBullets.length > 0) {
+    overviewContent += '\n\n' + opsBullets.map((b) => `- ${b}`).join('\n');
   }
-  sections.push(`Business Overview\n\n${overviewLines.join('\n')}`);
+  sections.push(`Business Overview\n\n${overviewContent}`);
 
-  // Section 2: Financial Highlights
+  // Section 2: Financial Highlights — opening sentence + metrics as bullets
   if (deal.revenue || deal.ebitda) {
-    const financialBullets: string[] = [];
-    if (deal.revenue) financialBullets.push(`Revenue: ~${formatRevenue(deal.revenue)} annually`);
-    if (deal.ebitda) financialBullets.push(`EBITDA: ${formatRevenue(deal.ebitda)}`);
-    if (margin > 0) financialBullets.push(`EBITDA Margin: ${margin}%`);
-    if (deal.revenue_model) financialBullets.push(stripIdentifyingInfo(deal.revenue_model, deal));
-    if (deal.business_model) financialBullets.push(stripIdentifyingInfo(deal.business_model, deal));
+    const financialParts: string[] = [];
 
-    sections.push(`Financial Highlights\n\n${financialBullets.map((b) => `- ${b}`).join('\n')}`);
+    // Lead with a narrative sentence about the financial profile
+    let financialIntro = 'The business demonstrates a strong financial profile';
+    if (margin > 20) financialIntro += ' with attractive margins';
+    else if (deal.revenue && deal.revenue > 5_000_000) financialIntro += ' at scale';
+    financialIntro += '.';
+    financialParts.push(financialIntro);
+
+    // Key metrics as bullets for easy scanning
+    const metrics: string[] = [];
+    if (deal.revenue) metrics.push(`Revenue: ~${formatRevenue(deal.revenue)} annually`);
+    if (deal.ebitda) metrics.push(`EBITDA: ${formatRevenue(deal.ebitda)}`);
+    if (margin > 0) metrics.push(`EBITDA Margin: ${margin}%`);
+
+    let financialContent = financialParts.join(' ');
+    if (metrics.length > 0) {
+      financialContent += '\n\n' + metrics.map((m) => `- ${m}`).join('\n');
+    }
+
+    // Add business/revenue model as narrative after the bullets
+    const modelParts: string[] = [];
+    if (deal.revenue_model) modelParts.push(stripIdentifyingInfo(deal.revenue_model, deal));
+    if (deal.business_model) modelParts.push(stripIdentifyingInfo(deal.business_model, deal));
+    if (modelParts.length > 0) {
+      financialContent += '\n\n' + modelParts.join(' ');
+    }
+
+    sections.push(`Financial Highlights\n\n${financialContent}`);
   }
 
-  // Section 3: Market Position & Customers
-  const marketLines: string[] = [];
-  if (deal.customer_types) {
-    marketLines.push(
-      `- Customer base: ${stripIdentifyingInfo(deal.customer_types.toLowerCase(), deal)}`,
-    );
-  }
-  if (deal.end_market_description) {
-    marketLines.push(`- ${stripIdentifyingInfo(deal.end_market_description, deal)}`);
-  }
-  if (deal.customer_geography) {
-    marketLines.push(
-      `- Geographic reach: ${stripIdentifyingInfo(deal.customer_geography.toLowerCase(), deal)}`,
-    );
-  }
-  if (deal.competitive_position) {
-    marketLines.push(`- ${stripIdentifyingInfo(deal.competitive_position, deal)}`);
-  }
-  if (marketLines.length > 0) {
-    sections.push(`Market Position\n\n${marketLines.join('\n')}`);
+  // Section 3: Market Position — narrative sentences for context, bullets for lists
+  const hasMarketData =
+    deal.customer_types ||
+    deal.end_market_description ||
+    deal.customer_geography ||
+    deal.competitive_position;
+  if (hasMarketData) {
+    const marketParts: string[] = [];
+
+    if (deal.customer_types) {
+      marketParts.push(
+        `The Company serves ${stripIdentifyingInfo(deal.customer_types.toLowerCase(), deal)}.`,
+      );
+    }
+    if (deal.end_market_description) {
+      marketParts.push(stripIdentifyingInfo(deal.end_market_description, deal));
+    }
+    if (deal.customer_geography) {
+      marketParts.push(
+        `Service coverage extends across ${stripIdentifyingInfo(deal.customer_geography.toLowerCase(), deal)}.`,
+      );
+    }
+    if (deal.competitive_position) {
+      marketParts.push(stripIdentifyingInfo(deal.competitive_position, deal));
+    }
+
+    sections.push(`Market Position\n\n${marketParts.join(' ')}`);
   }
 
-  // Section 4: Growth Opportunities
-  const growthLines: string[] = [];
+  // Section 4: Growth Opportunities — intro sentence + drivers as bullets
   const growthDrivers = Array.isArray(deal.growth_drivers)
     ? (deal.growth_drivers as string[]).filter((d): d is string => typeof d === 'string')
     : [];
-  if (growthDrivers.length > 0) {
-    growthDrivers.slice(0, 4).forEach((d) => growthLines.push(`- ${d}`));
-  }
-  if (deal.investment_thesis) {
-    growthLines.push(`- ${stripIdentifyingInfo(deal.investment_thesis, deal)}`);
-  }
-  if (growthLines.length > 0) {
-    sections.push(`Growth Opportunities\n\n${growthLines.join('\n')}`);
+  if (growthDrivers.length > 0 || deal.investment_thesis) {
+    const growthParts: string[] = [];
+    growthParts.push(
+      'The business is well-positioned for continued growth with several identified expansion levers.',
+    );
+
+    if (growthDrivers.length > 0) {
+      growthParts.push(
+        '\n\n' +
+          growthDrivers
+            .slice(0, 4)
+            .map((d) => `- ${d}`)
+            .join('\n'),
+      );
+    }
+    if (deal.investment_thesis) {
+      growthParts.push('\n\n' + stripIdentifyingInfo(deal.investment_thesis, deal));
+    }
+
+    sections.push(`Growth Opportunities\n\n${growthParts.join('')}`);
   }
 
-  // Section 5: Transaction Context (if available)
+  // Section 5: Transaction Context — straightforward narrative
   if (deal.owner_goals || deal.seller_motivation) {
-    const transitionLines: string[] = [];
+    const transitionParts: string[] = [];
     if (deal.seller_motivation) {
-      transitionLines.push(stripIdentifyingInfo(deal.seller_motivation, deal));
+      transitionParts.push(stripIdentifyingInfo(deal.seller_motivation, deal));
     } else if (deal.owner_goals) {
-      transitionLines.push(stripIdentifyingInfo(deal.owner_goals, deal));
+      transitionParts.push(stripIdentifyingInfo(deal.owner_goals, deal));
     }
     if (deal.transition_preferences) {
-      transitionLines.push(stripIdentifyingInfo(deal.transition_preferences, deal));
+      transitionParts.push(stripIdentifyingInfo(deal.transition_preferences, deal));
     }
-    if (transitionLines.length > 0) {
-      sections.push(`Transaction Overview\n\n${transitionLines.join(' ')}`);
+    if (transitionParts.length > 0) {
+      sections.push(`Transaction Overview\n\n${transitionParts.join(' ')}`);
     }
   }
 
