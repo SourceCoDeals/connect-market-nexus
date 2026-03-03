@@ -353,6 +353,24 @@ export function RecommendedBuyersPanel({ listingId, listingTitle }: RecommendedB
             buyer_firm_name: buyer.pe_firm_name || buyer.company_name,
             company_name: listingTitle || buyer.company_name,
             targeting_reason: buyer.fit_reason,
+            score_snapshot: {
+              composite_score: buyer.composite_score,
+              service_score: buyer.service_score,
+              geography_score: buyer.geography_score,
+              size_score: buyer.size_score,
+              bonus_score: buyer.bonus_score,
+              fit_signals: buyer.fit_signals,
+              fit_reason: buyer.fit_reason,
+              tier: buyer.tier,
+              source: buyer.source,
+              buyer_type: buyer.buyer_type,
+              hq_city: buyer.hq_city,
+              hq_state: buyer.hq_state,
+              has_fee_agreement: buyer.has_fee_agreement,
+              pe_firm_name: buyer.pe_firm_name,
+              pe_firm_id: buyer.pe_firm_id,
+              acquisition_appetite: buyer.acquisition_appetite,
+            },
           },
           {
             onSuccess: () => resolve(),
@@ -376,6 +394,30 @@ export function RecommendedBuyersPanel({ listingId, listingTitle }: RecommendedB
     setRejectedIds((prev) => new Set([...prev, buyer.buyer_id]));
     toast.info(`${buyer.company_name} removed from recommendations`);
   };
+
+  // Build a set of buyer IDs that already have introductions (persisted in DB).
+  // This ensures accepted buyers stay hidden even after refresh or new AI searches.
+  // NOTE: Must be called before any early returns to satisfy React's Rules of Hooks.
+  const introducedBuyerIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const intro of introductions) {
+      if (intro.contact_id) ids.add(intro.contact_id);
+    }
+    return ids;
+  }, [introductions]);
+
+  const allBuyers = data?.buyers || [];
+  const available = allBuyers.filter(
+    (b) =>
+      !acceptedIds.has(b.buyer_id) &&
+      !rejectedIds.has(b.buyer_id) &&
+      !introducedBuyerIds.has(b.buyer_id),
+  );
+  const allInternal = available.filter(isInternal);
+  const allExternal = available.filter((b) => !isInternal(b));
+  const internalBuyers = allInternal.slice(0, internalVisible);
+  const externalBuyers = allExternal.slice(0, externalVisible);
+  const buyers = [...allInternal, ...allExternal];
 
   if (isLoading) {
     return (
@@ -424,29 +466,6 @@ export function RecommendedBuyersPanel({ listingId, listingTitle }: RecommendedB
       </Card>
     );
   }
-
-  // Build a set of buyer IDs that already have introductions (persisted in DB).
-  // This ensures accepted buyers stay hidden even after refresh or new AI searches.
-  const introducedBuyerIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const intro of introductions) {
-      if (intro.contact_id) ids.add(intro.contact_id);
-    }
-    return ids;
-  }, [introductions]);
-
-  const allBuyers = data?.buyers || [];
-  const available = allBuyers.filter(
-    (b) =>
-      !acceptedIds.has(b.buyer_id) &&
-      !rejectedIds.has(b.buyer_id) &&
-      !introducedBuyerIds.has(b.buyer_id),
-  );
-  const allInternal = available.filter(isInternal);
-  const allExternal = available.filter((b) => !isInternal(b));
-  const internalBuyers = allInternal.slice(0, internalVisible);
-  const externalBuyers = allExternal.slice(0, externalVisible);
-  const buyers = [...allInternal, ...allExternal];
 
   return (
     <Card>
