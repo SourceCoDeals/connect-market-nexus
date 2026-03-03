@@ -1,3 +1,4 @@
+import { getDisplayLocation } from '@/lib/location-display';
 import {
   Building2,
   DollarSign,
@@ -48,10 +49,7 @@ export const REFERRAL_PARTNER_DEAL_FIELDS: FilterFieldDef[] = [
     group: 'Location',
     icon: MapPin,
     accessor: (item: Record<string, unknown>) => {
-      const city = item.address_city as string | null;
-      const state = item.address_state as string | null;
-      if (city && state) return `${city}, ${state}`;
-      return (item.location as string) || '';
+      return getDisplayLocation(item as { address_city?: string | null; address_state?: string | null; location?: string | null; geographic_states?: string[] | null }) || '';
     },
   },
   {
