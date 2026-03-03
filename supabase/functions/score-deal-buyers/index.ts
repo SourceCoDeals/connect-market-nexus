@@ -462,16 +462,30 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Fetch deal-specific why_relevant from seed log ──
+    // Fetch deal-specific seed log (why_relevant is deal-specific so must filter by source_deal_id)
     const { data: seedLogRows } = await supabase
       .from('buyer_seed_log')
       .select('remarketing_buyer_id, why_relevant, known_acquisitions')
       .eq('source_deal_id', listingId);
+
+    // Also fetch known_acquisitions across ALL deals so we can surface them even when
+    // a buyer was seeded from a different deal (why_relevant is still deal-specific above)
+    const { data: allAcquisitionRows } = await supabase
+      .from('buyer_seed_log')
+      .select('remarketing_buyer_id, known_acquisitions')
+      .not('known_acquisitions', 'is', null);
 
     const seedLogMap = new Map<string, string>();
     const seedLogAcquisitionsMap = new Map<string, string[]>();
     for (const row of (seedLogRows || [])) {
       if (row.why_relevant) seedLogMap.set(row.remarketing_buyer_id, row.why_relevant);
       if (row.known_acquisitions?.length) seedLogAcquisitionsMap.set(row.remarketing_buyer_id, row.known_acquisitions);
+    }
+    // Merge in acquisitions from other deals (don't overwrite deal-specific ones)
+    for (const row of (allAcquisitionRows || [])) {
+      if (!seedLogAcquisitionsMap.has(row.remarketing_buyer_id) && row.known_acquisitions?.length) {
+        seedLogAcquisitionsMap.set(row.remarketing_buyer_id, row.known_acquisitions);
+      }
     }
 
     // ── Normalize deal fields ──
@@ -551,6 +565,25 @@ Deno.serve(async (req: Request) => {
         : ebitdaMaxStr ? `up to ${ebitdaMaxStr}`
         : null;
 
+      // Extract specific matching terms from scoring signals for use in descriptions
+      const matchingServiceTerms = svc.signals
+        .map(s => {
+          const m = s.match(/^(?:Exact industry match|Adjacent industry):\s*(.+)/i);
+          return m?.[1]?.trim() || null;
+        })
+        .filter(Boolean) as string[];
+
+      // Collect buyer's geographic coverage for richer geographic descriptions
+      const rawBuyerGeos = [
+        ...(buyer.target_geographies as string[] || []),
+        ...(buyer.geographic_footprint as string[] || []),
+      ].filter(Boolean);
+      const uniqueGeos = [...new Set(rawBuyerGeos.map(g => g.toUpperCase()))];
+      // States the buyer covers beyond the deal state (for "also covers X, Y" detail)
+      const otherCoveredStates = uniqueGeos
+        .filter(g => g.length === 2 && g !== dealState?.toUpperCase())
+        .slice(0, 4);
+
       let fit_reason: string;
       if (seedLogReason) {
         fit_reason = seedLogReason;
@@ -560,12 +593,23 @@ Deno.serve(async (req: Request) => {
         // Append detailed deal-specific match analysis
         const matchDetails: string[] = [];
         if (svc.score >= 100) {
-          matchDetails.push(`directly targets ${dealIndustry || 'this industry'}`);
+          if (matchingServiceTerms.length > 0) {
+            matchDetails.push(`directly targets ${matchingServiceTerms.slice(0, 3).join(', ')} \u2014 overlapping with ${dealIndustry || 'the deal'}`);
+          } else {
+            matchDetails.push(`directly targets ${dealIndustry || 'this industry'}`);
+          }
         } else if (svc.score >= 60) {
-          matchDetails.push(`adjacent fit to ${dealIndustry || 'this industry'}${buyer.industry_vertical ? ` via ${buyer.industry_vertical}` : ''}`);
+          if (matchingServiceTerms.length > 0) {
+            matchDetails.push(`adjacent fit via ${matchingServiceTerms.slice(0, 2).join(', ')} to ${dealIndustry || 'this industry'}${buyer.industry_vertical ? ` (${buyer.industry_vertical})` : ''}`);
+          } else {
+            matchDetails.push(`adjacent fit to ${dealIndustry || 'this industry'}${buyer.industry_vertical ? ` via ${buyer.industry_vertical}` : ''}`);
+          }
         }
         if (geo.score >= 100) {
-          matchDetails.push(`actively covers ${dealState?.toUpperCase() || 'target geography'}`);
+          const geoDetail = otherCoveredStates.length > 0
+            ? `covers ${dealState?.toUpperCase() || 'target geography'} (also targets ${otherCoveredStates.join(', ')})`
+            : `actively covers ${dealState?.toUpperCase() || 'target geography'}`;
+          matchDetails.push(geoDetail);
         } else if (geo.score >= 80) {
           matchDetails.push('national acquisition footprint');
         } else if (geo.score >= 60) {
@@ -610,12 +654,24 @@ Deno.serve(async (req: Request) => {
         // Deal-specific match reasoning
         const matchParts: string[] = [];
         if (svc.score >= 100) {
-          matchParts.push(`directly aligns with the deal's ${dealIndustry || 'industry'} focus`);
+          if (matchingServiceTerms.length > 0) {
+            matchParts.push(`targets ${matchingServiceTerms.slice(0, 3).join(', ')} \u2014 directly overlapping with the deal's ${dealIndustry || 'industry'} focus`);
+          } else {
+            matchParts.push(`directly aligns with the deal's ${dealIndustry || 'industry'} focus`);
+          }
         } else if (svc.score >= 60) {
-          matchParts.push(`invests in verticals adjacent to ${dealIndustry || 'this industry'}`);
+          if (matchingServiceTerms.length > 0) {
+            matchParts.push(`invests in ${matchingServiceTerms.slice(0, 2).join(', ')}, adjacent to ${dealIndustry || 'this industry'}`);
+          } else {
+            matchParts.push(`invests in verticals adjacent to ${dealIndustry || 'this industry'}`);
+          }
         }
         if (geo.score >= 100) {
-          matchParts.push(`actively acquires in ${dealState?.toUpperCase() || 'the target state'}`);
+          if (otherCoveredStates.length > 0) {
+            matchParts.push(`actively acquires in ${dealState?.toUpperCase() || 'the target state'} and also covers ${otherCoveredStates.join(', ')}`);
+          } else {
+            matchParts.push(`actively acquires in ${dealState?.toUpperCase() || 'the target state'}`);
+          }
         } else if (geo.score >= 80) {
           matchParts.push('has a national acquisition footprint');
         } else if (geo.score >= 60) {
