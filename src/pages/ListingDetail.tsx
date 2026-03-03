@@ -16,6 +16,7 @@ import { CustomSection } from '@/components/listing-detail/CustomSection';
 import { ExecutiveSummaryGenerator } from '@/components/listing-detail/ExecutiveSummaryGenerator';
 import { ListingHeader } from '@/components/listing-detail/ListingHeader';
 import { EnhancedFinancialGrid } from '@/components/listing-detail/EnhancedFinancialGrid';
+import { BusinessDetailsGrid } from '@/components/listing-detail/BusinessDetailsGrid';
 import { DealAdvisorCard } from '@/components/listing-detail/DealAdvisorCard';
 import { DealSourcingCriteriaDialog } from '@/components/listing-detail/DealSourcingCriteriaDialog';
 
@@ -262,6 +263,11 @@ const ListingDetail = () => {
                 ]}
               />
             </div>
+
+            {/* Structured Business Details */}
+            <BusinessDetailsGrid
+              geographic_states={listing.geographic_states}
+            />
 
             {/* Internal Company Information - Admin Only */}
             {isAdmin && listing && (

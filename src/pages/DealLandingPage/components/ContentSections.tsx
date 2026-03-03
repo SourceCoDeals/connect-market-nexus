@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, MapPin } from 'lucide-react';
 import type { LandingPageDeal } from '@/hooks/useDealLandingPage';
 import { stripIdentifyingInfo, type DealData } from '@/lib/deal-to-listing-anonymizer';
 import { RichTextDisplay } from '@/components/ui/rich-text-display';
@@ -91,6 +91,8 @@ export default function ContentSections({ deal }: ContentSectionsProps) {
 
   const customSections = deal.custom_sections ?? [];
 
+  const hasGeography = deal.geographic_states && deal.geographic_states.length > 0;
+
   return (
     <div>
       {/* Business Overview — the description, same as listing page */}
@@ -104,6 +106,25 @@ export default function ContentSections({ deal }: ContentSectionsProps) {
             )}
           </div>
         </CollapsibleSection>
+      )}
+
+      {/* Geography */}
+      {hasGeography && (
+        <div className="border-b border-[#E5E7EB] py-5">
+          <div className="flex items-start gap-3">
+            <MapPin className="h-4 w-4 text-[#9CA3AF] mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-[#6B7280] font-medium uppercase tracking-wider mb-1.5 font-['Inter',system-ui,sans-serif]">
+                Geography
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {deal.geographic_states!.map((s) => (
+                  <span key={s} className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#F3F4F6] text-xs font-medium text-[#374151]">{s}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Custom Sections — the lead memo content sections, same as listing page */}

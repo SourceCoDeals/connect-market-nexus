@@ -51,6 +51,13 @@ const MARKETPLACE_SAFE_COLUMNS = [
   'custom_sections',
   'presented_by_admin_id',
   'owner_notes',
+  'geographic_states',
+  'services',
+  'number_of_locations',
+  'customer_types',
+  'revenue_model',
+  'business_model',
+  'growth_trajectory',
 ].join(', ');
 
 // Fetch listings with filters and pagination

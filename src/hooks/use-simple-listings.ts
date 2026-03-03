@@ -69,6 +69,13 @@ async function fetchListings(state: PaginationState, buyerTier?: number | null) 
     'revenue_metric_subtitle',
     'ebitda_metric_subtitle',
     'owner_notes',
+    'geographic_states',
+    'services',
+    'number_of_locations',
+    'customer_types',
+    'revenue_model',
+    'business_model',
+    'growth_trajectory',
   ].join(', ');
 
   let query = supabase
