@@ -74,7 +74,7 @@ export const VALID_BUYER_COLUMNS = new Set([
   'company_name', 'company_website', 'platform_website', 'pe_firm_name', 'pe_firm_website',
   'business_summary', 'thesis_summary', 'buyer_type',
   'hq_city', 'hq_state', 'hq_country', 'hq_region',
-  'geographic_footprint', 'service_regions', 'operating_locations',
+  'geographic_footprint', 'service_regions', 'operating_locations', 'number_of_locations',
   'primary_customer_size', 'customer_geographic_reach', 'customer_industries', 'target_customer_profile',
   'target_revenue_min', 'target_revenue_max',
   'target_ebitda_min', 'target_ebitda_max',
@@ -222,6 +222,7 @@ export const PROMPT_3A_GEOGRAPHY = {
       geographic_footprint: { type: 'array', items: { type: 'string' }, description: 'Array of 2-letter state codes where company operates, has offices, or provides services. Include states from office addresses, service area lists, explicitly named states, and cities with known states.' },
       service_regions: { type: 'array', items: { type: 'string' }, description: 'All states where company provides services or has customers, as 2-letter codes. Superset of geographic_footprint.' },
       operating_locations: { type: 'array', items: { type: 'string' }, description: 'REQUIRED: Every physical office, branch, store, or location mentioned on the website as "City, ST" (e.g., "Dallas, TX", "Atlanta, GA"). Extract from addresses, location lists, footer, contact pages, and branch directories. This is a critical field — extract aggressively.' },
+      number_of_locations: { type: 'integer', description: 'Total number of physical locations/stores/branches/offices. Extract from explicit mentions like "100+ locations", "serving 50 markets", or count from location directory pages. If not explicitly stated, count the operating_locations extracted.' },
     },
   },
 };
@@ -254,8 +255,11 @@ EXTRACTION RULES:
    - "Great Lakes" → MI, OH, WI, IL, IN, MN
 5. operating_locations = CRITICAL FIELD: every "City, ST" pair found anywhere on the site.
    Example: ["Dallas, TX", "Atlanta, GA", "Chicago, IL", "Tampa, FL"]
-6. hq_state MUST be a 2-letter code (e.g., TX not Texas)
-7. hq_city MUST be a real city name (not a region like "West Coast")
+6. number_of_locations = Total location count. Extract from explicit mentions like "100+ locations",
+   "50 stores nationwide", "serving 35 markets". If not explicitly stated, set to the count of
+   operating_locations extracted. This ensures the location count is always populated.
+7. hq_state MUST be a 2-letter code (e.g., TX not Texas)
+8. hq_city MUST be a real city name (not a region like "West Coast")
 
 IMPORTANT FOR M&A BUYERS:
 - PE firms and platform companies often describe coverage using regional language.
@@ -478,6 +482,15 @@ export function validateGeography(extracted: AIExtractionResult): AIExtractionRe
         }
       }
     }
+  }
+
+  // Auto-compute number_of_locations from operating_locations if not explicitly extracted
+  // Use the AI-extracted count if it's higher (it may know the total from "100+ locations" text)
+  const extractedCount = typeof data.number_of_locations === 'number' ? data.number_of_locations : 0;
+  const actualCount = Array.isArray(data.operating_locations) ? data.operating_locations.length : 0;
+  if (actualCount > 0 || extractedCount > 0) {
+    data.number_of_locations = Math.max(extractedCount, actualCount);
+    console.log(`Location count: extracted=${extractedCount}, actual=${actualCount}, using=${data.number_of_locations}`);
   }
 
   return { ...extracted, data };

@@ -407,7 +407,7 @@ Deno.serve(async (req) => {
 
           // PERF: Start location page discovery immediately (runs in parallel with non-geography Gemini prompts)
           // Scrape up to 3 location pages to capture full geographic footprint
-          locationPagesPromise = firecrawlMap(platformWebsite!, firecrawlApiKey)
+          locationPagesPromise = firecrawlMap(platformWebsite!, firecrawlApiKey, 500)
             .then(async (links) => {
               // Find all matching location pages, prioritize more specific patterns
               const locationPages = links.filter((link) =>
@@ -418,22 +418,38 @@ Deno.serve(async (req) => {
                 return null;
               }
 
-              // Deduplicate: skip pages that are subpaths of already-matched pages
-              // e.g., if we have /locations and /locations/texas, prefer /locations (the index)
-              const unique = locationPages.filter((page, i) => {
+              // Separate into index pages (parent directories) and detail pages (individual locations)
+              // Index pages like /locations may have a full directory listing
+              // Detail pages like /locations/lakewood-co have individual addresses
+              // We need BOTH — index pages may be JS-rendered store finders with no data in HTML,
+              // while detail pages have actual addresses that the AI can extract
+              const indexPages: string[] = [];
+              const detailPages: string[] = [];
+
+              for (const page of locationPages) {
                 const pageLower = page.toLowerCase();
-                // Keep this page unless another shorter page is a prefix of it
-                return !locationPages.some(
-                  (other, j) =>
-                    j !== i &&
+                const isChildOfAnother = locationPages.some(
+                  (other) =>
+                    other !== page &&
                     pageLower.startsWith(other.toLowerCase()) &&
                     other.length < page.length,
                 );
-              });
+                if (isChildOfAnother) {
+                  detailPages.push(page);
+                } else {
+                  indexPages.push(page);
+                }
+              }
 
-              const toScrape = unique.slice(0, 3); // Cap at 3 pages to control API costs
+              // Scrape index pages (up to 2) + detail pages (up to 8), capped at 10 total
+              // This ensures we capture both comprehensive listings AND individual addresses
+              const toScrape = [
+                ...indexPages.slice(0, 2),
+                ...detailPages.slice(0, 8),
+              ].slice(0, 10);
+
               console.log(
-                `Found ${locationPages.length} location pages, scraping ${toScrape.length}: ${toScrape.join(', ')}`,
+                `Found ${locationPages.length} location pages (${indexPages.length} index, ${detailPages.length} detail), scraping ${toScrape.length}: ${toScrape.join(', ')}`,
               );
 
               const locationScrapeResults = await Promise.allSettled(
