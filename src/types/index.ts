@@ -265,6 +265,15 @@ export interface Listing {
   ebitda_metric_subtitle?: string | null;
   presented_by_admin_id?: string | null;
 
+  // Structured business details (buyer-visible)
+  geographic_states?: string[] | null;
+  services?: string[] | null;
+  number_of_locations?: number | null;
+  customer_types?: string | null;
+  revenue_model?: string | null;
+  business_model?: string | null;
+  growth_trajectory?: string | null;
+
   // Seller/deal context fields
   ownership_structure?: string | null;
   management_depth?: string | null;

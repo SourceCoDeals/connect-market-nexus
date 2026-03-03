@@ -29,6 +29,14 @@ export interface LandingPageDeal {
   part_time_employees: number | null;
   status: string;
   presented_by_admin_id: string | null;
+  // Structured business details
+  geographic_states: string[] | null;
+  services: string[] | null;
+  number_of_locations: number | null;
+  customer_types: string | null;
+  revenue_model: string | null;
+  business_model: string | null;
+  growth_trajectory: string | null;
   // Internal fields used only for anonymization — never displayed directly
   internal_company_name: string | null;
   website: string | null;
@@ -54,6 +62,8 @@ const LANDING_PAGE_FIELDS = `
   metric_4_type, metric_4_custom_label, metric_4_custom_value, metric_4_custom_subtitle,
   executive_summary, full_time_employees, part_time_employees,
   status, presented_by_admin_id,
+  geographic_states, services, number_of_locations, customer_types,
+  revenue_model, business_model, growth_trajectory,
   internal_company_name, website
 `;
 
