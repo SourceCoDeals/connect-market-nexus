@@ -278,7 +278,7 @@ export function useApproveAllTasks() {
           const notifications = pendingTasks
             .filter((t) => t.assignee_id && t.assignee_id !== user?.id)
             .map((t) => ({
-              admin_id: t.assignee_id,
+              admin_id: t.assignee_id!,
               notification_type: 'task_approved',
               title: 'Task Approved',
               message: `Your task "${t.title}" has been approved and is ready to action`,
