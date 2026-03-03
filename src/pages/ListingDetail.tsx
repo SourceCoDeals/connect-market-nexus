@@ -267,12 +267,6 @@ const ListingDetail = () => {
             {/* Structured Business Details */}
             <BusinessDetailsGrid
               geographic_states={listing.geographic_states}
-              services={listing.services}
-              number_of_locations={listing.number_of_locations}
-              customer_types={listing.customer_types}
-              revenue_model={listing.revenue_model}
-              business_model={listing.business_model}
-              growth_trajectory={listing.growth_trajectory}
             />
 
             {/* Internal Company Information - Admin Only */}
