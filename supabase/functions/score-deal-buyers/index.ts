@@ -101,51 +101,62 @@ const STATE_REGIONS: Record<string, string> = {
 
 // ── Sector synonym expansion for semantic matching ──
 
+// Synonyms map each sector term to closely-related terms for matching.
+// IMPORTANT: Avoid generic bridge terms (e.g. "healthcare", "building services",
+// "facility services") as synonyms of specific verticals — they cause false
+// exact-match scores between unrelated industries (e.g. dental ↔ veterinary
+// through "healthcare"). Only map to genuinely interchangeable or directly
+// overlapping terms.
 const SECTOR_SYNONYMS: Record<string, string[]> = {
   // Utilities / Infrastructure
   'utility':             ['utilities', 'utility services', 'infrastructure', 'field services', 'municipal services'],
   'utility services':    ['utility', 'utilities', 'infrastructure services', 'outsourced utility', 'municipal'],
-  'metering':            ['amr', 'ami', 'smart meter', 'meter reading', 'utility services', 'field services'],
+  'metering':            ['amr', 'ami', 'smart meter', 'meter reading', 'meter installation'],
   'infrastructure':      ['utility', 'field services', 'municipal', 'outsourced services'],
-  // Home Services
-  'hvac':                ['mechanical', 'climate control', 'building services', 'home services', 'facilities'],
-  'plumbing':            ['home services', 'mechanical services', 'building services', 'facilities'],
-  'roofing':             ['restoration', 'exterior services', 'home services', 'construction'],
-  'collision':           ['auto body', 'automotive', 'paint and body', 'auto repair'],
-  // Healthcare
-  'dental':              ['healthcare', 'clinical services', 'practice management'],
-  'behavioral health':   ['mental health', 'healthcare', 'clinical', 'therapy'],
-  'healthcare':          ['health services', 'clinical', 'medical services', 'patient care'],
-  'veterinary':          ['animal health', 'pet care', 'healthcare', 'clinical services'],
+  // Home Services — each maps to "home services" as their shared parent but NOT
+  // to each other's specific terms (hvac ≠ plumbing, plumbing ≠ roofing)
+  'home services':       ['residential services', 'home repair'],
+  'hvac':                ['mechanical', 'climate control', 'heating and cooling'],
+  'plumbing':            ['plumbing services', 'mechanical services', 'pipe services'],
+  'roofing':             ['roofing services', 'exterior services'],
+  'collision':           ['auto body', 'paint and body', 'auto repair'],
+  // Healthcare — each sub-vertical maps to its own close synonyms, NOT the
+  // generic "healthcare" umbrella (prevents dental ↔ veterinary false matches)
+  'healthcare':          ['health services', 'medical services', 'patient care'],
+  'dental':              ['dental services', 'dental practice', 'orthodontics', 'oral health'],
+  'behavioral health':   ['mental health', 'therapy', 'counseling', 'psychiatric services'],
+  'veterinary':          ['animal health', 'pet care', 'veterinary services', 'animal hospital'],
   // Staffing / Professional Services
   'staffing':            ['workforce solutions', 'temporary staffing', 'talent acquisition', 'recruiting', 'employment services'],
   'recruiting':          ['staffing', 'talent acquisition', 'executive search', 'workforce solutions'],
   'consulting':          ['advisory', 'professional services', 'management consulting'],
-  'accounting':          ['financial services', 'bookkeeping', 'cpa', 'tax services', 'professional services'],
-  // Construction / Trades
-  'electrical':          ['electrical services', 'electrical contracting', 'power systems', 'building services'],
-  'construction':        ['general contracting', 'building services', 'specialty contracting', 'trades'],
-  'fire protection':     ['fire safety', 'fire suppression', 'life safety', 'building services'],
-  'restoration':         ['remediation', 'disaster recovery', 'environmental services', 'reconstruction'],
+  'accounting':          ['bookkeeping', 'cpa', 'tax services', 'audit services'],
+  // Construction / Trades — each maps to close synonyms, not generic "building services"
+  'electrical':          ['electrical services', 'electrical contracting', 'power systems'],
+  'construction':        ['general contracting', 'specialty contracting', 'trades'],
+  'fire protection':     ['fire safety', 'fire suppression', 'life safety', 'sprinkler systems'],
+  'restoration':         ['remediation', 'disaster recovery', 'reconstruction', 'water damage'],
   // Facility / Building Services
-  'janitorial':          ['commercial cleaning', 'facility services', 'building maintenance', 'custodial'],
-  'commercial cleaning': ['janitorial', 'facility services', 'building maintenance'],
-  'facility services':   ['building services', 'property services', 'maintenance', 'facilities management'],
+  'janitorial':          ['commercial cleaning', 'custodial', 'cleaning services'],
+  'commercial cleaning': ['janitorial', 'custodial', 'cleaning services'],
+  'facility services':   ['building services', 'property services', 'facilities management'],
+  'building services':   ['facility services', 'property management', 'building maintenance'],
   // Technology / IT
-  'it services':         ['managed services', 'msp', 'technology services', 'it support', 'cybersecurity'],
-  'cybersecurity':       ['information security', 'it services', 'managed security', 'infosec'],
+  'it services':         ['managed services', 'msp', 'technology services', 'it support'],
+  'cybersecurity':       ['information security', 'managed security', 'infosec', 'network security'],
   'software':            ['saas', 'technology', 'tech-enabled services'],
   'telecom':             ['telecommunications', 'communications', 'wireless', 'connectivity'],
   // Industrial / Manufacturing
   'manufacturing':       ['production', 'fabrication', 'industrial', 'precision manufacturing'],
-  'distribution':        ['wholesale', 'supply chain', 'logistics', 'industrial distribution'],
-  'logistics':           ['transportation', 'supply chain', 'freight', '3pl', 'distribution'],
+  'distribution':        ['wholesale', 'supply chain', 'industrial distribution'],
+  'logistics':           ['transportation', 'freight', '3pl', 'warehousing'],
   // Other Services
-  'landscaping':         ['grounds maintenance', 'outdoor services', 'facility services', 'lawn care'],
-  'pest control':        ['environmental services', 'facility services', 'home services', 'extermination'],
-  'waste management':    ['waste services', 'environmental services', 'recycling', 'hauling'],
-  'insurance':           ['insurance services', 'insurance brokerage', 'risk management', 'financial services'],
-  'food services':       ['food distribution', 'catering', 'food manufacturing', 'hospitality'],
+  'landscaping':         ['grounds maintenance', 'outdoor services', 'lawn care', 'landscape services'],
+  'pest control':        ['extermination', 'pest management', 'termite control'],
+  'waste management':    ['waste services', 'recycling', 'hauling', 'waste collection'],
+  'environmental services': ['remediation', 'environmental consulting', 'environmental compliance'],
+  'insurance':           ['insurance services', 'insurance brokerage', 'risk management'],
+  'food services':       ['food distribution', 'catering', 'food manufacturing'],
   'automotive':          ['auto services', 'auto repair', 'collision', 'vehicle services'],
   'education':           ['training', 'learning', 'ed tech', 'tutoring', 'educational services'],
 };
@@ -181,6 +192,11 @@ function extractDealKeywords(deal: Record<string, unknown>): string[] {
 
 function norm(s: string | null | undefined): string {
   return (s || '').toLowerCase().trim();
+}
+
+/** Title-case a lowercase term for display: "utility services" → "Utility Services" */
+function titleCase(s: string): string {
+  return s.replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function normArray(arr: string[] | null | undefined): string[] {
@@ -501,8 +517,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Fetch deal-specific why_relevant from seed log ──
-    // Fetch deal-specific seed log (why_relevant is deal-specific so must filter by source_deal_id)
+    // ── Fetch seed log data (why_relevant is deal-specific; known_acquisitions spans all deals) ──
     const { data: seedLogRows } = await supabase
       .from('buyer_seed_log')
       .select('remarketing_buyer_id, why_relevant, known_acquisitions')
@@ -513,7 +528,9 @@ Deno.serve(async (req: Request) => {
     const { data: allAcquisitionRows } = await supabase
       .from('buyer_seed_log')
       .select('remarketing_buyer_id, known_acquisitions')
-      .not('known_acquisitions', 'is', null);
+      .not('known_acquisitions', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(2000);
 
     const seedLogMap = new Map<string, string>();
     const seedLogAcquisitionsMap = new Map<string, string[]>();
@@ -634,13 +651,13 @@ Deno.serve(async (req: Request) => {
         const matchDetails: string[] = [];
         if (svc.score >= 100) {
           if (matchingServiceTerms.length > 0) {
-            matchDetails.push(`directly targets ${matchingServiceTerms.slice(0, 3).join(', ')} \u2014 overlapping with ${dealIndustry || 'the deal'}`);
+            matchDetails.push(`directly targets ${matchingServiceTerms.slice(0, 3).map(titleCase).join(', ')} \u2014 overlapping with ${dealIndustry || 'the deal'}`);
           } else {
             matchDetails.push(`directly targets ${dealIndustry || 'this industry'}`);
           }
         } else if (svc.score >= 60) {
           if (matchingServiceTerms.length > 0) {
-            matchDetails.push(`adjacent fit via ${matchingServiceTerms.slice(0, 2).join(', ')} to ${dealIndustry || 'this industry'}${buyer.industry_vertical ? ` (${buyer.industry_vertical})` : ''}`);
+            matchDetails.push(`adjacent fit via ${matchingServiceTerms.slice(0, 2).map(titleCase).join(', ')} to ${dealIndustry || 'this industry'}${buyer.industry_vertical ? ` (${buyer.industry_vertical})` : ''}`);
           } else {
             matchDetails.push(`adjacent fit to ${dealIndustry || 'this industry'}${buyer.industry_vertical ? ` via ${buyer.industry_vertical}` : ''}`);
           }
@@ -695,13 +712,13 @@ Deno.serve(async (req: Request) => {
         const matchParts: string[] = [];
         if (svc.score >= 100) {
           if (matchingServiceTerms.length > 0) {
-            matchParts.push(`targets ${matchingServiceTerms.slice(0, 3).join(', ')} \u2014 directly overlapping with the deal's ${dealIndustry || 'industry'} focus`);
+            matchParts.push(`targets ${matchingServiceTerms.slice(0, 3).map(titleCase).join(', ')} \u2014 directly overlapping with the deal's ${dealIndustry || 'industry'} focus`);
           } else {
             matchParts.push(`directly aligns with the deal's ${dealIndustry || 'industry'} focus`);
           }
         } else if (svc.score >= 60) {
           if (matchingServiceTerms.length > 0) {
-            matchParts.push(`invests in ${matchingServiceTerms.slice(0, 2).join(', ')}, adjacent to ${dealIndustry || 'this industry'}`);
+            matchParts.push(`invests in ${matchingServiceTerms.slice(0, 2).map(titleCase).join(', ')}, adjacent to ${dealIndustry || 'this industry'}`);
           } else {
             matchParts.push(`invests in verticals adjacent to ${dealIndustry || 'this industry'}`);
           }
