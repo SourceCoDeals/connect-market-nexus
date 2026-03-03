@@ -45,11 +45,7 @@ export async function fireClayFallback(
     return null; // Not enough data for Clay
   }
 
-  // Check if Clay webhooks are configured
-  const envKey = hasLinkedIn ? 'CLAY_WEBHOOK_LINKEDIN_URL' : 'CLAY_WEBHOOK_NAME_DOMAIN_URL';
-  if (!Deno.env.get(envKey)) {
-    return null; // Clay not configured
-  }
+  // Clay webhooks are always available (hardcoded URLs)
 
   const requestId = crypto.randomUUID();
   const requestType = hasLinkedIn ? 'linkedin' : 'name_domain';

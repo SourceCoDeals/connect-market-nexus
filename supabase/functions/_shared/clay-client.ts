@@ -20,12 +20,13 @@ export interface ClayOutboundResult {
   error?: string;
 }
 
+const CLAY_WEBHOOK_URLS = {
+  name_domain: 'https://api.clay.com/v3/sources/webhook/pull-in-data-from-a-webhook-5710a9f8-be6f-4004-b378-a259c9bb7a1c',
+  linkedin: 'https://api.clay.com/v3/sources/webhook/pull-in-data-from-a-webhook-82d6e696-5c1c-4db3-8b66-9e13a984088d',
+} as const;
+
 function getWebhookUrl(type: 'name_domain' | 'linkedin'): string {
-  const envKey =
-    type === 'name_domain' ? 'CLAY_WEBHOOK_NAME_DOMAIN_URL' : 'CLAY_WEBHOOK_LINKEDIN_URL';
-  const url = Deno.env.get(envKey);
-  if (!url) throw new Error(`${envKey} not configured`);
-  return url;
+  return CLAY_WEBHOOK_URLS[type];
 }
 
 async function clayFetch(url: string, body: Record<string, unknown>): Promise<Response> {
