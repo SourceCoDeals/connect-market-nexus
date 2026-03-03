@@ -192,18 +192,19 @@ Present: total count, breakdown by status, key details.`,
 Use get_buyer_history for score snapshots and learning history.
 Present as timeline or summary with signal counts.`,
 
-  CONTACTS: `For LINKEDIN URLs: immediately use enrich_contact(mode: "linkedin", linkedin_url: ...) with the EXACT URL the user provided. CRITICAL: If the user pastes a LinkedIn URL, ALWAYS use that URL directly — even if an existing CRM contact has a different LinkedIn URL stored. The user's provided URL takes priority over stored data. Do NOT substitute a stored URL for the user's URL. If enrich_contact doesn't return an email, use clay_find_email(linkedin_url: ...) as a fallback. Present results.
-For NAME + COMPANY: search_contacts(company_name, search) first → if missing email, auto find_contact(mode: "person", person_name: ...) → if still no email, use clay_find_email(first_name, last_name, domain) → present results. Never stop at "email not on file" — exhaust all options automatically. The enrichment pipeline will automatically verify stored LinkedIn URLs against Google search.
-For NAME only: immediately use find_contact(mode: "person", person_name: ...) (handles full pipeline with LinkedIn verification).
+  CONTACTS: `EMAIL LOOKUP PRIORITY: Always try clay_find_email FIRST for finding emails — it uses Clay's enrichment waterfall and is the primary method. Only fall back to enrich_contact/find_contact (Prospeo) if Clay doesn't return a result.
+For LINKEDIN URLs: immediately use clay_find_email(linkedin_url: ...) with the EXACT URL the user provided. CRITICAL: If the user pastes a LinkedIn URL, ALWAYS use that URL directly — even if an existing CRM contact has a different LinkedIn URL stored. The user's provided URL takes priority over stored data. Do NOT substitute a stored URL for the user's URL. If clay_find_email doesn't return an email, fall back to enrich_contact(mode: "linkedin", linkedin_url: ...) via Prospeo. Present results.
+For NAME + COMPANY: search_contacts(company_name, search) first → if missing email, use clay_find_email(first_name, last_name, domain) → if Clay doesn't return an email, fall back to find_contact(mode: "person", person_name: ...) → present results. Never stop at "email not on file" — exhaust all options automatically. The enrichment pipeline will automatically verify stored LinkedIn URLs against Google search.
+For NAME only: use clay_find_email if you have enough info (name + domain), otherwise use find_contact(mode: "person", person_name: ...) (handles full pipeline with LinkedIn verification).
 For COMPANY CONTACTS / "who runs X" / "find contacts at X": use find_contact(mode: "decision_makers", company_name: ...) to discover all key decision makers (CEO, founders, VPs, etc.) at a company via Google search. This is faster and more reliable than enrich_contact(mode: "company"). Provide company_domain if known for better accuracy.
-For BULK MISSING EMAIL: search_contacts(has_email=false), then auto-enrich each.
+For BULK MISSING EMAIL: search_contacts(has_email=false), then auto-enrich each using clay_find_email first, Prospeo as fallback.
 For LINKEDIN PROFILE DISCOVERY: use find_contact(mode: "linkedin_search", contact_ids: ...).
 For FIRM searches: use search_pe_contacts with firm_name. If none found, auto-enrich.
-CLAY EMAIL LOOKUP: When user explicitly asks to "use clay" or "clay find email", use clay_find_email directly. It accepts either linkedin_url OR first_name + last_name + domain. It sends to Clay's enrichment waterfall and waits up to 60s for a result. Also use as a fallback when enrich_contact/find_contact don't return emails.
+CLAY EMAIL LOOKUP: clay_find_email is the PRIMARY email finder. It accepts either linkedin_url OR first_name + last_name + domain. It sends to Clay's enrichment waterfall and waits up to 60s for a result. Always try it first before Prospeo-based tools.
 Use retrieve_knowledge(topic="contact_discovery_flow") for the full workflow reference.`,
 
-  CONTACT_ENRICHMENT: `1. Check existing contacts with search_contacts(company_name). 2. If not enough, auto enrich_contact(mode: "company", company_name: ...). 3. For contacts still missing emails, use clay_find_email(first_name, last_name, domain) or clay_find_email(linkedin_url) as a fallback. 4. Present results with email/LinkedIn counts. 5. Suggest PhoneBurner or Smartlead next steps.
-For calling lists: search ALL lead sources simultaneously, compile unique companies, check contacts, auto-enrich missing, use clay_find_email for stubborn gaps, present final list.`,
+  CONTACT_ENRICHMENT: `1. Check existing contacts with search_contacts(company_name). 2. If not enough, auto enrich_contact(mode: "company", company_name: ...). 3. For contacts still missing emails, use clay_find_email FIRST (first_name + last_name + domain, or linkedin_url). 4. If Clay doesn't return an email, fall back to Prospeo via enrich_contact. 5. Present results with email/LinkedIn counts. 6. Suggest PhoneBurner or Smartlead next steps.
+For calling lists: search ALL lead sources simultaneously, compile unique companies, check contacts, use clay_find_email first for missing emails, fall back to Prospeo for stubborn gaps, present final list.`,
 
   DOCUMENT_ACTION: `Verify firm exists, get signer email/name, confirm before send_document.
 Report: document type, recipient, delivery mode, submission ID.
