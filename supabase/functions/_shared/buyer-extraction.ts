@@ -758,17 +758,47 @@ export function buildBuyerUpdateObject(
       continue;
     }
 
+    // Coerce integer columns — AI may return strings ("5") or floats (5.0)
+    const INTEGER_COLUMNS = new Set([
+      'number_of_locations', 'total_acquisitions', 'num_platforms',
+      'target_revenue_min', 'target_revenue_max', 'target_ebitda_min', 'target_ebitda_max',
+    ]);
+    if (INTEGER_COLUMNS.has(field)) {
+      const num = typeof value === 'string' ? parseInt(value, 10) : Number(value);
+      if (Number.isFinite(num)) {
+        updateData[field] = Math.round(num);
+        fieldsUpdated++;
+        recordFieldSource();
+      } else {
+        console.warn(`Skipping ${field}: non-numeric value "${value}"`);
+      }
+      continue;
+    }
+
     // Handle strings and other values
     updateData[field] = value;
     fieldsUpdated++;
     recordFieldSource();
   }
 
-  // Finalize extraction_sources: merge evidence records + per-field source tracking
-  // Filter out any old field_sources entry, then append the updated one
-  const baseEntries = [...existingSources, ...evidenceRecords].filter(
-    (s) => (s as Record<string, unknown>).type !== 'field_sources'
+  // Finalize extraction_sources: merge evidence records + per-field source tracking.
+  // On re-enrichment, REPLACE old website evidence records (same source_type) with
+  // fresh ones instead of accumulating duplicates. This prevents the JSONB from
+  // growing unbounded across multiple re-enrichment runs.
+  const newSourceTypes = new Set(
+    evidenceRecords
+      .map((r) => (r as Record<string, unknown>).source_type as string)
+      .filter(Boolean),
   );
+  const baseEntries = existingSources.filter((s) => {
+    const entry = s as Record<string, unknown>;
+    // Always remove old field_sources (will be replaced below)
+    if (entry.type === 'field_sources') return false;
+    // Remove old website evidence records that are being replaced by new ones
+    if (entry.type === 'website' && newSourceTypes.has(entry.source_type as string)) return false;
+    return true;
+  });
+  baseEntries.push(...evidenceRecords);
   baseEntries.push({ type: 'field_sources', fields: fieldSources });
   updateData.extraction_sources = baseEntries;
 
