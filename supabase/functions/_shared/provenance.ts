@@ -45,6 +45,8 @@ export const TRANSCRIPT_ONLY_FIELDS = new Set([
   // Size criteria — must come from transcripts/notes only
   'target_revenue_min', 'target_revenue_max',
   'target_ebitda_min', 'target_ebitda_max',
+  // Thesis — buyer's investment thesis can only come from direct conversations
+  'thesis_summary',
 ]);
 
 // Fields allowed to fall back from PE firm website when platform website is unavailable
@@ -60,7 +62,6 @@ export const SHARED_FIELDS = new Set([
   'acquisition_timeline',
   'acquisition_appetite', 'acquisition_frequency',
   'recent_acquisitions', 'portfolio_companies', 'total_acquisitions',
-  'thesis_summary',
   'data_last_updated', 'extraction_sources',
   'notes', 'has_fee_agreement',
 ]);
