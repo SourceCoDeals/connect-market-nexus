@@ -692,92 +692,27 @@ Deno.serve(async (req: Request) => {
         }
         fit_reason = reason;
       } else {
-        // Generate a rich, multi-sentence profile from buyer context and scoring signals
-
-        // Opening: type, location, PE backing, and focus areas
-        let desc = `${buyerTypeLabel}${locationStr ? ` based in ${locationStr}` : ''}`;
-        if (buyer.buyer_type === 'platform' && buyer.pe_firm_name) {
-          desc += ` (backed by ${buyer.pe_firm_name})`;
-        }
-        const focusTerms = rawBuyerServices.length > 0 ? rawBuyerServices : rawBuyerIndustriesList;
-        if (focusTerms.length > 0) {
-          desc += ` focused on ${focusTerms.slice(0, 4).join(', ')}`;
-        }
-        if (buyer.industry_vertical && !focusTerms.some(t => norm(t) === norm(buyer.industry_vertical))) {
-          desc += focusTerms.length > 0 ? ` within the ${buyer.industry_vertical} vertical` : ` in the ${buyer.industry_vertical} sector`;
-        }
-        desc += '.';
-
-        // Deal-specific match reasoning
-        const matchParts: string[] = [];
-        if (svc.score >= 100) {
-          if (matchingServiceTerms.length > 0) {
-            matchParts.push(`targets ${matchingServiceTerms.slice(0, 3).map(titleCase).join(', ')} \u2014 directly overlapping with the deal's ${dealIndustry || 'industry'} focus`);
-          } else {
-            matchParts.push(`directly aligns with the deal's ${dealIndustry || 'industry'} focus`);
-          }
-        } else if (svc.score >= 60) {
-          if (matchingServiceTerms.length > 0) {
-            matchParts.push(`invests in ${matchingServiceTerms.slice(0, 2).map(titleCase).join(', ')}, adjacent to ${dealIndustry || 'this industry'}`);
-          } else {
-            matchParts.push(`invests in verticals adjacent to ${dealIndustry || 'this industry'}`);
-          }
-        }
-        if (geo.score >= 100) {
-          if (otherCoveredStates.length > 0) {
-            matchParts.push(`actively acquires in ${dealState?.toUpperCase() || 'the target state'} and also covers ${otherCoveredStates.join(', ')}`);
-          } else {
-            matchParts.push(`actively acquires in ${dealState?.toUpperCase() || 'the target state'}`);
-          }
-        } else if (geo.score >= 80) {
-          matchParts.push('has a national acquisition footprint');
-        } else if (geo.score >= 60) {
-          matchParts.push('operates in the same region');
-        }
-        if (size.score >= 100 && ebitdaRangeStr) {
-          matchParts.push(`targets deals in the ${ebitdaRangeStr} EBITDA range`);
-        } else if (size.score >= 100) {
-          matchParts.push('EBITDA range matches the deal');
-        } else if (size.score >= 60) {
-          matchParts.push('EBITDA is near their target range');
-        }
-        if (matchParts.length > 0) {
-          desc += ` ${matchParts[0].charAt(0).toUpperCase() + matchParts[0].slice(1)}`;
-          if (matchParts.length === 2) {
-            desc += ` and ${matchParts[1]}`;
-          } else if (matchParts.length > 2) {
-            desc += `, ${matchParts.slice(1, -1).join(', ')}, and ${matchParts[matchParts.length - 1]}`;
-          }
-          desc += '.';
-        }
-
-        // Activity signals: acquisition track record, appetite, fee agreement
-        const activityParts: string[] = [];
-        if (buyer.total_acquisitions && buyer.total_acquisitions > 0) {
-          activityParts.push(`${buyer.total_acquisitions} acquisition${buyer.total_acquisitions > 1 ? 's' : ''} on record`);
-        }
-        if (norm(buyer.acquisition_appetite) === 'aggressive') {
-          activityParts.push('currently in aggressive acquisition mode');
-        }
-        if (buyer.has_fee_agreement) {
-          activityParts.push('has an existing fee agreement');
-        }
-        if (activityParts.length > 0) {
-          desc += ` ${activityParts[0].charAt(0).toUpperCase() + activityParts[0].slice(1)}`;
-          if (activityParts.length === 2) {
-            desc += ` and ${activityParts[1]}`;
-          } else if (activityParts.length > 2) {
-            desc += `, ${activityParts.slice(1, -1).join(', ')}, and ${activityParts[activityParts.length - 1]}`;
-          }
-          desc += '.';
-        }
-
-        // Known acquisitions from seed log
-        if (seedLogAcquisitions && seedLogAcquisitions.length > 0) {
-          desc += ` Recent acquisitions include ${seedLogAcquisitions.slice(0, 3).join(', ')}.`;
-        }
-
-        fit_reason = desc;
+        // Generate a human-readable sentence from buyer context and scoring signals
+        const buyerTypeLabel = buyer.buyer_type === 'private_equity' || buyer.buyer_type === 'pe_firm' ? 'PE firm'
+          : buyer.buyer_type === 'corporate' ? (buyer.is_pe_backed ? 'PE-backed corporate' : 'Corporate acquirer')
+          : buyer.buyer_type === 'family_office' ? 'Family office'
+          : buyer.buyer_type === 'independent_sponsor' ? 'Independent sponsor'
+          : buyer.buyer_type === 'search_fund' ? 'Search fund'
+          : 'Buyer';
+        const locationStr = buyer.hq_city && buyer.hq_state
+          ? `${buyer.hq_city}, ${buyer.hq_state}`
+          : buyer.hq_state || '';
+        const parts: string[] = [];
+        if (svc.score >= 100) parts.push(`targets ${dealIndustry || 'this'} industry directly`);
+        else if (svc.score >= 60) parts.push(`invests in adjacent ${dealIndustry || 'industry'} verticals`);
+        if (geo.score >= 100) parts.push(`active in ${dealState?.toUpperCase() || 'target geography'}`);
+        else if (geo.score >= 80) parts.push('national acquisition footprint');
+        else if (geo.score >= 60) parts.push('regional geographic overlap');
+        if (size.score >= 60) parts.push('EBITDA range matches deal size');
+        if (buyer.has_fee_agreement) parts.push('has existing fee agreement');
+        if (norm(buyer.acquisition_appetite) === 'aggressive') parts.push('actively acquiring');
+        const detail = parts.length > 0 ? ` that ${parts.join(', ')}` : '';
+        fit_reason = `${buyerTypeLabel}${locationStr ? ` based in ${locationStr}` : ''}${detail}.`;
       }
 
       scored.push({
