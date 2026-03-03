@@ -7125,6 +7125,7 @@ export type Database = {
           investment_thesis: string | null
           is_internal_deal: boolean
           is_priority_target: boolean | null
+          is_publicly_traded: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
           linkedin_boost: number | null
@@ -7319,6 +7320,7 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
+          is_publicly_traded?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           linkedin_boost?: number | null
@@ -7513,6 +7515,7 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
+          is_publicly_traded?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           linkedin_boost?: number | null
@@ -11964,6 +11967,7 @@ export type Database = {
           investment_thesis: string | null
           is_internal_deal: boolean
           is_priority_target: boolean | null
+          is_publicly_traded: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
           linkedin_boost: number | null

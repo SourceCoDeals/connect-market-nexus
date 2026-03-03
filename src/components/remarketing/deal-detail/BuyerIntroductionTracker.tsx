@@ -44,6 +44,7 @@ import {
   Trash2,
   Globe,
   Loader2,
+  TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -64,6 +65,11 @@ const STATUS_CONFIG: Record<
   IntroductionStatus,
   { label: string; color: string; icon: typeof CheckCircle }
 > = {
+  need_to_show_deal: {
+    label: 'Need to Show Deal',
+    color: 'bg-violet-100 text-violet-700 border-violet-200',
+    icon: Target,
+  },
   outreach_initiated: {
     label: 'Outreach Initiated',
     color: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -324,7 +330,7 @@ export function BuyerIntroductionTracker({
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search..."
+                placeholder="Search buyers"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-8 w-48 text-xs"
@@ -582,6 +588,7 @@ function IntroductionBuyerRow({
   const compositeScore = score?.composite_score ?? snap?.composite_score;
   const hasFeeAgreement = score?.has_fee_agreement ?? snap?.has_fee_agreement ?? false;
   const companyWebsite = score?.company_website || snap?.company_website || null;
+  const isPubliclyTraded = score?.is_publicly_traded ?? snap?.is_publicly_traded ?? false;
 
   return (
     <div
@@ -611,6 +618,12 @@ function IntroductionBuyerRow({
               </Link>
             ) : (
               <span className="font-semibold text-[15px] truncate">{displayName}</span>
+            )}
+            {isPubliclyTraded && (
+              <Badge variant="outline" className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200 gap-0.5">
+                <TrendingUp className="h-2.5 w-2.5" />
+                Public
+              </Badge>
             )}
             {firmName &&
               (() => {
@@ -723,7 +736,7 @@ function IntroductionBuyerRow({
             Update
           </Button>
 
-          {universeAssignment && (
+          {universeAssignment ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -741,11 +754,28 @@ function IntroductionBuyerRow({
                   ) : (
                     <Globe className="h-3.5 w-3.5" />
                   )}
-                  Universe
+                  Push to Buyer Universe
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Send to {universeAssignment.remarketing_buyer_universes.name}</p>
+                <p>Push to {universeAssignment.remarketing_buyer_universes.name}</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-xs gap-1 text-muted-foreground"
+                  disabled
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Push to Buyer Universe
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Assign a buyer universe to this deal first</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -814,6 +844,7 @@ function IntroducedBuyerRow({
   const compositeScore = score?.composite_score ?? snap?.composite_score;
   const hasFeeAgreement = score?.has_fee_agreement ?? snap?.has_fee_agreement ?? false;
   const companyWebsite = score?.company_website || snap?.company_website || null;
+  const isPubliclyTraded = score?.is_publicly_traded ?? snap?.is_publicly_traded ?? false;
 
   return (
     <div
@@ -843,6 +874,12 @@ function IntroducedBuyerRow({
               </Link>
             ) : (
               <span className="font-semibold text-[15px] truncate">{displayName}</span>
+            )}
+            {isPubliclyTraded && (
+              <Badge variant="outline" className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200 gap-0.5">
+                <TrendingUp className="h-2.5 w-2.5" />
+                Public
+              </Badge>
             )}
             {firmName &&
               (() => {
@@ -974,7 +1011,7 @@ function IntroducedBuyerRow({
             Update
           </Button>
 
-          {universeAssignment && (
+          {universeAssignment ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -992,11 +1029,28 @@ function IntroducedBuyerRow({
                   ) : (
                     <Globe className="h-3.5 w-3.5" />
                   )}
-                  Universe
+                  Push to Buyer Universe
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Send to {universeAssignment.remarketing_buyer_universes.name}</p>
+                <p>Push to {universeAssignment.remarketing_buyer_universes.name}</p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-xs gap-1 text-muted-foreground"
+                  disabled
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  Push to Buyer Universe
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Assign a buyer universe to this deal first</p>
               </TooltipContent>
             </Tooltip>
           )}
