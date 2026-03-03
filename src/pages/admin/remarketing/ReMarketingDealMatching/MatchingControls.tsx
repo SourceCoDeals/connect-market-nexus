@@ -122,17 +122,28 @@ export function MatchingControls({
 
           {/* Bulk actions */}
           {selectedCount > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9">Actions ({selectedCount})</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={onBulkApprove}><CheckCheck className="mr-2 h-4 w-4" />Approve All</DropdownMenuItem>
-                <DropdownMenuItem onClick={onBulkPassOpen}><XCircle className="mr-2 h-4 w-4" />Pass All</DropdownMenuItem>
-                <DropdownMenuItem onClick={onExportCSV}><Download className="mr-2 h-4 w-4" />Export CSV</DropdownMenuItem>
-                <DropdownMenuItem onClick={onEmailDialogOpen}><MailPlus className="mr-2 h-4 w-4" />Email Selected</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              <Button
+                variant="default"
+                size="sm"
+                className="h-9 bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                onClick={onBulkApprove}
+              >
+                <CheckCheck className="h-4 w-4" />
+                Approve ({selectedCount})
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9">Actions ({selectedCount})</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={onBulkApprove}><CheckCheck className="mr-2 h-4 w-4" />Approve All</DropdownMenuItem>
+                  <DropdownMenuItem onClick={onBulkPassOpen}><XCircle className="mr-2 h-4 w-4" />Pass All</DropdownMenuItem>
+                  <DropdownMenuItem onClick={onExportCSV}><Download className="mr-2 h-4 w-4" />Export CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={onEmailDialogOpen}><MailPlus className="mr-2 h-4 w-4" />Email Selected</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           )}
         </div>
       </div>
