@@ -149,6 +149,9 @@ export const DealTableRow = ({
         return `${city}, ${state}`;
       }
     }
+    if (listing.location) {
+      return listing.location;
+    }
     if (listing.geographic_states && listing.geographic_states.length === 1) {
       const state = listing.geographic_states[0];
       if (state && state.length === 2) {

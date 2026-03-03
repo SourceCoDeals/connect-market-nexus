@@ -101,12 +101,21 @@ export const UniverseDealRow = ({
                 </Badge>
               )}
             </div>
-            {deal.listing.location && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                <span className="truncate">{deal.listing.location}</span>
-              </div>
-            )}
+            {(() => {
+              const loc = deal.listing.address_city && deal.listing.address_state
+                ? `${deal.listing.address_city.trim()}, ${deal.listing.address_state.trim()}`
+                : deal.listing.location
+                  ? deal.listing.location
+                  : deal.listing.geographic_states?.length === 1
+                    ? deal.listing.geographic_states[0]
+                    : null;
+              return loc ? (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3" />
+                  <span className="truncate">{loc}</span>
+                </div>
+              ) : null;
+            })()}
           </div>
         </div>
       </TableCell>
