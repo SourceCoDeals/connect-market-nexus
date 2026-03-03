@@ -115,9 +115,39 @@ const SECTOR_SYNONYMS: Record<string, string[]> = {
   // Healthcare
   'dental':              ['healthcare', 'clinical services', 'practice management'],
   'behavioral health':   ['mental health', 'healthcare', 'clinical', 'therapy'],
-  // Other
-  'landscaping':         ['grounds maintenance', 'outdoor services', 'facility services'],
-  'pest control':        ['environmental services', 'facility services', 'home services'],
+  'healthcare':          ['health services', 'clinical', 'medical services', 'patient care'],
+  'veterinary':          ['animal health', 'pet care', 'healthcare', 'clinical services'],
+  // Staffing / Professional Services
+  'staffing':            ['workforce solutions', 'temporary staffing', 'talent acquisition', 'recruiting', 'employment services'],
+  'recruiting':          ['staffing', 'talent acquisition', 'executive search', 'workforce solutions'],
+  'consulting':          ['advisory', 'professional services', 'management consulting'],
+  'accounting':          ['financial services', 'bookkeeping', 'cpa', 'tax services', 'professional services'],
+  // Construction / Trades
+  'electrical':          ['electrical services', 'electrical contracting', 'power systems', 'building services'],
+  'construction':        ['general contracting', 'building services', 'specialty contracting', 'trades'],
+  'fire protection':     ['fire safety', 'fire suppression', 'life safety', 'building services'],
+  'restoration':         ['remediation', 'disaster recovery', 'environmental services', 'reconstruction'],
+  // Facility / Building Services
+  'janitorial':          ['commercial cleaning', 'facility services', 'building maintenance', 'custodial'],
+  'commercial cleaning': ['janitorial', 'facility services', 'building maintenance'],
+  'facility services':   ['building services', 'property services', 'maintenance', 'facilities management'],
+  // Technology / IT
+  'it services':         ['managed services', 'msp', 'technology services', 'it support', 'cybersecurity'],
+  'cybersecurity':       ['information security', 'it services', 'managed security', 'infosec'],
+  'software':            ['saas', 'technology', 'tech-enabled services'],
+  'telecom':             ['telecommunications', 'communications', 'wireless', 'connectivity'],
+  // Industrial / Manufacturing
+  'manufacturing':       ['production', 'fabrication', 'industrial', 'precision manufacturing'],
+  'distribution':        ['wholesale', 'supply chain', 'logistics', 'industrial distribution'],
+  'logistics':           ['transportation', 'supply chain', 'freight', '3pl', 'distribution'],
+  // Other Services
+  'landscaping':         ['grounds maintenance', 'outdoor services', 'facility services', 'lawn care'],
+  'pest control':        ['environmental services', 'facility services', 'home services', 'extermination'],
+  'waste management':    ['waste services', 'environmental services', 'recycling', 'hauling'],
+  'insurance':           ['insurance services', 'insurance brokerage', 'risk management', 'financial services'],
+  'food services':       ['food distribution', 'catering', 'food manufacturing', 'hospitality'],
+  'automotive':          ['auto services', 'auto repair', 'collision', 'vehicle services'],
+  'education':           ['training', 'learning', 'ed tech', 'tutoring', 'educational services'],
 };
 
 function expandTerms(terms: string[]): string[] {
@@ -171,7 +201,7 @@ function scoreService(
   const rawBuyerTerms = [...buyerServices, ...buyerIndustries, buyerIndustryVertical].filter(Boolean);
 
   if (rawDealTerms.length === 0 || rawBuyerTerms.length === 0) {
-    return { score: 30, signals: [] }; // Partial data — baseline
+    return { score: 0, signals: [] }; // No data — cannot score, don't inflate
   }
 
   // Expand terms through synonyms for semantic matching
@@ -179,25 +209,35 @@ function scoreService(
   const buyerTerms = expandTerms(rawBuyerTerms);
 
   let bestMatch = 0;
-  let bestSignal = '';
+  const exactMatches = new Set<string>();
+  const adjacentMatches = new Set<string>();
   for (const dt of dealTerms) {
     for (const bt of buyerTerms) {
-      if (dt === bt && bestMatch < 100) {
+      if (dt === bt) {
         bestMatch = 100;
-        bestSignal = `Exact industry match: ${bt}`;
-      } else if (
-        bestMatch < 60 &&
-        dt.length >= 4 &&
-        bt.length >= 4 &&
-        (dt.includes(bt) || bt.includes(dt))
-      ) {
-        bestMatch = 60;
-        bestSignal = `Adjacent industry: ${bt}`;
+        exactMatches.add(bt);
+      } else if (dt.length >= 4 && bt.length >= 4) {
+        // Use word boundary matching to prevent false positives
+        // e.g. "fire" should NOT match "fireplace", but "meter" should match "meter reading"
+        const shorter = dt.length <= bt.length ? dt : bt;
+        const longer = dt.length <= bt.length ? bt : dt;
+        const escaped = shorter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (new RegExp(`\\b${escaped}\\b`).test(longer)) {
+          if (bestMatch < 60) bestMatch = 60;
+          adjacentMatches.add(bt);
+        }
       }
     }
   }
 
-  return { score: bestMatch, signals: bestSignal ? [bestSignal] : [] };
+  // Collect all matching signals (exact matches take priority in descriptions)
+  const matchSignals: string[] = [];
+  for (const m of exactMatches) matchSignals.push(`Exact industry match: ${m}`);
+  if (bestMatch < 100) {
+    for (const m of adjacentMatches) matchSignals.push(`Adjacent industry: ${m}`);
+  }
+
+  return { score: bestMatch, signals: matchSignals };
 }
 
 function scoreGeography(
