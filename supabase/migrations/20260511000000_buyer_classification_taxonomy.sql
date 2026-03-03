@@ -43,6 +43,19 @@ CREATE INDEX IF NOT EXISTS idx_buyers_pe_firm_id
 
 
 -- ============================================================================
+-- PHASE 1.5: DROP OLD CHECK CONSTRAINT BEFORE NORMALIZATION
+-- ============================================================================
+-- Must happen before Phase 2 — the old constraint only allows
+-- ('pe_firm','platform','strategic','family_office','other') and blocks
+-- the new canonical values like 'private_equity'.
+
+ALTER TABLE public.remarketing_buyers
+  DROP CONSTRAINT IF EXISTS remarketing_buyers_buyer_type_check;
+ALTER TABLE public.remarketing_buyers
+  DROP CONSTRAINT IF EXISTS buyer_type_valid_enum;
+
+
+-- ============================================================================
 -- PHASE 2: NORMALIZE EXISTING buyer_type VALUES TO CANONICAL ENUM
 -- ============================================================================
 
@@ -295,7 +308,6 @@ BEGIN
         target_revenue_min,
         target_revenue_max,
         email_domain,
-        data_completeness,
         extraction_sources,
         data_last_updated
       ) VALUES (
@@ -311,7 +323,6 @@ BEGIN
         v_rev_min,
         v_rev_max,
         v_email_domain,
-        'low',
         jsonb_build_array(jsonb_build_object(
           'type', 'marketplace_profile',
           'profile_id', NEW.id,
@@ -342,16 +353,10 @@ CREATE TRIGGER trg_sync_marketplace_buyer_on_approval
 
 
 -- ============================================================================
--- PHASE 5: DROP OLD CHECK CONSTRAINT AND ADD NEW ONE
+-- PHASE 5: ADD NEW CHECK CONSTRAINT
 -- ============================================================================
--- The old CHECK was: buyer_type IN ('pe_firm','platform','strategic','family_office','other')
--- Drop it first, then add the new canonical constraint.
-
--- Drop old constraint (name may vary — try both possible names)
-ALTER TABLE public.remarketing_buyers
-  DROP CONSTRAINT IF EXISTS remarketing_buyers_buyer_type_check;
-ALTER TABLE public.remarketing_buyers
-  DROP CONSTRAINT IF EXISTS buyer_type_valid_enum;
+-- Old constraint was already dropped in Phase 1.5.
+-- Now add the new canonical constraint.
 
 -- Add new CHECK constraint allowing canonical values + NULL
 ALTER TABLE public.remarketing_buyers
