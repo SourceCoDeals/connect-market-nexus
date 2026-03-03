@@ -8907,6 +8907,12 @@ export type Database = {
           business_type: string | null
           buyer_linkedin: string | null
           buyer_type: string | null
+          buyer_type_ai_recommendation: string | null
+          buyer_type_classified_at: string | null
+          buyer_type_confidence: number | null
+          buyer_type_needs_review: boolean | null
+          buyer_type_reasoning: string | null
+          buyer_type_source: string | null
           company_name: string
           company_website: string | null
           created_at: string
@@ -8928,6 +8934,7 @@ export type Database = {
           industry_tracker_id: string | null
           industry_vertical: string | null
           investment_date: string | null
+          is_pe_backed: boolean | null
           marketplace_firm_id: string | null
           notes: string | null
           notes_analyzed_at: string | null
@@ -8979,6 +8986,12 @@ export type Database = {
           business_type?: string | null
           buyer_linkedin?: string | null
           buyer_type?: string | null
+          buyer_type_ai_recommendation?: string | null
+          buyer_type_classified_at?: string | null
+          buyer_type_confidence?: number | null
+          buyer_type_needs_review?: boolean | null
+          buyer_type_reasoning?: string | null
+          buyer_type_source?: string | null
           company_name: string
           company_website?: string | null
           created_at?: string
@@ -9000,6 +9013,7 @@ export type Database = {
           industry_tracker_id?: string | null
           industry_vertical?: string | null
           investment_date?: string | null
+          is_pe_backed?: boolean | null
           marketplace_firm_id?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
@@ -9051,6 +9065,12 @@ export type Database = {
           business_type?: string | null
           buyer_linkedin?: string | null
           buyer_type?: string | null
+          buyer_type_ai_recommendation?: string | null
+          buyer_type_classified_at?: string | null
+          buyer_type_confidence?: number | null
+          buyer_type_needs_review?: boolean | null
+          buyer_type_reasoning?: string | null
+          buyer_type_source?: string | null
           company_name?: string
           company_website?: string | null
           created_at?: string
@@ -9072,6 +9092,7 @@ export type Database = {
           industry_tracker_id?: string | null
           industry_vertical?: string | null
           investment_date?: string | null
+          is_pe_backed?: boolean | null
           marketplace_firm_id?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
