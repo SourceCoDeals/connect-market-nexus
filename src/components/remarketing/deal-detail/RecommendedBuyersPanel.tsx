@@ -158,9 +158,7 @@ function BuyerCard({
             <MapPin className="h-2.5 w-2.5" />
             {buyer.hq_city && buyer.hq_state
               ? `${buyer.hq_city}, ${buyer.hq_state}`
-              : buyer.hq_state || buyer.buyer_type
-                ? formatBuyerType(buyer.buyer_type)
-                : ''}
+              : buyer.hq_state || formatBuyerType(buyer.buyer_type) || ''}
             {buyer.has_fee_agreement && (
               <span className="flex items-center gap-0.5 text-green-600 ml-1">
                 <FileCheck className="h-2.5 w-2.5" />
