@@ -65,15 +65,16 @@ export function AddBuyerIntroductionDialog({
   // Deal details
   const [targetingReason, setTargetingReason] = useState('');
 
-  // Fetch existing remarketing buyers for the combobox
+  // Fetch all buyers (PE firms, platforms, corporates, etc.) for the combobox
   const { data: buyers } = useQuery({
     queryKey: ['remarketing-buyers-intro-search'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_buyers')
-        .select('id, company_name, company_website, buyer_type, pe_firm_name, hq_state, hq_city')
+        .select('id, company_name, company_website, buyer_type, pe_firm_name, hq_state, hq_city, is_publicly_traded')
         .eq('archived', false)
-        .order('company_name');
+        .order('company_name')
+        .limit(5000);
 
       if (error) throw error;
       return data;
@@ -84,9 +85,12 @@ export function AddBuyerIntroductionDialog({
   const buyerOptions = useMemo(() => {
     if (!buyers) return [];
     return buyers.map((b) => {
-      // Primary label: company name + buyer type badge
-      const label = b.buyer_type
-        ? `${b.company_name} (${b.buyer_type.replace(/_/g, ' ')})`
+      // Primary label: company name + buyer type badge + publicly traded flag
+      const typeParts: string[] = [];
+      if (b.buyer_type) typeParts.push(b.buyer_type.replace(/_/g, ' '));
+      if (b.is_publicly_traded) typeParts.push('Public');
+      const label = typeParts.length > 0
+        ? `${b.company_name} (${typeParts.join(' · ')})`
         : b.company_name;
 
       // Secondary description: PE firm and location on a separate line
@@ -215,8 +219,8 @@ export function AddBuyerIntroductionDialog({
                 options={buyerOptions}
                 value={selectedBuyerId}
                 onValueChange={setSelectedBuyerId}
-                placeholder="Search by company name..."
-                searchPlaceholder="Type to search buyers..."
+                placeholder="Search buyers"
+                searchPlaceholder="Search buyers..."
                 emptyText="No buyers found. Try the 'New Buyer' tab."
               />
             </div>

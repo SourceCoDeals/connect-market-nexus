@@ -6768,6 +6768,7 @@ export type Database = {
           investment_thesis: string | null
           is_internal_deal: boolean
           is_priority_target: boolean | null
+          is_publicly_traded: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
           linkedin_boost: number | null
@@ -6962,6 +6963,7 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
+          is_publicly_traded?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           linkedin_boost?: number | null
@@ -7156,6 +7158,7 @@ export type Database = {
           investment_thesis?: string | null
           is_internal_deal?: boolean
           is_priority_target?: boolean | null
+          is_publicly_traded?: boolean | null
           key_quotes?: string[] | null
           key_risks?: Json | null
           linkedin_boost?: number | null
@@ -8944,6 +8947,7 @@ export type Database = {
           industry_vertical: string | null
           investment_date: string | null
           is_pe_backed: boolean | null
+          is_publicly_traded: boolean | null
           marketplace_firm_id: string | null
           notes: string | null
           notes_analyzed_at: string | null
@@ -9023,6 +9027,7 @@ export type Database = {
           industry_vertical?: string | null
           investment_date?: string | null
           is_pe_backed?: boolean | null
+          is_publicly_traded?: boolean | null
           marketplace_firm_id?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
@@ -9102,6 +9107,7 @@ export type Database = {
           industry_vertical?: string | null
           investment_date?: string | null
           is_pe_backed?: boolean | null
+          is_publicly_traded?: boolean | null
           marketplace_firm_id?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
@@ -11467,6 +11473,7 @@ export type Database = {
           investment_thesis: string | null
           is_internal_deal: boolean
           is_priority_target: boolean | null
+          is_publicly_traded: boolean | null
           key_quotes: string[] | null
           key_risks: Json | null
           linkedin_boost: number | null
