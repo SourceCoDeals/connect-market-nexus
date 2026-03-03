@@ -217,29 +217,30 @@ export function stripIdentifyingInfo(text: string, deal: DealData): string {
 
 /**
  * Title template patterns for varied anonymous listing titles.
- * Each generator returns a different style of title.
+ * Titles lead with a business narrative descriptor, NOT dollar amounts.
+ * The acquisition type (Platform/Add-on) is only used when explicitly known.
  */
 const TITLE_GENERATORS: Array<(industry: string, state: string, deal: DealData) => string> = [
-  // Pattern 1: Revenue-anchored
-  (industry, state, deal) => {
-    const rev = deal.revenue ? `${formatRevenue(deal.revenue)}` : '';
-    if (rev && state) return `${rev} ${industry} Platform — ${state}`;
-    if (rev) return `${rev} ${industry} Platform`;
-    if (state) return `${industry} Platform in ${state}`;
-    return `${industry} Platform Opportunity`;
-  },
-  // Pattern 2: Margin-anchored
+  // Pattern 1: Margin-anchored (leads with profitability narrative)
   (industry, state, deal) => {
     const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
-    if (margin > 15 && state) return `High-Margin ${industry} Business in ${state}`;
-    if (state) return `Profitable ${industry} Business in ${state}`;
-    return `Profitable ${industry} Business`;
+    const descriptor = margin >= 25 ? 'High-Margin' : margin >= 15 ? 'Profitable' : 'Established';
+    if (state) return `${descriptor} ${industry} Business — ${state}`;
+    return `${descriptor} ${industry} Business`;
+  },
+  // Pattern 2: Scale-anchored (leads with business scale)
+  (industry, state, deal) => {
+    const rev = deal.revenue || 0;
+    const descriptor =
+      rev >= 10_000_000 ? 'Scaled' : rev >= 5_000_000 ? 'Growth-Stage' : 'Established';
+    if (state) return `${descriptor} ${industry} Business — ${state}`;
+    return `${descriptor} ${industry} Business`;
   },
   // Pattern 3: Tenure-anchored (use vague ranges to avoid identifying the company)
   (industry, state, deal) => {
     const years = deal.founded_year ? new Date().getFullYear() - deal.founded_year : 0;
     const yearsDesc = years >= 20 ? 'Long-Standing' : years >= 10 ? 'Multi-Decade' : 'Established';
-    if (state) return `${yearsDesc} ${industry} Business in ${state}`;
+    if (state) return `${yearsDesc} ${industry} Business — ${state}`;
     return `${yearsDesc} ${industry} Business`;
   },
 ];
@@ -247,6 +248,7 @@ const TITLE_GENERATORS: Array<(industry: string, state: string, deal: DealData) 
 /**
  * Generate an anonymous title for the listing based on deal data.
  * Uses varied templates instead of a single formulaic pattern.
+ * Avoids leading with dollar amounts — leads with business descriptors.
  */
 function generateAnonymousTitle(deal: DealData): string {
   const smArr = toStringArray(deal.service_mix);
@@ -257,18 +259,18 @@ function generateAnonymousTitle(deal: DealData): string {
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
   const years = deal.founded_year ? new Date().getFullYear() - deal.founded_year : 0;
 
-  // Prefer margin-anchored if high margins, then revenue-anchored, then years
-  if (deal.revenue && deal.revenue > 0 && margin > 15) {
-    return TITLE_GENERATORS[1](industry, state, deal);
+  // Prefer margin-anchored if strong margins, then scale-based, then years
+  if (margin > 15) {
+    return TITLE_GENERATORS[0](industry, state, deal);
   }
   if (deal.revenue && deal.revenue > 0) {
-    return TITLE_GENERATORS[0](industry, state, deal);
+    return TITLE_GENERATORS[1](industry, state, deal);
   }
   if (years > 10) {
     return TITLE_GENERATORS[2](industry, state, deal);
   }
   // Default fallback
-  if (state) return `${industry} Business in ${state}`;
+  if (state) return `Established ${industry} Business — ${state}`;
   return `${industry} Business Opportunity`;
 }
 
@@ -312,9 +314,9 @@ function formatIntoParagraphs(text: string): string {
 
 /**
  * Generate an anonymous description from executive summary or description.
- * Builds a comprehensive multi-paragraph overview using ALL available deal data.
- * This is the primary text buyers see — it must be detailed and compelling.
- * Output is formatted with paragraph breaks for readability.
+ * Builds a comprehensive, well-structured overview using ALL available deal data.
+ * This is the primary text buyers see — it must be detailed, compelling, and
+ * properly formatted with clear section headings and bullet points.
  */
 function generateAnonymousDescription(deal: DealData): string {
   const source = deal.executive_summary || deal.description || '';
@@ -326,7 +328,8 @@ function generateAnonymousDescription(deal: DealData): string {
   }
 
   // Otherwise build a structured description from deal fields — be EXHAUSTIVE
-  const paragraphs: string[] = [];
+  // Use clear section headings and bullet points for readability
+  const sections: string[] = [];
   const industry = deal.industry || deal.category || 'services';
   const state = deal.address_state || deal.location;
   const employees = deal.full_time_employees || deal.linkedin_employee_count;
@@ -335,104 +338,99 @@ function generateAnonymousDescription(deal: DealData): string {
   const servicesList = deal.services || [];
   const allServices = [...new Set([...services, ...servicesList])];
 
-  // Paragraph 1: Company overview — what they do, where, team size
-  // NOTE: Founding year and exact years in operation are EXCLUDED from anonymous
-  // listings because they can help identify the company when combined with
-  // industry and geography.
-  const p1Parts: string[] = [];
-  let p1 = `The Company is an established ${industry.toLowerCase()} business`;
-  if (state) p1 += ` headquartered in ${state}`;
-  p1 += '.';
-  p1Parts.push(p1);
+  // Section 1: Business Overview
+  const overviewLines: string[] = [];
+  let intro = `The Company is an established ${industry.toLowerCase()} business`;
+  if (state) intro += ` headquartered in ${state}`;
+  intro += '.';
+  overviewLines.push(intro);
 
+  const overviewBullets: string[] = [];
   if (allServices.length > 0) {
-    if (allServices.length > 3) {
-      p1Parts.push(`The company offers a diversified service portfolio including ${allServices.slice(0, 5).join(', ')}, and other complementary offerings.`);
-    } else {
-      p1Parts.push(`Core service capabilities include ${allServices.join(', ')}.`);
-    }
+    overviewBullets.push(`Diversified service portfolio: ${allServices.slice(0, 5).join(', ')}`);
   }
   if (employees && employees > 0) {
-    p1Parts.push(`The company operates with a team of approximately ${employees} employees.`);
+    overviewBullets.push(`Team of approximately ${employees} employees`);
   }
   if (deal.number_of_locations && deal.number_of_locations > 1) {
-    p1Parts.push(`Operations span ${deal.number_of_locations} physical locations.`);
+    overviewBullets.push(`${deal.number_of_locations} physical locations`);
   }
-  paragraphs.push(p1Parts.join(' '));
+  if (deal.geographic_states && deal.geographic_states.length > 1) {
+    overviewBullets.push(`Operations across ${deal.geographic_states.length} states`);
+  }
 
-  // Paragraph 2: Financial profile — revenue, EBITDA, margin, revenue model
+  if (overviewBullets.length > 0) {
+    overviewLines.push('');
+    overviewBullets.forEach((b) => overviewLines.push(`- ${b}`));
+  }
+  sections.push(`Business Overview\n\n${overviewLines.join('\n')}`);
+
+  // Section 2: Financial Highlights
   if (deal.revenue || deal.ebitda) {
-    const p2Parts: string[] = [];
-    let financialSentence = 'The business generates';
-    if (deal.revenue) financialSentence += ` approximately ${formatRevenue(deal.revenue)} in annual revenue`;
-    if (deal.ebitda) {
-      financialSentence += `${deal.revenue ? ' with' : ''} ${formatRevenue(deal.ebitda)} in EBITDA`;
-      if (margin > 0) financialSentence += `, representing a ${margin}% EBITDA margin`;
-    }
-    financialSentence += '.';
-    p2Parts.push(financialSentence);
+    const financialBullets: string[] = [];
+    if (deal.revenue) financialBullets.push(`Revenue: ~${formatRevenue(deal.revenue)} annually`);
+    if (deal.ebitda) financialBullets.push(`EBITDA: ${formatRevenue(deal.ebitda)}`);
+    if (margin > 0) financialBullets.push(`EBITDA Margin: ${margin}%`);
+    if (deal.revenue_model) financialBullets.push(stripIdentifyingInfo(deal.revenue_model, deal));
+    if (deal.business_model) financialBullets.push(stripIdentifyingInfo(deal.business_model, deal));
 
-    if (deal.revenue_model) {
-      p2Parts.push(stripIdentifyingInfo(deal.revenue_model, deal));
-    }
-    if (deal.business_model) {
-      p2Parts.push(stripIdentifyingInfo(deal.business_model, deal));
-    }
-    paragraphs.push(p2Parts.join(' '));
+    sections.push(`Financial Highlights\n\n${financialBullets.map((b) => `- ${b}`).join('\n')}`);
   }
 
-  // Paragraph 3: Customer base and market position
-  const p3Parts: string[] = [];
+  // Section 3: Market Position & Customers
+  const marketLines: string[] = [];
   if (deal.customer_types) {
-    p3Parts.push(`The Company serves ${stripIdentifyingInfo(deal.customer_types.toLowerCase(), deal)}.`);
+    marketLines.push(
+      `- Customer base: ${stripIdentifyingInfo(deal.customer_types.toLowerCase(), deal)}`,
+    );
   }
   if (deal.end_market_description) {
-    p3Parts.push(stripIdentifyingInfo(deal.end_market_description, deal));
+    marketLines.push(`- ${stripIdentifyingInfo(deal.end_market_description, deal)}`);
   }
   if (deal.customer_geography) {
-    p3Parts.push(`Service coverage extends across ${stripIdentifyingInfo(deal.customer_geography.toLowerCase(), deal)}.`);
-  } else if (deal.geographic_states && deal.geographic_states.length > 0) {
-    p3Parts.push(`The company operates across ${deal.geographic_states.length > 3 ? `${deal.geographic_states.length} states` : deal.geographic_states.join(', ')}.`);
+    marketLines.push(
+      `- Geographic reach: ${stripIdentifyingInfo(deal.customer_geography.toLowerCase(), deal)}`,
+    );
   }
-  if (p3Parts.length > 0) {
-    paragraphs.push(p3Parts.join(' '));
+  if (deal.competitive_position) {
+    marketLines.push(`- ${stripIdentifyingInfo(deal.competitive_position, deal)}`);
+  }
+  if (marketLines.length > 0) {
+    sections.push(`Market Position\n\n${marketLines.join('\n')}`);
   }
 
-  // Paragraph 4: Competitive advantages and growth
-  const p4Parts: string[] = [];
-  if (deal.competitive_position) {
-    p4Parts.push(stripIdentifyingInfo(deal.competitive_position, deal));
-  }
+  // Section 4: Growth Opportunities
+  const growthLines: string[] = [];
   const growthDrivers = Array.isArray(deal.growth_drivers)
     ? (deal.growth_drivers as string[]).filter((d): d is string => typeof d === 'string')
     : [];
   if (growthDrivers.length > 0) {
-    p4Parts.push(`Key growth levers include ${growthDrivers.slice(0, 3).join(', ').toLowerCase()}.`);
+    growthDrivers.slice(0, 4).forEach((d) => growthLines.push(`- ${d}`));
   }
   if (deal.investment_thesis) {
-    p4Parts.push(stripIdentifyingInfo(deal.investment_thesis, deal));
+    growthLines.push(`- ${stripIdentifyingInfo(deal.investment_thesis, deal)}`);
   }
-  if (p4Parts.length > 0) {
-    paragraphs.push(p4Parts.join(' '));
+  if (growthLines.length > 0) {
+    sections.push(`Growth Opportunities\n\n${growthLines.join('\n')}`);
   }
 
-  // Paragraph 5: Owner/transition context (if available)
+  // Section 5: Transaction Context (if available)
   if (deal.owner_goals || deal.seller_motivation) {
-    const p5Parts: string[] = [];
+    const transitionLines: string[] = [];
     if (deal.seller_motivation) {
-      p5Parts.push(stripIdentifyingInfo(deal.seller_motivation, deal));
+      transitionLines.push(stripIdentifyingInfo(deal.seller_motivation, deal));
     } else if (deal.owner_goals) {
-      p5Parts.push(stripIdentifyingInfo(deal.owner_goals, deal));
+      transitionLines.push(stripIdentifyingInfo(deal.owner_goals, deal));
     }
     if (deal.transition_preferences) {
-      p5Parts.push(stripIdentifyingInfo(deal.transition_preferences, deal));
+      transitionLines.push(stripIdentifyingInfo(deal.transition_preferences, deal));
     }
-    if (p5Parts.length > 0) {
-      paragraphs.push(p5Parts.join(' '));
+    if (transitionLines.length > 0) {
+      sections.push(`Transaction Overview\n\n${transitionLines.join(' ')}`);
     }
   }
 
-  return paragraphs.join('\n\n');
+  return sections.join('\n\n');
 }
 
 /**
@@ -458,7 +456,8 @@ function generateHeroDescription(deal: DealData): string {
 
   // Sentence 2: Financial profile — revenue, EBITDA, margin, team size
   const financialParts: string[] = [];
-  if (deal.revenue && deal.revenue > 0) financialParts.push(`${formatRevenue(deal.revenue)} in annual revenue`);
+  if (deal.revenue && deal.revenue > 0)
+    financialParts.push(`${formatRevenue(deal.revenue)} in annual revenue`);
   if (deal.ebitda && deal.ebitda > 0 && margin > 0) {
     financialParts.push(`${formatRevenue(deal.ebitda)} EBITDA (${margin}% margins)`);
   } else if (deal.ebitda && deal.ebitda > 0) {
@@ -474,7 +473,9 @@ function generateHeroDescription(deal: DealData): string {
   // Sentence 3: Operations depth — services, locations, geographic reach, customer base
   const opsParts: string[] = [];
   if (allServices.length > 2) {
-    opsParts.push(`diversified across ${allServices.length} service lines including ${allServices.slice(0, 3).join(', ')}`);
+    opsParts.push(
+      `diversified across ${allServices.length} service lines including ${allServices.slice(0, 3).join(', ')}`,
+    );
   } else if (allServices.length > 0) {
     opsParts.push(`specializing in ${allServices.join(' and ')}`);
   }
@@ -513,7 +514,7 @@ function generateHeroDescription(deal: DealData): string {
   }
 
   // Assemble — always at least 2 sentences, up to 4
-  const parts = [sentence1, sentence2, sentence3, sentence4].filter(s => s.length > 0);
+  const parts = [sentence1, sentence2, sentence3, sentence4].filter((s) => s.length > 0);
   const hero = parts.join(' ');
 
   // Ensure <= 500 chars — trim from the end if needed
