@@ -3743,6 +3743,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "deal_pipeline_buyer_contact_id_fkey"
+            columns: ["buyer_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "deals_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false

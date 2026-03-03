@@ -205,7 +205,7 @@ export function useNonMarketplaceUsers(options?: { enabled?: boolean }) {
       // Process deals — derive contact info from connection_requests or contacts
       deals?.forEach((deal) => {
         const cr = deal.connection_request as { lead_email: string | null; lead_name: string | null; lead_company: string | null; lead_role: string | null; lead_phone: string | null } | null;
-        const bc = deal.buyer_contact as { email: string | null; first_name: string | null; last_name: string | null; phone: string | null; title: string | null } | null;
+        const bc = (deal as unknown as Record<string, unknown>).buyer_contact as { email: string | null; first_name: string | null; last_name: string | null; phone: string | null; title: string | null } | null;
 
         const contactEmail = bc?.email || cr?.lead_email;
         const contactName = bc ? `${bc.first_name || ''} ${bc.last_name || ''}`.trim() : cr?.lead_name;

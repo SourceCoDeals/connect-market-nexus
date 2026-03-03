@@ -32,40 +32,39 @@ describe('Deal interface — architectural invariants', () => {
     expect(_check).toBe(false);
   });
 
-  it('contact_name on Deal is a display field from RPC JOINs, not a deal_pipeline DB column', () => {
-    // The Deal type still has contact_name (sourced from connection_requests via RPC),
-    // but the deal_pipeline TABLE type should NOT have it.
+  it('contact_name exists on both Deal type and deal_pipeline DB table', () => {
     const _dealHasContactName: HasKey<Deal, 'contact_name'> = true;
     expect(_dealHasContactName).toBe(true);
 
-    // deal_pipeline Row should NOT have contact_name (column was dropped)
-    const _dbHasContactName: HasKey<DealPipelineRow, 'contact_name'> = false;
-    expect(_dbHasContactName).toBe(false);
+    // contact_name was re-added to deal_pipeline for remarketing history
+    const _dbHasContactName: HasKey<DealPipelineRow, 'contact_name'> = true;
+    expect(_dbHasContactName).toBe(true);
   });
 
-  it('deal_pipeline DB Row does not have any of the dropped contact columns', () => {
-    const _noContactEmail: HasKey<DealPipelineRow, 'contact_email'> = false;
-    const _noContactCompany: HasKey<DealPipelineRow, 'contact_company'> = false;
-    const _noContactPhone: HasKey<DealPipelineRow, 'contact_phone'> = false;
+  it('deal_pipeline DB Row has contact metadata columns for remarketing', () => {
+    const _hasContactEmail: HasKey<DealPipelineRow, 'contact_email'> = true;
+    const _hasContactCompany: HasKey<DealPipelineRow, 'contact_company'> = true;
+    const _hasContactPhone: HasKey<DealPipelineRow, 'contact_phone'> = true;
+    // These were NOT re-added
     const _noContactRole: HasKey<DealPipelineRow, 'contact_role'> = false;
     const _noContactTitle: HasKey<DealPipelineRow, 'contact_title'> = false;
     const _noCompanyAddress: HasKey<DealPipelineRow, 'company_address'> = false;
 
-    expect(_noContactEmail).toBe(false);
-    expect(_noContactCompany).toBe(false);
-    expect(_noContactPhone).toBe(false);
+    expect(_hasContactEmail).toBe(true);
+    expect(_hasContactCompany).toBe(true);
+    expect(_hasContactPhone).toBe(true);
     expect(_noContactRole).toBe(false);
     expect(_noContactTitle).toBe(false);
     expect(_noCompanyAddress).toBe(false);
   });
 
-  it('deal_pipeline Insert type does not have dropped contact columns', () => {
-    const _noContactName: HasKey<DealPipelineInsert, 'contact_name'> = false;
-    const _noContactEmail: HasKey<DealPipelineInsert, 'contact_email'> = false;
+  it('deal_pipeline Insert type has contact metadata columns', () => {
+    const _hasContactName: HasKey<DealPipelineInsert, 'contact_name'> = true;
+    const _hasContactEmail: HasKey<DealPipelineInsert, 'contact_email'> = true;
     const _noCompanyAddress: HasKey<DealPipelineInsert, 'company_address'> = false;
 
-    expect(_noContactName).toBe(false);
-    expect(_noContactEmail).toBe(false);
+    expect(_hasContactName).toBe(true);
+    expect(_hasContactEmail).toBe(true);
     expect(_noCompanyAddress).toBe(false);
   });
 
