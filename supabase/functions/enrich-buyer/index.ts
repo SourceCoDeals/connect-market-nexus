@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
 
     // Fetch buyer
     const { data: buyer, error: buyerError } = await supabase
-      .from('remarketing_buyers')
+      .from('buyers')
       .select('*')
       .eq('id', buyerId)
       .single();
@@ -317,7 +317,7 @@ Deno.serve(async (req) => {
       // Atomic compare-and-set: only update if not recently locked
       // This prevents race conditions where two concurrent requests both read the old timestamp
       const { data: lockResult, error: lockError } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .update({ data_last_updated: now })
         .eq('id', buyerId)
         .or(`data_last_updated.is.null,data_last_updated.lt.${lockCutoff}`)
@@ -344,10 +344,7 @@ Deno.serve(async (req) => {
       }
     } else {
       // Queue-based call: just update timestamp without lock check
-      await supabase
-        .from('remarketing_buyers')
-        .update({ data_last_updated: now })
-        .eq('id', buyerId);
+      await supabase.from('buyers').update({ data_last_updated: now }).eq('id', buyerId);
     }
 
     console.log(
@@ -696,7 +693,7 @@ Deno.serve(async (req) => {
           evidenceRecords,
           fieldSourceMap,
         );
-        await supabase.from('remarketing_buyers').update(partialUpdate).eq('id', buyerId);
+        await supabase.from('buyers').update(partialUpdate).eq('id', buyerId);
       }
 
       if (be.code === 'rate_limited' && fieldsExtracted > 0) {
@@ -753,7 +750,7 @@ Deno.serve(async (req) => {
     );
 
     const { error: updateError } = await supabase
-      .from('remarketing_buyers')
+      .from('buyers')
       .update(updateData)
       .eq('id', buyerId);
 

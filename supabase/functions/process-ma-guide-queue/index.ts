@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
@@ -151,7 +152,7 @@ serve(async (req) => {
           Promise.allSettled(searchTerms.slice(0, 3).map((term) => searchFireflies(term, 10))),
           // Fetch buyers at the same time
           supabase
-            .from('remarketing_buyers')
+            .from('buyers')
             .select('pe_firm_name, company_name')
             .eq('universe_id', generation.universe_id)
             .limit(10),
@@ -335,7 +336,7 @@ serve(async (req) => {
 
       // Update universe with final content
       await supabase
-        .from('remarketing_buyer_universes')
+        .from('buyer_universes')
         .update({
           ma_guide_content: newContent,
           ...(result.criteria ? { fit_criteria: result.criteria } : {}),

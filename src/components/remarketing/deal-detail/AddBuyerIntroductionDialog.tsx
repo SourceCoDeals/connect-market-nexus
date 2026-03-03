@@ -70,7 +70,7 @@ export function AddBuyerIntroductionDialog({
     queryKey: ['remarketing-buyers-intro-search'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select('id, company_name, company_website, buyer_type, pe_firm_name, hq_state, hq_city')
         .eq('archived', false)
         .order('company_name');
@@ -100,7 +100,14 @@ export function AddBuyerIntroductionDialog({
         value: b.id,
         label,
         description,
-        searchTerms: [b.company_name, b.buyer_type?.replace(/_/g, ' '), b.pe_firm_name, b.hq_state, b.hq_city, b.company_website]
+        searchTerms: [
+          b.company_name,
+          b.buyer_type?.replace(/_/g, ' '),
+          b.pe_firm_name,
+          b.hq_state,
+          b.hq_city,
+          b.company_website,
+        ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase(),

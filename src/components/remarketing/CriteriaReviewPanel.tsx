@@ -136,7 +136,7 @@ export const CriteriaReviewPanel = ({ universeId, onApplyComplete }: CriteriaRev
       const synthesizedCriteria = synthesizeCriteria(selectedData);
 
       const { error: updateError } = await supabase
-        .from('remarketing_buyer_universes')
+        .from('buyer_universes')
         .update({
           size_criteria: synthesizedCriteria.size_criteria as unknown as Json,
           geography_criteria: synthesizedCriteria.geography_criteria as unknown as Json,

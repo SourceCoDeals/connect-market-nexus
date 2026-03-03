@@ -10,11 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -142,13 +138,17 @@ export function BuyerIntroductionTracker({
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_universe_deals')
-        .select('id, universe_id, remarketing_buyer_universes(id, name)')
+        .select('id, universe_id, buyer_universes(id, name)')
         .eq('listing_id', listingId)
         .eq('status', 'active')
         .maybeSingle();
 
       if (error) throw error;
-      return data as { id: string; universe_id: string; remarketing_buyer_universes: { id: string; name: string } } | null;
+      return data as {
+        id: string;
+        universe_id: string;
+        buyer_universes: { id: string; name: string };
+      } | null;
     },
     enabled: !!listingId,
   });
@@ -376,7 +376,11 @@ export function BuyerIntroductionTracker({
                 <IntroductionBuyerRow
                   key={buyer.id}
                   buyer={buyer}
-                  score={(buyer.remarketing_buyer_id || buyer.contact_id) ? scoreMap.get((buyer.remarketing_buyer_id || buyer.contact_id)!) : undefined}
+                  score={
+                    buyer.remarketing_buyer_id || buyer.contact_id
+                      ? scoreMap.get((buyer.remarketing_buyer_id || buyer.contact_id)!)
+                      : undefined
+                  }
                   selected={selectedIds.has(buyer.id)}
                   onToggleSelect={toggleSelection}
                   onSelect={(b) => {
@@ -456,7 +460,11 @@ export function BuyerIntroductionTracker({
                 <IntroducedBuyerRow
                   key={buyer.id}
                   buyer={buyer}
-                  score={(buyer.remarketing_buyer_id || buyer.contact_id) ? scoreMap.get((buyer.remarketing_buyer_id || buyer.contact_id)!) : undefined}
+                  score={
+                    buyer.remarketing_buyer_id || buyer.contact_id
+                      ? scoreMap.get((buyer.remarketing_buyer_id || buyer.contact_id)!)
+                      : undefined
+                  }
                   selected={selectedIds.has(buyer.id)}
                   onToggleSelect={toggleSelection}
                   onSelect={(b) => {
@@ -531,7 +539,7 @@ export function BuyerIntroductionTracker({
 interface UniverseAssignmentData {
   id: string;
   universe_id: string;
-  remarketing_buyer_universes: { id: string; name: string };
+  buyer_universes: { id: string; name: string };
 }
 
 // ─── Introduction Buyer Row (matches RecommendedBuyersPanel BuyerCard style) ───
@@ -603,7 +611,7 @@ function IntroductionBuyerRow({
         {/* Name + firm */}
         <div className="shrink-0 min-w-[180px]">
           <div className="flex items-center gap-1.5">
-            {(buyer.remarketing_buyer_id || buyer.contact_id) ? (
+            {buyer.remarketing_buyer_id || buyer.contact_id ? (
               <Link to={`/admin/buyers/${buyer.remarketing_buyer_id || buyer.contact_id}`}>
                 <span className="font-semibold text-[15px] hover:underline truncate">
                   {displayName}
@@ -745,7 +753,7 @@ function IntroductionBuyerRow({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Send to {universeAssignment.remarketing_buyer_universes.name}</p>
+                <p>Send to {universeAssignment.buyer_universes.name}</p>
               </TooltipContent>
             </Tooltip>
           )}
@@ -835,7 +843,7 @@ function IntroducedBuyerRow({
         {/* Name + firm */}
         <div className="shrink-0 min-w-[180px]">
           <div className="flex items-center gap-1.5">
-            {(buyer.remarketing_buyer_id || buyer.contact_id) ? (
+            {buyer.remarketing_buyer_id || buyer.contact_id ? (
               <Link to={`/admin/buyers/${buyer.remarketing_buyer_id || buyer.contact_id}`}>
                 <span className="font-semibold text-[15px] hover:underline truncate">
                   {displayName}
@@ -996,7 +1004,7 @@ function IntroducedBuyerRow({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Send to {universeAssignment.remarketing_buyer_universes.name}</p>
+                <p>Send to {universeAssignment.buyer_universes.name}</p>
               </TooltipContent>
             </Tooltip>
           )}

@@ -243,7 +243,7 @@ async function searchPeContacts(
 
     // Also search remarketing_buyers for matching company/PE firm names (with fuzzy matching)
     const { data: buyers } = await supabase
-      .from('remarketing_buyers')
+      .from('buyers')
       .select('id, company_name, pe_firm_name')
       .eq('archived', false)
       .limit(500);
@@ -540,7 +540,7 @@ async function resolveCompanyName(
 
   // Search remarketing_buyers by company_name and pe_firm_name
   const { data: buyers } = await supabase
-    .from('remarketing_buyers')
+    .from('buyers')
     .select('id, company_name, pe_firm_name')
     .eq('archived', false)
     .limit(2000);
@@ -718,7 +718,7 @@ async function searchContacts(
 
     if (buyerIds.length > 0) {
       const { data: buyers } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select('id, company_name, pe_firm_name')
         .in('id', buyerIds);
       if (buyers) {

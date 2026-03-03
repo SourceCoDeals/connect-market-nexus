@@ -64,7 +64,7 @@ async function resolveCompanyName(
   // Try remarketing_buyers first
   if (contact.remarketing_buyer_id) {
     const { data: buyer } = await supabase
-      .from('remarketing_buyers')
+      .from('buyers')
       .select('company_name, pe_firm_name')
       .eq('id', contact.remarketing_buyer_id)
       .maybeSingle();

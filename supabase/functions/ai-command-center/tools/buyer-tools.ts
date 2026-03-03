@@ -391,7 +391,7 @@ async function searchBuyers(
     : Math.min(Number(args.limit) || 25, 100);
 
   let query = supabase
-    .from('remarketing_buyers')
+    .from('buyers')
     .select(fields)
     .order('alignment_score', { ascending: false, nullsFirst: false })
     .limit(limit);
@@ -435,7 +435,7 @@ async function searchBuyers(
   if ((args.industry || args.search) && !args.universe_id) {
     const searchTerm = ((args.industry || args.search) as string).toLowerCase();
     const { data: universes } = await supabase
-      .from('remarketing_buyer_universes')
+      .from('buyer_universes')
       .select('id, name, description')
       .eq('archived', false);
 
@@ -469,7 +469,7 @@ async function searchBuyers(
       const universeIds = Array.from(matchingUniverseIds);
 
       let universeQuery = supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select(fields)
         .in('universe_id', universeIds)
         .order('alignment_score', { ascending: false, nullsFirst: false })
@@ -513,11 +513,15 @@ async function searchBuyers(
   // Client-side revenue range filter
   if (args.min_revenue) {
     const min = args.min_revenue as number;
-    results = results.filter((b: BuyerRecord) => !b.target_revenue_max || b.target_revenue_max >= min);
+    results = results.filter(
+      (b: BuyerRecord) => !b.target_revenue_max || b.target_revenue_max >= min,
+    );
   }
   if (args.max_revenue) {
     const max = args.max_revenue as number;
-    results = results.filter((b: BuyerRecord) => !b.target_revenue_min || b.target_revenue_min <= max);
+    results = results.filter(
+      (b: BuyerRecord) => !b.target_revenue_min || b.target_revenue_min <= max,
+    );
   }
 
   // Client-side industry keyword filter — searches ALL relevant buyer fields
@@ -680,7 +684,7 @@ async function getBuyerProfile(
   // Parallel fetch: buyer + contacts + scores + transcripts
   // Updated Feb 2026: contacts now fetched from unified contacts table (buyer_contacts is legacy)
   const [buyerResult, contactsResult, scoresResult, transcriptsResult] = await Promise.all([
-    supabase.from('remarketing_buyers').select(BUYER_FIELDS_FULL).eq('id', buyerId).single(),
+    supabase.from('buyers').select(BUYER_FIELDS_FULL).eq('id', buyerId).single(),
     supabase
       .from('contacts')
       .select(
@@ -783,7 +787,7 @@ async function getTopBuyersForDeal(
   // Fetch buyer details for the scored buyer IDs
   const buyerIds = scores.map((s: { buyer_id: string }) => s.buyer_id);
   let buyerQuery = supabase
-    .from('remarketing_buyers')
+    .from('buyers')
     .select(
       'id, company_name, pe_firm_name, buyer_type, hq_state, hq_city, has_fee_agreement, geographic_footprint',
     )
@@ -983,7 +987,13 @@ async function searchValuationLeads(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     leads = leads.filter(
-      (l: { business_name?: string; display_name?: string; industry?: string; region?: string; location?: string }) =>
+      (l: {
+        business_name?: string;
+        display_name?: string;
+        industry?: string;
+        region?: string;
+        location?: string;
+      }) =>
         l.business_name?.toLowerCase().includes(term) ||
         l.display_name?.toLowerCase().includes(term) ||
         l.industry?.toLowerCase().includes(term) ||

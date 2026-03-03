@@ -57,32 +57,45 @@ async function resolveFromBuyerContacts(
 
   const buyerIds = [...new Set(contacts.map((c: { buyer_id: string }) => c.buyer_id))];
   const { data: buyers } = await supabase
-    .from('remarketing_buyers')
+    .from('buyers')
     .select('id, company_name')
     .in('id', buyerIds);
-  const buyerMap = new Map((buyers || []).map((b: { id: string; company_name?: string }) => [b.id, b]));
+  const buyerMap = new Map(
+    (buyers || []).map((b: { id: string; company_name?: string }) => [b.id, b]),
+  );
 
   return contacts
     .filter((c: { email?: string }) => c.email)
-    .map((c: { id: string; name?: string; email?: string; phone?: string; title?: string; company_type?: string; buyer_id: string; linkedin_url?: string }) => {
-      const parts = (c.name || '').split(' ');
-      const buyer = buyerMap.get(c.buyer_id);
-      return {
-        email: c.email!,
-        first_name: parts[0] || '',
-        last_name: parts.slice(1).join(' ') || '',
-        company_name: buyer?.company_name || c.company_type || '',
-        phone_number: c.phone || '',
-        linkedin_profile: c.linkedin_url || '',
-        custom_fields: {
-          sourceco_contact_id: c.id,
-          contact_title: c.title || '',
-          source: 'SourceCo Platform',
-        },
-        _source_id: c.id,
-        _source_type: 'buyer_contact',
-      };
-    });
+    .map(
+      (c: {
+        id: string;
+        name?: string;
+        email?: string;
+        phone?: string;
+        title?: string;
+        company_type?: string;
+        buyer_id: string;
+        linkedin_url?: string;
+      }) => {
+        const parts = (c.name || '').split(' ');
+        const buyer = buyerMap.get(c.buyer_id);
+        return {
+          email: c.email!,
+          first_name: parts[0] || '',
+          last_name: parts.slice(1).join(' ') || '',
+          company_name: buyer?.company_name || c.company_type || '',
+          phone_number: c.phone || '',
+          linkedin_profile: c.linkedin_url || '',
+          custom_fields: {
+            sourceco_contact_id: c.id,
+            contact_title: c.title || '',
+            source: 'SourceCo Platform',
+          },
+          _source_id: c.id,
+          _source_type: 'buyer_contact',
+        };
+      },
+    );
 }
 
 async function resolveFromBuyers(
@@ -96,10 +109,20 @@ async function resolveFromBuyers(
     .in('buyer_id', buyerIds);
 
   const { data: buyers } = await supabase
-    .from('remarketing_buyers')
+    .from('buyers')
     .select('id, company_name, contact_name, contact_email, contact_phone')
     .in('id', buyerIds);
-  const buyerMap = new Map((buyers || []).map((b: { id: string; company_name?: string; contact_name?: string; contact_email?: string; contact_phone?: string }) => [b.id, b]));
+  const buyerMap = new Map(
+    (buyers || []).map(
+      (b: {
+        id: string;
+        company_name?: string;
+        contact_name?: string;
+        contact_email?: string;
+        contact_phone?: string;
+      }) => [b.id, b],
+    ),
+  );
 
   const seen = new Set<string>();
   const result: ResolvedLead[] = [];
@@ -172,22 +195,31 @@ async function resolveFromListings(
 
   return listings
     .filter((l: { main_contact_email?: string }) => l.main_contact_email)
-    .map((l: { id: string; title?: string; internal_company_name?: string; main_contact_name?: string; main_contact_email?: string; main_contact_phone?: string }) => {
-      const parts = (l.main_contact_name || '').split(' ');
-      return {
-        email: l.main_contact_email!,
-        first_name: parts[0] || '',
-        last_name: parts.slice(1).join(' ') || '',
-        company_name: l.internal_company_name || l.title || '',
-        phone_number: l.main_contact_phone || '',
-        custom_fields: {
-          sourceco_listing_id: l.id,
-          source: 'SourceCo Platform',
-        },
-        _source_id: l.id,
-        _source_type: 'listing',
-      };
-    });
+    .map(
+      (l: {
+        id: string;
+        title?: string;
+        internal_company_name?: string;
+        main_contact_name?: string;
+        main_contact_email?: string;
+        main_contact_phone?: string;
+      }) => {
+        const parts = (l.main_contact_name || '').split(' ');
+        return {
+          email: l.main_contact_email!,
+          first_name: parts[0] || '',
+          last_name: parts.slice(1).join(' ') || '',
+          company_name: l.internal_company_name || l.title || '',
+          phone_number: l.main_contact_phone || '',
+          custom_fields: {
+            sourceco_listing_id: l.id,
+            source: 'SourceCo Platform',
+          },
+          _source_id: l.id,
+          _source_type: 'listing',
+        };
+      },
+    );
 }
 
 async function resolveFromLeads(
@@ -203,23 +235,32 @@ async function resolveFromLeads(
 
   return leads
     .filter((l: { email?: string }) => l.email)
-    .map((l: { id: string; name?: string; email?: string; phone_number?: string; company_name?: string; role?: string }) => {
-      const parts = (l.name || '').split(' ');
-      return {
-        email: l.email!,
-        first_name: parts[0] || '',
-        last_name: parts.slice(1).join(' ') || '',
-        company_name: l.company_name || '',
-        phone_number: l.phone_number || '',
-        custom_fields: {
-          sourceco_lead_id: l.id,
-          lead_role: l.role || '',
-          source: 'SourceCo Platform',
-        },
-        _source_id: l.id,
-        _source_type: 'inbound_lead',
-      };
-    });
+    .map(
+      (l: {
+        id: string;
+        name?: string;
+        email?: string;
+        phone_number?: string;
+        company_name?: string;
+        role?: string;
+      }) => {
+        const parts = (l.name || '').split(' ');
+        return {
+          email: l.email!,
+          first_name: parts[0] || '',
+          last_name: parts.slice(1).join(' ') || '',
+          company_name: l.company_name || '',
+          phone_number: l.phone_number || '',
+          custom_fields: {
+            sourceco_lead_id: l.id,
+            lead_role: l.role || '',
+            source: 'SourceCo Platform',
+          },
+          _source_id: l.id,
+          _source_type: 'inbound_lead',
+        };
+      },
+    );
 }
 
 // ─── Main handler ───────────────────────────────────────────────────────────
