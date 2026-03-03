@@ -6,7 +6,6 @@
  */
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { ListPlus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +21,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useAddEntityTask } from '@/hooks/useTaskActions';
-import { supabase } from '@/integrations/supabase/client';
+import { useTeamMembers } from '@/hooks/use-team-members';
 import { getLocalDateString } from '@/lib/utils';
 import { TASK_TYPE_OPTIONS } from '@/types/daily-tasks';
 import type { TaskEntityType, TaskType, TaskPriority } from '@/types/daily-tasks';
@@ -50,33 +49,7 @@ export function CreateTaskButton({
   const { user } = useAuth();
   const addTask = useAddEntityTask();
 
-  // Fetch team members for the "Assigned To" dropdown
-  const { data: teamMembers } = useQuery({
-    queryKey: ['team-member-registry'],
-    queryFn: async () => {
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id, role, profiles!inner(id, first_name, last_name, email)')
-        .in('role', ['owner', 'admin', 'moderator']);
-
-      return (
-        (roles || []) as unknown as Array<{
-          user_id: string;
-          role: string;
-          profiles: {
-            id: string;
-            first_name: string | null;
-            last_name: string | null;
-            email: string;
-          };
-        }>
-      ).map((r) => ({
-        id: r.user_id,
-        name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim() || r.profiles.email,
-      }));
-    },
-    staleTime: 60_000,
-  });
+  const { data: teamMembers } = useTeamMembers();
 
   const resetForm = () => {
     setTitle('');

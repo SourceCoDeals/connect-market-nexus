@@ -18,18 +18,21 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useReassignTask } from '@/hooks/useDailyTasks';
 import { useToast } from '@/hooks/use-toast';
+import { useTeamMembers } from '@/hooks/use-team-members';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 
 interface ReassignDialogProps {
   task: DailyStandupTaskWithRelations | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  teamMembers: { id: string; name: string }[];
+  teamMembers?: { id: string; name: string }[];
 }
 
-export function ReassignDialog({ task, open, onOpenChange, teamMembers }: ReassignDialogProps) {
+export function ReassignDialog({ task, open, onOpenChange, teamMembers: teamMembersProp }: ReassignDialogProps) {
   const reassign = useReassignTask();
   const { toast } = useToast();
+  const { data: fetchedMembers } = useTeamMembers();
+  const teamMembers = teamMembersProp?.length ? teamMembersProp : fetchedMembers || [];
   const [selectedId, setSelectedId] = useState('');
 
   const handleReassign = async () => {

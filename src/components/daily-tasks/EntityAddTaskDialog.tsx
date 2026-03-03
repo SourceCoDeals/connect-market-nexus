@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { useAddEntityTask } from '@/hooks/useTaskActions';
+import { useTeamMembers } from '@/hooks/use-team-members';
 import { getLocalDateString } from '@/lib/utils';
 import { TASK_TYPE_OPTIONS, ENTITY_TYPE_LABELS, PRIORITY_LABELS } from '@/types/daily-tasks';
 import type { TaskType, TaskPriority, TaskEntityType } from '@/types/daily-tasks';
@@ -35,7 +36,7 @@ interface EntityAddTaskDialogProps {
   entityType: TaskEntityType;
   entityId: string;
   entityName?: string;
-  teamMembers: { id: string; name: string }[];
+  teamMembers?: { id: string; name: string }[];
   defaultDealId?: string;
 }
 
@@ -45,10 +46,12 @@ export function EntityAddTaskDialog({
   entityType,
   entityId,
   entityName,
-  teamMembers,
+  teamMembers: teamMembersProp,
   defaultDealId,
 }: EntityAddTaskDialogProps) {
   const addTask = useAddEntityTask();
+  const { data: fetchedMembers } = useTeamMembers();
+  const teamMembers = teamMembersProp?.length ? teamMembersProp : fetchedMembers || [];
   const { toast } = useToast();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
