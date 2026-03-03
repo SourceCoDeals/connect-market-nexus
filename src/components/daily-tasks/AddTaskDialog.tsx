@@ -21,6 +21,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { useAddManualTask } from '@/hooks/useDailyTasks';
 import { useExistingTags } from '@/hooks/useTaskTags';
+import { useTeamMembers } from '@/hooks/use-team-members';
 import { getLocalDateString } from '@/lib/utils';
 import { TASK_TYPE_OPTIONS } from '@/types/daily-tasks';
 import { TagInput } from './TagInput';
@@ -29,13 +30,15 @@ import type { TaskType } from '@/types/daily-tasks';
 interface AddTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  teamMembers: { id: string; name: string }[];
+  teamMembers?: { id: string; name: string }[];
 }
 
-export function AddTaskDialog({ open, onOpenChange, teamMembers }: AddTaskDialogProps) {
+export function AddTaskDialog({ open, onOpenChange, teamMembers: teamMembersProp }: AddTaskDialogProps) {
   const addTask = useAddManualTask();
   const { toast } = useToast();
   const { data: existingTags } = useExistingTags();
+  const { data: fetchedMembers } = useTeamMembers();
+  const teamMembers = teamMembersProp?.length ? teamMembersProp : fetchedMembers || [];
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
