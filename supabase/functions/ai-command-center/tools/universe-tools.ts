@@ -16,7 +16,7 @@ export const universeTools: ClaudeTool[] = [
   {
     name: 'search_buyer_universes',
     description: `Search and list buyer universes — the curated buyer lists built for specific industry verticals.
-DATA SOURCE: remarketing_buyer_universes table.
+DATA SOURCE: buyer_universes table.
 USE WHEN: "find the HVAC universe", "which universes exist", "universes for plumbing buyers".
 SEARCHABLE FIELDS: search param checks name, description, fit_criteria, service_criteria, geography_criteria, size_criteria, buyer_types_criteria.
 Each universe defines fit criteria, scoring weights, and which deals it applies to.

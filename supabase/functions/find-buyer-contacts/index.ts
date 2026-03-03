@@ -42,7 +42,7 @@ serve(async (req) => {
       company_website: string | null;
     } | null = null;
 
-    // Get buyer info if buyerId provided (use remarketing_buyers — the active schema)
+    // Get buyer info if buyerId provided (use buyers — the active schema)
     if (buyerId) {
       const { data, error } = await supabase
         .from('buyers')

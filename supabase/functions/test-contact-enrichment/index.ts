@@ -61,7 +61,7 @@ async function resolveCompanyName(
   supabase: SupabaseClient,
   contact: ContactToTest,
 ): Promise<string | null> {
-  // Try remarketing_buyers first
+  // Try buyers table first
   if (contact.remarketing_buyer_id) {
     const { data: buyer } = await supabase
       .from('buyers')

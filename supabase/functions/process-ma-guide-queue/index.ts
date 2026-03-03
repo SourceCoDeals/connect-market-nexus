@@ -28,7 +28,7 @@ serve(async (req) => {
     // Find pending or processing generations
     const { data: generations, error: fetchError } = await supabase
       .from('ma_guide_generations')
-      .select('*, remarketing_buyer_universes!inner(name, description, ma_guide_qa_context)')
+      .select('*, buyer_universes!inner(name, description, ma_guide_qa_context)')
       .in('status', ['pending', 'processing'])
       .order('created_at', { ascending: true })
       .limit(1); // Process one at a time
@@ -46,7 +46,7 @@ serve(async (req) => {
     }
 
     const generation = generations[0];
-    const universe = generation.remarketing_buyer_universes;
+    const universe = generation.buyer_universes;
 
     console.log(
       `[process-ma-guide-queue] Processing generation ${generation.id}, phase ${generation.phases_completed}/${TOTAL_PHASES}`,

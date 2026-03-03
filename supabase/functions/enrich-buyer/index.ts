@@ -13,8 +13,8 @@
  *   Body: { buyerId, skipLock? }
  *
  * DATABASE TABLES TOUCHED:
- *   READ:  remarketing_buyers, rate_limit_config
- *   WRITE: remarketing_buyers, enrichment_events, ai_cost_log
+ *   READ:  buyers, rate_limit_config
+ *   WRITE: buyers, enrichment_events, ai_cost_log
  *
  * EXTERNAL APIS:
  *   Firecrawl (website scraping and sitemap mapping)

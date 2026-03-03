@@ -143,8 +143,8 @@ const LISTING_LEAD_FIELDS = [
 export const buyerTools: ClaudeTool[] = [
   {
     name: 'search_buyers',
-    description: `Search remarketing buyers (acquirers, PE firms, platforms) in the remarketing_buyers table.
-DATA SOURCE: remarketing_buyers table + cross-references remarketing_buyer_universes for universe-aware matching.
+    description: `Search remarketing buyers (acquirers, PE firms, platforms) in the buyers table.
+DATA SOURCE: buyers table + cross-references buyer_universes for universe-aware matching.
 USE WHEN: "find HVAC buyers", "buyers in Texas", "PE firms interested in plumbing", "who has a fee agreement".
 SEARCHABLE FIELDS: company_name, pe_firm_name, target_industries, target_services, services_offered, industry_vertical, thesis_summary, business_summary, notes, alignment_reasoning, hq_state, geographic_footprint, target_geographies, service_regions, operating_locations, revenue_model.
 KEY BEHAVIOR: Automatically includes buyers from universes whose name matches the search/industry term (e.g. "HVAC" finds buyers in the "Residential HVAC, Plumbing and Electrical" universe even if the buyer record itself doesn't say "HVAC"). When state is provided, returns ALL buyers in that state (not limited to top results).`,

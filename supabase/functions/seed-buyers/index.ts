@@ -2,14 +2,14 @@
  * seed-buyers – AI Buyer Seeding Engine
  *
  * Uses Claude to discover PE firms, platform companies, and strategic acquirers
- * that match a deal's criteria, then inserts them into remarketing_buyers.
+ * that match a deal's criteria, then inserts them into the buyers table.
  *
  * Flow:
  * 1. Auth guard (admin only)
  * 2. Fetch deal details from listings table
  * 3. Check buyer_seed_cache for recent results (90-day TTL)
  * 4. Call Claude to discover matching buyers
- * 5. Deduplicate against existing remarketing_buyers (by company name / website domain)
+ * 5. Deduplicate against existing buyers (by company name / website domain)
  * 6. Insert new buyers with ai_seeded=true
  * 7. Log each action to buyer_seed_log
  * 8. Update buyer_seed_cache
@@ -553,7 +553,7 @@ Deno.serve(async (req: Request) => {
           if (existingPeFirmId) {
             resolvedPeFirmId = existingPeFirmId;
           } else {
-            // Auto-create the PE firm as a remarketing_buyers record
+            // Auto-create the PE firm as a buyers record
             const { data: newFirm, error: firmError } = await supabase
               .from('buyers')
               .insert({

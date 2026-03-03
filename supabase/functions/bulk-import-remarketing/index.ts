@@ -388,7 +388,7 @@ serve(async (req) => {
       const buyerIdMap: Record<string, string> = {};
       const dealIdMap: Record<string, string> = {};
 
-      // Step 1: Import Universes (industry_trackers -> remarketing_buyer_universes)
+      // Step 1: Import Universes (industry_trackers -> buyer_universes)
       console.log(`Importing ${data.universes?.length || 0} universes...`);
       for (const row of (data.universes || []) as Record<string, unknown>[]) {
         try {
