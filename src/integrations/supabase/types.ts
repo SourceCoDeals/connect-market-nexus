@@ -399,6 +399,39 @@ export type Database = {
         };
         Relationships: [];
       };
+      audit_log: {
+        Row: {
+          id: string;
+          table_name: string;
+          record_id: string | null;
+          action: string;
+          old_data: Json | null;
+          new_data: Json | null;
+          user_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          table_name: string;
+          record_id?: string | null;
+          action: string;
+          old_data?: Json | null;
+          new_data?: Json | null;
+          user_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          table_name?: string;
+          record_id?: string | null;
+          action?: string;
+          old_data?: Json | null;
+          new_data?: Json | null;
+          user_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       audit_logs: {
         Row: {
           admin_id: string | null;
@@ -9289,6 +9322,129 @@ export type Database = {
           },
         ];
       };
+      rm_deal_signals: {
+        Row: {
+          id: string;
+          listing_id: string | null;
+          deal_id: string | null;
+          buyer_id: string | null;
+          transcript_id: string;
+          signal_type: string;
+          signal_category: string;
+          summary: string;
+          verbatim_quote: string | null;
+          acknowledged_by: string | null;
+          acknowledged_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          listing_id?: string | null;
+          deal_id?: string | null;
+          buyer_id?: string | null;
+          transcript_id: string;
+          signal_type: string;
+          signal_category: string;
+          summary: string;
+          verbatim_quote?: string | null;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          listing_id?: string | null;
+          deal_id?: string | null;
+          buyer_id?: string | null;
+          transcript_id?: string;
+          signal_type?: string;
+          signal_category?: string;
+          summary?: string;
+          verbatim_quote?: string | null;
+          acknowledged_by?: string | null;
+          acknowledged_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      rm_deal_team: {
+        Row: {
+          id: string;
+          listing_id: string;
+          user_id: string;
+          role: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          listing_id: string;
+          user_id: string;
+          role: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          listing_id?: string;
+          user_id?: string;
+          role?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      rm_task_activity_log: {
+        Row: {
+          id: string;
+          task_id: string;
+          user_id: string;
+          action: string;
+          old_value: Json | null;
+          new_value: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          user_id: string;
+          action: string;
+          old_value?: Json | null;
+          new_value?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          user_id?: string;
+          action?: string;
+          old_value?: Json | null;
+          new_value?: Json | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      rm_task_comments: {
+        Row: {
+          id: string;
+          task_id: string;
+          user_id: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          user_id: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          user_id?: string;
+          body?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       remarketing_scoring_queue: {
         Row: {
           attempts: number;
@@ -9967,6 +10123,36 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      task_pin_log: {
+        Row: {
+          id: string;
+          task_id: string;
+          action: string;
+          pinned_rank: number | null;
+          reason: string | null;
+          performed_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          task_id: string;
+          action: string;
+          pinned_rank?: number | null;
+          reason?: string | null;
+          performed_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          task_id?: string;
+          action?: string;
+          pinned_rank?: number | null;
+          reason?: string | null;
+          performed_by?: string;
+          created_at?: string;
+        };
+        Relationships: [];
       };
       test_run_results: {
         Row: {
@@ -10823,6 +11009,105 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      webhook_configs: {
+        Row: {
+          id: string;
+          name: string;
+          webhook_url: string;
+          secret: string | null;
+          enabled: boolean;
+          event_types: string[];
+          universe_id: string | null;
+          custom_headers: Json | null;
+          max_retries: number;
+          created_at: string;
+          updated_at: string;
+          last_triggered_at: string | null;
+          total_deliveries: number;
+          total_failures: number;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          webhook_url: string;
+          secret?: string | null;
+          enabled?: boolean;
+          event_types: string[];
+          universe_id?: string | null;
+          custom_headers?: Json | null;
+          max_retries?: number;
+          created_at?: string;
+          updated_at?: string;
+          last_triggered_at?: string | null;
+          total_deliveries?: number;
+          total_failures?: number;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          webhook_url?: string;
+          secret?: string | null;
+          enabled?: boolean;
+          event_types?: string[];
+          universe_id?: string | null;
+          custom_headers?: Json | null;
+          max_retries?: number;
+          created_at?: string;
+          updated_at?: string;
+          last_triggered_at?: string | null;
+          total_deliveries?: number;
+          total_failures?: number;
+        };
+        Relationships: [];
+      };
+      webhook_deliveries: {
+        Row: {
+          id: string;
+          webhook_config_id: string;
+          transcript_id: string | null;
+          event_type: string;
+          payload: Json;
+          attempt_number: number;
+          status: string;
+          http_status_code: number | null;
+          response_body: string | null;
+          error_message: string | null;
+          created_at: string;
+          delivered_at: string | null;
+          next_retry_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          webhook_config_id: string;
+          transcript_id?: string | null;
+          event_type: string;
+          payload: Json;
+          attempt_number?: number;
+          status?: string;
+          http_status_code?: number | null;
+          response_body?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+          delivered_at?: string | null;
+          next_retry_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          webhook_config_id?: string;
+          transcript_id?: string | null;
+          event_type?: string;
+          payload?: Json;
+          attempt_number?: number;
+          status?: string;
+          http_status_code?: number | null;
+          response_body?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+          delivered_at?: string | null;
+          next_retry_at?: string | null;
+        };
+        Relationships: [];
       };
     };
     Views: {
