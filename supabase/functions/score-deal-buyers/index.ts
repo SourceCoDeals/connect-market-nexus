@@ -432,7 +432,7 @@ Deno.serve(async (req: Request) => {
     const { data: buyers, error: buyerError } = await supabase
       .from('remarketing_buyers')
       .select(
-        'id, company_name, company_website, pe_firm_name, pe_firm_id, buyer_type, hq_state, hq_city, ' +
+        'id, company_name, company_website, pe_firm_name, pe_firm_id, buyer_type, is_pe_backed, hq_state, hq_city, ' +
           'target_services, target_industries, industry_vertical, ' +
           'target_geographies, geographic_footprint, ' +
           'target_ebitda_min, target_ebitda_max, ' +

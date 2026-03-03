@@ -59,36 +59,41 @@ ALTER TABLE public.remarketing_buyers
 -- PHASE 2: NORMALIZE EXISTING buyer_type VALUES TO CANONICAL ENUM
 -- ============================================================================
 
--- pe_firm variants → private_equity
+-- pe_firm variants → private_equity (includes camelCase from marketplace sync)
 UPDATE public.remarketing_buyers
 SET buyer_type = 'private_equity'
 WHERE LOWER(buyer_type) IN (
-  'pe_firm', 'pe firm', 'pe', 'private equity', 'private equity firm'
+  'pe_firm', 'pe firm', 'pe', 'private equity', 'private equity firm',
+  'privateequity'
 );
 
--- strategic / operating company → corporate
+-- strategic / operating company / advisor / businessOwner → corporate
 UPDATE public.remarketing_buyers
 SET buyer_type = 'corporate'
 WHERE LOWER(buyer_type) IN (
-  'strategic', 'operating company', 'company', 'corp', 'corporate'
+  'strategic', 'operating company', 'company', 'corp', 'corporate',
+  'advisor', 'businessowner', 'business owner',
+  'platform company', 'portfolio company'
 );
 
--- family_office variants (already canonical, but handle edge cases)
+-- family_office variants (includes camelCase from marketplace sync)
 UPDATE public.remarketing_buyers
 SET buyer_type = 'family_office'
-WHERE LOWER(buyer_type) IN ('fo', 'family office')
+WHERE LOWER(buyer_type) IN ('fo', 'family office', 'familyoffice')
   AND buyer_type != 'family_office';
 
--- search_fund variants
+-- search_fund variants (includes camelCase from marketplace sync)
 UPDATE public.remarketing_buyers
 SET buyer_type = 'search_fund'
-WHERE LOWER(buyer_type) IN ('search fund', 'searcher', 'eta')
+WHERE LOWER(buyer_type) IN ('search fund', 'searcher', 'eta', 'searchfund')
   AND buyer_type != 'search_fund';
 
--- independent_sponsor variants
+-- independent_sponsor variants (includes camelCase from marketplace sync)
 UPDATE public.remarketing_buyers
 SET buyer_type = 'independent_sponsor'
-WHERE LOWER(buyer_type) IN ('independent sponsor', 'fundless sponsor', 'ind sponsor')
+WHERE LOWER(buyer_type) IN (
+  'independent sponsor', 'fundless sponsor', 'ind sponsor', 'independentsponsor'
+)
   AND buyer_type != 'independent_sponsor';
 
 -- individual_buyer variants
