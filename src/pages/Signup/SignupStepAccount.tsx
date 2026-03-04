@@ -20,7 +20,7 @@ export function SignupStepAccount({ formData, onChange }: Props) {
       return;
     }
 
-    setChecking(true);
+    
     try {
       const { data, error } = await supabase.functions.invoke("check-firm-domain", {
         body: { email },
@@ -34,7 +34,7 @@ export function SignupStepAccount({ formData, onChange }: Props) {
     } catch {
       setDomainMatch(null);
     } finally {
-      setChecking(false);
+      
     }
   }, []);
 
