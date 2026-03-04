@@ -95,7 +95,7 @@ BEGIN
     CALL _buyer_merge_safe_upd('buyer_approve_decisions',         'buyer_id',              r.canonical_id, r.duplicate_id);
     CALL _buyer_merge_safe_upd('engagement_signals',              'buyer_id',              r.canonical_id, r.duplicate_id);
     CALL _buyer_merge_safe_upd('call_transcripts',                'buyer_id',              r.canonical_id, r.duplicate_id);
-    CALL _buyer_merge_safe_upd('firm_members',                    'buyer_id',              r.canonical_id, r.duplicate_id);
+    -- firm_members has no buyer FK (user_id → profiles); skipped intentionally
     CALL _buyer_merge_safe_upd('pe_firm_contacts',                'buyer_id',              r.canonical_id, r.duplicate_id);
     CALL _buyer_merge_safe_upd('pe_firm_contacts',                'pe_firm_id',            r.canonical_id, r.duplicate_id);
     CALL _buyer_merge_safe_upd('platform_contacts',               'buyer_id',              r.canonical_id, r.duplicate_id);
