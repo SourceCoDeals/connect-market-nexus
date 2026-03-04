@@ -138,10 +138,9 @@ serve(async (req: Request) => {
     const region = body.region as string | null;
     const locationStr = [city, region].filter(Boolean).join(", ") || null;
 
-    const calculatorType = serviceType === "collision" ? "collision"
-      : serviceType === "mechanical" ? "mechanical"
-      : serviceType === "specialty" ? "specialty"
-      : serviceType ?? "auto_shop";
+    // All auto calculator submissions → single "auto_shop" type.
+    // Raw service_type is preserved in raw_calculator_inputs for later classification.
+    const calculatorType = "auto_shop";
 
     const now = new Date().toISOString();
 

@@ -172,9 +172,10 @@ const HEADER_MAPPING: Record<string, string> = {
 const SERVICE_TYPE_TO_CALCULATOR: Record<string, string> = {
   auto_repair: 'auto_shop',
   'auto repair': 'auto_shop',
-  collision: 'collision',
+  collision: 'auto_shop',
+  mechanical: 'auto_shop',
   specialty: 'auto_shop',
-  hvac: 'hvac',
+  hvac: 'auto_shop',
   general: 'general',
 };
 
