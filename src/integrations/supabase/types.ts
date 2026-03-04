@@ -11675,6 +11675,18 @@ export type Database = {
           },
         ]
       }
+      v_duplicate_buyers: {
+        Row: {
+          buyer_ids: string[] | null
+          company_names: string[] | null
+          created_ats: string[] | null
+          domain: string | null
+          duplicate_count: number | null
+          first_created_at: string | null
+          websites: string[] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       assign_connection_request_decider: {
