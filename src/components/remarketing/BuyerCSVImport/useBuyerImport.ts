@@ -164,7 +164,7 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
 
   const proceedToPreview = () => {
     if (!hasRequiredMapping(mappings)) {
-      toast.error('Company Name mapping is required');
+      toast.error('Both a Company Name and a Website column must be mapped before importing.');
       return;
     }
     setStep('preview');
@@ -190,7 +190,7 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
   // -----------------------------------------------------------------------
   const handleImport = useCallback(async () => {
     if (!hasRequiredMapping(mappings)) {
-      toast.error('Company Name mapping is required');
+      toast.error('Both a Company Name and a Website column must be mapped before importing.');
       return;
     }
 
@@ -309,7 +309,7 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
   // -----------------------------------------------------------------------
   const checkForDuplicates = useCallback(async () => {
     if (!hasRequiredMapping(mappings)) {
-      toast.error('Company Name mapping is required');
+      toast.error('Both a Company Name and a Website column must be mapped before importing.');
       return;
     }
 

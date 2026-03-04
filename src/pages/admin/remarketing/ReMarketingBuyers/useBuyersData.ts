@@ -217,34 +217,27 @@ export const useBuyersData = () => {
       const normalizedWebsite =
         normalizeDomain(newBuyer.company_website) || newBuyer.company_website?.trim() || null;
       const universeId = newBuyer.universe_id || null;
-      const trimmedName = newBuyer.company_name?.trim() ?? '';
 
-      // Check for duplicate buyer across ALL buyers (not scoped to universe),
-      // by both company name and website domain.
+      // Website is required — it's the canonical unique identifier for buyers.
+      if (!normalizedWebsite) {
+        throw new Error('A website is required. Buyers are deduplicated by domain.');
+      }
+
+      // Check for duplicate by domain across ALL active buyers (not scoped to universe).
       const { data: existingBuyers } = await supabase
         .from('buyers')
         .select('id, company_name, company_website')
-        .eq('archived', false);
+        .eq('archived', false)
+        .not('company_website', 'is', null);
 
       if (existingBuyers) {
-        // Name check (case-insensitive exact match)
-        const nameDuplicate = existingBuyers.find(
-          (b) => b.company_name?.trim().toLowerCase() === trimmedName.toLowerCase(),
+        const domainDuplicate = existingBuyers.find(
+          (b) => normalizeDomain(b.company_website) === normalizedWebsite,
         );
-        if (nameDuplicate) {
-          throw new Error(`A buyer named "${nameDuplicate.company_name}" already exists.`);
-        }
-
-        // Domain check
-        if (normalizedWebsite) {
-          const domainDuplicate = existingBuyers.find(
-            (b) => normalizeDomain(b.company_website) === normalizedWebsite,
+        if (domainDuplicate) {
+          throw new Error(
+            `A buyer with this website already exists: "${domainDuplicate.company_name}"`,
           );
-          if (domainDuplicate) {
-            throw new Error(
-              `A buyer with this website already exists: "${domainDuplicate.company_name}"`,
-            );
-          }
         }
       }
 
@@ -261,7 +254,7 @@ export const useBuyersData = () => {
         // Map DB-level unique constraint violations to friendly messages
         if (error.code === '23505' || error.message?.includes('unique') || error.message?.includes('duplicate')) {
           throw new Error(
-            'A buyer with that name or website already exists. Please check your existing buyers.',
+            'A buyer with this website domain already exists. Please check your existing buyers.',
           );
         }
         throw error;
