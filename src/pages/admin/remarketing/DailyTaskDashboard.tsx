@@ -7,6 +7,7 @@ import {
   useDeleteTask,
   useApproveTask,
   useApproveAllTasks,
+  DAILY_TASKS_QUERY_KEY,
 } from '@/hooks/useDailyTasks';
 import { useCancelTask } from '@/hooks/useTaskActions';
 import { useToast } from '@/hooks/use-toast';
@@ -203,7 +204,7 @@ const DailyTaskDashboard = () => {
       };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['daily-standup-tasks'] });
+      queryClient.invalidateQueries({ queryKey: [DAILY_TASKS_QUERY_KEY] });
       toast({
         title: 'Meetings synced',
         description: `Checked ${data.transcripts_checked} meetings, processed ${data.newly_processed} new.`,

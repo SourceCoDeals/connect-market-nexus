@@ -1000,10 +1000,10 @@ serve(async (req) => {
 
     const allEbitdaValues = await loadAllEbitdaValues(supabase);
 
-    // Check auto-approve setting (table is platform_settings, not app_settings)
+    // Check auto-approve setting from app_settings table
     let autoApproveEnabled = true;
     const { data: autoApproveSetting } = await supabase
-      .from('platform_settings')
+      .from('app_settings')
       .select('value')
       .eq('key', 'task_auto_approve_high_confidence')
       .maybeSingle();

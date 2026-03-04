@@ -10,10 +10,12 @@ import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 export const DAILY_TASKS_QUERY_KEY = 'daily-standup-tasks';
 
 // Full select with relation joins
+// NOTE: The deals table was renamed to deal_pipeline (migration 20260506000000).
+// PostgREST FK hints must use the current table name.
 const FULL_SELECT = `
   *,
   assignee:profiles!daily_standup_tasks_assignee_id_fkey(id, first_name, last_name, email),
-  deal:deals!daily_standup_tasks_deal_id_fkey(id, listing_id, listings(title, internal_company_name, ebitda), deal_stages(name)),
+  deal:deal_pipeline!daily_standup_tasks_deal_id_fkey(id, listing_id, listings(title, internal_company_name, ebitda), deal_stages(name)),
   source_meeting:standup_meetings(id, meeting_title, meeting_date, transcript_url)
 `;
 
@@ -54,7 +56,6 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
       let selectClause = FULL_SELECT;
       let retried = false;
 
-       
       while (true) {
         let query = supabase
           .from('daily_standup_tasks' as never)
