@@ -64,8 +64,9 @@ export const VALUATION_LEAD_FIELDS: FilterFieldDef[] = [
     options: [
       { label: 'General', value: 'general' },
       { label: 'Auto Shop', value: 'auto_shop' },
-      { label: 'HVAC', value: 'hvac' },
       { label: 'Collision', value: 'collision' },
+      { label: 'Mechanical', value: 'mechanical' },
+      { label: 'HVAC', value: 'hvac' },
     ],
   },
   // ── Contact ───────────────────────────────────────────────────────
