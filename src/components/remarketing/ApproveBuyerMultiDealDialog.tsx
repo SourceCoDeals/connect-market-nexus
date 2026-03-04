@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { createBuyerIntroductionFromApproval } from '@/lib/remarketing/createBuyerIntroduction';
 import {
   Dialog,
   DialogContent,
@@ -175,6 +176,23 @@ export function ApproveBuyerMultiDealDialog({
       supabase.functions
         .invoke('find-buyer-contacts', { body: { buyerId } })
         .catch(() => {});
+
+      // Auto-create buyer introductions at first Kanban stage for each approved deal
+      if (user?.id) {
+        for (const scoreId of scoreIds) {
+          const deal = deals.find((d) => d.scoreId === scoreId);
+          if (!deal) continue;
+          try {
+            await createBuyerIntroductionFromApproval({
+              buyerId,
+              listingId: deal.listingId,
+              userId: user.id,
+            });
+          } catch {
+            // Non-blocking
+          }
+        }
+      }
     },
     onSuccess: () => {
       // Invalidate all affected listing score queries
@@ -185,6 +203,7 @@ export function ApproveBuyerMultiDealDialog({
       for (const lid of affectedListingIds) {
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', lid] });
         queryClient.invalidateQueries({ queryKey: ['remarketing', 'outreach', lid] });
+        queryClient.invalidateQueries({ queryKey: ['buyer-introductions', lid] });
       }
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'learning-insights'] });
 

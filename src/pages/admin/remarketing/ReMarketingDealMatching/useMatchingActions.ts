@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import type { OutreachStatus } from '@/components/remarketing';
+import { createBuyerIntroductionFromApproval } from '@/lib/remarketing/createBuyerIntroduction';
 
 interface ScoreData {
   id: string;
@@ -166,11 +167,25 @@ export function useMatchingActions({
                 /* contact discovery failure is non-blocking */
               });
           }
+
+          // Auto-create buyer introduction at first Kanban stage
+          if (scoreData.buyer_id && listingId && user?.id) {
+            try {
+              await createBuyerIntroductionFromApproval({
+                buyerId: scoreData.buyer_id,
+                listingId: listingId,
+                userId: user.id,
+              });
+            } catch {
+              /* buyer introduction creation failure is non-blocking */
+            }
+          }
         }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-introductions', listingId] });
       refetchOutreach();
       setSelectedIds(new Set());
       toast.success(`Approved ${selectedIds.size} buyers — outreach tracking started`);
@@ -331,6 +346,19 @@ export function useMatchingActions({
         .catch(() => {
           /* contact discovery failure is non-blocking */
         });
+    }
+
+    // Auto-create buyer introduction at first Kanban stage
+    if (scoreData?.buyer_id && listingId && user?.id) {
+      createBuyerIntroductionFromApproval({
+        buyerId: scoreData.buyer_id,
+        listingId: listingId,
+        userId: user.id,
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['buyer-introductions', listingId] });
+      }).catch(() => {
+        /* buyer introduction creation failure is non-blocking */
+      });
     }
   };
 
