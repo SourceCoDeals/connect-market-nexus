@@ -29,16 +29,23 @@ const VALID_TYPES = new Set([
 const SYSTEM_PROMPT = `You are a senior M&A analyst at a lower-middle market investment bank. Classify buyers into exactly one of six categories.
 
 THE SIX VALID TYPES:
-1. private_equity - Formal fund (Fund I/II/III), LP investors, portfolio companies, investment thesis page, partners managing fund capital, defined hold period.
-2. corporate - Operating company with its own revenue, employees, products/services. Acquires using balance sheet capital. No fund structure. Regardless of how many acquisitions they make.
+1. private_equity - Formal fund (Fund I/II/III), LP investors, portfolio companies, investment thesis page, partners managing fund capital, defined hold period. Examples: "Pacheron Capital", "Riverside Company", "XYZ Partners Fund III".
+2. corporate - Operating company with its own revenue, employees, products/services. Acquires using balance sheet capital. No fund structure. Regardless of how many acquisitions they make. This INCLUDES PE-backed platform companies doing add-on acquisitions.
 3. family_office - Manages wealth for a single family. Direct investor. No LP fund structure. Often has a family surname in the name.
 4. search_fund - Individual/small team using ETA model. Searching for first acquisition to operate. Often MBA graduate. SBA financing common.
 5. independent_sponsor - Deal-by-deal. No committed fund capital. Raises equity per transaction from LPs or family offices.
 6. individual_buyer - A high-net-worth individual using personal wealth to buy a company. No fund, no entity, no LP backing, no search fund structure.
 
-CRITICAL RULE: If the company has real operations, revenue, and customers - it is "corporate", not "private_equity". A dental rollup, MSP, manufacturer, services company doing acquisitions - all "corporate". Only classify as "private_equity" if you see clear evidence of LP capital being deployed through a fund structure.
+CRITICAL RULE: If the company has real operations, revenue, and customers - it is "corporate", NOT "private_equity". A tire company, dental rollup, MSP, manufacturer, or any services company doing acquisitions is "corporate" even if a PE firm owns it. Only classify as "private_equity" if the entity IS the investment fund itself (the capital vehicle, not the operating company).
 
-SECONDARY CHECK: If you classify as "corporate", determine if this corporate is owned by a PE firm. Look for: "backed by [firm]", "portfolio company of", "a [firm] company", PE firm listed as parent/owner.
+PLATFORM COMPANY RULE: A company like "Big Brand Tires" that is owned by a PE firm like "Pacheron Capital" is a PLATFORM COMPANY. It must be classified as "corporate" with is_pe_backed=true and pe_firm_name="Pacheron Capital". Never classify the operating/platform company as "private_equity" — only the PE fund itself gets that type.
+
+INPUT FIELD MEANINGS:
+- "parent_pe_firm": If this field is set, it is the name of the PE fund that OWNS this company. This means the company is a PE-backed platform and should be "corporate" with is_pe_backed=true. It does NOT mean the company itself is a PE firm.
+- "is_pe_backed_existing": Prior enrichment signal. If true, this is an operating company backed by a PE firm.
+- "current_type": The existing classification — treat as a prior signal, but override it if you have strong evidence it is wrong.
+
+SECONDARY CHECK: If you classify as "corporate", determine if this corporate is owned by a PE firm. Look for: parent_pe_firm set in input, "backed by [firm]", "portfolio company of", "a [firm] company", PE firm listed as parent/owner.
 
 For each company, respond with a JSON object:
 { "id": "the_id", "type": "one_of_six", "confidence": 0-100, "reasoning": "1-2 sentences", "is_pe_backed": true/false, "pe_firm_name": "Name or null" }
@@ -74,7 +81,7 @@ Deno.serve(async (req: Request) => {
     let query = supabase
       .from('buyers')
       .select(
-        'id, company_name, pe_firm_name, thesis_summary, company_website, buyer_type, buyer_type_source',
+        'id, company_name, pe_firm_name, is_pe_backed, thesis_summary, company_website, buyer_type, buyer_type_source',
       )
       .eq('archived', false)
       .order('created_at', { ascending: true })
@@ -108,7 +115,9 @@ Deno.serve(async (req: Request) => {
     const buyerList = buyers.map((b) => ({
       id: b.id,
       company_name: b.company_name,
-      pe_firm_name: b.pe_firm_name || null,
+      // parent_pe_firm: the PE fund that OWNS this company (makes it a platform company, not a PE firm itself)
+      parent_pe_firm: b.pe_firm_name || null,
+      is_pe_backed_existing: b.is_pe_backed || false,
       thesis_snippet: (b.thesis_summary || '').slice(0, 200),
       website_domain: b.company_website
         ? b.company_website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]
@@ -216,9 +225,13 @@ Deno.serve(async (req: Request) => {
           stagedForReview++;
         }
 
-        if (classification.is_pe_backed) {
-          updateData.is_pe_backed = true;
-          if (classification.pe_firm_name) {
+        // Always explicitly set is_pe_backed so stale values don't linger.
+        // A private_equity record is itself the PE fund — it cannot be "PE-backed" by another firm.
+        if (classification.type === 'private_equity') {
+          updateData.is_pe_backed = false;
+        } else {
+          updateData.is_pe_backed = classification.is_pe_backed === true;
+          if (classification.is_pe_backed && classification.pe_firm_name) {
             updateData.pe_firm_name = classification.pe_firm_name;
           }
         }

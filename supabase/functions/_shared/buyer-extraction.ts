@@ -909,7 +909,15 @@ export function buildBuyerUpdateObject(
     // but the DB constraint may use legacy values (pe_firm, strategic, other) if the
     // buyer_classification_taxonomy migration hasn't been applied yet.
     // This map ensures compatibility with BOTH old and new constraints.
+    //
+    // IMPORTANT: Never overwrite a buyer_type that was set by admin_manual classification.
+    // The classify-buyer-types function manages buyer_type authoritatively; enrichment
+    // should only fill buyer_type when it is null/unset.
     if (field === 'buyer_type' && typeof value === 'string') {
+      if (buyer.buyer_type_source === 'admin_manual') {
+        console.log('🛡️ PROTECTED: Skipping buyer_type — admin_manual classification must not be overwritten by enrichment');
+        continue;
+      }
       const BUYER_TYPE_NORMALIZE: Record<string, string> = {
         'private_equity': 'private_equity',
         'corporate': 'corporate',

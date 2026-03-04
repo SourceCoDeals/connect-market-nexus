@@ -54,6 +54,7 @@ export interface ScoreSnapshot {
   tier: 'move_now' | 'strong' | 'speculative';
   source: 'ai_seeded' | 'marketplace' | 'scored';
   buyer_type: string | null;
+  is_pe_backed: boolean | null;
   hq_city: string | null;
   hq_state: string | null;
   has_fee_agreement: boolean;

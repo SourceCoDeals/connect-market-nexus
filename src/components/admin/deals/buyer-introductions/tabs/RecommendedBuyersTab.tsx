@@ -417,6 +417,7 @@ export function RecommendedBuyersTab({
                 tier: buyer.tier,
                 source: buyer.source,
                 buyer_type: buyer.buyer_type,
+                is_pe_backed: buyer.is_pe_backed ?? null,
                 hq_city: buyer.hq_city,
                 hq_state: buyer.hq_state,
                 has_fee_agreement: buyer.has_fee_agreement,

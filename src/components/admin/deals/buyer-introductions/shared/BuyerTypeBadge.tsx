@@ -14,11 +14,23 @@ const BUYER_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
 
 interface BuyerTypeBadgeProps {
   buyerType: string | null | undefined;
+  /** When true and buyerType is "corporate", renders as "Platform Co." to indicate a PE-backed operating company */
+  isPeBacked?: boolean;
   className?: string;
 }
 
-export function BuyerTypeBadge({ buyerType, className }: BuyerTypeBadgeProps) {
+export function BuyerTypeBadge({ buyerType, isPeBacked, className }: BuyerTypeBadgeProps) {
   if (!buyerType) return null;
+
+  // PE-backed corporate = platform company — distinct from a standalone strategic acquirer
+  if ((buyerType === 'corporate' || buyerType === 'strategic') && isPeBacked) {
+    return (
+      <Badge variant="outline" className={cn('text-[10px] bg-teal-100 text-teal-700 border-teal-200', className)}>
+        Platform Co.
+      </Badge>
+    );
+  }
+
   const config = BUYER_TYPE_CONFIG[buyerType] || {
     label: buyerType.replace(/_/g, ' '),
     color: 'bg-gray-100 text-gray-600 border-gray-200',
