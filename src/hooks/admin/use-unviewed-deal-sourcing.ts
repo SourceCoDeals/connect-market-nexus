@@ -2,6 +2,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect } from 'react';
 
+// TODO: Phase 6 — migrate admin_view_state read to data access layer: getAdminLastViewed() from '@/lib/data-access'
+// The first query (.from('admin_view_state')) maps to getAdminLastViewed(adminId, 'deal_sourcing').
+// The second query (.from('deal_sourcing_requests') count) has no data access equivalent yet.
 export function useUnviewedDealSourcingCount() {
   const queryClient = useQueryClient();
 

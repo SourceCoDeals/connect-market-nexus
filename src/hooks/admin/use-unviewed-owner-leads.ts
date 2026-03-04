@@ -3,6 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect } from 'react';
 
+// TODO: Phase 6 — migrate admin_view_state read to data access layer: getAdminLastViewed() from '@/lib/data-access'
+// The first query (.from('admin_view_state')) maps to getAdminLastViewed(adminId, 'owner_leads').
+// The second query (.from('inbound_leads') count) has no data access equivalent yet.
 export function useUnviewedOwnerLeads() {
   const { user } = useAuth();
 
