@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -39,12 +39,20 @@ export function PassReasonModal({ open, onOpenChange, buyerName, onConfirm }: Pa
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setReason('');
+      setNotes('');
+    }
+  }, [open]);
+
   const handleConfirm = () => {
     if (!reason) return;
-    const finalReason = reason === 'Other' && notes ? `Other: ${notes}` : reason;
-    onConfirm(finalReason, notes);
-    setReason('');
-    setNotes('');
+    const trimmedNotes = notes.trim();
+    const finalReason = reason === 'Other' && trimmedNotes ? `Other: ${trimmedNotes}` : reason;
+    // For "Other", notes are already captured in the reason string — don't duplicate
+    onConfirm(finalReason, reason === 'Other' ? '' : trimmedNotes);
   };
 
   return (

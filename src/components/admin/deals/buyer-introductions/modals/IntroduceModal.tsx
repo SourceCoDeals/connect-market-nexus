@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -29,10 +29,16 @@ export function IntroduceModal({ open, onOpenChange, buyerName, onConfirm }: Int
   const [channel, setChannel] = useState('email');
   const [notes, setNotes] = useState('');
 
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setChannel('email');
+      setNotes('');
+    }
+  }, [open]);
+
   const handleConfirm = () => {
-    onConfirm(channel, notes);
-    setChannel('email');
-    setNotes('');
+    onConfirm(channel, notes.trim());
   };
 
   return (

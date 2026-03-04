@@ -25,23 +25,20 @@ export function ApproveForPipelineModal({
   listingId,
   listingTitle,
 }: ApproveForPipelineModalProps) {
-  const approveMutation = useApproveForPipeline();
+  const { approve, isPending } = useApproveForPipeline(listingId);
 
   if (!buyer) return null;
 
   const handleConfirm = () => {
-    approveMutation.mutate(
-      { buyer, listingId, listingTitle },
-      {
-        onSuccess: () => {
-          onOpenChange(false);
-        },
+    approve(buyer, {
+      onSuccess: () => {
+        onOpenChange(false);
       },
-    );
+    });
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !approveMutation.isPending && onOpenChange(v)}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && onOpenChange(v)}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Move to Deal Pipeline?</DialogTitle>
@@ -70,16 +67,16 @@ export function ApproveForPipelineModal({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={approveMutation.isPending}
+            disabled={isPending}
           >
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={approveMutation.isPending}
+            disabled={isPending}
             className="bg-emerald-600 hover:bg-emerald-700 gap-1.5"
           >
-            {approveMutation.isPending ? (
+            {isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <ArrowRight className="h-3.5 w-3.5" />

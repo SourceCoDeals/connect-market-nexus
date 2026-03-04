@@ -71,7 +71,13 @@ export function KanbanColumn({
 
   if (column === 'passed' && collapsed) {
     return (
-      <div className="w-12 shrink-0 flex flex-col items-center">
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'w-12 shrink-0 flex flex-col items-center',
+          isOver && 'ring-2 ring-blue-400 ring-inset rounded-lg',
+        )}
+      >
         <Button
           variant="ghost"
           size="sm"

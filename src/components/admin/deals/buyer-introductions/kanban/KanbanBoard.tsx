@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
-  closestCenter,
+  pointerWithin,
   PointerSensor,
   useSensor,
   useSensors,
@@ -14,7 +14,6 @@ import type { BuyerIntroduction } from '@/types/buyer-introductions';
 import {
   useIntroductionPipeline,
   type KanbanColumn as KanbanColumnType,
-  getColumnForStatus,
 } from '../hooks/use-introduction-pipeline';
 import { KanbanColumn } from './KanbanColumn';
 import { BuyerKanbanCard } from './BuyerKanbanCard';
@@ -34,6 +33,7 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
     columns,
     isLoading,
     moveToColumn,
+    updateIntroductionNotes,
     archiveIntroduction,
   } = useIntroductionPipeline(listingId);
 
@@ -47,17 +47,16 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
   const [addBuyerOpen, setAddBuyerOpen] = useState(false);
   const [followUpTarget, setFollowUpTarget] = useState<BuyerIntroduction | null>(null);
 
-  // Pending drag-drop that requires a modal
-  const [pendingDrop, setPendingDrop] = useState<{
-    buyer: BuyerIntroduction;
-    targetColumn: KanbanColumnType;
-  } | null>(null);
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     }),
   );
+
+  const resetDragState = useCallback(() => {
+    setActiveBuyer(null);
+    setActiveColumn(null);
+  }, []);
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -73,19 +72,18 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      resetDragState();
       const { active, over } = event;
-      setActiveBuyer(null);
-      setActiveColumn(null);
 
       if (!over) return;
 
       const data = active.data.current as { buyer: BuyerIntroduction; column: KanbanColumnType } | undefined;
       if (!data) return;
 
-      const targetColumn = (over.data.current as any)?.column as KanbanColumnType | undefined;
+      const targetColumn = (over.data.current as { column?: KanbanColumnType })?.column;
       const sourceColumn = data.column;
 
-      // If dropped in the same column, no-op
+      // If dropped in the same column or no target, no-op
       if (!targetColumn || targetColumn === sourceColumn) return;
 
       const buyer = data.buyer;
@@ -95,22 +93,20 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
 
       // Moving to "introduced" requires channel selection
       if (targetColumn === 'introduced') {
-        setPendingDrop({ buyer, targetColumn });
         setIntroduceTarget(buyer);
         return;
       }
 
       // Moving to "passed" requires reason
       if (targetColumn === 'passed') {
-        setPendingDrop({ buyer, targetColumn });
         setPassTarget(buyer);
         return;
       }
 
-      // Moving to "interested" — optional note (just move directly)
+      // Moving to "interested" or "to_introduce" — move directly
       moveToColumn(buyer.id, targetColumn);
     },
-    [moveToColumn],
+    [moveToColumn, resetDragState],
   );
 
   const handleIntroduceConfirm = useCallback(
@@ -122,7 +118,6 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
         });
       }
       setIntroduceTarget(null);
-      setPendingDrop(null);
     },
     [introduceTarget, moveToColumn],
   );
@@ -136,7 +131,6 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
         });
       }
       setPassTarget(null);
-      setPendingDrop(null);
     },
     [passTarget, moveToColumn],
   );
@@ -170,16 +164,15 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
     [archiveIntroduction],
   );
 
+  // Follow-up: only update notes, do NOT change status
   const handleFollowUpConfirm = useCallback(
     (notes: string) => {
       if (followUpTarget) {
-        moveToColumn(followUpTarget.id, getColumnForStatus(followUpTarget.introduction_status), {
-          introduction_notes: notes,
-        });
+        updateIntroductionNotes(followUpTarget.id, notes);
       }
       setFollowUpTarget(null);
     },
-    [followUpTarget, moveToColumn],
+    [followUpTarget, updateIntroductionNotes],
   );
 
   if (isLoading) {
@@ -200,9 +193,10 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
     <>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={resetDragState}
       >
         <div className="flex gap-3 overflow-x-auto pb-4 min-h-[400px]">
           <KanbanColumn
@@ -231,7 +225,7 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
           />
         </div>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null} zIndex={50}>
           {activeBuyer && activeColumn && (
             <div className="opacity-80 rotate-2 w-[280px]">
               <BuyerKanbanCard buyer={activeBuyer} column={activeColumn} />
@@ -244,10 +238,7 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
       <IntroduceModal
         open={!!introduceTarget}
         onOpenChange={(open) => {
-          if (!open) {
-            setIntroduceTarget(null);
-            setPendingDrop(null);
-          }
+          if (!open) setIntroduceTarget(null);
         }}
         buyerName={introduceTarget?.buyer_firm_name || introduceTarget?.buyer_name || ''}
         onConfirm={handleIntroduceConfirm}
@@ -256,10 +247,7 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
       <PassReasonModal
         open={!!passTarget}
         onOpenChange={(open) => {
-          if (!open) {
-            setPassTarget(null);
-            setPendingDrop(null);
-          }
+          if (!open) setPassTarget(null);
         }}
         buyerName={passTarget?.buyer_firm_name || passTarget?.buyer_name || ''}
         onConfirm={handlePassConfirm}

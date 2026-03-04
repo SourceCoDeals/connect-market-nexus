@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
-import type { BuyerIntroduction, IntroductionStatus } from '@/types/buyer-introductions';
+import type { BuyerIntroduction, IntroductionStatus, ScoreSnapshot, UpdateBuyerIntroductionInput } from '@/types/buyer-introductions';
 
 export type KanbanColumn = 'to_introduce' | 'introduced' | 'interested' | 'passed';
 
@@ -48,9 +48,9 @@ export function useIntroductionPipeline(listingId: string | undefined) {
 
     // Sort each column
     result.to_introduce.sort((a, b) => {
-      const aScore = (a.score_snapshot as any)?.composite_score ?? 0;
-      const bScore = (b.score_snapshot as any)?.composite_score ?? 0;
-      return bScore - aScore; // highest score first
+      const aSnap = a.score_snapshot as ScoreSnapshot | null;
+      const bSnap = b.score_snapshot as ScoreSnapshot | null;
+      return (bSnap?.composite_score ?? 0) - (aSnap?.composite_score ?? 0); // highest score first
     });
 
     result.introduced.sort((a, b) => {
@@ -89,7 +89,7 @@ export function useIntroductionPipeline(listingId: string | undefined) {
       },
     ) => {
       const newStatus = getStatusForColumn(targetColumn);
-      const updates: Record<string, unknown> = {
+      const updates: UpdateBuyerIntroductionInput = {
         introduction_status: newStatus,
         ...extra,
       };
@@ -101,7 +101,18 @@ export function useIntroductionPipeline(listingId: string | undefined) {
         updates.passed_date = new Date().toISOString().split('T')[0];
       }
 
-      updateStatus({ id: introId, updates: updates as any });
+      updateStatus({ id: introId, updates });
+    },
+    [updateStatus],
+  );
+
+  /** Update only the notes on an introduction — does NOT change status */
+  const updateIntroductionNotes = useCallback(
+    (introId: string, notes: string) => {
+      updateStatus({
+        id: introId,
+        updates: { introduction_notes: notes },
+      });
     },
     [updateStatus],
   );
@@ -114,6 +125,7 @@ export function useIntroductionPipeline(listingId: string | undefined) {
     ...hook,
     columns,
     moveToColumn,
+    updateIntroductionNotes,
     introductionIds,
   };
 }

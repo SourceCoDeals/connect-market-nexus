@@ -357,7 +357,6 @@ export function RecommendedBuyersTab({
   const [refreshing, setRefreshing] = useState(false);
   const [seedResults, setSeedResults] = useState<SeedBuyerResult[] | null>(null);
   const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
-  const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
   const [acceptingIds, setAcceptingIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [internalVisible, setInternalVisible] = useState(PAGE_SIZE);
@@ -459,11 +458,19 @@ export function RecommendedBuyersTab({
         !pipelineBuyerIds.has(b.buyer_id) &&
         !acceptedIds.has(b.buyer_id),
     );
+    let successCount = 0;
     for (const buyer of buyersToAdd) {
-      await handleAccept(buyer);
+      try {
+        await handleAccept(buyer);
+        successCount++;
+      } catch {
+        // individual error already handled in handleAccept
+      }
     }
     setSelectedIds(new Set());
-    toast.success(`Added ${buyersToAdd.length} buyer${buyersToAdd.length === 1 ? '' : 's'} to pipeline`);
+    if (successCount > 0) {
+      toast.success(`Added ${successCount} buyer${successCount === 1 ? '' : 's'} to pipeline`);
+    }
   };
 
   const toggleSelect = useCallback((buyerId: string) => {
@@ -477,7 +484,7 @@ export function RecommendedBuyersTab({
 
   const allBuyers = data?.buyers || [];
   const available = allBuyers.filter(
-    (b) => !acceptedIds.has(b.buyer_id) && !rejectedIds.has(b.buyer_id),
+    (b) => !acceptedIds.has(b.buyer_id),
   );
   const allInternal = available.filter(isInternal);
   const allExternal = available.filter((b) => !isInternal(b));
@@ -630,9 +637,9 @@ export function RecommendedBuyersTab({
                     variant="ghost"
                     size="sm"
                     className="w-full text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => setInternalVisible((prev) => prev + PAGE_SIZE)}
+                    onClick={() => setInternalVisible((prev) => Math.min(prev + PAGE_SIZE, allInternal.length))}
                   >
-                    Show More ({allInternal.length - internalVisible} remaining)
+                    Show More ({Math.max(0, allInternal.length - internalVisible)} remaining)
                   </Button>
                 )}
               </>
@@ -665,9 +672,9 @@ export function RecommendedBuyersTab({
                     variant="ghost"
                     size="sm"
                     className="w-full text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => setExternalVisible((prev) => prev + PAGE_SIZE)}
+                    onClick={() => setExternalVisible((prev) => Math.min(prev + PAGE_SIZE, allExternal.length))}
                   >
-                    Show More ({allExternal.length - externalVisible} remaining)
+                    Show More ({Math.max(0, allExternal.length - externalVisible)} remaining)
                   </Button>
                 )}
               </>

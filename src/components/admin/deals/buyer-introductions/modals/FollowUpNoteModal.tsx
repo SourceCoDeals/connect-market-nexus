@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -26,10 +26,17 @@ export function FollowUpNoteModal({
 }: FollowUpNoteModalProps) {
   const [notes, setNotes] = useState('');
 
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setNotes('');
+    }
+  }, [open]);
+
   const handleConfirm = () => {
-    if (!notes.trim()) return;
-    onConfirm(notes);
-    setNotes('');
+    const trimmed = notes.trim();
+    if (!trimmed) return;
+    onConfirm(trimmed);
   };
 
   return (

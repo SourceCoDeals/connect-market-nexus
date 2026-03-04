@@ -109,7 +109,7 @@ export function BuyerKanbanCard({
       className={cn(
         'bg-white rounded-lg border p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing',
         isDragging && 'opacity-50 shadow-lg ring-2 ring-blue-300',
-        isStale && 'border-amber-300 border-l-4',
+        isStale && 'border-l-4 border-l-amber-400',
         isInPipeline && 'cursor-default opacity-90',
       )}
     >
@@ -293,13 +293,9 @@ export function BuyerKanbanCard({
                 <CheckCircle className="h-3 w-3" />
                 In Deal Pipeline
               </span>
-              <Link
-                to="#"
-                className="text-[11px] text-emerald-600 hover:text-emerald-800 flex items-center gap-0.5"
-                onClick={(e) => e.stopPropagation()}
-              >
-                View <ArrowRight className="h-2.5 w-2.5" />
-              </Link>
+              <span className="text-[11px] text-emerald-600 flex items-center gap-0.5">
+                <ArrowRight className="h-2.5 w-2.5" />
+              </span>
             </div>
           ) : (
             onApproveForPipeline && (
