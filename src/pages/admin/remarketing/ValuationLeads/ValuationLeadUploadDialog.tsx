@@ -35,7 +35,7 @@ import {
 import { toast } from 'sonner';
 import { parseSpreadsheet, SPREADSHEET_ACCEPT } from '@/lib/parseSpreadsheet';
 
-// ─── Target fields for valuation_leads ───
+// ─── Target fields — only direct valuation_leads columns ───
 
 interface TargetField {
   value: string;
@@ -49,28 +49,35 @@ const VALUATION_LEAD_IMPORT_FIELDS: TargetField[] = [
   { value: 'phone', label: 'Phone' },
   { value: 'website', label: 'Website' },
   { value: 'linkedin_url', label: 'LinkedIn URL' },
-  { value: 'industry', label: 'Industry' },
+  { value: 'display_name', label: 'Display Name' },
   { value: 'location', label: 'Location' },
   { value: 'region', label: 'Region' },
+  { value: 'industry', label: 'Industry' },
+  { value: 'calculator_type', label: 'Calculator Type' },
+  { value: 'locations_count', label: 'Locations Count' },
+  { value: 'growth_trend', label: 'Growth Trend' },
+  { value: 'owner_dependency', label: 'Owner Dependency' },
+  { value: 'revenue_model', label: 'Revenue Model' },
+  { value: 'buyer_lane', label: 'Buyer Lane' },
   { value: 'revenue', label: 'Revenue' },
   { value: 'ebitda', label: 'EBITDA' },
   { value: 'valuation_low', label: 'Valuation Low' },
   { value: 'valuation_mid', label: 'Valuation Mid' },
   { value: 'valuation_high', label: 'Valuation High' },
+  { value: 'quality_label', label: 'Quality Label' },
+  { value: 'quality_tier', label: 'Quality Tier' },
+  { value: 'readiness_score', label: 'Readiness Score' },
   { value: 'exit_timing', label: 'Exit Timing' },
   { value: 'open_to_intros', label: 'Open to Intros' },
-  { value: 'calculator_type', label: 'Calculator Type' },
-  { value: 'growth_trend', label: 'Growth Trend' },
-  { value: 'owner_dependency', label: 'Owner Dependency' },
-  { value: 'locations_count', label: 'Locations Count' },
-  { value: 'revenue_model', label: 'Revenue Model' },
-  { value: 'buyer_lane', label: 'Buyer Lane' },
-  { value: 'display_name', label: 'Display Name' },
+  { value: 'lead_source', label: 'Lead Source' },
+  { value: 'source_submission_id', label: 'Source ID' },
+  { value: 'created_at', label: 'Created Date' },
 ];
 
-// ─── Auto-mapping from common CSV headers to target fields ───
+// ─── Auto-mapping from CSV headers to target fields ───
 
 const HEADER_MAPPING: Record<string, string> = {
+  // Core
   'business name': 'business_name',
   'company name': 'business_name',
   company: 'business_name',
@@ -93,8 +100,9 @@ const HEADER_MAPPING: Record<string, string> = {
   domain: 'website',
   linkedin: 'linkedin_url',
   'linkedin url': 'linkedin_url',
-  industry: 'industry',
-  sector: 'industry',
+  'display name': 'display_name',
+
+  // Location
   location: 'location',
   city: 'location',
   'city state': 'location',
@@ -102,15 +110,35 @@ const HEADER_MAPPING: Record<string, string> = {
   address: 'location',
   region: 'region',
   state: 'region',
+
+  // Business
+  industry: 'industry',
+  sector: 'industry',
+  'calculator type': 'calculator_type',
+  calculator: 'calculator_type',
+  'locations count': 'locations_count',
+  locations: 'locations_count',
+  '# of locations': 'locations_count',
+  'number of locations': 'locations_count',
+  'growth trend': 'growth_trend',
+  growth: 'growth_trend',
+  'trend 24m': 'growth_trend',
+  'owner dependency': 'owner_dependency',
+  'revenue model': 'revenue_model',
+  'buyer lane': 'buyer_lane',
+
+  // Financial
   revenue: 'revenue',
   sales: 'revenue',
   'annual revenue': 'revenue',
   'total revenue': 'revenue',
+  'revenue ltm': 'revenue',
   ebitda: 'ebitda',
   'adj ebitda': 'ebitda',
   'adjusted ebitda': 'ebitda',
   earnings: 'ebitda',
   sde: 'ebitda',
+  'ebitda ltm': 'ebitda',
   'valuation low': 'valuation_low',
   'valuation min': 'valuation_low',
   'low valuation': 'valuation_low',
@@ -121,24 +149,33 @@ const HEADER_MAPPING: Record<string, string> = {
   'valuation high': 'valuation_high',
   'valuation max': 'valuation_high',
   'high valuation': 'valuation_high',
+
+  // Scoring & Quality
+  'quality label': 'quality_label',
+  'quality tier': 'quality_tier',
+  tier: 'quality_tier',
+  'readiness score': 'readiness_score',
   'exit timing': 'exit_timing',
   'exit timeline': 'exit_timing',
   timeline: 'exit_timing',
   'open to intros': 'open_to_intros',
   intros: 'open_to_intros',
-  'calculator type': 'calculator_type',
-  calculator: 'calculator_type',
-  type: 'calculator_type',
-  'growth trend': 'growth_trend',
-  growth: 'growth_trend',
-  'owner dependency': 'owner_dependency',
-  'locations count': 'locations_count',
-  locations: 'locations_count',
-  '# of locations': 'locations_count',
-  'number of locations': 'locations_count',
-  'revenue model': 'revenue_model',
-  'buyer lane': 'buyer_lane',
-  'display name': 'display_name',
+
+  // Metadata
+  'lead source': 'lead_source',
+  'created at': 'created_at',
+  id: 'source_submission_id',
+  'source submission id': 'source_submission_id',
+};
+
+// Map service_type values from auto/collision calculators to calculator_type DB values
+const SERVICE_TYPE_TO_CALCULATOR: Record<string, string> = {
+  auto_repair: 'auto_shop',
+  'auto repair': 'auto_shop',
+  collision: 'collision',
+  specialty: 'auto_shop',
+  hvac: 'hvac',
+  general: 'general',
 };
 
 interface ColumnMapping {
@@ -166,6 +203,18 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
     skipped: number;
     errors: string[];
   } | null>(null);
+
+  // Detect calculator type from service_type column in the spreadsheet
+  const detectCalculatorType = (row: Record<string, string>): string => {
+    // Look for a service_type column (case-insensitive)
+    for (const [key, value] of Object.entries(row)) {
+      if (key.toLowerCase().replace(/[_-]/g, ' ').trim() === 'service type' && value) {
+        const mapped = SERVICE_TYPE_TO_CALCULATOR[value.toLowerCase().trim()];
+        if (mapped) return mapped;
+      }
+    }
+    return 'general';
+  };
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -213,6 +262,11 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
 
   const parseNumericValue = (raw: string): number | null => {
     if (!raw || !raw.trim()) return null;
+    // Handle scientific notation like 4.44E+08
+    if (/^\d+\.?\d*[eE][+-]?\d+$/.test(raw.trim())) {
+      const val = parseFloat(raw.trim());
+      return isNaN(val) ? null : val;
+    }
     let numStr = raw.trim().replace(/[$,]/g, '');
     let multiplier = 1;
     if (numStr.toUpperCase().endsWith('M')) {
@@ -245,6 +299,7 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
       'valuation_mid',
       'valuation_high',
       'locations_count',
+      'readiness_score',
     ]);
     const booleanFields = new Set(['open_to_intros', 'cta_clicked']);
 
@@ -256,8 +311,11 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
       setImportProgress(Math.round(((i + 1) / csvData.length) * 100));
 
       try {
+        // Auto-detect calculator type from service_type column
+        const detectedCalcType = detectCalculatorType(row);
+
         const record: Record<string, unknown> = {
-          calculator_type: 'general',
+          calculator_type: detectedCalcType,
           lead_source: 'spreadsheet_upload',
           excluded: false,
         };
@@ -277,18 +335,23 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
           }
         }
 
-        // Must have at least a business name, email, or website
-        if (!record.business_name && !record.email && !record.website) {
-          results.errors.push(
-            `Row ${i + 2}: Skipped — needs at least a business name, email, or website`,
-          );
+        // If calculator_type was explicitly mapped from a column, it takes precedence
+        // Otherwise the auto-detected value from service_type is used
+
+        // Must have at least a name, email, or website
+        if (!record.business_name && !record.email && !record.website && !record.full_name) {
+          results.errors.push(`Row ${i + 2}: Skipped — needs at least a name, email, or website`);
           results.skipped++;
           continue;
         }
 
-        // Set display_name from business_name if not mapped
-        if (!record.display_name && record.business_name) {
-          record.display_name = record.business_name;
+        // Set display_name if not mapped
+        if (!record.display_name) {
+          if (record.business_name) {
+            record.display_name = record.business_name;
+          } else if (record.full_name) {
+            record.display_name = record.full_name;
+          }
         }
 
         const { error } = await supabase.from('valuation_leads').insert(record as never);
@@ -333,10 +396,12 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
     return m.csvColumn.toLowerCase().includes(q);
   });
 
-  // At least one meaningful field must be mapped
   const hasRequiredMapping = columnMappings.some(
     (m) =>
-      m.targetField === 'business_name' || m.targetField === 'email' || m.targetField === 'website',
+      m.targetField === 'business_name' ||
+      m.targetField === 'full_name' ||
+      m.targetField === 'email' ||
+      m.targetField === 'website',
   );
 
   return (
@@ -357,7 +422,7 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
                 <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-lg font-medium mb-2">Upload Spreadsheet</p>
                 <p className="text-sm text-muted-foreground mb-4">
-                  CSV, XLS, or XLSX with valuation lead data
+                  CSV, XLS, or XLSX — general or industry calculator exports
                 </p>
                 <Label htmlFor="valuation-lead-upload" className="cursor-pointer">
                   <Input
@@ -388,9 +453,7 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
                     {mappedCount}/{columnMappings.length} mapped
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Map columns to valuation lead fields
-                </p>
+                <p className="text-sm text-muted-foreground">Unmapped columns are ignored</p>
               </div>
 
               <div className="flex items-center gap-3 mb-3">
@@ -480,7 +543,7 @@ export function ValuationLeadUploadDialog({ open, onOpenChange }: Props) {
                   Ready to import {csvData.length} valuation lead{csvData.length !== 1 ? 's' : ''}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Mapped fields:{' '}
+                  Mapped:{' '}
                   {columnMappings
                     .filter((m) => m.targetField)
                     .map(
