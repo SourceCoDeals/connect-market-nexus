@@ -8,15 +8,13 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-/** Safely read a nested .value from calculator_inputs objects.
- *  Handles both `{ value: X }` style and plain values. */
+/** Safely read a nested .value from calculator_inputs objects. */
 function inputVal(inputs: Record<string, unknown>, key: string): unknown {
   const obj = inputs?.[key];
   if (obj == null) return null;
   if (typeof obj === "object" && "value" in (obj as Record<string, unknown>)) {
     return (obj as Record<string, unknown>).value;
   }
-  // Plain value (string, number, boolean)
   return obj;
 }
 
@@ -71,20 +69,21 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log("Payload debug:", JSON.stringify({ full_name, email, lead_source: body.lead_source, ci_keys: calculator_inputs ? Object.keys(calculator_inputs) : null }));
+    const leadSource = body.lead_source ?? "auto_shop_calculator";
+    console.log("Payload debug:", JSON.stringify({ full_name, email, lead_source: leadSource, ci_keys: calculator_inputs ? Object.keys(calculator_inputs) : null }));
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // ─── 1. Upsert into incoming_leads (raw audit trail) ─────────────
+    // ─── 1. Insert into incoming_leads (preserve both submissions as audit trail) ──
     const incomingRow = {
       external_lead_id: body.external_lead_id ?? null,
       full_name,
       email,
       website: website ?? "",
-      lead_source: body.lead_source ?? null,
+      lead_source: leadSource,
       calculator_inputs,
       valuation_result,
       ip_address: body.ip_address ?? null,
@@ -95,23 +94,20 @@ serve(async (req: Request) => {
       received_at: new Date().toISOString(),
     };
 
+    // Use ignoreDuplicates so both initial_unlock and full_report raw payloads are preserved
     const { error: incomingError } = await supabaseAdmin
       .from("incoming_leads")
-      .upsert(incomingRow, { onConflict: "email" });
+      .upsert(incomingRow, { onConflict: "email", ignoreDuplicates: false });
 
     if (incomingError) {
       console.error("incoming_leads upsert error:", incomingError);
-      return new Response(
-        JSON.stringify({ error: "Failed to store lead", detail: incomingError.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      // Non-fatal — continue to valuation_leads
     }
 
     // ─── 2. Extract structured fields & upsert into valuation_leads ──
     const ci = calculator_inputs as Record<string, unknown>;
     const vr = valuation_result as Record<string, unknown>;
 
-    // Helpers for safe type coercion
     const toNum = (v: unknown): number | null => {
       if (v == null) return null;
       const n = Number(v);
@@ -126,7 +122,6 @@ serve(async (req: Request) => {
       return String(v);
     };
 
-    // From calculator_inputs (nested { value, label, ... } objects)
     const revenue = toNum(inputVal(ci, "revenue_ltm"));
     const ebitda = toNum(inputVal(ci, "ebitda_ltm"));
     const serviceType = toStr(inputVal(ci, "service_type"));
@@ -134,73 +129,111 @@ serve(async (req: Request) => {
     const ownerDependency = toStr(inputVal(ci, "owner_dependency"));
     const growthTrend = toStr(inputVal(ci, "trend_24m"));
 
-    // From valuation_result (flat nested objects)
     const businessValue = vr?.businessValue as Record<string, number> | null;
     const qualityLabel = vr?.qualityLabel as Record<string, string> | null;
     const buyerLane = vr?.buyerLane as Record<string, string> | null;
     const propertyValue = vr?.propertyValue ?? null;
 
-    // Build location string
     const city = body.city as string | null;
     const region = body.region as string | null;
     const locationStr = [city, region].filter(Boolean).join(", ") || null;
 
-    // Determine calculator type from service_type input
     const calculatorType = serviceType === "collision" ? "collision"
       : serviceType === "mechanical" ? "mechanical"
       : serviceType === "specialty" ? "specialty"
       : serviceType ?? "auto_shop";
 
-    const valuationRow = {
-      calculator_type: calculatorType,
-      full_name,
-      email,
-      website: website ?? null,
-      business_name: businessNameFromDomain(website) ?? null,
-      industry: serviceType ?? null,
-      region: region ?? null,
-      location: locationStr,
-      revenue,
-      ebitda,
-      valuation_low: toNum(businessValue?.low),
-      valuation_mid: toNum(businessValue?.mid),
-      valuation_high: toNum(businessValue?.high),
-      quality_tier: (vr?.tier as string) ?? null,
-      quality_label: qualityLabel?.label ?? null,
-      buyer_lane: buyerLane?.title ?? null,
-      growth_trend: growthTrend,
-      owner_dependency: ownerDependency,
-      locations_count: locationsCount,
-      lead_source: body.lead_source ?? "auto_shop_calculator",
-      source_submission_id: body.external_lead_id ?? null,
-      raw_calculator_inputs: calculator_inputs,
-      raw_valuation_results: valuation_result,
-      calculator_specific_data: propertyValue ? { propertyValue } : {},
-      updated_at: new Date().toISOString(),
-    };
+    const now = new Date().toISOString();
 
     // Check if lead already exists by email + calculator_type
     const { data: existing } = await supabaseAdmin
       .from("valuation_leads")
-      .select("id")
+      .select("id, lead_source, created_at, submission_count")
       .eq("email", email)
-      .eq("calculator_type", valuationRow.calculator_type)
+      .eq("calculator_type", calculatorType)
       .eq("excluded", false)
       .maybeSingle();
 
     let vlError: { message: string } | null = null;
+
     if (existing) {
-      // Update existing lead
+      // ─── MERGE logic: preserve first-touch data, augment with new submission ──
+      const isUpgrade = leadSource === "full_report" && existing.lead_source === "initial_unlock";
+
+      const updatePayload: Record<string, unknown> = {
+        // Always update with latest data
+        full_name,
+        website: website ?? null,
+        business_name: businessNameFromDomain(website) ?? null,
+        industry: serviceType ?? null,
+        region: region ?? null,
+        location: locationStr,
+        revenue,
+        ebitda,
+        valuation_low: toNum(businessValue?.low),
+        valuation_mid: toNum(businessValue?.mid),
+        valuation_high: toNum(businessValue?.high),
+        quality_tier: (vr?.tier as string) ?? null,
+        quality_label: qualityLabel?.label ?? null,
+        buyer_lane: buyerLane?.title ?? null,
+        growth_trend: growthTrend,
+        owner_dependency: ownerDependency,
+        locations_count: locationsCount,
+        raw_calculator_inputs: calculator_inputs,
+        raw_valuation_results: valuation_result,
+        calculator_specific_data: propertyValue ? { propertyValue } : {},
+        submission_count: (existing.submission_count ?? 1) + 1,
+        updated_at: now,
+      };
+
+      if (isUpgrade) {
+        // Upgrading from initial_unlock → full_report
+        updatePayload.lead_source = "full_report";
+        updatePayload.initial_unlock_at = existing.created_at; // preserve first touch
+      } else {
+        // Same source re-submission — keep existing lead_source
+        updatePayload.lead_source = leadSource;
+      }
+
       const { error } = await supabaseAdmin
         .from("valuation_leads")
-        .update(valuationRow)
+        .update(updatePayload)
         .eq("id", existing.id);
       vlError = error;
     } else {
-      // Insert new lead
+      // ─── New lead insert ──
+      const insertPayload = {
+        calculator_type: calculatorType,
+        full_name,
+        email,
+        website: website ?? null,
+        business_name: businessNameFromDomain(website) ?? null,
+        industry: serviceType ?? null,
+        region: region ?? null,
+        location: locationStr,
+        revenue,
+        ebitda,
+        valuation_low: toNum(businessValue?.low),
+        valuation_mid: toNum(businessValue?.mid),
+        valuation_high: toNum(businessValue?.high),
+        quality_tier: (vr?.tier as string) ?? null,
+        quality_label: qualityLabel?.label ?? null,
+        buyer_lane: buyerLane?.title ?? null,
+        growth_trend: growthTrend,
+        owner_dependency: ownerDependency,
+        locations_count: locationsCount,
+        lead_source: leadSource,
+        source_submission_id: body.external_lead_id ?? null,
+        raw_calculator_inputs: calculator_inputs,
+        raw_valuation_results: valuation_result,
+        calculator_specific_data: propertyValue ? { propertyValue } : {},
+        submission_count: 1,
+        updated_at: now,
+      };
+
       const { error } = await supabaseAdmin
         .from("valuation_leads")
-        .insert(valuationRow);
+        .insert(insertPayload);
       vlError = error;
     }
 
@@ -212,7 +245,7 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`Lead ingested: ${email} → incoming_leads + valuation_leads (${calculatorType})`);
+    console.log(`Lead ingested: ${email} → incoming_leads + valuation_leads (${calculatorType}, source=${leadSource}, existing=${!!existing})`);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

@@ -56,6 +56,8 @@ export interface ValuationLead {
   not_a_fit?: boolean | null;
   // Joined from listings (via pushed_listing_id) — populated by enrichment
   listing_description?: string | null;
+  initial_unlock_at?: string | null;
+  submission_count?: number | null;
 }
 
 export type SortColumn =

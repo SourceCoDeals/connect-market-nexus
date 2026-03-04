@@ -179,7 +179,18 @@ export function ValuationLeadDetailDrawer({
                 <div className="flex items-center gap-2 col-span-2">
                   <span className="text-muted-foreground">Submitted:</span>
                   <span>{format(new Date(lead.created_at), 'MMM d, yyyy h:mm a')}</span>
+                  {(lead.submission_count ?? 1) > 1 && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                      {lead.submission_count} submissions
+                    </Badge>
+                  )}
                 </div>
+                {lead.initial_unlock_at && (
+                  <div className="flex items-center gap-2 col-span-2">
+                    <span className="text-muted-foreground">First seen:</span>
+                    <span>{format(new Date(lead.initial_unlock_at), 'MMM d, yyyy h:mm a')}</span>
+                  </div>
+                )}
               </div>
             </section>
 
