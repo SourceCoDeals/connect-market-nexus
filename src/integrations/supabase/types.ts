@@ -11037,6 +11037,7 @@ export type Database = {
           growth_trend: string | null
           id: string
           industry: string | null
+          initial_unlock_at: string | null
           is_archived: boolean
           is_priority_target: boolean | null
           lead_score: number | null
@@ -11061,6 +11062,7 @@ export type Database = {
           scoring_notes: string | null
           source_submission_id: string | null
           status: string | null
+          submission_count: number
           synced_at: string | null
           updated_at: string | null
           valuation_high: number | null
@@ -11086,6 +11088,7 @@ export type Database = {
           growth_trend?: string | null
           id?: string
           industry?: string | null
+          initial_unlock_at?: string | null
           is_archived?: boolean
           is_priority_target?: boolean | null
           lead_score?: number | null
@@ -11110,6 +11113,7 @@ export type Database = {
           scoring_notes?: string | null
           source_submission_id?: string | null
           status?: string | null
+          submission_count?: number
           synced_at?: string | null
           updated_at?: string | null
           valuation_high?: number | null
@@ -11135,6 +11139,7 @@ export type Database = {
           growth_trend?: string | null
           id?: string
           industry?: string | null
+          initial_unlock_at?: string | null
           is_archived?: boolean
           is_priority_target?: boolean | null
           lead_score?: number | null
@@ -11159,6 +11164,7 @@ export type Database = {
           scoring_notes?: string | null
           source_submission_id?: string | null
           status?: string | null
+          submission_count?: number
           synced_at?: string | null
           updated_at?: string | null
           valuation_high?: number | null
