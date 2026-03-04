@@ -12,7 +12,7 @@ interface Props {
 
 export function SignupStepAccount({ formData, onChange }: Props) {
   const [domainMatch, setDomainMatch] = useState<{ found: boolean; firm_name: string | null } | null>(null);
-  const [checking, setChecking] = useState(false);
+  
 
   const checkDomain = useCallback(async (email: string) => {
     if (!email || !email.includes("@")) {
@@ -20,7 +20,7 @@ export function SignupStepAccount({ formData, onChange }: Props) {
       return;
     }
 
-    setChecking(true);
+    
     try {
       const { data, error } = await supabase.functions.invoke("check-firm-domain", {
         body: { email },
@@ -34,7 +34,7 @@ export function SignupStepAccount({ formData, onChange }: Props) {
     } catch {
       setDomainMatch(null);
     } finally {
-      setChecking(false);
+      
     }
   }, []);
 

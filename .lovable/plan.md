@@ -1,52 +1,24 @@
 
 
-# Fix Build Errors + Edge Function Calculator Type Mapping
+## Plan: Add Clay Phone Number Lookup Tool — ✅ COMPLETED
 
-## Verification Result
+### Summary
+Mirrored the existing `clay_find_email` pattern to add a `clay_find_phone` tool that sends LinkedIn URLs to a new Clay phone lookup table and receives results via an inbound webhook. No auth/secret requirements on the webhook endpoint.
 
-Your submission **was received successfully**. Both `incoming_leads` and `valuation_leads` were updated for `ahaile14@gmail.com`. The edge function is working end-to-end.
+### Completed Changes
 
-**However, two data issues were found:**
-1. `calculator_type` mapped to `auto_shop` instead of `specialty` — the mapping logic only handles `collision` and `mechanical`, everything else falls through to `auto_shop`
-2. `buyer_lane` still shows old value — the `.lane` → `.title` fix may not have deployed yet, or the value `"Local Strategic Buyers"` (full title) is being stored instead of the short code
+1. ✅ Database Migration — Added `result_phone TEXT` column to `clay_enrichment_requests`
+2. ✅ `clay-client.ts` — Added phone webhook URL + `sendToClayPhone` sender
+3. ✅ New edge function: `clay-webhook-phone/index.ts` — No auth, updates `result_phone`, `enriched_contacts.phone`, `contacts.phone`
+4. ✅ `config.toml` — Added `[functions.clay-webhook-phone]` with `verify_jwt = false`
+5. ✅ `clay-tools.ts` — Added `clayLookupPhone`, `ClayPhoneLookupResult`, `clay_find_phone` tool definition, `clayFindPhone` executor
+6. ✅ `integration/index.ts` — Re-exported `clayFindPhone`, `clayLookupPhone`, `ClayPhoneLookupResult`
+7. ✅ `integration-action-tools.ts` — Wired `case 'clay_find_phone'`
+8. ✅ `tools/index.ts` — Registered in GENERAL, CONTACTS, CONTACT_ENRICHMENT, REMARKETING, GOOGLE_SEARCH categories
+9. ✅ `system-prompt.ts` — Added phone lookup guidance
+10. ✅ Tested — Inbound webhook deployed and verified working
 
-## Changes
+### Inbound Webhook URL
+`https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/clay-webhook-phone`
 
-### 1. Fix calculator_type mapping (edge function)
-In `supabase/functions/receive-valuation-lead/index.ts` line 149-151, add `specialty` to the mapping:
-
-```typescript
-const calculatorType = serviceType === "collision" ? "collision"
-  : serviceType === "mechanical" ? "mechanical"
-  : serviceType === "specialty" ? "specialty"
-  : serviceType ?? "auto_shop";
-```
-
-Also update the VALUATION_LEAD_FIELDS filter options to include `specialty`:
-```typescript
-{ label: 'Specialty', value: 'specialty' },
-```
-
-### 2. Fix 5 build errors (TypeScript)
-
-**BuyerRelationshipSection.tsx:**
-- Remove unused `AlertTriangle` import (line 17)
-- Fix `isPeBacked={co.is_pe_backed}` → `isPeBacked={co.is_pe_backed ?? false}` (line 186)
-
-**RecommendedBuyersPanel.tsx:**
-- Add missing `is_pe_backed` to score_snapshot object (line 384): `is_pe_backed: buyer.is_pe_backed ?? false,`
-
-**SignupStepAccount.tsx:**
-- Remove unused `checking` variable (line 15)
-
-**BuyerClassificationTest.tsx:**
-- Remove unused `Search` import (line 34)
-
-**PEFirmLinkReview.tsx:**
-- Remove unused `CardHeader`, `CardTitle` imports (line 4)
-- Remove unused `AlertCircle` import (line 18)
-- Change `backfill_status` to a valid column or cast via `.update({} as any)` (line 154) — need to check if column exists
-
-### 3. Redeploy edge function
-Deploy `receive-valuation-lead` after the fix to ensure the `specialty` type and `.title` fix are live.
-
+Configure Clay to POST results to this URL with `request_id` and `phone` fields.
