@@ -3,6 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect } from 'react';
 
+// TODO: Phase 6 — migrate admin_view_state read to data access layer: getAdminLastViewed() from '@/lib/data-access'
+// The first query (.from('admin_view_state')) maps directly to getAdminLastViewed(adminId, 'users').
+// The second query (.from('profiles') count) has no data access equivalent yet — needs a
+// getProfileCount() or similar function before full migration.
 export function useUnviewedUsers() {
   const { user } = useAuth();
 

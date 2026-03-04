@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
+import { markAdminViewAsViewed } from '@/lib/data-access';
 
 export function useMarkConnectionRequestsViewed() {
   const { user } = useAuth();
@@ -10,21 +10,8 @@ export function useMarkConnectionRequestsViewed() {
     mutationFn: async () => {
       if (!user?.id) throw new Error('User not authenticated');
 
-      const { error } = await supabase
-        .from('admin_view_state')
-        .upsert(
-          {
-            admin_id: user.id,
-            view_type: 'connection_requests',
-            last_viewed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: 'admin_id,view_type',
-          }
-        );
-
-      if (error) throw error;
+      const result = await markAdminViewAsViewed(user.id, 'connection_requests');
+      if (result.error) throw result.error;
     },
     onSuccess: () => {
       // Invalidate the unviewed count query
