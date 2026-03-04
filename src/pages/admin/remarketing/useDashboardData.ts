@@ -73,6 +73,7 @@ export function formatWeekLabel(dateStr: string): string {
 export const SOURCE_COLORS: Record<string, string> = {
   captarget: '#2563eb',
   gp_partners: '#ea580c',
+  sourceco: '#0891b2',
   referral: '#7c3aed',
   marketplace: '#16a34a',
   valuation_calculator: '#10b981',
@@ -82,6 +83,7 @@ export const SOURCE_COLORS: Record<string, string> = {
 export const SOURCE_LABELS: Record<string, string> = {
   captarget: 'CapTarget',
   gp_partners: 'GP Partners',
+  sourceco: 'SourceCo',
   referral: 'Referral',
   marketplace: 'Marketplace',
   valuation_calculator: 'Calculator',
@@ -122,7 +124,7 @@ export function useDashboardData(timeframe: Timeframe) {
     queryKey: ['dashboard', 'universes'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyer_universes')
+        .from('buyer_universes')
         .select('id, name')
         .eq('archived', false);
       if (error) throw error;
@@ -149,7 +151,7 @@ export function useDashboardData(timeframe: Timeframe) {
     queryKey: ['dashboard', 'buyers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select('universe_id')
         .eq('archived', false);
       if (error) throw error;

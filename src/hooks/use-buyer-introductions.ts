@@ -7,6 +7,7 @@ import type {
   BuyerIntroduction,
   CreateBuyerIntroductionInput,
   UpdateBuyerIntroductionInput,
+  ScoreSnapshot,
 } from '@/types/buyer-introductions';
 
 export function useBuyerIntroductions(listingId: string | undefined) {
@@ -33,6 +34,7 @@ export function useBuyerIntroductions(listingId: string | undefined) {
 
   const notIntroduced = introductions.filter(
     (i) =>
+      i.introduction_status === 'need_to_show_deal' ||
       i.introduction_status === 'outreach_initiated' ||
       i.introduction_status === 'meeting_scheduled',
   );
@@ -51,7 +53,7 @@ export function useBuyerIntroductions(listingId: string | undefined) {
         .from('buyer_introductions' as never)
         .insert({
           ...input,
-          introduction_status: 'outreach_initiated',
+          introduction_status: 'need_to_show_deal',
           created_by: user.id,
         } as never)
         .select()
@@ -268,6 +270,86 @@ export function useBuyerIntroductions(listingId: string | undefined) {
     },
   });
 
+  const sendToUniverseMutation = useMutation({
+    mutationFn: async ({ buyer, universeId }: { buyer: BuyerIntroduction; universeId: string }) => {
+      // Check if this buyer already exists in the universe (by remarketing_buyer_id)
+      if (buyer.remarketing_buyer_id) {
+        const { data: existingBuyer } = await supabase
+          .from('buyers')
+          .select('id, universe_id')
+          .eq('id', buyer.remarketing_buyer_id)
+          .single();
+
+        if (existingBuyer?.universe_id === universeId) {
+          throw new Error('This buyer is already in the buyer universe');
+        }
+      }
+
+      // Check for duplicate by company name in this universe
+      const { data: duplicates } = await supabase
+        .from('buyers')
+        .select('id, company_name')
+        .eq('universe_id', universeId)
+        .eq('archived', false)
+        .ilike('company_name', buyer.buyer_name);
+
+      if (duplicates && duplicates.length > 0) {
+        throw new Error(
+          `A buyer named "${duplicates[0].company_name}" already exists in this universe`,
+        );
+      }
+
+      // Create the buyer in the universe
+      const { data: newBuyer, error } = await supabase
+        .from('buyers')
+        .insert({
+          universe_id: universeId,
+          company_name: buyer.buyer_name,
+          company_website: (buyer.score_snapshot as ScoreSnapshot | null)?.company_website || null,
+          pe_firm_name: buyer.buyer_firm_name !== buyer.buyer_name ? buyer.buyer_firm_name : null,
+          buyer_type: (buyer.score_snapshot as ScoreSnapshot | null)?.buyer_type || 'platform',
+          hq_city: (buyer.score_snapshot as ScoreSnapshot | null)?.hq_city || null,
+          hq_state: (buyer.score_snapshot as ScoreSnapshot | null)?.hq_state || null,
+          has_fee_agreement:
+            (buyer.score_snapshot as ScoreSnapshot | null)?.has_fee_agreement || false,
+          notes: buyer.targeting_reason || null,
+        } as never)
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      // Update the introduction to link to the new remarketing buyer
+      if (newBuyer?.id) {
+        await supabase
+          .from('buyer_introductions' as never)
+          .update({ remarketing_buyer_id: newBuyer.id } as never)
+          .eq('id', buyer.id);
+      }
+
+      // Queue scoring for the new buyer against all deals in this universe
+      const { data: universeDeals } = await supabase
+        .from('remarketing_universe_deals')
+        .select('listing_id')
+        .eq('universe_id', universeId);
+
+      if (universeDeals && universeDeals.length > 0) {
+        const { queueDealScoring } = await import('@/lib/remarketing/queueScoring');
+        await queueDealScoring({ universeId, listingIds: universeDeals.map((d) => d.listing_id) });
+      }
+
+      return newBuyer;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+      toast.success('Buyer added to buyer universe');
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to add buyer to universe');
+    },
+  });
+
   return {
     introductions,
     notIntroduced,
@@ -280,5 +362,7 @@ export function useBuyerIntroductions(listingId: string | undefined) {
     archiveIntroduction: archiveMutation.mutate,
     batchArchiveIntroductions: batchArchiveMutation.mutate,
     isBatchArchiving: batchArchiveMutation.isPending,
+    sendBuyerToUniverse: sendToUniverseMutation.mutate,
+    isSendingToUniverse: sendToUniverseMutation.isPending,
   };
 }

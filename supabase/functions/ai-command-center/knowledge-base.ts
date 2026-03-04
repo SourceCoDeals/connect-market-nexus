@@ -22,7 +22,7 @@ export const KNOWLEDGE_BASE: Record<string, KnowledgeArticle> = {
 - customer_concentration: percentage of revenue from top clients. >20% from one client is a red flag. >50% is serious concern for institutional buyers.
 - deal_source: where the deal originated — "marketplace", "captarget", "gp_partners", "inbound", "valuation_calculator", "referral", "internal".
 - remarketing_status: whether the deal is being actively marketed to buyers.
-- need_buyer_universe / universe_build_flagged: flags indicating the deal needs a buyer universe built.
+- needs_buyer_search / universe_build_flagged: flags indicating the deal needs a buyer universe built.
 
 Buyer Fields:
 - acquisition_appetite: how aggressively pursuing deals — "aggressive" (quick decisions, deploying now), "active" (standard process), "selective" (very picky), "opportunistic" (only if perfect fit).
@@ -58,7 +58,7 @@ Score Modifiers:
 - data_quality_bonus: rich, well-enriched data = more reliable scoring.
 - custom_bonus: manually set by admin for deal-specific adjustments.
 - service_multiplier / size_multiplier / geography_mode_factor: custom weight multipliers per deal via deal_scoring_adjustments.
-- Use get_score_breakdown for per-dimension breakdown. Use explain_buyer_score for human-readable explanation.`,
+- Use get_score_breakdown for per-dimension breakdown and human-readable explanation.`,
   },
 
   pass_categories: {
@@ -115,9 +115,9 @@ Key components: Buyer Marketplace, Admin Dashboard, ReMarketing Engine (outbound
   terminology: {
     title: 'SourceCo Terminology',
     content: `- Deal/Listing: a business being marketed for acquisition (listings table).
-- Remarketing Buyer: external buyer (PE/strategic/platform) tracked in remarketing_buyers. Not a platform user.
+- Remarketing Buyer: external buyer (PE/strategic/platform) tracked in buyers table. Not a platform user.
 - Marketplace Buyer: registered platform user who browses deals (profiles table).
-- Universe: named buyer grouping for targeted outreach (remarketing_buyer_universes) with geography, size, services criteria.
+- Universe: named buyer grouping for targeted outreach (buyer_universes) with geography, size, services criteria.
 - Score: composite buyer-deal fit score (0-100) across geography, size, service, owner goals, thesis alignment.
 - Tier: A (80-100), B (60-79), C (40-59), D (20-39), F (0-19).
 - Pipeline Stage: Lead, NDA, LOI, Due Diligence, Closed (and others as configured).
@@ -194,7 +194,7 @@ How to recommend buyers for a deal:
 7. Prioritize "aggressive"/"ongoing" appetite. Exclude "paused" buyers.
 8. Check fee_agreement_status — signed = can move faster.
 9. Search transcripts for prior conversations about this buyer or similar deals.
-10. If no universe exists (need_buyer_universe=true), fall back to search_buyers with filters.
+10. If no universe exists (needs_buyer_search=true), fall back to search_buyers with filters.
 
 What to highlight: why they fit, score breakdown (geography? service? size?), thesis alignment, flags (pass history, paused timeline, data gaps).`,
   },
@@ -309,7 +309,7 @@ Track via connection_requests (NDA/fee status) and firm_agreements.`,
 - Deal sourcing: marketplace listings, CapTarget, GP Partners, valuation calculator, inbound leads, referrals. Check deal_source.
 - Deal enrichment: AI scrapes company data (Firecrawl), LinkedIn (Apify), Google (reviews/ratings). Check enrichment_status/enriched_at.
 - Universe building: each deal gets a buyer universe matched by industry, geography, size. Use get_universe_details.
-- Scoring: every buyer scored 0-100 across dimensions. Use explain_buyer_score for breakdowns.
+- Scoring: every buyer scored 0-100 across dimensions. Use get_score_breakdown for breakdowns.
 - Outreach: email, calls (PhoneBurner), memo distribution. Track via outreach_records and remarketing_outreach.
 - Pipeline tracking: Lead -> NDA -> LOI -> Due Diligence -> Closed. Monitor with get_deal_health and get_follow_up_queue.`,
   },
@@ -342,9 +342,9 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
   data_sources: {
     title: 'Data Sources Reference',
     content: `- listings: deals/sellers, captarget leads, marketplace listings.
-- remarketing_buyers: buyer universe, PE firms, platform companies with scores.
+- buyers: buyer universe, PE firms, platform companies with scores.
 - remarketing_scores: buyer-deal scoring data.
-- remarketing_buyer_universes: named universes with criteria and weights.
+- buyer_universes: named universes with criteria and weights.
 - call_transcripts + deal_transcripts + buyer_transcripts: meeting recordings.
 - valuation_leads: HVAC, collision, auto shop, general calculator leads.
 - deal_activities: deal activity log. daily_standup_tasks: unified task system (entity_type='deal' for deal tasks).

@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
 import { useNewRecommendedBuyers, type BuyerScore } from '@/hooks/admin/use-new-recommended-buyers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +38,9 @@ import {
   ExternalLink,
   X,
   Trash2,
+  Globe,
+  Loader2,
+  TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -55,6 +61,11 @@ const STATUS_CONFIG: Record<
   IntroductionStatus,
   { label: string; color: string; icon: typeof CheckCircle }
 > = {
+  need_to_show_deal: {
+    label: 'Need to Show Deal',
+    color: 'bg-violet-100 text-violet-700 border-violet-200',
+    icon: Target,
+  },
   outreach_initiated: {
     label: 'Outreach Initiated',
     color: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -101,10 +112,12 @@ const SOURCE_BADGE: Record<BuyerScore['source'], { label: string; color: string 
 function formatBuyerType(type: string | null): string {
   if (!type) return '';
   const map: Record<string, string> = {
-    pe_firm: 'PE Firm',
-    platform: 'Platform',
-    strategic: 'Strategic',
+    private_equity: 'PE Firm',
+    corporate: 'Corporate',
     family_office: 'Family Office',
+    independent_sponsor: 'Ind. Sponsor',
+    search_fund: 'Search Fund',
+    individual_buyer: 'Individual',
   };
   return map[type] || type.replace('_', ' ');
 }
@@ -120,8 +133,31 @@ export function BuyerIntroductionTracker({
     isLoading,
     batchArchiveIntroductions,
     isBatchArchiving,
+    sendBuyerToUniverse,
+    isSendingToUniverse,
   } = useBuyerIntroductions(listingId);
   const { data: scoredData } = useNewRecommendedBuyers(listingId);
+
+  // Fetch the deal's assigned buyer universe
+  const { data: universeAssignment } = useQuery({
+    queryKey: ['remarketing', 'deal-universe', listingId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('remarketing_universe_deals')
+        .select('id, universe_id, buyer_universes(id, name)')
+        .eq('listing_id', listingId)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as {
+        id: string;
+        universe_id: string;
+        buyer_universes: { id: string; name: string };
+      } | null;
+    },
+    enabled: !!listingId,
+  });
 
   // Build a lookup map: buyer_id → BuyerScore (shares React Query cache with RecommendedBuyersPanel)
   const scoreMap = useMemo(() => {
@@ -294,7 +330,7 @@ export function BuyerIntroductionTracker({
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search..."
+                placeholder="Search buyers"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-8 h-8 w-48 text-xs"
@@ -346,13 +382,20 @@ export function BuyerIntroductionTracker({
                 <IntroductionBuyerRow
                   key={buyer.id}
                   buyer={buyer}
-                  score={(buyer.remarketing_buyer_id || buyer.contact_id) ? scoreMap.get((buyer.remarketing_buyer_id || buyer.contact_id)!) : undefined}
+                  score={
+                    buyer.remarketing_buyer_id || buyer.contact_id
+                      ? scoreMap.get((buyer.remarketing_buyer_id || buyer.contact_id)!)
+                      : undefined
+                  }
                   selected={selectedIds.has(buyer.id)}
                   onToggleSelect={toggleSelection}
                   onSelect={(b) => {
                     setSelectedBuyer(b);
                     setUpdateDialogOpen(true);
                   }}
+                  universeAssignment={universeAssignment}
+                  onSendToUniverse={sendBuyerToUniverse}
+                  isSendingToUniverse={isSendingToUniverse}
                 />
               ))}
             </>
@@ -423,13 +466,20 @@ export function BuyerIntroductionTracker({
                 <IntroducedBuyerRow
                   key={buyer.id}
                   buyer={buyer}
-                  score={(buyer.remarketing_buyer_id || buyer.contact_id) ? scoreMap.get((buyer.remarketing_buyer_id || buyer.contact_id)!) : undefined}
+                  score={
+                    buyer.remarketing_buyer_id || buyer.contact_id
+                      ? scoreMap.get((buyer.remarketing_buyer_id || buyer.contact_id)!)
+                      : undefined
+                  }
                   selected={selectedIds.has(buyer.id)}
                   onToggleSelect={toggleSelection}
                   onSelect={(b) => {
                     setSelectedBuyer(b);
                     setUpdateDialogOpen(true);
                   }}
+                  universeAssignment={universeAssignment}
+                  onSendToUniverse={sendBuyerToUniverse}
+                  isSendingToUniverse={isSendingToUniverse}
                 />
               ))}
             </>
@@ -492,6 +542,12 @@ export function BuyerIntroductionTracker({
   );
 }
 
+interface UniverseAssignmentData {
+  id: string;
+  universe_id: string;
+  buyer_universes: { id: string; name: string };
+}
+
 // ─── Introduction Buyer Row (matches RecommendedBuyersPanel BuyerCard style) ───
 function IntroductionBuyerRow({
   buyer,
@@ -499,12 +555,18 @@ function IntroductionBuyerRow({
   selected,
   onToggleSelect,
   onSelect,
+  universeAssignment,
+  onSendToUniverse,
+  isSendingToUniverse,
 }: {
   buyer: BuyerIntroduction;
   score?: BuyerScore;
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onSelect: (b: BuyerIntroduction) => void;
+  universeAssignment?: UniverseAssignmentData | null;
+  onSendToUniverse: (args: { buyer: BuyerIntroduction; universeId: string }) => void;
+  isSendingToUniverse: boolean;
 }) {
   const config = STATUS_CONFIG[buyer.introduction_status];
   const StatusIcon = config.icon;
@@ -535,6 +597,7 @@ function IntroductionBuyerRow({
   const compositeScore = score?.composite_score ?? snap?.composite_score;
   const hasFeeAgreement = score?.has_fee_agreement ?? snap?.has_fee_agreement ?? false;
   const companyWebsite = score?.company_website || snap?.company_website || null;
+  const isPubliclyTraded = score?.is_publicly_traded ?? snap?.is_publicly_traded ?? false;
 
   return (
     <div
@@ -556,7 +619,7 @@ function IntroductionBuyerRow({
         {/* Name + firm */}
         <div className="shrink-0 min-w-[180px]">
           <div className="flex items-center gap-1.5">
-            {(buyer.remarketing_buyer_id || buyer.contact_id) ? (
+            {buyer.remarketing_buyer_id || buyer.contact_id ? (
               <Link to={`/admin/buyers/${buyer.remarketing_buyer_id || buyer.contact_id}`} state={{ from: location.pathname }}>
                 <span className="font-semibold text-[15px] hover:underline truncate">
                   {displayName}
@@ -564,6 +627,15 @@ function IntroductionBuyerRow({
               </Link>
             ) : (
               <span className="font-semibold text-[15px] truncate">{displayName}</span>
+            )}
+            {isPubliclyTraded && (
+              <Badge
+                variant="outline"
+                className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200 gap-0.5"
+              >
+                <TrendingUp className="h-2.5 w-2.5" />
+                Public
+              </Badge>
             )}
             {firmName &&
               (() => {
@@ -675,6 +747,54 @@ function IntroductionBuyerRow({
             <ChevronRight className="h-3.5 w-3.5" />
             Update
           </Button>
+
+          {universeAssignment ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs gap-1 hover:bg-purple-50 hover:border-purple-500 hover:text-purple-700"
+                    disabled={isSendingToUniverse}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSendToUniverse({ buyer, universeId: universeAssignment.universe_id });
+                    }}
+                  >
+                    {isSendingToUniverse ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Globe className="h-3.5 w-3.5" />
+                    )}
+                    Push to Buyer Universe
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Push to {universeAssignment.buyer_universes.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs gap-1 text-muted-foreground"
+                    disabled
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Push to Buyer Universe
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Assign a buyer universe to this deal first</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
 
@@ -695,12 +815,18 @@ function IntroducedBuyerRow({
   selected,
   onToggleSelect,
   onSelect,
+  universeAssignment,
+  onSendToUniverse,
+  isSendingToUniverse,
 }: {
   buyer: BuyerIntroduction;
   score?: BuyerScore;
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onSelect: (b: BuyerIntroduction) => void;
+  universeAssignment?: UniverseAssignmentData | null;
+  onSendToUniverse: (args: { buyer: BuyerIntroduction; universeId: string }) => void;
+  isSendingToUniverse: boolean;
 }) {
   const config = STATUS_CONFIG[buyer.introduction_status];
   const StatusIcon = config.icon;
@@ -735,6 +861,7 @@ function IntroducedBuyerRow({
   const compositeScore = score?.composite_score ?? snap?.composite_score;
   const hasFeeAgreement = score?.has_fee_agreement ?? snap?.has_fee_agreement ?? false;
   const companyWebsite = score?.company_website || snap?.company_website || null;
+  const isPubliclyTraded = score?.is_publicly_traded ?? snap?.is_publicly_traded ?? false;
 
   return (
     <div
@@ -756,7 +883,7 @@ function IntroducedBuyerRow({
         {/* Name + firm */}
         <div className="shrink-0 min-w-[180px]">
           <div className="flex items-center gap-1.5">
-            {(buyer.remarketing_buyer_id || buyer.contact_id) ? (
+            {buyer.remarketing_buyer_id || buyer.contact_id ? (
               <Link to={`/admin/buyers/${buyer.remarketing_buyer_id || buyer.contact_id}`} state={{ from: location.pathname }}>
                 <span className="font-semibold text-[15px] hover:underline truncate">
                   {displayName}
@@ -764,6 +891,15 @@ function IntroducedBuyerRow({
               </Link>
             ) : (
               <span className="font-semibold text-[15px] truncate">{displayName}</span>
+            )}
+            {isPubliclyTraded && (
+              <Badge
+                variant="outline"
+                className="text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200 gap-0.5"
+              >
+                <TrendingUp className="h-2.5 w-2.5" />
+                Public
+              </Badge>
             )}
             {firmName &&
               (() => {
@@ -894,6 +1030,54 @@ function IntroducedBuyerRow({
             <ChevronRight className="h-3.5 w-3.5" />
             Update
           </Button>
+
+          {universeAssignment ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs gap-1 hover:bg-purple-50 hover:border-purple-500 hover:text-purple-700"
+                    disabled={isSendingToUniverse}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSendToUniverse({ buyer, universeId: universeAssignment.universe_id });
+                    }}
+                  >
+                    {isSendingToUniverse ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Globe className="h-3.5 w-3.5" />
+                    )}
+                    Push to Buyer Universe
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Push to {universeAssignment.buyer_universes.name}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-xs gap-1 text-muted-foreground"
+                    disabled
+                  >
+                    <Globe className="h-3.5 w-3.5" />
+                    Push to Buyer Universe
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Assign a buyer universe to this deal first</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
 

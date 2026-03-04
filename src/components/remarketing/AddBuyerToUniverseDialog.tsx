@@ -55,7 +55,7 @@ export function AddBuyerToUniverseDialog({
       // Check for duplicate buyer by domain in this universe
       if (normalizedCompanyWebsite) {
         const { data: existingBuyers, error: existingBuyersError } = await supabase
-          .from('remarketing_buyers')
+          .from('buyers')
           .select('id, company_name, company_website')
           .eq('universe_id', universeId)
           .eq('archived', false)
@@ -73,7 +73,7 @@ export function AddBuyerToUniverseDialog({
       }
 
       const { data: newBuyer, error } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .insert({
           universe_id: universeId,
           company_name: companyName.trim() || peFirmName.trim(),
@@ -81,7 +81,7 @@ export function AddBuyerToUniverseDialog({
           pe_firm_name: peFirmName.trim() || null,
           pe_firm_website: normalizedPeFirmWebsite,
           business_summary: notes.trim() || null,
-          buyer_type: peFirmName.trim() ? 'pe_firm' : 'platform',
+          buyer_type: peFirmName.trim() ? 'private_equity' : 'corporate',
         })
         .select('id')
         .single();
@@ -95,7 +95,7 @@ export function AddBuyerToUniverseDialog({
 
       // Verify buyer is readable
       const { data: verified, error: verifiedError } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select('id')
         .eq('id', newBuyer.id)
         .single();

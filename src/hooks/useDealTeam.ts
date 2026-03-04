@@ -16,8 +16,8 @@ export function useDealTeam(listingId: string | null) {
     queryKey: [DEAL_TEAM_KEY, listingId],
     enabled: !!listingId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rm_deal_team' as never)
+      const { data, error } = await (supabase
+        .from('rm_deal_team' as any) as any)
         .select(
           `
           *,
@@ -47,9 +47,9 @@ export function useAddDealTeamMember() {
       userId: string;
       role: DealTeamRole;
     }) => {
-      const { data, error } = await supabase
-        .from('rm_deal_team' as never)
-        .insert({ listing_id: listingId, user_id: userId, role } as never)
+      const { data, error } = await (supabase
+        .from('rm_deal_team' as any) as any)
+        .insert({ listing_id: listingId, user_id: userId, role })
         .select()
         .single();
 
@@ -75,10 +75,7 @@ export function useUpdateDealTeamRole() {
       listingId: string;
       role: DealTeamRole;
     }) => {
-      const { error } = await supabase
-        .from('rm_deal_team' as never)
-        .update({ role } as never)
-        .eq('id', memberId);
+      const { error } = await (supabase.from('rm_deal_team' as any) as any).update({ role }).eq('id', memberId);
 
       if (error) throw error;
       return listingId;
@@ -94,10 +91,7 @@ export function useRemoveDealTeamMember() {
 
   return useMutation({
     mutationFn: async ({ memberId, listingId }: { memberId: string; listingId: string }) => {
-      const { error } = await supabase
-        .from('rm_deal_team' as never)
-        .delete()
-        .eq('id', memberId);
+      const { error } = await (supabase.from('rm_deal_team' as any) as any).delete().eq('id', memberId);
 
       if (error) throw error;
       return listingId;

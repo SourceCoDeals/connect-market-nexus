@@ -606,7 +606,8 @@ const ReMarketingDeals = () => {
                           <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                           <p>Failed to load deals</p>
                           <p className="text-sm text-muted-foreground">
-                            The query may have timed out. Try refreshing.
+                            {(h.listingsQueryError as { message?: string })?.message ||
+                              'The query may have timed out. Try refreshing.'}
                           </p>
                           <Button
                             variant="outline"
@@ -656,6 +657,7 @@ const ReMarketingDeals = () => {
                             onDelete={h.handleDeleteDeal}
                             onTogglePriority={h.handleTogglePriority}
                             onToggleUniverseBuild={h.handleToggleUniverseBuild}
+                            onToggleBuyerSearch={h.handleToggleBuyerSearch}
                             adminProfiles={h.adminProfiles}
                             onAssignOwner={h.handleAssignOwner}
                             universesByListing={h.universeDealMap ?? {}}

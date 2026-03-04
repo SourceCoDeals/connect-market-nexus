@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   updateGlobalQueueProgress,
@@ -15,7 +16,7 @@ const PROCESSING_TIMEOUT_MS = 45000; // 45s per buyer — must complete within t
 const RATE_LIMIT_BACKOFF_MS = 60000; // 60s backoff on rate limit
 const STALE_PROCESSING_MINUTES = 2; // Recovery timeout for stuck items (reduced from 5 to prevent long freezes)
 const MAX_FUNCTION_RUNTIME_MS = 50000; // 50s — must stay well under the 58s edge function hard-kill limit
-const INTER_BUYER_DELAY_MS = 200; // 200ms breathing room between buyers
+const INTER_BUYER_DELAY_MS = 500; // 500ms breathing room between buyers — prevents Firecrawl rate limits during bulk runs
 const MAX_CONTINUATIONS = 50; // Prevent infinite self-continuation loops
 
 Deno.serve(async (req) => {
@@ -72,44 +73,22 @@ Deno.serve(async (req) => {
       console.log(`Recovered ${staleItems.length} stale processing items`);
     }
 
-    // BUG-3 FIX: Use pg_advisory_xact_lock via RPC for mutual exclusion.
-    // The previous pattern (SELECT processing items, then skip if any) had a TOCTOU race:
-    // two concurrent invocations could both see zero active items and both proceed.
-    // If the RPC isn't available yet, fall back to the original check-then-skip pattern
-    // which is still *mostly* safe because individual item claims use atomic status checks.
+    // Advisory lock (best-effort): do NOT hard-stop on lock contention.
+    // Session-level advisory locks can linger with pooled connections and stall the queue.
+    // We still attempt the lock for observability, but rely on atomic row-claiming below
+    // to safely prevent duplicate processing.
     const { data: lockAcquired, error: lockError } = await supabase.rpc(
       'try_acquire_queue_processor_lock',
       { p_queue_name: 'buyer_enrichment' },
     );
 
-    if (lockError?.code === 'PGRST202' || lockError?.code === '42883') {
-      // RPC not deployed yet — fall back to original guard
-      const { data: activeItems } = await supabase
-        .from('buyer_enrichment_queue')
-        .select('id')
-        .eq('status', 'processing')
-        .limit(1);
+    if (lockError && lockError.code !== 'PGRST202' && lockError.code !== '42883') {
+      console.warn('Queue lock RPC error (continuing with atomic claims):', lockError);
+    }
 
-      if (activeItems && activeItems.length > 0) {
-        console.log('Another processor is active (fallback guard), skipping this run');
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: 'Skipped - another processor active',
-            processed: 0,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
-      }
-    } else if (lockAcquired === false) {
-      console.log('Another processor holds the lock, skipping this run');
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Skipped - another processor holds lock',
-          processed: 0,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    if (lockAcquired === false) {
+      console.warn(
+        'Queue lock is currently held; continuing with atomic claim strategy to avoid lock-induced stalls',
       );
     }
 
@@ -218,7 +197,7 @@ Deno.serve(async (req) => {
       // Bypassed when force=true (explicit user re-enrichment request).
       if (!itemForce) {
         const { data: buyerData } = await supabase
-          .from('remarketing_buyers')
+          .from('buyers')
           .select('data_last_updated, extraction_sources')
           .eq('id', item.buyer_id)
           .single();
@@ -267,25 +246,28 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Check rate limiter before dispatching — wait if Gemini is in cooldown
-      const availability = await checkProviderAvailability(supabase, 'gemini');
-      if (!availability.ok) {
-        const waitMs = availability.retryAfterMs || RATE_LIMIT_BACKOFF_MS;
-        if (waitMs > 30000) {
+      // Check rate limiters before dispatching — wait if Gemini or Firecrawl is in cooldown
+      for (const provider of ['gemini', 'firecrawl'] as const) {
+        const availability = await checkProviderAvailability(supabase, provider);
+        if (!availability.ok) {
+          const waitMs = availability.retryAfterMs || RATE_LIMIT_BACKOFF_MS;
+          if (waitMs > 30000) {
+            console.log(
+              `${provider} rate limited for ${Math.round(waitMs / 1000)}s — stopping queue processing`,
+            );
+            totalRateLimited++;
+            break;
+          }
           console.log(
-            `Gemini rate limited for ${Math.round(waitMs / 1000)}s — stopping queue processing`,
+            `${provider} rate limited — waiting ${Math.round(waitMs / 1000)}s before processing buyer`,
           );
-          totalRateLimited++;
-          break;
+          await new Promise((r) => setTimeout(r, waitMs));
         }
-        console.log(
-          `Gemini rate limited — waiting ${Math.round(waitMs / 1000)}s before processing buyer`,
-        );
-        await new Promise((r) => setTimeout(r, waitMs));
       }
+      if (totalRateLimited > 0) break; // Exit outer loop if rate limited
 
-      // Mark as processing
-      await supabase
+      // Atomically claim this item; if another worker already claimed it, skip safely.
+      const { data: claimedItem, error: claimError } = await supabase
         .from('buyer_enrichment_queue')
         .update({
           status: 'processing',
@@ -294,7 +276,19 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', item.id)
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
+
+      if (claimError) {
+        console.error(`Failed to claim queue item ${item.id}:`, claimError);
+        break;
+      }
+
+      if (!claimedItem) {
+        console.log(`Buyer ${item.buyer_id} was claimed by another worker, skipping`);
+        continue;
+      }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), PROCESSING_TIMEOUT_MS);
@@ -361,7 +355,11 @@ Deno.serve(async (req) => {
         }
 
         if (!response.ok || !data.success) {
-          throw new Error(data.error || `HTTP ${response.status}`);
+          // Include details (actual DB error message) if available — previously lost
+          const errorMsg = data.details
+            ? `${data.error}: ${data.details}`
+            : data.error || `HTTP ${response.status}`;
+          throw new Error(errorMsg);
         }
 
         const wasPartial = data.extractionDetails?.rateLimited === true;

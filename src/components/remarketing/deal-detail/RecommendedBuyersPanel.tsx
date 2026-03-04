@@ -63,10 +63,12 @@ const SOURCE_BADGE: Record<BuyerScore['source'], { label: string; color: string 
 function formatBuyerType(type: string | null): string {
   if (!type) return '';
   const map: Record<string, string> = {
-    pe_firm: 'PE Firm',
-    platform: 'Platform',
-    strategic: 'Strategic',
+    private_equity: 'PE Firm',
+    corporate: 'Corporate',
     family_office: 'Family Office',
+    independent_sponsor: 'Ind. Sponsor',
+    search_fund: 'Search Fund',
+    individual_buyer: 'Individual',
   };
   return map[type] || type.replace('_', ' ');
 }
@@ -377,6 +379,7 @@ export function RecommendedBuyersPanel({ listingId, listingTitle }: RecommendedB
               pe_firm_id: buyer.pe_firm_id,
               acquisition_appetite: buyer.acquisition_appetite,
               company_website: buyer.company_website,
+              is_publicly_traded: buyer.is_publicly_traded ?? null,
             },
           },
           {

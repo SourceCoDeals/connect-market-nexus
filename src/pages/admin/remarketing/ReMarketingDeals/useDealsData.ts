@@ -53,6 +53,7 @@ export function useDealsData() {
   const {
     data: listings,
     isLoading: listingsLoading,
+    error: listingsQueryError,
     isError: listingsError,
     refetch: refetchListings,
   } = useQuery({
@@ -60,7 +61,7 @@ export function useDealsData() {
     refetchOnMount: 'always',
     staleTime: 30_000,
     queryFn: async () => {
-      const BATCH = 1000;
+      const BATCH = 500;
       const allRows: DealListing[] = [];
       let offset = 0;
       let hasMore = true;
@@ -74,7 +75,7 @@ export function useDealsData() {
             internal_company_name, internal_deal_memo_link, geographic_states,
             enriched_at, full_time_employees, linkedin_employee_count,
             linkedin_employee_range, google_review_count, google_rating,
-            is_priority_target, need_buyer_universe, deal_total_score,
+            is_priority_target, deal_total_score,
             seller_interest_score, manual_rank_override,
             main_contact_name, main_contact_title, main_contact_email, main_contact_phone,
             address_city,
@@ -82,11 +83,13 @@ export function useDealsData() {
             deal_source, deal_owner_id,
             deal_owner:profiles!listings_deal_owner_id_fkey(id, first_name, last_name, email),
             needs_owner_contact, needs_owner_contact_at,
+            needs_buyer_search, needs_buyer_search_at,
             universe_build_flagged, universe_build_flagged_at, universe_build_flagged_by,
             is_internal_deal,
             pushed_to_marketplace, pushed_to_marketplace_at, pushed_to_marketplace_by
           `,
           )
+          .is('deleted_at', null)
           .eq('remarketing_status', 'active')
           .or(
             'deal_source.in.(marketplace,manual,referral,remarketing,salesforce_remarketing),' +
@@ -96,7 +99,10 @@ export function useDealsData() {
           .order('deal_total_score', { ascending: false, nullsFirst: true })
           .order('created_at', { ascending: false })
           .range(offset, offset + BATCH - 1);
-        if (error) throw error;
+        if (error) {
+          console.error('[Active Deals] Query failed:', error.message, error.code, error.details);
+          throw error;
+        }
         if (data && data.length > 0) {
           allRows.push(...(data as unknown as DealListing[]));
           offset += BATCH;
@@ -113,7 +119,7 @@ export function useDealsData() {
     queryKey: ['remarketing', 'universes-list'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyer_universes')
+        .from('buyer_universes')
         .select('id, name')
         .eq('archived', false)
         .order('name');
@@ -128,12 +134,12 @@ export function useDealsData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('remarketing_universe_deals')
-        .select('listing_id, universe_id, remarketing_buyer_universes(id, name)')
+        .select('listing_id, universe_id, buyer_universes(id, name)')
         .limit(5000);
       if (error) throw error;
       const map: Record<string, { id: string; name: string }[]> = {};
       data?.forEach((row) => {
-        const u = row.remarketing_buyer_universes as { id: string; name: string } | null;
+        const u = row.buyer_universes as { id: string; name: string } | null;
         if (!u || !u.name) return;
         if (!map[row.listing_id]) map[row.listing_id] = [];
         map[row.listing_id].push({ id: u.id, name: u.name });
@@ -236,7 +242,7 @@ export function useDealsData() {
     if (!engineFiltered) return [];
     return engineFiltered.filter((listing) => {
       if (universeFilter === 'needs_build') {
-        if (!listing.need_buyer_universe) return false;
+        if (!listing.needs_buyer_search) return false;
       } else if (universeFilter !== 'all') {
         const stats = scoreStats?.[listing.id];
         if (!stats || !stats.universeIds.has(universeFilter)) return false;
@@ -438,6 +444,7 @@ export function useDealsData() {
     listings,
     listingsLoading,
     listingsError,
+    listingsQueryError,
     refetchListings,
     sortedListings,
     localOrder,

@@ -1,8 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useFilterEngine } from '@/hooks/use-filter-engine';
+import { REFERRAL_PARTNER_DEAL_FIELDS } from '@/components/filters/filter-definitions';
 import type { SortField, SortDir } from './types';
 import { normalizeCompanyName } from './helpers';
+import { getDisplayLocation } from '@/lib/location-display';
 
 export function usePartnerData(partnerId: string | undefined) {
   const [hidePushed, setHidePushed] = useState(false);
@@ -56,7 +59,7 @@ export function usePartnerData(partnerId: string | undefined) {
            enriched_at, deal_total_score, pushed_to_all_deals,
            linkedin_employee_count, linkedin_employee_range,
            google_review_count, google_rating, is_priority_target,
-           need_buyer_universe, needs_owner_contact,
+           needs_buyer_search, needs_owner_contact,
            main_contact_name, main_contact_title, main_contact_email, main_contact_phone, deal_source,
            remarketing_status`,
         )
@@ -107,6 +110,9 @@ export function usePartnerData(partnerId: string | undefined) {
     enabled: !!partnerId,
   });
 
+  // Filter engine (search + advanced filters)
+  const filterEngine = useFilterEngine(deals || [], REFERRAL_PARTNER_DEAL_FIELDS);
+
   // KPIs
   const kpis = useMemo(() => {
     if (!deals) return { total: 0, enriched: 0, scored: 0, avgQuality: 0 };
@@ -121,10 +127,9 @@ export function usePartnerData(partnerId: string | undefined) {
     return { total: deals.length, enriched, scored, avgQuality };
   }, [deals]);
 
-  // Sorted deals
+  // Sorted deals (applies toggle filters, then filter engine results, then sort)
   const sortedDeals = useMemo(() => {
-    if (!deals) return [];
-    let items = [...deals];
+    let items = [...filterEngine.filteredItems];
     if (hidePushed) items = items.filter((d) => !d.pushed_to_all_deals);
     if (hideNotFit) items = items.filter((d) => d.remarketing_status !== 'not_a_fit');
     return items.sort((a, b) => {
@@ -140,11 +145,7 @@ export function usePartnerData(partnerId: string | undefined) {
           case 'industry':
             return (deal.category || '').toLowerCase();
           case 'location':
-            return (
-              deal.address_city && deal.address_state
-                ? `${deal.address_city}, ${deal.address_state}`
-                : deal.location || ''
-            ).toLowerCase();
+            return (getDisplayLocation(deal) || '').toLowerCase();
           case 'revenue':
             return deal.revenue ?? -Infinity;
           case 'ebitda':
@@ -172,7 +173,7 @@ export function usePartnerData(partnerId: string | undefined) {
       if (typeof va === 'string' && typeof vb === 'string') return va.localeCompare(vb) * dir;
       return ((va as number) - (vb as number)) * dir;
     });
-  }, [deals, sortField, sortDir, hidePushed, hideNotFit]);
+  }, [filterEngine.filteredItems, sortField, sortDir, hidePushed, hideNotFit]);
 
   // Enrichment progress
   const enrichmentProgress = useMemo(() => {
@@ -206,5 +207,12 @@ export function usePartnerData(partnerId: string | undefined) {
     setHidePushed,
     hideNotFit,
     setHideNotFit,
+    // Filter engine
+    filterState: filterEngine.filterState,
+    setFilterState: filterEngine.setFilterState,
+    fieldDefinitions: filterEngine.fieldDefinitions,
+    dynamicOptions: filterEngine.dynamicOptions,
+    totalCount: filterEngine.totalCount,
+    filteredCount: filterEngine.filteredCount,
   };
 }

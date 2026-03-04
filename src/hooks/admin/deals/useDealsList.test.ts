@@ -32,6 +32,7 @@ function fullRpcRow(overrides: Record<string, unknown> = {}) {
     listing_deal_total_score: 85,
     listing_is_priority_target: true,
     listing_needs_owner_contact: false,
+    listing_needs_buyer_search: false,
 
     // Contact info (sourced from connection_requests via RPC JOIN)
     contact_name: 'John Doe',
@@ -47,7 +48,7 @@ function fullRpcRow(overrides: Record<string, unknown> = {}) {
     admin_email: 'jane@sourceco.com',
 
     // Buyer profile (pre-joined)
-    buyer_type: 'strategic',
+    buyer_type: 'corporate',
     buyer_website: 'https://doecapital.com',
     buyer_quality_score: 90,
     buyer_tier: 1,

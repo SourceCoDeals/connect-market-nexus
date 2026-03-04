@@ -143,8 +143,8 @@ const LISTING_LEAD_FIELDS = [
 export const buyerTools: ClaudeTool[] = [
   {
     name: 'search_buyers',
-    description: `Search remarketing buyers (acquirers, PE firms, platforms) in the remarketing_buyers table.
-DATA SOURCE: remarketing_buyers table + cross-references remarketing_buyer_universes for universe-aware matching.
+    description: `Search remarketing buyers (acquirers, PE firms, platforms) in the buyers table.
+DATA SOURCE: buyers table + cross-references buyer_universes for universe-aware matching.
 USE WHEN: "find HVAC buyers", "buyers in Texas", "PE firms interested in plumbing", "who has a fee agreement".
 SEARCHABLE FIELDS: company_name, pe_firm_name, target_industries, target_services, services_offered, industry_vertical, thesis_summary, business_summary, notes, alignment_reasoning, hq_state, geographic_footprint, target_geographies, service_regions, operating_locations, revenue_model.
 KEY BEHAVIOR: Automatically includes buyers from universes whose name matches the search/industry term (e.g. "HVAC" finds buyers in the "Residential HVAC, Plumbing and Electrical" universe even if the buyer record itself doesn't say "HVAC"). When state is provided, returns ALL buyers in that state (not limited to top results).`,
@@ -391,7 +391,7 @@ async function searchBuyers(
     : Math.min(Number(args.limit) || 25, 100);
 
   let query = supabase
-    .from('remarketing_buyers')
+    .from('buyers')
     .select(fields)
     .order('alignment_score', { ascending: false, nullsFirst: false })
     .limit(limit);
@@ -427,21 +427,38 @@ async function searchBuyers(
   // matches the search term, and include all buyers from those universes.
   // This ensures "Find HVAC buyers" returns buyers from the "Residential HVAC, Plumbing
   // and Electrical" universe even if individual buyer records don't contain "hvac".
+  //
+  // IMPORTANT: For ambiguous short terms (e.g. "auto"), prefer exact word-boundary matches
+  // to avoid cross-contamination (e.g. "auto" matching both "Auto Services" and "Collision/Auto Body").
   const matchingUniverseIds: Set<string> = new Set();
+  const matchedUniverseNames: Map<string, string> = new Map(); // id -> name for transparency
   if ((args.industry || args.search) && !args.universe_id) {
     const searchTerm = ((args.industry || args.search) as string).toLowerCase();
     const { data: universes } = await supabase
-      .from('remarketing_buyer_universes')
+      .from('buyer_universes')
       .select('id, name, description')
       .eq('archived', false);
 
     if (universes) {
+      // Build word-boundary regex for more precise matching on short/ambiguous terms
+      // For terms <= 5 chars (e.g. "auto", "hvac"), require word boundary to avoid
+      // "auto" matching "auto body" in a collision universe description
+      const useStrictMatch = searchTerm.length <= 5;
+      const wordBoundaryRegex = useStrictMatch
+        ? new RegExp(`\\b${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+        : null;
+
       for (const u of universes) {
-        if (
-          u.name?.toLowerCase().includes(searchTerm) ||
-          u.description?.toLowerCase().includes(searchTerm)
-        ) {
+        const nameMatch = useStrictMatch
+          ? wordBoundaryRegex!.test(u.name || '')
+          : u.name?.toLowerCase().includes(searchTerm);
+        const descMatch = useStrictMatch
+          ? wordBoundaryRegex!.test(u.description || '')
+          : u.description?.toLowerCase().includes(searchTerm);
+
+        if (nameMatch || descMatch) {
           matchingUniverseIds.add(u.id);
+          matchedUniverseNames.set(u.id, u.name || 'Unknown');
         }
       }
     }
@@ -452,7 +469,7 @@ async function searchBuyers(
       const universeIds = Array.from(matchingUniverseIds);
 
       let universeQuery = supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select(fields)
         .in('universe_id', universeIds)
         .order('alignment_score', { ascending: false, nullsFirst: false })
@@ -496,11 +513,15 @@ async function searchBuyers(
   // Client-side revenue range filter
   if (args.min_revenue) {
     const min = args.min_revenue as number;
-    results = results.filter((b: BuyerRecord) => !b.target_revenue_max || b.target_revenue_max >= min);
+    results = results.filter(
+      (b: BuyerRecord) => !b.target_revenue_max || b.target_revenue_max >= min,
+    );
   }
   if (args.max_revenue) {
     const max = args.max_revenue as number;
-    results = results.filter((b: BuyerRecord) => !b.target_revenue_min || b.target_revenue_min <= max);
+    results = results.filter(
+      (b: BuyerRecord) => !b.target_revenue_min || b.target_revenue_min <= max,
+    );
   }
 
   // Client-side industry keyword filter — searches ALL relevant buyer fields
@@ -605,6 +626,21 @@ async function searchBuyers(
   if (args.universe_id) filtersApplied.universe_id = args.universe_id;
   if (args.exclude_financial_buyers) filtersApplied.exclude_financial_buyers = true;
 
+  // Build universe breakdown for transparency when universe-aware matching was active
+  const universeBreakdown: Record<string, { name: string; count: number }> = {};
+  if (matchedUniverseNames.size > 0) {
+    for (const b of results) {
+      const bRecord = b as BuyerRecord;
+      if (bRecord.universe_id && matchedUniverseNames.has(bRecord.universe_id)) {
+        const uid = bRecord.universe_id;
+        if (!universeBreakdown[uid]) {
+          universeBreakdown[uid] = { name: matchedUniverseNames.get(uid)!, count: 0 };
+        }
+        universeBreakdown[uid].count++;
+      }
+    }
+  }
+
   return {
     data: {
       buyers: results,
@@ -613,6 +649,20 @@ async function searchBuyers(
       depth,
       filters_applied: filtersApplied,
       limit_reached: results.length >= limit,
+      // Show which universes were matched so the AI can detect cross-contamination
+      ...(matchedUniverseNames.size > 0
+        ? {
+            matched_universes: Object.entries(universeBreakdown).map(([id, info]) => ({
+              universe_id: id,
+              universe_name: info.name,
+              buyer_count: info.count,
+            })),
+            universe_warning:
+              matchedUniverseNames.size > 1
+                ? `WARNING: ${matchedUniverseNames.size} different universes matched the search term. Results include buyers from: ${Array.from(matchedUniverseNames.values()).join(', ')}. If the user asked about a SPECIFIC universe, re-query with universe_id to scope results correctly.`
+                : undefined,
+          }
+        : {}),
       ...(results.length === 0
         ? {
             suggestion:
@@ -634,7 +684,7 @@ async function getBuyerProfile(
   // Parallel fetch: buyer + contacts + scores + transcripts
   // Updated Feb 2026: contacts now fetched from unified contacts table (buyer_contacts is legacy)
   const [buyerResult, contactsResult, scoresResult, transcriptsResult] = await Promise.all([
-    supabase.from('remarketing_buyers').select(BUYER_FIELDS_FULL).eq('id', buyerId).single(),
+    supabase.from('buyers').select(BUYER_FIELDS_FULL).eq('id', buyerId).single(),
     supabase
       .from('contacts')
       .select(
@@ -737,7 +787,7 @@ async function getTopBuyersForDeal(
   // Fetch buyer details for the scored buyer IDs
   const buyerIds = scores.map((s: { buyer_id: string }) => s.buyer_id);
   let buyerQuery = supabase
-    .from('remarketing_buyers')
+    .from('buyers')
     .select(
       'id, company_name, pe_firm_name, buyer_type, hq_state, hq_city, has_fee_agreement, geographic_footprint',
     )
@@ -937,7 +987,13 @@ async function searchValuationLeads(
   if (args.search) {
     const term = (args.search as string).toLowerCase();
     leads = leads.filter(
-      (l: { business_name?: string; display_name?: string; industry?: string; region?: string; location?: string }) =>
+      (l: {
+        business_name?: string;
+        display_name?: string;
+        industry?: string;
+        region?: string;
+        location?: string;
+      }) =>
         l.business_name?.toLowerCase().includes(term) ||
         l.display_name?.toLowerCase().includes(term) ||
         l.industry?.toLowerCase().includes(term) ||

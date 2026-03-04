@@ -56,7 +56,7 @@ const PEFirmDetail = () => {
     addPlatformMutation,
   } = usePEFirmData();
   const location = useLocation();
-  const backTo = (location.state as { from?: string } | null)?.from || '/admin/buyers?tab=pe_firm';
+  const backTo = (location.state as { from?: string } | null)?.from || '/admin/buyers?tab=private_equity';
 
   if (firmLoading) {
     return (

@@ -38,11 +38,11 @@ export const useBuyersData = () => {
     queryKey: ['remarketing', 'buyers', universeFilter],
     queryFn: async () => {
       let query = supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select(
           `
           *,
-          universe:remarketing_buyer_universes(id, name),
+          universe:buyer_universes(id, name),
           firm_agreement:firm_agreements!remarketing_buyers_marketplace_firm_id_fkey(
             id,
             nda_signed,
@@ -100,7 +100,7 @@ export const useBuyersData = () => {
     queryKey: ['remarketing', 'universes'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyer_universes')
+        .from('buyer_universes')
         .select('id, name')
         .eq('archived', false)
         .order('name');
@@ -114,7 +114,13 @@ export const useBuyersData = () => {
   const { data: unsignedAgreements } = useQuery({
     queryKey: ['unsigned-agreements-buyers-tab'],
     queryFn: async () => {
-      const items: { id: string; primary_company_name: string; type: 'nda' | 'fee_agreement'; status: string | null; sent_at: string | null }[] = [];
+      const items: {
+        id: string;
+        primary_company_name: string;
+        type: 'nda' | 'fee_agreement';
+        status: string | null;
+        sent_at: string | null;
+      }[] = [];
 
       const { data: unsignedNdas } = await supabase
         .from('firm_agreements')
@@ -161,31 +167,44 @@ export const useBuyersData = () => {
 
   // Compute tab counts from loaded buyers
   const tabCounts = useMemo(() => {
-    if (!buyers) return { all: 0, pe_firm: 0, platform: 0, needs_agreements: 0, unsigned_agreements: 0 };
-    let pe_firm = 0,
-      platform = 0,
+    if (!buyers)
+      return {
+        all: 0,
+        private_equity: 0,
+        corporate: 0,
+        needs_review: 0,
+        needs_agreements: 0,
+        unsigned_agreements: 0,
+      };
+    let private_equity = 0,
+      corporate = 0,
+      needs_review = 0,
       needs_agreements = 0;
     buyers.forEach((b) => {
-      if (isSponsorType(b.buyer_type)) pe_firm++;
-      if (b.buyer_type === 'platform' || !b.buyer_type) platform++;
+      if (isSponsorType(b.buyer_type)) private_equity++;
+      if (b.buyer_type === 'corporate' || !b.buyer_type) corporate++;
+      if ((b as Record<string, unknown>).buyer_type_needs_review) needs_review++;
       if (!b.has_fee_agreement) needs_agreements++;
     });
     return {
       all: buyers.length,
-      pe_firm,
-      platform,
+      private_equity,
+      corporate,
+      needs_review,
       needs_agreements,
       unsigned_agreements: unsignedAgreements?.length ?? 0,
     };
   }, [buyers, unsignedAgreements]);
 
   // Calculate platform counts per PE firm (for the PE Firms tab)
+  // Counts corporate buyers that have a pe_firm_name (i.e., PE-backed corporates)
   const platformCountsByFirm = useMemo(() => {
     if (!buyers) return new Map<string, number>();
     const counts = new Map<string, number>();
     buyers.forEach((b) => {
-      if (b.pe_firm_name && !isSponsorType(b.buyer_type)) {
-        counts.set(b.pe_firm_name, (counts.get(b.pe_firm_name) || 0) + 1);
+      const isPeBacked = b.pe_firm_name && !isSponsorType(b.buyer_type);
+      if (isPeBacked) {
+        counts.set(b.pe_firm_name!, (counts.get(b.pe_firm_name!) || 0) + 1);
       }
     });
     return counts;
@@ -202,7 +221,7 @@ export const useBuyersData = () => {
       // Check for duplicate buyer by domain
       if (normalizedWebsite) {
         const query = supabase
-          .from('remarketing_buyers')
+          .from('buyers')
           .select('id, company_name, company_website')
           .eq('archived', false)
           .not('company_website', 'is', null);
@@ -222,7 +241,7 @@ export const useBuyersData = () => {
         }
       }
 
-      const { error } = await supabase.from('remarketing_buyers').insert({
+      const { error } = await supabase.from('buyers').insert({
         company_name: newBuyer.company_name,
         company_website: normalizedWebsite,
         buyer_type: newBuyer.buyer_type || null,
@@ -259,7 +278,7 @@ export const useBuyersData = () => {
   // Delete buyer mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('remarketing_buyers').delete().eq('id', id);
+      const { error } = await supabase.from('buyers').delete().eq('id', id);
 
       if (error) throw error;
     },
@@ -276,11 +295,14 @@ export const useBuyersData = () => {
 
     // Tab filter
     switch (activeTab) {
-      case 'pe_firm':
+      case 'private_equity':
         result = result.filter((b) => isSponsorType(b.buyer_type));
         break;
-      case 'platform':
-        result = result.filter((b) => b.buyer_type === 'platform' || !b.buyer_type);
+      case 'corporate':
+        result = result.filter((b) => b.buyer_type === 'corporate' || !b.buyer_type);
+        break;
+      case 'needs_review':
+        result = result.filter((b) => (b as Record<string, unknown>).buyer_type_needs_review);
         break;
       case 'needs_agreements':
         result = result.filter((b) => !b.has_fee_agreement);

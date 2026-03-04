@@ -32,14 +32,12 @@ interface AddBuyerToDealDialogProps {
 }
 
 const BUYER_TYPES = [
-  { value: 'pe_platform', label: 'PE Platform' },
-  { value: 'pe_add_on', label: 'PE Add-on' },
-  { value: 'strategic', label: 'Strategic' },
-  { value: 'independent_sponsor', label: 'Independent Sponsor' },
+  { value: 'private_equity', label: 'PE Firm' },
+  { value: 'corporate', label: 'Corporate' },
   { value: 'family_office', label: 'Family Office' },
+  { value: 'independent_sponsor', label: 'Independent Sponsor' },
   { value: 'search_fund', label: 'Search Fund' },
-  { value: 'individual', label: 'Individual' },
-  { value: 'other', label: 'Other' },
+  { value: 'individual_buyer', label: 'Individual' },
 ];
 
 export function AddBuyerToDealDialog({
@@ -69,7 +67,7 @@ export function AddBuyerToDealDialog({
     queryKey: ['remarketing-buyers-list'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select('id, company_name, buyer_type, pe_firm_name, hq_state')
         .eq('archived', false)
         .order('company_name');
@@ -165,7 +163,7 @@ export function AddBuyerToDealDialog({
     mutationFn: async () => {
       // 1. Create the remarketing buyer
       const { data: createdBuyer, error: buyerError } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .insert({
           company_name: newBuyer.company_name.trim(),
           buyer_type: newBuyer.buyer_type || null,
@@ -179,13 +177,15 @@ export function AddBuyerToDealDialog({
 
       // 2. Create a contact for the buyer if we have contact info
       if (newBuyer.contact_name.trim() || newBuyer.contact_email.trim()) {
-        await supabase.from('remarketing_buyer_contacts').insert([{
-          buyer_id: createdBuyer.id,
-          name: newBuyer.contact_name.trim() || 'Unknown',
-          email: newBuyer.contact_email.trim() || null,
-          phone: newBuyer.contact_phone.trim() || null,
-          is_primary_contact: true,
-        }]);
+        await supabase.from('remarketing_buyer_contacts').insert([
+          {
+            buyer_id: createdBuyer.id,
+            name: newBuyer.contact_name.trim() || 'Unknown',
+            email: newBuyer.contact_email.trim() || null,
+            phone: newBuyer.contact_phone.trim() || null,
+            is_primary_contact: true,
+          },
+        ]);
       }
 
       // 3. Create the pipeline deal via edge function

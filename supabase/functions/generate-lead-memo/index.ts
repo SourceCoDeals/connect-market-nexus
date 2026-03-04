@@ -194,53 +194,82 @@ Deno.serve(async (req: Request) => {
       if (teaserError) throw teaserError;
       results.anonymous_teaser = teaser;
 
-      // Sync anonymous teaser to listing as ONE unified text block.
-      // Instead of splitting into separate custom_sections (which are hard to
-      // manage/edit), we merge all sections into a single description with
-      // section headers as bold dividers within the text.
-      const contentSections = teaserContent.sections
-        .filter((s: MemoSection) => s.key !== 'header_block' && s.key !== 'contact_information');
+      // Sync anonymous teaser content to the appropriate listing row.
+      //
+      // The deal row (is_internal_deal=true) should NOT have its description
+      // overwritten with marketplace teaser content — that causes the deal
+      // page to display marketplace listing text instead of deal notes.
+      //
+      // Strategy:
+      //  - Always save custom_sections on the deal row (used by memo renderers).
+      //  - Only write description/description_html/hero_description to the
+      //    marketplace listing child row (source_deal_id → deal_id,
+      //    is_internal_deal=false), if one exists.
+      const contentSections = teaserContent.sections.filter(
+        (s: MemoSection) => s.key !== 'header_block' && s.key !== 'contact_information',
+      );
 
-      // Also keep custom_sections populated for backwards compatibility
+      // Keep custom_sections populated for backwards compatibility
       // with landing pages and detail views that render them
-      const customSections = contentSections
-        .map((s: MemoSection) => ({ title: s.title, description: s.content }));
+      const customSections = contentSections.map((s: MemoSection) => ({
+        title: s.title,
+        description: s.content,
+      }));
 
-      // Build ONE unified description from all sections
-      const unifiedDescription = contentSections
-        .map((s: MemoSection) => `**${s.title}**\n\n${s.content}`)
-        .join('\n\n---\n\n');
-
-      // Build unified HTML
-      const unifiedHtml = contentSections
-        .map((s: MemoSection) => {
-          const sectionContent = s.content
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/^/, '<p>')
-            .replace(/$/, '</p>');
-          return `<h3 style="font-size:16px;font-weight:bold;color:#1a1a2e;margin:24px 0 8px 0;padding-bottom:4px;border-bottom:1px solid #e0e0e0;">${s.title}</h3>${sectionContent}`;
-        })
-        .join('');
-
-      const listingUpdate: Record<string, unknown> = {
-        custom_sections: customSections,
-        description: unifiedDescription,
-        description_html: `<div class="unified-memo">${unifiedHtml}</div>`,
-      };
-
-      // Generate a compelling hero_description from the memo content.
-      // The hero is the first thing buyers see on cards and landing pages —
-      // it must be a concise 2-3 sentence elevator pitch, not just a data dump.
-      listingUpdate.hero_description = buildHeroFromMemo(teaserContent.sections, deal);
-
-      const { error: syncError } = await supabaseAdmin
+      // Save custom_sections on the deal row (does NOT touch description)
+      const { error: dealSyncError } = await supabaseAdmin
         .from('listings')
-        .update(listingUpdate)
+        .update({ custom_sections: customSections })
         .eq('id', deal_id);
-      if (syncError) {
-        console.error('Failed to sync teaser sections to listing:', syncError);
+      if (dealSyncError) {
+        console.error('Failed to sync custom_sections to deal:', dealSyncError);
+      }
+
+      // Check if a marketplace listing (child row) exists for this deal
+      const { data: marketplaceListing } = await supabaseAdmin
+        .from('listings')
+        .select('id')
+        .eq('source_deal_id', deal_id)
+        .eq('is_internal_deal', false)
+        .maybeSingle();
+
+      if (marketplaceListing) {
+        // Build ONE unified description from all sections
+        const unifiedDescription = contentSections
+          .map((s: MemoSection) => `**${s.title}**\n\n${s.content}`)
+          .join('\n\n---\n\n');
+
+        // Build unified HTML
+        const unifiedHtml = contentSections
+          .map((s: MemoSection) => {
+            const sectionContent = s.content
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\*(.*?)\*/g, '<em>$1</em>')
+              .replace(/\n\n/g, '</p><p>')
+              .replace(/^/, '<p>')
+              .replace(/$/, '</p>');
+            return `<h3 style="font-size:16px;font-weight:bold;color:#1a1a2e;margin:24px 0 8px 0;padding-bottom:4px;border-bottom:1px solid #e0e0e0;">${s.title}</h3>${sectionContent}`;
+          })
+          .join('');
+
+        const listingUpdate: Record<string, unknown> = {
+          custom_sections: customSections,
+          description: unifiedDescription,
+          description_html: `<div class="unified-memo">${unifiedHtml}</div>`,
+        };
+
+        // Generate a compelling hero_description from the memo content.
+        // The hero is the first thing buyers see on cards and landing pages —
+        // it must be a concise 2-3 sentence elevator pitch, not just a data dump.
+        listingUpdate.hero_description = buildHeroFromMemo(teaserContent.sections, deal);
+
+        const { error: syncError } = await supabaseAdmin
+          .from('listings')
+          .update(listingUpdate)
+          .eq('id', marketplaceListing.id);
+        if (syncError) {
+          console.error('Failed to sync teaser sections to marketplace listing:', syncError);
+        }
       }
     }
 
@@ -436,12 +465,14 @@ function buildDataContext(
  * Extracts the opening sentences from company_overview and combines with key financial
  * highlights from financial_overview to create a concise elevator pitch.
  */
-function buildHeroFromMemo(
-  sections: MemoSection[],
-  deal: Record<string, unknown>,
-): string {
-  const overview = sections.find((s) => s.key === 'company_overview');
-  const financial = sections.find((s) => s.key === 'financial_overview');
+function buildHeroFromMemo(sections: MemoSection[], _deal: Record<string, unknown>): string {
+  // Support both new keys (business_overview, deal_snapshot) and legacy keys (company_overview, financial_overview)
+  const overview =
+    sections.find((s) => s.key === 'business_overview') ||
+    sections.find((s) => s.key === 'company_overview');
+  const financial =
+    sections.find((s) => s.key === 'deal_snapshot') ||
+    sections.find((s) => s.key === 'financial_overview');
   const growth = sections.find((s) => s.key === 'growth_opportunities');
 
   const heroParts: string[] = [];
@@ -523,16 +554,57 @@ const BANNED_WORDS = [
   'uniquely positioned',
   'market leader',
   'value creation opportunity',
+  'healthy',
+  'recession-resistant',
+  'scalable',
+  'turnkey',
+  'world-class',
+  'industry-leading',
+  'deep bench',
+  'blue-chip',
+  'mission-critical',
+  'sticky revenue',
+  'white-space',
+  'low-hanging fruit',
+  'runway',
+  'tailwinds',
+  'fragmented market',
+  'platform opportunity',
+  'notable',
+  'consistent',
+  'solid',
+  'substantial',
+  'meaningful',
+  'considerable',
+  'positioned for',
+  'well-established',
+  'high-quality',
+  'top-tier',
+  'premier',
+  'best-of-breed',
+  'differentiated',
+  'defensible',
+  'diversified',
 ];
 
-// Post-process: strip any banned words that slipped through
+// Post-process: strip any banned words that slipped through.
+// Preserves text inside quotation marks (owner quotes may contain banned language).
 function enforceBannedWords(sections: MemoSection[]): MemoSection[] {
   return sections.map((s) => {
     let content = s.content;
-    for (const banned of BANNED_WORDS) {
-      const regex = new RegExp(`\\b${banned}\\b`, 'gi');
-      content = content.replace(regex, '');
+    // Split on quoted segments to preserve owner quotes
+    const parts = content.split(/("[^"]*")/g);
+    for (let i = 0; i < parts.length; i++) {
+      // Only process non-quoted segments (odd indices are quoted matches)
+      if (i % 2 === 0) {
+        for (const banned of BANNED_WORDS) {
+          const escaped = banned.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+          parts[i] = parts[i].replace(regex, '');
+        }
+      }
     }
+    content = parts.join('');
     // Clean up double spaces left by removals
     content = content.replace(/  +/g, ' ').replace(/ ,/g, ',').replace(/ \./g, '.');
     return { ...s, content };
@@ -739,6 +811,662 @@ function enforceAnonymization(
   });
 }
 
+// ─── Full Lead Memo Generation (institutional factual memo) ───
+
+// Expected section headers for full lead memo
+const FULL_MEMO_EXPECTED_SECTIONS = [
+  'COMPANY OVERVIEW',
+  'FINANCIAL SNAPSHOT',
+  'SERVICES AND OPERATIONS',
+  'OWNERSHIP AND TRANSACTION',
+  'MANAGEMENT AND STAFFING',
+  'KEY STRUCTURAL NOTES',
+  'INFORMATION NOT YET PROVIDED',
+];
+
+const FULL_MEMO_REQUIRED_SECTIONS = ['COMPANY OVERVIEW', 'INFORMATION NOT YET PROVIDED'];
+
+// Evaluative adjectives for audit warning (Check 6)
+const EVALUATIVE_ADJECTIVES = [
+  'strong',
+  'large',
+  'high',
+  'good',
+  'great',
+  'excellent',
+  'growing',
+  'stable',
+  'mature',
+  'efficient',
+  'clean',
+  'lean',
+  'tight',
+  'reliable',
+];
+
+// Parse markdown with ## headers into MemoSection array
+function parseMarkdownToSections(markdown: string): MemoSection[] {
+  const sections: MemoSection[] = [];
+  // Split on ## headers — parts[0] is text before first ##, rest are sections
+  const parts = markdown.split(/^## /gm);
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const newlineIdx = trimmed.indexOf('\n');
+    if (newlineIdx === -1) continue;
+    const title = trimmed.substring(0, newlineIdx).trim();
+    const content = trimmed.substring(newlineIdx + 1).trim();
+    if (!content) continue;
+    const key = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/(^_|_$)/g, '');
+    sections.push({ key, title, content });
+  }
+  return sections;
+}
+
+interface ValidationResult {
+  passed: boolean;
+  reason: string;
+}
+
+// Blocking validation checks for full lead memo (Checks 2, 3, 4)
+function validateFullMemoSections(sections: MemoSection[]): ValidationResult {
+  // Check 2: Required sections exist
+  const sectionTitles = sections.map((s) => s.title.toUpperCase().trim());
+  for (const required of FULL_MEMO_REQUIRED_SECTIONS) {
+    if (!sectionTitles.includes(required)) {
+      return { passed: false, reason: `Missing required section: "${required}"` };
+    }
+  }
+
+  // Check 4: No unexpected section headers
+  for (const title of sectionTitles) {
+    if (!FULL_MEMO_EXPECTED_SECTIONS.includes(title)) {
+      return {
+        passed: false,
+        reason: `Unexpected section header: "${title}". Expected one of: ${FULL_MEMO_EXPECTED_SECTIONS.join(', ')}`,
+      };
+    }
+  }
+
+  // Check 3: Word count <= 1000
+  const allContent = sections.map((s) => s.content).join(' ');
+  const wordCount = allContent.split(/\s+/).filter((w) => w.length > 0).length;
+  if (wordCount > 1000) {
+    return {
+      passed: false,
+      reason: `Word count is ${wordCount}. The maximum is 1,000 words. Shorten by removing lowest-priority content (enrichment details first, then operational details).`,
+    };
+  }
+
+  return { passed: true, reason: '' };
+}
+
+// Non-blocking warning checks for full lead memo (Checks 5, 6)
+function runMemoWarnings(sections: MemoSection[]): { warnings: string[] } {
+  const warnings: string[] = [];
+
+  // Check 5: Financial Figure Repetition
+  const figuresBySection: Map<string, string[]> = new Map();
+  for (const section of sections) {
+    const figures = section.content.match(/\$[\d,.]+[KMBkmb]?|\d+(\.\d+)?%/g) || [];
+    for (const fig of figures) {
+      const existing = figuresBySection.get(fig);
+      if (existing) {
+        existing.push(section.title);
+      } else {
+        figuresBySection.set(fig, [section.title]);
+      }
+    }
+  }
+  for (const [figure, sectionNames] of figuresBySection) {
+    if (sectionNames.length > 1) {
+      warnings.push(
+        `Financial figure "${figure}" appears in multiple sections: ${sectionNames.join(', ')}`,
+      );
+    }
+  }
+
+  // Check 6: Adjective Audit — flag evaluative adjectives not within 30 chars of a number
+  for (const section of sections) {
+    // Strip quoted text (owner quotes are acceptable)
+    const unquoted = section.content.replace(/"[^"]*"/g, '');
+    for (const adj of EVALUATIVE_ADJECTIVES) {
+      const regex = new RegExp(`\\b${adj}\\b`, 'gi');
+      let match;
+      while ((match = regex.exec(unquoted)) !== null) {
+        const start = Math.max(0, match.index - 30);
+        const end = Math.min(unquoted.length, match.index + adj.length + 30);
+        const surrounding = unquoted.substring(start, end);
+        if (!/\d/.test(surrounding)) {
+          warnings.push(
+            `Adjective "${adj}" in ${section.title} without nearby number: "...${surrounding.trim()}..."`,
+          );
+        }
+      }
+    }
+  }
+
+  return { warnings };
+}
+
+// Generate a Full Lead Memo using the institutional factual prompt pipeline
+async function generateFullMemo(
+  apiKey: string,
+  context: DataContext,
+  branding: string,
+  companyMeta: {
+    company_name: string;
+    company_address: string;
+    company_website: string;
+    company_phone: string;
+  },
+): Promise<MemoContent> {
+  const systemPrompt = `You are a senior analyst at a tech-enabled investment bank writing an internal lead memo. This is a confidential document. Your audience is partners and deal team members who need to evaluate this opportunity quickly and consistently.
+
+PURPOSE: Create a structured factual summary that preserves facts exactly as stated, provides enough clarity to determine buyer fit and risk profile, and removes ambiguity around financial quality, operational structure, and ownership dynamics. A partner should be able to read this memo in under 5 minutes and know whether to pursue the deal.
+
+This is not a marketing document. It is not a teaser. It is an institutional record. It is meant to inform, not persuade.
+
+FORMAT RULES:
+- The complete memo must be 600-900 words. Do not exceed 1,000 words under any circumstance.
+- Use bullet points for all content outside the Company Overview section. Do not use prose paragraphs in any other section.
+- Company Overview should be 1 short paragraph (3-5 sentences max).
+- Use bold labels for the following fields: Transaction type, Reason for sale, Valuation context, Real estate, EBITDA, Revenue, Headcount, and any structured data field. Do not bold every bullet.
+- Include facts in this priority order: (1) financial figures, (2) transaction preferences and valuation context, (3) ownership and management structure, (4) services and operations, (5) enrichment details. If a fact must be omitted for length, add it to the INFORMATION NOT YET PROVIDED section as: "[Topic] — available in source data but omitted for brevity."
+
+CORE DISCIPLINE:
+- Every statement must be traceable to the provided source data (transcripts, financials, enrichment data, manual entries).
+- If information was not directly stated, it must not be included. There is no room for inference.
+- If margins appear high, do not comment on it. If a growth opportunity seems obvious but was not stated by the owner, it does not go in the memo.
+- When clarity is lacking, state that clarity is lacking: "Customer concentration not yet provided." or "Contract terms not discussed."
+- Transparency about unknowns is more valuable than speculative completion.
+- Do not characterize any data point. Do not describe revenue as "consistent," margins as "healthy," growth as "notable," or any metric with any evaluative adjective. State the number. The reader will interpret.
+- Do not make comparisons to industry benchmarks, competitors, or market averages unless the source data contains a specific stated comparison.
+- Do not use language that implies quality, risk, or opportunity. The memo presents facts. It does not evaluate them.
+- When the same source provides contradictory figures (e.g., monthly revenue that does not annualize to stated annual revenue), include both figures exactly as stated and flag the discrepancy: "Owner stated $X monthly and $Y annually — these figures do not reconcile and should be clarified."
+- If the owner provides a revenue or EBITDA range, present the range exactly as stated. Do not use the midpoint or either bound as a single figure.
+
+WRITING STANDARD:
+- Neutral, factual, controlled.
+- No adjectives that imply quality. No promotional phrasing. No narrative storytelling. No emotional framing.
+- Replace qualitative language with measurable facts. Wrong: "Diversified customer base." Right: "No customer represents more than 12% of revenue."
+- When the owner's exact words are important to understanding their position (especially on transaction preferences, business description, or management involvement), use a direct quote attributed to the owner. Keep quotes to one sentence maximum.
+
+SOURCE HIERARCHY:
+- If financial statements or tax returns are provided, they take priority over verbal owner statements for financial figures specifically. Note the discrepancy: "Owner stated $X; financial statements show $Y."
+- For all other facts: Transcripts > General Notes > Enrichment/Website > Manual entries.
+- If multiple transcripts are provided, treat the most recent transcript as the highest priority. If figures differ between transcripts, use the most recent figure and note: "Updated from earlier call."
+- For verifiable objective facts (founding year, legal name, number of locations), cross-reference transcript statements with enrichment data. If they conflict, include both: "Owner stated founded in 2005; website states 2009."
+- If no call transcript is provided, note at the top of the memo: "This memo is based on enrichment data and manual entries only. No owner call transcript is available."
+
+SECTIONS — use only the following section headers, in this order, when data exists for the section. COMPANY OVERVIEW and INFORMATION NOT YET PROVIDED are always included regardless of data availability. Omit any other section that has no data.
+
+## COMPANY OVERVIEW
+One paragraph, 3-5 sentences. Legal name, DBA if relevant, founded year, headquarters, number of locations and geography, employee count if known, ownership structure, core industry and service category. What the company does in plain terms. Business model defined clearly. This section should allow someone unfamiliar with the company to understand the nature of the business without interpretation.
+
+## FINANCIAL SNAPSHOT
+Present financial data in the most structured format the data supports:
+- If multi-year data is available, use a year-over-year table.
+- If data is available by location or market, use a location-based table (columns: Market, Locations, Revenue/Mo, Revenue/Yr or similar).
+- If only top-line figures are available, use labeled bullet points.
+- Always include a line for EBITDA. If not provided, state: "EBITDA not yet provided."
+- For owner-operated businesses where neither EBITDA nor SDE has been provided, note: "This is an owner-operated business. SDE may be the appropriate earnings metric. SDE not yet provided."
+- If adjusted EBITDA is mentioned, list each add-back individually with its dollar amount.
+- If owner compensation is stated, include the exact figure.
+- If debt, working capital, or balance sheet data exists, include it. If not, state: "Balance sheet information not yet provided."
+- Do not characterize any trend. State the numbers.
+
+For markdown tables, use standard format:
+| Column 1 | Column 2 | Column 3 |
+| --- | --- | --- |
+| Data | Data | Data |
+
+## SERVICES AND OPERATIONS
+What services are performed, how revenue is generated, and relevant operational details. All bullet points:
+- Primary and secondary services
+- Revenue mix by category if available (% breakdown)
+- Recurring vs. project-based revenue if discussed
+- Customer base type (retail, commercial, fleet, government) and concentration data if available. If not available, state: "Customer concentration data not yet provided."
+- Vertical-specific KPIs when available:
+  - Automotive repair: service mix %, avg ticket, car count, bay count, ASE certs, warranty programs, fleet vs retail, franchise/affiliate memberships
+  - Collision repair: DRP %, OEM certs, ADAS capability, enterprise relationships, revenue per location
+  - Infrastructure/construction: backlog, avg contract size, bonding capacity, public vs private mix, licensing
+  - Staffing: gross margin, bill rate, contract vs perm mix, recruiter headcount
+  - HVAC/mechanical: service vs install mix, commercial vs residential, maintenance agreement count, union status
+  - Marine: yard capacity, dock size, certs, government work
+  - IT/MSP: MRR, seat count, contract length, stack details
+- Include only KPIs that appear in the provided data.
+
+## OWNERSHIP AND TRANSACTION
+Combine ownership details and transaction preferences into one section. All bullet points:
+- Owner name(s), roles, and involvement level
+- Transaction type (full sale, majority recap, partnership, etc.)
+- Reason for sale
+- Valuation expectation if stated (exact figures or multiples as given — do not comment on reasonableness)
+- Management continuity post-transaction
+- Real estate ownership (owned vs leased, included or excluded from deal)
+- Any prior transaction history stated by the owner
+
+## MANAGEMENT AND STAFFING
+All bullet points:
+- Management structure (who runs day-to-day operations)
+- Owner involvement level (be specific — what does the owner do daily)
+- Key personnel and their roles
+- Store/location-level management details
+- Total headcount if available. If not: "Total headcount not yet provided."
+- Compensation, benefits, and retention data if available. If not, state as gap.
+
+## KEY STRUCTURAL NOTES
+Include only if relevant structural complexity exists. All bullet points:
+- Separate LLCs or entity structure
+- Personally owned real estate with lease terms to the business
+- Related businesses under same ownership (and whether shared overhead exists)
+- Government designations (HUBZone, 8(a), SDVOSB, etc.)
+- Non-compete structures, earn-out preferences, seller financing willingness
+- Any other structural detail that affects deal evaluation
+
+## INFORMATION NOT YET PROVIDED
+This section is ALWAYS included. List every data point that was not available from the source data and would be needed for a complete evaluation.
+
+At minimum, check for and list any of the following that are missing:
+- Recast/adjusted EBITDA with itemized add-backs
+- Multi-year revenue by year (at least 3 years)
+- Owner compensation
+- Employee headcount by location
+- Customer concentration (top customer %)
+- Lease terms and expiration dates
+- Entity/legal structure
+- Balance sheet / debt schedule
+
+Add any deal-specific gaps beyond this baseline. If a fact was available in the source data but omitted from the memo for brevity, list it here as: "[Topic] — available in source data, omitted for brevity."
+
+BANNED LANGUAGE — never use any of these words or phrases:
+strong, robust, impressive, attractive, compelling, well-positioned, significant opportunity, poised for growth, track record of success, best-in-class, proven, demonstrated, synergies, uniquely positioned, market leader, value creation opportunity, healthy, diversified (as adjective without data), recession-resistant (without data), scalable (without specifics), turnkey, world-class, industry-leading, deep bench, blue-chip, mission-critical, sticky revenue, white-space, low-hanging fruit, runway, tailwinds, fragmented market, platform opportunity, notable, consistent (as characterization), solid, substantial, meaningful, considerable, positioned for, well-established, high-quality, top-tier, premier, best-of-breed, differentiated, defensible, platform (when used to characterize or elevate the business)`;
+
+  const userPrompt = `Generate a Full Lead Memo from the following company data.
+
+IMPORTANT: Call transcripts may include conversations between SourceCo associates and the business owner. Extract only facts about the target company stated by the owner or confirmed by the owner. Do not include information about prospective buyers, the SourceCo associate's pitch, buyer expansion plans, or negotiation framing. The memo is about the seller's business only.
+
+=== CALL TRANSCRIPTS (highest priority — treat as primary source) ===
+${context.transcriptExcerpts || 'No transcripts available.'}
+
+=== ENRICHMENT DATA (website + LinkedIn — secondary source) ===
+${context.enrichmentData || 'No enrichment data available.'}
+
+=== MANUAL DATA ENTRIES & GENERAL NOTES ===
+${context.manualEntries || 'No manual entries or notes.'}
+
+=== VALUATION CALCULATOR DATA ===
+${context.valuationData || 'No valuation data.'}
+
+DATA SOURCE PRIORITY: Financial statements/tax returns (for financial figures) > Transcripts (most recent first) > General Notes > Enrichment/Website > Manual entries.
+When sources conflict, use the highest-priority source and note the discrepancy.
+When data is absent from all sources, state explicitly that it was not provided. Do not guess.
+
+Return the memo as markdown using ## headers for each section. Section headers must exactly match: COMPANY OVERVIEW, FINANCIAL SNAPSHOT, SERVICES AND OPERATIONS, OWNERSHIP AND TRANSACTION, MANAGEMENT AND STAFFING, KEY STRUCTURAL NOTES, INFORMATION NOT YET PROVIDED. Omit sections with no data except COMPANY OVERVIEW and INFORMATION NOT YET PROVIDED.
+
+Present financial data in a table when location or year breakdowns are available. Use standard markdown table format:
+| Column | Column |
+| --- | --- |
+| Data | Data |
+
+Include all identifying information. Flag any data points where sources conflict.`;
+
+  // Regeneration loop: up to 3 retries for blocking validation failures
+  let bestSections: MemoSection[] = [];
+  let retryAppendix = '';
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const promptToSend = retryAppendix ? `${userPrompt}\n\n${retryAppendix}` : userPrompt;
+
+    const response = await fetchWithAutoRetry(
+      ANTHROPIC_API_URL,
+      {
+        method: 'POST',
+        headers: getAnthropicHeaders(apiKey),
+        body: JSON.stringify({
+          model: DEFAULT_CLAUDE_MODEL,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: promptToSend }],
+          temperature: 0.2,
+          max_tokens: 4096,
+        }),
+      },
+      { callerName: 'generate-lead-memo-full', maxRetries: 2 },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Claude API error ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    const rawContent = result.content?.[0]?.text;
+
+    if (!rawContent) {
+      throw new Error('No content returned from AI');
+    }
+
+    // Parse markdown output into sections
+    let sections = parseMarkdownToSections(rawContent);
+
+    // Post-process: enforce banned words removal (preserves quoted text)
+    sections = enforceBannedWords(sections);
+
+    // Post-process: strip [DATA NEEDED: ...] and [VERIFY: ...] tags
+    sections = stripDataNeededTags(sections);
+
+    bestSections = sections;
+
+    // Run blocking validation checks (Checks 2, 3, 4)
+    const validation = validateFullMemoSections(sections);
+    if (validation.passed) {
+      break; // All blocking checks passed
+    }
+
+    // Failed validation — retry if attempts remain
+    if (attempt < 3) {
+      retryAppendix = `Your previous output failed validation: ${validation.reason}. Please correct and regenerate.`;
+      console.warn(`Full memo validation failed (attempt ${attempt + 1}): ${validation.reason}`);
+    } else {
+      console.warn(
+        `Full memo validation failed after 4 attempts. Using best attempt. Reason: ${validation.reason}`,
+      );
+    }
+  }
+
+  // Run non-blocking warning checks (Checks 5, 6)
+  const { warnings } = runMemoWarnings(bestSections);
+  if (warnings.length > 0) {
+    console.warn('Full memo warnings:', warnings);
+  }
+
+  return {
+    sections: bestSections,
+    memo_type: 'full_memo',
+    branding,
+    generated_at: new Date().toISOString(),
+    ...companyMeta,
+  };
+}
+
+// ─── Anonymous Teaser Generation (institutional factual teaser) ───
+
+// Expected section headers for anonymous teaser
+const TEASER_EXPECTED_SECTIONS = [
+  'BUSINESS OVERVIEW',
+  'DEAL SNAPSHOT',
+  'KEY FACTS',
+  'GROWTH CONTEXT',
+  'OWNER OBJECTIVES',
+];
+
+const TEASER_REQUIRED_SECTIONS = ['BUSINESS OVERVIEW', 'DEAL SNAPSHOT'];
+
+// Blocking validation checks for anonymous teaser (Checks 3, 4, 5)
+function validateTeaserSections(sections: MemoSection[]): ValidationResult {
+  // Check 3: Required sections exist
+  const sectionTitles = sections.map((s) => s.title.toUpperCase().trim());
+  for (const required of TEASER_REQUIRED_SECTIONS) {
+    if (!sectionTitles.includes(required)) {
+      return { passed: false, reason: `Missing required section: "${required}"` };
+    }
+  }
+
+  // Check 5: No unexpected section headers
+  for (const title of sectionTitles) {
+    if (!TEASER_EXPECTED_SECTIONS.includes(title)) {
+      return {
+        passed: false,
+        reason: `Unexpected section header: "${title}". Expected one of: ${TEASER_EXPECTED_SECTIONS.join(', ')}`,
+      };
+    }
+  }
+
+  // Check 4: Word count <= 600
+  const allContent = sections.map((s) => s.content).join(' ');
+  const wordCount = allContent.split(/\s+/).filter((w) => w.length > 0).length;
+  if (wordCount > 600) {
+    return {
+      passed: false,
+      reason: `Word count is ${wordCount}. The maximum is 600 words. Shorten by removing lowest-priority content.`,
+    };
+  }
+
+  return { passed: true, reason: '' };
+}
+
+// Generate an Anonymous Teaser using the institutional factual teaser pipeline
+async function generateAnonymousTeaser(
+  apiKey: string,
+  context: DataContext,
+  branding: string,
+  companyMeta: {
+    company_name: string;
+    company_address: string;
+    company_website: string;
+    company_phone: string;
+  },
+  projectCodename: string,
+  regionName: string,
+): Promise<MemoContent> {
+  // Build banned terms list for anonymity enforcement in the prompt
+  const companyName = (context.deal.internal_company_name || context.deal.title || '') as string;
+  const companyWebsite = (context.deal.website || '') as string;
+  const contactName = (context.deal.main_contact_name || '') as string;
+  const addressCity = (context.deal.address_city || '') as string;
+  const geoStates = Array.isArray(context.deal.geographic_states)
+    ? context.deal.geographic_states
+    : [];
+
+  const bannedIdentifiers: string[] = [];
+  if (companyName) bannedIdentifiers.push(`"${companyName}"`);
+  if (companyWebsite) {
+    bannedIdentifiers.push(`"${companyWebsite}"`);
+    const domain = companyWebsite
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/.*$/, '');
+    bannedIdentifiers.push(`"${domain}"`);
+  }
+  if (contactName) bannedIdentifiers.push(`"${contactName}"`);
+  if (addressCity) bannedIdentifiers.push(`"${addressCity}"`);
+  for (const s of geoStates) {
+    if (s) bannedIdentifiers.push(`"${s}"`);
+  }
+  const bannedTermsLine =
+    bannedIdentifiers.length > 0
+      ? `\nBANNED IDENTIFYING TERMS (never include any of these): ${bannedIdentifiers.join(', ')}`
+      : '';
+
+  const systemPrompt = `You are a senior analyst at a tech-enabled investment bank writing an anonymous marketplace listing. Your audience is PE firms, family offices, and strategic acquirers in the lower-middle market ($500K-$10M EBITDA range) who evaluate dozens of opportunities per week.
+
+PURPOSE: Create a factual, structured blind profile that gives qualified buyers enough information to determine fit and request a connection — without revealing the company identity. A buyer should be able to read the entire teaser in under 2 minutes.
+
+FORMAT RULES:
+- The complete teaser must be 300-500 words. Do not exceed 600 words under any circumstance.
+- Use bullet points for all content outside the Business Overview section. Do not use prose paragraphs in any other section.
+- Business Overview should be 2-3 sentences maximum.
+- Include facts in this priority order: (1) financial figures, (2) transaction type and structure, (3) business model and services, (4) management and operations. If a fact must be omitted for length, it is acceptable to drop it entirely.
+
+WRITING PRINCIPLES:
+- Every claim must be traceable to the provided data. Do not infer, speculate, or editorialize.
+- Replace adjectives with measurable facts.
+- If information is not available, omit the topic entirely. Never use placeholders, estimates, or filler.
+- Tone: neutral, factual, controlled.
+- Do not characterize any data point. State the numbers and let the reader interpret.
+- Do not make comparisons to industry benchmarks, competitors, or market averages.
+- When the owner's exact words clarify the business model or transaction preference, use a direct quote without identifying the owner by name. Example: The business is described as "an automotive maintenance and repair facility that also installs tires."
+- If the owner provides a range, present the range. Do not use midpoints.
+
+SOURCE HIERARCHY:
+- If financial statements or tax returns are provided, they take priority over verbal owner statements for financial figures specifically. Note the discrepancy: "Stated $X; financial statements show $Y."
+- For all other facts: Transcripts > General Notes > Enrichment/Website > Manual entries.
+- If multiple transcripts are provided, treat the most recent transcript as the highest priority. If figures differ between transcripts, use the most recent figure.
+- For verifiable objective facts (founding year, number of locations), cross-reference transcript statements with enrichment data. If they conflict, use the most conservative/anonymous-safe version.
+- If no call transcript is provided, note: "Based on enrichment data only. No owner call transcript available."
+
+ANONYMITY RULES (absolute — violations break the listing):
+- Use "${projectCodename}" only. Never include the company name, owner name, or any identifying proper nouns.
+- Never include city or state names. Use "${regionName}" or similar regional descriptors only.
+- Never include URLs, email addresses, or social media references.
+- Present all financial figures as approximate ranges (plus or minus 10-15%).
+- Do not include any detail specific enough to identify the company through triangulation (e.g., exact founding year + exact headcount + exact metro area together may be identifying).
+- After drafting, perform a final anonymity audit: re-read every sentence and confirm no combination of details could identify the business.${bannedTermsLine}
+
+SECTIONS — use only the following section headers, in this order, when data exists for the section. BUSINESS OVERVIEW and DEAL SNAPSHOT are always included regardless of data availability. Omit any other section that has no data.
+
+## BUSINESS OVERVIEW
+2-3 sentences. What the company does, how it makes money, approximate scale and geography (using regional descriptors only). No adjectives.
+
+## DEAL SNAPSHOT
+Structured labeled bullet points. Include only fields where data is available:
+- **Revenue:** (range, anonymized with plus or minus 10-15%)
+- **EBITDA / SDE:** (range, anonymized)
+- **EBITDA Margin:** (range)
+- **Employees:** (approximate)
+- **Region:** (no city/state — use regional descriptors only)
+- **Years in Operation:** (approximate range, e.g., "15-20 years")
+- **Transaction Type:** (majority sale, full sale, recapitalization, etc.)
+
+## KEY FACTS
+3-5 bullet points. Each must be a specific, sourced fact — not a characterization.
+
+Wrong: "Significant growth opportunity in adjacent markets"
+Right: "Owner has not pursued commercial contracts, which represent approximately 40% of the regional market according to owner statements"
+
+Wrong: "Recession-resistant business model"
+Right: "Revenue has remained within a 5% band over the past four years including 2020"
+
+Wrong: "Strong management team in place"
+Right: "General manager has been with the company for 12 years and oversees daily operations without owner involvement"
+
+## GROWTH CONTEXT
+Only include if the owner explicitly stated growth plans. Bullet points with facts as stated. If no growth was discussed, omit this section entirely.
+
+## OWNER OBJECTIVES
+Transaction preference, timeline, transition willingness, reason for sale. Bullet points, stated exactly as provided. If not discussed, omit.
+
+COMPLETENESS RULES:
+- Omit any section where no data exists (except BUSINESS OVERVIEW and DEAL SNAPSHOT).
+- Never repeat the same data point across sections.
+- 300-500 words. Every bullet must earn its place.
+
+BANNED LANGUAGE — never use any of these words or phrases:
+strong, robust, impressive, attractive, compelling, well-positioned, significant opportunity, poised for growth, track record of success, best-in-class, proven, demonstrated, synergies, uniquely positioned, market leader, value creation opportunity, healthy, diversified (as adjective without data), recession-resistant (without data), scalable (without specifics), turnkey, world-class, industry-leading, deep bench, blue-chip, mission-critical, sticky revenue, white-space, low-hanging fruit, runway, tailwinds, fragmented market, platform opportunity, notable, consistent (as characterization), solid, substantial, meaningful, considerable, positioned for, well-established, high-quality, top-tier, premier, best-of-breed, differentiated, defensible, platform (when used to characterize or elevate the business)`;
+
+  const userPrompt = `Generate an Anonymous Teaser from the following company data.
+
+Codename: ${projectCodename}
+
+IMPORTANT: Call transcripts may include conversations between SourceCo associates and the business owner. Extract only facts about the target company stated by the owner or confirmed by the owner. Do not include information about prospective buyers, the SourceCo associate's pitch, buyer expansion plans, or negotiation framing. The memo is about the seller's business only.
+
+=== CALL TRANSCRIPTS (highest priority — treat as primary source) ===
+${context.transcriptExcerpts || 'No transcripts available.'}
+
+=== ENRICHMENT DATA (website + LinkedIn — secondary source) ===
+${context.enrichmentData || 'No enrichment data available.'}
+
+=== MANUAL DATA ENTRIES & GENERAL NOTES ===
+${context.manualEntries || 'No manual entries or notes.'}
+
+=== VALUATION CALCULATOR DATA ===
+${context.valuationData || 'No valuation data.'}
+
+DATA SOURCE PRIORITY: Financial statements/tax returns (for financial figures) > Transcripts (most recent first) > General Notes > Enrichment/Website > Manual entries.
+When sources conflict, use the highest-priority source and note the discrepancy.
+When data is absent from all sources, state explicitly that it was not provided. Do not guess.
+
+Return the memo as markdown using ## headers for each section. Section headers must exactly match: BUSINESS OVERVIEW, DEAL SNAPSHOT, KEY FACTS, GROWTH CONTEXT, OWNER OBJECTIVES. Omit sections with no data except BUSINESS OVERVIEW and DEAL SNAPSHOT.
+
+FINAL ANONYMITY CHECK: Before returning the memo, re-read every sentence. Confirm that no combination of details (founding year + headcount + metro + industry) could identify the business. If in doubt, generalize further.`;
+
+  // Regeneration loop: up to 3 retries for blocking validation failures
+  let bestSections: MemoSection[] = [];
+  let retryAppendix = '';
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const promptToSend = retryAppendix ? `${userPrompt}\n\n${retryAppendix}` : userPrompt;
+
+    const response = await fetchWithAutoRetry(
+      ANTHROPIC_API_URL,
+      {
+        method: 'POST',
+        headers: getAnthropicHeaders(apiKey),
+        body: JSON.stringify({
+          model: DEFAULT_CLAUDE_MODEL,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: promptToSend }],
+          temperature: 0.2,
+          max_tokens: 4096,
+        }),
+      },
+      { callerName: 'generate-lead-memo-teaser', maxRetries: 2 },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Claude API error ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    const rawContent = result.content?.[0]?.text;
+
+    if (!rawContent) {
+      throw new Error('No content returned from AI');
+    }
+
+    // Parse markdown output into sections
+    let sections = parseMarkdownToSections(rawContent);
+
+    // Post-process: enforce banned words removal (preserves quoted text)
+    sections = enforceBannedWords(sections);
+
+    // Post-process: strip [DATA NEEDED: ...] and [VERIFY: ...] tags
+    sections = stripDataNeededTags(sections);
+
+    // Post-process: enforce anonymization by stripping any identifying info that leaked
+    sections = enforceAnonymization(sections, context.deal, projectCodename, regionName);
+
+    bestSections = sections;
+
+    // Run blocking validation checks (Checks 3, 4, 5)
+    const validation = validateTeaserSections(sections);
+    if (validation.passed) {
+      break; // All blocking checks passed
+    }
+
+    // Failed validation — retry if attempts remain
+    if (attempt < 3) {
+      retryAppendix = `Your previous output failed validation: ${validation.reason}. Please correct and regenerate.`;
+      console.warn(`Teaser validation failed (attempt ${attempt + 1}): ${validation.reason}`);
+    } else {
+      console.warn(
+        `Teaser validation failed after 4 attempts. Using best attempt. Reason: ${validation.reason}`,
+      );
+    }
+  }
+
+  // Run non-blocking warning checks (Checks 6, 7)
+  const { warnings } = runMemoWarnings(bestSections);
+  if (warnings.length > 0) {
+    console.warn('Teaser warnings:', warnings);
+  }
+
+  return {
+    sections: bestSections,
+    memo_type: 'anonymous_teaser',
+    branding,
+    generated_at: new Date().toISOString(),
+    ...companyMeta,
+  };
+}
+
+// ─── Memo Generation Router ───
+
 async function generateMemo(
   apiKey: string,
   context: DataContext,
@@ -814,216 +1542,19 @@ async function generateMemo(
   // Use user-provided project name if available, otherwise generate from region
   const projectCodename = projectName?.trim() || `Project ${regionName}`;
 
-  // Build list of identifying terms to warn the AI about for anonymous teasers
-  const companyName = (context.deal.internal_company_name || context.deal.title || '') as string;
-  const companyWebsite = (context.deal.website || '') as string;
-  const contactName = (context.deal.main_contact_name || '') as string;
-  const addressCity = (context.deal.address_city || '') as string;
-  const geoStates = Array.isArray(context.deal.geographic_states)
-    ? context.deal.geographic_states
-    : [];
-
-  const systemPrompt = `You are a VP at a buy-side investment bank writing an investment memo for the partners at a private equity firm. This memo will go to the investment committee.
-...
-${
-  isAnonymous
-    ? `MEMO TYPE: Anonymous Teaser (blind profile)
-
-CRITICAL ANONYMITY RULES — VIOLATION OF ANY OF THESE WILL RESULT IN THE MEMO BEING REJECTED:
-- NO company name — use ONLY the codename "${projectCodename}" throughout the memo
-- NO owner/CEO name or any individual's name — refer to as "the owner," "the founder," "senior leadership," etc.
-- NO street address, city name, or specific state names (e.g., do NOT write "Arizona," "Texas," "New York," etc.)
-- Use ONLY broad regional descriptors: "${regionName} United States" or "multiple markets across the ${regionName}" — NEVER name specific states or cities
-- NO website URL, email address, or phone number
-- NO specific client, customer, partner, vendor, or supplier names (e.g., do NOT name "Carfax," "Parts Plus," "ASA," specific brand partnerships, etc.)
-- NO branded service program names that could identify the company
-- Financial data as ranges only (e.g., "$4.5M–$5.5M revenue", "28%–32% EBITDA margin")
-- Services described generically (e.g., "automotive maintenance and repair" not the brand name of the service)
-- NO founding year, founding date, or specific years in operation — these combined with industry and geography can identify the company. Do NOT write "founded in 2005" or "25+ years in operation." Instead, use only vague descriptors like "long-standing" or "well-established" without any numbers
-${companyName ? `- BANNED TERMS (these are the actual company identifiers — NEVER include them): "${companyName}"` : ''}
-${
-  companyWebsite
-    ? `, "${companyWebsite}", "${companyWebsite
-        .replace(/^https?:\/\//, '')
-        .replace(/^www\./, '')
-        .replace(/\/.*$/, '')}"`
-    : ''
-}
-${contactName ? `, "${contactName}"` : ''}
-${addressCity ? `\n- BANNED LOCATION: "${addressCity}" — do NOT mention this city` : ''}
-${geoStates.length > 0 ? `\n- BANNED STATES: ${geoStates.map((s: string) => `"${s}"`).join(', ')} — do NOT name these states individually` : ''}
-
-REQUIRED SECTIONS (9 sections — follow this exact structure — be EXHAUSTIVE with detail, this is a comprehensive investment document for an investment committee, NOT a short summary):
-1. key: "company_overview" / title: "Company Overview" — THIS IS THE MOST IMPORTANT SECTION. It becomes the primary listing description buyers see. Write 4-6 rich, substantive paragraphs. This must read like a compelling investment thesis, NOT a generic template.
-   - Paragraph 1: What the company does, its business model (how it makes money — B2B/B2C/mixed, recurring/project/contract-based, subscription/transactional), and how services interrelate. Be specific about what sets the revenue model apart.
-   - Paragraph 2: Geographic presence (region only — NEVER name states or cities), operational scale (employee count range, number of locations). Do NOT include years in operation or founding year — these are identifying. Paint a picture of the operational footprint.
-   - Paragraph 3: Competitive advantages and market position — certifications (described generically), preferred relationships, proprietary processes or technology, customer lock-in mechanisms, brand reputation, barriers to entry. What makes this business hard to replicate?
-   - Paragraph 4: Customer base quality — types of customers served (without naming specific accounts), recurring/repeat dynamics, contract vs. spot revenue, customer diversification or concentration characteristics, end-market exposure.
-   - Paragraph 5 (if data supports): Growth trajectory and acquisition attractiveness — how the business has grown, why a PE buyer would want this (platform potential, add-on opportunity, geographic gap-filler), and what investment would unlock.
-   - Paragraph 6 (if data supports): Owner context — why they are seeking a transaction, preferred deal structure, transition willingness. Only include if this information exists in the data.
-   Every sentence must contain at least one SPECIFIC fact, metric, or concrete detail from the provided data. Do NOT use vague phrases like "well-positioned" or "strong reputation" — state the actual evidence.
-2. key: "financial_overview" / title: "Financial Overview" — Present a 3-year (or best available) annual summary table PLUS YTD as ranges: Revenue range, Gross Profit range, EBITDA range, EBITDA margin range, owner compensation add-backs (range), adjusted EBITDA range. Then a narrative paragraph covering: revenue trend and CAGR, margin evolution, revenue concentration risk, recurring vs. project revenue split, capex requirements (range), and working capital characteristics.
-3. key: "services_operations" / title: "Services & Operations" — 3-5 paragraphs. All service lines with estimated revenue mix percentages (as ranges), operational footprint and geographic reach (region only — NEVER name specific states or cities), certifications described generically (e.g., "industry-standard certifications" not specific named programs), facilities (size ranges without addresses), capacity utilization, seasonal patterns, and key operational differentiators. Do NOT name specific vendor or partner companies.
-4. key: "ownership_management" / title: "Ownership & Management" — 2-3 paragraphs. Owner/operator background: years in industry (no name), how long they have owned the business, day-to-day role and involvement level, management team depth (tenure ranges, functional coverage), whether there is a layer of management that would allow a transition, and what the owner is seeking from a transaction partner. No names — refer to as "the owner," "the founder," "senior leadership," etc.
-5. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount range, breakdown by function (field/technical, office/admin, management), key management depth and average tenure range, compensation structure (hourly vs. salary, benefit programs), training and certification programs (described generically), union status, and retention characteristics. Describe the workforce quality and any concentration risk without naming individuals.
-6. key: "facilities_locations" / title: "Facilities & Locations" — Number of locations (region only, no cities, states, or addresses), approximate total square footage range, owned vs. leased breakdown, lease term ranges and renewal options, condition of facilities, and any planned expansions or consolidations.
-7. key: "growth_opportunities" / title: "Growth Opportunities" — 3-4 paragraphs. Organic expansion opportunities (geographic, service line, pricing), M&A bolt-on potential, cross-sell opportunities, technology-driven efficiencies or margin improvement levers, and any identified demand tailwinds. Be specific about actionable initiatives a buyer could execute.
-8. key: "key_risks" / title: "Key Considerations" — Customer concentration (top-customer revenue share as range), key-person dependency, regulatory or licensing factors (described generically, no state-specific references), competitive dynamics, end-market cyclicality, capital requirements for growth, and any other material risks. Present a balanced assessment — do not omit negatives.
-9. key: "transaction_overview" / title: "Transaction Overview" — Transaction structure the owner is seeking (full sale, majority recap, growth partner), asking price or valuation range if known, preferred timeline, ideal buyer profile and characteristics, owner's transition willingness and preferred period, and any deal requirements or deal-breakers. No names.
-
-IMPORTANT — COMPLETENESS RULES:
-- Only write about information you actually have from the data provided
-- If you do not have data for a metric or topic, simply OMIT it — do NOT write placeholder text, do NOT add "[DATA NEEDED: ...]" or "[VERIFY: ...]" tags
-- Write substantive paragraphs for topics where data exists; skip topics where it does not
-- Each section should contain ONLY factual content derived from the provided data — no filler, no speculation, no placeholder markers
-- Do NOT repeat the same information across multiple sections — each section should cover its assigned topic without restating content from other sections`
-    : `MEMO TYPE: Full Lead Memo (confidential, post-NDA)
-
-Include all identifying information: company name, owner, address, website, contact details. Use exact financial figures.
-
-REQUIRED SECTIONS (follow this exact structure):
-1. key: "header_block" / title: "Header" — Company name (or codename), date, branding. Confidential disclaimer.
-2. key: "contact_information" / title: "Contact Information" — Company HQ address, phone, website. Owner/CEO name, email, phone.
-3. key: "company_overview" / title: "Company Overview" — THIS IS THE MOST IMPORTANT SECTION. Write 4-6 rich, substantive paragraphs covering: (a) What the company does and its business model — how it makes money, B2B/B2C/mixed, recurring/project-based, subscription/contract/transactional; (b) Geographic presence, operational scale (employees, locations), and years in business; (c) Competitive advantages — certifications, preferred vendor/carrier relationships, proprietary processes, barriers to entry; (d) Customer base quality — segments, recurring dynamics, contract vs. spot, diversification; (e) Growth trajectory and acquisition attractiveness; (f) Owner context if available. Every sentence must contain a specific fact, number, or concrete detail.
-4. key: "ownership_management" / title: "Ownership & Management" — 2-3 paragraphs. Owner/operator background, how they came to own, industry experience, day-to-day role, management team depth and tenure, transaction goals and motivation.
-5. key: "services_operations" / title: "Services & Operations" — 3-5 paragraphs. Detailed services with revenue mix percentages, customer types by service line, operational footprint, equipment and fleet, facilities, technology systems, certifications, capacity utilization, seasonal patterns.
-6. key: "financial_overview" / title: "Financial Overview" — Revenue, EBITDA, margins for last 3 years (or available). YTD numbers. Revenue concentration. Capex. Working capital. Present as a table with brief narrative paragraph covering trends, margin evolution, and revenue quality.
-7. key: "employees_workforce" / title: "Employees & Workforce" — Total headcount, breakdown by role (field/technical, office/admin, management), key personnel and tenure, compensation structure, training programs, union status, retention characteristics.
-8. key: "facilities_locations" / title: "Facilities & Locations" — Number of locations, owned vs leased, lease terms, square footage, condition, planned expansions or consolidations.
-9. key: "transaction_overview" / title: "Transaction Overview" — Full sale, majority recap, growth partner. Valuation expectations or asking price. Preferred timeline. Ideal buyer profile. Owner transition willingness and preferred period. Deal requirements or deal-breakers.
-
-IMPORTANT — COMPLETENESS RULES:
-- Only write about information you actually have from the data provided
-- If you do not have data for a metric or topic, simply OMIT it — do NOT write placeholder text, do NOT add "[DATA NEEDED: ...]" or "[VERIFY: ...]" tags
-- Write substantive paragraphs for topics where data exists; skip topics where it does not
-- Each section should contain ONLY factual content derived from the provided data — no filler, no speculation, no placeholder markers
-- Do NOT repeat the same information across multiple sections — each section should cover its assigned topic without restating content from other sections`
-}
-
-OUTPUT FORMAT:
-Return a JSON object with a "sections" array. Each section has:
-- "key": snake_case identifier (as specified above)
-- "title": Display title (as specified above)
-- "content": Rich text content using markdown: **bold**, *italic*, bullet points with -, tables with | header | header |
-
-=== FEW-SHOT EXAMPLES ===
-
-Example 1 — Anonymous Teaser Company Overview (Correct depth and detail — this is the MINIMUM quality bar):
-Company Overview:
-"${projectCodename} is a full-service restoration and reconstruction business operating across the ${regionName} United States, providing fire restoration, water mitigation, mold remediation, and commercial roofing services. The company operates on a hybrid revenue model combining insurance-referred restoration work (approximately 55%–65% of revenue) with direct-to-consumer retail projects, creating a diversified demand profile that provides resilience across economic cycles.
-
-The business operates from two locations in the ${regionName} region with a team of approximately 40–50 full-time employees, including dedicated project managers, certified technicians, and administrative support staff. The company has built deep institutional knowledge of regional building codes, insurance carrier processes, and subcontractor networks over an extended period of operation.
-
-The company maintains multiple industry-standard certifications and preferred vendor relationships with several national insurance carriers, which serve as a recurring referral pipeline and create meaningful barriers to entry for competitors. The company's in-house textile cleaning capability eliminates reliance on third-party vendors for contents restoration, improving both margins and turnaround times. These operational advantages, combined with a decades-long regional reputation, create a defensible market position.
-
-The customer base spans residential homeowners (approximately 55%–65%), commercial property managers and building owners (approximately 25%–35%), and government/municipal contracts (approximately 5%–10%). Insurance-referred work provides natural customer acquisition at minimal marketing cost, while commercial contracts tend to be recurring in nature with higher average project values.
-
-Revenue has grown from approximately $3.5M–$4.5M to $7.5M–$8.5M over the past five years, driven by geographic expansion, the addition of commercial roofing services, and deepening insurance carrier relationships. The business represents a platform opportunity in the fragmented restoration services market, with clear organic growth levers including geographic expansion, commercial segment growth, and potential bolt-on acquisitions of smaller regional operators.
-
-The owner is seeking a full exit within approximately 12–18 months, primarily motivated by retirement after an extended ownership period. The owner has expressed willingness to support a transition period of up to one year to ensure continuity of key carrier relationships and customer accounts."
-
-Example 2 — Full Memo Company Overview (Correct factual style with specifics):
-Company Overview:
-"Brook Capital LLC is a fee-based registered investment advisory firm headquartered in Wayne, New Jersey. Founded in 2013 and originally based in New York City, the firm relocated to northern New Jersey in 2017. Brook Capital manages approximately $900 million in assets under management across more than 200 household client relationships, with an average client AUM of approximately $2-$3 million.
-
-The firm employs 11 individuals, including 7 licensed financial advisors. Brook Capital operates a fee-based model and does not engage in commission-based product sales. The firm provides comprehensive wealth management services including portfolio management, financial planning, tax planning, and estate planning. Revenue is generated through a tiered fee schedule based on AUM, creating a highly recurring and predictable revenue stream with minimal customer churn.
-
-The firm serves affluent individuals and families, predominantly in the New York/New Jersey metropolitan area, with client retention rates exceeding 95% annually. The average client relationship tenure is approximately 5 years, reflecting the long-term nature of wealth management engagements and the trust-based advisory model."
-
-Example 3 — Financial Overview (Correct range-based approach):
-Financial Overview:
-"Revenue has ranged from approximately $15 million to $18 million over the past three fiscal years, reflecting a compound annual growth rate of approximately 8%–10%. EBITDA has been in the $2.5 million to $3.0 million range, with margins improving from approximately 15% to 17% as the service and maintenance segment has grown as a share of total revenue. The service and maintenance segment carries higher margins than the new construction segment, and ownership has been actively shifting the revenue mix toward recurring service contracts, which now represent approximately 35%–40% of total revenue compared to approximately 20% three years ago."
-
-CRITICAL: Every paragraph must contain SPECIFIC facts, numbers, or concrete details. Do NOT write vague paragraphs like "The company has a strong reputation in the market" or "The business is well-positioned for growth." Instead write: "The company has maintained preferred vendor status with three national insurance carriers for over a decade, generating approximately 60% of annual revenue through carrier referrals."`;
-
-  const userPrompt = `Generate a ${isAnonymous ? 'Anonymous Teaser' : 'Full Lead Memo'} from the following company data.
-
-=== CALL TRANSCRIPTS (highest priority — richest source of detail) ===
-${context.transcriptExcerpts || 'No transcripts available.'}
-
-=== ENRICHMENT DATA (website scrape + LinkedIn) ===
-${context.enrichmentData || 'No enrichment data available.'}
-
-=== MANUAL DATA ENTRIES & GENERAL NOTES ===
-${context.manualEntries || 'No manual entries or notes.'}
-
-=== VALUATION CALCULATOR DATA ===
-${context.valuationData || 'No valuation data.'}
-
-DATA SOURCE PRIORITY: Transcripts > General Notes > Enrichment/Website > Manual entries.
-When sources conflict, prefer higher-priority sources.
-
-Follow the memo template exactly. Use only the sections specified. Present financial data in a table.
-
-CRITICAL: Do NOT include any [DATA NEEDED: ...] or [VERIFY: ...] tags in your output. If data is missing, simply omit that topic — do not flag it. Write only about what you know from the provided data.${isAnonymous ? `\n\nCRITICAL ANONYMITY CHECK: Before returning the memo, verify that NONE of the following appear anywhere in your output: company name, website URL, owner name, city name, specific state names (like "Arizona", "Texas", "New York"), specific partner/vendor names, or phone numbers. Use only "${projectCodename}" as the company reference and "${regionName} United States" as the geographic reference.` : ''}
-
-Generate the memo now. Return ONLY the JSON object with "sections" array.`;
-
-  const response = await fetchWithAutoRetry(
-    ANTHROPIC_API_URL,
-    {
-      method: 'POST',
-      headers: getAnthropicHeaders(apiKey),
-      body: JSON.stringify({
-        model: DEFAULT_CLAUDE_MODEL,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-        temperature: 0.3,
-        max_tokens: 16384,
-      }),
-    },
-    { callerName: 'generate-lead-memo', maxRetries: 2 },
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Claude API error ${response.status}: ${errorText}`);
+  // Route to the appropriate generation pipeline
+  if (!isAnonymous) {
+    return await generateFullMemo(apiKey, context, branding, companyMeta);
   }
 
-  const result = await response.json();
-  const content = result.content?.[0]?.text;
-
-  if (!content) {
-    throw new Error('No content returned from AI');
-  }
-
-  let parsed: { sections?: MemoSection[] };
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    // Try to extract JSON from markdown code block
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      parsed = JSON.parse(jsonMatch[1]);
-    } else {
-      throw new Error('Failed to parse AI response as JSON');
-    }
-  }
-
-  // Post-process: enforce banned words removal
-  let cleanedSections = enforceBannedWords(parsed.sections || []);
-
-  // Post-process: strip all [DATA NEEDED: ...] and [VERIFY: ...] tags from both memo types
-  cleanedSections = stripDataNeededTags(cleanedSections);
-
-  // Post-process: for anonymous teasers, enforce anonymization by stripping any
-  // identifying information that may have leaked through the AI
-  if (isAnonymous) {
-    cleanedSections = enforceAnonymization(
-      cleanedSections,
-      context.deal,
-      projectCodename,
-      regionName,
-    );
-  }
-
-  return {
-    sections: cleanedSections,
-    memo_type: memoType,
+  return await generateAnonymousTeaser(
+    apiKey,
+    context,
     branding,
-    generated_at: new Date().toISOString(),
-    ...companyMeta,
-  };
+    companyMeta,
+    projectCodename,
+    regionName,
+  );
 }
 
 // ─── HTML Generation ───
@@ -1142,15 +1673,22 @@ function markdownToHtml(text: string): string {
       /^\|?\s*[-:]+\s*(\|\s*[-:]+\s*)+\|?\s*$/.test(lines[1])
     ) {
       // Markdown table: header row + separator row + data rows
-      const headerCells = lines[0].split('|').map((c) => c.trim()).filter(Boolean);
-      let tableHtml = '<table style="width:100%;border-collapse:collapse;margin:12px 0;"><thead><tr>';
+      const headerCells = lines[0]
+        .split('|')
+        .map((c) => c.trim())
+        .filter(Boolean);
+      let tableHtml =
+        '<table style="width:100%;border-collapse:collapse;margin:12px 0;"><thead><tr>';
       for (const cell of headerCells) {
         tableHtml += `<th style="border:1px solid #ddd;padding:8px;text-align:left;background:#f5f5f5;">${applyInlineFormatting(cell)}</th>`;
       }
       tableHtml += '</tr></thead><tbody>';
       for (let r = 2; r < lines.length; r++) {
         if (!lines[r].includes('|')) break;
-        const cells = lines[r].split('|').map((c) => c.trim()).filter(Boolean);
+        const cells = lines[r]
+          .split('|')
+          .map((c) => c.trim())
+          .filter(Boolean);
         tableHtml += '<tr>';
         for (const cell of cells) {
           tableHtml += `<td style="border:1px solid #ddd;padding:8px;">${applyInlineFormatting(cell)}</td>`;
@@ -1170,7 +1708,5 @@ function markdownToHtml(text: string): string {
 }
 
 function applyInlineFormatting(text: string): string {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+  return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
 }
