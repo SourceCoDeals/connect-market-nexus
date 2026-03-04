@@ -22,22 +22,16 @@ BEGIN
   FOR r IN
     WITH dupes AS (
       SELECT
-        extract_domain(company_website)                          AS domain,
-        min(id) FILTER (WHERE created_at = min_created)         AS canonical_id,
-        max(id) FILTER (WHERE created_at > min_created)         AS duplicate_id
-      FROM (
-        SELECT id, company_website, created_at,
-               min(created_at) OVER (PARTITION BY extract_domain(company_website)) AS min_created
-        FROM public.buyers
-        WHERE archived = false
-          AND company_website IS NOT NULL
-          AND trim(company_website) != ''
-      ) sub
+        extract_domain(company_website)             AS domain,
+        array_agg(id ORDER BY created_at ASC)       AS ids
+      FROM public.buyers
+      WHERE archived = false
+        AND company_website IS NOT NULL
+        AND trim(company_website) != ''
       GROUP BY extract_domain(company_website)
       HAVING count(*) > 1
     )
-    SELECT canonical_id, duplicate_id, domain FROM dupes
-    WHERE canonical_id IS NOT NULL AND duplicate_id IS NOT NULL
+    SELECT domain, ids[1] AS canonical_id, ids[2] AS duplicate_id FROM dupes
   LOOP
 
     RAISE NOTICE 'Merging domain=%: keeping %, archiving %',
