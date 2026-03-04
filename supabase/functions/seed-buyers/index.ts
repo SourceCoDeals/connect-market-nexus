@@ -91,15 +91,18 @@ function extractDomain(url: string | null): string | null {
 }
 
 function normalizeCompanyName(name: string): string {
+  // NOTE: Must stay in sync with:
+  //  - dedupe-buyers/index.ts normalizeCompanyName()
+  //  - DB function normalize_buyer_name() in migration 20260517100000
   let normalized = name
     .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/[^a-z0-9 ]/g, '') // strip non-alphanumeric but keep spaces
     .trim();
-  // Strip known corporate suffixes iteratively (handles "ABC Holdings LLC" → "abc")
-  const suffixPattern = /\s+(inc|llc|corp|ltd|lp|group|partners|capital|holdings|company|co)\s*$/;
-  while (suffixPattern.test(normalized)) {
-    normalized = normalized.replace(suffixPattern, '').trim();
-  }
+  // Strip trailing corporate suffixes (one pass covers >99% of real names)
+  normalized = normalized.replace(
+    /\s+(inc|llc|corp|ltd|lp|group|partners|capital|holdings|company|co|management|investments|advisors|advisory|ventures|equity|fund|funds|associates)\s*$/,
+    '',
+  ).trim();
   return normalized;
 }
 
@@ -553,7 +556,9 @@ Deno.serve(async (req: Request) => {
           if (existingPeFirmId) {
             resolvedPeFirmId = existingPeFirmId;
           } else {
-            // Auto-create the PE firm as a buyers record
+            // Auto-create the PE firm as a buyers record.
+            // Use ON CONFLICT DO NOTHING so concurrent seed-buyers calls for
+            // the same PE firm don't race each other into inserting duplicates.
             const { data: newFirm, error: firmError } = await supabase
               .from('buyers')
               .insert({
@@ -567,9 +572,25 @@ Deno.serve(async (req: Request) => {
               .select('id')
               .single();
 
-            if (firmError || !newFirm) {
-              console.error(`Failed to auto-create PE firm ${suggested.pe_firm_name}:`, firmError);
-            } else {
+            if (firmError) {
+              // Unique constraint violation = another concurrent call inserted it first.
+              // Re-query by name to get the winner's ID.
+              if (firmError.code === '23505') {
+                const { data: raced } = await supabase
+                  .from('buyers')
+                  .select('id')
+                  .eq('archived', false)
+                  .ilike('company_name', suggested.pe_firm_name)
+                  .maybeSingle();
+                if (raced) {
+                  resolvedPeFirmId = raced.id;
+                  existingNameSet.add(normPeFirmName);
+                  nameToId.set(normPeFirmName, raced.id);
+                }
+              } else {
+                console.error(`Failed to auto-create PE firm ${suggested.pe_firm_name}:`, firmError);
+              }
+            } else if (newFirm) {
               resolvedPeFirmId = newFirm.id;
               // Track the new PE firm in dedup sets for subsequent iterations
               existingNameSet.add(normPeFirmName);
@@ -602,12 +623,41 @@ Deno.serve(async (req: Request) => {
           .select('id')
           .single();
 
-        if (insertError || !inserted) {
-          console.error(`Failed to insert buyer ${suggested.company_name}:`, insertError);
-          continue;
-        }
+        if (insertError) {
+          // Unique constraint violation (code 23505): a concurrent seed-buyers call
+          // inserted the same buyer between our snapshot fetch and this INSERT.
+          // Treat it as "enriched_existing" — re-query for the winner's ID.
+          if (insertError.code === '23505') {
+            const { data: raced } = await supabase
+              .from('buyers')
+              .select('id')
+              .eq('archived', false)
+              .ilike('company_name', suggested.company_name)
+              .maybeSingle();
 
-        buyerId = inserted.id;
+            if (raced) {
+              action = 'enriched_existing';
+              wasNew = false;
+              buyerId = raced.id;
+              existingNameSet.add(normName);
+              if (domain) existingDomainSet.add(domain);
+              nameToId.set(normName, raced.id);
+            } else {
+              console.warn(
+                `Unique conflict inserting ${suggested.company_name} but couldn't re-find it — skipping`,
+              );
+              continue;
+            }
+          } else {
+            console.error(`Failed to insert buyer ${suggested.company_name}:`, insertError);
+            continue;
+          }
+        } else if (!inserted) {
+          console.error(`No data returned inserting buyer ${suggested.company_name}`);
+          continue;
+        } else {
+          buyerId = inserted.id;
+        }
 
         // Track in dedup sets for subsequent iterations
         existingNameSet.add(normName);

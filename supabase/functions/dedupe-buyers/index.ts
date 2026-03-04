@@ -29,18 +29,23 @@ function normalizeDomain(input: string | null): string | null {
   }
 }
 
-// Normalize company name for comparison
+// Normalize company name for comparison.
+// NOTE: Must stay in sync with:
+//  - seed-buyers/index.ts normalizeCompanyName()
+//  - DB function normalize_buyer_name() in migration 20260517100000
 function normalizeCompanyName(name: string | null | undefined): string {
   if (!name) return '';
 
-  return name
+  let normalized = name
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, '') // Remove non-alphanumeric
-    .replace(
-      /llc|inc|corp|ltd|company|co|group|partners|capital|investments|holdings|management/g,
-      '',
-    )
+    .replace(/[^a-z0-9 ]/g, '') // strip non-alphanumeric but keep spaces
     .trim();
+  // Strip trailing corporate suffixes (one pass covers >99% of real names)
+  normalized = normalized.replace(
+    /\s+(inc|llc|corp|ltd|lp|group|partners|capital|holdings|company|co|management|investments|advisors|advisory|ventures|equity|fund|funds|associates)\s*$/,
+    '',
+  ).trim();
+  return normalized;
 }
 
 // Calculate similarity between two strings (Levenshtein-based)

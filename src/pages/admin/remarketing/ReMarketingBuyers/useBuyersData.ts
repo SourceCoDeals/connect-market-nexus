@@ -217,27 +217,34 @@ export const useBuyersData = () => {
       const normalizedWebsite =
         normalizeDomain(newBuyer.company_website) || newBuyer.company_website?.trim() || null;
       const universeId = newBuyer.universe_id || null;
+      const trimmedName = newBuyer.company_name?.trim() ?? '';
 
-      // Check for duplicate buyer by domain
-      if (normalizedWebsite) {
-        const query = supabase
-          .from('buyers')
-          .select('id, company_name, company_website')
-          .eq('archived', false)
-          .not('company_website', 'is', null);
+      // Check for duplicate buyer across ALL buyers (not scoped to universe),
+      // by both company name and website domain.
+      const { data: existingBuyers } = await supabase
+        .from('buyers')
+        .select('id, company_name, company_website')
+        .eq('archived', false);
 
-        if (universeId) {
-          query.eq('universe_id', universeId);
-        } else {
-          query.is('universe_id', null);
+      if (existingBuyers) {
+        // Name check (case-insensitive exact match)
+        const nameDuplicate = existingBuyers.find(
+          (b) => b.company_name?.trim().toLowerCase() === trimmedName.toLowerCase(),
+        );
+        if (nameDuplicate) {
+          throw new Error(`A buyer named "${nameDuplicate.company_name}" already exists.`);
         }
 
-        const { data: existingBuyers } = await query;
-        const duplicate = existingBuyers?.find(
-          (b) => normalizeDomain(b.company_website) === normalizedWebsite,
-        );
-        if (duplicate) {
-          throw new Error(`A buyer with this website already exists: "${duplicate.company_name}"`);
+        // Domain check
+        if (normalizedWebsite) {
+          const domainDuplicate = existingBuyers.find(
+            (b) => normalizeDomain(b.company_website) === normalizedWebsite,
+          );
+          if (domainDuplicate) {
+            throw new Error(
+              `A buyer with this website already exists: "${domainDuplicate.company_name}"`,
+            );
+          }
         }
       }
 
@@ -251,8 +258,11 @@ export const useBuyersData = () => {
       });
 
       if (error) {
-        if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
-          throw new Error('A buyer with this website already exists.');
+        // Map DB-level unique constraint violations to friendly messages
+        if (error.code === '23505' || error.message?.includes('unique') || error.message?.includes('duplicate')) {
+          throw new Error(
+            'A buyer with that name or website already exists. Please check your existing buyers.',
+          );
         }
         throw error;
       }
