@@ -2,12 +2,15 @@
 -- MERGE DUPLICATE BUYERS
 --
 -- 3 active buyer pairs share the same website domain (found via v_duplicate_buyers):
---   allstartoday.com        → "Allstar Construction" (x2)
+--   allstartoday.com          → "Allstar Construction" (x2)
 --   valorexteriorpartners.com → "Valor Exterior Partners" (x2)
---   windownation.com        → "Window Nation" (x2)
+--   windownation.com          → "Window Nation" (x2)
 --
 -- Strategy: keep the OLDEST record (lowest created_at = canonical), re-point all
 -- FK references from the NEWER duplicate to the canonical, then archive the dupe.
+--
+-- Uses safe_upd() / safe_del() helpers that silently skip tables which do not
+-- exist in this environment (catches undefined_table = SQLSTATE 42P01).
 --
 -- After this migration the idx_buyers_unique_domain index (from 20260517100000)
 -- will create cleanly with no conflicts.
@@ -15,8 +18,32 @@
 
 DO $$
 DECLARE
-  -- Each pair: canonical_id (oldest), duplicate_id (newest)
   r RECORD;
+
+  -- Re-point one FK column; silently skips if the table doesn't exist.
+  PROCEDURE safe_upd(tbl text, col text, new_id uuid, old_id uuid) AS $p$
+  BEGIN
+    EXECUTE format(
+      'UPDATE public.%I SET %I = $1 WHERE %I = $2',
+      tbl, col, col
+    ) USING new_id, old_id;
+  EXCEPTION WHEN undefined_table THEN
+    NULL; -- table not present in this environment; skip
+  END;
+  $p$ LANGUAGE plpgsql;
+
+  -- Delete rows from a table by a FK column; silently skips if the table doesn't exist.
+  PROCEDURE safe_del(tbl text, col text, old_id uuid) AS $p$
+  BEGIN
+    EXECUTE format(
+      'DELETE FROM public.%I WHERE %I = $1',
+      tbl, col
+    ) USING old_id;
+  EXCEPTION WHEN undefined_table THEN
+    NULL;
+  END;
+  $p$ LANGUAGE plpgsql;
+
 BEGIN
 
   FOR r IN
@@ -37,184 +64,77 @@ BEGIN
     RAISE NOTICE 'Merging domain=%: keeping %, archiving %',
       r.domain, r.canonical_id, r.duplicate_id;
 
-    -- ── Re-point every FK reference ──────────────────────────────────────
+    -- ── remarketing_scores (conflict-safe: skip rows that already exist on canonical) ──
+    BEGIN
+      UPDATE public.remarketing_scores
+        SET buyer_id = r.canonical_id
+        WHERE buyer_id = r.duplicate_id
+          AND NOT EXISTS (
+            SELECT 1 FROM public.remarketing_scores s2
+            WHERE s2.buyer_id = r.canonical_id
+              AND s2.listing_id = remarketing_scores.listing_id
+              AND s2.universe_id IS NOT DISTINCT FROM remarketing_scores.universe_id
+          );
+      DELETE FROM public.remarketing_scores
+        WHERE buyer_id = r.duplicate_id;
+    EXCEPTION WHEN undefined_table THEN NULL;
+    END;
 
-    -- remarketing_scores
-    UPDATE public.remarketing_scores
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id
-        AND NOT EXISTS (
-          SELECT 1 FROM public.remarketing_scores s2
-          WHERE s2.buyer_id = r.canonical_id
-            AND s2.listing_id = remarketing_scores.listing_id
-            AND s2.universe_id IS NOT DISTINCT FROM remarketing_scores.universe_id
-        );
-    -- Delete scores that would conflict with the canonical (same listing+universe already exists)
-    DELETE FROM public.remarketing_scores
-      WHERE buyer_id = r.duplicate_id;
+    -- ── buyer_enrichment_queue (at-most-one row per buyer) ──────────────────
+    BEGIN
+      UPDATE public.buyer_enrichment_queue
+        SET buyer_id = r.canonical_id
+        WHERE buyer_id = r.duplicate_id
+          AND NOT EXISTS (
+            SELECT 1 FROM public.buyer_enrichment_queue q2
+            WHERE q2.buyer_id = r.canonical_id
+          );
+      DELETE FROM public.buyer_enrichment_queue
+        WHERE buyer_id = r.duplicate_id;
+    EXCEPTION WHEN undefined_table THEN NULL;
+    END;
 
-    -- remarketing_buyer_contacts
-    UPDATE public.remarketing_buyer_contacts
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- buyer_transcripts
-    UPDATE public.buyer_transcripts
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- buyer_learning_history
-    UPDATE public.buyer_learning_history
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- buyer_seed_log
-    UPDATE public.buyer_seed_log
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
-
-    -- buyer_enrichment_queue
-    UPDATE public.buyer_enrichment_queue
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id
-        AND NOT EXISTS (
-          SELECT 1 FROM public.buyer_enrichment_queue q2
-          WHERE q2.buyer_id = r.canonical_id
-        );
-    DELETE FROM public.buyer_enrichment_queue
-      WHERE buyer_id = r.duplicate_id;
-
-    -- buyer_pass_decisions
-    UPDATE public.buyer_pass_decisions
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- buyer_approve_decisions
-    UPDATE public.buyer_approve_decisions
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- engagement_signals
-    UPDATE public.engagement_signals
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- call_transcripts
-    UPDATE public.call_transcripts
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- firm_members
-    UPDATE public.firm_members
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- pe_firm_contacts (buyer_id column)
-    UPDATE public.pe_firm_contacts
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- pe_firm_contacts (pe_firm_id column — self-ref to a PE firm buyer)
-    UPDATE public.pe_firm_contacts
-      SET pe_firm_id = r.canonical_id
-      WHERE pe_firm_id = r.duplicate_id;
-
-    -- platform_contacts (buyer_id column)
-    UPDATE public.platform_contacts
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- platform_contacts (platform_id column)
-    UPDATE public.platform_contacts
-      SET platform_id = r.canonical_id
-      WHERE platform_id = r.duplicate_id;
-
-    -- contacts
-    UPDATE public.contacts
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
-
-    -- profiles
-    UPDATE public.profiles
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
-
-    -- data_room_access
-    UPDATE public.data_room_access
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
-
-    -- deals
-    UPDATE public.deals
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
-
-    -- document_distributions
-    UPDATE public.document_distributions
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- document_openings
-    UPDATE public.document_openings
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- deal_data_room_access
-    UPDATE public.deal_data_room_access
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- document_distribution_tracking
-    UPDATE public.document_distribution_tracking
-      SET matched_buyer_id = r.canonical_id
-      WHERE matched_buyer_id = r.duplicate_id;
-
-    -- ai_buyer_signal_analysis
-    UPDATE public.ai_buyer_signal_analysis
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- rm_buyer_deal_cadence
-    UPDATE public.rm_buyer_deal_cadence
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- contact_intelligence
-    UPDATE public.contact_intelligence
-      SET buyer_id = r.canonical_id
-      WHERE buyer_id = r.duplicate_id;
-
-    -- lead_memo_access
-    UPDATE public.lead_memo_access
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
-
-    -- memo_audit_logs
-    UPDATE public.memo_audit_logs
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
-
-    -- contact_activities
-    UPDATE public.contact_activities
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
-
-    -- unified_contacts
-    UPDATE public.unified_contacts
-      SET remarketing_buyer_id = r.canonical_id
-      WHERE remarketing_buyer_id = r.duplicate_id;
+    -- ── All other FK tables (simple re-point) ───────────────────────────────
+    CALL safe_upd('remarketing_buyer_contacts',      'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('buyer_transcripts',               'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('buyer_learning_history',          'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('buyer_seed_log',                  'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
+    CALL safe_upd('buyer_pass_decisions',            'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('buyer_approve_decisions',         'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('engagement_signals',              'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('call_transcripts',                'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('firm_members',                    'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('pe_firm_contacts',                'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('pe_firm_contacts',                'pe_firm_id',            r.canonical_id, r.duplicate_id);
+    CALL safe_upd('platform_contacts',               'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('platform_contacts',               'platform_id',           r.canonical_id, r.duplicate_id);
+    CALL safe_upd('contacts',                        'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
+    CALL safe_upd('profiles',                        'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
+    CALL safe_upd('data_room_access',                'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
+    CALL safe_upd('deals',                           'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
+    CALL safe_upd('document_distributions',          'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('document_openings',               'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('deal_data_room_access',           'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('document_distribution_tracking',  'matched_buyer_id',      r.canonical_id, r.duplicate_id);
+    CALL safe_upd('ai_buyer_signal_analysis',        'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('rm_buyer_deal_cadence',           'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('contact_intelligence',            'buyer_id',              r.canonical_id, r.duplicate_id);
+    CALL safe_upd('lead_memo_access',                'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
+    CALL safe_upd('memo_audit_logs',                 'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
+    CALL safe_upd('contact_activities',              'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
+    CALL safe_upd('unified_contacts',                'remarketing_buyer_id',  r.canonical_id, r.duplicate_id);
 
     -- buyers.pe_firm_id (self-referential — PE firm child records pointing at a dupe PE firm)
     UPDATE public.buyers
       SET pe_firm_id = r.canonical_id
       WHERE pe_firm_id = r.duplicate_id;
 
-    -- ── Archive the duplicate ─────────────────────────────────────────────
+    -- ── Archive the duplicate ──────────────────────────────────────────────
     UPDATE public.buyers
-      SET archived = true,
+      SET archived   = true,
           updated_at = now(),
-          notes = COALESCE(notes || E'\n', '') ||
-                  '[Archived by 20260517200000: merged into ' || r.canonical_id || ']'
+          notes      = COALESCE(notes || E'\n', '') ||
+                       '[Archived by 20260517200000: merged into ' || r.canonical_id || ']'
       WHERE id = r.duplicate_id;
 
     RAISE NOTICE 'Done: archived %', r.duplicate_id;
