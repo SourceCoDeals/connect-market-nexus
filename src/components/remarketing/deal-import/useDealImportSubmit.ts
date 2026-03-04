@@ -40,6 +40,7 @@ const MERGEABLE_FIELDS = [
 async function tryMergeExistingListing(
   newData: Record<string, unknown>,
   mergeableFields: string[],
+  dealSource?: string,
 ): Promise<string | null> {
   try {
     const website = newData.website as string | undefined;
@@ -119,6 +120,11 @@ async function tryMergeExistingListing(
     if (typeof newData.ebitda === 'number' && newData.ebitda > 0
         && (existingListing.ebitda === 0 || existingListing.ebitda === null)) {
       updates.ebitda = newData.ebitda;
+    }
+
+    // Always update deal_source so merged deals appear in the correct source list
+    if (dealSource && existingListing.deal_source !== dealSource) {
+      updates.deal_source = dealSource;
     }
 
     if (Object.keys(updates).length === 0) return null;
@@ -223,6 +229,7 @@ export async function handleImport({
           const merged = await tryMergeExistingListing(
             listingData as Record<string, unknown>,
             MERGEABLE_FIELDS,
+            dealSource,
           );
           if (merged) {
             results.merged++;
