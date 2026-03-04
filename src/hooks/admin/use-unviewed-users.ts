@@ -13,9 +13,10 @@ export function useUnviewedUsers() {
 
       // Get the admin's last viewed timestamp
       const { data: viewData, error: viewDataError } = await supabase
-        .from('admin_users_views')
+        .from('admin_view_state')
         .select('last_viewed_at')
         .eq('admin_id', user.id)
+        .eq('view_type', 'users')
         .single();
       if (viewDataError) throw viewDataError;
 

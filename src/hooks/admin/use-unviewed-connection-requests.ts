@@ -13,9 +13,10 @@ export function useUnviewedConnectionRequests() {
 
       // Get the admin's last viewed timestamp
       const { data: viewData, error: viewDataError } = await supabase
-        .from('admin_connection_requests_views')
+        .from('admin_view_state')
         .select('last_viewed_at')
         .eq('admin_id', user.id)
+        .eq('view_type', 'connection_requests')
         .single();
       if (viewDataError) throw viewDataError;
 

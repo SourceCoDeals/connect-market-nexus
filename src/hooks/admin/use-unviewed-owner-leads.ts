@@ -13,9 +13,10 @@ export function useUnviewedOwnerLeads() {
 
       // Get the admin's last viewed timestamp
       const { data: viewData, error: viewDataError } = await supabase
-        .from('admin_owner_leads_views')
+        .from('admin_view_state')
         .select('last_viewed_at')
         .eq('admin_id', user.id)
+        .eq('view_type', 'owner_leads')
         .single();
       if (viewDataError) throw viewDataError;
 

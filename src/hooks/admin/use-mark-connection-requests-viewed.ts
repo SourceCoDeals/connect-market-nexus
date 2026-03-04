@@ -11,15 +11,16 @@ export function useMarkConnectionRequestsViewed() {
       if (!user?.id) throw new Error('User not authenticated');
 
       const { error } = await supabase
-        .from('admin_connection_requests_views')
+        .from('admin_view_state')
         .upsert(
           {
             admin_id: user.id,
+            view_type: 'connection_requests',
             last_viewed_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           },
           {
-            onConflict: 'admin_id',
+            onConflict: 'admin_id,view_type',
           }
         );
 

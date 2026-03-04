@@ -11,15 +11,16 @@ export function useMarkOwnerLeadsViewed() {
 
     try {
       const { error } = await supabase
-        .from('admin_owner_leads_views')
+        .from('admin_view_state')
         .upsert(
           {
             admin_id: user.id,
+            view_type: 'owner_leads',
             last_viewed_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           },
           {
-            onConflict: 'admin_id',
+            onConflict: 'admin_id,view_type',
           }
         );
 

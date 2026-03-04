@@ -14,9 +14,10 @@ export function useUnviewedDealSourcingCount() {
 
       // Get admin's last viewed timestamp
       const { data: viewData, error: viewDataError } = await supabase
-        .from('admin_deal_sourcing_views')
+        .from('admin_view_state')
         .select('last_viewed_at')
         .eq('admin_id', user.id)
+        .eq('view_type', 'deal_sourcing')
         .single();
       if (viewDataError) throw viewDataError;
 
