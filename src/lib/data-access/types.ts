@@ -77,7 +77,7 @@ export interface ContactRecord {
   firm_id: string | null;
   nda_signed: boolean | null;
   fee_agreement_signed: boolean | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 /** Agreement status (resolved from firm_agreements). */

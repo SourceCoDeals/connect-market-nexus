@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -424,6 +424,7 @@ export function RecommendedBuyersTab({
                 pe_firm_id: buyer.pe_firm_id,
                 acquisition_appetite: buyer.acquisition_appetite,
                 company_website: buyer.company_website,
+                is_publicly_traded: buyer.is_publicly_traded ?? null,
               },
             },
             {

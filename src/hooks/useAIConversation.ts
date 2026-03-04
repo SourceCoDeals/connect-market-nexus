@@ -233,7 +233,7 @@ export function useAIConversation(
       }
       // Save the last message to chat_analytics for audit trail
       if (lastMsg?.role === 'assistant' && lastMsg.metadata) {
-        supabase
+        void supabase
           .from('chat_analytics')
           .insert({
             conversation_id: conversationIdRef.current,
@@ -245,8 +245,7 @@ export function useAIConversation(
             response_time_ms: lastMsg.metadata.durationMs || null,
             tokens_total: null,
           } as never)
-          .then(() => {})
-          .catch((err: unknown) => console.error('[useAIConversation] chat_analytics insert error:', err));
+          .then(() => {}, (err: unknown) => console.error('[useAIConversation] chat_analytics insert error:', err));
       }
 
       // Save full conversation to chat_conversations (debounced)
