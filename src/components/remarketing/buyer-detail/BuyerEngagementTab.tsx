@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { BarChart3, Users, FolderOpen, TrendingUp, Filter } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ type FilterType = 'all' | EngagementSource;
 export function BuyerEngagementTab({ buyerId, emailDomain, marketplaceFirmId }: BuyerEngagementTabProps) {
   const { data, isLoading } = useBuyerEngagementHistory(buyerId, emailDomain, marketplaceFirmId);
   const [filter, setFilter] = useState<FilterType>('all');
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -135,6 +136,7 @@ export function BuyerEngagementTab({ buyerId, emailDomain, marketplaceFirmId }: 
                       {item.listingId ? (
                         <Link
                           to={`/admin/remarketing/matching/${item.listingId}`}
+                          state={{ from: location.pathname }}
                           className="hover:underline text-primary"
                         >
                           {item.dealTitle}
@@ -142,6 +144,7 @@ export function BuyerEngagementTab({ buyerId, emailDomain, marketplaceFirmId }: 
                       ) : item.dealId ? (
                         <Link
                           to={`/admin/deals/${item.dealId}`}
+                          state={{ from: location.pathname }}
                           className="hover:underline text-primary"
                         >
                           {item.dealTitle}

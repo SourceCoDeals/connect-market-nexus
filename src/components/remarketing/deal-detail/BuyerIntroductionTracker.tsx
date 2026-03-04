@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
 import { useNewRecommendedBuyers, type BuyerScore } from '@/hooks/admin/use-new-recommended-buyers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -509,6 +509,7 @@ function IntroductionBuyerRow({
   const config = STATUS_CONFIG[buyer.introduction_status];
   const StatusIcon = config.icon;
   const snap = buyer.score_snapshot as ScoreSnapshot | null;
+  const location = useLocation();
 
   // Use live score data → persisted snapshot → raw introduction data
   const displayName = score?.company_name || buyer.buyer_name;
@@ -556,7 +557,7 @@ function IntroductionBuyerRow({
         <div className="shrink-0 min-w-[180px]">
           <div className="flex items-center gap-1.5">
             {(buyer.remarketing_buyer_id || buyer.contact_id) ? (
-              <Link to={`/admin/buyers/${buyer.remarketing_buyer_id || buyer.contact_id}`}>
+              <Link to={`/admin/buyers/${buyer.remarketing_buyer_id || buyer.contact_id}`} state={{ from: location.pathname }}>
                 <span className="font-semibold text-[15px] hover:underline truncate">
                   {displayName}
                 </span>
@@ -571,7 +572,7 @@ function IntroductionBuyerRow({
                   <>
                     <span className="text-muted-foreground text-[13px]">/</span>
                     {firmId ? (
-                      <Link to={`/admin/buyers/pe-firms/${firmId}`}>
+                      <Link to={`/admin/buyers/pe-firms/${firmId}`} state={{ from: location.pathname }}>
                         <span className="text-[13px] text-muted-foreground hover:underline hover:text-foreground truncate">
                           {firmName}
                         </span>
@@ -704,6 +705,7 @@ function IntroducedBuyerRow({
   const config = STATUS_CONFIG[buyer.introduction_status];
   const StatusIcon = config.icon;
   const snap = buyer.score_snapshot as ScoreSnapshot | null;
+  const location = useLocation();
 
   const daysSinceIntroduction = buyer.introduction_date
     ? Math.floor((Date.now() - new Date(buyer.introduction_date).getTime()) / (1000 * 60 * 60 * 24))
@@ -755,7 +757,7 @@ function IntroducedBuyerRow({
         <div className="shrink-0 min-w-[180px]">
           <div className="flex items-center gap-1.5">
             {(buyer.remarketing_buyer_id || buyer.contact_id) ? (
-              <Link to={`/admin/buyers/${buyer.remarketing_buyer_id || buyer.contact_id}`}>
+              <Link to={`/admin/buyers/${buyer.remarketing_buyer_id || buyer.contact_id}`} state={{ from: location.pathname }}>
                 <span className="font-semibold text-[15px] hover:underline truncate">
                   {displayName}
                 </span>
@@ -770,7 +772,7 @@ function IntroducedBuyerRow({
                   <>
                     <span className="text-muted-foreground text-[13px]">/</span>
                     {firmId ? (
-                      <Link to={`/admin/buyers/pe-firms/${firmId}`}>
+                      <Link to={`/admin/buyers/pe-firms/${firmId}`} state={{ from: location.pathname }}>
                         <span className="text-[13px] text-muted-foreground hover:underline hover:text-foreground truncate">
                           {firmName}
                         </span>

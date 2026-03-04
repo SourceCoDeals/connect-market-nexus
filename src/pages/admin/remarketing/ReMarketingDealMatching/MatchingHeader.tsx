@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,6 +37,7 @@ export function MatchingHeader({
     );
   }
 
+  const location = useLocation();
   const revenueStr = listing.revenue
     ? `$${(listing.revenue >= 100000 ? listing.revenue / 1_000_000 : listing.revenue).toFixed(1)}M`
     : null;
@@ -49,7 +50,7 @@ export function MatchingHeader({
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-            <Link to={`/admin/deals/${listingId}`}>
+            <Link to={`/admin/deals/${listingId}`} state={{ from: location.pathname }}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
