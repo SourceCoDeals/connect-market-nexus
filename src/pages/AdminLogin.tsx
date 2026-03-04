@@ -52,7 +52,11 @@ const AdminLogin = () => {
         description: 'Redirecting to admin panel...',
       });
     } catch (err: unknown) {
-      setError((err as Error).message || 'Failed to sign in');
+      const rawMessage = (err as Error).message || 'Failed to sign in';
+      const userMessage = rawMessage === 'Failed to fetch'
+        ? 'Unable to connect to the server. Please check your internet connection and try again.'
+        : rawMessage;
+      setError(userMessage);
     } finally {
       setIsSubmitting(false);
     }

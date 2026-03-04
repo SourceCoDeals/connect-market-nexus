@@ -54,12 +54,16 @@ const Login = () => {
         description: 'You have successfully logged in.',
       });
     } catch (err: unknown) {
-      // Error logged by error handler
-      setError((err as Error).message || 'Failed to sign in');
+      const rawMessage = (err as Error).message || 'Failed to sign in';
+      // Map cryptic network errors to user-friendly messages
+      const userMessage = rawMessage === 'Failed to fetch'
+        ? 'Unable to connect to the server. Please check your internet connection and try again.'
+        : rawMessage;
+      setError(userMessage);
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: (err as Error).message || 'Please check your credentials and try again',
+        description: userMessage,
       });
     } finally {
       setIsSubmitting(false);

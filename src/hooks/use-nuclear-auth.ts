@@ -144,10 +144,40 @@ export function useNuclearAuth() {
     };
   }, []);
 
-  // Simple auth actions
+  // Auth actions with retry for transient network failures
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    const maxRetries = 2;
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          // Retry on transient network errors only
+          if (error.message === 'Failed to fetch' && attempt < maxRetries) {
+            lastError = error;
+            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+            continue;
+          }
+          throw error;
+        }
+        return; // Success
+      } catch (err) {
+        // Retry on network-level failures
+        if (err instanceof Error && err.message === 'Failed to fetch' && attempt < maxRetries) {
+          lastError = err;
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    // All retries exhausted — throw a user-friendly message
+    console.error('Login failed after retries:', lastError);
+    throw new Error(
+      'Unable to reach the authentication server. Please check your internet connection and try again.'
+    );
   };
 
   const logout = async () => {
