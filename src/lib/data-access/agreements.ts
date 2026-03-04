@@ -36,7 +36,7 @@ export async function resolveContactAgreementStatus(
   return safeQuery(async () => {
     return supabase.rpc('resolve_contact_agreement_status', {
       p_contact_id: contactId,
-    });
+    }) as never;
   });
 }
 

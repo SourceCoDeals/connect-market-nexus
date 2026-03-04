@@ -140,7 +140,7 @@ export const BuyerMatchCard = ({
   onOutreachUpdate,
   onViewed,
   onMoveToPipeline: _onMoveToPipeline,
-  onApproveMultiDeal,
+  onApproveMultiDeal: _onApproveMultiDeal,
   outreach,
   isPending = false,
   universeName,
