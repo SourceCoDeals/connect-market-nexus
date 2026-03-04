@@ -70,6 +70,8 @@ serve(async (req: Request) => {
       );
     }
 
+    console.log("Payload debug:", JSON.stringify({ full_name, email, lead_source: body.lead_source, ci_keys: calculator_inputs ? Object.keys(calculator_inputs) : null }));
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
