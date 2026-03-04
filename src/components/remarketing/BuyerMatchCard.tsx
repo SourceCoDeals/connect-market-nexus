@@ -96,6 +96,7 @@ interface BuyerMatchCardProps {
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   onViewed?: (scoreId: string) => void;
   onMoveToPipeline?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
+  /** @deprecated No longer rendered — bulk approve via top-bar checkboxes instead */
   onApproveMultiDeal?: (buyerId: string, buyerName: string, currentListingId: string) => void;
   outreach?: OutreachData | null;
   isPending?: boolean;
@@ -449,18 +450,6 @@ export const BuyerMatchCard = ({
                   <Check className="h-3 w-3 mr-1" />
                   Approve
                 </Button>
-                {onApproveMultiDeal && listingId && buyer?.id && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                    onClick={() => onApproveMultiDeal(buyer!.id, buyer!.company_name || 'Unknown', listingId)}
-                    disabled={isPending}
-                  >
-                    <Check className="h-3 w-3 mr-1" />
-                    Approve for Multiple Deals
-                  </Button>
-                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -469,7 +458,7 @@ export const BuyerMatchCard = ({
                   disabled={isPending}
                 >
                   <X className="h-3 w-3 mr-1" />
-                  Pass
+                  Remove
                 </Button>
               </>
             )}

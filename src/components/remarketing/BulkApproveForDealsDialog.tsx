@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { batchCreateBuyerIntroductions } from '@/lib/remarketing/createBuyerIntroduction';
 import {
   Dialog,
   DialogContent,
@@ -187,6 +188,18 @@ export function BulkApproveForDealsDialog({
       for (const buyerId of buyerIds) {
         supabase.functions.invoke('find-buyer-contacts', { body: { buyerId } }).catch(() => {});
       }
+
+      // Auto-create buyer introductions at first Kanban stage
+      if (user?.id) {
+        const pairs: Array<{ buyerId: string; listingId: string }> = [];
+        for (const group of groups) {
+          if (!selectedListingIds.has(group.listingId)) continue;
+          for (const bId of buyerIds) {
+            pairs.push({ buyerId: bId, listingId: group.listingId });
+          }
+        }
+        await batchCreateBuyerIntroductions(pairs, user.id);
+      }
     },
     onSuccess: () => {
       // Invalidate affected queries
@@ -194,6 +207,7 @@ export function BulkApproveForDealsDialog({
         if (selectedListingIds.has(group.listingId)) {
           queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', group.listingId] });
           queryClient.invalidateQueries({ queryKey: ['remarketing', 'outreach', group.listingId] });
+          queryClient.invalidateQueries({ queryKey: ['buyer-introductions', group.listingId] });
         }
       }
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'learning-insights'] });
