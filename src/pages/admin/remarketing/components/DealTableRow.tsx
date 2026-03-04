@@ -162,7 +162,7 @@ export const DealTableRow = ({
             <GripVertical className="h-3.5 w-3.5" />
           </button>
           <EditableRankCell
-            value={listing.manual_rank_override ?? index + 1}
+            value={index + 1}
             onSave={(newRank) => onUpdateRank(listing.id, newRank)}
           />
         </div>
