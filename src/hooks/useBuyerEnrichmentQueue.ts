@@ -153,7 +153,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     try {
       await supabase.functions.invoke('process-buyer-enrichment-queue');
     } catch (error) {
-      // Silent fail - processor will be triggered again on next interval
+      console.warn('[useBuyerEnrichmentQueue] Processor trigger failed, will retry on next interval:', error);
     }
   }, []);
 

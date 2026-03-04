@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { Pencil, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+import { useState } from 'react';
+import { Pencil, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface DealMessageEditorProps {
   requestId: string;
@@ -12,11 +12,11 @@ interface DealMessageEditorProps {
   className?: string;
 }
 
-export function DealMessageEditor({ 
+export function DealMessageEditor({
   requestId: _requestId,
   initialMessage,
   onMessageUpdate,
-  className 
+  className,
 }: DealMessageEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState(initialMessage);
@@ -25,16 +25,24 @@ export function DealMessageEditor({
 
   const handleSave = async () => {
     if (!message.trim()) {
-      toast({ title: "Message required", description: "Please enter a message before saving.", variant: "destructive" });
+      toast({
+        title: 'Message required',
+        description: 'Please enter a message before saving.',
+        variant: 'destructive',
+      });
       return;
     }
     setIsSaving(true);
     try {
       await onMessageUpdate(message);
       setIsEditing(false);
-      toast({ title: "Message updated", description: "Your message has been saved successfully." });
+      toast({ title: 'Message updated', description: 'Your message has been saved successfully.' });
     } catch {
-      toast({ title: "Failed to update", description: "There was an error updating your message.", variant: "destructive" });
+      toast({
+        title: 'Failed to update',
+        description: 'There was an error updating your message.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -46,7 +54,7 @@ export function DealMessageEditor({
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn('relative', className)}>
       {!isEditing ? (
         <button
           onClick={() => setIsEditing(true)}

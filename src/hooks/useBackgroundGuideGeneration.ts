@@ -62,10 +62,10 @@ export function useBackgroundGuideGeneration({
         setCurrentGeneration(generation);
         setIsGenerating(true);
 
-        // Restore progress from the database record
-        const progressPercent = Math.round(
-          (generation.phases_completed / generation.total_phases) * 100,
-        );
+        // Restore progress from the database record (guard against division by zero)
+        const progressPercent = generation.total_phases > 0
+          ? Math.round((generation.phases_completed / generation.total_phases) * 100)
+          : 0;
         setProgress(progressPercent);
 
         startPolling(generation.id);
@@ -162,10 +162,10 @@ export function useBackgroundGuideGeneration({
       const generation = data as GenerationStatus;
       setCurrentGeneration(generation);
 
-      // Calculate progress percentage
-      const progressPercent = Math.round(
-        (generation.phases_completed / generation.total_phases) * 100,
-      );
+      // Calculate progress percentage (guard against division by zero)
+      const progressPercent = generation.total_phases > 0
+        ? Math.round((generation.phases_completed / generation.total_phases) * 100)
+        : 0;
       setProgress(progressPercent);
 
       // Handle completion

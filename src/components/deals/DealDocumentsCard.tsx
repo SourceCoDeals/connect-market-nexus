@@ -6,7 +6,17 @@
  */
 
 import { useState } from 'react';
-import { Shield, FileSignature, Check, FolderOpen, Lock, ArrowRight, FileText, BarChart3, Building2 } from 'lucide-react';
+import {
+  Shield,
+  FileSignature,
+  Check,
+  FolderOpen,
+  Lock,
+  ArrowRight,
+  FileText,
+  BarChart3,
+  Building2,
+} from 'lucide-react';
 import { AgreementSigningModal } from '@/components/docuseal/AgreementSigningModal';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -87,7 +97,8 @@ export function DealDocumentsCard({
     enabled: !!dealId && !!access,
   });
 
-  const hasAccess = access && (access.can_view_teaser || access.can_view_full_memo || access.can_view_data_room);
+  const hasAccess =
+    access && (access.can_view_teaser || access.can_view_full_memo || access.can_view_data_room);
   const totalDocs = docCount + memoCount;
   const docsLocked = requestStatus === 'pending' || !hasAccess;
 
@@ -105,7 +116,9 @@ export function DealDocumentsCard({
           {/* NDA row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <Shield className={cn('h-4 w-4', ndaSigned ? 'text-emerald-600' : 'text-[#8B6F47]')} />
+              <Shield
+                className={cn('h-4 w-4', ndaSigned ? 'text-emerald-600' : 'text-[#8B6F47]')}
+              />
               <span className="text-[13px] text-[#0E101A]/70">NDA</span>
             </div>
             {ndaSigned ? (
@@ -127,7 +140,9 @@ export function DealDocumentsCard({
           {showFee && (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <FileSignature className={cn('h-4 w-4', feeCovered ? 'text-emerald-600' : 'text-[#8B6F47]')} />
+                <FileSignature
+                  className={cn('h-4 w-4', feeCovered ? 'text-emerald-600' : 'text-[#8B6F47]')}
+                />
                 <span className="text-[13px] text-[#0E101A]/70">Fee Agreement</span>
               </div>
               {feeCovered ? (
@@ -161,7 +176,9 @@ export function DealDocumentsCard({
 
           {/* Data Room section */}
           <div className="flex items-center gap-2.5 mb-1">
-            <FolderOpen className={cn('h-4 w-4', hasAccess ? 'text-[#0E101A]/50' : 'text-[#0E101A]/20')} />
+            <FolderOpen
+              className={cn('h-4 w-4', hasAccess ? 'text-[#0E101A]/50' : 'text-[#0E101A]/20')}
+            />
             <span className="text-[10px] font-semibold text-[#0E101A]/30 uppercase tracking-[0.12em]">
               Data Room
             </span>
@@ -189,8 +206,8 @@ export function DealDocumentsCard({
                 {!ndaSigned
                   ? 'Sign your NDA to begin unlocking these materials.'
                   : requestStatus === 'pending'
-                  ? 'Available once your request is approved by the owner.'
-                  : 'Documents are being prepared by our team.'}
+                    ? 'Available once your request is approved by the owner.'
+                    : 'Documents are being prepared by our team.'}
               </p>
             </div>
           ) : (

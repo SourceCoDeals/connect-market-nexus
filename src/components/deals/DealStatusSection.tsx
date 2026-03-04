@@ -41,10 +41,13 @@ function getStageExplanation(
   feeStatus?: string,
 ): string {
   if (isRejected) return 'The owner selected another buyer for this opportunity.';
-  if (index === 3) return 'Great news — the owner selected your firm. Expect an email from our team shortly.';
+  if (index === 3)
+    return 'Great news — the owner selected your firm. Expect an email from our team shortly.';
   if (index === 1) {
-    if (!ndaSigned) return 'Sign your NDA to proceed. Your interest cannot be presented until documents are complete.';
-    if (feeStatus === 'sent' && !feeCovered) return 'Your Fee Agreement is ready for signature. Complete this to finalize your documentation.';
+    if (!ndaSigned)
+      return 'Sign your NDA to proceed. Your interest cannot be presented until documents are complete.';
+    if (feeStatus === 'sent' && !feeCovered)
+      return 'Your Fee Agreement is ready for signature. Complete this to finalize your documentation.';
     return 'Complete your required documents to move forward.';
   }
   return 'Your interest is being presented to the owner alongside other qualified buyers. Decisions typically take 3–7 business days.';
@@ -59,7 +62,13 @@ export function DealStatusSection({
 }: DealStatusSectionProps) {
   const currentIndex = getCurrentStageIndex(requestStatus, ndaSigned, feeCovered, feeStatus);
   const isRejected = requestStatus === 'rejected';
-  const explanation = getStageExplanation(currentIndex, isRejected, ndaSigned, feeCovered, feeStatus);
+  const explanation = getStageExplanation(
+    currentIndex,
+    isRejected,
+    ndaSigned,
+    feeCovered,
+    feeStatus,
+  );
 
   return (
     <div className="rounded-lg border border-[#F0EDE6] bg-white p-5">
@@ -78,19 +87,27 @@ export function DealStatusSection({
               <div
                 className={cn(
                   'h-1 rounded-full transition-all duration-300',
-                  isRejected ? 'bg-[#E5DDD0]' :
-                  isComplete && isCurrent ? 'bg-[#DEC76B]' :
-                  isComplete ? 'bg-[#0E101A]' :
-                  'bg-[#F0EDE6]',
+                  isRejected
+                    ? 'bg-[#E5DDD0]'
+                    : isComplete && isCurrent
+                      ? 'bg-[#DEC76B]'
+                      : isComplete
+                        ? 'bg-[#0E101A]'
+                        : 'bg-[#F0EDE6]',
                 )}
               />
-              <p className={cn(
-                'text-[10px] mt-1.5 text-center font-medium',
-                isRejected ? 'text-[#0E101A]/20' :
-                isCurrent ? 'text-[#0E101A]' :
-                isComplete ? 'text-[#0E101A]/50' :
-                'text-[#0E101A]/20',
-              )}>
+              <p
+                className={cn(
+                  'text-[10px] mt-1.5 text-center font-medium',
+                  isRejected
+                    ? 'text-[#0E101A]/20'
+                    : isCurrent
+                      ? 'text-[#0E101A]'
+                      : isComplete
+                        ? 'text-[#0E101A]/50'
+                        : 'text-[#0E101A]/20',
+                )}
+              >
                 {stage.label}
               </p>
             </div>
@@ -99,9 +116,7 @@ export function DealStatusSection({
       </div>
 
       {/* Stage explanation */}
-      <p className="text-[12px] text-[#0E101A]/50 leading-relaxed mt-4">
-        {explanation}
-      </p>
+      <p className="text-[12px] text-[#0E101A]/50 leading-relaxed mt-4">{explanation}</p>
 
       {/* Timeline estimate for review stage */}
       {currentIndex === 2 && requestCreatedAt && (

@@ -30,7 +30,10 @@ function getStatusConfig(status: string): { label: string; className: string } {
     case 'rejected':
       return { label: 'Not Selected', className: 'bg-[#F5F3EE] text-[#0E101A]/40' };
     default:
-      return { label: 'Under Review', className: 'bg-[#FBF7EC] text-[#8B6F47] border border-[#E5DDD0]' };
+      return {
+        label: 'Under Review',
+        className: 'bg-[#FBF7EC] text-[#8B6F47] border border-[#E5DDD0]',
+      };
   }
 }
 
@@ -44,9 +47,8 @@ export function DealDetailHeader({
   requestStatus,
 }: DealDetailHeaderProps) {
   const status = getStatusConfig(requestStatus);
-  const ebitdaMargin = ebitda && revenue && revenue > 0
-    ? ((ebitda / revenue) * 100).toFixed(0)
-    : null;
+  const ebitdaMargin =
+    ebitda && revenue && revenue > 0 ? ((ebitda / revenue) * 100).toFixed(0) : null;
 
   return (
     <div className="px-6 py-5 border-b border-[#F0EDE6]">
@@ -55,14 +57,17 @@ export function DealDetailHeader({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold text-[#0E101A] truncate">{title}</h2>
-            <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0', status.className)}>
+            <span
+              className={cn(
+                'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0',
+                status.className,
+              )}
+            >
               {status.label}
             </span>
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {category && (
-              <span className="text-[12px] text-[#0E101A]/40">{category}</span>
-            )}
+            {category && <span className="text-[12px] text-[#0E101A]/40">{category}</span>}
             {location && (
               <>
                 <span className="text-[#0E101A]/15">·</span>

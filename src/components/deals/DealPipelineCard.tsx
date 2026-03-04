@@ -16,14 +16,20 @@ function formatEbitdaCompact(ebitda: number): string {
   return `$${ebitda}`;
 }
 
-function getStatusLabel(status: string, ndaSigned?: boolean): { label: string; needsAction: boolean } {
+function getStatusLabel(
+  status: string,
+  ndaSigned?: boolean,
+): { label: string; needsAction: boolean } {
   switch (status) {
     case 'pending':
       if (ndaSigned === false) return { label: 'Action Needed', needsAction: true };
       return { label: 'Under Review', needsAction: false };
-    case 'approved': return { label: 'Connected', needsAction: false };
-    case 'rejected': return { label: 'Not Selected', needsAction: false };
-    default: return { label: 'Under Review', needsAction: false };
+    case 'approved':
+      return { label: 'Connected', needsAction: false };
+    case 'rejected':
+      return { label: 'Not Selected', needsAction: false };
+    default:
+      return { label: 'Under Review', needsAction: false };
   }
 }
 
@@ -60,9 +66,7 @@ export function DealPipelineCard({
       onClick={onSelect}
       className={cn(
         'w-full text-left rounded-lg transition-all duration-150 px-3.5 py-3 relative group',
-        isSelected
-          ? 'bg-[#FAFAF8]'
-          : 'bg-transparent hover:bg-[#FAFAF8]/60',
+        isSelected ? 'bg-[#FAFAF8]' : 'bg-transparent hover:bg-[#FAFAF8]/60',
         isRejected && 'opacity-45',
       )}
     >
@@ -76,16 +80,16 @@ export function DealPipelineCard({
         <h3 className="text-[13px] font-semibold text-[#0E101A] truncate leading-tight flex-1 min-w-0">
           {request.listing?.title || 'Untitled'}
         </h3>
-        {unreadCount > 0 && (
-          <div className="h-2 w-2 rounded-full bg-[#DEC76B] shrink-0" />
-        )}
+        {unreadCount > 0 && <div className="h-2 w-2 rounded-full bg-[#DEC76B] shrink-0" />}
       </div>
 
       {/* Row 2: Category + EBITDA (skip for General Inquiry) */}
       {!isGeneral && (
         <div className="flex items-center gap-1.5 mt-1">
           {request.listing?.category && request.listing.category !== 'Internal' && (
-            <span className="text-[11px] text-[#0E101A]/35 truncate">{request.listing.category}</span>
+            <span className="text-[11px] text-[#0E101A]/35 truncate">
+              {request.listing.category}
+            </span>
           )}
           {request.listing?.ebitda && request.listing.ebitda > 0 && (
             <>
@@ -111,18 +115,25 @@ export function DealPipelineCard({
           {statusLabel.needsAction && (
             <div className="h-1.5 w-1.5 rounded-full bg-[#DEC76B] shrink-0" />
           )}
-          <span className={cn(
-            'text-[10px] font-semibold uppercase tracking-wide',
-            request.status === 'approved' ? 'text-[#0E101A]' :
-            request.status === 'rejected' ? 'text-[#0E101A]/30' :
-            statusLabel.needsAction ? 'text-[#8B6F47]' :
-            'text-[#0E101A]/40',
-          )}>
+          <span
+            className={cn(
+              'text-[10px] font-semibold uppercase tracking-wide',
+              request.status === 'approved'
+                ? 'text-[#0E101A]'
+                : request.status === 'rejected'
+                  ? 'text-[#0E101A]/30'
+                  : statusLabel.needsAction
+                    ? 'text-[#8B6F47]'
+                    : 'text-[#0E101A]/40',
+            )}
+          >
             {statusLabel.label}
           </span>
         </div>
         <span className="text-[10px] text-[#0E101A]/25">
-          {formatDistanceToNow(new Date(request.updated_at || request.created_at), { addSuffix: true })}
+          {formatDistanceToNow(new Date(request.updated_at || request.created_at), {
+            addSuffix: true,
+          })}
         </span>
       </div>
     </button>

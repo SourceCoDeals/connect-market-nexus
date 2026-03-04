@@ -16,7 +16,12 @@ interface DealActivityLogProps {
 
 function getDotColor(body: string): string {
   const lower = body.toLowerCase();
-  if (lower.includes('approved') || lower.includes('selected') || lower.includes('signed') || lower.includes('accepted')) {
+  if (
+    lower.includes('approved') ||
+    lower.includes('selected') ||
+    lower.includes('signed') ||
+    lower.includes('accepted')
+  ) {
     return 'bg-emerald-500';
   }
   if (lower.includes('rejected') || lower.includes('declined') || lower.includes('not selected')) {
@@ -41,9 +46,7 @@ export function DealActivityLog({
     <div className="border border-[#F0EDE6] rounded-xl overflow-hidden bg-white">
       {/* Subtitle */}
       <div className="px-5 pt-4 pb-2">
-        <p className="text-[11px] text-[#0E101A]/30">
-          Automated notifications and system events
-        </p>
+        <p className="text-[11px] text-[#0E101A]/30">Automated notifications and system events</p>
       </div>
 
       {/* Timeline */}
@@ -61,7 +64,8 @@ export function DealActivityLog({
             </div>
             <p className="text-[13px] font-medium text-[#0E101A]/60 mb-1">No activity yet</p>
             <p className="text-[11px] text-[#0E101A]/30 text-center max-w-xs">
-              System notifications like agreement requests, status changes, and deal updates will appear here.
+              System notifications like agreement requests, status changes, and deal updates will
+              appear here.
             </p>
           </div>
         ) : (

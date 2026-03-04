@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 
 interface ImportOptions {
   clearExisting?: boolean;
@@ -26,6 +27,15 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // SECURITY: Require admin authentication for bulk data imports
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.authenticated || !auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error || 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const { dataType, data, options = {} } = (await req.json()) as ImportRequest;
 

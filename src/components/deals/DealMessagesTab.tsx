@@ -75,9 +75,15 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
       <div className="min-h-[300px] max-h-[500px] overflow-y-auto px-5 py-4 space-y-3 flex-1 bg-[#FAFAF8]">
         {messagesLoading ? (
           <div className="space-y-3 py-4">
-            <div className="flex justify-start"><Skeleton className="h-16 w-52 rounded-xl" /></div>
-            <div className="flex justify-end"><Skeleton className="h-12 w-44 rounded-xl" /></div>
-            <div className="flex justify-start"><Skeleton className="h-16 w-60 rounded-xl" /></div>
+            <div className="flex justify-start">
+              <Skeleton className="h-16 w-52 rounded-xl" />
+            </div>
+            <div className="flex justify-end">
+              <Skeleton className="h-12 w-44 rounded-xl" />
+            </div>
+            <div className="flex justify-start">
+              <Skeleton className="h-16 w-60 rounded-xl" />
+            </div>
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full py-12">
@@ -95,8 +101,12 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
               <div key={msg.id} className={`flex ${isBuyer ? 'justify-end' : 'justify-start'}`}>
                 <div className="max-w-[80%]">
                   {/* Sender + time outside bubble */}
-                  <div className={`flex items-center gap-2 mb-1 ${isBuyer ? 'justify-end' : 'justify-start'}`}>
-                    <span className={`font-semibold text-[11px] ${isBuyer ? 'text-[#DEC76B]' : 'text-[#0E101A]/60'}`}>
+                  <div
+                    className={`flex items-center gap-2 mb-1 ${isBuyer ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <span
+                      className={`font-semibold text-[11px] ${isBuyer ? 'text-[#DEC76B]' : 'text-[#0E101A]/60'}`}
+                    >
                       {isBuyer ? 'You' : `${msg.sender?.first_name || 'SourceCo'} — SourceCo`}
                     </span>
                     <span className="text-[10px] text-[#0E101A]/25">
@@ -111,9 +121,7 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
                         : 'bg-white border border-[#F0EDE6] text-[#0E101A]/70'
                     }`}
                   >
-                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
-                      {msg.body}
-                    </p>
+                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.body}</p>
                   </div>
                 </div>
               </div>
@@ -152,7 +160,9 @@ export function DealMessagesTab({ requestId, requestStatus }: DealMessagesTabPro
             </div>
           </div>
         ) : (
-          <p className="text-xs text-[#0E101A]/30 text-center py-3">This deal is no longer active.</p>
+          <p className="text-xs text-[#0E101A]/30 text-center py-3">
+            This deal is no longer active.
+          </p>
         )}
       </div>
     </div>

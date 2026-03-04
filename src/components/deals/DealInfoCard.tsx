@@ -34,9 +34,8 @@ export function DealInfoCard({
   createdAt,
   description,
 }: DealInfoCardProps) {
-  const ebitdaMargin = ebitda && revenue && revenue > 0
-    ? `${((ebitda / revenue) * 100).toFixed(1)}%`
-    : null;
+  const ebitdaMargin =
+    ebitda && revenue && revenue > 0 ? `${((ebitda / revenue) * 100).toFixed(1)}%` : null;
 
   return (
     <div className="rounded-lg border border-[#F0EDE6] bg-white overflow-hidden">

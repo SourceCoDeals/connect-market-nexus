@@ -14,8 +14,15 @@ interface PostRejectionPanelProps {
 
 export function PostRejectionPanel({ listingCategory, listingLocation }: PostRejectionPanelProps) {
   const { data: listingsData } = useSimpleListings({
-    page: 1, perPage: 50, search: '', category: '', location: '',
-    revenueMin: undefined, revenueMax: undefined, ebitdaMin: undefined, ebitdaMax: undefined,
+    page: 1,
+    perPage: 50,
+    search: '',
+    category: '',
+    location: '',
+    revenueMin: undefined,
+    revenueMax: undefined,
+    ebitdaMin: undefined,
+    ebitdaMax: undefined,
   });
   const { data: connectionMap } = useAllConnectionStatuses();
 
@@ -24,8 +31,11 @@ export function PostRejectionPanel({ listingCategory, listingLocation }: PostRej
     return listingsData.listings
       .filter((listing) => {
         if (connectionMap?.has(listing.id)) return false;
-        const catMatch = listingCategory && listing.category?.toLowerCase() === listingCategory.toLowerCase();
-        const locMatch = listingLocation && listing.location?.toLowerCase().includes(listingLocation.toLowerCase());
+        const catMatch =
+          listingCategory && listing.category?.toLowerCase() === listingCategory.toLowerCase();
+        const locMatch =
+          listingLocation &&
+          listing.location?.toLowerCase().includes(listingLocation.toLowerCase());
         return catMatch || locMatch;
       })
       .slice(0, 3);
@@ -53,7 +63,8 @@ export function PostRejectionPanel({ listingCategory, listingLocation }: PostRej
       {similarListings.length > 0 && (
         <div>
           <p className="text-[11px] font-medium text-[#0E101A]/40 mb-2">
-            {similarListings.length} similar deal{similarListings.length !== 1 ? 's' : ''} still accepting requests:
+            {similarListings.length} similar deal{similarListings.length !== 1 ? 's' : ''} still
+            accepting requests:
           </p>
           <div className="space-y-2">
             {similarListings.map((listing) => (
@@ -80,14 +91,28 @@ export function PostRejectionPanel({ listingCategory, listingLocation }: PostRej
       <div className="flex flex-wrap gap-2">
         <CreateDealAlertDialog
           trigger={
-            <Button variant="outline" size="sm" className="text-[11px] gap-1.5 border-[#E5DDD0] text-[#0E101A]/60 hover:text-[#0E101A] hover:border-[#0E101A]">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[11px] gap-1.5 border-[#E5DDD0] text-[#0E101A]/60 hover:text-[#0E101A] hover:border-[#0E101A]"
+            >
               <Bell className="h-3 w-3" />
               Alert me for similar deals
             </Button>
           }
         />
-        <Link to={listingCategory ? `/marketplace?category=${encodeURIComponent(listingCategory)}` : '/marketplace'}>
-          <Button variant="outline" size="sm" className="text-[11px] gap-1.5 border-[#E5DDD0] text-[#0E101A]/60 hover:text-[#0E101A] hover:border-[#0E101A]">
+        <Link
+          to={
+            listingCategory
+              ? `/marketplace?category=${encodeURIComponent(listingCategory)}`
+              : '/marketplace'
+          }
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-[11px] gap-1.5 border-[#E5DDD0] text-[#0E101A]/60 hover:text-[#0E101A] hover:border-[#0E101A]"
+          >
             <Search className="h-3 w-3" />
             Browse {listingCategory || 'marketplace'}
           </Button>

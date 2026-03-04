@@ -39,7 +39,8 @@ export function DealActionCard({
       return {
         icon: XCircle,
         title: 'Not Selected',
-        description: 'The owner has chosen another buyer for this opportunity. This reflects deal-specific fit, not your qualifications.',
+        description:
+          'The owner has chosen another buyer for this opportunity. This reflects deal-specific fit, not your qualifications.',
         variant: 'muted' as const,
         unlock: null,
         cta: null,
@@ -49,8 +50,9 @@ export function DealActionCard({
     if (requestStatus === 'approved') {
       return {
         icon: CheckCircle2,
-        title: 'You\'re Connected',
-        description: 'Great news — the owner selected your firm. Expect an email from our team shortly with next steps and detailed opportunity materials.',
+        title: "You're Connected",
+        description:
+          'Great news — the owner selected your firm. Expect an email from our team shortly with next steps and detailed opportunity materials.',
         variant: 'success' as const,
         unlock: null,
         cta: null,
@@ -62,8 +64,10 @@ export function DealActionCard({
       return {
         icon: Shield,
         title: 'Sign your NDA to proceed',
-        description: 'Your Non-Disclosure Agreement needs to be signed before your interest can be presented to the owner.',
-        unlock: 'Once signed, you\'ll receive access to the company name, confidential deal memo, and detailed financials.',
+        description:
+          'Your Non-Disclosure Agreement needs to be signed before your interest can be presented to the owner.',
+        unlock:
+          "Once signed, you'll receive access to the company name, confidential deal memo, and detailed financials.",
         variant: 'action' as const,
         cta: { label: 'Sign NDA Now', onClick: () => openSigning('nda') },
       };
@@ -73,22 +77,26 @@ export function DealActionCard({
       return {
         icon: FileSignature,
         title: 'Sign your Fee Agreement',
-        description: 'Your Fee Agreement is ready for signature. Complete this to finalize your documentation.',
-        unlock: 'Signing completes your documentation, allowing our team to present your interest to the owner.',
+        description:
+          'Your Fee Agreement is ready for signature. Complete this to finalize your documentation.',
+        unlock:
+          'Signing completes your documentation, allowing our team to present your interest to the owner.',
         variant: 'action' as const,
         cta: { label: 'Sign Agreement Now', onClick: () => openSigning('fee_agreement') },
       };
     }
 
     // All docs signed, pending review
-    const daysPending = Math.floor((Date.now() - new Date(requestCreatedAt).getTime()) / (1000 * 60 * 60 * 24));
+    const daysPending = Math.floor(
+      (Date.now() - new Date(requestCreatedAt).getTime()) / (1000 * 60 * 60 * 24),
+    );
     const isExtended = daysPending > 7;
 
     return {
       icon: Clock,
       title: 'Under Review',
       description: isExtended
-        ? 'This is taking a bit longer than usual. The owner is carefully evaluating all interested buyers. We\'ll notify you as soon as a decision is made.'
+        ? "This is taking a bit longer than usual. The owner is carefully evaluating all interested buyers. We'll notify you as soon as a decision is made."
         : 'Your interest is being presented to the owner alongside other qualified buyers. Decisions typically take 3–7 business days.',
       unlock: null,
       variant: 'waiting' as const,

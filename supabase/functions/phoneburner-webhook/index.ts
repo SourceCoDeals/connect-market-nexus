@@ -78,16 +78,17 @@ Deno.serve(async (req) => {
   // ── simple secret header check ──
   const headerSecret = req.headers.get('x-webhook-secret') || req.headers.get('X-Webhook-Secret');
   let signatureValid = false;
-  if (webhookSecret) {
-    if (headerSecret === webhookSecret) {
-      signatureValid = true;
-      console.log('PhoneBurner webhook received, secret verified');
-    } else {
-      console.warn('PhoneBurner webhook secret mismatch — rejecting');
-      return jsonResponse({ error: 'Invalid webhook secret' }, 401, corsHeaders);
-    }
+  // SECURITY: Fail closed — reject all requests when secret is not configured
+  if (!webhookSecret) {
+    console.error('PHONEBURNER_WEBHOOK_SECRET not configured — rejecting request (fail-closed)');
+    return jsonResponse({ error: 'Webhook secret not configured' }, 500, corsHeaders);
+  }
+  if (headerSecret === webhookSecret) {
+    signatureValid = true;
+    console.log('PhoneBurner webhook received, secret verified');
   } else {
-    console.warn('PHONEBURNER_WEBHOOK_SECRET not configured — accepting without auth');
+    console.warn('PhoneBurner webhook secret mismatch — rejecting');
+    return jsonResponse({ error: 'Invalid webhook secret' }, 401, corsHeaders);
   }
 
   let payload: Record<string, unknown>;

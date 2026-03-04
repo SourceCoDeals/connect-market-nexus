@@ -135,6 +135,13 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
+      if (newPassword.length < 8) {
+        return new Response(
+          JSON.stringify({ error: 'Password must be at least 8 characters' }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
       console.log('Validating reset token...');
 
       // Validate token directly
