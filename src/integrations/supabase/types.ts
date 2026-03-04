@@ -1306,6 +1306,7 @@ export type Database = {
           alignment_reasoning: string | null
           alignment_score: number | null
           archived: boolean
+          backfill_status: string | null
           business_summary: string | null
           business_type: string | null
           buyer_linkedin: string | null
@@ -1340,15 +1341,19 @@ export type Database = {
           industry_tracker_id: string | null
           industry_vertical: string | null
           investment_date: string | null
+          is_marketplace_member: boolean | null
           is_pe_backed: boolean | null
           is_publicly_traded: boolean | null
           marketplace_firm_id: string | null
+          marketplace_joined_at: string | null
           notes: string | null
           notes_analyzed_at: string | null
           num_employees: number | null
           num_platforms: number | null
           number_of_locations: number | null
           operating_locations: string[] | null
+          parent_pe_firm_id: string | null
+          parent_pe_firm_name: string | null
           pe_firm_acquisitions: Json | null
           pe_firm_id: string | null
           pe_firm_linkedin: string | null
@@ -1393,6 +1398,7 @@ export type Database = {
           alignment_reasoning?: string | null
           alignment_score?: number | null
           archived?: boolean
+          backfill_status?: string | null
           business_summary?: string | null
           business_type?: string | null
           buyer_linkedin?: string | null
@@ -1427,15 +1433,19 @@ export type Database = {
           industry_tracker_id?: string | null
           industry_vertical?: string | null
           investment_date?: string | null
+          is_marketplace_member?: boolean | null
           is_pe_backed?: boolean | null
           is_publicly_traded?: boolean | null
           marketplace_firm_id?: string | null
+          marketplace_joined_at?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           num_employees?: number | null
           num_platforms?: number | null
           number_of_locations?: number | null
           operating_locations?: string[] | null
+          parent_pe_firm_id?: string | null
+          parent_pe_firm_name?: string | null
           pe_firm_acquisitions?: Json | null
           pe_firm_id?: string | null
           pe_firm_linkedin?: string | null
@@ -1480,6 +1490,7 @@ export type Database = {
           alignment_reasoning?: string | null
           alignment_score?: number | null
           archived?: boolean
+          backfill_status?: string | null
           business_summary?: string | null
           business_type?: string | null
           buyer_linkedin?: string | null
@@ -1514,15 +1525,19 @@ export type Database = {
           industry_tracker_id?: string | null
           industry_vertical?: string | null
           investment_date?: string | null
+          is_marketplace_member?: boolean | null
           is_pe_backed?: boolean | null
           is_publicly_traded?: boolean | null
           marketplace_firm_id?: string | null
+          marketplace_joined_at?: string | null
           notes?: string | null
           notes_analyzed_at?: string | null
           num_employees?: number | null
           num_platforms?: number | null
           number_of_locations?: number | null
           operating_locations?: string[] | null
+          parent_pe_firm_id?: string | null
+          parent_pe_firm_name?: string | null
           pe_firm_acquisitions?: Json | null
           pe_firm_id?: string | null
           pe_firm_linkedin?: string | null
@@ -1555,6 +1570,20 @@ export type Database = {
           verified_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "buyers_parent_pe_firm_id_fkey"
+            columns: ["parent_pe_firm_id"]
+            isOneToOne: false
+            referencedRelation: "buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyers_parent_pe_firm_id_fkey"
+            columns: ["parent_pe_firm_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "remarketing_buyers_industry_tracker_id_fkey"
             columns: ["industry_tracker_id"]
@@ -8232,6 +8261,177 @@ export type Database = {
         }
         Relationships: []
       }
+      pe_backfill_log: {
+        Row: {
+          confidence_score: number | null
+          created_at: string
+          id: string
+          matched_pe_firm_id: string | null
+          matched_pe_firm_name: string | null
+          method_used: string | null
+          outcome: string | null
+          pe_firm_name_cleaned: string | null
+          pe_firm_name_raw: string | null
+          platform_buyer_id: string | null
+          platform_name: string | null
+          reasoning: string | null
+          run_id: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          matched_pe_firm_id?: string | null
+          matched_pe_firm_name?: string | null
+          method_used?: string | null
+          outcome?: string | null
+          pe_firm_name_cleaned?: string | null
+          pe_firm_name_raw?: string | null
+          platform_buyer_id?: string | null
+          platform_name?: string | null
+          reasoning?: string | null
+          run_id?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          matched_pe_firm_id?: string | null
+          matched_pe_firm_name?: string | null
+          method_used?: string | null
+          outcome?: string | null
+          pe_firm_name_cleaned?: string | null
+          pe_firm_name_raw?: string | null
+          platform_buyer_id?: string | null
+          platform_name?: string | null
+          reasoning?: string | null
+          run_id?: string | null
+        }
+        Relationships: []
+      }
+      pe_backfill_review_queue: {
+        Row: {
+          ai_reasoning: string | null
+          candidate_matches: Json | null
+          chosen_pe_firm_id: string | null
+          confidence_score: number | null
+          created_at: string
+          id: string
+          pe_firm_name_cleaned: string
+          pe_firm_name_raw: string
+          platform_buyer_id: string
+          platform_name: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          candidate_matches?: Json | null
+          chosen_pe_firm_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          pe_firm_name_cleaned: string
+          pe_firm_name_raw: string
+          platform_buyer_id: string
+          platform_name: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          candidate_matches?: Json | null
+          chosen_pe_firm_id?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          pe_firm_name_cleaned?: string
+          pe_firm_name_raw?: string
+          platform_buyer_id?: string
+          platform_name?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pe_backfill_review_queue_chosen_pe_firm_id_fkey"
+            columns: ["chosen_pe_firm_id"]
+            isOneToOne: false
+            referencedRelation: "buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pe_backfill_review_queue_chosen_pe_firm_id_fkey"
+            columns: ["chosen_pe_firm_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pe_backfill_review_queue_platform_buyer_id_fkey"
+            columns: ["platform_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pe_backfill_review_queue_platform_buyer_id_fkey"
+            columns: ["platform_buyer_id"]
+            isOneToOne: false
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pe_backfill_review_queue_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pe_link_queue: {
+        Row: {
+          buyer_id: string
+          id: string
+          pe_firm_name_raw: string | null
+          queued_at: string
+          status: string
+        }
+        Insert: {
+          buyer_id: string
+          id?: string
+          pe_firm_name_raw?: string | null
+          queued_at?: string
+          status?: string
+        }
+        Update: {
+          buyer_id?: string
+          id?: string
+          pe_firm_name_raw?: string | null
+          queued_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pe_link_queue_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: true
+            referencedRelation: "buyers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pe_link_queue_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: true
+            referencedRelation: "remarketing_buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       phoneburner_oauth_tokens: {
         Row: {
           access_token: string
@@ -12615,6 +12815,14 @@ export type Database = {
         Args: { p_record_id: string; p_table_name: string }
         Returns: boolean
       }
+      search_buyers_by_similarity: {
+        Args: { min_similarity?: number; search_name: string }
+        Returns: {
+          company_name: string
+          id: string
+          score: number
+        }[]
+      }
       search_listings: {
         Args: {
           filter_category?: string
@@ -12667,6 +12875,14 @@ export type Database = {
           visible_to_buyer_types: string[]
         }[]
       }
+      search_pe_firms_by_similarity: {
+        Args: { min_similarity?: number; search_name: string }
+        Returns: {
+          company_name: string
+          id: string
+          score: number
+        }[]
+      }
       search_transcripts_semantic: {
         Args: {
           match_count?: number
@@ -12685,6 +12901,8 @@ export type Database = {
           transcript_snippet: string
         }[]
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       soft_delete_deal: {
         Args: { deal_id: string; deletion_reason?: string }
         Returns: boolean

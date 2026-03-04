@@ -1,56 +1,24 @@
 
 
-# Fix: `receive-valuation-lead` — Buyer Lane Field Mapping Bug
+## Plan: Add Clay Phone Number Lookup Tool — ✅ COMPLETED
 
-## Status
+### Summary
+Mirrored the existing `clay_find_email` pattern to add a `clay_find_phone` tool that sends LinkedIn URLs to a new Clay phone lookup table and receives results via an inbound webhook. No auth/secret requirements on the webhook endpoint.
 
-The edge function **is deployed and working**. I just successfully tested it — the submission was received, stored in both `incoming_leads` and `valuation_leads`, and all fields populated correctly **except one**:
+### Completed Changes
 
-- **`buyer_lane` is always `null`** — The code reads `buyerLane?.lane` but the payload sends `buyerLane.title`. This is a one-line fix.
+1. ✅ Database Migration — Added `result_phone TEXT` column to `clay_enrichment_requests`
+2. ✅ `clay-client.ts` — Added phone webhook URL + `sendToClayPhone` sender
+3. ✅ New edge function: `clay-webhook-phone/index.ts` — No auth, updates `result_phone`, `enriched_contacts.phone`, `contacts.phone`
+4. ✅ `config.toml` — Added `[functions.clay-webhook-phone]` with `verify_jwt = false`
+5. ✅ `clay-tools.ts` — Added `clayLookupPhone`, `ClayPhoneLookupResult`, `clay_find_phone` tool definition, `clayFindPhone` executor
+6. ✅ `integration/index.ts` — Re-exported `clayFindPhone`, `clayLookupPhone`, `ClayPhoneLookupResult`
+7. ✅ `integration-action-tools.ts` — Wired `case 'clay_find_phone'`
+8. ✅ `tools/index.ts` — Registered in GENERAL, CONTACTS, CONTACT_ENRICHMENT, REMARKETING, GOOGLE_SEARCH categories
+9. ✅ `system-prompt.ts` — Added phone lookup guidance
+10. ✅ Tested — Inbound webhook deployed and verified working
 
-## What's Actually Wrong with Your External App
+### Inbound Webhook URL
+`https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/clay-webhook-phone`
 
-The function has **no recent logs from your app**, meaning your external calculator app is either:
-1. Sending to a different URL
-2. Getting a network error before reaching Supabase
-3. Not actually firing the POST
-
-The correct endpoint is:
-```
-POST https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/receive-valuation-lead
-```
-
-**You should check your external app's network tab / console to see what URL it's hitting and what response it gets.**
-
-## Code Fix
-
-In `supabase/functions/receive-valuation-lead/index.ts`, line 168:
-
-```typescript
-// BEFORE (bug):
-buyer_lane: buyerLane?.lane ?? null,
-
-// AFTER (fix):
-buyer_lane: buyerLane?.title ?? null,
-```
-
-Also add a more prominent log of the full incoming body for easier debugging:
-
-```typescript
-console.log("[receive-valuation-lead] Full body:", JSON.stringify(body));
-```
-
-## Cleanup
-
-Delete the two test rows I just created:
-- `plan-check-test@example.com` from `incoming_leads` and `valuation_leads`
-
-## Everything Else is Correct
-
-- `config.toml`: `verify_jwt = false` ✓
-- `incoming_leads` table: all columns present ✓
-- CORS: `Access-Control-Allow-Origin: *` ✓
-- Upsert on email: ✓
-- Service role key used: ✓
-- Error handling with 400/500: ✓
-
+Configure Clay to POST results to this URL with `request_id` and `phone` fields.
