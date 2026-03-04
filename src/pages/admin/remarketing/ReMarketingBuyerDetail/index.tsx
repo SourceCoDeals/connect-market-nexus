@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { EntityTasksTab, CreateTaskButton } from '@/components/daily-tasks';
 import { BuyerAgreementsPanel } from '@/components/remarketing/BuyerAgreementsPanel';
+import { BuyerRelationshipSection } from '@/components/remarketing/buyer-detail/BuyerRelationshipSection';
 import {
   BuyerDetailHeader,
   CriteriaCompletenessBanner,
@@ -193,6 +194,15 @@ const ReMarketingBuyerDetail = () => {
           feeAgreementDisabled={updateFeeAgreementMutation.isPending}
         />
       </div>
+
+      {/* Relationship Section */}
+      <BuyerRelationshipSection
+        buyerId={buyer?.id || ''}
+        buyerType={buyer?.buyer_type || null}
+        isPeBacked={buyer?.is_pe_backed || false}
+        parentPeFirmId={buyer?.parent_pe_firm_id || null}
+        parentPeFirmName={buyer?.parent_pe_firm_name || null}
+      />
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="intelligence" className="space-y-4">
