@@ -8,13 +8,16 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-/** Safely read a nested .value from calculator_inputs objects */
+/** Safely read a nested .value from calculator_inputs objects.
+ *  Handles both `{ value: X }` style and plain values. */
 function inputVal(inputs: Record<string, unknown>, key: string): unknown {
   const obj = inputs?.[key];
-  if (obj && typeof obj === "object" && "value" in (obj as Record<string, unknown>)) {
+  if (obj == null) return null;
+  if (typeof obj === "object" && "value" in (obj as Record<string, unknown>)) {
     return (obj as Record<string, unknown>).value;
   }
-  return null;
+  // Plain value (string, number, boolean)
+  return obj;
 }
 
 /** Extract a business name from a website domain */
