@@ -240,6 +240,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_connection_requests',
     'google_search_companies',
     'clay_find_email',
+    'clay_find_phone',
     'enrich_contact',
     'find_contact',
     'retrieve_knowledge',
@@ -279,6 +280,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'sort_table_column',
     'trigger_page_action',
     'get_buyer_signals', // merged: was get_engagement_signals + get_buyer_decisions
+    'clay_find_email',
+    'clay_find_phone',
   ],
 
   // Content generation
@@ -333,6 +336,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'enrich_contact', // merged: was enrich_buyer_contacts + enrich_linkedin_contact
     'find_contact', // merged: was find_contact_linkedin + find_and_enrich_person
     'clay_find_email',
+    'clay_find_phone',
     'send_document',
   ],
 
@@ -364,6 +368,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'enrich_contact', // merged: was enrich_buyer_contacts + enrich_linkedin_contact
     'find_contact', // merged: was find_contact_linkedin + find_and_enrich_person
     'clay_find_email',
+    'clay_find_phone',
     'save_contacts_to_crm',
     'search_contacts',
     'search_pe_contacts',
@@ -407,6 +412,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'google_search_companies',
     'enrich_contact', // merged: was enrich_buyer_contacts
     'clay_find_email',
+    'clay_find_phone',
     'search_buyers',
     'search_lead_sources',
   ],

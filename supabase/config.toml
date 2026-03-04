@@ -254,3 +254,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.send-approval-email]
 verify_jwt = false
+[functions.clay-webhook-phone]
+verify_jwt = false

@@ -1971,6 +1971,7 @@ export type Database = {
           request_type: string
           result_data: Json | null
           result_email: string | null
+          result_phone: string | null
           source_entity_id: string | null
           source_function: string
           status: string
@@ -1992,6 +1993,7 @@ export type Database = {
           request_type: string
           result_data?: Json | null
           result_email?: string | null
+          result_phone?: string | null
           source_entity_id?: string | null
           source_function: string
           status?: string
@@ -2013,6 +2015,7 @@ export type Database = {
           request_type?: string
           result_data?: Json | null
           result_email?: string | null
+          result_phone?: string | null
           source_entity_id?: string | null
           source_function?: string
           status?: string

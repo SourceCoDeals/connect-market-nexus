@@ -41,6 +41,7 @@ import {
   sendDocument,
   clayToolDefinitions,
   clayFindEmail,
+  clayFindPhone,
 } from './integration/index.ts';
 
 // ---------- Tool definitions ----------
@@ -87,6 +88,8 @@ export async function executeIntegrationActionTool(
       return sendDocument(supabase, args, userId);
     case 'clay_find_email':
       return clayFindEmail(supabase, args, userId);
+    case 'clay_find_phone':
+      return clayFindPhone(supabase, args, userId);
     // Backward compatibility aliases for old tool names
     case 'enrich_buyer_contacts':
       return enrichBuyerContacts(supabase, args, userId);
