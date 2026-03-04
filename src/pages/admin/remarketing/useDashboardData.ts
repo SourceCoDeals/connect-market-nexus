@@ -124,7 +124,7 @@ export function useDashboardData(timeframe: Timeframe) {
     queryKey: ['dashboard', 'universes'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyer_universes')
+        .from('buyer_universes')
         .select('id, name')
         .eq('archived', false);
       if (error) throw error;
@@ -151,7 +151,7 @@ export function useDashboardData(timeframe: Timeframe) {
     queryKey: ['dashboard', 'buyers'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('remarketing_buyers')
+        .from('buyers')
         .select('universe_id')
         .eq('archived', false);
       if (error) throw error;
