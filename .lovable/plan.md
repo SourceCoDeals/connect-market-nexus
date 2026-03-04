@@ -1,71 +1,51 @@
 
 
-## Fix: "Assigned To" Dropdown Shows No Team Members
+## Plan: Add Clay Phone Number Lookup Tool
 
-### Root Cause
-
-The "Assigned To" dropdown in task creation/reassignment is empty because it queries the `user_roles` table directly, which has Row-Level Security (RLS) policies that restrict visibility:
-
-- **Owners and admins** can see all rows -- dropdown works for them
-- **Moderators (team members)** can only see their own row -- dropdown shows only themselves or nothing
-- **Some pages** don't pass `teamMembers` at all (e.g., Deal Detail page), so the dropdown is always empty regardless of role
-
-### Fix
-
-Replace the `user_roles`-based team member query with a shared hook that uses a **security definer RPC** (bypasses RLS) to return the internal team list. This ensures all internal users can see the full team in every task dialog.
+### Summary
+Mirror the existing `clay_find_email` pattern to add a `clay_find_phone` tool that sends LinkedIn URLs to a new Clay phone lookup table and receives results via an inbound webhook. No auth/secret requirements on the webhook endpoint.
 
 ### Changes
 
-**1. Create a database RPC function (security definer)**
+**1. Database Migration — Add `result_phone` column to `clay_enrichment_requests`**
+- Add `result_phone TEXT` column so the tracking table can store phone results alongside email results.
 
-Create `get_internal_team_members()` that returns user_id, first_name, last_name, email, and role for all internal team members (owner/admin/moderator). Since it uses `security definer`, any authenticated user can call it without RLS restrictions on `user_roles`.
+**2. `supabase/functions/_shared/clay-client.ts` — Add phone webhook URL + sender**
+- Add `phone` key to `CLAY_WEBHOOK_URLS` with endpoint: `https://api.clay.com/v3/sources/webhook/pull-in-data-from-a-webhook-fd39ed9a-ae2f-4ecd-8f8d-dd8d3740a6c9`
+- Add `sendToClayPhone(params: { requestId, linkedinUrl })` function (same pattern as `sendToClayLinkedIn`)
+- Update file header doc to mention the third flow (LinkedIn URL → phone)
 
-**2. Create shared hook: `src/hooks/use-team-members.ts`**
+**3. New edge function: `supabase/functions/clay-webhook-phone/index.ts`**
+- Exact same structure as `clay-webhook-linkedin/index.ts` but:
+  - Extracts `phone` from payload instead of `email`
+  - Updates `result_phone` on the tracking row (plus `result_data`, `raw_callback_payload`)
+  - Updates `enriched_contacts.phone` and `contacts.phone` instead of email
+  - Source: `clay_phone`
+  - Header comment: **NO auth/secret/signature check — DO NOT re-add**
 
-A single reusable hook that calls the new RPC and returns `{ id, name, email, role }[]`. This replaces the inline `user_roles` query currently duplicated in `CreateTaskButton`, `TeamMemberRegistry`, and passed as props through `EntityTasksTab`.
+**4. `supabase/config.toml` — Add webhook config**
+- Add `[functions.clay-webhook-phone]` with `verify_jwt = false`
 
-**3. Update `CreateTaskButton.tsx`**
+**5. `supabase/functions/ai-command-center/tools/integration/clay-tools.ts` — Add phone tool**
+- Add `clayLookupPhone` helper (mirrors `clayLookupEmail` but uses `sendToClayPhone`, polls for `result_phone`, returns phone)
+- Add `ClayPhoneLookupResult` type: `{ phone: string | null; source: string; requestId: string; timedOut?: boolean }`
+- Add `clay_find_phone` tool definition (LinkedIn URL only, no name+domain mode)
+- Add `clayFindPhone` executor function
+- Export from `clayToolDefinitions` array
 
-Replace the inline `useQuery` for team members with the new `useTeamMembers()` hook.
+**6. `supabase/functions/ai-command-center/tools/integration/index.ts` — Re-export**
+- Add `clayFindPhone`, `clayLookupPhone` to exports
 
-**4. Update `EntityTasksTab.tsx`**
+**7. `supabase/functions/ai-command-center/tools/integration-action-tools.ts` — Wire executor**
+- Add `case 'clay_find_phone'` to the switch, calling `clayFindPhone`
 
-Remove the `teamMembers` prop dependency. Instead, have the component use `useTeamMembers()` internally, so it always has the team list regardless of what the parent passes.
+**8. `supabase/functions/ai-command-center/tools/index.ts` — Register in tool categories**
+- Add `'clay_find_phone'` alongside `'clay_find_email'` in GENERAL, CONTACTS, CONTACT_ENRICHMENT, REMARKETING, and ENRICHMENT_TOOLS categories
 
-**5. Update `EntityAddTaskDialog.tsx`**
+**9. `supabase/functions/ai-command-center/system-prompt.ts` — Update AI instructions**
+- Add phone lookup guidance: "Use `clay_find_phone` to find a person's phone number via their LinkedIn URL. Works the same as `clay_find_email` but returns a phone number."
 
-Use `useTeamMembers()` hook internally instead of relying on the `teamMembers` prop (keep prop as optional override for backward compatibility).
-
-**6. Update `ReassignDialog.tsx`**
-
-Same pattern -- use `useTeamMembers()` hook internally.
-
-**7. Update `AddTaskDialog.tsx`**
-
-Same pattern -- use hook internally instead of requiring prop.
-
-### Technical Details
-
-```text
-Database function:
-  get_internal_team_members() -> table(user_id uuid, first_name text, last_name text, email text, role text)
-  SECURITY DEFINER, accessible to authenticated users
-
-Hook: useTeamMembers()
-  Calls supabase.rpc('get_internal_team_members')
-  Returns: { id: string; name: string; email: string; role: string }[]
-  Stale time: 60s (matches current pattern)
-```
-
-### Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| SQL migration (via Supabase) | Create `get_internal_team_members()` RPC |
-| `src/hooks/use-team-members.ts` | Create shared hook |
-| `src/components/daily-tasks/CreateTaskButton.tsx` | Use new hook |
-| `src/components/daily-tasks/EntityTasksTab.tsx` | Use hook internally, make prop optional |
-| `src/components/daily-tasks/EntityAddTaskDialog.tsx` | Use hook internally |
-| `src/components/daily-tasks/ReassignDialog.tsx` | Use hook internally |
-| `src/components/daily-tasks/AddTaskDialog.tsx` | Use hook internally |
+**10. Test — Send test request to Clay**
+- After deploying, call the Clay phone webhook with the example LinkedIn URL (`https://www.linkedin.com/in/tomos-mughan`) to verify the outbound flow works.
+- Share the inbound webhook URL: `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/clay-webhook-phone`
 
