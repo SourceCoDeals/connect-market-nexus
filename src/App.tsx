@@ -333,7 +333,7 @@ function App() {
               <Route path="buyers" element={<ReMarketingBuyers />} />
               <Route
                 path="buyers/pe-firms"
-                element={<Navigate to="/admin/buyers?tab=pe_firm" replace />}
+                element={<Navigate to="/admin/buyers?tab=private_equity" replace />}
               />
               <Route path="buyers/pe-firms/:id" element={<PEFirmDetail />} />
               <Route path="buyers/:id" element={<ReMarketingBuyerDetail />} />

@@ -338,7 +338,7 @@ describe('Platform Company Rule (Classification)', () => {
 // ── BuyerTypeBadge effective type logic ──
 
 function getEffectiveBadgeType(buyerType: string, isPeBacked: boolean): string {
-  if ((buyerType === 'corporate' || buyerType === 'strategic') && isPeBacked) {
+  if (buyerType === 'corporate' && isPeBacked) {
     return 'platform_co';
   }
   return buyerType;
