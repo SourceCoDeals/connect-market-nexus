@@ -108,13 +108,28 @@ serve(async (req: Request) => {
     const ci = calculator_inputs as Record<string, unknown>;
     const vr = valuation_result as Record<string, unknown>;
 
+    // Helpers for safe type coercion
+    const toNum = (v: unknown): number | null => {
+      if (v == null) return null;
+      const n = Number(v);
+      return isNaN(n) ? null : n;
+    };
+    const toInt = (v: unknown): number | null => {
+      const n = toNum(v);
+      return n == null ? null : Math.round(n);
+    };
+    const toStr = (v: unknown): string | null => {
+      if (v == null) return null;
+      return String(v);
+    };
+
     // From calculator_inputs (nested { value, label, ... } objects)
-    const revenue = inputVal(ci, "revenue_ltm") as number | null;
-    const ebitda = inputVal(ci, "ebitda_ltm") as number | null;
-    const serviceType = inputVal(ci, "service_type") as string | null;
-    const locationsCount = inputVal(ci, "locations_count") as number | null;
-    const ownerDependency = inputVal(ci, "owner_dependency") as string | null;
-    const growthTrend = inputVal(ci, "trend_24m") as string | null;
+    const revenue = toNum(inputVal(ci, "revenue_ltm"));
+    const ebitda = toNum(inputVal(ci, "ebitda_ltm"));
+    const serviceType = toStr(inputVal(ci, "service_type"));
+    const locationsCount = toInt(inputVal(ci, "locations_count"));
+    const ownerDependency = toStr(inputVal(ci, "owner_dependency"));
+    const growthTrend = toStr(inputVal(ci, "trend_24m"));
 
     // From valuation_result (flat nested objects)
     const businessValue = vr?.businessValue as Record<string, number> | null;
