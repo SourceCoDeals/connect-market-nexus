@@ -6,7 +6,6 @@ import {
   Loader2,
   FlaskConical,
   Activity,
-  Beaker,
   Bot,
   Mail,
   ListChecks,
@@ -25,7 +24,6 @@ import { INTER_TEST_DELAY_MS, sleep, withRateLimitRetry } from './system-test-ru
 import type { ChatbotTestContext } from './chatbot-test-runner/chatbotInfraTests';
 
 // Lazy-loaded tab components
-const EnrichmentTest = lazy(() => import('@/pages/admin/EnrichmentTest'));
 const SystemTestRunner = lazy(() => import('@/pages/admin/SystemTestRunner'));
 const DocuSealHealthCheck = lazy(() => import('@/pages/admin/DocuSealHealthCheck'));
 const ChatbotTestRunner = lazy(() => import('@/pages/admin/ChatbotTestRunner'));
@@ -150,7 +148,7 @@ const Loading = () => (
 
 export default function TestingHub() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'enrichment';
+  const tab = searchParams.get('tab') || 'system';
   const [progress, setProgress] = useState<RunAllProgress | null>(null);
   const abortRef = useRef(false);
   const [showTracker, setShowTracker] = useState(false);
@@ -851,10 +849,6 @@ export default function TestingHub() {
       <div className="px-8 py-6">
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="mb-6">
-            <TabsTrigger value="enrichment" className="gap-2">
-              <Beaker className="h-4 w-4" />
-              Enrichment Test
-            </TabsTrigger>
             <TabsTrigger value="system" className="gap-2">
               <FlaskConical className="h-4 w-4" />
               System Tests
@@ -884,12 +878,6 @@ export default function TestingHub() {
               AI Buyer Engine
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="enrichment">
-            <Suspense fallback={<Loading />}>
-              <EnrichmentTest />
-            </Suspense>
-          </TabsContent>
 
           <TabsContent value="system">
             <Suspense fallback={<Loading />}>

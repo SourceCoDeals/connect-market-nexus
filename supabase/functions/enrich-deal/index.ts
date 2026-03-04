@@ -401,7 +401,7 @@ serve(async (req) => {
             Authorization: `Bearer ${supabaseAnonKey}`,
           },
           body: JSON.stringify({ dealId, notesText: notesContent }),
-          signal: AbortSignal.timeout(120000), // 2 min timeout for notes analysis
+          signal: AbortSignal.timeout(30000), // 30s timeout — must fit within parent function's budget
         });
 
         if (notesResponse.ok) {

@@ -3,7 +3,7 @@
  *
  * PUBLIC — no authentication required. Access is gated by access_token.
  *
- * GET params:
+ * Accepts GET (query params) or POST (JSON body):
  *   - access_token: string (required) — from deal_data_room_access
  *   - document_id: UUID (optional) — if provided, generates a signed download URL
  *
@@ -23,17 +23,17 @@ const SIGNED_URL_EXPIRY = 60; // 60 seconds
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  // Allow GET in addition to OPTIONS for this public endpoint
+  // Allow GET and POST for this public endpoint (frontend uses POST with JSON body)
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: {
         ...corsHeaders,
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       },
     });
   }
 
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -45,9 +45,19 @@ Deno.serve(async (req: Request) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    const url = new URL(req.url);
-    const accessToken = url.searchParams.get("access_token");
-    const documentId = url.searchParams.get("document_id");
+    // Support both GET (query params) and POST (JSON body)
+    let accessToken: string | null = null;
+    let documentId: string | null = null;
+
+    if (req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      accessToken = body.access_token || null;
+      documentId = body.document_id || null;
+    } else {
+      const url = new URL(req.url);
+      accessToken = url.searchParams.get("access_token");
+      documentId = url.searchParams.get("document_id");
+    }
 
     if (!accessToken) {
       return new Response(

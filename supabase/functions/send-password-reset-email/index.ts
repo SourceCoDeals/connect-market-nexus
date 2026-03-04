@@ -7,7 +7,7 @@ import { logEmailDelivery } from '../_shared/email-logger.ts';
 interface PasswordResetEmailRequest {
   email: string;
   resetToken: string;
-  resetUrl: string;
+  resetUrl?: string; // Ignored — URL is constructed server-side to prevent phishing
 }
 
 // ── In-memory rate limiter: 1 request per email per 60 seconds ──
@@ -39,7 +39,12 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, resetToken: _resetToken, resetUrl }: PasswordResetEmailRequest = await req.json();
+    const { email }: PasswordResetEmailRequest = await req.json();
+
+    // SECURITY: Always construct resetUrl server-side to prevent phishing attacks.
+    // Never accept resetUrl from the client.
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://app.sourcecodeals.com';
+    const resetUrl = `${siteUrl}/reset-password`;
 
     // SECURITY: Rate limit password reset requests per email
     if (isRateLimited(email)) {
