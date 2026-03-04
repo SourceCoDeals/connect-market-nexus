@@ -28,6 +28,8 @@ export function MatchingHeader({
   isScoring,
   onScore,
 }: MatchingHeaderProps) {
+  const location = useLocation();
+
   if (listingLoading || !listing) {
     return (
       <div className="space-y-2">
@@ -37,7 +39,6 @@ export function MatchingHeader({
     );
   }
 
-  const location = useLocation();
   const revenueStr = listing.revenue
     ? `$${(listing.revenue >= 100000 ? listing.revenue / 1_000_000 : listing.revenue).toFixed(1)}M`
     : null;
