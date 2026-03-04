@@ -131,14 +131,14 @@ export function useAuthState() {
       try {
         setIsLoading(true);
         
-        // Timeout to prevent infinite loading
+        // Timeout to prevent infinite loading — 10s to allow slow networks
         const timeoutId = setTimeout(() => {
-          if (isSubscribed) {
-            console.warn("Auth check timeout - forcing completion");
+          if (isSubscribed && !authChecked) {
+            console.warn("Auth check timeout after 10s - forcing completion");
             setIsLoading(false);
             setAuthChecked(true);
           }
-        }, 3000);
+        }, 10000);
         
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         

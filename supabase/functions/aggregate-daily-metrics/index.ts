@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { requireAdmin } from "../_shared/auth.ts";
 
 // Dev/bot traffic patterns to filter out
 const DEV_TRAFFIC_PATTERNS = [
@@ -29,6 +30,21 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // SECURITY: Require admin auth or cron secret to prevent unauthorized expensive DB scans
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const authHeader = req.headers.get('Authorization');
+    const isCronCall = cronSecret && authHeader === `Bearer ${cronSecret}`;
+
+    if (!isCronCall) {
+      const auth = await requireAdmin(req, supabase);
+      if (!auth.authenticated || !auth.isAdmin) {
+        return new Response(JSON.stringify({ error: auth.error || 'Admin access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // Parse optional date parameter (default to yesterday for cron jobs)
     const body = await req.json().catch(() => ({}));

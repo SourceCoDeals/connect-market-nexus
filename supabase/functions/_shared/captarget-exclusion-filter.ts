@@ -181,8 +181,10 @@ const BLOCKLIST: Record<string, string[]> = {
 // ─── Company name suffix patterns ───
 
 // Matches names ending with financial-firm suffixes
+// Removed bare "capital" and "partners" to avoid false positives
+// (e.g., "Capital Plumbing", "Partners In Health")
 const NAME_SUFFIX_PATTERN =
-  /\b(capital\s+partners|equity\s+partners|investment\s+partners|venture\s+partners|capital\s+group|capital\s+management|capital|partners|ventures|fund\s+[ivxlcdm]+|fund)\s*$/i;
+  /\b(capital\s+partners|equity\s+partners|investment\s+partners|venture\s+partners|capital\s+group|capital\s+management|capital\s+advisors|ventures|fund\s+[ivxlcdm]+|fund)\s*$/i;
 
 // Matches "Holdings" combined with financial terms
 const HOLDINGS_COMBO_PATTERN =

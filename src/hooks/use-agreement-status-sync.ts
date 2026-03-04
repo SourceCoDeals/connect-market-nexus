@@ -61,15 +61,8 @@ export function invalidateAgreementQueries(
     ['check-email-coverage'],
   ];
 
-  // Immediate invalidation
+  // Single invalidation pass — staggered re-invalidation removed to prevent
+  // 48-query storms (16 keys × 3 times). React Query's refetchOnWindowFocus
+  // and staleTime handle eventual consistency.
   keys.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
-
-  // Staggered re-invalidation at 2s and 5s
-  setTimeout(() => {
-    keys.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
-  }, 2000);
-
-  setTimeout(() => {
-    keys.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
-  }, 5000);
 }

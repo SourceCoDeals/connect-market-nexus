@@ -245,7 +245,8 @@ export function useAIConversation(
             response_time_ms: lastMsg.metadata.durationMs || null,
             tokens_total: null,
           } as never)
-          .then(() => {}); // Fire and forget
+          .then(() => {})
+          .catch((err: unknown) => console.error('[useAIConversation] chat_analytics insert error:', err));
       }
 
       // Save full conversation to chat_conversations (debounced)
