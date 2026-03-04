@@ -144,104 +144,43 @@ serve(async (req: Request) => {
 
     const now = new Date().toISOString();
 
-    // Check if lead already exists by email + calculator_type
-    const { data: existing } = await supabaseAdmin
-      .from("valuation_leads")
-      .select("id, lead_source, created_at, submission_count")
-      .eq("email", email)
-      .eq("calculator_type", calculatorType)
-      .eq("excluded", false)
-      .maybeSingle();
-
-    // ─── Try structured upsert, fall back to minimal safe insert ──
+    // ─── Atomic upsert via RPC — no race condition possible ──
     try {
-      let vlError: { message: string } | null = null;
+      const { data: mergedId, error: rpcError } = await supabaseAdmin.rpc("merge_valuation_lead", {
+        p_calculator_type: calculatorType,
+        p_full_name: full_name,
+        p_email: email,
+        p_website: website ?? null,
+        p_business_name: businessNameFromDomain(website) ?? null,
+        p_industry: serviceType ?? null,
+        p_region: region ?? null,
+        p_location: locationStr,
+        p_revenue: revenue,
+        p_ebitda: ebitda,
+        p_valuation_low: toNum(businessValue?.low),
+        p_valuation_mid: toNum(businessValue?.mid),
+        p_valuation_high: toNum(businessValue?.high),
+        p_quality_tier: (vr?.tier as string) ?? null,
+        p_quality_label: qualityLabel?.label ?? null,
+        p_buyer_lane: buyerLane?.title ?? null,
+        p_growth_trend: growthTrend,
+        p_owner_dependency: ownerDependency,
+        p_locations_count: locationsCount,
+        p_lead_source: leadSource,
+        p_source_submission_id: body.external_lead_id ?? null,
+        p_raw_calculator_inputs: calculator_inputs,
+        p_raw_valuation_results: valuation_result,
+        p_calculator_specific_data: propertyValue ? { propertyValue } : null,
+      });
 
-      if (existing) {
-        // ─── MERGE logic: preserve first-touch data, augment with new submission ──
-        const isUpgrade = leadSource === "full_report" && existing.lead_source === "initial_unlock";
-
-        const updatePayload: Record<string, unknown> = {
-          full_name,
-          website: website ?? null,
-          business_name: businessNameFromDomain(website) ?? null,
-          industry: serviceType ?? null,
-          region: region ?? null,
-          location: locationStr,
-          revenue,
-          ebitda,
-          valuation_low: toNum(businessValue?.low),
-          valuation_mid: toNum(businessValue?.mid),
-          valuation_high: toNum(businessValue?.high),
-          quality_tier: (vr?.tier as string) ?? null,
-          quality_label: qualityLabel?.label ?? null,
-          buyer_lane: buyerLane?.title ?? null,
-          growth_trend: growthTrend,
-          owner_dependency: ownerDependency,
-          locations_count: locationsCount,
-          raw_calculator_inputs: calculator_inputs,
-          raw_valuation_results: valuation_result,
-          calculator_specific_data: propertyValue ? { propertyValue } : {},
-          submission_count: (existing.submission_count ?? 1) + 1,
-          updated_at: now,
-        };
-
-        if (isUpgrade) {
-          updatePayload.lead_source = "full_report";
-          updatePayload.initial_unlock_at = existing.created_at;
-        } else {
-          updatePayload.lead_source = leadSource;
-        }
-
-        const { error } = await supabaseAdmin
-          .from("valuation_leads")
-          .update(updatePayload)
-          .eq("id", existing.id);
-        vlError = error;
-      } else {
-        const insertPayload = {
-          calculator_type: calculatorType,
-          full_name,
-          email,
-          website: website ?? null,
-          business_name: businessNameFromDomain(website) ?? null,
-          industry: serviceType ?? null,
-          region: region ?? null,
-          location: locationStr,
-          revenue,
-          ebitda,
-          valuation_low: toNum(businessValue?.low),
-          valuation_mid: toNum(businessValue?.mid),
-          valuation_high: toNum(businessValue?.high),
-          quality_tier: (vr?.tier as string) ?? null,
-          quality_label: qualityLabel?.label ?? null,
-          buyer_lane: buyerLane?.title ?? null,
-          growth_trend: growthTrend,
-          owner_dependency: ownerDependency,
-          locations_count: locationsCount,
-          lead_source: leadSource,
-          source_submission_id: body.external_lead_id ?? null,
-          raw_calculator_inputs: calculator_inputs,
-          raw_valuation_results: valuation_result,
-          calculator_specific_data: propertyValue ? { propertyValue } : {},
-          submission_count: 1,
-          updated_at: now,
-        };
-
-        const { error } = await supabaseAdmin
-          .from("valuation_leads")
-          .insert(insertPayload);
-        vlError = error;
+      if (rpcError) {
+        throw new Error(`merge_valuation_lead RPC failed: ${rpcError.message}`);
       }
 
-      if (vlError) {
-        throw new Error(`Structured insert failed: ${vlError.message}`);
-      }
-
-      console.log(`Lead ingested: ${email} → incoming_leads + valuation_leads (${calculatorType}, source=${leadSource}, existing=${!!existing})`);
+      console.log(`Lead merged atomically: ${email} → valuation_leads id=${mergedId} (type=${calculatorType}, source=${leadSource})`);
     } catch (structuredErr) {
       // ─── FALLBACK: minimal safe insert so the lead is NEVER lost ──
-      console.error("Structured valuation_leads insert failed, attempting minimal fallback:", structuredErr);
+      console.error("Structured merge failed, attempting minimal fallback:", structuredErr);
 
       try {
         const { error: fallbackErr } = await supabaseAdmin
@@ -258,7 +197,6 @@ serve(async (req: Request) => {
 
         if (fallbackErr) {
           console.error("Minimal fallback also failed:", fallbackErr);
-          // Still return 200 — incoming_leads has the data
         } else {
           console.log(`Lead saved via FALLBACK: ${email} → valuation_leads (minimal, type=${calculatorType})`);
         }
@@ -266,7 +204,6 @@ serve(async (req: Request) => {
         console.error("Fallback catch error:", fallbackCatchErr);
       }
     }
-
     // Always return 200 — incoming_leads is the source of truth backup
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
