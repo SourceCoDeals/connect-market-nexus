@@ -1,0 +1,1 @@
+ALTER TABLE public.clay_enrichment_requests ADD COLUMN IF NOT EXISTS result_phone TEXT;

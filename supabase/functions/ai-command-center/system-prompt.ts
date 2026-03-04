@@ -223,6 +223,7 @@ For BULK MISSING EMAIL: search_contacts(has_email=false), then auto-enrich each 
 For LINKEDIN PROFILE DISCOVERY: use find_contact(mode: "linkedin_search", contact_ids: ...).
 For FIRM searches: use search_pe_contacts with firm_name. If none found, auto-enrich.
 CLAY EMAIL LOOKUP: clay_find_email is the PRIMARY email finder. It accepts either linkedin_url OR first_name + last_name + domain. It sends to Clay's enrichment waterfall and waits up to 60s for a result. Always try it first before Prospeo-based tools.
+CLAY PHONE LOOKUP: clay_find_phone finds a person's phone number via their LinkedIn URL. Works the same as clay_find_email but returns a phone number. Use it when the user asks for a phone number or contact details.
 Use retrieve_knowledge(topic="contact_discovery_flow") for the full workflow reference.`,
 
   CONTACT_ENRICHMENT: `1. Check existing contacts with search_contacts(company_name). 2. If not enough, auto enrich_contact(mode: "company", company_name: ...). 3. For contacts still missing emails, use clay_find_email FIRST (first_name + last_name + domain, or linkedin_url). 4. If Clay doesn't return an email, fall back to Prospeo via enrich_contact. 5. Present results with email/LinkedIn counts. 6. Suggest PhoneBurner or Smartlead next steps.

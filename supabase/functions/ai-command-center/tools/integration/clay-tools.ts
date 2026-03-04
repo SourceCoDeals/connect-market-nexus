@@ -13,7 +13,7 @@
  */
 
 import type { SupabaseClient, ClaudeTool, ToolResult } from './common.ts';
-import { sendToClayNameDomain, sendToClayLinkedIn } from '../../../_shared/clay-client.ts';
+import { sendToClayNameDomain, sendToClayLinkedIn, sendToClayPhone } from '../../../_shared/clay-client.ts';
 
 const POLL_INTERVAL_MS = 3_000;
 const MAX_POLL_MS = 60_000;
@@ -238,7 +238,89 @@ export async function clayBatchPoll(
   return results;
 }
 
-// ---------- Tool definition ----------
+// ---------- Shared helper: synchronous Clay phone lookup ----------
+
+export interface ClayPhoneLookupResult {
+  phone: string | null;
+  source: string;
+  requestId: string;
+  timedOut?: boolean;
+}
+
+export async function clayLookupPhone(
+  supabase: SupabaseClient,
+  userId: string,
+  params: { linkedinUrl: string; company?: string; title?: string; firstName?: string; lastName?: string; sourceFunction?: string; sourceEntityId?: string },
+): Promise<ClayPhoneLookupResult> {
+  const linkedinUrl = params.linkedinUrl?.trim() || '';
+
+  if (!linkedinUrl.includes('linkedin.com/in/')) {
+    return { phone: null, source: 'clay_phone_insufficient_data', requestId: '' };
+  }
+
+  const requestId = crypto.randomUUID();
+
+  const { error: insertErr } = await supabase.from('clay_enrichment_requests').insert({
+    request_id: requestId,
+    request_type: 'phone',
+    status: 'pending',
+    workspace_id: userId,
+    first_name: params.firstName || null,
+    last_name: params.lastName || null,
+    domain: null,
+    linkedin_url: linkedinUrl,
+    company_name: params.company || null,
+    title: params.title || null,
+    source_function: params.sourceFunction || 'ai-command-center',
+    source_entity_id: params.sourceEntityId || null,
+  });
+
+  if (insertErr) {
+    console.error(`[clayLookupPhone] DB insert failed: ${insertErr.message}`);
+    return { phone: null, source: 'clay_phone', requestId };
+  }
+
+  const sendResult = await sendToClayPhone({ requestId, linkedinUrl });
+
+  if (!sendResult.success) {
+    console.warn(`[clayLookupPhone] Clay webhook failed: ${sendResult.error}`);
+    return { phone: null, source: 'clay_phone', requestId };
+  }
+
+  console.log(`[clayLookupPhone] Sent to Clay (phone): ${linkedinUrl} — polling...`);
+
+  const deadline = Date.now() + MAX_POLL_MS;
+
+  while (Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+
+    const { data: row, error: pollErr } = await supabase
+      .from('clay_enrichment_requests')
+      .select('status, result_phone')
+      .eq('request_id', requestId)
+      .maybeSingle();
+
+    if (pollErr) {
+      console.warn(`[clayLookupPhone] Poll error: ${pollErr.message}`);
+      continue;
+    }
+
+    if (!row || row.status === 'pending') continue;
+
+    if (row.status === 'completed' && row.result_phone) {
+      console.log(`[clayLookupPhone] Phone found: ${row.result_phone} for ${linkedinUrl}`);
+      return { phone: row.result_phone, source: 'clay_phone', requestId };
+    }
+
+    console.log(`[clayLookupPhone] No phone found by Clay for ${linkedinUrl}`);
+    return { phone: null, source: 'clay_phone', requestId };
+  }
+
+  console.log(`[clayLookupPhone] Timed out waiting for Clay result: ${linkedinUrl}`);
+  return { phone: null, source: 'clay_phone', requestId, timedOut: true };
+}
+
+// ---------- Tool definitions ----------
 
 export const clayToolDefinitions: ClaudeTool[] = [
   {
@@ -268,9 +350,24 @@ export const clayToolDefinitions: ClaudeTool[] = [
       },
     },
   },
+  {
+    name: 'clay_find_phone',
+    description:
+      'Find a person\'s phone number using Clay enrichment tables. Requires a LinkedIn URL. Sends lookup to Clay and waits for the result (up to ~60s). Returns the phone number if found, or "no phone found".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        linkedin_url: {
+          type: 'string',
+          description: 'LinkedIn profile URL (e.g. https://www.linkedin.com/in/john-smith). Required.',
+        },
+      },
+      required: ['linkedin_url'],
+    },
+  },
 ];
 
-// ---------- Tool executor (uses shared helper) ----------
+// ---------- Tool executors ----------
 
 export async function clayFindEmail(
   supabase: SupabaseClient,
@@ -318,6 +415,43 @@ export async function clayFindEmail(
         ? 'No email found (Clay lookup timed out — result may arrive later)'
         : 'No email found',
       lookup: lookupDesc,
+      source: result.source,
+    },
+  };
+}
+
+export async function clayFindPhone(
+  supabase: SupabaseClient,
+  args: Record<string, unknown>,
+  userId: string,
+): Promise<ToolResult> {
+  const linkedinUrl = (args.linkedin_url as string)?.trim() || '';
+
+  if (!linkedinUrl.includes('linkedin.com/in/')) {
+    return {
+      error: 'A LinkedIn URL is required to look up a phone number via Clay.',
+    };
+  }
+
+  const result = await clayLookupPhone(supabase, userId, { linkedinUrl });
+
+  if (result.phone) {
+    return {
+      data: {
+        phone: result.phone,
+        lookup: linkedinUrl,
+        source: result.source,
+      },
+    };
+  }
+
+  return {
+    data: {
+      phone: null,
+      message: result.timedOut
+        ? 'No phone found (Clay lookup timed out — result may arrive later)'
+        : 'No phone found',
+      lookup: linkedinUrl,
       source: result.source,
     },
   };
