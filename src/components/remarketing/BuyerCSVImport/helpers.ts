@@ -416,6 +416,9 @@ export function buildBuyerFromRow(
         else if (lower.includes('platform') || lower.includes('strategic') || lower.includes('corporate'))
           buyer.buyer_type = 'corporate';
         else if (lower.includes('family')) buyer.buyer_type = 'family_office';
+        else if (lower.includes('search fund')) buyer.buyer_type = 'search_fund';
+        else if (lower.includes('independent sponsor')) buyer.buyer_type = 'independent_sponsor';
+        else if (lower.includes('individual')) buyer.buyer_type = 'individual_buyer';
         else buyer.buyer_type = null;
         return;
       }

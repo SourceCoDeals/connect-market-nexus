@@ -366,7 +366,8 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
               confidence: d.confidence,
               matchType: d.matchType as 'domain' | 'name',
             })),
-        }));
+        }))
+        .filter((dup) => dup.potentialDuplicates.length > 0);
 
       if (foundDuplicates.length > 0) {
         setDuplicates(foundDuplicates);
