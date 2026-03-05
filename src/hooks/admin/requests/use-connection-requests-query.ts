@@ -130,7 +130,7 @@ export function useConnectionRequestsQuery() {
           fetchInChunks('profiles', '*', profileIds),
           fetchInChunks(
             'listings',
-            'id, title, category, status, revenue, ebitda, image_url, location, internal_company_name',
+            'id, title, category, status, revenue, ebitda, image_url, location, internal_company_name, deal_identifier',
             listingIds,
           ),
         ]);
