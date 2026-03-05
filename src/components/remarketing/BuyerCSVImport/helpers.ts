@@ -495,11 +495,7 @@ export function hasWebsiteMapping(mappings: ColumnMapping[]): boolean {
 /** Check whether any contact fields are mapped */
 export function hasContactMapping(mappings: ColumnMapping[]): boolean {
   return mappings.some(
-    (m) =>
-      m.targetField === 'contact_name' ||
-      m.targetField === 'contact_first_name' ||
-      m.targetField === 'contact_email' ||
-      m.targetField === 'contact_linkedin_url',
+    (m) => m.targetField != null && m.targetField.startsWith('contact_'),
   );
 }
 
