@@ -111,7 +111,7 @@ export function ColumnMappingStep({
       {!hasRequiredMapping(mappings) && (
         <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-lg text-destructive text-sm">
           <AlertCircle className="h-4 w-4" />
-          Company Name mapping is required
+          Both a Company Name and a Website column must be mapped
         </div>
       )}
 

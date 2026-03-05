@@ -212,13 +212,25 @@ export function normalizeDomain(url: string): string {
 export function guessMapping(column: string): string | null {
   const lower = column.toLowerCase();
 
-  // Platform/Company name
-  if (lower.includes('platform') && (lower.includes('company') || lower.includes('name')))
-    return 'company_name';
-  if (lower.includes('company') || lower.includes('name') || lower.includes('firm'))
-    return 'company_name';
+  // Contact fields — check BEFORE generic "name"/"firm" matches to avoid shadowing
+  if (lower.includes('linkedin')) return 'contact_linkedin_url';
+  if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('name') && !lower.includes('first') && !lower.includes('last'))
+    return 'contact_name';
+  if ((lower.includes('contact') && lower.includes('first')) || lower === 'first name')
+    return 'contact_first_name';
+  if ((lower.includes('contact') && lower.includes('last')) || lower === 'last name')
+    return 'contact_last_name';
+  if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('email'))
+    return 'contact_email';
+  if (lower === 'email' || lower === 'e-mail') return 'contact_email';
+  if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('phone'))
+    return 'contact_phone';
+  if (lower === 'phone' || lower === 'phone number') return 'contact_phone';
+  if ((lower.includes('contact') || lower.includes('primary')) && (lower.includes('title') || lower.includes('role')))
+    return 'contact_title';
+  if (lower === 'title' || lower === 'job title' || lower === 'role') return 'contact_title';
 
-  // Websites - be specific about platform vs PE firm
+  // Websites — check BEFORE generic "name"/"firm" matches (e.g. "PE Firm Website")
   if (lower.includes('platform') && (lower.includes('website') || lower.includes('url')))
     return 'platform_website';
   if (
@@ -229,13 +241,19 @@ export function guessMapping(column: string): string | null {
   if (lower.includes('website') || lower.includes('url') || lower.includes('site'))
     return 'company_website';
 
-  // PE Firm name
+  // PE Firm name — check BEFORE generic "company"/"name" match
   if (
     (lower.includes('pe') || lower.includes('private equity') || lower.includes('sponsor')) &&
     lower.includes('name')
   )
     return 'pe_firm_name';
   if (lower.includes('pe firm') || lower.includes('sponsor')) return 'pe_firm_name';
+
+  // Platform/Company name — generic fallback for "name"/"company"/"firm"
+  if (lower.includes('platform') && (lower.includes('company') || lower.includes('name')))
+    return 'company_name';
+  if (lower.includes('company') || lower.includes('name') || lower.includes('firm'))
+    return 'company_name';
 
   // Location
   if (lower.includes('hq') && lower.includes('city') && lower.includes('state'))
@@ -283,24 +301,6 @@ export function guessMapping(column: string): string | null {
 
   // Notes
   if (lower.includes('note')) return 'notes';
-
-  // Contact fields
-  if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('name') && !lower.includes('first') && !lower.includes('last'))
-    return 'contact_name';
-  if ((lower.includes('contact') && lower.includes('first')) || lower === 'first name')
-    return 'contact_first_name';
-  if ((lower.includes('contact') && lower.includes('last')) || lower === 'last name')
-    return 'contact_last_name';
-  if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('email'))
-    return 'contact_email';
-  if (lower === 'email' || lower === 'e-mail') return 'contact_email';
-  if ((lower.includes('contact') || lower.includes('primary')) && lower.includes('phone'))
-    return 'contact_phone';
-  if (lower === 'phone' || lower === 'phone number') return 'contact_phone';
-  if ((lower.includes('contact') || lower.includes('primary')) && (lower.includes('title') || lower.includes('role')))
-    return 'contact_title';
-  if (lower === 'title' || lower === 'job title' || lower === 'role') return 'contact_title';
-  if (lower.includes('linkedin')) return 'contact_linkedin_url';
 
   return null;
 }
@@ -439,6 +439,9 @@ export function buildBuyerFromRow(
         return;
       }
 
+      // Skip contact fields — they're handled separately by extractContactFromRow
+      if (mapping.targetField.startsWith('contact_')) return;
+
       // Standard field assignment
       buyer[mapping.targetField] = value;
     }
@@ -506,10 +509,11 @@ export function computeRowValidation(csvData: CSVRow[], mappings: ColumnMapping[
     mappings.forEach((mapping) => {
       if (mapping.targetField && row[mapping.csvColumn]) {
         const value = row[mapping.csvColumn].trim();
-        if (mapping.targetField === 'platform_website') platformWebsite = value;
-        if (mapping.targetField === 'pe_firm_website') peFirmWebsite = value;
-        if (mapping.targetField === 'company_website') companyWebsite = value;
-        if (mapping.targetField === 'company_name') companyName = value;
+        // Normalize websites so validation matches what buildBuyerFromRow will produce
+        if (mapping.targetField === 'platform_website') platformWebsite = normalizeDomain(value) || null;
+        else if (mapping.targetField === 'pe_firm_website') peFirmWebsite = normalizeDomain(value) || null;
+        else if (mapping.targetField === 'company_website') companyWebsite = normalizeDomain(value) || null;
+        else if (mapping.targetField === 'company_name') companyName = value;
       }
     });
 
@@ -524,7 +528,7 @@ export function computeRowValidation(csvData: CSVRow[], mappings: ColumnMapping[
       skippedDetails.push({
         index,
         companyName: companyName || `Row ${index + 2}`,
-        reason: !hasCompanyName ? 'Missing company name' : 'Missing website',
+        reason: !hasCompanyName ? 'Missing company name' : 'Missing or invalid website',
       });
     }
   });

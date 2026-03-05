@@ -285,7 +285,7 @@ export function useBuyerImport({ universeId, onComplete }: UseBuyerImportOptions
           }
         }
 
-        setImportProgress(((i + batchSize) / dataToImport.length) * 100);
+        setImportProgress(Math.min(((i + batchSize) / dataToImport.length) * 100, 100));
       }
     }
 
