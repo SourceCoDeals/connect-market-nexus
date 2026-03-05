@@ -230,6 +230,17 @@ async function tryMergeExistingListing(
     const existingTitle = (existingListing.title as string) || 'Unknown';
     const locations = await resolveLocations(existingListing);
 
+    // Append the import's target source to deal_sources so the deal
+    // appears in the new pipeline (e.g. a CapTarget deal imported into
+    // SourceCo should now show up in both).
+    const targetSource = newData.deal_source as string | undefined;
+    if (targetSource) {
+      const existingSources = (existingListing.deal_sources as string[] | null) ?? [];
+      if (!existingSources.includes(targetSource)) {
+        updates.deal_sources = [...existingSources, targetSource];
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       return { listingId: existingId, existingTitle, matchedBy, fieldsUpdated: false, locations };
     }
@@ -326,7 +337,7 @@ export async function handleImport({
         status: referralPartnerId ? 'pending_referral_review' : 'active',
         location: computedLocation,
         is_internal_deal: true,
-        ...(dealSource ? { deal_source: dealSource } : {}),
+        ...(dealSource ? { deal_source: dealSource, deal_sources: [dealSource] } : {}),
         ...(hideFromAllDeals ? { pushed_to_all_deals: false } : {}),
       });
 
