@@ -344,45 +344,94 @@ export function DealImportDialog({
                     Empty fields on existing deals were filled with new data from the CSV
                   </p>
                 )}
-                {/* Show where existing/duplicate deals live on the platform */}
-                {importResults.existingDeals.length > 0 && (() => {
-                  const groups = groupBySource(importResults.existingDeals);
-                  return (
-                    <div className="mt-4 text-left max-w-md space-y-3">
-                      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
-                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">
-                          {importResults.existingDeals.length} already exist on the platform
-                        </p>
-                        {Object.entries(groups).map(([source, deals]) => {
-                          const info = SOURCE_LABELS[source] || { label: source, path: '/admin/remarketing' };
-                          return (
-                            <div key={source} className="mb-2 last:mb-0">
-                              <a
-                                href={info.path}
-                                className="text-xs font-medium text-amber-800 dark:text-amber-200 underline hover:no-underline"
-                              >
-                                {deals.length} in {info.label}
-                              </a>
-                              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                                {deals.slice(0, 5).map(d => d.company_name).join(', ')}
-                                {deals.length > 5 && ` and ${deals.length - 5} more`}
-                              </p>
+                {/* Duplicate deals found in the system */}
+                {importResults.duplicates.length > 0 && (
+                  <div className="mt-4 text-left max-w-lg">
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3">
+                      <p className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+                        {importResults.duplicates.length} deal{importResults.duplicates.length !== 1 ? 's' : ''} already existed in the system
+                      </p>
+                      <ScrollArea className="max-h-60">
+                        <div className="space-y-2">
+                          {importResults.duplicates.map((dup) => (
+                            <div key={dup.existingId} className="text-xs text-blue-700 dark:text-blue-300">
+                              <div className="flex items-start gap-1">
+                                <span className="shrink-0">&bull;</span>
+                                <span>
+                                  <strong>{dup.csvCompanyName}</strong>
+                                  {dup.csvCompanyName !== dup.existingTitle && (
+                                    <> matched <strong>{dup.existingTitle}</strong></>
+                                  )}
+                                  {' '}(by {dup.matchedBy})
+                                  {dup.wasMerged && <span className="text-green-700 dark:text-green-400"> — fields updated</span>}
+                                </span>
+                              </div>
+                              {dup.locations.length > 0 && (
+                                <div className="ml-4 mt-0.5 flex flex-wrap gap-1">
+                                  {dup.locations.map((loc) => (
+                                    <a
+                                      key={loc.href}
+                                      href={loc.href}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center rounded bg-blue-100 dark:bg-blue-900/50 px-1.5 py-0.5 text-[10px] font-medium text-blue-800 dark:text-blue-200 hover:underline"
+                                    >
+                                      {loc.label}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
                     </div>
-                  );
-                })()}
-                {/* Show non-duplicate errors */}
+                  </div>
+                )}
+
+                {/* Generic domain warnings */}
+                {importResults.skippedGenericDomains.length > 0 && (
+                  <div className="mt-3 text-left max-w-lg">
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+                      <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                        {importResults.skippedGenericDomains.length} skipped — personal email domains
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+                        These rows had a personal email domain (e.g. gmail.com) instead of a company website.
+                        Re-import with company websites mapped to the Website field.
+                      </p>
+                      <ScrollArea className="max-h-32">
+                        <div className="space-y-0.5">
+                          {importResults.skippedGenericDomains.slice(0, 20).map((msg) => (
+                            <p key={msg} className="text-xs text-amber-700 dark:text-amber-300">
+                              &bull; {msg}
+                            </p>
+                          ))}
+                          {importResults.skippedGenericDomains.length > 20 && (
+                            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                              ...and {importResults.skippedGenericDomains.length - 20} more
+                            </p>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </div>
+                )}
+
+                {/* Other errors */}
                 {importResults.errors.length > 0 && (() => {
+                  // Filter out generic-domain errors (already shown above) and duplicate errors (shown in duplicates panel)
                   const otherErrors = importResults.errors.filter(e =>
-                    !e.includes('duplicate key') && !e.includes('unique constraint') && !e.includes('idx_listings_unique')
+                    !e.includes('personal email domain') &&
+                    !e.includes('duplicate key') &&
+                    !e.includes('unique constraint') &&
+                    !e.includes('idx_listings_unique')
                   );
 
                   if (otherErrors.length === 0) return null;
+
                   return (
-                    <div className="mt-4 text-left max-w-md">
+                    <div className="mt-3 text-left max-w-lg">
                       <p className="text-sm font-medium text-destructive mb-2">
                         {otherErrors.length} failed to import:
                       </p>
