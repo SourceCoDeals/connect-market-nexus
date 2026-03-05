@@ -1128,7 +1128,7 @@ Return the memo as markdown with ## headers. Headers must exactly match: COMPANY
         method: 'POST',
         headers: getAnthropicHeaders(apiKey),
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: DEFAULT_CLAUDE_MODEL,
           system: systemPrompt,
           messages: [{ role: 'user', content: promptToSend }],
           temperature: 0.2,
