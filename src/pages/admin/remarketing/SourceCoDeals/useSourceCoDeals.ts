@@ -552,10 +552,16 @@ export function useSourceCoDeals() {
       website = `https://${website}`;
     }
 
+    if (!website) {
+      sonnerToast.error('Website is required to add a deal');
+      setIsAddingDeal(false);
+      return;
+    }
+
     const { error } = await supabase.from('listings').insert({
       title: newDeal.company_name.trim(),
       internal_company_name: newDeal.company_name.trim(),
-      website: website || null,
+      website,
       main_contact_name: newDeal.contact_name.trim() || null,
       main_contact_email: newDeal.contact_email.trim() || null,
       main_contact_phone: newDeal.contact_phone.trim() || null,
