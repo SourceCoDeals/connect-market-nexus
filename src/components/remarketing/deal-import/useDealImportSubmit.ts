@@ -71,24 +71,17 @@ async function tryMergeExistingListing(
     let existingListing: Record<string, unknown> | null = null;
 
     if (website && !isPlaceholder) {
+      // Use the RPC which normalizes both sides (strips protocol, www, etc.)
+      // so "https://www.example.com" matches "example.com" in the DB.
       const { data: rpcData } = await supabase
         .rpc('find_listing_by_normalized_domain', { target_domain: website })
         .limit(1)
         .maybeSingle();
       existingListing = rpcData as Record<string, unknown> | null;
-
-      if (!existingListing) {
-        const { data } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('website', website)
-          .limit(1)
-          .maybeSingle();
-        existingListing = data as Record<string, unknown> | null;
-      }
     }
 
-    // Title match: only within the same deal_source to avoid cross-pipeline false merges
+    // Title match: only within the same deal_source to avoid cross-pipeline false merges.
+    // Also catches re-imports of the same CSV (where placeholder websites differ each time).
     if (!existingListing && title && dealSource) {
       const { data } = await supabase
         .from('listings')
@@ -98,6 +91,18 @@ async function tryMergeExistingListing(
         .limit(1)
         .maybeSingle();
       existingListing = data as Record<string, unknown> | null;
+
+      // Fallback: check internal_company_name (import sets both, but some deals only have one)
+      if (!existingListing) {
+        const { data: data2 } = await supabase
+          .from('listings')
+          .select('*')
+          .ilike('internal_company_name', title)
+          .eq('deal_source', dealSource)
+          .limit(1)
+          .maybeSingle();
+        existingListing = data2 as Record<string, unknown> | null;
+      }
     }
 
     if (!existingListing) return null;
@@ -221,6 +226,12 @@ export async function handleImport({
       const city = typeof parsedData.address_city === 'string' ? parsedData.address_city : '';
       const state = typeof parsedData.address_state === 'string' ? parsedData.address_state : '';
       const computedLocation = city && state ? `${city}, ${state}` : state || city || "Unknown";
+
+      // Auto-populate internal_company_name from title for dedup on re-imports
+      const parsed = parsedData as Record<string, unknown>;
+      if (parsed.title && !parsed.internal_company_name) {
+        parsed.internal_company_name = parsed.title;
+      }
 
       const listingData = sanitizeListingInsert({
         ...parsedData,
