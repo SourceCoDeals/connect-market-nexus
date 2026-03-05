@@ -7068,7 +7068,6 @@ export type Database = {
           deal_owner_id: string | null
           deal_size_score: number | null
           deal_source: string | null
-          deal_sources: string[] | null
           deal_total_score: number | null
           deleted_at: string | null
           description: string | null
@@ -7259,7 +7258,6 @@ export type Database = {
           deal_owner_id?: string | null
           deal_size_score?: number | null
           deal_source?: string | null
-          deal_sources?: string[] | null
           deal_total_score?: number | null
           deleted_at?: string | null
           description?: string | null
@@ -7450,7 +7448,6 @@ export type Database = {
           deal_owner_id?: string | null
           deal_size_score?: number | null
           deal_source?: string | null
-          deal_sources?: string[] | null
           deal_total_score?: number | null
           deleted_at?: string | null
           description?: string | null
