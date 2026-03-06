@@ -12,12 +12,14 @@ import { logEnrichmentEvent } from '../_shared/enrichment-events.ts';
 
 // Configuration
 const MAX_ATTEMPTS = 3;
-const PROCESSING_TIMEOUT_MS = 45000; // 45s per buyer — must complete within the function's 50s runtime budget
+const PROCESSING_TIMEOUT_MS = 45000; // 45s per buyer — must complete within the function's runtime budget
 const RATE_LIMIT_BACKOFF_MS = 60000; // 60s backoff on rate limit
 const STALE_PROCESSING_MINUTES = 2; // Recovery timeout for stuck items (reduced from 5 to prevent long freezes)
-const MAX_FUNCTION_RUNTIME_MS = 50000; // 50s — must stay well under the 58s edge function hard-kill limit
-const INTER_BUYER_DELAY_MS = 500; // 500ms breathing room between buyers — prevents Firecrawl rate limits during bulk runs
+const MAX_FUNCTION_RUNTIME_MS = 110000; // 110s — allows processing a small batch before self-continuing
+const CONCURRENCY_LIMIT = 3; // Process 3 buyers in parallel (up from 1) — 3x faster bulk enrichment
+const INTER_BATCH_DELAY_MS = 1000; // 1s breathing room between parallel batches
 const MAX_CONTINUATIONS = 50; // Prevent infinite self-continuation loops
+const CIRCUIT_BREAKER_THRESHOLD = 3; // Stop after 3 consecutive failures (API probably down)
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -141,19 +143,148 @@ Deno.serve(async (req) => {
       console.warn('[enrichment-jobs] Failed to create job (non-blocking):', err);
     }
 
-    // LOOP: Process buyers continuously until queue is empty or time runs out
+    // Helper: process a single buyer item (used by parallel batch below)
+    async function processOneItem(
+      item: { id: string; buyer_id: string; universe_id: string | null; status: string; attempts: number; queued_at: string; force: boolean | null },
+    ): Promise<'success' | 'failed' | 'rate_limited' | 'skipped'> {
+      const itemForce = item.force === true;
+
+      // BUG-7 FIX: Improved freshness check — only skip if the ENRICHMENT PROCESS itself
+      // updated the buyer recently, not just any edit.
+      if (!itemForce) {
+        const { data: buyerData } = await supabase
+          .from('buyers')
+          .select('data_last_updated, extraction_sources')
+          .eq('id', item.buyer_id)
+          .single();
+
+        if (buyerData?.data_last_updated) {
+          const lastUpdatedMs = new Date(buyerData.data_last_updated).getTime();
+          const freshnessWindowMs = STALE_PROCESSING_MINUTES * 60 * 1000;
+          const sources = Array.isArray(buyerData.extraction_sources)
+            ? buyerData.extraction_sources
+            : [];
+          const hasRecentEnrichmentSource = sources.some((src: Record<string, unknown>) => {
+            const srcType = (src.type as string) || (src.source_type as string);
+            const isEnrichmentSource =
+              srcType === 'platform_website' ||
+              srcType === 'pe_firm_website' ||
+              srcType === 'transcript';
+            if (!isEnrichmentSource) return false;
+            const srcTimestamp = (src.extracted_at as string) || (src.timestamp as string);
+            if (!srcTimestamp) return false;
+            return Date.now() - new Date(srcTimestamp).getTime() < freshnessWindowMs;
+          });
+
+          if (Date.now() - lastUpdatedMs < freshnessWindowMs && hasRecentEnrichmentSource) {
+            console.log(`Skipping buyer ${item.buyer_id} — enrichment data is fresh, marking completed`);
+            await supabase
+              .from('buyer_enrichment_queue')
+              .update({ status: 'completed', completed_at: new Date().toISOString(), last_error: 'Skipped: buyer enrichment data already fresh', updated_at: new Date().toISOString() })
+              .eq('id', item.id);
+            await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
+            return 'skipped';
+          }
+        }
+      }
+
+      // Atomically claim this item
+      const { data: claimedItem, error: claimError } = await supabase
+        .from('buyer_enrichment_queue')
+        .update({ status: 'processing', attempts: item.attempts + 1, started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', item.id)
+        .eq('status', 'pending')
+        .select('id')
+        .maybeSingle();
+
+      if (claimError || !claimedItem) {
+        console.log(`Buyer ${item.buyer_id} was claimed by another worker, skipping`);
+        return 'skipped';
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), PROCESSING_TIMEOUT_MS);
+
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/enrich-buyer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseServiceKey}` },
+          body: JSON.stringify({ buyerId: item.buyer_id, skipLock: true, forceReExtract: itemForce }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        const data = await response.json().catch(() => ({}));
+
+        if (response.status === 429 || data.error_code === 'rate_limited') {
+          const resetAt = data.resetTime || new Date(Date.now() + RATE_LIMIT_BACKOFF_MS).toISOString();
+          await reportRateLimit(supabase, 'gemini', RATE_LIMIT_BACKOFF_MS / 1000);
+          await supabase
+            .from('buyer_enrichment_queue')
+            .update({ status: 'rate_limited', rate_limit_reset_at: resetAt, last_error: 'Rate limited - will retry after reset', updated_at: new Date().toISOString() })
+            .eq('id', item.id);
+          console.log(`Rate limited at buyer ${item.buyer_id}`);
+          if (enrichmentJobId) {
+            supabase.rpc('update_enrichment_job_progress', { p_job_id: enrichmentJobId, p_rate_limited: true }).catch(() => {});
+          }
+          logEnrichmentEvent(supabase, { entityType: 'buyer', entityId: item.buyer_id, provider: 'gemini', functionName: 'process-buyer-enrichment-queue', stepName: 'enrich-buyer', status: 'rate_limited', jobId: enrichmentJobId || undefined });
+          return 'rate_limited';
+        }
+
+        if (!response.ok || !data.success) {
+          const errorMsg = data.details ? `${data.error}: ${data.details}` : data.error || `HTTP ${response.status}`;
+          throw new Error(errorMsg);
+        }
+
+        const wasPartial = data.extractionDetails?.rateLimited === true;
+        if (wasPartial && item.attempts < MAX_ATTEMPTS - 1) {
+          await supabase.from('buyer_enrichment_queue').update({ status: 'pending', started_at: null, last_error: `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts completed`, updated_at: new Date().toISOString() }).eq('id', item.id);
+        } else {
+          await supabase.from('buyer_enrichment_queue').update({ status: 'completed', completed_at: new Date().toISOString(), force: false, last_error: wasPartial ? `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts` : null, updated_at: new Date().toISOString() }).eq('id', item.id);
+        }
+
+        await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
+        if (enrichmentJobId) {
+          supabase.rpc('update_enrichment_job_progress', { p_job_id: enrichmentJobId, p_succeeded_delta: 1, p_last_processed_id: item.buyer_id }).catch(() => {});
+        }
+        logEnrichmentEvent(supabase, { entityType: 'buyer', entityId: item.buyer_id, provider: 'pipeline', functionName: 'process-buyer-enrichment-queue', stepName: 'enrich-buyer', status: 'success', jobId: enrichmentJobId || undefined });
+        return 'success';
+      } catch (error) {
+        clearTimeout(timeoutId);
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        const currentAttempts = item.attempts + 1;
+        const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
+
+        await supabase.from('buyer_enrichment_queue').update({ status: newStatus, last_error: errorMsg, started_at: null, updated_at: new Date().toISOString() }).eq('id', item.id);
+        console.error(`Failed to enrich buyer ${item.buyer_id}:`, errorMsg);
+        await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { failedDelta: 1, errorEntry: { itemId: item.buyer_id, error: errorMsg } });
+
+        if (enrichmentJobId) {
+          supabase.rpc('update_enrichment_job_progress', { p_job_id: enrichmentJobId, p_failed_delta: 1, p_last_processed_id: item.buyer_id, p_error_message: errorMsg }).catch(() => {});
+        }
+        logEnrichmentEvent(supabase, { entityType: 'buyer', entityId: item.buyer_id, provider: 'pipeline', functionName: 'process-buyer-enrichment-queue', stepName: 'enrich-buyer', status: 'failure', errorMessage: errorMsg, jobId: enrichmentJobId || undefined });
+        return 'failed';
+      }
+    }
+
+    // MAIN LOOP: Process buyers in parallel batches until queue is empty or time runs out
     const functionStartTime = Date.now();
     let totalProcessed = 0;
     let totalSucceeded = 0;
     let totalFailed = 0;
     let totalRateLimited = 0;
+    let consecutiveFailures = 0;
 
     while (true) {
       // Time guard: stop before Deno's execution limit
       if (Date.now() - functionStartTime > MAX_FUNCTION_RUNTIME_MS) {
-        console.log(
-          `Time limit reached after ${totalProcessed} buyers, will continue on next invocation`,
-        );
+        console.log(`Time limit reached after ${totalProcessed} buyers, will continue on next invocation`);
+        break;
+      }
+
+      // Circuit breaker: stop if API appears down
+      if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+        console.error(`Circuit breaker tripped after ${consecutiveFailures} consecutive failures — stopping to prevent wasted retries`);
         break;
       }
 
@@ -163,14 +294,32 @@ Deno.serve(async (req) => {
         break;
       }
 
-      // Fetch next pending item
+      // Check rate limiters before dispatching
+      let rateLimitBlocked = false;
+      for (const provider of ['gemini', 'firecrawl'] as const) {
+        const availability = await checkProviderAvailability(supabase, provider);
+        if (!availability.ok) {
+          const waitMs = availability.retryAfterMs || RATE_LIMIT_BACKOFF_MS;
+          if (waitMs > 30000) {
+            console.log(`${provider} rate limited for ${Math.round(waitMs / 1000)}s — stopping queue processing`);
+            totalRateLimited++;
+            rateLimitBlocked = true;
+            break;
+          }
+          console.log(`${provider} rate limited — waiting ${Math.round(waitMs / 1000)}s before processing`);
+          await new Promise((r) => setTimeout(r, waitMs));
+        }
+      }
+      if (rateLimitBlocked) break;
+
+      // Fetch next batch of pending items (CONCURRENCY_LIMIT at a time)
       const { data: queueItems, error: fetchError } = await supabase
         .from('buyer_enrichment_queue')
         .select('id, buyer_id, universe_id, status, attempts, queued_at, force')
         .eq('status', 'pending')
         .lt('attempts', MAX_ATTEMPTS)
         .order('queued_at', { ascending: true })
-        .limit(1);
+        .limit(CONCURRENCY_LIMIT);
 
       if (fetchError) {
         console.error('Error fetching queue items:', fetchError);
@@ -183,288 +332,35 @@ Deno.serve(async (req) => {
         break;
       }
 
-      const item = queueItems[0];
-      console.log(
-        `Processing buyer ${item.buyer_id} (attempt ${item.attempts + 1}) [#${totalProcessed + 1} this run]`,
+      console.log(`Processing batch of ${queueItems.length} buyers [#${totalProcessed + 1}-${totalProcessed + queueItems.length} this run]`);
+
+      // Process batch in parallel
+      const results = await Promise.allSettled(
+        queueItems.map((item) => processOneItem(item)),
       );
 
-      const itemForce = item.force === true;
-
-      // BUG-7 FIX: Improved freshness check — only skip if the ENRICHMENT PROCESS itself
-      // updated the buyer recently, not just any edit. Previously, a manual note edit would
-      // bump data_last_updated and cause enrichment to be skipped.
-      // We now check extraction_sources for a recent enrichment-sourced update.
-      // Bypassed when force=true (explicit user re-enrichment request).
-      if (!itemForce) {
-        const { data: buyerData } = await supabase
-          .from('buyers')
-          .select('data_last_updated, extraction_sources')
-          .eq('id', item.buyer_id)
-          .single();
-
-        if (buyerData?.data_last_updated) {
-          const lastUpdatedMs = new Date(buyerData.data_last_updated).getTime();
-          const freshnessWindowMs = STALE_PROCESSING_MINUTES * 60 * 1000;
-
-          // Only skip if the update was recent AND came from an enrichment source
-          // (platform_website, pe_firm_website, or transcript), not a manual edit.
-          const sources = Array.isArray(buyerData.extraction_sources)
-            ? buyerData.extraction_sources
-            : [];
-          const hasRecentEnrichmentSource = sources.some((src: Record<string, unknown>) => {
-            const srcType = (src.type as string) || (src.source_type as string);
-            const isEnrichmentSource =
-              srcType === 'platform_website' ||
-              srcType === 'pe_firm_website' ||
-              srcType === 'transcript';
-            if (!isEnrichmentSource) return false;
-            // Check if this source's timestamp is within the freshness window
-            const srcTimestamp = (src.extracted_at as string) || (src.timestamp as string);
-            if (!srcTimestamp) return false;
-            const srcMs = new Date(srcTimestamp).getTime();
-            return Date.now() - srcMs < freshnessWindowMs;
-          });
-
-          if (Date.now() - lastUpdatedMs < freshnessWindowMs && hasRecentEnrichmentSource) {
-            console.log(
-              `Skipping buyer ${item.buyer_id} — enrichment data is fresh (${buyerData.data_last_updated}), marking completed`,
-            );
-            await supabase
-              .from('buyer_enrichment_queue')
-              .update({
-                status: 'completed',
-                completed_at: new Date().toISOString(),
-                last_error: 'Skipped: buyer enrichment data already fresh',
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', item.id);
-            totalProcessed++;
-            totalSucceeded++;
-            await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
-            continue;
-          }
-        }
-      }
-
-      // Check rate limiters before dispatching — wait if Gemini or Firecrawl is in cooldown
-      for (const provider of ['gemini', 'firecrawl'] as const) {
-        const availability = await checkProviderAvailability(supabase, provider);
-        if (!availability.ok) {
-          const waitMs = availability.retryAfterMs || RATE_LIMIT_BACKOFF_MS;
-          if (waitMs > 30000) {
-            console.log(
-              `${provider} rate limited for ${Math.round(waitMs / 1000)}s — stopping queue processing`,
-            );
-            totalRateLimited++;
-            break;
-          }
-          console.log(
-            `${provider} rate limited — waiting ${Math.round(waitMs / 1000)}s before processing buyer`,
-          );
-          await new Promise((r) => setTimeout(r, waitMs));
-        }
-      }
-      if (totalRateLimited > 0) break; // Exit outer loop if rate limited
-
-      // Atomically claim this item; if another worker already claimed it, skip safely.
-      const { data: claimedItem, error: claimError } = await supabase
-        .from('buyer_enrichment_queue')
-        .update({
-          status: 'processing',
-          attempts: item.attempts + 1,
-          started_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', item.id)
-        .eq('status', 'pending')
-        .select('id')
-        .maybeSingle();
-
-      if (claimError) {
-        console.error(`Failed to claim queue item ${item.id}:`, claimError);
-        break;
-      }
-
-      if (!claimedItem) {
-        console.log(`Buyer ${item.buyer_id} was claimed by another worker, skipping`);
-        continue;
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), PROCESSING_TIMEOUT_MS);
-
-      try {
-        const response = await fetch(`${supabaseUrl}/functions/v1/enrich-buyer`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: supabaseAnonKey,
-            Authorization: `Bearer ${supabaseServiceKey}`,
-          },
-          body: JSON.stringify({
-            buyerId: item.buyer_id,
-            skipLock: true,
-            forceReExtract: itemForce,
-          }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-        const data = await response.json().catch(() => ({}));
-
-        if (response.status === 429 || data.error_code === 'rate_limited') {
-          const resetAt =
-            data.resetTime || new Date(Date.now() + RATE_LIMIT_BACKOFF_MS).toISOString();
-          // Report to shared rate limiter so other functions/invocations know
-          await reportRateLimit(supabase, 'gemini', RATE_LIMIT_BACKOFF_MS / 1000);
-          await supabase
-            .from('buyer_enrichment_queue')
-            .update({
-              status: 'rate_limited',
-              rate_limit_reset_at: resetAt,
-              last_error: 'Rate limited - will retry after reset',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', item.id);
-          console.log(`Rate limited at buyer ${item.buyer_id}, stopping loop`);
+      let batchFailed = 0;
+      for (const result of results) {
+        const outcome = result.status === 'fulfilled' ? result.value : 'failed';
+        if (outcome === 'success' || outcome === 'skipped') {
+          totalSucceeded++;
+          consecutiveFailures = 0;
+        } else if (outcome === 'rate_limited') {
           totalRateLimited++;
-          totalProcessed++;
-
-          // Track rate limit in enrichment job
-          if (enrichmentJobId) {
-            Promise.resolve(
-              supabase.rpc('update_enrichment_job_progress', {
-                p_job_id: enrichmentJobId,
-                p_rate_limited: true,
-              }),
-            ).catch((err: unknown) => {
-              console.warn('[buyer-enrichment-jobs] Progress update failed:', err);
-            });
-          }
-          logEnrichmentEvent(supabase, {
-            entityType: 'buyer',
-            entityId: item.buyer_id,
-            provider: 'gemini',
-            functionName: 'process-buyer-enrichment-queue',
-            stepName: 'enrich-buyer',
-            status: 'rate_limited',
-            jobId: enrichmentJobId || undefined,
-          });
-
-          break; // Stop processing on rate limit
-        }
-
-        if (!response.ok || !data.success) {
-          // Include details (actual DB error message) if available — previously lost
-          const errorMsg = data.details
-            ? `${data.error}: ${data.details}`
-            : data.error || `HTTP ${response.status}`;
-          throw new Error(errorMsg);
-        }
-
-        const wasPartial = data.extractionDetails?.rateLimited === true;
-        if (wasPartial && item.attempts < MAX_ATTEMPTS - 1) {
-          await supabase
-            .from('buyer_enrichment_queue')
-            .update({
-              status: 'pending',
-              started_at: null,
-              last_error: `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts completed`,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', item.id);
         } else {
-          await supabase
-            .from('buyer_enrichment_queue')
-            .update({
-              status: 'completed',
-              completed_at: new Date().toISOString(),
-              force: false,
-              last_error: wasPartial
-                ? `Partial: ${data.extractionDetails?.promptsSuccessful}/${data.extractionDetails?.promptsRun} prompts`
-                : null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', item.id);
+          totalFailed++;
+          batchFailed++;
+          consecutiveFailures++;
         }
-
-        await updateGlobalQueueProgress(supabase, 'buyer_enrichment', { completedDelta: 1 });
-        totalSucceeded++;
-
-        // Enrichment job progress (non-blocking)
-        if (enrichmentJobId) {
-          Promise.resolve(
-            supabase.rpc('update_enrichment_job_progress', {
-              p_job_id: enrichmentJobId,
-              p_succeeded_delta: 1,
-              p_last_processed_id: item.buyer_id,
-            }),
-          ).catch((err: unknown) => {
-            console.warn('[buyer-enrichment-jobs] Progress update failed:', err);
-          });
-        }
-        logEnrichmentEvent(supabase, {
-          entityType: 'buyer',
-          entityId: item.buyer_id,
-          provider: 'pipeline',
-          functionName: 'process-buyer-enrichment-queue',
-          stepName: 'enrich-buyer',
-          status: 'success',
-          jobId: enrichmentJobId || undefined,
-        });
-      } catch (error) {
-        clearTimeout(timeoutId);
-        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        const currentAttempts = item.attempts + 1;
-        const newStatus = currentAttempts >= MAX_ATTEMPTS ? 'failed' : 'pending';
-
-        await supabase
-          .from('buyer_enrichment_queue')
-          .update({
-            status: newStatus,
-            last_error: errorMsg,
-            started_at: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', item.id);
-
-        console.error(`Failed to enrich buyer ${item.buyer_id}:`, errorMsg);
-        await updateGlobalQueueProgress(supabase, 'buyer_enrichment', {
-          failedDelta: 1,
-          errorEntry: { itemId: item.buyer_id, error: errorMsg },
-        });
-        totalFailed++;
-
-        // Enrichment job progress (non-blocking)
-        if (enrichmentJobId) {
-          Promise.resolve(
-            supabase.rpc('update_enrichment_job_progress', {
-              p_job_id: enrichmentJobId,
-              p_failed_delta: 1,
-              p_last_processed_id: item.buyer_id,
-              p_error_message: errorMsg,
-            }),
-          ).catch((err: unknown) => {
-            console.warn('[buyer-enrichment-jobs] Progress update failed:', err);
-          });
-        }
-        logEnrichmentEvent(supabase, {
-          entityType: 'buyer',
-          entityId: item.buyer_id,
-          provider: 'pipeline',
-          functionName: 'process-buyer-enrichment-queue',
-          stepName: 'enrich-buyer',
-          status: 'failure',
-          errorMessage: errorMsg,
-          jobId: enrichmentJobId || undefined,
-        });
+        totalProcessed++;
       }
 
-      totalProcessed++;
+      // If entire batch was rate limited, stop
+      if (totalRateLimited > 0) break;
 
-      // Brief delay between buyers to avoid overwhelming APIs
+      // Brief delay between batches to avoid overwhelming APIs
       if (Date.now() - functionStartTime < MAX_FUNCTION_RUNTIME_MS) {
-        await new Promise((r) => setTimeout(r, INTER_BUYER_DELAY_MS));
+        await new Promise((r) => setTimeout(r, INTER_BATCH_DELAY_MS));
       }
     }
 

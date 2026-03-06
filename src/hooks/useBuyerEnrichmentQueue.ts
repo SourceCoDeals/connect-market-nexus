@@ -10,8 +10,10 @@ export interface QueueProgress {
   completed: number;
   failed: number;
   rateLimited: number;
+  paused: number;
   total: number;
   isRunning: boolean;
+  isPaused: boolean;
   rateLimitResetAt?: string;
 }
 
@@ -44,69 +46,49 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     completed: 0,
     failed: 0,
     rateLimited: 0,
+    paused: 0,
     total: 0,
     isRunning: false,
+    isPaused: false,
   });
 
   const [summary, setSummary] = useState<EnrichmentSummary | null>(null);
   const [showSummary, setShowSummary] = useState(false);
 
-  // Fetch queue status
+  // Fetch queue status using lightweight count queries instead of fetching all rows
   const fetchQueueStatus = useCallback(async () => {
     if (!universeId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('buyer_enrichment_queue')
-        .select('buyer_id, status, rate_limit_reset_at, last_error')
-        .eq('universe_id', universeId);
-
-      if (error) throw error;
+      // Use parallel count queries grouped by status — much lighter than fetching all rows
+      const [pendingRes, processingRes, completedRes, failedRes, rateLimitedRes, pausedRes] =
+        await Promise.all([
+          supabase.from('buyer_enrichment_queue').select('id', { count: 'exact', head: true }).eq('universe_id', universeId).eq('status', 'pending'),
+          supabase.from('buyer_enrichment_queue').select('id', { count: 'exact', head: true }).eq('universe_id', universeId).eq('status', 'processing'),
+          supabase.from('buyer_enrichment_queue').select('id', { count: 'exact', head: true }).eq('universe_id', universeId).eq('status', 'completed'),
+          supabase.from('buyer_enrichment_queue').select('id', { count: 'exact', head: true }).eq('universe_id', universeId).eq('status', 'failed'),
+          supabase.from('buyer_enrichment_queue').select('id, rate_limit_reset_at', { count: 'exact' }).eq('universe_id', universeId).eq('status', 'rate_limited').limit(1),
+          supabase.from('buyer_enrichment_queue').select('id', { count: 'exact', head: true }).eq('universe_id', universeId).eq('status', 'paused'),
+        ]);
 
       const counts = {
-        pending: 0,
-        processing: 0,
-        completed: 0,
-        failed: 0,
-        rateLimited: 0,
+        pending: pendingRes.count || 0,
+        processing: processingRes.count || 0,
+        completed: completedRes.count || 0,
+        failed: failedRes.count || 0,
+        rateLimited: rateLimitedRes.count || 0,
+        paused: pausedRes.count || 0,
       };
 
       let rateLimitResetAt: string | undefined;
-      const failedItems: Array<{ buyerId: string; error: string }> = [];
-
-      (data || []).forEach(
-        (item: {
-          buyer_id: string;
-          status: string;
-          rate_limit_reset_at?: string | null;
-          last_error?: string | null;
-        }) => {
-          if (item.status === 'rate_limited') {
-            counts.rateLimited++;
-            if (item.rate_limit_reset_at) {
-              rateLimitResetAt = item.rate_limit_reset_at;
-            }
-          } else if (item.status === 'pending') {
-            counts.pending++;
-          } else if (item.status === 'processing') {
-            counts.processing++;
-          } else if (item.status === 'completed') {
-            counts.completed++;
-          } else if (item.status === 'failed') {
-            counts.failed++;
-            if (item.last_error) {
-              failedItems.push({
-                buyerId: item.buyer_id,
-                error: item.last_error,
-              });
-            }
-          }
-        },
-      );
+      if (rateLimitedRes.data?.[0]?.rate_limit_reset_at) {
+        rateLimitResetAt = rateLimitedRes.data[0].rate_limit_reset_at;
+      }
 
       const total =
-        counts.pending + counts.processing + counts.completed + counts.failed + counts.rateLimited;
+        counts.pending + counts.processing + counts.completed + counts.failed + counts.rateLimited + counts.paused;
       const isRunning = counts.pending > 0 || counts.processing > 0 || counts.rateLimited > 0;
+      const isPaused = counts.paused > 0 && !isRunning;
 
       // Invalidate buyer queries when new completions happen
       if (counts.completed > lastCompletedRef.current) {
@@ -119,7 +101,22 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
 
       // Detect completion: was running, now stopped, and we have results
       if (wasRunningRef.current && !isRunning && total > 0) {
-        // Generate summary
+        // Only fetch failed item details at completion time (not every poll)
+        const { data: failedData } = await supabase
+          .from('buyer_enrichment_queue')
+          .select('buyer_id, last_error')
+          .eq('universe_id', universeId)
+          .eq('status', 'failed')
+          .not('last_error', 'is', null)
+          .limit(50);
+
+        const failedItems = (failedData || []).map(
+          (item: { buyer_id: string; last_error: string | null }) => ({
+            buyerId: item.buyer_id,
+            error: item.last_error || 'Unknown error',
+          }),
+        );
+
         const newSummary: EnrichmentSummary = {
           total,
           successful: counts.completed,
@@ -130,7 +127,6 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         setSummary(newSummary);
         setShowSummary(true);
 
-        // Show toast notification
         if (counts.failed > 0) {
           toast.warning(
             `Enrichment completed: ${counts.completed} successful, ${counts.failed} failed`,
@@ -152,10 +148,11 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         ...counts,
         total,
         isRunning,
+        isPaused,
         rateLimitResetAt,
       });
 
-      return { counts, isRunning, failedItems };
+      return { counts, isRunning };
     } catch (error) {
       console.error('Error fetching buyer queue status:', error);
     }
@@ -172,6 +169,64 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       );
     }
   }, []);
+
+  // Pause buyer enrichment
+  const pause = useCallback(async () => {
+    if (!universeId) return;
+
+    try {
+      // Pause pending items (they won't be picked up by the processor)
+      await supabase
+        .from('buyer_enrichment_queue')
+        .update({ status: 'paused', updated_at: new Date().toISOString() })
+        .eq('universe_id', universeId)
+        .eq('status', 'pending');
+
+      // Mark the global activity queue operation as paused
+      await supabase
+        .from('global_activity_queue')
+        .update({ status: 'paused' })
+        .eq('operation_type', 'buyer_enrichment')
+        .eq('status', 'running');
+
+      await fetchQueueStatus();
+      toast.info('Enrichment paused', {
+        description: 'In-progress buyers will finish. Remaining buyers are paused.',
+      });
+    } catch (error) {
+      console.error('Failed to pause enrichment:', error);
+    }
+  }, [universeId, fetchQueueStatus]);
+
+  // Resume buyer enrichment
+  const resume = useCallback(async () => {
+    if (!universeId) return;
+
+    try {
+      // Resume paused items back to pending
+      await supabase
+        .from('buyer_enrichment_queue')
+        .update({ status: 'pending', updated_at: new Date().toISOString() })
+        .eq('universe_id', universeId)
+        .eq('status', 'paused');
+
+      // Mark the global activity queue operation as running
+      await supabase
+        .from('global_activity_queue')
+        .update({ status: 'running', started_at: new Date().toISOString() })
+        .eq('operation_type', 'buyer_enrichment')
+        .eq('status', 'paused');
+
+      // Trigger processor immediately
+      await triggerProcessor();
+      startPolling();
+
+      await fetchQueueStatus();
+      toast.success('Enrichment resumed');
+    } catch (error) {
+      console.error('Failed to resume enrichment:', error);
+    }
+  }, [universeId, fetchQueueStatus, triggerProcessor, startPolling]);
 
   // Queue buyers for enrichment
   const queueBuyers = useCallback(
@@ -249,8 +304,10 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
           completed: 0,
           failed: 0,
           rateLimited: 0,
+          paused: 0,
           total: enrichableBuyers.length,
           isRunning: true,
+          isPaused: false,
         });
 
         toast.success(`Queued ${enrichableBuyers.length} buyers for enrichment`);
@@ -313,12 +370,12 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     if (!universeId) return;
 
     try {
-      // Delete pending and rate-limited items
+      // Delete pending, paused, and rate-limited items
       await supabase
         .from('buyer_enrichment_queue')
         .delete()
         .eq('universe_id', universeId)
-        .in('status', ['pending', 'rate_limited']);
+        .in('status', ['pending', 'rate_limited', 'paused']);
 
       // Mark the global activity queue operation as cancelled so it doesn't
       // block future major operations (BUG-C6 fix)
@@ -359,8 +416,10 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         completed: 0,
         failed: 0,
         rateLimited: 0,
+        paused: 0,
         total: 0,
         isRunning: false,
+        isPaused: false,
       });
 
       lastCompletedRef.current = 0;
@@ -419,6 +478,8 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
     showSummary,
     dismissSummary,
     queueBuyers,
+    pause,
+    resume,
     cancel,
     reset,
     fetchQueueStatus,
