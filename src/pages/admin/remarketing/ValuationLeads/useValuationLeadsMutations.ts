@@ -51,45 +51,54 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
         return;
       }
 
-      const dealIdentifier = `vlead_${lead.id.slice(0, 8)}`;
-      const { data: existing, error: existingError } = await supabase
-        .from('listings')
-        .select('id')
-        .eq('deal_identifier', dealIdentifier)
-        .maybeSingle();
-      if (existingError) throw existingError;
-
-      let listingId: string;
-
-      if (existing?.id) {
-        listingId = existing.id;
-        await supabase
-          .from('valuation_leads')
-          .update({ pushed_listing_id: listingId } as never)
-          .eq('id', lead.id);
-      } else {
-        const { data: listing, error: insertError } = await supabase
+      try {
+        const dealIdentifier = `vlead_${lead.id.slice(0, 8)}`;
+        const { data: existing, error: existingError } = await supabase
           .from('listings')
-          .insert(buildListingFromLead(lead, false))
           .select('id')
-          .single();
-
-        if (insertError || !listing) {
-          // Failed to create listing for lead — toast shown to user
+          .eq('deal_identifier', dealIdentifier)
+          .maybeSingle();
+        if (existingError) {
+          console.error('Failed to lookup existing listing:', existingError);
           sonnerToast.error('Failed to open deal page');
           return;
         }
-        listingId = listing.id;
-        await supabase
-          .from('valuation_leads')
-          .update({ pushed_listing_id: listingId } as never)
-          .eq('id', lead.id);
-      }
 
-      queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
-      navigate('/admin/deals/' + listingId, {
-        state: { from: '/admin/remarketing/leads/valuation' },
-      });
+        let listingId: string;
+
+        if (existing?.id) {
+          listingId = existing.id;
+          await supabase
+            .from('valuation_leads')
+            .update({ pushed_listing_id: listingId } as never)
+            .eq('id', lead.id);
+        } else {
+          const { data: listing, error: insertError } = await supabase
+            .from('listings')
+            .insert(buildListingFromLead(lead, false))
+            .select('id')
+            .single();
+
+          if (insertError || !listing) {
+            console.error('Failed to create listing for lead:', insertError);
+            sonnerToast.error('Failed to open deal page');
+            return;
+          }
+          listingId = listing.id;
+          await supabase
+            .from('valuation_leads')
+            .update({ pushed_listing_id: listingId } as never)
+            .eq('id', lead.id);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
+        navigate('/admin/deals/' + listingId, {
+          state: { from: '/admin/remarketing/leads/valuation' },
+        });
+      } catch (err) {
+        console.error('handleRowClick error:', err);
+        sonnerToast.error('Failed to open deal page');
+      }
     },
     [navigate, queryClient],
   );
