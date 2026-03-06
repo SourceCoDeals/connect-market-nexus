@@ -172,8 +172,8 @@ Deno.serve(async (req) => {
       // Check if already published
       if (listing.is_internal_deal === false && listing.published_at) {
         return new Response(
-          JSON.stringify({ success: false, error: 'Listing is already published', listing }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ success: false, error: 'Listing is already published' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
             error: 'Listing does not meet quality requirements',
             validationErrors: allErrors
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 

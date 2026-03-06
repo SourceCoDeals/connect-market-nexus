@@ -27,7 +27,7 @@ export default function DealSidebar({
     queryFn: async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('first_name, last_name, email, phone_number, company, calendar_url')
+        .select('first_name, last_name, email, phone_number, company, title, calendar_url')
         .eq('id', presentedByAdminId!)
         .single();
       if (!data) return null;

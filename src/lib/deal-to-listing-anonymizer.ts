@@ -184,6 +184,12 @@ function buildIdentifyingTerms(deal: DealData): string[] {
     }
   }
 
+  // City name (prevents geographic identification)
+  if (deal.address_city) {
+    const city = deal.address_city.trim();
+    if (city.length >= 3) terms.push(city);
+  }
+
   // Internal deal memo link
   if (deal.internal_deal_memo_link) {
     terms.push(deal.internal_deal_memo_link.trim());
@@ -200,7 +206,7 @@ function buildIdentifyingTerms(deal: DealData): string[] {
  * with "the Company" or "[redacted]" as appropriate.
  */
 export function stripIdentifyingInfo(text: string, deal: DealData): string {
-  if (!text) return text;
+  if (!text || typeof text !== 'string') return '';
 
   const terms = buildIdentifyingTerms(deal);
   let result = text;
@@ -215,8 +221,11 @@ export function stripIdentifyingInfo(text: string, deal: DealData): string {
   // Also strip any remaining email addresses
   result = result.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[redacted]');
 
-  // Strip any remaining phone numbers (US format)
-  result = result.replace(/(\+?1?\s*[-.]?\s*)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g, '[redacted]');
+  // Strip any remaining phone numbers (US format + extensions)
+  result = result.replace(/(\+?1?\s*[-.]?\s*)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(\s*(x|ext\.?)\s*\d{1,6})?/gi, '[redacted]');
+
+  // Strip any remaining URLs
+  result = result.replace(/https?:\/\/[^\s)]+/gi, '[redacted]');
 
   return result;
 }
@@ -661,6 +670,48 @@ function generateHeroDescription(deal: DealData): string {
   const trimmed = hero.substring(0, 500);
   const lastPeriod = trimmed.lastIndexOf('.');
   return lastPeriod > 100 ? trimmed.substring(0, lastPeriod + 1).trim() : trimmed.trim();
+}
+
+/**
+ * Build a minimal DealData object from a landing page deal for anonymization.
+ * Used by landing page components that need to run stripIdentifyingInfo.
+ * Internal fields (internal_company_name, website) are intentionally null
+ * because landing page queries must NOT fetch PII.
+ */
+export function buildLandingPageDealData(deal: {
+  id: string;
+  title: string;
+  revenue: number | null;
+  ebitda: number | null;
+  location: string | null;
+  category?: string | null;
+  categories?: string[] | null;
+  full_time_employees?: number | null;
+}): DealData {
+  return {
+    id: deal.id,
+    title: deal.title,
+    internal_company_name: null,
+    executive_summary: null,
+    description: null,
+    revenue: deal.revenue,
+    ebitda: deal.ebitda,
+    location: deal.location,
+    address_state: null,
+    address_city: null,
+    category: deal.category ?? deal.categories?.[0] ?? null,
+    industry: null,
+    service_mix: null,
+    website: null,
+    full_time_employees: deal.full_time_employees ?? null,
+    linkedin_employee_count: null,
+    main_contact_name: null,
+    main_contact_email: null,
+    main_contact_phone: null,
+    main_contact_title: null,
+    geographic_states: null,
+    internal_deal_memo_link: null,
+  };
 }
 
 function formatRevenue(value: number): string {

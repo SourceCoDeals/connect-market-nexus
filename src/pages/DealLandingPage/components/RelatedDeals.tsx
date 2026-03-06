@@ -1,7 +1,7 @@
 import type { RelatedDeal } from '@/hooks/useDealLandingPage';
 
 function formatCurrency(value: number | null | undefined): string {
-  if (!value) return '—';
+  if (value == null) return '—';
   if (value >= 1_000_000_000) return `~$${(value / 1_000_000_000).toFixed(1)}B`;
   if (value >= 1_000_000) return `~$${(value / 1_000_000).toFixed(0)}M`;
   if (value >= 1_000) return `~$${Math.round(value / 1_000).toLocaleString()}K`;
@@ -360,7 +360,7 @@ function DealCard({ deal }: { deal: RelatedDeal }) {
 
       {/* CTA Button */}
       <a
-        href={`/signup?utm_source=landing_page&utm_medium=related_deals&utm_content=${deal.id}`}
+        href={`/deals/${deal.id}`}
         style={{
           background: '#1A1714',
           color: '#fff',

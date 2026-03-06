@@ -1,40 +1,13 @@
 import { useMemo } from 'react';
 import type { LandingPageDeal } from '@/hooks/useDealLandingPage';
-import { stripIdentifyingInfo, type DealData } from '@/lib/deal-to-listing-anonymizer';
+import { stripIdentifyingInfo, buildLandingPageDealData } from '@/lib/deal-to-listing-anonymizer';
 
 interface DealHeroProps {
   deal: LandingPageDeal;
 }
 
-function buildDealDataForAnonymization(deal: LandingPageDeal): DealData {
-  return {
-    id: deal.id,
-    title: deal.title,
-    internal_company_name: deal.internal_company_name ?? null,
-    executive_summary: null,
-    description: null,
-    revenue: deal.revenue,
-    ebitda: deal.ebitda,
-    location: deal.location,
-    address_state: null,
-    address_city: null,
-    category: deal.category ?? deal.categories?.[0] ?? null,
-    industry: null,
-    service_mix: null,
-    website: deal.website ?? null,
-    full_time_employees: deal.full_time_employees,
-    linkedin_employee_count: null,
-    main_contact_name: null,
-    main_contact_email: null,
-    main_contact_phone: null,
-    main_contact_title: null,
-    geographic_states: null,
-    internal_deal_memo_link: null,
-  };
-}
-
 export default function DealHero({ deal }: DealHeroProps) {
-  const dealData = useMemo(() => buildDealDataForAnonymization(deal), [deal]);
+  const dealData = useMemo(() => buildLandingPageDealData(deal), [deal]);
 
   const anon = (text: string | null | undefined): string => {
     if (!text) return '';
