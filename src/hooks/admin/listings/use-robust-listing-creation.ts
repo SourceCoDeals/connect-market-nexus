@@ -113,6 +113,12 @@ interface DatabaseListingInsert {
   customer_types?: string | null;
   revenue_model?: string | null;
   end_market_description?: string | null;
+
+  // REQUIRED by DB (NOT NULL, no default) — marketplace listings use empty string
+  website: string;
+
+  // Computed financial metric
+  ebitda_margin?: number | null;
 }
 
 /**
@@ -214,7 +220,8 @@ export function useRobustListingCreation() {
           // Structured contact fields (tied to deal contact)
           main_contact_first_name: listing.main_contact_first_name || null,
           main_contact_last_name: listing.main_contact_last_name || null,
-          main_contact_name: listing.main_contact_name ||
+          main_contact_name:
+            listing.main_contact_name ||
             (listing.main_contact_first_name || listing.main_contact_last_name
               ? `${listing.main_contact_first_name || ''} ${listing.main_contact_last_name || ''}`.trim()
               : null),
@@ -224,6 +231,20 @@ export function useRobustListingCreation() {
 
           // Content sections (populated by lead memo generator)
           custom_sections: listing.custom_sections || null,
+
+          // REQUIRED by DB (NOT NULL, no default) — empty for anonymous listings
+          website: (listing as Record<string, unknown>).website
+            ? sanitizeStringField((listing as Record<string, unknown>).website)
+            : '',
+
+          // Computed financial metric
+          ebitda_margin:
+            listing.revenue && listing.ebitda
+              ? Math.round(
+                  (sanitizeNumericField(listing.ebitda) / sanitizeNumericField(listing.revenue)) *
+                    100,
+                )
+              : null,
 
           // Deal detail fields
           investment_thesis: listing.investment_thesis || null,

@@ -87,6 +87,7 @@ export interface AdminListing {
   google_rating?: number | null;
   google_review_count?: number | null;
   company_website?: string | null;
+  website?: string; // DB column (NOT NULL) — empty string for anonymous listings
   is_priority_target?: boolean | null;
 
   // Source deal linkage (marketplace listing created from a deal)
