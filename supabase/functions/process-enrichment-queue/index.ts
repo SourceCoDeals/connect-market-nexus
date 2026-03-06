@@ -252,14 +252,21 @@ serve(async (req) => {
       );
       const { data: enrichedListings } = await supabase
         .from('listings')
-        .select('id, enriched_at, executive_summary, industry')
+        .select('id, enriched_at, executive_summary, industry, notes_analyzed_at, general_notes, owner_notes, internal_notes, owner_response, captarget_call_notes, description')
         .in('id', nonForceListingIds)
         .not('enriched_at', 'is', null);
 
       // Only consider a listing "already enriched" if it has enriched_at AND
-      // meaningful data (executive_summary or industry populated).
+      // meaningful data (executive_summary or industry populated) AND
+      // notes have been analyzed (or there are no notes to analyze).
       const alreadyEnrichedIds = new Set(
-        (enrichedListings || []).filter((l) => l.executive_summary || l.industry).map((l) => l.id),
+        (enrichedListings || []).filter((l) => {
+          if (!l.executive_summary && !l.industry) return false;
+          // If listing has notes content but notes haven't been analyzed, it needs re-enrichment
+          const hasNotes = !!(l.general_notes || l.owner_notes || l.internal_notes || l.owner_response || l.captarget_call_notes || l.description);
+          if (hasNotes && !l.notes_analyzed_at) return false;
+          return true;
+        }).map((l) => l.id),
       );
 
       const partiallyEnrichedCount = (enrichedListings || []).length - alreadyEnrichedIds.size;

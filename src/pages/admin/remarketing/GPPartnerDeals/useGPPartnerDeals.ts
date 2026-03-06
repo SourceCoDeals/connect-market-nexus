@@ -361,6 +361,9 @@ export function useGPPartnerDeals() {
         /* Non-blocking */
       }
 
+      // When mode='all', force re-enrichment so notes analysis runs on already-enriched deals
+      const forceReEnrich = mode === 'all';
+
       const now = new Date().toISOString();
       const seen = new Set<string>();
       const rows = targets
@@ -374,6 +377,7 @@ export function useGPPartnerDeals() {
           status: 'pending' as const,
           attempts: 0,
           queued_at: now,
+          ...(forceReEnrich ? { force: true } : {}),
         }));
 
       const CHUNK = 500;
@@ -465,9 +469,11 @@ export function useGPPartnerDeals() {
 
   // Enrich selected deals
   const handleEnrichSelected = useCallback(
-    async (dealIds: string[]) => {
+    async (dealIds: string[], options?: { force?: boolean }) => {
       if (dealIds.length === 0) return;
       setIsEnriching(true);
+
+      const forceReEnrich = options?.force ?? false;
 
       let activityItem: { id: string } | null = null;
       try {
@@ -499,7 +505,13 @@ export function useGPPartnerDeals() {
           seen.add(id);
           return true;
         })
-        .map((id) => ({ listing_id: id, status: 'pending' as const, attempts: 0, queued_at: now }));
+        .map((id) => ({
+          listing_id: id,
+          status: 'pending' as const,
+          attempts: 0,
+          queued_at: now,
+          ...(forceReEnrich ? { force: true } : {}),
+        }));
 
       const CHUNK = 500;
       for (let i = 0; i < rows.length; i += CHUNK) {

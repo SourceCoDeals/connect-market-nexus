@@ -347,6 +347,10 @@ export function useSourceCoDeals() {
       }
       setIsEnriching(true);
 
+      // When mode='all', force re-enrichment even for already-enriched deals
+      // so notes analysis and other pipeline steps run again.
+      const forceReEnrich = mode === 'all';
+
       let activityItem: { id: string } | null = null;
       try {
         const result = await startOrQueueMajorOp({
@@ -374,6 +378,7 @@ export function useSourceCoDeals() {
           status: 'pending' as const,
           attempts: 0,
           queued_at: now,
+          ...(forceReEnrich ? { force: true } : {}),
         }));
 
       const CHUNK = 500;
@@ -478,9 +483,11 @@ export function useSourceCoDeals() {
 
   // Enrich selected deals
   const handleEnrichSelected = useCallback(
-    async (dealIds: string[]) => {
+    async (dealIds: string[], options?: { force?: boolean }) => {
       if (dealIds.length === 0) return;
       setIsEnriching(true);
+
+      const forceReEnrich = options?.force ?? false;
 
       let activityItem: { id: string } | null = null;
       try {
@@ -512,7 +519,13 @@ export function useSourceCoDeals() {
           seen.add(id);
           return true;
         })
-        .map((id) => ({ listing_id: id, status: 'pending' as const, attempts: 0, queued_at: now }));
+        .map((id) => ({
+          listing_id: id,
+          status: 'pending' as const,
+          attempts: 0,
+          queued_at: now,
+          ...(forceReEnrich ? { force: true } : {}),
+        }));
 
       const CHUNK = 500;
       for (let i = 0; i < rows.length; i += CHUNK) {
