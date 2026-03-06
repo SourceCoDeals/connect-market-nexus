@@ -201,14 +201,22 @@ const DailyTaskDashboard = () => {
       return data as {
         newly_processed: number;
         transcripts_checked: number;
+        already_processed?: number;
+        failed?: number;
         results?: { title: string; success: boolean; error?: string }[];
       };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [DAILY_TASKS_QUERY_KEY] });
+      const parts = [`Checked ${data.transcripts_checked} meetings`];
+      if (data.already_processed) parts.push(`${data.already_processed} already processed`);
+      if (data.newly_processed) parts.push(`${data.newly_processed} newly extracted`);
+      else parts.push('no new meetings to process');
+      if (data.failed) parts.push(`${data.failed} failed`);
       toast({
         title: 'Meetings synced',
-        description: `Checked ${data.transcripts_checked} meetings, processed ${data.newly_processed} new.`,
+        description: parts.join(', ') + '.',
+        ...(data.failed ? { variant: 'destructive' as const } : {}),
       });
     },
     onError: (err) => {
