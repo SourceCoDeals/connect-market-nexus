@@ -624,6 +624,14 @@ Apply all anonymization rules strictly. Return markdown only - no preamble, no e
       }
     }
 
+    // Step 6c: Generate anonymous title using regional descriptor
+    const margin = deal.ebitda && deal.revenue ? Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 100) : 0;
+    const rev = (deal.revenue || 0) as number;
+    const descriptor = margin >= 25 ? 'High-Margin' : margin >= 15 ? 'Profitable' : rev >= 10_000_000 ? 'Scaled' : rev >= 5_000_000 ? 'Growth-Stage' : 'Established';
+    const anonymousTitle = regionDescriptor
+      ? `${descriptor} ${industry} Business — ${regionDescriptor}`
+      : `${descriptor} ${industry} Business`;
+
     // Step 7: Convert markdown to HTML
     const descriptionHtml = markdownToHtml(markdownText);
 
@@ -632,6 +640,7 @@ Apply all anonymization rules strictly. Return markdown only - no preamble, no e
     // Step 8: If listing_id provided, update the listing row
     if (listingId) {
       const listingUpdate: Record<string, unknown> = {
+        title: anonymousTitle,
         description_html: descriptionHtml,
         description: markdownText,
       };
@@ -673,6 +682,7 @@ Apply all anonymization rules strictly. Return markdown only - no preamble, no e
     return new Response(
       JSON.stringify({
         success: true,
+        title: anonymousTitle,
         description_html: descriptionHtml,
         description_markdown: markdownText,
         hero_description: heroDescription || null,
