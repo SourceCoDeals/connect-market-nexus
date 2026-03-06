@@ -1,5 +1,4 @@
 import { useState, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { formatCompactCurrency } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useShiftSelect } from '@/hooks/useShiftSelect';
