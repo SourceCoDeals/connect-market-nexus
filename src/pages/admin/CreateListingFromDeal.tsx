@@ -51,7 +51,9 @@ export default function CreateListingFromDeal() {
           main_contact_name, main_contact_email, main_contact_phone, main_contact_title,
           geographic_states, internal_deal_memo_link,
           founded_year, number_of_locations,
-          customer_geography, customer_types, end_market_description
+          customer_geography, customer_types, end_market_description,
+          investment_thesis, competitive_position, ownership_structure,
+          seller_motivation, business_model, revenue_model, growth_drivers
         `,
         )
         .eq('id', dealId!)
@@ -118,6 +120,22 @@ export default function CreateListingFromDeal() {
         main_contact_last_name: anonymized.main_contact_last_name || null,
         main_contact_email: anonymized.main_contact_email || null,
         main_contact_phone: anonymized.main_contact_phone || null,
+        // Deal enrichment fields (passed through to listing for structured data)
+        customer_geography:
+          ((deal as Record<string, unknown>).customer_geography as string) || null,
+        customer_types: ((deal as Record<string, unknown>).customer_types as string) || null,
+        end_market_description:
+          ((deal as Record<string, unknown>).end_market_description as string) || null,
+        investment_thesis: ((deal as Record<string, unknown>).investment_thesis as string) || null,
+        competitive_position:
+          ((deal as Record<string, unknown>).competitive_position as string) || null,
+        ownership_structure:
+          ((deal as Record<string, unknown>).ownership_structure as string) || null,
+        seller_motivation: ((deal as Record<string, unknown>).seller_motivation as string) || null,
+        business_model: ((deal as Record<string, unknown>).business_model as string) || null,
+        revenue_model: ((deal as Record<string, unknown>).revenue_model as string) || null,
+        growth_drivers: ((deal as Record<string, unknown>).growth_drivers as string[]) || null,
+        services: ((deal as Record<string, unknown>).services as string[]) || null,
         custom_sections: [],
         tags: [],
         status: 'active',
@@ -246,11 +264,34 @@ export default function CreateListingFromDeal() {
 
   const handleSubmit = async (data: Record<string, unknown>, image?: File | null) => {
     try {
+      // Merge form data with enrichment fields from prefilled that don't
+      // survive the form (they're not in the Zod schema / ListingFormInput).
+      // These fields are on the prefilled AdminListing but get stripped by
+      // the form's getValues() since they're not registered form fields.
+      const enrichmentFields = prefilled
+        ? {
+            customer_geography: prefilled.customer_geography || null,
+            customer_types: prefilled.customer_types || null,
+            end_market_description: prefilled.end_market_description || null,
+            investment_thesis: prefilled.investment_thesis || null,
+            competitive_position: prefilled.competitive_position || null,
+            ownership_structure: prefilled.ownership_structure || null,
+            seller_motivation: prefilled.seller_motivation || null,
+            business_model: prefilled.business_model || null,
+            revenue_model: prefilled.revenue_model || null,
+            growth_drivers: prefilled.growth_drivers || null,
+            services: prefilled.services || null,
+          }
+        : {};
+
       const listingData = {
         ...data,
+        ...enrichmentFields,
         source_deal_id: dealId,
         // Ensure it's created as an internal draft
         is_internal_deal: true,
+        // website is NOT NULL in DB — empty for anonymous marketplace listings
+        website: '',
       };
 
       await createListing({ listing: listingData as never, image });
