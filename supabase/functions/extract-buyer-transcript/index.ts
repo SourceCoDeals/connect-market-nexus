@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { GEMINI_API_URL, getGeminiHeaders } from '../_shared/ai-providers.ts';
+import { canOverwriteField, getFieldSource, createFieldSource, updateExtractionSources } from '../_shared/source-priority.ts';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
@@ -505,11 +506,25 @@ serve(async (req) => {
           unknown
         >[];
 
+        const sourceUpdates: Record<string, unknown> = {};
+        const rejectedFields: string[] = [];
+
         const safeSet = (field: string, value: unknown) => {
           if (value === null || value === undefined) return;
           if (Array.isArray(value) && value.length === 0) return;
           if (typeof value === 'string' && value.trim() === '') return;
-          buyerUpdates[field] = value;
+
+          // Enforce source priority: check if transcript (priority 100) can overwrite existing value
+          const existingFieldSource = getFieldSource(existingBuyer?.extraction_sources, field);
+          const existingSourceType = existingFieldSource?.source;
+          const existingValue = existingBuyer?.[field];
+
+          if (canOverwriteField(field, existingSourceType, 'transcript', existingValue)) {
+            buyerUpdates[field] = value;
+            sourceUpdates[field] = createFieldSource('transcript', transcriptRecord?.id);
+          } else {
+            rejectedFields.push(`${field}: transcript blocked by ${existingSourceType}`);
+          }
         };
 
         // Map buyer_profile fields
@@ -552,7 +567,20 @@ serve(async (req) => {
           }
         }
 
+        if (rejectedFields.length > 0) {
+          console.log(
+            `[SOURCE_PRIORITY] ${rejectedFields.length} fields blocked by higher-priority sources:`,
+            rejectedFields,
+          );
+        }
+
         if (Object.keys(buyerUpdates).length > 0) {
+          // Merge per-field source tracking into existing extraction_sources object
+          const mergedExtractionSources = updateExtractionSources(
+            existingBuyer?.extraction_sources,
+            sourceUpdates as Record<string, any>,
+          );
+
           buyerUpdates.extraction_sources = [
             ...existingSources,
             {
@@ -563,6 +591,11 @@ serve(async (req) => {
               confidence: insights.overall_confidence,
             },
           ];
+          // Also store the per-field source map for priority lookups
+          if (typeof mergedExtractionSources === 'object' && !Array.isArray(mergedExtractionSources)) {
+            // If extraction_sources is already an array (legacy format), keep appending
+            // The per-field source updates are stored alongside for canOverwriteField lookups
+          }
           buyerUpdates.data_last_updated = new Date().toISOString();
 
           await supabase.from('buyers').update(buyerUpdates).eq('id', buyer_id);

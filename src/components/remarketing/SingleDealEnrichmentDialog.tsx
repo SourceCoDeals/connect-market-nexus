@@ -7,6 +7,8 @@ export interface SingleDealEnrichmentResult {
   success: boolean;
   message?: string;
   fieldsUpdated?: string[];
+  rejectedFields?: string[];
+  rejectedFieldCount?: number;
   error?: string;
   extracted?: Record<string, unknown>;
   scrapeReport?: {
@@ -183,6 +185,21 @@ export const SingleDealEnrichmentDialog = ({
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Rejected Fields (blocked by source priority) */}
+          {isSuccess && (result.rejectedFieldCount ?? 0) > 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 text-sm">
+              <FileText className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <div>
+                <span className="font-medium text-amber-700 dark:text-amber-400">
+                  {result.rejectedFieldCount} financial field{result.rejectedFieldCount !== 1 ? 's' : ''} skipped
+                </span>
+                <span className="text-amber-600 dark:text-amber-500 ml-1">
+                  — financials must come from call transcripts
+                </span>
               </div>
             </div>
           )}

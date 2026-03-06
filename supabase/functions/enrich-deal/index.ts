@@ -976,6 +976,8 @@ serve(async (req) => {
         },
         transcriptReport,
         notesFieldsUpdated,
+        rejectedFields: rejected,
+        rejectedFieldCount: rejected.length,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
