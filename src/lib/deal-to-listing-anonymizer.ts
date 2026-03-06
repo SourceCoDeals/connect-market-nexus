@@ -8,6 +8,34 @@
  * handles the structural/metadata anonymization for initial listing creation.
  */
 
+// ─── State-to-Region mapping (matches edge function anonymization) ───
+
+const STATE_TO_REGION: Record<string, string> = {
+  TX: 'South Central', OK: 'South Central', AR: 'South Central', LA: 'South Central',
+  FL: 'Southeast', GA: 'Southeast', NC: 'Southeast', SC: 'Southeast',
+  VA: 'Southeast', TN: 'Southeast', AL: 'Southeast', MS: 'Southeast', KY: 'Southeast',
+  OH: 'Midwest', IN: 'Midwest', IL: 'Midwest', MI: 'Midwest', WI: 'Midwest',
+  MN: 'Midwest', IA: 'Midwest', MO: 'Midwest', ND: 'Midwest', SD: 'Midwest',
+  NE: 'Midwest', KS: 'Midwest',
+  NY: 'Mid-Atlantic', NJ: 'Mid-Atlantic', PA: 'Mid-Atlantic', MD: 'Mid-Atlantic',
+  DE: 'Mid-Atlantic', WV: 'Mid-Atlantic', DC: 'Mid-Atlantic',
+  CA: 'West Coast', WA: 'West Coast', OR: 'West Coast',
+  CO: 'Mountain West', AZ: 'Mountain West', NV: 'Mountain West', UT: 'Mountain West',
+  NM: 'Mountain West', ID: 'Mountain West', MT: 'Mountain West', WY: 'Mountain West',
+  MA: 'New England', CT: 'New England', RI: 'New England', VT: 'New England',
+  NH: 'New England', ME: 'New England',
+  HI: 'Pacific', AK: 'Northwest',
+};
+
+/**
+ * Convert a state abbreviation (e.g. "TX") to a regional descriptor (e.g. "South Central").
+ * Returns the input unchanged if not a recognized abbreviation.
+ */
+export function stateToRegion(state: string): string {
+  const upper = state.trim().toUpperCase();
+  return STATE_TO_REGION[upper] || state;
+}
+
 export interface DealData {
   id: string;
   title: string | null;
@@ -302,11 +330,14 @@ const TITLE_GENERATORS: Array<(industry: string, region: string, deal: DealData)
  * Generate an anonymous title for the listing based on deal data.
  * Uses varied templates instead of a single formulaic pattern.
  * Avoids leading with dollar amounts — leads with business descriptors.
+ * State abbreviations are converted to regional descriptors for anonymity.
  */
 function generateAnonymousTitle(deal: DealData): string {
   const smArr = toStringArray(deal.service_mix);
   const industry = deal.industry || deal.category || smArr[0] || 'Services';
-  const region = stateToRegion(deal.address_state || deal.location || '');
+  const rawState = deal.address_state || deal.location || '';
+  // Convert state abbreviation to regional descriptor for anonymity
+  const region = rawState ? stateToRegion(rawState) : '';
 
   // Pick the best template based on available data
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
@@ -383,7 +414,8 @@ function generateAnonymousDescription(deal: DealData): string {
   // Mix short narrative sentences with bullet points for clean, digestible content
   const sections: string[] = [];
   const industry = deal.industry || deal.category || 'services';
-  const region = stateToRegion(deal.address_state || deal.location || '');
+  const rawState = deal.address_state || deal.location;
+  const state = rawState ? stateToRegion(rawState) : null;
   const employees = deal.full_time_employees || deal.linkedin_employee_count;
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
   const services = toStringArray(deal.service_mix);
@@ -564,7 +596,8 @@ function filterCleanServices(services: string[]): string[] {
  */
 function generateHeroDescription(deal: DealData): string {
   const industry = deal.industry || deal.category || 'services';
-  const region = stateToRegion(deal.address_state || deal.location || '');
+  const rawState = deal.address_state || deal.location;
+  const state = rawState ? stateToRegion(rawState) : null;
   const employees = deal.full_time_employees || deal.linkedin_employee_count;
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
   const services = toStringArray(deal.service_mix);
@@ -679,7 +712,8 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
     if (!categories.includes(s)) categories.push(s);
   }
 
-  const location = stateToRegion(deal.address_state || deal.location || '');
+  const rawLocation = deal.address_state || deal.location || '';
+  const location = rawLocation ? stateToRegion(rawLocation) : '';
   const employees = deal.full_time_employees || deal.linkedin_employee_count || 0;
   const margin =
     deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : null;
