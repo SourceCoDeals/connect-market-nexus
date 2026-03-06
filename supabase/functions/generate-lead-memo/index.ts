@@ -277,10 +277,11 @@ Deno.serve(async (req: Request) => {
           description_html: `<div class="unified-memo">${unifiedHtml}</div>`,
         };
 
-        // Generate a compelling hero_description from the memo content.
+        // Generate a compelling hero_description from the memo content via AI.
         // The hero is the first thing buyers see on cards and landing pages —
-        // it must be a concise 2-3 sentence elevator pitch, not just a data dump.
-        listingUpdate.hero_description = buildHeroFromMemo(teaserContent.sections, deal);
+        // it must be a concise 2-3 sentence elevator pitch, fully anonymized,
+        // free of transcript language, with financials as approximate ranges.
+        listingUpdate.hero_description = await buildHeroFromMemo(anthropicApiKey, teaserContent.sections, deal);
 
         const { error: syncError } = await supabaseAdmin
           .from('listings')
@@ -494,71 +495,123 @@ function buildDataContext(
 // ─── Hero Description Builder ───
 
 /**
- * Build a hero_description (max 500 chars) from the generated memo sections.
- * Uses the unified teaser section keys: business_overview and deal_snapshot.
+ * AI-generate a hero_description from the teaser sections and deal metadata.
+ *
+ * The hero is a 2-3 sentence elevator pitch (max 150 words) shown at the top
+ * of listing cards and pages. It must be:
+ *   - Clean, factual, professional
+ *   - Fully anonymized (no company name, city, state, owner name)
+ *   - Free of transcript language ("the owner clarified", "they mentioned", etc.)
+ *   - Financial figures as approximate ranges
+ *   - Regional descriptors for geography, never state abbreviations or names
  */
-function buildHeroFromMemo(sections: MemoSection[], _deal: Record<string, unknown>): string {
-  const businessOverview = sections.find((s) => s.key === 'business_overview');
-  const dealSnapshot = sections.find((s) => s.key === 'deal_snapshot');
+async function buildHeroFromMemo(
+  apiKey: string,
+  sections: MemoSection[],
+  deal: Record<string, unknown>,
+): Promise<string> {
+  // Gather section text for context
+  const sectionText = sections
+    .filter((s) => s.key !== 'header_block' && s.key !== 'contact_information')
+    .map((s) => `## ${s.title}\n${s.content}`)
+    .join('\n\n');
 
-  let hero = '';
+  // Build deal metrics
+  const revenue = typeof deal.revenue === 'number' ? deal.revenue : null;
+  const ebitda = typeof deal.ebitda === 'number' ? deal.ebitda : null;
+  const industry = (deal.industry || deal.category || 'Services') as string;
+  const state = (deal.address_state || '') as string;
 
-  // Use the business overview as the primary hero text
-  if (businessOverview?.content) {
-    const plainText = businessOverview.content
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/^[-•]\s*/gm, '')
-      .trim();
-    // Get first 2 sentences
-    const sentences = plainText.match(/[^.!?]+[.!?]+/g) || [];
-    if (sentences.length >= 2) {
-      hero = sentences.slice(0, 2).join('').trim();
-    } else if (sentences.length === 1) {
-      hero = sentences[0].trim();
-    } else if (plainText.length > 0) {
-      hero = plainText.substring(0, 200).trim() + '.';
+  const metricsLines = [
+    revenue ? `Revenue: ~$${(revenue * 0.9 / 1_000_000).toFixed(1)}M-$${(revenue * 1.1 / 1_000_000).toFixed(1)}M` : null,
+    ebitda ? `EBITDA: ~$${(ebitda * 0.9 / 1_000).toFixed(0)}K-$${(ebitda * 1.1 / 1_000).toFixed(0)}K` : null,
+    `Industry: ${industry}`,
+    state ? `Geography: ${state} (convert to regional descriptor — never use state name)` : null,
+  ].filter(Boolean).join('\n');
+
+  const heroPrompt = `Generate a hero description for a marketplace listing. This is a 2-3 sentence elevator pitch shown at the top of the listing card. It is the first thing a buyer reads.
+
+RULES:
+- 2-3 sentences maximum, 150 words maximum
+- No company name, no state names, no city names, no owner name — EVER
+- No transcript language — nothing that sounds like it came from a call ("the owner clarified", "the owner stated", "they mentioned", "during the call")
+- Only statements of fact derived from the memo content below
+- Financial figures as approximate ranges (e.g., "~$4.3M-$5.8M")
+- Use a regional descriptor for geography (e.g., "South Central region"), never a state abbreviation or name
+- No banned filler words: established, strong, robust, impressive, attractive, compelling, well-positioned, proven, turnkey, world-class, industry-leading, notable, solid, substantial, considerable
+- Professional, factual tone — written by a sell-side M&A analyst, not a marketer
+
+EXAMPLE OUTPUT:
+"Multi-location automotive maintenance and repair operator in the South Central region generating ~$4.3M-$5.8M in annual revenue and ~$680K-$920K EBITDA. The business serves a retail consumer base across six locations with diversified service lines including maintenance, repair, and tire services. Owner-operated with store-level management running day-to-day; seller seeking a 100% buyout to pursue other ventures."
+
+=== DEAL METRICS ===
+${metricsLines}
+
+=== MEMO SECTIONS ===
+${sectionText}
+
+Return ONLY the hero description text. No preamble, no quotes, no explanation.`;
+
+  try {
+    const response = await fetchWithAutoRetry(
+      ANTHROPIC_API_URL,
+      {
+        method: 'POST',
+        headers: getAnthropicHeaders(apiKey),
+        body: JSON.stringify({
+          model: DEFAULT_CLAUDE_MODEL,
+          messages: [{ role: 'user', content: heroPrompt }],
+          temperature: 0.2,
+          max_tokens: 512,
+        }),
+      },
+      { callerName: 'generate-lead-memo:hero', maxRetries: 1 },
+    );
+
+    if (!response.ok) {
+      console.error(`Hero generation API error ${response.status}`);
+      return buildHeroFallback(sections);
     }
-  }
 
-  // Append key financial highlights from deal snapshot if not already present
-  if (dealSnapshot?.content) {
-    const revenueMatch = dealSnapshot.content.match(/\*?\*?Revenue\*?\*?:.*$/m);
-    const ebitdaMatch = dealSnapshot.content.match(/\*?\*?EBITDA[^:]*\*?\*?:.*$/m);
+    const result = await response.json();
+    let hero = (result.content?.[0]?.text || '').trim();
 
-    const hasRevenue = /\$[\d.]+[MKB]/i.test(hero) || /revenue/i.test(hero);
-    if (!hasRevenue && (revenueMatch || ebitdaMatch)) {
-      const financialParts: string[] = [];
-      if (revenueMatch) {
-        financialParts.push(
-          revenueMatch[0]
-            .replace(/\*\*/g, '')
-            .replace(/^[-•*]\s*/, '')
-            .trim(),
-        );
-      }
-      if (ebitdaMatch) {
-        financialParts.push(
-          ebitdaMatch[0]
-            .replace(/\*\*/g, '')
-            .replace(/^[-•*]\s*/, '')
-            .trim(),
-        );
-      }
-      if (financialParts.length > 0 && hero.length + financialParts.join('. ').length + 3 <= 500) {
-        hero += ' ' + financialParts.join('. ') + '.';
-      }
+    // Strip any wrapping quotes the model may have added
+    if ((hero.startsWith('"') && hero.endsWith('"')) || (hero.startsWith("'") && hero.endsWith("'"))) {
+      hero = hero.slice(1, -1).trim();
     }
-  }
 
-  // Enforce 500 char limit — trim to last complete sentence
-  if (hero.length > 500) {
-    const trimmed = hero.substring(0, 500);
-    const lastPeriod = trimmed.lastIndexOf('.');
-    hero = lastPeriod > 100 ? trimmed.substring(0, lastPeriod + 1).trim() : trimmed.trim();
-  }
+    // Final safety: strip any company name that leaked through
+    const companyName = (deal.internal_company_name || '') as string;
+    if (companyName && companyName.length >= 3) {
+      const escaped = companyName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      hero = hero.replace(new RegExp(escaped, 'gi'), 'the Company');
+    }
 
-  return hero.trim();
+    return hero || buildHeroFallback(sections);
+  } catch (err) {
+    console.error('Hero generation failed, using fallback:', err);
+    return buildHeroFallback(sections);
+  }
+}
+
+/**
+ * Minimal fallback hero — used only if AI generation fails.
+ * Extracts first 2 sentences from business_overview, strips markdown.
+ */
+function buildHeroFallback(sections: MemoSection[]): string {
+  const overview = sections.find((s) => s.key === 'business_overview');
+  if (!overview?.content) return '';
+
+  const plainText = overview.content
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^[-•]\s*/gm, '')
+    .trim();
+
+  const sentences = plainText.match(/[^.!?]+[.!?]+/g) || [];
+  const hero = sentences.slice(0, 2).join('').trim();
+  return hero.length > 500 ? hero.substring(0, 500).replace(/\.[^.]*$/, '.').trim() : hero;
 }
 
 // ─── AI Memo Generation ───

@@ -533,6 +533,26 @@ Apply all anonymization rules strictly. Return markdown only - no preamble, no e
       console.warn(`[generate-marketplace-listing] Validation failed:`, validation.errors);
     }
 
+    // Step 6b: Extract hero_description from BUSINESS OVERVIEW section.
+    // This section is already a clean 2-3 sentence elevator pitch that follows
+    // all anonymization rules — perfect as the hero description for cards/pages.
+    let heroDescription = '';
+    const overviewMatch = markdownText.match(/## BUSINESS OVERVIEW\n([\s\S]*?)(?=\n## |$)/);
+    if (overviewMatch) {
+      heroDescription = overviewMatch[1]
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/^[-•*]\s*/gm, '')
+        .replace(/\n+/g, ' ')
+        .trim();
+      // Enforce 500 char limit — trim to last complete sentence
+      if (heroDescription.length > 500) {
+        const trimmed = heroDescription.substring(0, 500);
+        const lastPeriod = trimmed.lastIndexOf('.');
+        heroDescription = lastPeriod > 100 ? trimmed.substring(0, lastPeriod + 1).trim() : trimmed.trim();
+      }
+    }
+
     // Step 7: Convert markdown to HTML
     const descriptionHtml = markdownToHtml(markdownText);
 
@@ -540,12 +560,16 @@ Apply all anonymization rules strictly. Return markdown only - no preamble, no e
 
     // Step 8: If listing_id provided, update the listing row
     if (listingId) {
+      const listingUpdate: Record<string, unknown> = {
+        description_html: descriptionHtml,
+        description: markdownText,
+      };
+      if (heroDescription) {
+        listingUpdate.hero_description = heroDescription;
+      }
       const { error: updateError } = await supabaseAdmin
         .from('listings')
-        .update({
-          description_html: descriptionHtml,
-          description: markdownText,
-        })
+        .update(listingUpdate)
         .eq('id', listingId);
 
       if (updateError) {
@@ -580,6 +604,7 @@ Apply all anonymization rules strictly. Return markdown only - no preamble, no e
         success: true,
         description_html: descriptionHtml,
         description_markdown: markdownText,
+        hero_description: heroDescription || null,
         validation,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

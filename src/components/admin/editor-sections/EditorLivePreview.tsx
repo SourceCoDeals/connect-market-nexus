@@ -322,8 +322,11 @@ function FullListingPreview({ formValues, imagePreview }: EditorLivePreviewProps
           </div>
         </div>
 
-        {/* Custom Sections */}
-        {customSections.length > 0 && (
+        {/* Custom Sections — only show when description_html is absent.
+            When description_html exists (AI-generated marketplace listing),
+            it already contains structured content and custom_sections are
+            either duplicative or contain raw transcript fragments. */}
+        {!formValues.description_html && customSections.length > 0 && (
           <div className="py-6 border-b border-slate-100 space-y-6">
             {customSections.map((section) => (
               <div key={section.title} className="space-y-2">
