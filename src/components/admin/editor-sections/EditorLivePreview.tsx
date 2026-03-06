@@ -249,7 +249,9 @@ function FullListingPreview({ formValues, imagePreview }: EditorLivePreviewProps
               </span>
             </div>
           )}
-          {formValues.categories?.map((cat) => (
+          {formValues.categories
+            ?.filter((cat) => cat.length <= 60 && !/\b(is|are|was|were|the|that|this|their|which|also|primarily)\b/i.test(cat))
+            .map((cat) => (
             <span
               key={cat}
               className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-[10px] font-medium text-slate-600"

@@ -484,9 +484,30 @@ function generateAnonymousDescription(deal: DealData): string {
 }
 
 /**
+ * Filter service entries to only include clean, short service names.
+ * Rejects raw text/notes that were incorrectly stored as service_mix values.
+ */
+function filterCleanServices(services: string[]): string[] {
+  return services.filter((s) => {
+    const trimmed = s.trim();
+    // Skip empty entries
+    if (trimmed.length === 0) return false;
+    // A legitimate service name is short (under 60 chars) and doesn't contain
+    // sentence-like patterns (multiple spaces + verbs, periods, etc.)
+    if (trimmed.length > 60) return false;
+    // Reject entries that look like sentences (contain verbs/articles typical of prose)
+    if (/\b(is|are|was|were|the|that|this|their|which|also|primarily|including)\b/i.test(trimmed)) return false;
+    return true;
+  });
+}
+
+/**
  * Generate a compelling hero description for the listing card.
  * Builds a rich, narrative 2-4 sentence elevator pitch that gives buyers
  * a real sense of the opportunity — not just a data dump.
+ *
+ * IMPORTANT: All output is run through stripIdentifyingInfo before returning
+ * to prevent any company names or identifying details from leaking.
  */
 function generateHeroDescription(deal: DealData): string {
   const industry = deal.industry || deal.category || 'services';
@@ -495,7 +516,7 @@ function generateHeroDescription(deal: DealData): string {
   const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
   const services = toStringArray(deal.service_mix);
   const servicesList = deal.services || [];
-  const allServices = [...new Set([...services, ...servicesList])];
+  const allServices = filterCleanServices([...new Set([...services, ...servicesList])]);
 
   // Sentence 1: What the company is — industry, geography
   // NOTE: Founding year / exact years in operation are excluded from anonymous
@@ -565,7 +586,10 @@ function generateHeroDescription(deal: DealData): string {
 
   // Assemble — always at least 2 sentences, up to 4
   const parts = [sentence1, sentence2, sentence3, sentence4].filter((s) => s.length > 0);
-  const hero = parts.join(' ');
+  let hero = parts.join(' ');
+
+  // CRITICAL: Strip any identifying information that may have leaked through
+  hero = stripIdentifyingInfo(hero, deal);
 
   // Ensure <= 500 chars — trim from the end if needed
   if (hero.length <= 500) return hero.trim();
@@ -596,7 +620,9 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
   const categories: string[] = [];
   if (deal.category) categories.push(deal.category);
   if (deal.industry && deal.industry !== deal.category) categories.push(deal.industry);
-  for (const s of serviceMix) {
+  // Only include clean, short service names — not raw text/notes
+  const cleanServices = filterCleanServices(serviceMix);
+  for (const s of cleanServices) {
     if (!categories.includes(s)) categories.push(s);
   }
 
