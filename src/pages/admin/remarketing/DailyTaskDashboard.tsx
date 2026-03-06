@@ -39,6 +39,7 @@ import {
   Tag,
   RefreshCcw,
   Loader2,
+  PauseCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, getLocalDateString } from '@/lib/utils';
@@ -200,14 +201,22 @@ const DailyTaskDashboard = () => {
       return data as {
         newly_processed: number;
         transcripts_checked: number;
+        already_processed?: number;
+        failed?: number;
         results?: { title: string; success: boolean; error?: string }[];
       };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [DAILY_TASKS_QUERY_KEY] });
+      const parts = [`Checked ${data.transcripts_checked} meetings`];
+      if (data.already_processed) parts.push(`${data.already_processed} already processed`);
+      if (data.newly_processed) parts.push(`${data.newly_processed} newly extracted`);
+      else parts.push('no new meetings to process');
+      if (data.failed) parts.push(`${data.failed} failed`);
       toast({
         title: 'Meetings synced',
-        description: `Checked ${data.transcripts_checked} meetings, processed ${data.newly_processed} new.`,
+        description: parts.join(', ') + '.',
+        ...(data.failed ? { variant: 'destructive' as const } : {}),
       });
     },
     onError: (err) => {
@@ -316,6 +325,10 @@ const DailyTaskDashboard = () => {
     return approvedTasks.filter((t) => t.status === 'completed');
   }, [approvedTasks]);
 
+  const snoozedTasks = useMemo(() => {
+    return approvedTasks.filter((t) => t.status === 'snoozed');
+  }, [approvedTasks]);
+
   // Grouped views
   const pendingApprovalGroups = useMemo(
     () => groupByOwner(pendingApprovalTasks),
@@ -324,6 +337,7 @@ const DailyTaskDashboard = () => {
   const todayGroups = useMemo(() => groupByOwner(todayTasks), [todayTasks]);
   const futureGroups = useMemo(() => groupByOwner(futureTasks), [futureTasks]);
   const completedGroups = useMemo(() => groupByOwner(completedTasks), [completedTasks]);
+  const snoozedGroups = useMemo(() => groupByOwner(snoozedTasks), [snoozedTasks]);
 
   const handleDelete = async () => {
     if (!deleteTask) return;
@@ -726,6 +740,27 @@ const DailyTaskDashboard = () => {
             </div>
           )}
 
+          {/* Snoozed */}
+          {snoozedTasks.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <PauseCircle className="h-4 w-4 text-slate-500" />
+                <h3 className="text-sm font-semibold text-foreground">Snoozed</h3>
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                  {snoozedTasks.length}
+                </Badge>
+              </div>
+              {snoozedGroups.map((group) => (
+                <PersonTaskGroup
+                  key={group.assigneeId || 'unassigned'}
+                  group={group}
+                  isLeadership={isLeadership}
+                  {...taskHandlers}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Completed */}
           {showCompleted && completedTasks.length > 0 && (
             <div className="space-y-3">
@@ -747,7 +782,7 @@ const DailyTaskDashboard = () => {
           )}
 
           {/* Fallback: approved tasks exist but none match today/future/completed filters */}
-          {todayTasks.length === 0 && futureTasks.length === 0 && completedTasks.length === 0 && (
+          {todayTasks.length === 0 && futureTasks.length === 0 && snoozedTasks.length === 0 && completedTasks.length === 0 && (
             <Card>
               <CardContent className="py-8 text-center">
                 <ListChecks className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
