@@ -20,6 +20,7 @@ import {
   getAnthropicHeaders,
   fetchWithAutoRetry,
 } from '../_shared/ai-providers.ts';
+import { STATE_CODE_TO_NAME, STATE_CODE_TO_REGION } from '../_shared/geography.ts';
 
 // Memo section structure
 interface MemoSection {
@@ -156,6 +157,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Additional completeness warning for anonymous teasers: flag thin data sources
+    if (memo_type === 'anonymous_teaser' || memo_type === 'both') {
+      const hasTranscripts = transcripts && transcripts.length > 0;
+      const hasInternalNotes = deal.internal_notes && (deal.internal_notes as string).trim().length > 0;
+      if (!hasTranscripts && !hasInternalNotes) {
+        console.warn(
+          `Deal ${deal_id}: Anonymous teaser generating from enrichment data only (no transcripts or internal notes). Output quality may be low.`,
+        );
+      }
+    }
+
     // Build data context for AI
     const dataContext = buildDataContext(deal, transcripts || [], valuationData);
 
@@ -258,16 +270,10 @@ Deno.serve(async (req: Request) => {
           .map((s: MemoSection) => `**${s.title}**\n\n${s.content}`)
           .join('\n\n---\n\n');
 
-        // Build unified HTML
+        // Build unified HTML using markdownToHtml for proper list/table rendering
         const unifiedHtml = contentSections
           .map((s: MemoSection) => {
-            const sectionContent = s.content
-              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-              .replace(/\*(.*?)\*/g, '<em>$1</em>')
-              .replace(/\n\n/g, '</p><p>')
-              .replace(/^/, '<p>')
-              .replace(/$/, '</p>');
-            return `<h3 style="font-size:16px;font-weight:bold;color:#1a1a2e;margin:24px 0 8px 0;padding-bottom:4px;border-bottom:1px solid #e0e0e0;">${s.title}</h3>${sectionContent}`;
+            return `<h3 style="font-size:16px;font-weight:bold;color:#1a1a2e;margin:24px 0 8px 0;padding-bottom:4px;border-bottom:1px solid #e0e0e0;">${s.title}</h3>${markdownToHtml(s.content)}`;
           })
           .join('');
 
@@ -290,6 +296,10 @@ Deno.serve(async (req: Request) => {
         if (syncError) {
           console.error('Failed to sync teaser sections to marketplace listing:', syncError);
         }
+      } else {
+        console.warn(
+          `No marketplace listing found for deal ${deal_id} — custom_sections sync skipped. Re-generate teaser after creating the listing.`,
+        );
       }
     }
 
@@ -776,60 +786,6 @@ function enforceAnonymization(
   }
   if (addressCity && addressCity.length >= 3) identifyingTerms.push(addressCity);
 
-  // Build state-specific terms to replace
-  const stateNames: Record<string, string> = {
-    AL: 'Alabama',
-    AK: 'Alaska',
-    AZ: 'Arizona',
-    AR: 'Arkansas',
-    CA: 'California',
-    CO: 'Colorado',
-    CT: 'Connecticut',
-    DE: 'Delaware',
-    FL: 'Florida',
-    GA: 'Georgia',
-    HI: 'Hawaii',
-    ID: 'Idaho',
-    IL: 'Illinois',
-    IN: 'Indiana',
-    IA: 'Iowa',
-    KS: 'Kansas',
-    KY: 'Kentucky',
-    LA: 'Louisiana',
-    ME: 'Maine',
-    MD: 'Maryland',
-    MA: 'Massachusetts',
-    MI: 'Michigan',
-    MN: 'Minnesota',
-    MS: 'Mississippi',
-    MO: 'Missouri',
-    MT: 'Montana',
-    NE: 'Nebraska',
-    NV: 'Nevada',
-    NH: 'New Hampshire',
-    NJ: 'New Jersey',
-    NM: 'New Mexico',
-    NY: 'New York',
-    NC: 'North Carolina',
-    ND: 'North Dakota',
-    OH: 'Ohio',
-    OK: 'Oklahoma',
-    OR: 'Oregon',
-    PA: 'Pennsylvania',
-    RI: 'Rhode Island',
-    SC: 'South Carolina',
-    SD: 'South Dakota',
-    TN: 'Tennessee',
-    TX: 'Texas',
-    UT: 'Utah',
-    VT: 'Vermont',
-    VA: 'Virginia',
-    WA: 'Washington',
-    WV: 'West Virginia',
-    WI: 'Wisconsin',
-    WY: 'Wyoming',
-    DC: 'Washington D.C.',
-  };
   // Collect specific states from the deal's geographic_states and address_state
   const statesInDeal: string[] = [];
   if (addressState) statesInDeal.push(addressState.toUpperCase());
@@ -842,7 +798,7 @@ function enforceAnonymization(
   const uniqueStates = [...new Set(statesInDeal)];
   const stateNamesToReplace: string[] = [];
   for (const abbr of uniqueStates) {
-    if (stateNames[abbr]) stateNamesToReplace.push(stateNames[abbr]);
+    if (STATE_CODE_TO_NAME[abbr]) stateNamesToReplace.push(STATE_CODE_TO_NAME[abbr]);
     stateNamesToReplace.push(abbr);
   }
 
@@ -1564,60 +1520,7 @@ async function generateMemo(
   // Derive the actual region/state for anonymous codename
   const dealState =
     typeof context.deal.address_state === 'string' ? context.deal.address_state : '';
-  const stateToRegion: Record<string, string> = {
-    AL: 'Southeast',
-    AK: 'Pacific Northwest',
-    AZ: 'Southwest',
-    AR: 'South Central',
-    CA: 'West Coast',
-    CO: 'Mountain West',
-    CT: 'Northeast',
-    DE: 'Mid-Atlantic',
-    FL: 'Southeast',
-    GA: 'Southeast',
-    HI: 'Pacific',
-    ID: 'Mountain West',
-    IL: 'Midwest',
-    IN: 'Midwest',
-    IA: 'Midwest',
-    KS: 'Central',
-    KY: 'Southeast',
-    LA: 'Gulf Coast',
-    ME: 'New England',
-    MD: 'Mid-Atlantic',
-    MA: 'New England',
-    MI: 'Great Lakes',
-    MN: 'Upper Midwest',
-    MS: 'Gulf Coast',
-    MO: 'Central',
-    MT: 'Mountain West',
-    NE: 'Central',
-    NV: 'Mountain West',
-    NH: 'New England',
-    NJ: 'Mid-Atlantic',
-    NM: 'Southwest',
-    NY: 'Northeast',
-    NC: 'Southeast',
-    ND: 'Upper Midwest',
-    OH: 'Great Lakes',
-    OK: 'South Central',
-    OR: 'Pacific Northwest',
-    PA: 'Mid-Atlantic',
-    RI: 'New England',
-    SC: 'Southeast',
-    SD: 'Upper Midwest',
-    TN: 'Southeast',
-    TX: 'South Central',
-    UT: 'Mountain West',
-    VT: 'New England',
-    VA: 'Mid-Atlantic',
-    WA: 'Pacific Northwest',
-    WV: 'Appalachian',
-    WI: 'Great Lakes',
-    WY: 'Mountain West',
-    DC: 'Mid-Atlantic',
-  };
-  const regionName = stateToRegion[dealState.toUpperCase()] || 'Central';
+  const regionName = STATE_CODE_TO_REGION[dealState.toUpperCase()] || 'Central';
   // Use user-provided project name if available, otherwise generate from region
   const projectCodename = projectName?.trim() || `Project ${regionName}`;
 

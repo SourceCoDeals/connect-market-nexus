@@ -1,37 +1,10 @@
 import { useMemo } from 'react';
 import type { LandingPageDeal } from '@/hooks/useDealLandingPage';
-import { stripIdentifyingInfo, type DealData } from '@/lib/deal-to-listing-anonymizer';
+import { stripIdentifyingInfo, buildLandingPageDealData } from '@/lib/deal-to-listing-anonymizer';
 import { RichTextDisplay } from '@/components/ui/rich-text-display';
 
 interface ContentSectionsProps {
   deal: LandingPageDeal;
-}
-
-function buildDealDataForAnonymization(deal: LandingPageDeal): DealData {
-  return {
-    id: deal.id,
-    title: deal.title,
-    internal_company_name: deal.internal_company_name ?? null,
-    executive_summary: null,
-    description: null,
-    revenue: deal.revenue,
-    ebitda: deal.ebitda,
-    location: deal.location,
-    address_state: null,
-    address_city: null,
-    category: deal.category ?? deal.categories?.[0] ?? null,
-    industry: null,
-    service_mix: null,
-    website: deal.website ?? null,
-    full_time_employees: deal.full_time_employees,
-    linkedin_employee_count: null,
-    main_contact_name: null,
-    main_contact_email: null,
-    main_contact_phone: null,
-    main_contact_title: null,
-    geographic_states: null,
-    internal_deal_memo_link: null,
-  };
 }
 
 function parseDescriptionSections(html: string): Array<{ title: string; html: string }> {
@@ -80,7 +53,7 @@ const sectionBodyStyle: React.CSSProperties = {
 };
 
 export default function ContentSections({ deal }: ContentSectionsProps) {
-  const dealData = useMemo(() => buildDealDataForAnonymization(deal), [deal]);
+  const dealData = useMemo(() => buildLandingPageDealData(deal), [deal]);
 
   const anon = (text: string | null | undefined): string => {
     if (!text) return '';
@@ -95,7 +68,10 @@ export default function ContentSections({ deal }: ContentSectionsProps) {
     return [];
   }, [deal.description_html, dealData]);
 
+  // Prefer custom_sections (structured from memo) over description_html to avoid
+  // rendering duplicate content — both are synced from the same teaser source.
   const customSections = deal.custom_sections ?? [];
+  const hasCustomSections = customSections.length > 0;
 
   // Identify an "Owner Objectives" section for the exit card
   const ownerObjectivesSection = customSections.find(
@@ -107,8 +83,8 @@ export default function ContentSections({ deal }: ContentSectionsProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Parsed H2 sections from description_html */}
-      {parsedSections.length > 0 ? (
+      {/* Parsed H2 sections from description_html — only if no custom_sections to avoid duplicates */}
+      {!hasCustomSections && parsedSections.length > 0 ? (
         parsedSections.map((section, i) => (
           <div key={`parsed-${i}`} style={sectionCardStyle} className="hover:shadow-[0_4px_16px_rgba(0,0,0,0.05)]">
             <div style={sectionTitleStyle}>{section.title}</div>
@@ -117,15 +93,15 @@ export default function ContentSections({ deal }: ContentSectionsProps) {
             </div>
           </div>
         ))
-      ) : deal.description_html ? (
-        // Fallback: single card with full description
+      ) : !hasCustomSections && deal.description_html ? (
+        // Fallback: single card with full description (only when no structured sections)
         <div style={sectionCardStyle} className="hover:shadow-[0_4px_16px_rgba(0,0,0,0.05)]">
           <div style={sectionTitleStyle}>Business Overview</div>
           <div style={sectionBodyStyle}>
             <RichTextDisplay content={anon(deal.description_html)} />
           </div>
         </div>
-      ) : deal.description ? (
+      ) : !hasCustomSections && deal.description ? (
         <div style={sectionCardStyle} className="hover:shadow-[0_4px_16px_rgba(0,0,0,0.05)]">
           <div style={sectionTitleStyle}>Business Overview</div>
           <div style={sectionBodyStyle}>

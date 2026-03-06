@@ -98,6 +98,10 @@ export interface AnonymizedListingData {
   main_contact_last_name: string;
   main_contact_email: string;
   main_contact_phone: string;
+  // Deal detail fields carried to listing
+  services: string[];
+  service_mix: string;
+  geographic_states: string[];
 }
 
 /**
@@ -180,6 +184,12 @@ function buildIdentifyingTerms(deal: DealData): string[] {
     }
   }
 
+  // City name (prevents geographic identification)
+  if (deal.address_city) {
+    const city = deal.address_city.trim();
+    if (city.length >= 3) terms.push(city);
+  }
+
   // Internal deal memo link
   if (deal.internal_deal_memo_link) {
     terms.push(deal.internal_deal_memo_link.trim());
@@ -196,7 +206,7 @@ function buildIdentifyingTerms(deal: DealData): string[] {
  * with "the Company" or "[redacted]" as appropriate.
  */
 export function stripIdentifyingInfo(text: string, deal: DealData): string {
-  if (!text) return text;
+  if (!text || typeof text !== 'string') return '';
 
   const terms = buildIdentifyingTerms(deal);
   let result = text;
@@ -211,8 +221,11 @@ export function stripIdentifyingInfo(text: string, deal: DealData): string {
   // Also strip any remaining email addresses
   result = result.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[redacted]');
 
-  // Strip any remaining phone numbers (US format)
-  result = result.replace(/(\+?1?\s*[-.]?\s*)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g, '[redacted]');
+  // Strip any remaining phone numbers (US format + extensions)
+  result = result.replace(/(\+?1?\s*[-.]?\s*)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(\s*(x|ext\.?)\s*\d{1,6})?/gi, '[redacted]');
+
+  // Strip any remaining URLs
+  result = result.replace(/https?:\/\/[^\s)]+/gi, '[redacted]');
 
   return result;
 }
@@ -278,7 +291,7 @@ export function stateToRegion(stateInput: string): string {
 const TITLE_GENERATORS: Array<(industry: string, region: string, deal: DealData) => string> = [
   // Pattern 1: Margin-anchored (leads with profitability narrative)
   (industry, region, deal) => {
-    const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
+    const margin = deal.ebitda && deal.revenue && deal.revenue > 0 ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
     const descriptor = margin >= 25 ? 'High-Margin' : margin >= 15 ? 'Profitable' : 'Established';
     if (region) return `${descriptor} ${industry} Business — ${region}`;
     return `${descriptor} ${industry} Business`;
@@ -293,7 +306,7 @@ const TITLE_GENERATORS: Array<(industry: string, region: string, deal: DealData)
   },
   // Pattern 3: Tenure-anchored (use vague ranges to avoid identifying the company)
   (industry, region, deal) => {
-    const years = deal.founded_year ? new Date().getFullYear() - deal.founded_year : 0;
+    const years = deal.founded_year && deal.founded_year > 0 && deal.founded_year <= new Date().getFullYear() ? new Date().getFullYear() - deal.founded_year : 0;
     const yearsDesc = years >= 20 ? 'Long-Standing' : years >= 10 ? 'Multi-Decade' : 'Established';
     if (region) return `${yearsDesc} ${industry} Business — ${region}`;
     return `${yearsDesc} ${industry} Business`;
@@ -314,8 +327,8 @@ function generateAnonymousTitle(deal: DealData): string {
   const region = rawState ? stateToRegion(rawState) : '';
 
   // Pick the best template based on available data
-  const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
-  const years = deal.founded_year ? new Date().getFullYear() - deal.founded_year : 0;
+  const margin = deal.ebitda && deal.revenue && deal.revenue > 0 ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
+  const years = deal.founded_year && deal.founded_year > 0 && deal.founded_year <= new Date().getFullYear() ? new Date().getFullYear() - deal.founded_year : 0;
 
   // Prefer margin-anchored if strong margins, then scale-based, then years
   if (margin > 15) {
@@ -391,7 +404,7 @@ function generateAnonymousDescription(deal: DealData): string {
   const rawState = deal.address_state || deal.location;
   const region = rawState ? stateToRegion(rawState) : null;
   const employees = deal.full_time_employees || deal.linkedin_employee_count;
-  const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
+  const margin = deal.ebitda && deal.revenue && deal.revenue > 0 ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
   const services = toStringArray(deal.service_mix);
   const servicesList = deal.services || [];
   const allServices = [...new Set([...services, ...servicesList])];
@@ -554,8 +567,10 @@ function filterCleanServices(services: string[]): string[] {
     // A legitimate service name is short (under 60 chars) and doesn't contain
     // sentence-like patterns (multiple spaces + verbs, periods, etc.)
     if (trimmed.length > 60) return false;
-    // Reject entries that look like sentences (contain verbs/articles typical of prose)
-    if (/\b(is|are|was|were|the|that|this|their|which|also|primarily|including)\b/i.test(trimmed)) return false;
+    // Reject entries that look like sentences (contain verbs/articles typical of prose).
+    // Require whitespace after the match word to avoid false positives in compound service
+    // names like "Therapeutic", "Anesthesia", etc.
+    if (/\b(is|are|was|were|that|which|also|primarily|including)\s/i.test(trimmed)) return false;
     return true;
   });
 }
@@ -573,7 +588,7 @@ function generateHeroDescription(deal: DealData): string {
   const rawState = deal.address_state || deal.location;
   const region = rawState ? stateToRegion(rawState) : null;
   const employees = deal.full_time_employees || deal.linkedin_employee_count;
-  const margin = deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
+  const margin = deal.ebitda && deal.revenue && deal.revenue > 0 ? Math.round((deal.ebitda / deal.revenue) * 100) : 0;
   const services = toStringArray(deal.service_mix);
   const servicesList = deal.services || [];
   const allServices = filterCleanServices([...new Set([...services, ...servicesList])]);
@@ -656,7 +671,52 @@ function generateHeroDescription(deal: DealData): string {
   // Trim to last complete sentence within 500 chars
   const trimmed = hero.substring(0, 500);
   const lastPeriod = trimmed.lastIndexOf('.');
-  return lastPeriod > 100 ? trimmed.substring(0, lastPeriod + 1).trim() : trimmed.trim();
+  if (lastPeriod > 100) return trimmed.substring(0, lastPeriod + 1).trim();
+  // No good sentence break found — append period to avoid incomplete sentence
+  const result = trimmed.trim();
+  return result.endsWith('.') ? result : result + '.';
+}
+
+/**
+ * Build a minimal DealData object from a landing page deal for anonymization.
+ * Used by landing page components that need to run stripIdentifyingInfo.
+ * Internal fields (internal_company_name, website) are intentionally null
+ * because landing page queries must NOT fetch PII.
+ */
+export function buildLandingPageDealData(deal: {
+  id: string;
+  title: string;
+  revenue: number | null;
+  ebitda: number | null;
+  location: string | null;
+  category?: string | null;
+  categories?: string[] | null;
+  full_time_employees?: number | null;
+}): DealData {
+  return {
+    id: deal.id,
+    title: deal.title,
+    internal_company_name: null,
+    executive_summary: null,
+    description: null,
+    revenue: deal.revenue,
+    ebitda: deal.ebitda,
+    location: deal.location,
+    address_state: null,
+    address_city: null,
+    category: deal.category ?? deal.categories?.[0] ?? null,
+    industry: null,
+    service_mix: null,
+    website: null,
+    full_time_employees: deal.full_time_employees ?? null,
+    linkedin_employee_count: null,
+    main_contact_name: null,
+    main_contact_email: null,
+    main_contact_phone: null,
+    main_contact_title: null,
+    geographic_states: null,
+    internal_deal_memo_link: null,
+  };
 }
 
 function formatRevenue(value: number): string {
@@ -690,7 +750,7 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
   const location = rawLocation ? stateToRegion(rawLocation) : '';
   const employees = deal.full_time_employees || deal.linkedin_employee_count || 0;
   const margin =
-    deal.ebitda && deal.revenue ? Math.round((deal.ebitda / deal.revenue) * 100) : null;
+    deal.ebitda && deal.revenue && deal.revenue > 0 ? Math.round((deal.ebitda / deal.revenue) * 100) : null;
 
   // Build services list from service_mix + services
   const services: string[] = [...serviceMix];
@@ -731,6 +791,10 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
       : '',
     main_contact_email: deal.main_contact_email || '',
     main_contact_phone: deal.main_contact_phone || '',
+    // Deal detail fields carried to listing
+    services: services.length > 0 ? services : [],
+    service_mix: serviceMix.join(', '),
+    geographic_states: deal.geographic_states || [],
   };
 }
 

@@ -66,8 +66,7 @@ const LANDING_PAGE_FIELDS = `
   executive_summary, full_time_employees, part_time_employees,
   status, presented_by_admin_id, is_internal_deal, acquisition_type,
   geographic_states, services, number_of_locations, customer_types,
-  revenue_model, business_model, growth_trajectory,
-  internal_company_name, website
+  revenue_model, business_model, growth_trajectory
 `;
 
 export function useDealLandingPage(dealId: string | undefined) {

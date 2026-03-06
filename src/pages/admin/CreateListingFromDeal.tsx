@@ -126,16 +126,18 @@ export default function CreateListingFromDeal() {
         customer_types: ((deal as Record<string, unknown>).customer_types as string) || null,
         end_market_description:
           ((deal as Record<string, unknown>).end_market_description as string) || null,
-        investment_thesis: ((deal as Record<string, unknown>).investment_thesis as string) ?? undefined,
+        investment_thesis: ((deal as Record<string, unknown>).investment_thesis as string) || null,
         competitive_position:
-          ((deal as Record<string, unknown>).competitive_position as string) ?? undefined,
+          ((deal as Record<string, unknown>).competitive_position as string) || null,
         ownership_structure:
-          ((deal as Record<string, unknown>).ownership_structure as string) ?? undefined,
-        seller_motivation: ((deal as Record<string, unknown>).seller_motivation as string) ?? undefined,
+          ((deal as Record<string, unknown>).ownership_structure as string) || null,
+        seller_motivation: ((deal as Record<string, unknown>).seller_motivation as string) || null,
         business_model: ((deal as Record<string, unknown>).business_model as string) || null,
         revenue_model: ((deal as Record<string, unknown>).revenue_model as string) || null,
         growth_drivers: ((deal as Record<string, unknown>).growth_drivers as string[]) || null,
-        services: ((deal as Record<string, unknown>).services as string[]) || null,
+        services: anonymized.services.length > 0 ? anonymized.services : ((deal as Record<string, unknown>).services as string[]) || null,
+        service_mix: anonymized.service_mix || ((deal as Record<string, unknown>).service_mix as string) || null,
+        geographic_states: anonymized.geographic_states.length > 0 ? anonymized.geographic_states : ((deal as Record<string, unknown>).geographic_states as string[]) || null,
         custom_sections: [],
         tags: [],
         status: 'active',
@@ -283,6 +285,8 @@ export default function CreateListingFromDeal() {
             revenue_model: prefilled.revenue_model || null,
             growth_drivers: prefilled.growth_drivers || null,
             services: prefilled.services || null,
+            service_mix: (prefilled as Record<string, unknown>).service_mix || null,
+            geographic_states: (prefilled as Record<string, unknown>).geographic_states || null,
           }
         : {};
 
@@ -296,7 +300,59 @@ export default function CreateListingFromDeal() {
         website: '',
       };
 
-      await createListing({ listing: listingData as never, image });
+      const newListing = await createListing({ listing: listingData as never, image });
+
+      // Auto-sync teaser content if a teaser memo draft already exists for the source deal.
+      // This handles the case where the admin generated the teaser before creating the listing.
+      if (newListing?.id && dealId) {
+        try {
+          const { data: existingTeaser } = await supabase
+            .from('lead_memos')
+            .select('id, content')
+            .eq('deal_id', dealId)
+            .eq('memo_type', 'anonymous_teaser')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (existingTeaser?.content) {
+            const teaserContent = existingTeaser.content as { sections?: unknown[] };
+            const sections = Array.isArray(teaserContent.sections) ? teaserContent.sections : [];
+            // Validate each section has the expected shape before using it
+            const validSections = sections.filter(
+              (s): s is { key: string; title: string; content: string } =>
+                typeof s === 'object' && s !== null &&
+                typeof (s as Record<string, unknown>).key === 'string' &&
+                typeof (s as Record<string, unknown>).title === 'string' &&
+                typeof (s as Record<string, unknown>).content === 'string',
+            );
+            if (validSections.length > 0) {
+              const contentSections = validSections.filter(
+                (s) => s.key !== 'header_block' && s.key !== 'contact_information',
+              );
+              const customSections = contentSections.map((s) => ({
+                title: s.title,
+                description: s.content,
+              }));
+              const unifiedDescription = contentSections
+                .map((s) => `**${s.title}**\n\n${s.content}`)
+                .join('\n\n---\n\n');
+
+              await supabase
+                .from('listings')
+                .update({
+                  custom_sections: customSections,
+                  description: unifiedDescription,
+                })
+                .eq('id', newListing.id);
+
+              console.log('[CreateListingFromDeal] Auto-synced teaser content to new listing');
+            }
+          }
+        } catch (syncErr) {
+          console.warn('[CreateListingFromDeal] Failed to auto-sync teaser content:', syncErr);
+        }
+      }
 
       // Invalidate relevant queries — the deal stays in the queue so the
       // "Listing Created" badge appears. The source_deal_id link is the

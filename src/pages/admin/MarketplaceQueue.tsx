@@ -75,6 +75,7 @@ const MarketplaceQueue = () => {
            deal_source`,
         )
         .eq('pushed_to_marketplace', true)
+        .eq('is_internal_deal', true)
         .order('pushed_to_marketplace_at', { ascending: false });
 
       if (error) throw error;
@@ -134,7 +135,6 @@ const MarketplaceQueue = () => {
   /** Compute listing prerequisites that are still missing for a deal. */
   const getListingGaps = (deal: MarketplaceQueueDeal): string[] => {
     const gaps: string[] = [];
-    if (!deal.website) gaps.push('Website');
     if (deal.revenue == null) gaps.push('Revenue');
     if (deal.ebitda == null) gaps.push('EBITDA');
     if (!deal.address_state && !deal.location) gaps.push('Location');
@@ -197,8 +197,8 @@ const MarketplaceQueue = () => {
           break;
         case 'pushed_at':
         default:
-          aVal = new Date(a.pushed_to_marketplace_at || a.created_at).getTime();
-          bVal = new Date(b.pushed_to_marketplace_at || b.created_at).getTime();
+          aVal = new Date(a.pushed_to_marketplace_at ?? a.created_at).getTime() || 0;
+          bVal = new Date(b.pushed_to_marketplace_at ?? b.created_at).getTime() || 0;
           break;
       }
 
