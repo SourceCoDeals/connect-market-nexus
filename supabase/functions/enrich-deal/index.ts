@@ -395,7 +395,14 @@ serve(async (req) => {
     // ========================================================================
     // STEP 0.5: NOTES ANALYSIS (medium priority — between transcripts and website)
     // ========================================================================
-    const notesContent = [deal.general_notes, deal.owner_notes, deal.internal_notes]
+    const notesContent = [
+      deal.general_notes,
+      deal.owner_notes,
+      deal.internal_notes,
+      deal.owner_response,
+      deal.captarget_call_notes,
+      deal.description,
+    ]
       .filter(Boolean)
       .join('\n\n');
 
