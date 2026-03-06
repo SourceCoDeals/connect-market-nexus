@@ -135,7 +135,9 @@ export default function CreateListingFromDeal() {
         business_model: ((deal as Record<string, unknown>).business_model as string) || null,
         revenue_model: ((deal as Record<string, unknown>).revenue_model as string) || null,
         growth_drivers: ((deal as Record<string, unknown>).growth_drivers as string[]) || null,
-        services: ((deal as Record<string, unknown>).services as string[]) || null,
+        services: anonymized.services.length > 0 ? anonymized.services : ((deal as Record<string, unknown>).services as string[]) || null,
+        service_mix: anonymized.service_mix || ((deal as Record<string, unknown>).service_mix as string) || null,
+        geographic_states: anonymized.geographic_states.length > 0 ? anonymized.geographic_states : ((deal as Record<string, unknown>).geographic_states as string[]) || null,
         custom_sections: [],
         tags: [],
         status: 'active',
@@ -283,6 +285,8 @@ export default function CreateListingFromDeal() {
             revenue_model: prefilled.revenue_model || null,
             growth_drivers: prefilled.growth_drivers || null,
             services: prefilled.services || null,
+            service_mix: (prefilled as Record<string, unknown>).service_mix || null,
+            geographic_states: (prefilled as Record<string, unknown>).geographic_states || null,
           }
         : {};
 
@@ -296,7 +300,50 @@ export default function CreateListingFromDeal() {
         website: '',
       };
 
-      await createListing({ listing: listingData as never, image });
+      const newListing = await createListing({ listing: listingData as never, image });
+
+      // Auto-sync teaser content if a teaser memo draft already exists for the source deal.
+      // This handles the case where the admin generated the teaser before creating the listing.
+      if (newListing?.id && dealId) {
+        try {
+          const { data: existingTeaser } = await supabase
+            .from('lead_memos')
+            .select('id, content')
+            .eq('deal_id', dealId)
+            .eq('memo_type', 'anonymous_teaser')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (existingTeaser?.content) {
+            const teaserContent = existingTeaser.content as { sections?: Array<{ key: string; title: string; content: string }> };
+            if (teaserContent.sections && teaserContent.sections.length > 0) {
+              const contentSections = teaserContent.sections.filter(
+                (s) => s.key !== 'header_block' && s.key !== 'contact_information',
+              );
+              const customSections = contentSections.map((s) => ({
+                title: s.title,
+                description: s.content,
+              }));
+              const unifiedDescription = contentSections
+                .map((s) => `**${s.title}**\n\n${s.content}`)
+                .join('\n\n---\n\n');
+
+              await supabase
+                .from('listings')
+                .update({
+                  custom_sections: customSections,
+                  description: unifiedDescription,
+                })
+                .eq('id', newListing.id);
+
+              console.log('[CreateListingFromDeal] Auto-synced teaser content to new listing');
+            }
+          }
+        } catch (syncErr) {
+          console.warn('[CreateListingFromDeal] Failed to auto-sync teaser content:', syncErr);
+        }
+      }
 
       // Invalidate relevant queries — the deal stays in the queue so the
       // "Listing Created" badge appears. The source_deal_id link is the

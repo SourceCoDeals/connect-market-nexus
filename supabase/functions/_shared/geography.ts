@@ -49,6 +49,45 @@ export const VALID_US_STATE_CODES = new Set([
   'VT','VA','WA','WV','WI','WY','PR','GU','VI','AS','MP',
 ]);
 
+// State code to full name (canonical, US + DC)
+export const STATE_CODE_TO_NAME: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas',
+  CA: 'California', CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware',
+  FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho',
+  IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas',
+  KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi',
+  MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada',
+  NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York',
+  NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma',
+  OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah',
+  VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia',
+  WI: 'Wisconsin', WY: 'Wyoming', DC: 'Washington D.C.',
+};
+
+// Reverse: full state name to code
+export const STATE_NAME_TO_CODE: Record<string, string> = Object.fromEntries(
+  Object.entries(STATE_CODE_TO_NAME).map(([code, name]) => [name, code]),
+);
+
+// State code to anonymous regional descriptor (for anonymization in teasers/listings)
+export const STATE_CODE_TO_REGION: Record<string, string> = {
+  AL: 'Southeast', AK: 'Pacific Northwest', AZ: 'Southwest', AR: 'South Central',
+  CA: 'West Coast', CO: 'Mountain West', CT: 'New England', DE: 'Mid-Atlantic',
+  FL: 'Southeast', GA: 'Southeast', HI: 'Pacific', ID: 'Mountain West',
+  IL: 'Midwest', IN: 'Midwest', IA: 'Midwest', KS: 'Great Plains',
+  KY: 'Southeast', LA: 'Gulf Coast', ME: 'New England', MD: 'Mid-Atlantic',
+  MA: 'New England', MI: 'Great Lakes', MN: 'Upper Midwest', MS: 'Gulf Coast',
+  MO: 'Great Plains', MT: 'Mountain West', NE: 'Great Plains', NV: 'Mountain West',
+  NH: 'New England', NJ: 'Mid-Atlantic', NM: 'Southwest', NY: 'Mid-Atlantic',
+  NC: 'Southeast', ND: 'Upper Midwest', OH: 'Great Lakes', OK: 'South Central',
+  OR: 'Pacific Northwest', PA: 'Mid-Atlantic', RI: 'New England', SC: 'Southeast',
+  SD: 'Upper Midwest', TN: 'Southeast', TX: 'South Central', UT: 'Mountain West',
+  VT: 'New England', VA: 'Mid-Atlantic', WA: 'Pacific Northwest', WV: 'Mid-Atlantic',
+  WI: 'Great Lakes', WY: 'Mountain West', DC: 'Mid-Atlantic',
+};
+
 // Major city to state mapping for local context detection
 export const CITY_TO_STATE: Record<string, string> = {
   // Major metros

@@ -75,6 +75,7 @@ const MarketplaceQueue = () => {
            deal_source`,
         )
         .eq('pushed_to_marketplace', true)
+        .eq('is_internal_deal', true)
         .order('pushed_to_marketplace_at', { ascending: false });
 
       if (error) throw error;

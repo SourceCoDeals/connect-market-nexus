@@ -98,6 +98,10 @@ export interface AnonymizedListingData {
   main_contact_last_name: string;
   main_contact_email: string;
   main_contact_phone: string;
+  // Deal detail fields carried to listing
+  services: string[];
+  service_mix: string;
+  geographic_states: string[];
 }
 
 /**
@@ -731,6 +735,10 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
       : '',
     main_contact_email: deal.main_contact_email || '',
     main_contact_phone: deal.main_contact_phone || '',
+    // Deal detail fields carried to listing
+    services: services.length > 0 ? services : [],
+    service_mix: serviceMix.join(', '),
+    geographic_states: deal.geographic_states || [],
   };
 }
 

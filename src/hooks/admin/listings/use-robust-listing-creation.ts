@@ -114,6 +114,10 @@ interface DatabaseListingInsert {
   revenue_model?: string | null;
   end_market_description?: string | null;
 
+  // Deal enrichment detail fields
+  service_mix?: string | null;
+  geographic_states?: string[] | null;
+
   // REQUIRED by DB (NOT NULL, no default) — marketplace listings use empty string
   website: string;
 
@@ -247,6 +251,12 @@ export function useRobustListingCreation() {
               : null,
 
           // Deal detail fields
+          service_mix: (listing as Record<string, unknown>).service_mix
+            ? sanitizeStringField((listing as Record<string, unknown>).service_mix)
+            : null,
+          geographic_states: (listing as Record<string, unknown>).geographic_states
+            ? sanitizeArrayField((listing as Record<string, unknown>).geographic_states)
+            : null,
           investment_thesis: listing.investment_thesis || null,
           services: listing.services || null,
           growth_drivers: listing.growth_drivers || null,
