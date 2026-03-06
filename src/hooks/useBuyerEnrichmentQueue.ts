@@ -302,10 +302,9 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
           description: `Enrich ${enrichableBuyers.length} buyers`,
           userId: userData.user.id,
         });
-        if (queued) {
-          // Another major op is running — ours was queued and will auto-start later
-          return;
-        }
+
+        // Always insert queue items — even when queued behind another operation.
+        // The processor will find them when it eventually starts.
 
         // Clear any existing queue items for this universe first (for "enrich all" scenario)
         await supabase
@@ -336,6 +335,23 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         }
 
         lastCompletedRef.current = 0;
+
+        if (queued) {
+          // Items are inserted but processor won't run until the blocking op finishes.
+          // Set progress so the UI reflects the queued state.
+          setProgress({
+            pending: enrichableBuyers.length,
+            processing: 0,
+            completed: 0,
+            failed: 0,
+            rateLimited: 0,
+            paused: 0,
+            total: enrichableBuyers.length,
+            isRunning: true,
+            isPaused: false,
+          });
+          return;
+        }
 
         setProgress({
           pending: enrichableBuyers.length,
