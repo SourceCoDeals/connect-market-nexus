@@ -26,6 +26,7 @@ export interface EnrichmentSummary {
 const POLL_INTERVAL_MS = 10000;
 const PROCESS_INTERVAL_MS = 30000; // 30s — backup trigger; processor self-chains for continuous processing
 const MAX_POLLING_DURATION_MS = 4 * 60 * 60 * 1000; // 4 hours — 190 buyers at ~20s each
+const REALTIME_DEBOUNCE_MS = 2000; // Debounce realtime events to prevent fetch storms during bulk enrichment
 
 export function useBuyerEnrichmentQueue(universeId?: string) {
   const queryClient = useQueryClient();
@@ -35,6 +36,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
   const pollingStartTimeRef = useRef<number | null>(null);
   const lastCompletedRef = useRef<number>(0);
   const wasRunningRef = useRef<boolean>(false);
+  const realtimeDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const [progress, setProgress] = useState<QueueProgress>({
     pending: 0,
@@ -265,7 +267,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         toast.error(`Failed to queue buyers for enrichment: ${message}`);
       }
     },
-    [universeId, triggerProcessor],
+    [universeId, triggerProcessor, startPolling, startOrQueueMajorOp],
   );
 
   // Start polling for status updates
@@ -286,7 +288,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       const timedOut = pollingDuration > MAX_POLLING_DURATION_MS;
 
       if (timedOut) {
-        console.warn('Enrichment polling timed out after 5 minutes - force stopping');
+        console.warn('Enrichment polling timed out after 4 hours - force stopping');
         toast.warning('Enrichment process timed out. Some items may still be processing.', {
           description: 'Please refresh to see the latest status',
         });
@@ -317,6 +319,17 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         .delete()
         .eq('universe_id', universeId)
         .in('status', ['pending', 'rate_limited']);
+
+      // Mark the global activity queue operation as cancelled so it doesn't
+      // block future major operations (BUG-C6 fix)
+      await supabase
+        .from('global_activity_queue')
+        .update({
+          status: 'cancelled',
+          completed_at: new Date().toISOString(),
+        })
+        .eq('operation_type', 'buyer_enrichment')
+        .in('status', ['running', 'queued']);
 
       // Clear intervals
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
@@ -367,7 +380,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       }
     });
 
-    // Subscribe to queue changes
+    // Subscribe to queue changes (debounced to prevent fetch storms during bulk enrichment)
     const channel = supabase
       .channel(`buyer-enrichment-queue:${universeId}`)
       .on(
@@ -379,7 +392,10 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
           filter: `universe_id=eq.${universeId}`,
         },
         () => {
-          fetchQueueStatus();
+          if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+          realtimeDebounceRef.current = setTimeout(() => {
+            fetchQueueStatus();
+          }, REALTIME_DEBOUNCE_MS);
         },
       )
       .subscribe();
@@ -388,6 +404,7 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
       supabase.removeChannel(channel);
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (processingIntervalRef.current) clearInterval(processingIntervalRef.current);
+      if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
     };
   }, [universeId, fetchQueueStatus, startPolling]);
 
