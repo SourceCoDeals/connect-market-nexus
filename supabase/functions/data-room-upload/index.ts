@@ -140,7 +140,7 @@ Deno.serve(async (req: Request) => {
     if (uploadError) {
       console.error("Storage upload error:", uploadError);
       return new Response(
-        JSON.stringify({ error: "Failed to upload file", details: uploadError.message }),
+        JSON.stringify({ error: "Failed to upload file" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -167,7 +167,7 @@ Deno.serve(async (req: Request) => {
       await supabaseAdmin.storage.from(BUCKET_NAME).remove([storagePath]);
       console.error("Document record error:", docError);
       return new Response(
-        JSON.stringify({ error: "Failed to create document record", details: docError.message }),
+        JSON.stringify({ error: "Failed to create document record" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -196,7 +196,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error("Upload error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: (error as Error).message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

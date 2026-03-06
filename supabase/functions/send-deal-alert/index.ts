@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { logEmailDelivery } from '../_shared/email-logger.ts';
+import { escapeHtml } from '../_shared/security.ts';
 
 interface DealAlertRequest {
   alert_id: string;
@@ -79,6 +80,17 @@ const handler = async (req: Request): Promise<Response> => {
     parsedBody = await req.json();
     const { alert_id, user_email, user_id, listing_id, alert_name, listing_data } = parsedBody;
 
+    // Escape all user-controlled data before interpolating into HTML email
+    const safeTitle = escapeHtml(listing_data.title || '');
+    const safeAlertName = escapeHtml(alert_name || '');
+    const safeLocation = escapeHtml(listing_data.location || '');
+    const safeCategory = escapeHtml(listing_data.category || '');
+    const safeDescription = escapeHtml(
+      listing_data.description.length > 200
+        ? listing_data.description.substring(0, 200) + '...'
+        : listing_data.description,
+    );
+
     console.log('Processing deal alert:', { alert_id, user_email, listing_id });
 
     // Format currency values
@@ -98,7 +110,7 @@ const handler = async (req: Request): Promise<Response> => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>New Deal Alert - ${listing_data.title}</title>
+          <title>New Deal Alert - ${safeTitle}</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -121,19 +133,19 @@ const handler = async (req: Request): Promise<Response> => {
           <div class="container">
             <div class="header">
               <h1>A deal matching your criteria just came in</h1>
-              <p>Alert: ${alert_name} &mdash; matched ${new Date().toLocaleDateString()}</p>
+              <p>Alert: ${safeAlertName} &mdash; matched ${new Date().toLocaleDateString()}</p>
             </div>
             
             <div class="content">
               <div class="alert-info">
-                <strong>Alert:</strong> ${alert_name}<br>
+                <strong>Alert:</strong> ${safeAlertName}<br>
                 <strong>Matched:</strong> ${new Date().toLocaleDateString()}
               </div>
               
               <div class="listing-card">
-                <div class="listing-title">${listing_data.title}</div>
+                <div class="listing-title">${safeTitle}</div>
                 <div class="listing-meta">
-                  📍 ${listing_data.location} • 🏷️ ${listing_data.category}
+                  📍 ${safeLocation} • 🏷️ ${safeCategory}
                 </div>
                 
                 <div class="financials">
@@ -148,11 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
                 </div>
                 
                 <div class="description">
-                  ${
-                    listing_data.description.length > 200
-                      ? listing_data.description.substring(0, 200) + '...'
-                      : listing_data.description
-                  }
+                  ${safeDescription}
                 </div>
                 
                 <a href="${Deno.env.get('SITE_URL') ?? 'https://marketplace.sourcecodeals.com'}/listing/${listing_data.id}" class="btn">
@@ -160,7 +168,7 @@ const handler = async (req: Request): Promise<Response> => {
                 </a>
               </div>
               
-              <p><strong>Why you received this:</strong> This listing matches the criteria you set up in your "${alert_name}" deal alert.</p>
+              <p><strong>Why you received this:</strong> This listing matches the criteria you set up in your "${safeAlertName}" deal alert.</p>
 
               <p style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 14px; color: #475569; margin-top: 16px;">
                 This listing was shared with a small number of buyers who match the seller's criteria. We typically introduce 1–3 buyers — if you're interested, request access soon.
@@ -168,7 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             
             <div class="footer">
-              <p>You're receiving this because you have an active deal alert named "${alert_name}".</p>
+              <p>You're receiving this because you have an active deal alert named "${safeAlertName}".</p>
               <p><a href="${Deno.env.get('SITE_URL') ?? 'https://marketplace.sourcecodeals.com'}/profile">Manage your alerts</a></p>
             </div>
           </div>

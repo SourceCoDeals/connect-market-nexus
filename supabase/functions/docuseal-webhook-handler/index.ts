@@ -115,12 +115,18 @@ serve(async (req: Request) => {
     const rawEventType = String(payload.event_type || payload.type);
     const submissionData = (payload.data || payload) as Record<string, unknown>;
 
-    // Validate event_type format (only allow known patterns)
+    // Validate event_type format (only allow known patterns).
+    // Reject unrecognized event types to prevent arbitrary data in the database.
     const VALID_EVENT_PATTERN =
       /^(form|submission)\.(completed|viewed|started|declined|expired|created|archived)$/;
-    const eventType = VALID_EVENT_PATTERN.test(rawEventType)
-      ? rawEventType
-      : rawEventType.replace(/[^a-z0-9._-]/gi, '').substring(0, 50);
+    if (!VALID_EVENT_PATTERN.test(rawEventType)) {
+      console.warn(`⚠️ Unknown DocuSeal event type rejected: ${rawEventType.substring(0, 50)}`);
+      return new Response(JSON.stringify({ received: true, skipped: 'unknown_event_type' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const eventType = rawEventType;
 
     console.log(`📩 DocuSeal webhook: ${eventType}`, {
       submission_id: submissionData.submission_id || submissionData.id,
@@ -292,7 +298,8 @@ async function processEvent(
       expandedStatus = 'expired';
       break;
     default:
-      docusealStatus = eventType.replace(/[^a-z0-9._-]/gi, '').substring(0, 50);
+      // Should not be reached since unknown event types are rejected upstream
+      docusealStatus = eventType;
   }
 
   console.log(`📝 Processing ${eventType} for ${documentType} on firm ${firmId}`);
