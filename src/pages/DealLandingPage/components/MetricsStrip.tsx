@@ -81,12 +81,11 @@ export default function MetricsStrip({ deal }: MetricsStripProps) {
     <section
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
         gap: 12,
         margin: '32px 0',
         fontFamily: "'DM Sans', sans-serif",
       }}
-      className="animate-[fadeUp_0.5s_0.1s_ease_both] !grid-cols-2 lg:!grid-cols-4"
+      className="animate-[fadeUp_0.5s_0.1s_ease_both] grid-cols-2 lg:grid-cols-4"
     >
       {metrics.map((metric, i) => (
         <div

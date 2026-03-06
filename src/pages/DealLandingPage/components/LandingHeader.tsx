@@ -14,6 +14,7 @@ export default function LandingHeader() {
         zIndex: 100,
         fontFamily: "'DM Sans', sans-serif",
       }}
+      className="!px-4 md:!px-8"
     >
       <a
         href="/"

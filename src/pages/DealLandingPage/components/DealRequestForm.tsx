@@ -189,8 +189,8 @@ export default function DealRequestForm({ listingId, dealTitle }: DealRequestFor
       <form onSubmit={handleSubmit}>
         {/* Row 1: First Name + Last Name */}
         <div
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}
-          className="!grid-cols-1 sm:!grid-cols-2"
+          style={{ display: 'grid', gap: 14, marginBottom: 14 }}
+          className="grid-cols-1 sm:grid-cols-2"
         >
           <div>
             <label style={labelStyle}>First Name *</label>
@@ -220,8 +220,8 @@ export default function DealRequestForm({ listingId, dealTitle }: DealRequestFor
 
         {/* Row 2: Email + Phone */}
         <div
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}
-          className="!grid-cols-1 sm:!grid-cols-2"
+          style={{ display: 'grid', gap: 14, marginBottom: 14 }}
+          className="grid-cols-1 sm:grid-cols-2"
         >
           <div>
             <label style={labelStyle}>Email Address *</label>

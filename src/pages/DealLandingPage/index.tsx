@@ -259,18 +259,17 @@ export default function DealLandingPage() {
       <MarketplaceBanner />
       <LandingHeader />
 
-      <main style={{ maxWidth: 1180, margin: '0 auto', padding: '0 32px' }} className="!px-4 sm:!px-8">
+      <main style={{ maxWidth: 1180, margin: '0 auto' }} className="px-4 sm:px-8">
         <DealHero deal={deal} />
         <MetricsStrip deal={deal} />
 
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 340px',
             gap: 32,
             marginBottom: 64,
           }}
-          className="!grid-cols-1 lg:!grid-cols-[1fr_340px] animate-[fadeUp_0.5s_0.2s_ease_both]"
+          className="grid-cols-1 lg:grid-cols-[1fr_340px] animate-[fadeUp_0.5s_0.2s_ease_both]"
         >
           {/* Mobile sidebar (above content on mobile) */}
           <div className="lg:hidden">

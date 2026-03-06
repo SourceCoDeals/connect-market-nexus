@@ -46,8 +46,8 @@ export default function RelatedDeals({ deals }: RelatedDealsProps) {
       </div>
 
       <div
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}
-        className="!grid-cols-1 md:!grid-cols-3"
+        style={{ display: 'grid', gap: 16 }}
+        className="grid-cols-1 md:grid-cols-3"
       >
         {deals.map((deal) => (
           <DealCard key={deal.id} deal={deal} />

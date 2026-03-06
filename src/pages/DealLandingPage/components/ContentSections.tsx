@@ -150,10 +150,9 @@ export default function ContentSections({ deal }: ContentSectionsProps) {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
               gap: 12,
             }}
-            className="!grid-cols-1 sm:!grid-cols-2"
+            className="grid-cols-1 sm:grid-cols-2"
           >
             {services.length > 0 && (
               <div>
