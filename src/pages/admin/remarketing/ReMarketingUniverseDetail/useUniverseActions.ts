@@ -307,7 +307,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
   };
 
   // Handler for buyer enrichment with mode selection - uses queue for background processing
-  const handleBuyerEnrichment = async (_mode: 'all' | 'unenriched') => {
+  const handleBuyerEnrichment = async (mode: 'all' | 'unenriched') => {
     setShowBuyerEnrichDialog(false);
 
     if (!buyers?.length) {
@@ -317,8 +317,11 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
 
     resetQueueEnrichment();
 
-    // Filter based on mode
-    const buyersToEnrich = buyers;
+    // Filter based on mode — "unenriched" skips buyers that already have enrichment data
+    const buyersToEnrich =
+      mode === 'unenriched'
+        ? buyers.filter((b) => !b.data_last_updated)
+        : buyers;
 
     if (buyersToEnrich.length === 0) {
       toast.info('All buyers are already enriched');
