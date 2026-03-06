@@ -274,6 +274,7 @@ Use the tool to return structured data.`;
               revenue: { type: 'number', description: 'Annual revenue as a raw integer (e.g., 2000000 for $2M, 500000 for $500K). Extract from any mention of revenue, sales, top-line, or annual run-rate. Return null if not mentioned.' },
               ebitda: { type: 'number', description: 'Annual EBITDA/SDE/cash flow as a raw integer (e.g., 400000 for $400K). Extract from any mention of EBITDA, SDE, discretionary earnings, or cash flow. Return null if not mentioned.' },
               full_time_employees: { type: 'number', description: 'Total employee headcount (full-time equivalents). Extract from any mention of employees, team size, headcount, FTEs, or staff.' },
+              ebitda_margin: { type: 'number', description: 'EBITDA margin as a percentage (e.g., 25 for 25%). Extract from any mention of margin percentage, profitability rate, or "runs at X%". Return null if not mentioned.' },
               financial_notes: { type: 'string', description: 'Detailed 3-5 sentences: Revenue breakdown by segment/location, EBITDA adjustments and add-backs, owner compensation details, margin trends, seasonality patterns, capex requirements, working capital needs, debt structure, growth rates with specific numbers.' },
               growth_trajectory: { type: 'string', description: 'Detailed 2-3 sentences: Revenue CAGR or trend with specifics, new location openings, service line additions, headcount growth, contract wins, market expansion, pipeline indicators.' },
               management_depth: { type: 'string', description: 'Detailed 2-3 sentences: Key personnel by role and tenure, succession readiness, is there a strong #2? Who runs day-to-day operations? What happens if owner leaves? Training/mentoring pipeline.' },
@@ -394,6 +395,11 @@ Use the tool to return structured data.`;
       if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
         delete aiExtracted[k];
       }
+    }
+
+    // Normalize AI ebitda_margin from percentage (25) to decimal (0.25) to match DB format
+    if (typeof aiExtracted.ebitda_margin === 'number' && (aiExtracted.ebitda_margin as number) > 1) {
+      aiExtracted.ebitda_margin = (aiExtracted.ebitda_margin as number) / 100;
     }
 
     // Merge regex and AI extractions
