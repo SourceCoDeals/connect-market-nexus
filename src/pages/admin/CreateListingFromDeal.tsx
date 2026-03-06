@@ -6,6 +6,7 @@ import { ImprovedListingEditor } from '@/components/admin/ImprovedListingEditor'
 import { useRobustListingCreation } from '@/hooks/admin/listings/use-robust-listing-creation';
 import {
   anonymizeDealToListing,
+  descriptionToHtml,
   type DealData as DealForAnonymizer,
 } from '@/lib/deal-to-listing-anonymizer';
 import { AdminListing } from '@/types/admin';
@@ -88,6 +89,7 @@ export default function CreateListingFromDeal() {
         id: '', // New listing, no ID yet
         title: anonymized.title,
         description: anonymized.description,
+        description_html: descriptionToHtml(anonymized.description),
         hero_description: anonymized.hero_description,
         categories: anonymized.categories,
         location: anonymized.location,
@@ -122,10 +124,14 @@ export default function CreateListingFromDeal() {
     }
   }, [deal, prefilled]);
 
+  // Tracks whether the description is the mechanical anonymizer fallback
+  // (low quality) vs. an AI-generated teaser (buyer-grade).
+  const [descriptionSource, setDescriptionSource] = useState<
+    'loading' | 'teaser' | 'anonymizer'
+  >('loading');
+
   // Auto-trigger AI content generation when prefilled data is ready.
-  // Uses generate-teaser (reads a completed lead memo) for higher-quality
-  // output without raw transcript leakage. Falls back to generate-lead-memo
-  // if no lead memo exists yet.
+  // Priority: 1) Reuse existing completed teaser  2) Call generate-teaser  3) Anonymizer fallback
   useEffect(() => {
     if (!prefilled || !dealId || contentGenerationTriggered.current) return;
     if (prefilled.custom_sections && (prefilled.custom_sections as unknown[]).length > 0) return;
@@ -134,8 +140,31 @@ export default function CreateListingFromDeal() {
 
     (async () => {
       try {
-        // Try generate-teaser first — it reads a completed lead memo (no raw
-        // transcript fragments) and produces a properly structured teaser.
+        // Step 1: Check for an existing completed teaser — avoid redundant AI calls
+        const { data: existingTeaser } = await supabase
+          .from('lead_memos')
+          .select('content')
+          .eq('deal_id', dealId)
+          .eq('memo_type', 'anonymous_teaser')
+          .eq('status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingTeaser?.content) {
+          const sections = (existingTeaser.content as { sections?: { key: string; title: string; content: string }[] }).sections;
+          if (sections && sections.length > 0) {
+            const contentSections = sections.filter(
+              (s) => s.key !== 'header_block' && s.key !== 'contact_information',
+            );
+            applyTeaserSections(contentSections);
+            setDescriptionSource('teaser');
+            toast.success('Loaded existing AI teaser — review and edit before saving.');
+            return;
+          }
+        }
+
+        // Step 2: No existing teaser — call generate-teaser (requires completed lead memo)
         const { data, error } = await supabase.functions.invoke('generate-teaser', {
           body: { deal_id: dealId },
         });
@@ -145,17 +174,19 @@ export default function CreateListingFromDeal() {
             typeof error === 'object' && error !== null && 'message' in error
               ? (error as { message: string }).message
               : '';
-          // If a lead memo doesn't exist yet, tell the user
+          // If a lead memo doesn't exist yet, fall back to anonymizer with clear warning
           if (
             errorMsg.includes('Lead memo must be generated') ||
             errorMsg.includes('lead memo')
           ) {
-            toast.info(
-              'A Full Lead Memo must be generated before creating the listing teaser. Generate it from the Data Room, then retry.',
+            setDescriptionSource('anonymizer');
+            toast.warning(
+              'No lead memo found — using placeholder description. Generate a Full Lead Memo from the Data Room, then re-create this listing for a buyer-grade teaser.',
             );
           } else {
-            toast.info(
-              'AI content generation could not complete. You can fill in content manually.',
+            setDescriptionSource('anonymizer');
+            toast.warning(
+              'AI teaser generation failed — using placeholder description. Review and edit before saving.',
             );
             console.error('generate-teaser failed:', error);
           }
@@ -171,23 +202,26 @@ export default function CreateListingFromDeal() {
           );
 
           applyTeaserSections(contentSections);
+          setDescriptionSource('teaser');
 
           const validation = data?.validation;
           if (validation && !validation.pass) {
             toast.warning(
-              'AI content generated with validation warnings — review carefully before saving.',
+              'AI teaser generated with validation warnings — review carefully before saving.',
             );
           } else {
-            toast.success('AI content generated — review and edit before saving.');
+            toast.success('AI teaser generated — review and edit before saving.');
           }
         } else {
-          toast.info(
-            'AI generation returned no content sections. You can fill in content manually.',
+          setDescriptionSource('anonymizer');
+          toast.warning(
+            'AI generation returned no content. Using placeholder description — edit before saving.',
           );
         }
       } catch (err) {
         console.error('AI content generation error:', err);
-        toast.info('AI content generation could not complete. You can fill in content manually.');
+        setDescriptionSource('anonymizer');
+        toast.warning('AI teaser generation failed — using placeholder description.');
       } finally {
         setIsGeneratingContent(false);
       }
@@ -364,6 +398,20 @@ export default function CreateListingFromDeal() {
           <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-4">
             <Loader2 className="h-4 w-4 animate-spin" />
             AI is generating listing content (title, description, teaser)...
+          </div>
+        </div>
+      )}
+      {descriptionSource === 'anonymizer' && !isGeneratingContent && (
+        <div className="max-w-[1920px] mx-auto px-12">
+          <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4">
+            <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <strong>Placeholder description — not buyer-grade.</strong> The body below was
+              auto-generated from deal fields and is not suitable for publication. To get a
+              professional AI teaser: generate a <strong>Full Lead Memo</strong> from the Data Room
+              first, then re-create this listing. The teaser will be written from the memo
+              automatically.
+            </div>
           </div>
         </div>
       )}
