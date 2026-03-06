@@ -9,10 +9,6 @@ import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 
 export const DAILY_TASKS_QUERY_KEY = 'daily-standup-tasks';
 
-// Throttle auto-sync: at most once per 5 minutes per session
-let lastAutoSyncAt = 0;
-const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
-
 // Full select with relation joins
 // NOTE: The deals table was renamed to deal_pipeline (migration 20260506000000).
 // PostgREST FK hints must use the current table name.
@@ -55,18 +51,6 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
       supabase.rpc('mark_overdue_standup_tasks' as never).then(({ error }) => {
         if (error) console.warn('mark_overdue_standup_tasks RPC failed:', error.message);
       });
-
-      // Auto-sync Fireflies meetings (fire-and-forget; don't block the query).
-      // Throttled to at most once per 5 minutes to avoid hammering the API.
-      const now = Date.now();
-      if (now - lastAutoSyncAt > AUTO_SYNC_INTERVAL_MS) {
-        lastAutoSyncAt = now;
-        supabase.functions.invoke('sync-standup-meetings', {
-          body: { lookback_hours: 48 },
-        }).then(({ error }) => {
-          if (error) console.warn('sync-standup-meetings failed:', error.message);
-        });
-      }
 
       // Try full select with all relation joins first
       let selectClause = FULL_SELECT;
