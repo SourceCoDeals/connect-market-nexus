@@ -520,14 +520,15 @@ Deno.serve(async (req: Request) => {
         ? `~${Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 90)}-${Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 110)}%`
         : null);
     const industry = (deal.industry || deal.category || 'Services') as string;
-    const state = (deal.address_state || '') as string;
+    const rawState = (deal.address_state || '') as string;
+    const regionDescriptor = rawState ? (stateAbbrevs[rawState.toUpperCase()] || rawState) : '';
 
     const metricsLines = [
       revenue ? `Revenue: ${revenue}` : null,
       ebitda ? `EBITDA: ${ebitda}` : null,
       ebitdaMargin ? `EBITDA Margin: ${ebitdaMargin}` : null,
       `Industry: ${industry}`,
-      state ? `Geography: ${state} (use regional descriptor, never the state name)` : null,
+      regionDescriptor ? `Geography: ${regionDescriptor} (regional descriptor)` : null,
     ].filter(Boolean).join('\n');
 
     const userPrompt = `Generate a marketplace listing description for the following deal.
