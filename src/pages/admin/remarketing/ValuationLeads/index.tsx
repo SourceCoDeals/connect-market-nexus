@@ -433,6 +433,17 @@ export default function ValuationLeads() {
       {/* Upload Dialog */}
       <ValuationLeadUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
 
+      {/* Detail Drawer */}
+      <ValuationLeadDetailDrawer
+        lead={selectedLead}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onPushToDeals={(ids) => handlePushToAllDeals(ids)}
+        onMarkNotFit={(ids) => handleMarkNotFit(ids)}
+        onViewDeal={(listingId) => navigate('/admin/deals/' + listingId, { state: { from: '/admin/remarketing/leads/valuation' } })}
+        isPushing={isPushing}
+      />
+
       {/* Leads Table */}
       <ValuationLeadsTable
         paginatedLeads={paginatedLeads}
