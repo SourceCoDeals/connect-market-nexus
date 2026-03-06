@@ -112,7 +112,7 @@ export function ValuationLeadsTable({
   PAGE_SIZE,
   refetch,
 }: ValuationLeadsTableProps) {
-  const navigate = useNavigate();
+  
   const queryClient = useQueryClient();
 
   const orderedIds = useMemo(() => paginatedLeads.map((l) => l.id), [paginatedLeads]);
