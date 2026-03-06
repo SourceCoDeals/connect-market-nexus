@@ -87,7 +87,8 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
             .single();
 
           if (insertError || !listing) {
-            sonnerToast.error('Failed to open deal page');
+            console.error('handleOpenDeal insert error:', insertError);
+            sonnerToast.error(insertError?.message || 'Failed to create deal listing');
             return;
           }
           listingId = listing.id;
@@ -101,9 +102,10 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
         navigate('/admin/deals/' + listingId, {
           state: { from: '/admin/remarketing/leads/valuation' },
         });
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('handleOpenDeal error:', err);
-        sonnerToast.error('Failed to open deal page. Please try again.');
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        sonnerToast.error(`Failed to open deal page: ${message}`);
       }
     },
     [navigate, queryClient],
