@@ -461,6 +461,7 @@ export default function ValuationLeads() {
         toggleSelectAll={toggleSelectAll}
         toggleSelect={toggleSelect}
         handleRowClick={handleRowClick}
+        handleOpenDeal={handleOpenDeal}
         handlePushToAllDeals={handlePushToAllDeals}
         handleReEnrich={handleReEnrich}
         handlePushAndEnrich={handlePushAndEnrich}
