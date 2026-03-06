@@ -315,7 +315,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
       return;
     }
 
-    resetQueueEnrichment();
+    await resetQueueEnrichment();
 
     // Filter based on mode — "unenriched" skips buyers that already have enrichment data
     const buyersToEnrich =
