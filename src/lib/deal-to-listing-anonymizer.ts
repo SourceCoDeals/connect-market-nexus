@@ -8,24 +8,7 @@
  * handles the structural/metadata anonymization for initial listing creation.
  */
 
-// ─── State-to-Region mapping (matches edge function anonymization) ───
-
-const STATE_TO_REGION: Record<string, string> = {
-  TX: 'South Central', OK: 'South Central', AR: 'South Central', LA: 'South Central',
-  FL: 'Southeast', GA: 'Southeast', NC: 'Southeast', SC: 'Southeast',
-  VA: 'Southeast', TN: 'Southeast', AL: 'Southeast', MS: 'Southeast', KY: 'Southeast',
-  OH: 'Midwest', IN: 'Midwest', IL: 'Midwest', MI: 'Midwest', WI: 'Midwest',
-  MN: 'Midwest', IA: 'Midwest', MO: 'Midwest', ND: 'Midwest', SD: 'Midwest',
-  NE: 'Midwest', KS: 'Midwest',
-  NY: 'Mid-Atlantic', NJ: 'Mid-Atlantic', PA: 'Mid-Atlantic', MD: 'Mid-Atlantic',
-  DE: 'Mid-Atlantic', WV: 'Mid-Atlantic', DC: 'Mid-Atlantic',
-  CA: 'West Coast', WA: 'West Coast', OR: 'West Coast',
-  CO: 'Mountain West', AZ: 'Mountain West', NV: 'Mountain West', UT: 'Mountain West',
-  NM: 'Mountain West', ID: 'Mountain West', MT: 'Mountain West', WY: 'Mountain West',
-  MA: 'New England', CT: 'New England', RI: 'New England', VT: 'New England',
-  NH: 'New England', ME: 'New England',
-  HI: 'Pacific', AK: 'Northwest',
-};
+// State-to-Region mapping is defined further down alongside STATE_ABBREV_TO_REGION + STATE_NAME_TO_REGION.
 
 export interface DealData {
   id: string;
