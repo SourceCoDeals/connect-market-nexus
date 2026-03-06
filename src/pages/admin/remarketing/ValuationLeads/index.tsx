@@ -440,7 +440,7 @@ export default function ValuationLeads() {
         onOpenChange={setDrawerOpen}
         onPushToDeals={(ids) => handlePushToAllDeals(ids)}
         onMarkNotFit={(ids) => handleMarkNotFit(ids)}
-        onViewDeal={(listingId) => navigate('/admin/deals/' + listingId, { state: { from: '/admin/remarketing/leads/valuation' } })}
+        onViewDeal={(listingId) => handleOpenDeal({ pushed_listing_id: listingId } as ValuationLead)}
         isPushing={isPushing}
       />
 
