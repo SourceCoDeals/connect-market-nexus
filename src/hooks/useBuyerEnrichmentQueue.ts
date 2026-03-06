@@ -219,20 +219,25 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
           .in('status', ['pending', 'rate_limited', 'failed']);
 
         // Insert new queue items using upsert to handle duplicates
+        // Batch in chunks to avoid hitting PostgREST request size limits
+        const BATCH_SIZE = 100;
+        const now = new Date().toISOString();
         const queueItems = enrichableBuyers.map((b) => ({
           buyer_id: b.id,
           universe_id: universeId,
           status: 'pending',
           attempts: 0,
-          queued_at: new Date().toISOString(),
+          queued_at: now,
         }));
 
-        const { error } = await supabase.from('buyer_enrichment_queue').upsert(queueItems, {
-          onConflict: 'buyer_id',
-          ignoreDuplicates: false,
-        });
-
-        if (error) throw error;
+        for (let i = 0; i < queueItems.length; i += BATCH_SIZE) {
+          const batch = queueItems.slice(i, i + BATCH_SIZE);
+          const { error } = await supabase.from('buyer_enrichment_queue').upsert(batch, {
+            onConflict: 'buyer_id',
+            ignoreDuplicates: false,
+          });
+          if (error) throw error;
+        }
 
         lastCompletedRef.current = 0;
 
@@ -254,7 +259,10 @@ export function useBuyerEnrichmentQueue(universeId?: string) {
         // Start polling and processing intervals
         startPolling();
       } catch (error) {
-        toast.error('Failed to queue buyers for enrichment');
+        console.error('Failed to queue buyers for enrichment:', error);
+        const message =
+          error instanceof Error ? error.message : 'Unknown error';
+        toast.error(`Failed to queue buyers for enrichment: ${message}`);
       }
     },
     [universeId, triggerProcessor],
