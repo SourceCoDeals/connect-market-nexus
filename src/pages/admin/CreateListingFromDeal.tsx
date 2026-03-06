@@ -131,7 +131,7 @@ export default function CreateListingFromDeal() {
   >('loading');
 
   // Auto-trigger AI content generation when prefilled data is ready.
-  // Priority: 1) Reuse existing completed teaser  2) Call generate-teaser  3) Anonymizer fallback
+  // Priority: 1) Call generate-marketplace-listing (dedicated, buyer-grade)  2) Anonymizer fallback
   useEffect(() => {
     if (!prefilled || !dealId || contentGenerationTriggered.current) return;
     if (prefilled.custom_sections && (prefilled.custom_sections as unknown[]).length > 0) return;
@@ -140,38 +140,32 @@ export default function CreateListingFromDeal() {
 
     (async () => {
       try {
-        // Step 1: Check for an existing completed teaser — avoid redundant AI calls
-        const { data: existingTeaser } = await supabase
+        // Step 1: Check if a completed lead memo exists
+        const { data: leadMemo } = await supabase
           .from('lead_memos')
-          .select('content')
+          .select('id')
           .eq('deal_id', dealId)
-          .eq('memo_type', 'anonymous_teaser')
+          .eq('memo_type', 'full_memo')
           .eq('status', 'completed')
-          .order('created_at', { ascending: false })
-          .limit(1)
           .maybeSingle();
 
-        if (existingTeaser?.content) {
-          const sections = (existingTeaser.content as { sections?: { key: string; title: string; content: string }[] }).sections;
-          if (sections && sections.length > 0) {
-            const contentSections = sections.filter(
-              (s) => s.key !== 'header_block' && s.key !== 'contact_information',
-            );
-            applyTeaserSections(contentSections);
-            setDescriptionSource('teaser');
-            toast.success('Loaded existing AI teaser — review and edit before saving.');
-            return;
-          }
+        if (!leadMemo) {
+          // No memo yet — show warning but don't block listing creation
+          setDescriptionSource('anonymizer');
+          toast.warning(
+            'No completed lead memo found. The listing description will need to be written manually, or regenerate after the lead memo is complete.',
+            { duration: 8000 },
+          );
+          return;
         }
 
-        // Step 2: No existing teaser — call generate-teaser (requires completed lead memo)
-        const { data, error } = await supabase.functions.invoke('generate-teaser', {
+        // Step 2: Call the dedicated marketplace listing generator
+        console.log('[CreateListingFromDeal] Calling generate-marketplace-listing for deal_id:', dealId);
+        const { data, error } = await supabase.functions.invoke('generate-marketplace-listing', {
           body: { deal_id: dealId },
         });
 
-        if (error) {
-          // supabase.functions.invoke wraps errors — the real message is in context.
-          // Try to extract the actual error body from the response.
+        if (error || !data?.success) {
           let errorDetail = '';
           try {
             if (error && typeof error === 'object' && 'context' in error) {
@@ -193,111 +187,42 @@ export default function CreateListingFromDeal() {
             errorDetail = String(error);
           }
 
-          console.error('generate-teaser failed:', errorDetail, error);
-
-          // If a lead memo doesn't exist yet, fall back to anonymizer with clear warning
-          if (/lead memo/i.test(errorDetail)) {
-            setDescriptionSource('anonymizer');
-            toast.warning(
-              'No lead memo found — using placeholder description. Generate a Full Lead Memo from the Data Room, then re-create this listing for a buyer-grade teaser.',
-            );
-          } else {
-            setDescriptionSource('anonymizer');
-            toast.warning(
-              `AI teaser generation failed — using placeholder description. (${errorDetail})`,
-            );
-          }
+          console.error('[CreateListingFromDeal] generate-marketplace-listing failed:', errorDetail);
+          setDescriptionSource('anonymizer');
+          toast.info('AI content generation could not complete. You can fill in content manually.');
           return;
         }
 
-        // Response shape: { success: true, teaser: { content: { sections: [...] } }, validation }
-        const sections = data?.teaser?.content?.sections;
+        // Step 3: Set the HTML description in the editor
+        console.log('[CreateListingFromDeal] AI listing description generated successfully');
+        setPrefilled((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            description_html: data.description_html,
+            description: data.description_markdown,
+            custom_sections: [],
+          };
+        });
+        setDescriptionSource('teaser');
 
-        if (sections && Array.isArray(sections) && sections.length > 0) {
-          const contentSections = sections.filter(
-            (s: { key: string }) => s.key !== 'header_block' && s.key !== 'contact_information',
-          );
-
-          applyTeaserSections(contentSections);
-          setDescriptionSource('teaser');
-
-          const validation = data?.validation;
-          if (validation && !validation.pass) {
-            toast.warning(
-              'AI teaser generated with validation warnings — review carefully before saving.',
-            );
-          } else {
-            toast.success('AI teaser generated — review and edit before saving.');
-          }
-        } else {
-          setDescriptionSource('anonymizer');
+        const validation = data?.validation;
+        if (validation && !validation.pass) {
           toast.warning(
-            'AI generation returned no content. Using placeholder description — edit before saving.',
+            'AI listing generated with validation warnings — review carefully before saving.',
           );
+        } else {
+          toast.success('AI content generated — review and edit before saving.');
         }
       } catch (err) {
-        console.error('AI content generation error:', err);
+        console.error('[CreateListingFromDeal] AI content generation error:', err);
         setDescriptionSource('anonymizer');
-        toast.warning('AI teaser generation failed — using placeholder description.');
+        toast.warning('AI listing generation failed — using placeholder description.');
       } finally {
         setIsGeneratingContent(false);
       }
     })();
   }, [prefilled, dealId]);
-
-  /** Convert teaser sections into HTML description and update prefilled state */
-  function applyTeaserSections(
-    contentSections: { key: string; title: string; content: string }[],
-  ) {
-    // Build HTML so the rich text editor renders properly (not raw markdown)
-    const descriptionHtml = contentSections
-      .map((s) => {
-        const htmlContent = markdownSectionToHtml(s.content);
-        return `<h2>${s.title}</h2>${htmlContent}`;
-      })
-      .join('');
-
-    // Plain text fallback for the description field
-    const plainText = contentSections
-      .map((s) => `${s.title}\n\n${s.content}`)
-      .join('\n\n');
-
-    setPrefilled((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        custom_sections: [],
-        description: plainText || prev.description,
-        description_html: descriptionHtml,
-      };
-    });
-  }
-
-  /** Lightweight markdown → HTML for teaser section content */
-  function markdownSectionToHtml(md: string): string {
-    return md
-      // Convert bullet lists (groups of lines starting with "- ")
-      .replace(/(?:^|\n)((?:- .+(?:\n|$))+)/g, (_match, list: string) => {
-        const items = list
-          .split('\n')
-          .filter((l: string) => l.trim().startsWith('- '))
-          .map((l: string) => `<li>${l.trim().replace(/^- /, '')}</li>`)
-          .join('');
-        return `<ul>${items}</ul>`;
-      })
-      // Bold
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Italic
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      // Remaining double-newline blocks → paragraphs
-      .split(/\n\n+/)
-      .map((block: string) => {
-        const trimmed = block.trim();
-        if (!trimmed || trimmed.startsWith('<ul>') || trimmed.startsWith('<li>')) return trimmed;
-        return `<p>${trimmed}</p>`;
-      })
-      .join('');
-  }
 
   const handleSubmit = async (data: Record<string, unknown>, image?: File | null) => {
     try {
