@@ -549,13 +549,8 @@ serve(async (req) => {
             safeSet('target_geographies', insights.buyer_criteria.geography_criteria.target_states);
           }
 
-          // Map geographic exclusions (e.g., "We don't want to go west of the Mississippi")
-          if (insights.buyer_criteria.geography_criteria?.geographic_exclusions?.length) {
-            safeSet(
-              'geographic_exclusions',
-              insights.buyer_criteria.geography_criteria.geographic_exclusions,
-            );
-          }
+          // Geographic exclusions are stored in extracted_insights JSONB on the
+          // transcript record. No dedicated column exists on the buyers table yet.
 
           // Map size criteria — deal structure can ONLY come from transcripts
           const size = insights.buyer_criteria.size_criteria;
