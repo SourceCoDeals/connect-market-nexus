@@ -179,24 +179,41 @@ function extractCities(leadMemoText: string): string[] {
 
 // ─── Post-processing: strip leaked state names and location-identifying patterns ───
 
+// Canonical state-to-region mappings — must match deal-to-listing-anonymizer.ts
 const STATE_NAMES: Record<string, string> = {
   'Alabama': 'Southeast', 'Alaska': 'Northwest', 'Arizona': 'Mountain West',
   'Arkansas': 'South Central', 'California': 'West Coast', 'Colorado': 'Mountain West',
   'Connecticut': 'New England', 'Delaware': 'Mid-Atlantic', 'Florida': 'Southeast',
   'Georgia': 'Southeast', 'Hawaii': 'Pacific', 'Idaho': 'Mountain West',
   'Illinois': 'Midwest', 'Indiana': 'Midwest', 'Iowa': 'Midwest',
-  'Kansas': 'Midwest', 'Kentucky': 'Southeast', 'Louisiana': 'South Central',
+  'Kansas': 'Great Plains', 'Kentucky': 'Southeast', 'Louisiana': 'South Central',
   'Maine': 'New England', 'Maryland': 'Mid-Atlantic', 'Massachusetts': 'New England',
-  'Michigan': 'Midwest', 'Minnesota': 'Midwest', 'Mississippi': 'Southeast',
-  'Missouri': 'Midwest', 'Montana': 'Mountain West', 'Nebraska': 'Midwest',
+  'Michigan': 'Midwest', 'Minnesota': 'Great Plains', 'Mississippi': 'Southeast',
+  'Missouri': 'Great Plains', 'Montana': 'Mountain West', 'Nebraska': 'Great Plains',
   'Nevada': 'Mountain West', 'New Hampshire': 'New England', 'New Jersey': 'Mid-Atlantic',
   'New Mexico': 'Mountain West', 'New York': 'Mid-Atlantic', 'North Carolina': 'Southeast',
-  'North Dakota': 'Midwest', 'Ohio': 'Midwest', 'Oklahoma': 'South Central',
+  'North Dakota': 'Great Plains', 'Ohio': 'Midwest', 'Oklahoma': 'South Central',
   'Oregon': 'West Coast', 'Pennsylvania': 'Mid-Atlantic', 'Rhode Island': 'New England',
-  'South Carolina': 'Southeast', 'South Dakota': 'Midwest', 'Tennessee': 'Southeast',
+  'South Carolina': 'Southeast', 'South Dakota': 'Great Plains', 'Tennessee': 'Southeast',
   'Texas': 'South Central', 'Utah': 'Mountain West', 'Vermont': 'New England',
   'Virginia': 'Southeast', 'Washington': 'West Coast', 'West Virginia': 'Mid-Atlantic',
   'Wisconsin': 'Midwest', 'Wyoming': 'Mountain West',
+};
+
+const STATE_ABBREVS: Record<string, string> = {
+  'AL': 'Southeast', 'AK': 'Northwest', 'AZ': 'Mountain West', 'AR': 'South Central',
+  'CA': 'West Coast', 'CO': 'Mountain West', 'CT': 'New England', 'DE': 'Mid-Atlantic',
+  'FL': 'Southeast', 'GA': 'Southeast', 'HI': 'Pacific', 'ID': 'Mountain West',
+  'IL': 'Midwest', 'IN': 'Midwest', 'IA': 'Midwest', 'KS': 'Great Plains',
+  'KY': 'Southeast', 'LA': 'South Central', 'ME': 'New England', 'MD': 'Mid-Atlantic',
+  'MA': 'New England', 'MI': 'Midwest', 'MN': 'Great Plains', 'MS': 'Southeast',
+  'MO': 'Great Plains', 'MT': 'Mountain West', 'NE': 'Great Plains', 'NV': 'Mountain West',
+  'NH': 'New England', 'NJ': 'Mid-Atlantic', 'NM': 'Mountain West', 'NY': 'Mid-Atlantic',
+  'NC': 'Southeast', 'ND': 'Great Plains', 'OH': 'Midwest', 'OK': 'South Central',
+  'OR': 'West Coast', 'PA': 'Mid-Atlantic', 'RI': 'New England', 'SC': 'Southeast',
+  'SD': 'Great Plains', 'TN': 'Southeast', 'TX': 'South Central', 'UT': 'Mountain West',
+  'VT': 'New England', 'VA': 'Southeast', 'WA': 'West Coast', 'WV': 'Mid-Atlantic',
+  'WI': 'Midwest', 'WY': 'Mountain West',
 };
 
 function sanitizeAnonymityBreaches(text: string): string {
@@ -207,24 +224,6 @@ function sanitizeAnonymityBreaches(text: string): string {
     const escaped = state.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     result = result.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), region);
   }
-
-  // Replace "{State}-market" patterns (e.g. "Arizona-market" -> "regional")
-  // Handle state abbreviation patterns too
-  const stateAbbrevs: Record<string, string> = {
-    'AL': 'Southeast', 'AK': 'Northwest', 'AZ': 'Mountain West', 'AR': 'South Central',
-    'CA': 'West Coast', 'CO': 'Mountain West', 'CT': 'New England', 'DE': 'Mid-Atlantic',
-    'FL': 'Southeast', 'GA': 'Southeast', 'HI': 'Pacific', 'ID': 'Mountain West',
-    'IL': 'Midwest', 'IN': 'Midwest', 'IA': 'Midwest', 'KS': 'Midwest',
-    'KY': 'Southeast', 'LA': 'South Central', 'ME': 'New England', 'MD': 'Mid-Atlantic',
-    'MA': 'New England', 'MI': 'Midwest', 'MN': 'Midwest', 'MS': 'Southeast',
-    'MO': 'Midwest', 'MT': 'Mountain West', 'NE': 'Midwest', 'NV': 'Mountain West',
-    'NH': 'New England', 'NJ': 'Mid-Atlantic', 'NM': 'Mountain West', 'NY': 'Mid-Atlantic',
-    'NC': 'Southeast', 'ND': 'Midwest', 'OH': 'Midwest', 'OK': 'South Central',
-    'OR': 'West Coast', 'PA': 'Mid-Atlantic', 'RI': 'New England', 'SC': 'Southeast',
-    'SD': 'Midwest', 'TN': 'Southeast', 'TX': 'South Central', 'UT': 'Mountain West',
-    'VT': 'New England', 'VA': 'Southeast', 'WA': 'West Coast', 'WV': 'Mid-Atlantic',
-    'WI': 'Midwest', 'WY': 'Mountain West',
-  };
 
   // Replace specific location counts per region (e.g. "Two South Central locations" -> "several locations in one region")
   // Per-region counts combined with region names can narrow down the specific business
@@ -521,7 +520,7 @@ Deno.serve(async (req: Request) => {
         : null);
     const industry = (deal.industry || deal.category || 'Services') as string;
     const rawState = (deal.address_state || '') as string;
-    const regionDescriptor = rawState ? (stateAbbrevs[rawState.toUpperCase()] || rawState) : '';
+    const regionDescriptor = rawState ? (STATE_ABBREVS[rawState.toUpperCase()] || STATE_NAMES[rawState] || '') : '';
 
     const metricsLines = [
       revenue ? `Revenue: ${revenue}` : null,
