@@ -389,46 +389,6 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
             </div>
           </div>
 
-          {/* Structured Contact Fields — auto-populated from deal when available */}
-          <div className={cn('pt-3', EDITOR_DESIGN.subtleDivider, EDITOR_DESIGN.microFieldSpacing)}>
-            <div className="flex items-center gap-1.5">
-              <div className={EDITOR_DESIGN.microLabel}>Deal Contact</div>
-              {(form.getValues('main_contact_first_name') || form.getValues('main_contact_email')) && (
-                <span className="text-[10px] text-muted-foreground/60 font-normal">
-                  (auto-filled from deal)
-                </span>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                placeholder="First name"
-                {...form.register('main_contact_first_name')}
-                className={cn(EDITOR_DESIGN.miniHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
-              />
-              <Input
-                placeholder="Last name"
-                {...form.register('main_contact_last_name')}
-                className={cn(EDITOR_DESIGN.miniHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
-              />
-            </div>
-            <Input
-              placeholder="Email"
-              type="email"
-              {...form.register('main_contact_email')}
-              className={cn(EDITOR_DESIGN.miniHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
-            />
-            <Input
-              placeholder="Phone"
-              type="tel"
-              {...form.register('main_contact_phone')}
-              className={cn(EDITOR_DESIGN.miniHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
-            />
-            <Input
-              placeholder="LinkedIn URL"
-              {...form.register('main_contact_linkedin')}
-              className={cn(EDITOR_DESIGN.miniHeight, 'text-xs font-mono', EDITOR_DESIGN.inputBg)}
-            />
-          </div>
 
           {/* Status */}
           <div className={cn('pt-3', EDITOR_DESIGN.subtleDivider, EDITOR_DESIGN.microFieldSpacing)}>
