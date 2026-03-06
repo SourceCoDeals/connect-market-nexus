@@ -9,19 +9,20 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 
 // Pre-extraction regex patterns per spec
 const REVENUE_PATTERNS = [
-  /~?\$\s*([\d,.]+)\s*(M|MM|m|million|mil)/i,
-  /revenue[:\s]+~?\$?\s*([\d,.]+)\s*(M|MM|m|million|mil)?/i,
+  /~?\$\s*([\d,.]+)\s*(M|MM|m|million|mil|K|k|thousand)/i,
+  /revenue[:\s\-–—]+~?\$?\s*([\d,.]+)\s*(M|MM|m|million|mil|K|k|thousand)?/i,
+  /revenue\s+(?:of|is|at|around|approximately|about|~)\s+~?\$?\s*([\d,.]+)\s*(M|MM|m|million|mil|K|k|thousand)?/i,
   /([\d,.]+)\s*(M|MM|million)\s*(?:in\s+)?(?:revenue|sales)/i,
-  /top\s*line[:\s]+~?\$?\s*([\d,.]+)\s*(M|MM|m|million|mil)?/i,
-  /annual\s+revenue[:\s]+~?\$?\s*([\d,.]+)\s*(M|MM|m|million|K|k|thousand)?/i,
+  /top\s*line[:\s\-–—]+~?\$?\s*([\d,.]+)\s*(M|MM|m|million|mil|K|k|thousand)?/i,
+  /annual\s+revenue[:\s\-–—]+~?\$?\s*([\d,.]+)\s*(M|MM|m|million|mil|K|k|thousand)?/i,
 ];
 
 const EBITDA_PATTERNS = [
-  /EBITDA[:\s]+~?\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/i,
+  /EBITDA[:\s\-–—]+~?\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/i,
   /~?\$\s*([\d,.]+)\s*(K|k|M|MM)?\s*EBITDA/i,
-  /cash\s*flow[:\s]+~?\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/i,
-  /SDE[:\s]+~?\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/i,
-  /owner.?s?\s*(?:cash|earnings)[:\s]+~?\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/i,
+  /cash\s*flow[:\s\-–—]+~?\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/i,
+  /SDE[:\s\-–—]+~?\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/i,
+  /owner.?s?\s*(?:cash|earnings)[:\s\-–—]+~?\$?\s*([\d,.]+)\s*(K|k|M|MM|m|thousand|million)?/i,
 ];
 
 const MARGIN_PATTERNS = [
