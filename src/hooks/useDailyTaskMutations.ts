@@ -469,6 +469,7 @@ export function useAddManualTask() {
         .insert({
           ...task,
           is_manual: true,
+          source: 'manual',
           status: 'pending',
           priority_score: 50, // default mid-range for manual tasks
           extraction_confidence: 'high',

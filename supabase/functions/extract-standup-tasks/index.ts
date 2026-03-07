@@ -396,6 +396,7 @@ function extractDealReference(text: string): string {
 function buildExtractionPrompt(
   teamMembers: { name: string; aliases: string[] }[],
   today: string,
+  activeDealNames?: string[],
 ): string {
   const memberList = teamMembers
     .map(
@@ -404,13 +405,18 @@ function buildExtractionPrompt(
     )
     .join('\n');
 
+  const dealSection =
+    activeDealNames && activeDealNames.length > 0
+      ? `\n## Active Deals (use these for deal_reference matching)\n${activeDealNames.map((n) => `- ${n}`).join('\n')}\n`
+      : '';
+
   return `You are a task extraction engine for a business development team's daily standup meeting.
 
 Your job is to parse the meeting transcript and extract concrete, actionable tasks that specific team members are expected to perform.
 
 ## Team Members
 ${memberList}
-
+${dealSection}
 ## Task Types
 - contact_owner: Reach out to a business owner about a deal
 - build_buyer_universe: Research and compile potential buyers for a deal
@@ -535,8 +541,9 @@ async function extractTasksWithAI(
   transcriptText: string,
   teamMembers: { name: string; aliases: string[] }[],
   today: string,
+  activeDealNames?: string[],
 ): Promise<ExtractedTask[]> {
-  const systemPrompt = buildExtractionPrompt(teamMembers, today);
+  const systemPrompt = buildExtractionPrompt(teamMembers, today, activeDealNames);
 
   const apiKey = Deno.env.get('GOOGLE_AI_API_KEY') || Deno.env.get('GEMINI_API_KEY');
   if (!apiKey) throw new Error('GOOGLE_AI_API_KEY not configured');
@@ -760,6 +767,27 @@ async function loadAllEbitdaValues(supabase: ReturnType<typeof createClient>): P
     .filter((e: unknown): e is number => typeof e === 'number' && e > 0);
 }
 
+/** Load active deal names so the AI prompt can match deal references more accurately. */
+async function loadActiveDealNames(supabase: ReturnType<typeof createClient>): Promise<string[]> {
+  const { data: deals } = await supabase
+    .from('deal_pipeline')
+    .select('title, listings!inner(title, internal_company_name)')
+    .limit(200);
+
+  if (!deals) return [];
+
+  const names = new Set<string>();
+  for (const d of deals as {
+    title: string;
+    listings: { title: string; internal_company_name: string };
+  }[]) {
+    if (d.title) names.add(d.title);
+    if (d.listings?.title) names.add(d.listings.title);
+    if (d.listings?.internal_company_name) names.add(d.listings.internal_company_name);
+  }
+  return [...names].sort();
+}
+
 async function recomputeRanks(supabase: ReturnType<typeof createClient>): Promise<void> {
   const { data: allTasks } = await supabase
     .from('daily_standup_tasks')
@@ -823,6 +851,7 @@ async function processSingleMeeting(
   allEbitdaValues: number[],
   autoApproveEnabled: boolean,
   today: string,
+  activeDealNames: string[],
 ): Promise<ProcessResult> {
   const useFirefliesActions = body.use_fireflies_actions ?? false;
 
@@ -922,6 +951,7 @@ async function processSingleMeeting(
       transcriptText,
       teamMembers.map((m) => ({ name: m.name, aliases: m.aliases })),
       today,
+      activeDealNames,
     );
     console.log(`Extracted ${extractedTasks.length} tasks`);
   }
@@ -1060,6 +1090,8 @@ serve(async (req) => {
     console.log(`Found ${teamMembers.length} team members`);
 
     const allEbitdaValues = await loadAllEbitdaValues(supabase);
+    const activeDealNames = await loadActiveDealNames(supabase);
+    console.log(`Loaded ${activeDealNames.length} active deal names for AI context`);
 
     // Check auto-approve setting from app_settings table
     let autoApproveEnabled = true;
@@ -1103,6 +1135,7 @@ serve(async (req) => {
           allEbitdaValues,
           autoApproveEnabled,
           today,
+          activeDealNames,
         );
         results.push(result);
       } catch (err) {
