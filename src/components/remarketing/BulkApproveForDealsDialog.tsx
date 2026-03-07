@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { batchCreateBuyerIntroductions } from '@/lib/remarketing/createBuyerIntroduction';
+import { findIntroductionContacts } from '@/lib/remarketing/findIntroductionContacts';
 import {
   Dialog,
   DialogContent,
@@ -184,9 +185,25 @@ export function BulkApproveForDealsDialog({
         }
       }
 
-      // Fire-and-forget: discover contacts for all buyers
+      // Fire-and-forget: discover contacts for all buyers (legacy website scrape)
       for (const buyerId of buyerIds) {
         supabase.functions.invoke('find-buyer-contacts', { body: { buyerId } }).catch(() => {});
+      }
+
+      // Fire-and-forget: auto-discover introduction contacts with title-filtered search
+      for (const buyerId of buyerIds) {
+        findIntroductionContacts(buyerId)
+          .then((result) => {
+            if (result && result.total_saved > 0) {
+              queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts'] });
+              toast.success(
+                `${result.total_saved} contact${result.total_saved !== 1 ? 's' : ''} found at ${result.firmName} — see Contacts tab`,
+              );
+            } else if (result && result.total_saved === 0 && !result.message) {
+              toast.info(`No contacts found for ${result.firmName} — try manual search`);
+            }
+          })
+          .catch(() => {});
       }
 
       // Auto-create buyer introductions at first Kanban stage
