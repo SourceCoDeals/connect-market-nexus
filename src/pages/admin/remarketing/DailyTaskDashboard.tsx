@@ -698,7 +698,7 @@ const DailyTaskDashboard = () => {
             </DropdownMenu>
           )}
 
-            variant="ghost"
+            <Button
             size="sm"
             onClick={() => setShowCompleted(!showCompleted)}
             className="text-xs"
