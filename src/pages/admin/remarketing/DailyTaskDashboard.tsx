@@ -272,15 +272,39 @@ const DailyTaskDashboard = () => {
     };
   }, [entityFilter]);
 
+  // Distinct source meetings for the filter dropdown
+  const distinctMeetings = useMemo(() => {
+    if (!tasks) return [];
+    const seen = new Map<string, string>();
+    for (const t of tasks) {
+      const sm = t.source_meeting;
+      if (sm?.id && sm?.meeting_title && !seen.has(sm.id)) {
+        seen.set(sm.id, sm.meeting_title);
+      }
+    }
+    return Array.from(seen.entries())
+      .map(([id, title]) => ({ id, title }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [tasks]);
+
+  // Combined filter: entity + meeting
+  const matchesAllFilters = useMemo(() => {
+    return (t: DailyStandupTaskWithRelations) => {
+      if (!matchesEntityFilter(t)) return false;
+      if (selectedMeeting && t.source_meeting?.id !== selectedMeeting) return false;
+      return true;
+    };
+  }, [matchesEntityFilter, selectedMeeting]);
+
   // Separate tasks by approval status
   const pendingApprovalTasks = useMemo(() => {
     if (!tasks) return [];
-    return tasks.filter((t) => t.status === 'pending_approval' && matchesEntityFilter(t));
-  }, [tasks, matchesEntityFilter]);
+    return tasks.filter((t) => t.status === 'pending_approval' && matchesAllFilters(t));
+  }, [tasks, matchesAllFilters]);
 
   const approvedTasks = useMemo(() => {
     if (!tasks) return [];
-    let filtered = tasks.filter((t) => t.status !== 'pending_approval' && matchesEntityFilter(t));
+    let filtered = tasks.filter((t) => t.status !== 'pending_approval' && matchesAllFilters(t));
 
     // Apply tag filter
     if (selectedTags.size > 0) {
@@ -292,7 +316,7 @@ const DailyTaskDashboard = () => {
     }
 
     return filtered;
-  }, [tasks, selectedTags, matchesEntityFilter]);
+  }, [tasks, selectedTags, matchesAllFilters]);
 
   // Stats (only from approved tasks)
   const stats = useMemo(() => {
