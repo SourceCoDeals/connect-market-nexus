@@ -377,13 +377,34 @@ function inferTaskType(text: string): string {
   return 'other';
 }
 
+/** Known deal names loaded from the database — set before extraction runs */
+let _knownDealNames: string[] = [];
+
+function setKnownDealNames(names: string[]) {
+  _knownDealNames = names;
+}
+
 /** Try to extract a deal/company reference from action item text */
 function extractDealReference(text: string): string {
-  // Look for capitalized multi-word names that likely reference deals
-  // Common patterns: "owner of [Deal Name]", "for [Deal Name]", "[Deal Name] deal"
+  // First: check against known deal names from the database (handles single-word names)
+  if (_knownDealNames.length > 0) {
+    const textLower = text.toLowerCase();
+    // Sort by length descending so longer names match first (e.g., "Smith Manufacturing" before "Smith")
+    const sortedNames = [..._knownDealNames].sort((a, b) => b.length - a.length);
+    for (const dealName of sortedNames) {
+      if (dealName.length < 3) continue; // skip very short names
+      if (textLower.includes(dealName.toLowerCase())) {
+        return dealName;
+      }
+    }
+  }
+
+  // Fallback: regex patterns for capitalized names (multi-word and single-word)
   const patterns = [
     /(?:owner of|for|regarding|about|on)\s+([A-Z][A-Za-z'']+(?:\s+[A-Z&][A-Za-z'']*)*)/,
     /([A-Z][A-Za-z'']+(?:\s+[A-Z&][A-Za-z'']*){1,4})\s+(?:deal|listing|company|business)/i,
+    // Single capitalized word followed by deal context
+    /(?:owner of|for|regarding|about|on)\s+([A-Z][a-z]{2,})/,
   ];
 
   const commonWords = new Set([
@@ -408,6 +429,18 @@ function extractDealReference(text: string): string {
     'June',
     'July',
     'August',
+    'September',
+    'October',
+    'November',
+    'December',
+    'Unassigned',
+    'Action',
+    'Follow',
+    'Update',
+    'Send',
+    'Call',
+    'Email',
+    'Schedule',
   ]);
 
   for (const pattern of patterns) {
@@ -910,6 +943,131 @@ async function loadActiveDealNames(supabase: ReturnType<typeof createClient>): P
   return [...names].sort();
 }
 
+// ─── Cross-meeting recurring task dedup ───
+
+/**
+ * Check if a newly extracted task is essentially the same as an existing
+ * pending/overdue task from a previous standup. Returns the existing task ID
+ * if a match is found, or null if the task is genuinely new.
+ *
+ * Match criteria: same assignee + similar title (normalized) + still incomplete
+ */
+async function findRecurringTask(
+  title: string,
+  assigneeId: string | null,
+  currentMeetingId: string,
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ id: string; source_meeting_id: string } | null> {
+  if (!assigneeId) return null; // can't dedup unassigned tasks reliably
+
+  const normalizedTitle = title.toLowerCase().trim().replace(/\s+/g, ' ');
+
+  // Find pending/overdue tasks for the same assignee from OTHER meetings
+  const { data: candidates } = await supabase
+    .from('daily_standup_tasks')
+    .select('id, title, source_meeting_id')
+    .eq('assignee_id', assigneeId)
+    .in('status', ['pending', 'pending_approval', 'overdue'])
+    .neq('source_meeting_id', currentMeetingId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (!candidates || candidates.length === 0) return null;
+
+  for (const candidate of candidates) {
+    const candidateNorm = candidate.title.toLowerCase().trim().replace(/\s+/g, ' ');
+    // Exact match after normalization
+    if (candidateNorm === normalizedTitle) {
+      return { id: candidate.id, source_meeting_id: candidate.source_meeting_id };
+    }
+    // Fuzzy: one title contains the other (for minor rewording)
+    if (
+      (normalizedTitle.length >= 15 && candidateNorm.includes(normalizedTitle)) ||
+      (candidateNorm.length >= 15 && normalizedTitle.includes(candidateNorm))
+    ) {
+      return { id: candidate.id, source_meeting_id: candidate.source_meeting_id };
+    }
+  }
+
+  return null;
+}
+
+// ─── Task Carryover ───
+
+/**
+ * Find incomplete tasks from the most recent previous standup that were NOT
+ * re-mentioned in the current extraction. These get carried forward with a
+ * "carryover" flag so the team knows they're still outstanding.
+ */
+async function carryOverIncompleteTasks(
+  currentMeetingId: string,
+  currentMeetingDate: string,
+  extractedTitles: string[],
+  supabase: ReturnType<typeof createClient>,
+  log: ReturnType<typeof createLogger>,
+): Promise<number> {
+  // Find the most recent previous standup meeting
+  const { data: prevMeetings } = await supabase
+    .from('standup_meetings')
+    .select('id')
+    .lt('meeting_date', currentMeetingDate)
+    .order('meeting_date', { ascending: false })
+    .limit(1);
+
+  if (!prevMeetings || prevMeetings.length === 0) return 0;
+  const prevMeetingId = prevMeetings[0].id;
+
+  // Get incomplete tasks from that meeting
+  const { data: incompleteTasks } = await supabase
+    .from('daily_standup_tasks')
+    .select('id, title, assignee_id, task_type, due_date, deal_reference, deal_id, priority_score')
+    .eq('source_meeting_id', prevMeetingId)
+    .in('status', ['pending', 'pending_approval', 'overdue']);
+
+  if (!incompleteTasks || incompleteTasks.length === 0) return 0;
+
+  // Normalize current extracted titles for comparison
+  const currentNormalized = new Set(
+    extractedTitles.map((t) => t.toLowerCase().trim().replace(/\s+/g, ' ')),
+  );
+
+  // Filter to tasks NOT re-mentioned in the current extraction
+  const tasksToCarry = incompleteTasks.filter((task) => {
+    const norm = task.title.toLowerCase().trim().replace(/\s+/g, ' ');
+    // Check if any current task is similar
+    for (const current of currentNormalized) {
+      if (norm === current) return false;
+      if (norm.length >= 15 && current.includes(norm)) return false;
+      if (current.length >= 15 && norm.includes(current)) return false;
+    }
+    return true;
+  });
+
+  if (tasksToCarry.length === 0) return 0;
+
+  // Mark carried-over tasks: update their source_meeting_id to current meeting
+  // and add a carryover note to description
+  for (const task of tasksToCarry) {
+    await supabase
+      .from('daily_standup_tasks')
+      .update({
+        source_meeting_id: currentMeetingId,
+        description:
+          `[Carried over from previous standup] ${task.deal_reference ? 'Deal: ' + task.deal_reference : ''}`.trim(),
+        status: task.due_date < currentMeetingDate ? 'overdue' : 'pending',
+      })
+      .eq('id', task.id);
+  }
+
+  log.info('Carried over incomplete tasks from previous standup', {
+    previousMeetingId: prevMeetingId,
+    carriedOver: tasksToCarry.length,
+    totalIncomplete: incompleteTasks.length,
+  });
+
+  return tasksToCarry.length;
+}
+
 async function recomputeRanks(supabase: ReturnType<typeof createClient>): Promise<void> {
   const { data: allTasks } = await supabase
     .from('daily_standup_tasks')
@@ -961,6 +1119,8 @@ interface ProcessResult {
   tasks_unassigned: number;
   tasks_needing_review: number;
   tasks_deduplicated?: number;
+  tasks_recurring_skipped?: number;
+  tasks_carried_over?: number;
   contacts_matched?: number;
   low_confidence_count?: number;
   processing_duration_ms?: number;
@@ -1035,6 +1195,9 @@ async function processSingleMeeting(
       }
     }
 
+    // Set known deal names so regex-based extraction can match single-word names
+    setKnownDealNames(activeDealNames);
+
     const actionItemsText = summary.summary?.action_items || '';
     if (!actionItemsText.trim()) {
       log.info('No action items found in summary', { firefliesId });
@@ -1078,6 +1241,9 @@ async function processSingleMeeting(
     if (!transcriptText) {
       throw new Error('No transcript text available');
     }
+
+    // Set known deal names so regex-based extraction can match single-word names
+    setKnownDealNames(activeDealNames);
 
     log.info('Running AI extraction', { transcriptLength: transcriptText.length });
     extractedTasks = await extractTasksWithAI(
@@ -1123,10 +1289,24 @@ async function processSingleMeeting(
     });
   }
 
-  // Create task records with priority scoring
+  // Create task records with priority scoring and cross-meeting dedup
   const taskRecords = [];
+  let recurringSkipped = 0;
   for (const task of extractedTasks) {
     const assigneeId = matchAssignee(task.assignee_name, teamMembers);
+
+    // Cross-meeting recurring task dedup: skip if same task already pending for this assignee
+    const recurringMatch = await findRecurringTask(task.title, assigneeId, meeting.id, supabase);
+    if (recurringMatch) {
+      log.info('Skipping recurring task (already pending from previous standup)', {
+        title: task.title,
+        existingTaskId: recurringMatch.id,
+        existingMeetingId: recurringMatch.source_meeting_id,
+      });
+      recurringSkipped++;
+      continue;
+    }
+
     const dealMatch = await matchDeal(task.deal_reference, supabase);
     const buyerMatch = await matchBuyer(task.title, supabase);
 
@@ -1264,6 +1444,28 @@ async function processSingleMeeting(
     });
   }
 
+  if (recurringSkipped > 0) {
+    log.info('Skipped recurring tasks (already pending from previous standups)', {
+      count: recurringSkipped,
+    });
+  }
+
+  // Carry over incomplete tasks from the previous standup that weren't re-mentioned
+  let carriedOverCount = 0;
+  try {
+    carriedOverCount = await carryOverIncompleteTasks(
+      meeting.id,
+      meetingDate,
+      extractedTasks.map((t) => t.title),
+      supabase,
+      log,
+    );
+  } catch (carryoverError) {
+    log.warn('Task carryover failed (non-fatal)', {
+      error: carryoverError instanceof Error ? carryoverError.message : 'Unknown error',
+    });
+  }
+
   // Count low-confidence tasks for metrics
   const lowConfidenceCount = taskRecords.filter((t) => t.extraction_confidence === 'low').length;
 
@@ -1342,6 +1544,8 @@ async function processSingleMeeting(
     meetingId: meeting.id,
     tasksExtracted: insertedTasks.length,
     tasksDeduplicated: skippedDuplicates.length,
+    recurringSkipped,
+    carriedOver: carriedOverCount,
     lowConfidenceCount,
     contactsMatched: matchedContacts.length,
     processingDurationMs,
@@ -1353,6 +1557,8 @@ async function processSingleMeeting(
     meeting_title: meetingTitle,
     tasks_extracted: insertedTasks.length,
     tasks_deduplicated: skippedDuplicates.length,
+    tasks_recurring_skipped: recurringSkipped,
+    tasks_carried_over: carriedOverCount,
     tasks_unassigned: taskRecords.filter((t) => !t.assignee_id).length,
     tasks_needing_review: taskRecords.filter((t) => t.needs_review).length,
     contacts_matched: matchedContacts.length,
@@ -1468,6 +1674,8 @@ serve(async (req) => {
           meeting_id: r.meeting_id,
           tasks_extracted: r.tasks_extracted,
           tasks_deduplicated: r.tasks_deduplicated,
+          tasks_recurring_skipped: r.tasks_recurring_skipped,
+          tasks_carried_over: r.tasks_carried_over,
           tasks_unassigned: r.tasks_unassigned,
           tasks_needing_review: r.tasks_needing_review,
           contacts_matched: r.contacts_matched,
@@ -1490,6 +1698,11 @@ serve(async (req) => {
         skipped: results.filter((r) => r.skipped).length,
         total_tasks_extracted: results.reduce((sum, r) => sum + r.tasks_extracted, 0),
         total_deduplicated: results.reduce((sum, r) => sum + (r.tasks_deduplicated || 0), 0),
+        total_recurring_skipped: results.reduce(
+          (sum, r) => sum + (r.tasks_recurring_skipped || 0),
+          0,
+        ),
+        total_carried_over: results.reduce((sum, r) => sum + (r.tasks_carried_over || 0), 0),
         total_low_confidence: results.reduce((sum, r) => sum + (r.low_confidence_count || 0), 0),
         correlation_id: correlationId,
         results: results.map((r) => ({
@@ -1498,6 +1711,8 @@ serve(async (req) => {
           meeting_title: r.meeting_title,
           tasks_extracted: r.tasks_extracted,
           tasks_deduplicated: r.tasks_deduplicated,
+          tasks_recurring_skipped: r.tasks_recurring_skipped,
+          tasks_carried_over: r.tasks_carried_over,
           contacts_matched: r.contacts_matched,
           low_confidence_count: r.low_confidence_count,
           processing_duration_ms: r.processing_duration_ms,
