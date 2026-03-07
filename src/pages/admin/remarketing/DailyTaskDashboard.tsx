@@ -178,6 +178,7 @@ const DailyTaskDashboard = () => {
   const [entityFilter, setEntityFilter] = useState<'all' | 'deal' | 'buyer'>('all');
   const [showCompleted, setShowCompleted] = useState(false);
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [selectedMeeting, setSelectedMeeting] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editTask, setEditTask] = useState<DailyStandupTaskWithRelations | null>(null);
   const [reassignTask, setReassignTask] = useState<DailyStandupTaskWithRelations | null>(null);
