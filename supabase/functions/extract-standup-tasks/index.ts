@@ -962,6 +962,8 @@ async function processSingleMeeting(
       approved_by: shouldAutoApprove ? 'system' : null,
       approved_at: shouldAutoApprove ? new Date().toISOString() : null,
       source: 'ai',
+      // created_by is intentionally null — edge function runs as service role with no auth user
+      created_by: null,
       entity_type: entityType,
       entity_id: entityId,
       secondary_entity_type: secondaryEntityType,

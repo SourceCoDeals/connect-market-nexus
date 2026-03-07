@@ -448,6 +448,7 @@ export function useEditTask() {
 
 export function useAddManualTask() {
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (
@@ -472,11 +473,20 @@ export function useAddManualTask() {
           priority_score: 50, // default mid-range for manual tasks
           extraction_confidence: 'high',
           needs_review: false,
+          created_by: user?.id ?? null,
         } as never)
         .select()
         .single();
 
       if (error) throw error;
+
+      // Log activity
+      await (supabase.from('rm_task_activity_log' as any) as any).insert({
+        task_id: (data as Record<string, unknown>).id as string,
+        user_id: user?.id ?? '',
+        action: 'created',
+        new_value: { source: 'manual' },
+      } as never);
 
       // Recompute ranks
       await recomputeRanks();
