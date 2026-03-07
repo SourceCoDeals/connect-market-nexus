@@ -40,6 +40,21 @@ interface ExtractedTask {
   confidence: 'high' | 'medium' | 'low';
 }
 
+// ─── Helpers ───
+
+/** Compute a dedup key for cross-extraction duplicate prevention. */
+function computeDedupKey(title: string, meetingId: string, dueDate: string): string {
+  // Simple hash: use btoa as a lightweight fingerprint in Deno
+  const raw = `${title.toLowerCase().trim()}:${meetingId}:${dueDate}`;
+  // Use a simple hash since we don't have md5 in Deno by default
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const chr = raw.charCodeAt(i);
+    hash = ((hash << 5) - hash + chr) | 0;
+  }
+  return `${Math.abs(hash).toString(36)}-${meetingId.slice(0, 8)}-${dueDate}`;
+}
+
 // ─── Constants ───
 
 const TASK_TYPES = [
@@ -157,6 +172,7 @@ async function fetchTranscript(transcriptId: string) {
         date
         duration
         transcript_url
+        participants
         sentences {
           speaker_name
           text
@@ -184,6 +200,7 @@ async function fetchSummary(transcriptId: string) {
         date
         duration
         transcript_url
+        participants
         summary {
           action_items
           short_summary
@@ -757,6 +774,58 @@ async function matchBuyer(
   return null;
 }
 
+// ─── Match meeting participants to contacts table ───
+
+async function matchContactsFromParticipants(
+  participants: string[],
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ id: string; first_name: string; last_name: string; email: string | null }[]> {
+  if (!participants || participants.length === 0) return [];
+
+  const matched: { id: string; first_name: string; last_name: string; email: string | null }[] = [];
+
+  for (const participant of participants) {
+    const name = participant.trim();
+    if (!name || name.length < 2) continue;
+
+    // Try email match first (Fireflies sometimes includes emails)
+    if (name.includes('@')) {
+      const { data: emailMatch } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email')
+        .ilike('email', name)
+        .limit(1);
+      if (emailMatch && emailMatch.length > 0) {
+        matched.push(emailMatch[0]);
+        continue;
+      }
+    }
+
+    // Try name match: split into parts and match first_name + last_name
+    const parts = name.split(/\s+/);
+    if (parts.length >= 2) {
+      const firstName = parts[0].replace(/[^a-zA-Z'-]/g, '');
+      const lastName = parts
+        .slice(1)
+        .join(' ')
+        .replace(/[^a-zA-Z' -]/g, '');
+      if (firstName.length < 2 || lastName.length < 2) continue;
+
+      const { data: nameMatch } = await supabase
+        .from('contacts')
+        .select('id, first_name, last_name, email')
+        .ilike('first_name', firstName)
+        .ilike('last_name', `${lastName}%`)
+        .limit(1);
+      if (nameMatch && nameMatch.length > 0) {
+        matched.push(nameMatch[0]);
+      }
+    }
+  }
+
+  return matched;
+}
+
 async function loadAllEbitdaValues(supabase: ReturnType<typeof createClient>): Promise<number[]> {
   const { data: allDeals } = await supabase
     .from('deal_pipeline')
@@ -883,6 +952,7 @@ async function processSingleMeeting(
   let transcriptUrl = '';
   let meetingDuration = 0;
   let extractedTasks: ExtractedTask[] = [];
+  let meetingParticipants: string[] = [];
 
   if (useFirefliesActions) {
     // ── Fireflies-native mode: parse action_items from summary ──
@@ -895,6 +965,7 @@ async function processSingleMeeting(
     meetingTitle = summary.title || meetingTitle;
     transcriptUrl = summary.transcript_url || '';
     meetingDuration = summary.duration ? Math.round(summary.duration) : 0;
+    meetingParticipants = summary.participants || [];
 
     if (summary.date) {
       const dateNum = typeof summary.date === 'number' ? summary.date : parseInt(summary.date, 10);
@@ -922,6 +993,7 @@ async function processSingleMeeting(
       meetingTitle = transcript.title || meetingTitle;
       transcriptUrl = transcript.transcript_url || '';
       meetingDuration = transcript.duration ? Math.round(transcript.duration) : 0;
+      meetingParticipants = transcript.participants || [];
 
       if (transcript.date) {
         const dateNum =
@@ -981,6 +1053,14 @@ async function processSingleMeeting(
 
   if (meetingError) throw meetingError;
 
+  // Match meeting participants to contacts (for entity linking)
+  const matchedContacts = await matchContactsFromParticipants(meetingParticipants, supabase);
+  if (matchedContacts.length > 0) {
+    console.log(
+      `Matched ${matchedContacts.length} contacts from ${meetingParticipants.length} participants`,
+    );
+  }
+
   // Create task records with priority scoring
   const taskRecords = [];
   for (const task of extractedTasks) {
@@ -1003,7 +1083,7 @@ async function processSingleMeeting(
     const shouldAutoApprove =
       autoApproveEnabled && task.confidence === 'high' && assigneeId !== null && !needsReview;
 
-    // Determine entity linking: prefer deal > buyer > null
+    // Determine entity linking: prefer deal > buyer > contact > null
     let entityType: string | null = null;
     let entityId: string | null = null;
     let secondaryEntityType: string | null = null;
@@ -1012,14 +1092,25 @@ async function processSingleMeeting(
     if (dealMatch) {
       entityType = 'deal';
       entityId = dealMatch.id;
-      // If buyer also matched, link as secondary entity
       if (buyerMatch) {
         secondaryEntityType = 'buyer';
         secondaryEntityId = buyerMatch.id;
+      } else if (matchedContacts.length > 0) {
+        // Link first matched contact as secondary entity
+        secondaryEntityType = 'contact';
+        secondaryEntityId = matchedContacts[0].id;
       }
     } else if (buyerMatch) {
       entityType = 'buyer';
       entityId = buyerMatch.id;
+      if (matchedContacts.length > 0) {
+        secondaryEntityType = 'contact';
+        secondaryEntityId = matchedContacts[0].id;
+      }
+    } else if (matchedContacts.length > 0) {
+      // No deal or buyer match — link to the first matched contact
+      entityType = 'contact';
+      entityId = matchedContacts[0].id;
     }
 
     taskRecords.push({
@@ -1046,25 +1137,53 @@ async function processSingleMeeting(
       entity_id: entityId,
       secondary_entity_type: secondaryEntityType,
       secondary_entity_id: secondaryEntityId,
+      // Cross-extraction dedup key: prevents duplicates if same meeting is re-processed
+      dedup_key: computeDedupKey(
+        task.title,
+        meeting.id,
+        isValidDateString(task.due_date) ? task.due_date : today,
+      ),
     });
   }
 
-  // Insert all tasks
-  const { data: insertedTasks, error: insertError } = await supabase
-    .from('daily_standup_tasks')
-    .insert(taskRecords)
-    .select();
+  // Insert tasks, skipping any that conflict on dedup_key (cross-extraction duplicates)
+  const insertedTasks: unknown[] = [];
+  const skippedDuplicates: string[] = [];
 
-  if (insertError) throw insertError;
+  for (const record of taskRecords) {
+    const { data, error: insertError } = await supabase
+      .from('daily_standup_tasks')
+      .insert(record)
+      .select()
+      .maybeSingle();
+
+    if (insertError) {
+      // Unique constraint violation on dedup_key = expected dedup behaviour
+      if (insertError.code === '23505' && insertError.message?.includes('dedup')) {
+        skippedDuplicates.push(record.title);
+        continue;
+      }
+      throw insertError;
+    }
+    if (data) insertedTasks.push(data);
+  }
+
+  if (skippedDuplicates.length > 0) {
+    console.log(
+      `[dedup] Skipped ${skippedDuplicates.length} duplicate tasks: ${skippedDuplicates.join(', ')}`,
+    );
+  }
 
   return {
     meeting_id: meeting.id,
     fireflies_id: firefliesId,
     meeting_title: meetingTitle,
-    tasks_extracted: taskRecords.length,
+    tasks_extracted: insertedTasks.length,
+    tasks_deduplicated: skippedDuplicates.length,
     tasks_unassigned: taskRecords.filter((t) => !t.assignee_id).length,
     tasks_needing_review: taskRecords.filter((t) => t.needs_review).length,
-    tasks: insertedTasks || [],
+    contacts_matched: matchedContacts.length,
+    tasks: insertedTasks,
   };
 }
 
