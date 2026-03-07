@@ -40,6 +40,7 @@ import {
   RefreshCcw,
   Loader2,
   PauseCircle,
+  Mic,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn, getLocalDateString } from '@/lib/utils';
@@ -660,7 +661,43 @@ const DailyTaskDashboard = () => {
             </DropdownMenu>
           )}
 
-          <Button
+          {/* Meeting source filter */}
+          {distinctMeetings.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={selectedMeeting ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs gap-1.5"
+                >
+                  <Mic className="h-3.5 w-3.5" />
+                  {selectedMeeting
+                    ? distinctMeetings.find((m) => m.id === selectedMeeting)?.title || 'Meeting'
+                    : 'Meeting'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-60 overflow-auto min-w-[200px]">
+                <DropdownMenuCheckboxItem
+                  checked={!selectedMeeting}
+                  onCheckedChange={() => setSelectedMeeting(null)}
+                >
+                  All Meetings
+                </DropdownMenuCheckboxItem>
+                {distinctMeetings.map((m) => (
+                  <DropdownMenuCheckboxItem
+                    key={m.id}
+                    checked={selectedMeeting === m.id}
+                    onCheckedChange={() =>
+                      setSelectedMeeting(selectedMeeting === m.id ? null : m.id)
+                    }
+                  >
+                    {m.title}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
             variant="ghost"
             size="sm"
             onClick={() => setShowCompleted(!showCompleted)}
