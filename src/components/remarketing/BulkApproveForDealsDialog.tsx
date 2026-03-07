@@ -249,6 +249,7 @@ export function BulkApproveForDealsDialog({
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _allScoreIds = [...scoreIds, ...newScoreIds];
 
       // Auto-create outreach records for approved scores

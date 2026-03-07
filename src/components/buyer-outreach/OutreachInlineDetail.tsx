@@ -51,6 +51,7 @@ export function OutreachInlineDetail({ dealId, buyerId, summary }: OutreachInlin
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _formatEventType = (type: string) => {
     return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
