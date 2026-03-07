@@ -8,10 +8,10 @@
 -- status_label: Only appeared in auto-generated types. Zero reads/writes in
 --   any component, hook, or edge function. (status_tag is the active UI label field.)
 --
--- financial_notes: Added in migration 20260205 but never written to or read from
---   in any application code. Zero references outside types file.
+-- NOTE: financial_notes was originally included here but is actively used by
+--   extract-deal-transcript, extract-transcript, analyze-deal-notes,
+--   calculate-deal-quality, and _shared/deal-extraction. Removed from DROP.
 
 ALTER TABLE public.listings
   DROP COLUMN IF EXISTS linkedin_headquarters,
-  DROP COLUMN IF EXISTS status_label,
-  DROP COLUMN IF EXISTS financial_notes;
+  DROP COLUMN IF EXISTS status_label;
