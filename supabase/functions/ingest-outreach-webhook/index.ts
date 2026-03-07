@@ -31,7 +31,7 @@ function normalizeSmartleadEvent(payload: Record<string, unknown>): OutreachEven
   const buyerId = customFields.sourceco_buyer_id;
 
   if (!dealId || !buyerId) {
-    console.warn('[ingest-webhook] Smartlead event missing sourceco IDs:', { eventType, customFields });
+    console.warn('[ingest-webhook] Smartlead event missing sourceco IDs:', { eventType, hasCustomFields: !!Object.keys(customFields).length });
     return null;
   }
 
@@ -215,16 +215,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { error } = await supabase
+    // Return 200 immediately — process DB insert in the background
+    // EdgeRuntime keeps the function alive until all promises resolve
+    const insertPromise = supabase
       .from('buyer_outreach_events')
-      .insert(event);
-
-    if (error) {
-      console.error('[ingest-webhook] Insert error:', error);
-      return new Response(JSON.stringify({ error: 'Failed to record event' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
+      .insert(event)
+      .then(({ error }) => {
+        if (error) {
+          console.error('[ingest-webhook] Insert error:', error);
+        }
       });
+
+    // Use waitUntil if available (Deno Deploy), otherwise fall back to fire-and-forget
+    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
+      (globalThis as any).EdgeRuntime.waitUntil(insertPromise);
+    } else {
+      insertPromise.catch(() => {}); // fire-and-forget, error already logged
     }
 
     return new Response(JSON.stringify({ ok: true, event_type: event.event_type }), {

@@ -324,6 +324,10 @@ export function LaunchOutreachPanel({
                     <span className="text-muted-foreground">EBITDA: </span>
                     <span className="font-medium">{profile.ebitda}</span>
                   </div>
+                  <div>
+                    <span className="text-muted-foreground">Buyer Ref: </span>
+                    <span className="text-xs italic text-muted-foreground">derived per buyer type</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
