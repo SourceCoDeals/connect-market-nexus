@@ -24,6 +24,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { callClaude, CLAUDE_MODELS } from '../_shared/claude-client.ts';
+import { googleSearch } from '../_shared/serper-client.ts';
 
 // ── Types ──
 
@@ -92,6 +93,57 @@ function extractDomain(url: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Attempt to find a company website via Google search when Claude didn't provide one.
+ * Returns the first plausible URL or null.
+ */
+async function lookupCompanyWebsite(companyName: string): Promise<string | null> {
+  try {
+    const results = await googleSearch(`${companyName} official website`, 5);
+    for (const result of results) {
+      const url = result.url;
+      // Skip social media, directories, and news sites
+      if (
+        url.includes('linkedin.com') ||
+        url.includes('facebook.com') ||
+        url.includes('twitter.com') ||
+        url.includes('yelp.com') ||
+        url.includes('bbb.org') ||
+        url.includes('crunchbase.com') ||
+        url.includes('wikipedia.org') ||
+        url.includes('bloomberg.com') ||
+        url.includes('pitchbook.com') ||
+        url.includes('zoominfo.com')
+      ) {
+        continue;
+      }
+      // Return the first non-directory result as the likely company website
+      return url;
+    }
+    return null;
+  } catch (e) {
+    console.warn(`Website lookup failed for ${companyName} (non-fatal):`, e);
+    return null;
+  }
+}
+
+/**
+ * Sanitize PE firm names that Claude sometimes returns as full sentences.
+ * Extracts just the firm name from strings like:
+ * "MYR Group acquired Pike; formerly Lindsay Goldberg — now publicly traded via MYR Group"
+ */
+function sanitizePeFirmName(raw: string): string {
+  // Take the part before any semicolons, em-dashes, or long-dashes
+  let name = raw.split(/[;—–]/)[0].trim();
+  // Remove common sentence prefixes like "Backed by " or "Owned by "
+  name = name.replace(/^(backed by|owned by|sponsored by|portfolio of)\s+/i, '').trim();
+  // If still too long (>60 chars), it's probably a sentence — take first 3 words
+  if (name.length > 60) {
+    name = name.split(/\s+/).slice(0, 3).join(' ');
+  }
+  return name;
 }
 
 /**
@@ -744,12 +796,31 @@ Deno.serve(async (req: Request) => {
     const now = new Date().toISOString();
 
     for (const suggested of suggestedBuyers) {
+      // If Claude didn't provide a website, attempt a Google search to find one
+      if (!suggested.company_website) {
+        console.info(`${suggested.company_name} — no website from AI, attempting Serper lookup…`);
+        const foundUrl = await lookupCompanyWebsite(suggested.company_name);
+        if (foundUrl) {
+          suggested.company_website = foundUrl;
+          console.info(`  → Found website via Serper: ${foundUrl}`);
+        }
+      }
+
       const domain = extractDomain(suggested.company_website);
 
-      // Website is required — skip buyers Claude returned without one.
+      // Website is still required after lookup — skip if we couldn't find one.
       if (!domain || !suggested.company_website) {
-        console.info(`Skipping ${suggested.company_name} — no website provided by AI`);
+        console.info(`Skipping ${suggested.company_name} — no website found (AI or Serper)`);
         continue;
+      }
+
+      // Sanitize PE firm name if present (Claude sometimes returns full sentences)
+      if (suggested.pe_firm_name) {
+        const cleaned = sanitizePeFirmName(suggested.pe_firm_name);
+        if (cleaned !== suggested.pe_firm_name) {
+          console.info(`Sanitized PE firm name: "${suggested.pe_firm_name}" → "${cleaned}"`);
+          suggested.pe_firm_name = cleaned;
+        }
       }
 
       let action: SeedResult['action'];
@@ -940,6 +1011,25 @@ Deno.serve(async (req: Request) => {
     const inserted = results.filter((r) => r.action === 'inserted').length;
     const enriched = results.filter((r) => r.action === 'enriched_existing').length;
     const dupes = results.filter((r) => r.action === 'probable_duplicate').length;
+
+    // ── Auto-trigger score-deal-buyers so External tab populates immediately ──
+    if (results.length > 0) {
+      try {
+        console.log('Auto-triggering score-deal-buyers to refresh External tab…');
+        await fetch(`${supabaseUrl}/functions/v1/score-deal-buyers`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ listingId, forceRefresh: true }),
+          signal: AbortSignal.timeout(30000),
+        });
+        console.log('score-deal-buyers auto-refresh completed');
+      } catch (e) {
+        console.warn('Auto-refresh score-deal-buyers failed (non-fatal):', e);
+      }
+    }
 
     // Mark job as completed
     await updateJobProgress({
