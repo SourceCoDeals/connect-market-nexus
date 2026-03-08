@@ -64,9 +64,9 @@ export function useSeedBuyers() {
   const queryClient = useQueryClient();
 
   return useMutation<SeedBuyersResponse, Error, SeedBuyersParams>({
-    mutationFn: async ({ listingId, maxBuyers, forceRefresh, buyerCategory }) => {
+    mutationFn: async ({ listingId, maxBuyers, forceRefresh, buyerCategory, jobId }) => {
       const { data, error } = await supabase.functions.invoke('seed-buyers', {
-        body: { listingId, maxBuyers, forceRefresh, buyerCategory },
+        body: { listingId, maxBuyers, forceRefresh, buyerCategory, jobId },
       });
       if (error) {
         const msg = await extractEdgeFunctionError(error);
