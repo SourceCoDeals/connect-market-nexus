@@ -169,9 +169,23 @@ Deno.serve(async (req: Request) => {
       .order('created_at', { ascending: false })
       .limit(2000);
 
+    // ── Fetch rejected buyers from discovery feedback ──
+    const { data: rejectedRows } = await supabase
+      .from('buyer_discovery_feedback')
+      .select('buyer_id')
+      .eq('listing_id', listingId)
+      .eq('action', 'rejected');
+
+    const rejectedBuyerIds = new Set<string>(
+      (rejectedRows || []).map((r) => r.buyer_id),
+    );
+
     const seedLogMap = new Map<string, string>();
     const seedLogAcquisitionsMap = new Map<string, string[]>();
+    // Track which buyer IDs have seed log entries for this deal
+    const seedLogBuyerIds = new Set<string>();
     for (const row of seedLogRows || []) {
+      seedLogBuyerIds.add(row.remarketing_buyer_id);
       if (row.why_relevant) seedLogMap.set(row.remarketing_buyer_id, row.why_relevant);
       if (row.known_acquisitions?.length)
         seedLogAcquisitionsMap.set(row.remarketing_buyer_id, row.known_acquisitions);
@@ -181,6 +195,18 @@ Deno.serve(async (req: Request) => {
         seedLogAcquisitionsMap.set(row.remarketing_buyer_id, row.known_acquisitions);
       }
     }
+
+    // ── Filter out stale AI-seeded buyers and rejected buyers ──
+    // AI-seeded buyers should only appear if they have a seed log entry for
+    // THIS deal (i.e., they came from the most recent AI search for this deal).
+    // Buyers rejected via "Not a Fit" feedback are also excluded.
+    const filteredBuyers = buyers.filter((buyer) => {
+      // Always exclude rejected buyers
+      if (rejectedBuyerIds.has(buyer.id)) return false;
+      // AI-seeded buyers must have a seed log entry for this deal
+      if (buyer.ai_seeded && !seedLogBuyerIds.has(buyer.id)) return false;
+      return true;
+    });
 
     // ── Normalize deal fields ──
     const richKeywords = extractDealKeywords(deal);
@@ -194,7 +220,7 @@ Deno.serve(async (req: Request) => {
     // ── Score each buyer ──
     const scored: BuyerScore[] = [];
 
-    for (const buyer of buyers) {
+    for (const buyer of filteredBuyers) {
       const buyerServices = normArray(buyer.target_services);
       const buyerIndustries = normArray(buyer.target_industries);
       const buyerIndustryVertical = norm(buyer.industry_vertical);
