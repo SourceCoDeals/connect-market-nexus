@@ -479,6 +479,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const headers = getCorsHeaders(req);
+  let _jobId: string | undefined; // hoisted for error handler access
 
   try {
     // ── Auth guard (mirrors score-deal-buyers pattern) ──
