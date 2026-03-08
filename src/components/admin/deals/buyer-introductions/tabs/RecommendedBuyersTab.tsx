@@ -81,7 +81,7 @@ async function recordFeedback(params: {
   dealCategories?: string[];
 }) {
   try {
-    await supabase.from('buyer_discovery_feedback').upsert(
+    await (supabase as any).from('buyer_discovery_feedback').upsert(
       {
         listing_id: params.listingId,
         buyer_id: params.buyer.buyer_id,
