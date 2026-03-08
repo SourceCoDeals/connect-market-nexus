@@ -955,6 +955,12 @@ Deno.serve(async (req: Request) => {
         domainToId.set(domain, buyerId);
       }
 
+      // De-duplicate: skip if we already processed this buyerId in this run
+      if (newBuyerIds.includes(buyerId)) {
+        console.log(`Skipping duplicate buyerId ${buyerId} (${suggested.company_name})`);
+        continue;
+      }
+
       newBuyerIds.push(buyerId);
 
       seedLogEntries.push({
@@ -979,21 +985,29 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Batch insert seed log entries ──
+    // ── Batch upsert seed log entries (resilient to duplicates) ──
     if (seedLogEntries.length > 0) {
-      const buyerIdsToLog = seedLogEntries.map((e) => e.remarketing_buyer_id as string);
-      const { error: deleteError } = await supabase
+      const { error: logError } = await supabase
         .from('buyer_seed_log')
-        .delete()
-        .eq('source_deal_id', listingId)
-        .in('remarketing_buyer_id', buyerIdsToLog);
-      if (deleteError) {
-        console.error('Seed log cleanup failed (non-fatal):', deleteError.message);
-      }
-
-      const { error: logError } = await supabase.from('buyer_seed_log').insert(seedLogEntries);
+        .upsert(seedLogEntries, {
+          onConflict: 'remarketing_buyer_id,source_deal_id',
+          ignoreDuplicates: false,
+        });
       if (logError) {
-        console.error('Batch seed log insert failed (non-fatal):', logError.message);
+        console.error('Seed log upsert failed:', logError.message);
+        // Mark job with warning so UI knows
+        await updateJobProgress({
+          status: 'failed',
+          progress_pct: 95,
+          progress_message: `Buyers found but audit log write failed: ${logError.message}`,
+          error: `Seed log write failed: ${logError.message}`,
+          buyers_found: results.length,
+          completed_at: new Date().toISOString(),
+        });
+        return new Response(
+          JSON.stringify({ error: 'Seed log write failed', details: logError.message }),
+          { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } },
+        );
       }
     }
 
