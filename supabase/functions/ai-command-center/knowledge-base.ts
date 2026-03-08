@@ -25,6 +25,7 @@ export const KNOWLEDGE_BASE: Record<string, KnowledgeArticle> = {
 - needs_buyer_search / universe_build_flagged: flags indicating the deal needs a buyer universe built.
 
 Buyer Fields:
+- PE-ONLY RULE: Only PE-owned buyers are surfaced in scoring and search. This includes PE firms (buyer_type="private_equity"), PE-backed platforms (buyer_type="corporate" with is_pe_backed=true), family offices, independent sponsors, and search funds. Non-PE corporates and individual buyers are excluded.
 - acquisition_appetite: how aggressively pursuing deals — "aggressive" (quick decisions, deploying now), "active" (standard process), "selective" (very picky), "opportunistic" (only if perfect fit).
 - acquisition_timeline: when ready to deploy — "Q1-Q2 2026" (specific window), "ongoing" (always buying), "selective", "paused" (not active — do NOT outreach).
 - geographic_footprint: array of state codes where buyer has operations (DIFFERENT from hq_state). A buyer HQ'd in NY with footprint ["NY","TX","FL"] matches deals in all three.

@@ -401,7 +401,15 @@ async function searchBuyers(
     query = query.eq('archived', false);
   }
 
-  if (args.buyer_type) query = query.eq('buyer_type', args.buyer_type as string);
+  // PE-only filter: only surface PE-backed buyers by default
+  // (PE firms, PE-backed platforms, family offices, independent sponsors, search funds)
+  if (args.buyer_type) {
+    query = query.eq('buyer_type', args.buyer_type as string);
+  } else {
+    query = query.or(
+      'buyer_type.eq.private_equity,buyer_type.eq.family_office,buyer_type.eq.independent_sponsor,buyer_type.eq.search_fund,is_pe_backed.eq.true',
+    );
+  }
   if (args.has_fee_agreement !== undefined)
     query = query.eq('has_fee_agreement', args.has_fee_agreement as boolean);
   if (args.acquisition_appetite)

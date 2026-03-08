@@ -129,12 +129,13 @@ When the user asks about buyers in a specific deal's universe or a named univers
 If search_buyers returns a universe_warning in results, re-query with the correct universe_id.
 
 KEY BEHAVIORS:
+- PE-ONLY: All buyer searches and scoring only surface PE-owned buyers: PE firms, PE-backed platform companies, family offices, independent sponsors, and search funds. Non-PE corporates and individual buyers are never included.
 - search_buyers industry param auto-matches universe names (e.g. "HVAC" finds buyers in "Residential HVAC, Plumbing and Electrical" universe even if buyer record itself doesn't mention HVAC).
 - search_buyers state filter checks BOTH hq_state and geographic_footprint — returns ALL matching buyers.
 - search_lead_sources industry param checks industry, category, categories, services, title, captarget_sheet_tab fields.
 - query_deals industry param checks 12+ fields including executive_summary, investment_thesis, business_model.
 
-FORMAT: Return buyer matches as: name, type, HQ, revenue range, key services, alignment score.`,
+FORMAT: Return buyer matches as: name, PE firm, type, HQ, revenue range, key services, alignment score.`,
 
   BUYER_ANALYSIS: `Present scores with context: composite, geography, service, size, owner goals, portfolio, business_model, acquisition.
 Explain score drivers and flags. Use get_score_breakdown for per-dimension breakdown and human-readable explanations with data source citations.

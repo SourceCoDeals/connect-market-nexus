@@ -106,10 +106,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // ── Fetch ALL active, non-archived buyers (no buyer type filter) ──
-    // Phase 2: Removed the financial-sponsor-only filter. All buyer types in the
-    // database are surfaced and ranked by service fit + buyer type priority.
-    const { data: buyers, error: buyerError } = await supabase
+    // ── Fetch PE-backed buyers only ──
+    // Only surface buyers that are PE-owned: PE firms, PE-backed platforms,
+    // family offices, independent sponsors, and search funds.
+    // Non-PE corporates and individual buyers are excluded.
+    const PE_BUYER_TYPES = [
+      'private_equity',
+      'family_office',
+      'independent_sponsor',
+      'search_fund',
+    ];
+    const { data: peBuyers, error: peBuyerError } = await supabase
       .from('buyers')
       .select(
         'id, company_name, company_website, pe_firm_name, pe_firm_id, buyer_type, is_pe_backed, hq_state, hq_city, ' +
@@ -120,15 +127,17 @@ Deno.serve(async (req: Request) => {
           'thesis_summary, ai_seeded, ai_seeded_from_deal_id, ai_seeded_at, marketplace_firm_id',
       )
       .eq('archived', false)
+      .or(PE_BUYER_TYPES.map((t) => `buyer_type.eq.${t}`).join(',') + ',is_pe_backed.eq.true')
       .limit(10000);
 
-    if (buyerError) {
+    if (peBuyerError) {
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch buyers', details: buyerError.message }),
+        JSON.stringify({ error: 'Failed to fetch buyers', details: peBuyerError.message }),
         { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } },
       );
     }
 
+    const buyers = peBuyers;
     if (!buyers || buyers.length === 0) {
       const emptyResult = {
         buyers: [],
