@@ -1,74 +1,43 @@
 
-Deep-dive audit complete. You’re right: it is not working as intended, and the popup was never implemented.
 
-## What happened in your latest run (Saks / listing `b0bf5382-1e13-4082-a24a-ef38af209437`)
+# Plan: Fix Edge Function Build Errors & Deploy All
 
-1) **Search execution succeeded**
-- `seed-buyers` returned HTTP 200 and job completed.
-- `buyer_search_jobs` latest row: `completed`, `buyers_found=10`, `buyers_inserted=1`, `buyers_updated=9`.
+The build errors are all TypeScript type-safety issues across 5 edge functions. Once fixed, all functions can be deployed.
 
-2) **But the audit log write failed**
-- Edge log at `2026-03-08T20:20:42Z`:  
-  `Batch seed log insert failed (non-fatal): duplicate key value violates unique constraint "idx_buyer_seed_log_buyer_deal"`.
+## Errors & Fixes
 
-3) **That failure makes External tab empty**
-- `score-deal-buyers` explicitly drops AI-seeded buyers with no seed-log row:
-  - `supabase/functions/score-deal-buyers/index.ts` lines 203–209.
-- Current DB state for this listing:
-  - `buyer_seed_log` rows = **0**
-  - Cached scored results source mix = **31 scored + 19 marketplace + 0 ai_seeded**
-- Result: External tab has nothing even though AI search looked successful.
+### 1. `auto-create-firm-on-approval/index.ts` (1 error)
+**Problem:** `SupabaseClient` type mismatch when passing to `requireAdmin()` — caused by mismatched `@supabase/supabase-js` import versions between `_shared/auth.ts` (uses `@2`) and this file.
+**Fix:** Align the import to use the same specifier: `https://esm.sh/@supabase/supabase-js@2` (not a pinned patch like `@2.49.4`). Alternatively, cast the client with `as any` in the call.
 
-## Root cause chain
+### 2. `bulk-import-remarketing/index.ts` (2 errors)
+**Problem:** `ImportData` interface doesn't have an index signature, so `data[field]` where `field` is `string` fails.
+**Fix:** Add `[key: string]: unknown;` index signature to the `ImportData` interface, or cast `data as Record<string, unknown>` in the validation loop.
 
-### A) Duplicate AI results are being produced/kept
-Evidence:
-- `seed-buyers` log: `JSON repair attempt 5 (regex) recovered 10 buyer objects`.
-- `buyer_seed_cache.buyer_ids` for this run has **10 total IDs but only 7 distinct** (repeated IDs like Envirocon/Weeks Marine).
-- Browser console warning confirms duplicate React keys:
-  - “Encountered two children with the same key … `9b2ca5c9-...`”
-  - Stack points to `SeedResultsSummary` in `RecommendedBuyersTab`.
+### 3. `calculate-deal-quality/index.ts` (24 errors)
+**Problem:** The `calculateScoresFromData` function parameter is typed as `Record<string, unknown>`, so all property accesses like `.toLowerCase()`, `.join()`, and comparisons like `>= 500` fail because values are `unknown`/`{}`.
+**Fix:**
+- Define a `DealRecord` interface with typed fields (e.g., `google_review_count: number`, `address_city: string`, etc.) and use it as the parameter type.
+- Type `listingsToScore` as `DealRecord[]` instead of implicit `unknown[]`.
 
-Why this matters:
-- Duplicate buyer IDs in `seedLogEntries` violate unique index `(remarketing_buyer_id, source_deal_id)`.
-- Single batch insert fails entirely, leaving **zero** logs.
+### 4. `clarify-industry/index.ts` (1 error)
+**Problem:** `result.data?.questions` resolves to `{}` instead of an array, so assignment to `ClarifyQuestion[]` fails.
+**Fix:** Cast: `(result.data?.questions as ClarifyQuestion[]) || []`.
 
-### B) Seed log failure is treated as non-fatal
-In `supabase/functions/seed-buyers/index.ts` lines 994–997:
-- Insert error is logged but function still returns success and marks job completed.
-- So UI says “done” while downstream scoring lacks required seed-log rows.
+### 5. `confirm-agreement-signed/index.ts` (3 errors)
+**Problem:** Dynamic column access via `firm[signedCol]` and `docData?.[docUrlCol]` fails because the `.select()` with template literals returns a union type.
+**Fix:** Cast `firm` and `docData` to `Record<string, unknown>` or use `as any` for dynamic access.
 
-### C) No popup summary exists in code
-In `src/components/admin/deals/buyer-introductions/tabs/RecommendedBuyersTab.tsx`:
-- `handleSeedBuyers` only does toasts + inline state (`seedResults`) lines 466–487.
-- Inline collapsible `SeedResultsSummary` is rendered at line 750.
-- There is **no** search-completion dialog component/state for this flow.
-- Session replay confirms a toast appeared (“AI seeded 10 buyers...”), not a modal popup.
+## After Fixes
+Deploy all edge functions using the deployment tool.
 
-## Important clarification
+## Summary of Changes
+| File | Change |
+|------|--------|
+| `bulk-import-remarketing/index.ts` | Add index signature to `ImportData` |
+| `calculate-deal-quality/index.ts` | Add `DealRecord` interface, type arrays and function params |
+| `clarify-industry/index.ts` | Cast `result.data?.questions` to array |
+| `confirm-agreement-signed/index.ts` | Cast dynamic column access |
+| `auto-create-firm-on-approval/index.ts` | Align supabase-js import version |
+| Deploy all ~148 functions | After fixes pass |
 
-The previous migration blockers are now resolved in DB:
-- `buyer_seed_log` has `buyer_profile` + `verification_status`.
-- `buyers_website_required` now exempts `buyer_type='private_equity'`.
-
-So the **current blocker is no longer migrations**; it is the duplicate-result -> seed-log insert failure path.
-
-## Technical details section
-
-- **UI file:** `src/components/admin/deals/buyer-introductions/tabs/RecommendedBuyersTab.tsx`
-  - Uses toasts, not a popup summary dialog.
-  - Renders seed results list keyed by `buyer_id`, which exposes duplicate-key warnings if API returns duplicate IDs.
-- **Seed function:** `supabase/functions/seed-buyers/index.ts`
-  - Can ingest duplicate candidates after JSON-repair fallback.
-  - Appends duplicate `buyerId` entries to `seedLogEntries` and `buyer_seed_cache.buyer_ids`.
-  - Batch insert into `buyer_seed_log` then fails on unique index.
-- **Scoring function:** `supabase/functions/score-deal-buyers/index.ts`
-  - Filters out `ai_seeded` buyers that lack seed-log rows for the active deal.
-  - Hence External tab empties when seed log write fails.
-
-## If you want fixes next, this is the correct fix order
-
-1. De-duplicate candidates within `seed-buyers` before writing `results`, `seedLogEntries`, and `buyer_seed_cache`.
-2. Make seed-log insert resilient (`upsert` on conflict or per-row conflict handling), not all-or-nothing failure.
-3. Make seed-log failure visible to UI/job status (not silent success).
-4. Add the requested completion popup dialog for AI search results.
