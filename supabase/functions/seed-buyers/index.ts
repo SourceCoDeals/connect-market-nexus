@@ -939,6 +939,17 @@ Deno.serve(async (req: Request) => {
     const enriched = results.filter((r) => r.action === 'enriched_existing').length;
     const dupes = results.filter((r) => r.action === 'probable_duplicate').length;
 
+    // Mark job as completed
+    await updateJobProgress({
+      status: 'completed',
+      progress_pct: 100,
+      progress_message: `Done! Found ${results.length} buyers (${inserted} new, ${enriched} updated)`,
+      buyers_found: results.length,
+      buyers_inserted: inserted,
+      buyers_updated: enriched,
+      completed_at: new Date().toISOString(),
+    });
+
     return new Response(
       JSON.stringify({
         seeded_buyers: results,
@@ -963,6 +974,22 @@ Deno.serve(async (req: Request) => {
     );
   } catch (error) {
     console.error('seed-buyers error:', error);
+    // Mark job as failed if we have a jobId
+    if (typeof jobId !== 'undefined') {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const errClient = createClient(supabaseUrl, supabaseServiceKey);
+        await errClient.from('buyer_search_jobs').update({
+          status: 'failed',
+          progress_pct: 0,
+          progress_message: 'Search failed',
+          error: String(error).slice(0, 500),
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq('id', jobId);
+      } catch { /* best effort */ }
+    }
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: String(error) }),
       { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } },
