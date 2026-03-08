@@ -1,19 +1,24 @@
 /**
- * seed-buyers – AI Buyer Seeding Engine
+ * seed-buyers – AI Buyer Discovery Engine (v2 — Two-Pass PE-Backed Platform Discovery)
  *
- * Uses Claude to discover PE firms, platform companies, and strategic acquirers
- * that match a deal's criteria, then inserts them into the buyers table.
+ * Discovers PE-backed platform companies that are actively consolidating a specific
+ * niche through add-on acquisitions. Uses a two-pass approach:
+ *
+ * Pass 1: Define the ideal buyer profile (what to look for + what to exclude)
+ * Pass 2: Find and verify specific PE-backed platform companies matching the profile
  *
  * Flow:
  * 1. Auth guard (admin only)
  * 2. Fetch deal details from listings table
- * 3. Check buyer_seed_cache for recent results (90-day TTL)
- * 4. Call Claude to discover matching buyers
- * 5. Deduplicate against existing buyers (by company name / website domain)
- * 6. Insert new buyers with ai_seeded=true
- * 7. Log each action to buyer_seed_log
- * 8. Update buyer_seed_cache
- * 9. Return results
+ * 3. Validate critical deal fields are populated (Phase 0)
+ * 4. Check buyer_seed_cache for recent results (90-day TTL)
+ * 5. Pass 1: Call Claude to define the ideal PE-backed platform buyer profile
+ * 6. Pass 2: Call Claude to find specific companies matching the profile
+ * 7. Deduplicate against existing buyers (by website domain)
+ * 8. Insert new buyers with ai_seeded=true
+ * 9. Log each action to buyer_seed_log (with buyer profile for debugging)
+ * 10. Update buyer_seed_cache
+ * 11. Return results
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
@@ -50,6 +55,7 @@ interface AISuggestedBuyer {
   known_acquisitions: string[];
   estimated_ebitda_min: number | null;
   estimated_ebitda_max: number | null;
+  verification_status?: 'verified' | 'unverified';
 }
 
 interface SeedResult {
@@ -72,10 +78,6 @@ function buildCacheKey(
   },
   buyerCategory?: string,
 ): string {
-  // Use listing ID as the primary cache key so each deal has its own seed results.
-  // Previously this was keyed on deal characteristics (industry+state+ebitda bucket),
-  // which caused cache collisions where buyers seeded for deal A would appear for
-  // unrelated deal B that happened to share the same profile.
   const catSuffix = buyerCategory ? `:${buyerCategory}` : '';
   return `seed:v2:${deal.id}${catSuffix}`;
 }
@@ -90,29 +92,41 @@ function extractDomain(url: string | null): string | null {
   }
 }
 
-function buildSystemPrompt(): string {
-  return `You are an elite M&A buyer discovery specialist who deeply understands private equity roll-ups, platform strategies, and strategic acquisitions across niche industry verticals.
+/**
+ * Phase 0: Validate critical deal fields before running AI discovery.
+ * Returns a list of missing fields. If any are missing, the caller should
+ * surface a warning instead of running the AI on incomplete data.
+ */
+function validateDealFields(deal: Record<string, unknown>): string[] {
+  const missing: string[] = [];
 
-YOUR MISSION: Find the BEST-FIT acquirers for a specific deal — not the most obvious or largest, but the ones whose strategy, portfolio, and acquisition history make them a genuinely compelling match.
+  // At least one description field must be populated
+  const hasDescription =
+    (deal.executive_summary as string)?.trim() ||
+    (deal.description as string)?.trim() ||
+    (deal.hero_description as string)?.trim();
+  if (!hasDescription) missing.push('description (executive_summary, description, or hero_description)');
 
-CRITICAL RULES:
-- Only suggest REAL companies that actually exist. Never fabricate names.
-- Prioritize NICHE, SPECIALIZED buyers over large generalist firms. A $200M PE fund with three portfolio companies in the exact sub-sector is far more valuable than a $10B fund that occasionally invests in the broad industry.
-- Look for firms actively executing "buy-and-build" or roll-up strategies in the deal's specific vertical. Platform companies doing add-on acquisitions in the same niche are the highest-value finds.
-- Include firms that have made RECENT, VERIFIABLE acquisitions in the specific sub-sector — not firms that might theoretically be interested.
-- Think about the full ecosystem: Who are the PE-backed platforms rolling up this space? Which strategic acquirers are on acquisition sprees in this niche? Which infrastructure funds or specialty PE firms have thesis overlap?
-- For each buyer, explain specifically WHY they are a uniquely good fit for THIS deal — reference their portfolio companies, known acquisitions, stated thesis, or geographic strategy.
-- Include the company's website if you know it.
-- Quality over quantity: 5 highly relevant buyers beats 10 generic ones.
+  if (!(deal.industry as string)?.trim()) missing.push('industry');
+
+  const cats = deal.categories as string[] | null;
+  const cat = deal.category as string | null;
+  if ((!cats || cats.length === 0) && !cat?.trim()) missing.push('categories');
+
+  return missing;
+}
+
+// ── Two-Pass Prompt System ──
+
+function buildPass1SystemPrompt(): string {
+  return `You are an M&A advisor specializing in lower-middle market acquisitions ($500K–$10M EBITDA). Your job is to define the EXACT buyer profile for this deal. The buyers you're looking for are PE-BACKED PLATFORM COMPANIES — operating businesses with private equity sponsors behind them that are actively acquiring companies in this niche as part of a buy-and-build strategy.
+
+CRITICAL: You are defining what to LOOK FOR, not finding specific companies yet. Be precise and specific about the niche — generic descriptions lead to wrong-industry results.
 
 You must respond with valid JSON only. No markdown, no code fences, no explanatory text outside the JSON.`;
 }
 
-function buildUserPrompt(
-  deal: Record<string, unknown>,
-  maxBuyers: number,
-  buyerCategory?: string,
-): string {
+function buildPass1UserPrompt(deal: Record<string, unknown>): string {
   const ebitdaNum = deal.ebitda as number | null;
   const ebitdaStr = ebitdaNum ? `$${(ebitdaNum / 1_000_000).toFixed(1)}M` : 'Not disclosed';
 
@@ -124,7 +138,6 @@ function buildUserPrompt(
     ? (deal.geographic_states as string[]).join(', ')
     : (deal.address_state as string) || 'Not specified';
 
-  // Use the richest available description field — in order of preference
   const description =
     (deal.executive_summary as string) ||
     (deal.description as string) ||
@@ -133,30 +146,9 @@ function buildUserPrompt(
 
   const thesis = (deal.investment_thesis as string) || '';
   const endMarket = (deal.end_market_description as string) || '';
-  const bizModel = (deal.business_model as string) || (deal.revenue_model as string) || '';
-  const ownerGoals = (deal.owner_goals as string) || (deal.seller_motivation as string) || '';
 
-  let categoryInstruction = '';
-  if (buyerCategory === 'sponsors') {
-    categoryInstruction = `
-BUYER TYPE FILTER: ONLY return financial sponsors — PE firms, growth equity firms, infrastructure funds, family offices, independent sponsors, and search funds that invest in this vertical.
-- Prioritize PE firms actively building platforms via buy-and-build strategies in this exact niche
-- Include specialty funds focused on this industry (e.g., infrastructure funds for utility deals, healthcare-focused PE for medical deals)
-- Look for firms that have backed portfolio companies making add-on acquisitions in this space
-- Do NOT include operating companies or strategic acquirers
-`;
-  } else if (buyerCategory === 'operating_companies') {
-    categoryInstruction = `
-BUYER TYPE FILTER: ONLY return operating companies and strategic acquirers — real businesses that operate in the same or adjacent industries.
-- Prioritize PE-backed platform companies actively doing add-on acquisitions to consolidate this niche
-- Include regional or national operators that compete in or serve the same end market
-- Look for companies that have recently acquired similar businesses as part of a roll-up strategy
-- Do NOT include PE firms, financial sponsors, family offices, or investment funds (the PE backer can be listed as pe_firm_name but the company_name must be the operating company)
-`;
-  }
+  return `Define the EXACT buyer profile for this deal. The buyers I'm looking for are PE-BACKED PLATFORM COMPANIES — operating businesses with private equity sponsors behind them that are actively acquiring companies in this niche.
 
-  return `Find up to ${maxBuyers} potential acquirers for this business. Focus on finding the BEST strategic fits — firms whose acquisition thesis, portfolio, and track record directly align with this deal.
-${categoryInstruction}
 DEAL OVERVIEW:
 Title: ${(deal.title as string) || 'Not provided'}
 Industry: ${(deal.industry as string) || 'Not specified'}
@@ -170,39 +162,108 @@ ${description}
 
 ${thesis ? `INVESTMENT THESIS:\n${thesis}\n` : ''}
 ${endMarket ? `END MARKET / CUSTOMERS:\n${endMarket}\n` : ''}
-${bizModel ? `BUSINESS MODEL:\n${bizModel}\n` : ''}
-${ownerGoals ? `SELLER GOALS:\n${ownerGoals}\n` : ''}
 
-DISCOVERY GUIDANCE:
-- Think about who is ACTIVELY acquiring in this specific sub-sector right now
-- Consider the full buyer ecosystem: PE-backed platforms doing add-ons, specialty PE funds, regional consolidators, national strategic acquirers expanding into this geography
-- Prioritize buyers with VERIFIABLE recent acquisitions in this niche over firms that are merely tangentially related
-- A small specialized firm with 3 acquisitions in this exact space is more valuable than a Fortune 500 with broad interests
+Respond with a JSON object containing:
+{
+  "ideal_buyer_description": "2-3 sentences describing the type of PE-backed platform that acquires this business. Name the operating company type, not the PE firm type.",
+  "must_have_criteria": ["3-5 specific criteria the platform company must have. Be precise — e.g. 'fleet maintenance and DOT inspection services' not 'vehicle services'. One criterion must always be: 'Backed by a private equity firm with a stated buy-and-build thesis in this vertical.'"],
+  "exclusion_list": [{"type": "description of excluded company type", "reason": "why they're excluded"}],
+  "search_terms": ["3-5 specific search queries to find PE-backed platforms in this niche"]
+}
+
+EXCLUSION LIST MUST ALWAYS INCLUDE:
+- Standalone operators without PE backing (they lack acquisition capital and won't pay advisory fees)
+- PE firms themselves (we want the platform company name, with the PE backer listed separately)
+- Adjacent-but-different industries (explain why they're different)
+
+Return ONLY the JSON object. No markdown, no explanation.`;
+}
+
+function buildPass2SystemPrompt(): string {
+  return `You are an M&A buyer sourcing specialist. Your job is to find real PE-BACKED PLATFORM COMPANIES that match a specific buyer profile. Every company you return must be a real, operating business with an identifiable private equity sponsor.
+
+CRITICAL RULES:
+- Every company must be a PE-BACKED PLATFORM — an operating business with a private equity sponsor. You MUST name the PE firm.
+- Return the PLATFORM COMPANY name as the primary result, never the PE firm. The PE firm goes in the pe_firm_name field.
+- If you find a great company but cannot confirm PE backing, do NOT include it.
+- The ONE exception to the PE requirement: a large strategic acquirer ($500M+ revenue) with a documented, active acquisition program in this exact niche. Flag these explicitly with buyer_type "corporate" and a note in why_relevant.
+- Quality over quantity: 5 verified PE-backed platforms beats 10 unverified or marginal matches.
+- Only suggest REAL companies that actually exist. Never fabricate names.
+- Check each result against the exclusion list. If a company matches an exclusion, drop it.
+- Do NOT pad the list with non-PE companies to hit the target count.
+
+You must respond with valid JSON only. No markdown, no code fences, no explanatory text outside the JSON.`;
+}
+
+function buildPass2UserPrompt(
+  deal: Record<string, unknown>,
+  buyerProfile: Record<string, unknown>,
+  maxBuyers: number,
+  buyerCategory?: string,
+): string {
+  const ebitdaNum = deal.ebitda as number | null;
+  const ebitdaStr = ebitdaNum ? `$${(ebitdaNum / 1_000_000).toFixed(1)}M` : 'Not disclosed';
+
+  let categoryInstruction = '';
+  if (buyerCategory === 'sponsors') {
+    categoryInstruction = `
+BUYER TYPE FILTER: ONLY return financial sponsors — PE firms with portfolio platform companies in this niche.
+- Return the platform company name, not the PE firm name
+- The PE firm goes in pe_firm_name
+- Do NOT include standalone operating companies without PE backing
+`;
+  } else if (buyerCategory === 'operating_companies') {
+    categoryInstruction = `
+BUYER TYPE FILTER: ONLY return PE-backed operating companies (platform companies doing add-on acquisitions).
+- These are real businesses that operate in the same industry as the deal
+- They MUST have an identifiable PE sponsor (listed in pe_firm_name)
+- Do NOT include PE firms themselves — only the operating platforms they back
+`;
+  }
+
+  return `Using the buyer profile below, find real PE-BACKED PLATFORM COMPANIES that match ALL must-have criteria.
+${categoryInstruction}
+BUYER PROFILE:
+${JSON.stringify(buyerProfile, null, 2)}
+
+DEAL CONTEXT:
+Title: ${(deal.title as string) || 'Not provided'}
+Industry: ${(deal.industry as string) || 'Not specified'}
+EBITDA: ${ebitdaStr}
+Location: ${(deal.address_state as string) || 'Not specified'}
+
+Instructions:
+1. Find PE-backed platforms matching the must-have criteria.
+2. For each result, verify: (a) they exist and are in the right business, (b) they have an identifiable PE sponsor, (c) evidence of acquisition activity.
+3. Check each result against the exclusion list. If a company matches an exclusion, drop it.
+4. Return ${maxBuyers} companies max. If fewer than ${maxBuyers} are genuine PE-backed matches, return fewer. Do NOT pad the list.
+5. For each company, classify verification_status as "verified" (you're confident in PE backing and service match) or "unverified" (you believe it's a fit but aren't fully certain).
 
 Return a JSON array of up to ${maxBuyers} buyers. Each object must have:
 {
-  "company_name": "exact legal/common name",
+  "company_name": "exact legal/common name of the PLATFORM COMPANY (not the PE firm)",
   "company_website": "url or null",
-  "buyer_type": "private_equity" | "corporate" | "family_office" | "independent_sponsor" | "search_fund" | "individual_buyer",
-  "pe_firm_name": "PE sponsor name or null (for platform companies, name the PE backer)",
+  "buyer_type": "corporate",
+  "pe_firm_name": "PE sponsor name — REQUIRED for every result (or null only for rare large strategics)",
   "hq_city": "city or null",
   "hq_state": "2-letter state code or null",
-  "thesis_summary": "their acquisition thesis in 1-2 sentences — what they invest in and why",
-  "why_relevant": "1-2 sentences explaining why this buyer is a uniquely good fit for THIS specific deal — reference their portfolio, acquisitions, thesis overlap, or geographic strategy",
-  "target_services": ["service types they acquire"],
+  "thesis_summary": "1-2 sentences — what this platform does and their acquisition strategy",
+  "why_relevant": "1-2 sentences explaining why this PE-backed platform is a fit for THIS deal — reference their services, acquisitions, and PE sponsor's thesis",
+  "target_services": ["service types they operate in"],
   "target_industries": ["industries they invest in"],
   "target_geographies": ["states or regions they cover"],
-  "known_acquisitions": ["names of recent acquisitions in this or adjacent spaces"],
-  "estimated_ebitda_min": number or null,
-  "estimated_ebitda_max": number or null
+  "known_acquisitions": ["names of specific companies they've acquired"],
+  "estimated_ebitda_min": null,
+  "estimated_ebitda_max": null,
+  "verification_status": "verified or unverified"
 }
 
 Return ONLY the JSON array. No markdown, no explanation.`;
 }
 
+// ── JSON Parsing (robust) ──
+
 function findLastCompleteObject(text: string): number {
-  // Walk backward through the string to find the last '}' that is NOT inside
-  // an unterminated string literal. We track whether we're inside a string.
   let inString = false;
   let lastGoodClose = -1;
   for (let i = 0; i < text.length; i++) {
@@ -211,7 +272,7 @@ function findLastCompleteObject(text: string): number {
       if (ch === '\\') {
         i++;
         continue;
-      } // skip escaped char
+      }
       if (ch === '"') inString = false;
     } else {
       if (ch === '"') inString = true;
@@ -222,21 +283,30 @@ function findLastCompleteObject(text: string): number {
 }
 
 function repairAndParseJson(raw: string): unknown {
-  // Remove markdown code fences
   let cleaned = raw
     .replace(/```json\s*/gi, '')
     .replace(/```\s*/g, '')
     .trim();
 
-  // Find JSON array boundaries
   const jsonStart = cleaned.indexOf('[');
-  if (jsonStart === -1) throw new Error('No JSON array found in response');
+  if (jsonStart === -1) {
+    // Try parsing as a single object (Pass 1 response)
+    const objStart = cleaned.indexOf('{');
+    if (objStart === -1) throw new Error('No JSON found in response');
+    const objEnd = cleaned.lastIndexOf('}');
+    cleaned = objEnd > objStart ? cleaned.substring(objStart, objEnd + 1) : cleaned.substring(objStart);
+    cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, ' ');
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      throw new Error(`Cannot parse Claude response as JSON object (length=${raw.length})`);
+    }
+  }
 
   const jsonEnd = cleaned.lastIndexOf(']');
   cleaned =
     jsonEnd > jsonStart ? cleaned.substring(jsonStart, jsonEnd + 1) : cleaned.substring(jsonStart);
 
-  // Remove control chars that break JSON
   cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, ' ');
 
   // Attempt 1: direct parse
@@ -263,8 +333,7 @@ function repairAndParseJson(raw: string): unknown {
     } catch { /* continue */ }
   }
 
-  // Attempt 4: aggressive repair — close any unterminated string, then close structures
-  // Walk the string tracking state to find where it breaks
+  // Attempt 4: aggressive repair
   let inStr = false;
   let depth = 0;
   let arrDepth = 0;
@@ -290,7 +359,6 @@ function repairAndParseJson(raw: string): unknown {
   if (lastCompleteObjEnd > 0) {
     repaired = cleaned.substring(0, lastCompleteObjEnd + 1);
     repaired = repaired.replace(/,\s*$/, '');
-    // Ensure proper array wrapping
     const firstBracket = repaired.indexOf('[');
     if (firstBracket >= 0) {
       repaired = repaired.substring(firstBracket);
@@ -328,7 +396,6 @@ function parseClaudeResponse(responseText: string): AISuggestedBuyer[] {
     throw new Error('Expected JSON array from Claude');
   }
 
-  // Validate and clean each buyer
   return parsed
     .map((b: Record<string, unknown>) => ({
       company_name: String(b.company_name || '').trim(),
@@ -360,8 +427,18 @@ function parseClaudeResponse(responseText: string): AISuggestedBuyer[] {
         typeof b.estimated_ebitda_min === 'number' ? b.estimated_ebitda_min : null,
       estimated_ebitda_max:
         typeof b.estimated_ebitda_max === 'number' ? b.estimated_ebitda_max : null,
+      verification_status: (b.verification_status === 'verified' ? 'verified' : 'unverified') as
+        'verified' | 'unverified',
     }))
     .filter((b) => b.company_name.length > 0);
+}
+
+function parseBuyerProfile(responseText: string): Record<string, unknown> {
+  const parsed = repairAndParseJson(responseText);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new Error('Expected JSON object from Claude for buyer profile');
+  }
+  return parsed as Record<string, unknown>;
 }
 
 // ── Main handler ──
@@ -412,7 +489,7 @@ Deno.serve(async (req: Request) => {
     // ── End auth guard ──
 
     const body: SeedRequest = await req.json();
-    const { listingId, maxBuyers = 10, forceRefresh = false, buyerCategory } = body;
+    const { listingId, maxBuyers = 8, forceRefresh = false, buyerCategory } = body;
 
     if (!listingId) {
       return new Response(JSON.stringify({ error: 'listingId is required' }), {
@@ -440,6 +517,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // ── Phase 0: Validate critical deal fields ──
+    const missingFields = validateDealFields(deal);
+    if (missingFields.length > 0) {
+      return new Response(
+        JSON.stringify({
+          error: 'Deal is missing critical fields required for AI buyer discovery',
+          missing_fields: missingFields,
+          details: `The following fields must be populated before running AI discovery: ${missingFields.join(', ')}. Please update the deal record and try again.`,
+        }),
+        { status: 422, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
+
     // ── Check seed cache ──
     const cacheKey = buildCacheKey(deal, buyerCategory);
 
@@ -452,7 +542,6 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (cached && cached.buyer_ids?.length > 0) {
-        // Return the cached buyer IDs with their details
         const { data: cachedBuyers } = await supabase
           .from('buyers')
           .select('id, company_name, buyer_type, hq_state, hq_city, ai_seeded, thesis_summary')
@@ -478,8 +567,6 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Fetch existing buyers for deduplication ──
-    // Website domain is the canonical unique identifier — only fetch buyers with websites.
-    // Explicit limit required: Supabase config max_rows=1000 silently truncates without it.
     const { data: existingBuyers } = await supabase
       .from('buyers')
       .select('id, company_name, company_website')
@@ -492,7 +579,6 @@ Deno.serve(async (req: Request) => {
         .map((b) => extractDomain(b.company_website))
         .filter(Boolean) as string[],
     );
-    // Map domain → existing buyer id for enrichment on domain match
     const domainToId = new Map(
       (existingBuyers || [])
         .map((b) => {
@@ -502,33 +588,103 @@ Deno.serve(async (req: Request) => {
         .filter(Boolean) as [string, string][],
     );
 
-    // ── Call Claude to discover buyers ──
-    const cappedMax = Math.min(maxBuyers, 15);
-    const claudeResponse = await callClaude({
-      model: CLAUDE_MODELS.opus,
-      maxTokens: 8192,
-      systemPrompt: buildSystemPrompt(),
-      messages: [{ role: 'user', content: buildUserPrompt(deal, cappedMax, buyerCategory) }],
-      timeoutMs: 90000,
+    // ── Fetch past feedback for this niche (for calibration) ──
+    const dealIndustry = (deal.industry as string) || '';
+    const dealCategories = (deal.categories as string[]) || [];
+    let feedbackSection = '';
+    if (dealIndustry || dealCategories.length > 0) {
+      const { data: feedbackRows } = await supabase
+        .from('buyer_discovery_feedback')
+        .select('buyer_name, pe_firm_name, action, reason, niche_category')
+        .in('niche_category', [dealIndustry, ...dealCategories].filter(Boolean))
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (feedbackRows && feedbackRows.length > 0) {
+        const accepted = feedbackRows.filter((f) => f.action === 'accepted');
+        const rejected = feedbackRows.filter((f) => f.action === 'rejected');
+
+        if (accepted.length > 0 || rejected.length > 0) {
+          feedbackSection = '\n\nCALIBRATION FROM PAST DEALS IN THIS NICHE:\n';
+          if (accepted.length > 0) {
+            feedbackSection += '\nAccepted buyers (these set the quality bar):\n';
+            for (const a of accepted.slice(0, 5)) {
+              feedbackSection += `• ${a.buyer_name}${a.pe_firm_name ? ` (backed by ${a.pe_firm_name})` : ''}\n`;
+            }
+          }
+          if (rejected.length > 0) {
+            feedbackSection += '\nRejected buyers (do NOT suggest similar companies):\n';
+            for (const r of rejected.slice(0, 5)) {
+              feedbackSection += `• ${r.buyer_name}${r.reason ? ` — Rejected because: ${r.reason}` : ''}\n`;
+            }
+          }
+          feedbackSection += '\nEvery buyer you suggest should look like the accepted examples.\n';
+        }
+      }
+    }
+
+    // ── Pass 1: Define the buyer profile ──
+    console.log('Pass 1: Defining buyer profile...');
+    const pass1Response = await callClaude({
+      model: CLAUDE_MODELS.sonnet,
+      maxTokens: 2048,
+      systemPrompt: buildPass1SystemPrompt(),
+      messages: [{ role: 'user', content: buildPass1UserPrompt(deal) }],
+      timeoutMs: 30000,
     });
 
-    // Extract text from response
-    const responseText = claudeResponse.content
+    const pass1Text = pass1Response.content
       .filter((b) => b.type === 'text')
       .map((b) => b.text)
       .join('');
 
-    if (!responseText) {
+    if (!pass1Text) {
       return new Response(
         JSON.stringify({
-          error: 'Claude returned empty response',
-          usage: claudeResponse.usage,
+          error: 'Claude returned empty response for buyer profile (Pass 1)',
+          usage: pass1Response.usage,
         }),
         { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } },
       );
     }
 
-    const suggestedBuyers = parseClaudeResponse(responseText);
+    const buyerProfile = parseBuyerProfile(pass1Text);
+    console.log('Pass 1 complete. Buyer profile defined:', JSON.stringify(buyerProfile).slice(0, 500));
+
+    // ── Pass 2: Find PE-backed platforms matching the profile ──
+    console.log('Pass 2: Finding PE-backed platform companies...');
+    const cappedMax = Math.min(maxBuyers, 8);
+
+    // Append feedback calibration to the pass 2 prompt
+    let pass2Prompt = buildPass2UserPrompt(deal, buyerProfile, cappedMax, buyerCategory);
+    if (feedbackSection) {
+      pass2Prompt += feedbackSection;
+    }
+
+    const pass2Response = await callClaude({
+      model: CLAUDE_MODELS.opus,
+      maxTokens: 8192,
+      systemPrompt: buildPass2SystemPrompt(),
+      messages: [{ role: 'user', content: pass2Prompt }],
+      timeoutMs: 90000,
+    });
+
+    const pass2Text = pass2Response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text)
+      .join('');
+
+    if (!pass2Text) {
+      return new Response(
+        JSON.stringify({
+          error: 'Claude returned empty response for buyer discovery (Pass 2)',
+          usage: pass2Response.usage,
+        }),
+        { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const suggestedBuyers = parseClaudeResponse(pass2Text);
 
     // ── Deduplicate and insert ──
     const results: SeedResult[] = [];
@@ -553,7 +709,6 @@ Deno.serve(async (req: Request) => {
       const existingId = domainToId.get(domain);
 
       if (existingId) {
-        // Existing buyer with same domain — enrich with AI context
         action = 'enriched_existing';
         buyerId = existingId;
 
@@ -566,16 +721,12 @@ Deno.serve(async (req: Request) => {
           })
           .eq('id', buyerId);
       } else {
-        // New buyer — insert
         action = 'inserted';
         wasNew = true;
 
         // ── Resolve PE firm parent (lookup or auto-create) ──
-        // PE firms are internal reference records auto-created without websites,
-        // so we look them up by name rather than domain.
         let resolvedPeFirmId: string | null = null;
         if (suggested.pe_firm_name && suggested.buyer_type !== 'private_equity') {
-          // Look up existing PE firm buyer by name (case-insensitive)
           const { data: existingPeFirm } = await supabase
             .from('buyers')
             .select('id')
@@ -587,7 +738,6 @@ Deno.serve(async (req: Request) => {
           if (existingPeFirm) {
             resolvedPeFirmId = existingPeFirm.id;
           } else {
-            // Auto-create the PE firm. On concurrent conflict, re-query for the winner.
             const { data: newFirm, error: firmError } = await supabase
               .from('buyers')
               .insert({
@@ -603,7 +753,6 @@ Deno.serve(async (req: Request) => {
 
             if (firmError) {
               if (firmError.code === '23505') {
-                // Race: another concurrent call inserted it first — re-query
                 const { data: raced } = await supabase
                   .from('buyers')
                   .select('id')
@@ -643,14 +792,12 @@ Deno.serve(async (req: Request) => {
             ai_seeded_at: now,
             ai_seeded_from_deal_id: listingId,
             verification_status: 'pending',
+            is_pe_backed: !!suggested.pe_firm_name,
           })
           .select('id')
           .single();
 
         if (insertError) {
-          // Unique constraint violation (code 23505): a concurrent seed-buyers call
-          // inserted the same buyer between our domain-snapshot fetch and this INSERT.
-          // Re-query by domain to get the winner's ID.
           if (insertError.code === '23505') {
             const { data: raced } = await supabase
               .from('buyers')
@@ -682,14 +829,12 @@ Deno.serve(async (req: Request) => {
           buyerId = inserted.id;
         }
 
-        // Track in dedup sets for subsequent iterations within this seeding call
         existingDomainSet.add(domain);
         domainToId.set(domain, buyerId);
       }
 
       newBuyerIds.push(buyerId);
 
-      // Collect log entry for batch insert after the loop
       seedLogEntries.push({
         remarketing_buyer_id: buyerId,
         source_deal_id: listingId,
@@ -699,6 +844,8 @@ Deno.serve(async (req: Request) => {
         action,
         seed_model: CLAUDE_MODELS.opus,
         category_cache_key: cacheKey,
+        buyer_profile: buyerProfile,
+        verification_status: suggested.verification_status || 'unverified',
       });
 
       results.push({
@@ -710,10 +857,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // ── Batch insert seed log entries (delete stale entries for this deal first) ──
+    // ── Batch insert seed log entries ──
     if (seedLogEntries.length > 0) {
       const buyerIdsToLog = seedLogEntries.map((e) => e.remarketing_buyer_id as string);
-      // Remove previous seed log entries for these buyer+deal pairs to prevent unbounded growth
       const { error: deleteError } = await supabase
         .from('buyer_seed_log')
         .delete()
@@ -755,7 +901,13 @@ Deno.serve(async (req: Request) => {
         seeded_at: now,
         cache_key: cacheKey,
         model: CLAUDE_MODELS.opus,
-        usage: claudeResponse.usage,
+        usage: {
+          pass1: pass1Response.usage,
+          pass2: pass2Response.usage,
+          total_input_tokens: pass1Response.usage.input_tokens + pass2Response.usage.input_tokens,
+          total_output_tokens: pass1Response.usage.output_tokens + pass2Response.usage.output_tokens,
+        },
+        buyer_profile: buyerProfile,
       }),
       { headers: { ...headers, 'Content-Type': 'application/json' } },
     );
