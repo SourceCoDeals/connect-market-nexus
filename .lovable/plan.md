@@ -1,43 +1,30 @@
 
 
-# Plan: Fix Edge Function Build Errors & Deploy All
+## Plan: Add AI Buyer Search Summary Dialog
 
-The build errors are all TypeScript type-safety issues across 5 edge functions. Once fixed, all functions can be deployed.
+When the AI buyer search completes, show a summary dialog (similar to the existing `EnrichmentSummaryDialog` and `DealEnrichmentSummaryDialog` patterns) displaying what was found, inserted, updated, and any errors.
 
-## Errors & Fixes
+### Changes
 
-### 1. `auto-create-firm-on-approval/index.ts` (1 error)
-**Problem:** `SupabaseClient` type mismatch when passing to `requireAdmin()` — caused by mismatched `@supabase/supabase-js` import versions between `_shared/auth.ts` (uses `@2`) and this file.
-**Fix:** Align the import to use the same specifier: `https://esm.sh/@supabase/supabase-js@2` (not a pinned patch like `@2.49.4`). Alternatively, cast the client with `as any` in the call.
+**1. New component: `src/components/remarketing/BuyerSearchSummaryDialog.tsx`**
+- Follows the same pattern as `EnrichmentSummaryDialog.tsx`
+- Shows: Total found, New inserted, Existing enriched, Probable duplicates
+- Shows each buyer with its action badge (inserted/enriched/duplicate/cached)
+- Shows the buyer profile summary if available
+- Shows whether results were cached
+- Icon: `Sparkles` (matching the AI Search button)
 
-### 2. `bulk-import-remarketing/index.ts` (2 errors)
-**Problem:** `ImportData` interface doesn't have an index signature, so `data[field]` where `field` is `string` fails.
-**Fix:** Add `[key: string]: unknown;` index signature to the `ImportData` interface, or cast `data as Record<string, unknown>` in the validation loop.
+**2. Update `RecommendedBuyersTab.tsx`**
+- Add state: `showSearchSummary` (boolean) and `searchSummaryData` (to hold the `SeedBuyersResponse`)
+- In `handleSeedBuyers`, after successful completion, set the summary data and open the dialog
+- On error, also capture it so the dialog can show the failure
+- Render `BuyerSearchSummaryDialog` at the bottom of the component
+- Remove the toast notifications (replaced by the dialog)
 
-### 3. `calculate-deal-quality/index.ts` (24 errors)
-**Problem:** The `calculateScoresFromData` function parameter is typed as `Record<string, unknown>`, so all property accesses like `.toLowerCase()`, `.join()`, and comparisons like `>= 500` fail because values are `unknown`/`{}`.
-**Fix:**
-- Define a `DealRecord` interface with typed fields (e.g., `google_review_count: number`, `address_city: string`, etc.) and use it as the parameter type.
-- Type `listingsToScore` as `DealRecord[]` instead of implicit `unknown[]`.
-
-### 4. `clarify-industry/index.ts` (1 error)
-**Problem:** `result.data?.questions` resolves to `{}` instead of an array, so assignment to `ClarifyQuestion[]` fails.
-**Fix:** Cast: `(result.data?.questions as ClarifyQuestion[]) || []`.
-
-### 5. `confirm-agreement-signed/index.ts` (3 errors)
-**Problem:** Dynamic column access via `firm[signedCol]` and `docData?.[docUrlCol]` fails because the `.select()` with template literals returns a union type.
-**Fix:** Cast `firm` and `docData` to `Record<string, unknown>` or use `as any` for dynamic access.
-
-## After Fixes
-Deploy all edge functions using the deployment tool.
-
-## Summary of Changes
-| File | Change |
-|------|--------|
-| `bulk-import-remarketing/index.ts` | Add index signature to `ImportData` |
-| `calculate-deal-quality/index.ts` | Add `DealRecord` interface, type arrays and function params |
-| `clarify-industry/index.ts` | Cast `result.data?.questions` to array |
-| `confirm-agreement-signed/index.ts` | Cast dynamic column access |
-| `auto-create-firm-on-approval/index.ts` | Align supabase-js import version |
-| Deploy all ~148 functions | After fixes pass |
+### Summary Dialog Content
+- Header: "AI Buyer Search Complete" with Sparkles icon
+- Stats grid: Total | New | Updated | Duplicates
+- Cached indicator badge if results came from cache
+- Scrollable list of all found buyers with action badges and relevance reasons
+- "Close" button, plus "Search Again" if cached results were shown
 
