@@ -735,6 +735,7 @@ Deno.serve(async (req: Request) => {
     const suggestedBuyers = parseClaudeResponse(pass2Text);
 
     // ── Deduplicate and insert ──
+    await updateJobProgress({ status: 'scoring', progress_pct: 65, progress_message: `Found ${suggestedBuyers.length} candidates. Deduplicating & inserting…` });
     const results: SeedResult[] = [];
     const newBuyerIds: string[] = [];
     const seedLogEntries: Record<string, unknown>[] = [];
