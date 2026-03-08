@@ -512,6 +512,15 @@ export default function EnrichmentQueue() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="search" className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" />
+            AI Buyer Search
+            {searchStats.pending + searchStats.processing > 0 && (
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+                {searchStats.pending + searchStats.processing}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="deals" className="space-y-4 mt-4">
@@ -579,6 +588,29 @@ export default function EnrichmentQueue() {
             </CardHeader>
             <CardContent className="p-0">
               <QueueTable items={scoringItems} loading={loading} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="search" className="space-y-4 mt-4">
+          <StatsCards stats={searchStats} label="AI Buyer Search" />
+          <Card>
+            <CardHeader className="py-3 px-4 flex-row items-center justify-between">
+              <CardTitle className="text-sm font-medium">Recent AI Buyer Searches</CardTitle>
+              {searchStats.failed > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 text-xs"
+                  onClick={() => clearFailed('buyer_search_jobs')}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Clear Failed
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              <QueueTable items={searchItems} loading={loading} />
             </CardContent>
           </Card>
         </TabsContent>
