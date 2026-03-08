@@ -429,7 +429,7 @@ export function RecommendedBuyersTab({
 }: RecommendedBuyersTabProps) {
   const { data, isLoading, isError, error, refresh } = useNewRecommendedBuyers(listingId);
   const seedMutation = useSeedBuyers();
-  const { job, createJob, dismiss: dismissJob, isActive: isSearchActive } = useBuyerSearchJob(listingId);
+  const { job, createJob, dismiss: dismissJob } = useBuyerSearchJob(listingId);
   const { createIntroduction } = useBuyerIntroductions(listingId);
   const [refreshing, setRefreshing] = useState(false);
   const [seedResults, setSeedResults] = useState<SeedBuyerResult[] | null>(null);
