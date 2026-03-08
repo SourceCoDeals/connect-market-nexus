@@ -21,7 +21,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useNewRecommendedBuyers, type BuyerScore } from '@/hooks/admin/use-new-recommended-buyers';
-import { useSeedBuyers, type SeedBuyerResult, type SeedBuyersResponse } from '@/hooks/admin/use-seed-buyers';
+import { useSeedBuyers, type SeedBuyerResult } from '@/hooks/admin/use-seed-buyers';
 import { useBuyerSearchJob } from '@/hooks/admin/use-buyer-search-job';
 import { BuyerSearchSummaryDialog } from '@/components/admin/deals/buyer-introductions/BuyerSearchSummaryDialog';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
