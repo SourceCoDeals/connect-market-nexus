@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { useNewRecommendedBuyers, type BuyerScore } from '@/hooks/admin/use-new-recommended-buyers';
 import { useSeedBuyers, type SeedBuyerResult } from '@/hooks/admin/use-seed-buyers';
+import { useBuyerSearchJob } from '@/hooks/admin/use-buyer-search-job';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -45,6 +47,7 @@ import {
   MoreHorizontal,
   ArrowRight,
   Ban,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
