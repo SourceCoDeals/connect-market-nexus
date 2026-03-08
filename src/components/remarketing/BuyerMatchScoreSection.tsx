@@ -69,7 +69,6 @@ export const getDisqualificationReason = (reasoning: string | null, score?: any)
   // Use individual scores to determine the weakest dimension (more accurate than keyword matching)
   if (score) {
     const dimensions = [
-      { name: 'size mismatch', score: score.size_score ?? 100 },
       { name: 'no nearby presence', score: score.geography_score ?? 100 },
       { name: 'service mismatch', score: score.service_score ?? 100 },
       { name: 'owner goals mismatch', score: score.owner_goals_score ?? 100 },
@@ -246,8 +245,8 @@ export const ScoreBreakdownPanel = ({
         {score.fit_reasoning || 'No reasoning available'}
       </p>
 
-      {/* Inline Score Breakdown - Services (45%), Size (30%), Geography (20%), Owner Goals (5%) */}
-      <div className="grid grid-cols-4 gap-4 mb-3">
+      {/* Inline Score Breakdown - Services (45%), Geography (30%), Owner Goals (25%) */}
+      <div className="grid grid-cols-3 gap-4 mb-3">
         <div>
           <p className="text-xs text-muted-foreground mb-1">
             Services
@@ -260,20 +259,6 @@ export const ScoreBreakdownPanel = ({
           <p className={cn('text-lg font-bold', getScoreColorClass(score.service_score))}>
             {getScoreDot(score.service_score)}
             {Math.round(score.service_score)}%
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">
-            Size
-            {score.size_multiplier != null && score.size_multiplier < 1.0 && (
-              <span className="ml-1 text-orange-600">
-                ({(score.size_multiplier * 100).toFixed(0)}% gate)
-              </span>
-            )}
-          </p>
-          <p className={cn('text-lg font-bold', getScoreColorClass(score.size_score))}>
-            {getScoreDot(score.size_score)}
-            {Math.round(score.size_score)}%
           </p>
         </div>
         <div>

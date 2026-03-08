@@ -42,7 +42,7 @@ Buyer Fields:
 - composite_score: overall match quality combining all dimensions with weights.
 - geography_score: deal location vs buyer HQ and/or operating footprint.
 - service_score: deal industry/services vs buyer targets.
-- size_score: deal revenue/EBITDA vs buyer target range.
+- size_score: DEPRECATED (v3) — always 0. Previously compared deal EBITDA vs buyer target range, but was unreliable and removed from scoring.
 - owner_goals_score: seller wants vs buyer acquisition model. Example: seller wants "management retention" + PE buyer installing new management = low score.
 - portfolio_score: deal fit with buyer's existing portfolio — portfolio_conflict risk and strategic alignment.
 - business_model_score: deal model (recurring vs project, B2B vs B2C) vs buyer preferences.
@@ -57,7 +57,7 @@ Score Modifiers:
 - kpi_bonus: matching specific KPI targets.
 - data_quality_bonus: rich, well-enriched data = more reliable scoring.
 - custom_bonus: manually set by admin for deal-specific adjustments.
-- service_multiplier / size_multiplier / geography_mode_factor: custom weight multipliers per deal via deal_scoring_adjustments.
+- service_multiplier / geography_mode_factor: custom weight multipliers per deal via deal_scoring_adjustments.
 - Use get_score_breakdown for per-dimension breakdown and human-readable explanation.`,
   },
 

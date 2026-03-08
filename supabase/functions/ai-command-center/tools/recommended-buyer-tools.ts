@@ -320,7 +320,7 @@ async function generateBuyerNarrative(
   const buyerSummaries = buyers.slice(0, 25).map((b) => {
     const name = b.company_name || b.pe_firm_name || 'Unknown';
     const signals = b.fit_signals.length > 0 ? b.fit_signals.join('; ') : 'No specific signals';
-    return `- ${name} (${b.buyer_type || 'unknown type'}, ${b.hq_state || '??'}): score=${b.composite_score}, tier=${b.tier}, geo=${b.geography_score}, svc=${b.service_score}, size=${b.size_score}, signals=[${signals}]${b.has_fee_agreement ? ', FEE AGREEMENT' : ''}${b.acquisition_appetite === 'aggressive' ? ', AGGRESSIVE APPETITE' : ''}`;
+    return `- ${name} (${b.buyer_type || 'unknown type'}, ${b.hq_state || '??'}): score=${b.composite_score}, tier=${b.tier}, svc=${b.service_score}, geo=${b.geography_score}, signals=[${signals}]${b.has_fee_agreement ? ', FEE AGREEMENT' : ''}${b.acquisition_appetite === 'aggressive' ? ', AGGRESSIVE APPETITE' : ''}`;
   });
 
   // Call Gemini to generate the narrative
@@ -381,7 +381,9 @@ INSTRUCTIONS:
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[generate_buyer_narrative] Gemini API error ${response.status}: ${errorText.substring(0, 300)}`);
+      console.error(
+        `[generate_buyer_narrative] Gemini API error ${response.status}: ${errorText.substring(0, 300)}`,
+      );
       return {
         error: `Gemini API error (${response.status}): ${errorText.substring(0, 200)}`,
       };
@@ -389,9 +391,7 @@ INSTRUCTIONS:
 
     const geminiData = await response.json();
     const narrative =
-      geminiData.choices?.[0]?.message?.content ||
-      geminiData.choices?.[0]?.text ||
-      '';
+      geminiData.choices?.[0]?.message?.content || geminiData.choices?.[0]?.text || '';
 
     if (!narrative) {
       return { error: 'Gemini returned an empty narrative response' };

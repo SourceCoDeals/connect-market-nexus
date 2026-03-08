@@ -412,7 +412,7 @@ Deno.serve(async (req: Request) => {
         expires_at: expiresAt.toISOString(),
         buyer_count: topBuyers.length,
         results: topBuyers,
-        score_version: 'v2',
+        score_version: 'v3',
       },
       { onConflict: 'listing_id' },
     );
