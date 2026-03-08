@@ -101,7 +101,7 @@ Score Modifiers:
 
 Two-sided marketplace: sellers list their business, buyers browse and express interest. SourceCo facilitates introductions, NDAs, deal management, and data room access.
 
-Value prop for sellers: access to a large network of active remarketing buyers without hiring a traditional M&A advisor. AI-powered ReMarketing Engine proactively matches deals to best-fit buyers using scoring across geography, size, services, and owner goals.
+Value prop for sellers: access to a large network of active remarketing buyers without hiring a traditional M&A advisor. AI-powered ReMarketing Engine proactively matches deals to best-fit buyers using scoring across service fit, geography, and buyer readiness signals.
 
 Value prop for buyers: proprietary deal flow of off-market and lightly marketed businesses, pre-screened with financials and owner goals. Advanced filtering by industry, location, revenue, EBITDA.
 
@@ -118,7 +118,7 @@ Key components: Buyer Marketplace, Admin Dashboard, ReMarketing Engine (outbound
 - Remarketing Buyer: external buyer (PE/strategic/platform) tracked in buyers table. Not a platform user.
 - Marketplace Buyer: registered platform user who browses deals (profiles table).
 - Universe: named buyer grouping for targeted outreach (buyer_universes) with geography, size, services criteria.
-- Score: composite buyer-deal fit score (0-100) across geography, size, service, owner goals, thesis alignment.
+- Score: composite buyer-deal fit score (0-100) across service fit (70%), geography (15%), and bonus/readiness signals (15%). EBITDA size scoring removed in v3.
 - Tier: A (80-100), B (60-79), C (40-59), D (20-39), F (0-19).
 - Pipeline Stage: Lead, NDA, LOI, Due Diligence, Closed (and others as configured).
 - Outreach: contact attempt to a buyer tracked in outreach_records and remarketing_outreach.
@@ -296,7 +296,7 @@ Step 2: SourceCo reviews credentials: firm type, investment thesis, deal history
 Step 3: NDA execution via DocuSeal before accessing confidential deal information.
 Step 4: Fee agreement — buyer acknowledges SourceCo's fee structure.
 Step 5: Profile activation — buyer profile created in remarketing system with initial scoring.
-Step 6: Deal matching — buyer scored against active deals by geography, industry, size, services, owner goals.
+Step 6: Deal matching — buyer scored against active deals by service/industry fit, geography, and readiness signals (fee agreements, acquisition appetite).
 
 Timeline: typically 1-3 business days from request to deal access.
 Track via connection_requests (NDA/fee status) and firm_agreements.`,
@@ -400,7 +400,7 @@ Flag stale outreach (no activity in 5+ business days) and overdue next actions.`
 - Building a Calling List: ask AI "build a calling list of [industry] owners". Searches all sources, finds contacts, compiles list.
 - Pushing to PhoneBurner: after finding contacts with phones, "push to PhoneBurner". Creates dialing session.
 - Running Email Campaign: set up in SmartLead (Settings > SmartLead). Link to deals/universes. Track in Admin > Campaigns.
-- Scoring Buyers: automatic when added to universe. Geography, size, service, owner goals (all 0-100). Tiers: A (80+), B (60-79), C (40-59), D (<40).
+- Scoring Buyers: automatic when added to universe. Service fit (70%), geography (15%), bonus/readiness (15%) — all 0-100. Tiers: A (80+), B (60-79), C (40-59), D (<40).
 - Uploading Documents: deal > Data Room > Upload. Categories: anonymous teaser, full memo, data room. Access controlled per buyer.
 - Tracking Outreach: deal detail > Outreach tab. Shows contacted, NDA sent/signed, memo sent, meeting scheduled, outcome. Overdue flagged.
 
