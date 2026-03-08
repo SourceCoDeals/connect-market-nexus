@@ -1,26 +1,18 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { 
-  Settings2, 
-  MapPin, 
-  DollarSign, 
-  Wrench,
-  MessageSquare,
-  RotateCcw,
-  Save
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { ScoringBehavior } from "@/types/remarketing";
+} from '@/components/ui/select';
+import { Settings2, MapPin, Wrench, MessageSquare, RotateCcw, Save } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { ScoringBehavior } from '@/types/remarketing';
 
 interface ScoringBehaviorPanelEnhancedProps {
   scoringBehavior: ScoringBehavior;
@@ -31,7 +23,12 @@ interface ScoringBehaviorPanelEnhancedProps {
     ownerGoals: number;
   };
   onScoringBehaviorChange?: (behavior: ScoringBehavior) => void;
-  onWeightsChange?: (weights: { geography: number; size: number; service: number; ownerGoals: number }) => void;
+  onWeightsChange?: (weights: {
+    geography: number;
+    size: number;
+    service: number;
+    ownerGoals: number;
+  }) => void;
   onSave?: () => void;
   readOnly?: boolean;
 }
@@ -173,7 +170,7 @@ export const ScoringBehaviorPanelEnhanced = ({
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* Industry Preset Pills */}
         <div className="space-y-2">
@@ -185,12 +182,12 @@ export const ScoringBehaviorPanelEnhanced = ({
                 onClick={() => applyPreset(preset.id)}
                 disabled={readOnly}
                 className={cn(
-                  "px-4 py-1.5 rounded-full text-sm font-medium transition-all",
-                  "border focus:outline-none focus:ring-2 focus:ring-primary/50",
+                  'px-4 py-1.5 rounded-full text-sm font-medium transition-all',
+                  'border focus:outline-none focus:ring-2 focus:ring-primary/50',
                   scoringBehavior.industry_preset === preset.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted border-border text-foreground",
-                  readOnly && "opacity-50 cursor-not-allowed"
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background hover:bg-muted border-border text-foreground',
+                  readOnly && 'opacity-50 cursor-not-allowed',
                 )}
               >
                 {preset.label}
@@ -210,13 +207,18 @@ export const ScoringBehaviorPanelEnhanced = ({
               <MapPin className="h-4 w-4 text-blue-500" />
               <h4 className="font-medium text-sm">Geography Scoring</h4>
             </div>
-            
+
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Strictness Level</Label>
                 <Select
                   value={scoringBehavior.geography_strictness || 'moderate'}
-                  onValueChange={(v) => handleChange('geography_strictness', v as ScoringBehavior['geography_strictness'])}
+                  onValueChange={(v) =>
+                    handleChange(
+                      'geography_strictness',
+                      v as ScoringBehavior['geography_strictness'],
+                    )
+                  }
                   disabled={readOnly}
                 >
                   <SelectTrigger className="h-9">
@@ -235,7 +237,12 @@ export const ScoringBehaviorPanelEnhanced = ({
                   <Label className="text-xs text-muted-foreground">Single-Location Deals</Label>
                   <Select
                     value={scoringBehavior.single_location_matching || 'adjacent_states'}
-                    onValueChange={(v) => handleChange('single_location_matching', v as ScoringBehavior['single_location_matching'])}
+                    onValueChange={(v) =>
+                      handleChange(
+                        'single_location_matching',
+                        v as ScoringBehavior['single_location_matching'],
+                      )
+                    }
                     disabled={readOnly}
                   >
                     <SelectTrigger className="h-9">
@@ -253,7 +260,12 @@ export const ScoringBehaviorPanelEnhanced = ({
                   <Label className="text-xs text-muted-foreground">Multi-Location Deals (3+)</Label>
                   <Select
                     value={scoringBehavior.multi_location_matching || 'same_region'}
-                    onValueChange={(v) => handleChange('multi_location_matching', v as ScoringBehavior['multi_location_matching'])}
+                    onValueChange={(v) =>
+                      handleChange(
+                        'multi_location_matching',
+                        v as ScoringBehavior['multi_location_matching'],
+                      )
+                    }
                     disabled={readOnly}
                   >
                     <SelectTrigger className="h-9">
@@ -271,69 +283,13 @@ export const ScoringBehaviorPanelEnhanced = ({
               <div className="flex items-center justify-between pt-1">
                 <div className="space-y-0.5">
                   <Label className="text-xs">Allow national buyers for attractive deals</Label>
-                  <p className="text-xs text-muted-foreground">High-value deals can attract buyers from further away</p>
+                  <p className="text-xs text-muted-foreground">
+                    High-value deals can attract buyers from further away
+                  </p>
                 </div>
                 <Switch
                   checked={scoringBehavior.allow_national_buyers ?? true}
                   onCheckedChange={(checked) => handleChange('allow_national_buyers', checked)}
-                  disabled={readOnly}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Size/Revenue Scoring */}
-          <div className="space-y-4 p-4 rounded-lg border border-dashed">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-green-500" />
-              <h4 className="font-medium text-sm">Size/Revenue Scoring</h4>
-            </div>
-            
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Strictness Level</Label>
-                <Select
-                  value={scoringBehavior.size_strictness || 'moderate'}
-                  onValueChange={(v) => handleChange('size_strictness', v as ScoringBehavior['size_strictness'])}
-                  disabled={readOnly}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="strict">Strict - Size is a gating factor</SelectItem>
-                    <SelectItem value="moderate">Moderate - Size influences score</SelectItem>
-                    <SelectItem value="flexible">Relaxed - Size is one of many factors</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">When deal is below buyer's minimum</Label>
-                <Select
-                  value={scoringBehavior.below_minimum_handling || 'penalize'}
-                  onValueChange={(v) => handleChange('below_minimum_handling', v as ScoringBehavior['below_minimum_handling'])}
-                  disabled={readOnly}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="disqualify">Disqualify - Remove from matches</SelectItem>
-                    <SelectItem value="penalize">Penalize - Reduce score significantly</SelectItem>
-                    <SelectItem value="allow">Ignore - Don't factor into score</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <div className="space-y-0.5">
-                  <Label className="text-xs">Penalize single-location deals</Label>
-                  <p className="text-xs text-muted-foreground">Reduce score for single-location businesses</p>
-                </div>
-                <Switch
-                  checked={scoringBehavior.penalize_single_location ?? false}
-                  onCheckedChange={(checked) => handleChange('penalize_single_location', checked)}
                   disabled={readOnly}
                 />
               </div>
@@ -346,13 +302,18 @@ export const ScoringBehaviorPanelEnhanced = ({
               <Wrench className="h-4 w-4 text-orange-500" />
               <h4 className="font-medium text-sm">Service Matching</h4>
             </div>
-            
+
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Matching Mode</Label>
                 <Select
                   value={scoringBehavior.service_matching_mode || 'keyword'}
-                  onValueChange={(v) => handleChange('service_matching_mode', v as ScoringBehavior['service_matching_mode'])}
+                  onValueChange={(v) =>
+                    handleChange(
+                      'service_matching_mode',
+                      v as ScoringBehavior['service_matching_mode'],
+                    )
+                  }
                   disabled={readOnly}
                 >
                   <SelectTrigger className="h-9">
@@ -369,7 +330,9 @@ export const ScoringBehaviorPanelEnhanced = ({
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-xs">Require primary focus match</Label>
-                  <p className="text-xs text-muted-foreground">Buyer's core service must match deal's primary offering</p>
+                  <p className="text-xs text-muted-foreground">
+                    Buyer's core service must match deal's primary offering
+                  </p>
                 </div>
                 <Switch
                   checked={scoringBehavior.require_primary_focus ?? false}
@@ -381,11 +344,15 @@ export const ScoringBehaviorPanelEnhanced = ({
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-xs">Excluded services are dealbreakers</Label>
-                  <p className="text-xs text-muted-foreground">Disqualify if deal has services buyer explicitly avoids</p>
+                  <p className="text-xs text-muted-foreground">
+                    Disqualify if deal has services buyer explicitly avoids
+                  </p>
                 </div>
                 <Switch
                   checked={scoringBehavior.excluded_services_dealbreaker ?? false}
-                  onCheckedChange={(checked) => handleChange('excluded_services_dealbreaker', checked)}
+                  onCheckedChange={(checked) =>
+                    handleChange('excluded_services_dealbreaker', checked)
+                  }
                   disabled={readOnly}
                 />
               </div>
@@ -398,12 +365,14 @@ export const ScoringBehaviorPanelEnhanced = ({
               <MessageSquare className="h-4 w-4 text-purple-500" />
               <h4 className="font-medium text-sm">Engagement Overrides</h4>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-xs">Can override geography</Label>
-                  <p className="text-xs text-muted-foreground">Active engagement can bypass geo restrictions</p>
+                  <p className="text-xs text-muted-foreground">
+                    Active engagement can bypass geo restrictions
+                  </p>
                 </div>
                 <Switch
                   checked={scoringBehavior.can_override_geography ?? true}
@@ -415,7 +384,9 @@ export const ScoringBehaviorPanelEnhanced = ({
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-xs">Can override size</Label>
-                  <p className="text-xs text-muted-foreground">Active engagement can bypass size requirements</p>
+                  <p className="text-xs text-muted-foreground">
+                    Active engagement can bypass size requirements
+                  </p>
                 </div>
                 <Switch
                   checked={scoringBehavior.can_override_size ?? false}
@@ -454,7 +425,12 @@ export const ScoringBehaviorPanelEnhanced = ({
         {/* Action Buttons */}
         {!readOnly && (
           <div className="flex justify-between items-center pt-2 border-t">
-            <Button variant="ghost" size="sm" onClick={resetToDefaults} className="text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetToDefaults}
+              className="text-muted-foreground"
+            >
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset to defaults
             </Button>

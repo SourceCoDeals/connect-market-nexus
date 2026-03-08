@@ -12,9 +12,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useNewRecommendedBuyers, type BuyerScore } from '@/hooks/admin/use-new-recommended-buyers';
 import { useSeedBuyers, type SeedBuyerResult } from '@/hooks/admin/use-seed-buyers';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
+import { supabase } from '@/integrations/supabase/client';
 import {
   RefreshCw,
   Users,
@@ -44,7 +52,57 @@ import { cn } from '@/lib/utils';
 interface RecommendedBuyersTabProps {
   listingId: string;
   listingTitle?: string;
+  listingIndustry?: string;
+  listingCategories?: string[];
   pipelineBuyerIds: Set<string>;
+}
+
+const REJECTION_REASONS = [
+  { value: 'wrong_industry', label: 'Wrong Industry' },
+  { value: 'not_pe_backed', label: 'Not PE-Backed' },
+  { value: 'pe_firm_not_platform', label: 'PE Firm, Not Platform' },
+  { value: 'too_small', label: 'Too Small' },
+  { value: 'too_large', label: 'Too Large' },
+  { value: 'wrong_geography', label: 'Wrong Geography' },
+  { value: 'no_longer_active', label: 'No Longer Active' },
+  { value: 'already_contacted', label: 'Already Contacted' },
+  { value: 'not_a_fit_other', label: 'Other' },
+] as const;
+
+/** Record buyer discovery feedback to the database for the feedback loop */
+async function recordFeedback(params: {
+  listingId: string;
+  buyer: BuyerScore;
+  action: 'accepted' | 'rejected';
+  reason?: string;
+  reasonCategory?: string;
+  nicheCategory: string;
+  dealIndustry?: string;
+  dealCategories?: string[];
+}) {
+  try {
+    await supabase.from('buyer_discovery_feedback').upsert(
+      {
+        listing_id: params.listingId,
+        buyer_id: params.buyer.buyer_id,
+        buyer_name: params.buyer.company_name,
+        pe_firm_name: params.buyer.pe_firm_name,
+        action: params.action,
+        reason: params.reason || null,
+        reason_category: params.reasonCategory || null,
+        niche_category: params.nicheCategory,
+        deal_industry: params.dealIndustry || null,
+        deal_categories: params.dealCategories || null,
+        buyer_type: params.buyer.buyer_type,
+        buyer_source: params.buyer.source,
+        composite_score: params.buyer.composite_score,
+        service_score: params.buyer.service_score,
+      },
+      { onConflict: 'listing_id,buyer_id,action' },
+    );
+  } catch (err) {
+    console.error('Failed to record buyer feedback (non-fatal):', err);
+  }
 }
 
 const PAGE_SIZE = 5;
@@ -362,6 +420,8 @@ function SeedResultsSummary({ results }: { results: SeedBuyerResult[] }) {
 export function RecommendedBuyersTab({
   listingId,
   listingTitle,
+  listingIndustry,
+  listingCategories,
   pipelineBuyerIds,
 }: RecommendedBuyersTabProps) {
   const { data, isLoading, isError, error, refresh } = useNewRecommendedBuyers(listingId);
@@ -382,6 +442,10 @@ export function RecommendedBuyersTab({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [internalPage, setInternalPage] = useState(0);
   const [externalPage, setExternalPage] = useState(0);
+  // Rejection dialog state
+  const [rejectingBuyer, setRejectingBuyer] = useState<BuyerScore | null>(null);
+
+  const nicheCategory = listingIndustry || listingCategories?.[0] || 'general';
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -463,6 +527,15 @@ export function RecommendedBuyersTab({
           next.delete(buyer.buyer_id);
           return next;
         });
+        // Record acceptance feedback for the feedback loop
+        recordFeedback({
+          listingId,
+          buyer,
+          action: 'accepted',
+          nicheCategory,
+          dealIndustry: listingIndustry,
+          dealCategories: listingCategories,
+        });
       } catch {
         // toast already shown by mutation
       } finally {
@@ -473,7 +546,7 @@ export function RecommendedBuyersTab({
         });
       }
     },
-    [acceptingIds, createIntroduction, listingId, listingTitle],
+    [acceptingIds, createIntroduction, listingId, listingTitle, nicheCategory, listingIndustry, listingCategories],
   );
 
   const handleBatchAdd = async () => {
@@ -498,8 +571,17 @@ export function RecommendedBuyersTab({
     }
   };
 
-  const handleDismiss = useCallback(
+  const handleDismissClick = useCallback(
     (buyer: BuyerScore) => {
+      setRejectingBuyer(buyer);
+    },
+    [],
+  );
+
+  const handleDismissConfirm = useCallback(
+    (reasonCategory?: string, reason?: string) => {
+      if (!rejectingBuyer) return;
+      const buyer = rejectingBuyer;
       setDismissedIds((prev) => {
         const next = new Set([...prev, buyer.buyer_id]);
         try {
@@ -514,9 +596,21 @@ export function RecommendedBuyersTab({
         next.delete(buyer.buyer_id);
         return next;
       });
+      // Record rejection feedback for the feedback loop
+      recordFeedback({
+        listingId,
+        buyer,
+        action: 'rejected',
+        reason,
+        reasonCategory,
+        nicheCategory,
+        dealIndustry: listingIndustry,
+        dealCategories: listingCategories,
+      });
       toast.success(`${buyer.company_name} marked as not a fit`);
+      setRejectingBuyer(null);
     },
-    [listingId],
+    [rejectingBuyer, listingId, nicheCategory, listingIndustry, listingCategories],
   );
 
   const toggleSelect = useCallback((buyerId: string) => {
@@ -674,7 +768,7 @@ export function RecommendedBuyersTab({
                     key={buyer.buyer_id}
                     buyer={buyer}
                     onAccept={handleAccept}
-                    onDismiss={handleDismiss}
+                    onDismiss={handleDismissClick}
                     isAccepting={acceptingIds.has(buyer.buyer_id)}
                     isInPipeline={pipelineBuyerIds.has(buyer.buyer_id)}
                     isSelected={selectedIds.has(buyer.buyer_id)}
@@ -725,7 +819,7 @@ export function RecommendedBuyersTab({
                     key={buyer.buyer_id}
                     buyer={buyer}
                     onAccept={handleAccept}
-                    onDismiss={handleDismiss}
+                    onDismiss={handleDismissClick}
                     isAccepting={acceptingIds.has(buyer.buyer_id)}
                     isInPipeline={pipelineBuyerIds.has(buyer.buyer_id)}
                     isSelected={selectedIds.has(buyer.buyer_id)}
@@ -768,6 +862,40 @@ export function RecommendedBuyersTab({
           )}
         </Tabs>
       )}
+
+      {/* Rejection Reason Dialog */}
+      <Dialog open={!!rejectingBuyer} onOpenChange={(open) => !open && setRejectingBuyer(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Why isn't {rejectingBuyer?.company_name} a fit?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2 py-3">
+            {REJECTION_REASONS.map((reason) => (
+              <Button
+                key={reason.value}
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs justify-start"
+                onClick={() => handleDismissConfirm(reason.value, reason.label)}
+              >
+                {reason.label}
+              </Button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => handleDismissConfirm()}
+            >
+              Skip — just dismiss
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

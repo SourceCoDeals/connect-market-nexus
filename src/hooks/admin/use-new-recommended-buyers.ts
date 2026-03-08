@@ -24,6 +24,8 @@ export interface BuyerScore {
   fit_reason: string;
   tier: 'move_now' | 'strong' | 'speculative';
   source: 'ai_seeded' | 'marketplace' | 'scored';
+  /** Buyer type priority for ranking (1=PE-backed platform, 2=PE/FO, 3=IS/SF, 4=Operating, 5=Other) */
+  buyer_type_priority?: number;
 }
 
 export interface RecommendedBuyersResult {
