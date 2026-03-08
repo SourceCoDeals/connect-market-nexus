@@ -216,18 +216,49 @@ export default function EnrichmentQueue() {
     [],
   );
 
+  /** Fetch stats for buyer_search_jobs (different status names) */
+  const fetchSearchStats = useCallback(async (cutoff: string): Promise<QueueStats> => {
+    const q = (status: string) =>
+      (supabase as any)
+        .from('buyer_search_jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', status)
+        .gte('created_at', cutoff);
+    const [p, pr, c, f] = await Promise.all([
+      q('pending'),
+      q('searching'),
+      q('completed'),
+      q('failed'),
+    ]);
+    // "searching" and "scoring" both count as processing
+    const scoringRes = await (supabase as any)
+      .from('buyer_search_jobs')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'scoring')
+      .gte('created_at', cutoff);
+    return {
+      pending: p.count ?? 0,
+      processing: (pr.count ?? 0) + (scoringRes.count ?? 0),
+      completed: c.count ?? 0,
+      failed: f.count ?? 0,
+      total: (p.count ?? 0) + (pr.count ?? 0) + (scoringRes.count ?? 0) + (c.count ?? 0) + (f.count ?? 0),
+    };
+  }, []);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     try {
-      const [ds, bs, ss] = await Promise.all([
+      const [ds, bs, ss, searchS] = await Promise.all([
         fetchStatsForTable('enrichment_queue', cutoff),
         fetchStatsForTable('buyer_enrichment_queue', cutoff),
         fetchStatsForTable('remarketing_scoring_queue', cutoff),
+        fetchSearchStats(cutoff),
       ]);
       setDealStats(ds);
       setBuyerStats(bs);
       setScoringStats(ss);
+      setSearchStats(searchS);
 
       // Fetch recent items for the active tab
       const [dealRes, buyerRes, scoringRes] = await Promise.all([
