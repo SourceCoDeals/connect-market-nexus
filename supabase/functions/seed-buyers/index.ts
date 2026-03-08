@@ -667,6 +667,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Pass 1: Define the buyer profile ──
+    await updateJobProgress({ status: 'searching', progress_pct: 10, progress_message: 'Defining ideal buyer profile (Pass 1)…' });
     console.log('Pass 1: Defining buyer profile...');
     const pass1Response = await callClaude({
       model: CLAUDE_MODELS.sonnet,
@@ -698,6 +699,7 @@ Deno.serve(async (req: Request) => {
     );
 
     // ── Pass 2: Find PE-backed platforms matching the profile ──
+    await updateJobProgress({ status: 'searching', progress_pct: 35, progress_message: 'Searching for PE-backed platform companies (Pass 2)…' });
     console.log('Pass 2: Finding PE-backed platform companies...');
     const cappedMax = Math.min(maxBuyers, 8);
 
