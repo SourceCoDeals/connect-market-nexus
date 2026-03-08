@@ -29,6 +29,8 @@ interface SeedBuyersParams {
   maxBuyers?: number;
   forceRefresh?: boolean;
   buyerCategory?: 'sponsors' | 'operating_companies';
+  /** Optional job ID for progress tracking */
+  jobId?: string;
 }
 
 /** Extract the real error message from a Supabase FunctionsHttpError */
