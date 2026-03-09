@@ -172,6 +172,12 @@ export function DealHeader({
         {listedName && (
           <p className="text-sm text-muted-foreground mt-0.5">Listed as: {listedName}</p>
         )}
+        {dealOwnerName && (
+          <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+            <User className="h-3.5 w-3.5" />
+            Deal Owner: <span className="font-medium text-foreground">{dealOwnerName}</span>
+          </p>
+        )}
         {(() => {
           const loc = getDisplayLocation(deal);
           return (
