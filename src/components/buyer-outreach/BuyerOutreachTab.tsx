@@ -72,17 +72,27 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
         .is('deleted_at', null)
         .not('remarketing_buyer_id', 'is', null);
 
-      // Also get buyer IDs from buyer introductions
+      // Also get buyer introductions (includes embedded contact info as fallback)
       const { data: introEntries } = await supabase
         .from('buyer_introductions' as never)
-        .select('remarketing_buyer_id')
+        .select('id, remarketing_buyer_id, buyer_name, buyer_email, buyer_phone, buyer_linkedin_url, buyer_firm_name')
         .eq('listing_id', dealId)
         .is('archived_at', null)
         .not('remarketing_buyer_id', 'is', null);
 
+      const typedIntroEntries = (introEntries || []) as Array<{
+        id: string;
+        remarketing_buyer_id: string;
+        buyer_name: string;
+        buyer_email: string | null;
+        buyer_phone: string | null;
+        buyer_linkedin_url: string | null;
+        buyer_firm_name: string;
+      }>;
+
       const buyerIds = [...new Set([
         ...(pipelineEntries || []).map(e => e.remarketing_buyer_id),
-        ...((introEntries || []) as Array<{ remarketing_buyer_id: string }>).map(e => e.remarketing_buyer_id),
+        ...typedIntroEntries.map(e => e.remarketing_buyer_id),
       ].filter(Boolean))] as string[];
       if (!buyerIds.length) return [];
 
@@ -100,6 +110,52 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
         .in('id', buyerIds);
 
       const buyerMap = new Map((buyerRows || []).map(b => [b.id, b]));
+
+      // Create contacts for buyer introductions that don't have one yet
+      const contactsByBuyer = new Set((contacts || []).map(c => c.remarketing_buyer_id));
+      const missingIntros = typedIntroEntries.filter(
+        intro => !contactsByBuyer.has(intro.remarketing_buyer_id),
+      );
+
+      if (missingIntros.length > 0) {
+        // Insert each missing contact individually — skip on conflict
+        for (const intro of missingIntros) {
+          const nameParts = intro.buyer_name.trim().split(/\s+/);
+          try {
+            await supabase
+              .from('contacts')
+              .insert({
+                first_name: nameParts[0] || '',
+                last_name: nameParts.slice(1).join(' ') || '',
+                email: intro.buyer_email?.toLowerCase().trim() || null,
+                phone: intro.buyer_phone || null,
+                linkedin_url: intro.buyer_linkedin_url || null,
+                company_name: intro.buyer_firm_name,
+                contact_type: 'buyer',
+                source: 'buyer_introduction',
+                remarketing_buyer_id: intro.remarketing_buyer_id,
+              });
+          } catch {
+            // Skip duplicates — contact already exists
+          }
+        }
+
+        // Re-fetch all contacts now that new ones exist
+        const { data: refreshedContacts } = await supabase
+          .from('contacts')
+          .select('id, first_name, last_name, email, phone, linkedin_url, company_name, title, remarketing_buyer_id')
+          .in('remarketing_buyer_id', buyerIds)
+          .eq('archived', false);
+
+        return (refreshedContacts || []).map(c => {
+          const buyer = c.remarketing_buyer_id ? buyerMap.get(c.remarketing_buyer_id) : null;
+          return {
+            ...c,
+            buyer_type: buyer?.buyer_type || null,
+            buyer_company_name: buyer?.company_name || null,
+          } as BuyerContact;
+        });
+      }
 
       return (contacts || []).map(c => {
         const buyer = c.remarketing_buyer_id ? buyerMap.get(c.remarketing_buyer_id) : null;
