@@ -154,10 +154,11 @@ const ContactListDetailPage = () => {
     URL.revokeObjectURL(url);
   };
 
-  // For dialer push, use entity_ids from selected (or all if none selected)
+  // For dialer push, use member IDs (not entity_ids) so the edge function
+  // can resolve directly from contact_list_members regardless of entity_type
   const dialerContactIds = (
     selectedWithPhone.length > 0 ? selectedWithPhone : activeMembers.filter((m) => m.contact_phone)
-  ).map((m) => m.entity_id);
+  ).map((m) => m.id);
 
   const handleBulkRemove = () => {
     if (!list) return;
@@ -367,7 +368,12 @@ const ContactListDetailPage = () => {
                     }
                     onRemove={() => removeMember.mutate({ memberId: member.id, listId: list.id })}
                     onNavigateToDeal={() => {
-                      const LISTING_TYPES = ['sourceco_deal', 'gp_partner_deal', 'referral_deal', 'listing'];
+                      const LISTING_TYPES = [
+                        'sourceco_deal',
+                        'gp_partner_deal',
+                        'referral_deal',
+                        'listing',
+                      ];
                       if (member.entity_type === 'deal') {
                         navigate(`/admin/pipeline?deal=${member.entity_id}`);
                       } else if (LISTING_TYPES.includes(member.entity_type)) {
@@ -387,7 +393,7 @@ const ContactListDetailPage = () => {
         onOpenChange={setIsDialerOpen}
         contactIds={dialerContactIds}
         contactCount={dialerContactIds.length}
-        entityType="contacts"
+        entityType="contact_list"
       />
       <PushToSmartleadModal
         open={isSmartleadOpen}
@@ -420,7 +426,13 @@ function MemberRow({
   onRemove: () => void;
   onNavigateToDeal: () => void;
 }) {
-  const DEAL_ENTITY_TYPES = ['deal', 'listing', 'sourceco_deal', 'gp_partner_deal', 'referral_deal'];
+  const DEAL_ENTITY_TYPES = [
+    'deal',
+    'listing',
+    'sourceco_deal',
+    'gp_partner_deal',
+    'referral_deal',
+  ];
   const isDealType = DEAL_ENTITY_TYPES.includes(member.entity_type);
 
   return (
@@ -470,7 +482,9 @@ function MemberRow({
         {member.deal_owner_name ? (
           <span className="text-sm font-medium text-foreground">{member.deal_owner_name}</span>
         ) : (
-          <span className="text-sm text-muted-foreground/50">{isDealType ? 'Unassigned' : '--'}</span>
+          <span className="text-sm text-muted-foreground/50">
+            {isDealType ? 'Unassigned' : '--'}
+          </span>
         )}
       </TableCell>
       <TableCell>
