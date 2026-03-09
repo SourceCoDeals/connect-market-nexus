@@ -299,7 +299,7 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
 
                 return (
                   <div key={buyer.id}>
-                    <div className="grid grid-cols-[40px_1fr_200px_160px_120px_120px_100px] gap-2 px-3 py-2.5 border-b hover:bg-muted/20 transition-colors items-center">
+                    <div className="grid grid-cols-[40px_1fr_160px_140px_110px_200px_160px_120px_120px_100px] gap-2 px-3 py-2.5 border-b hover:bg-muted/20 transition-colors items-center">
                       <div className="flex items-center justify-center">
                         <Checkbox
                           checked={selectedIds.has(buyer.id)}
@@ -308,21 +308,28 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
                       </div>
 
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm truncate">
-                            {buyer.first_name} {buyer.last_name}
-                          </span>
-                          {buyer.buyer_type && (
-                            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                              {buyer.buyer_type.replace(/_/g, ' ')}
-                            </span>
-                          )}
-                        </div>
-                        {buyer.buyer_company_name && (
-                          <p className="text-xs text-muted-foreground truncate">
-                            {buyer.buyer_company_name}
-                            {buyer.title && ` — ${buyer.title}`}
-                          </p>
+                        <span className="font-medium text-sm truncate block">
+                          {buyer.first_name} {buyer.last_name}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <span className="text-xs text-muted-foreground truncate block">
+                          {buyer.buyer_company_name || '—'}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0">
+                        <span className="text-xs text-muted-foreground truncate block">
+                          {buyer.title || '—'}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0">
+                        {buyer.buyer_type ? (
+                          <BuyerTypeBadge buyerType={buyer.buyer_type} isPeBacked={buyer.is_pe_backed ?? false} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </div>
 
