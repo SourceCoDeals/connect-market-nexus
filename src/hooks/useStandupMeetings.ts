@@ -37,10 +37,11 @@ export function useStandupMeetings(options?: { limit?: number }) {
   return useQuery({
     queryKey: [STANDUP_MEETINGS_QUERY_KEY, options],
     queryFn: async () => {
-      // Fetch all meetings ordered by date descending
+      // Fetch only <ds>-tagged standup meetings ordered by date descending
       const { data: meetings, error: meetingsError } = await supabase
         .from('standup_meetings' as never)
         .select('*')
+        .eq('is_ds_meeting', true)
         .order('meeting_date', { ascending: false })
         .limit(options?.limit || 50);
 

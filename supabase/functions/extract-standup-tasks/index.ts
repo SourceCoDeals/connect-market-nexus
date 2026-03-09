@@ -404,6 +404,97 @@ function inferTaskCategory(text: string, taskType: string): 'deal_task' | 'platf
   return 'deal_task';
 }
 
+// ─── Title Standardization ───
+
+/**
+ * Standardize task titles into consistent, professional format.
+ * Examples:
+ *   "find a buyer for acme corp" → "Find Buyers for Acme Corp"
+ *   "call the owner of smith manufacturing" → "Call Owner of Smith Manufacturing"
+ *   "follow up with the MPG buyer" → "Follow Up with MPG Buyer"
+ *   "send data room to patrick" → "Send Data Room to Patrick"
+ *   "reconnect with ace garage door" → "Reconnect with Ace Garage Door"
+ */
+function standardizeTaskTitle(title: string, dealRef?: string): string {
+  let result = title.trim();
+  if (!result) return result;
+
+  // Normalize whitespace
+  result = result.replace(/\s+/g, ' ');
+
+  // Remove trailing periods
+  result = result.replace(/\.\s*$/, '');
+
+  // Standardize "find buyer(s)" patterns → "Find Buyers for COMPANY"
+  result = result.replace(
+    /^(find|identify|source|look for|search for)\s+(a\s+)?buyer(s)?\s+(for|of)\s+/i,
+    (_, verb, _a, _s, prep) => `Find Buyers ${prep.toLowerCase()} `,
+  );
+
+  // Standardize "build buyer universe/list" → "Build Buyer Universe for COMPANY"
+  result = result.replace(
+    /^(build|create|compile)\s+(a\s+)?(buyer\s+)?(universe|list)\s+(for|of)\s+/i,
+    (_, _verb, _a, _b, _type, prep) => `Build Buyer Universe ${prep.toLowerCase()} `,
+  );
+
+  // Standardize "contact/call/reach out to owner" patterns
+  result = result.replace(
+    /^(call|contact|reach out to|phone)\s+(the\s+)?owner\s+(of|at|for)\s+/i,
+    (_, _verb, _the, prep) => `Call Owner ${prep.toLowerCase()} `,
+  );
+
+  // Standardize "follow up" patterns
+  result = result.replace(
+    /^follow[\s-]?up\s+(with|on)\s+(the\s+)?/i,
+    (_, prep) => `Follow Up ${prep.toLowerCase()} `,
+  );
+
+  // Standardize "send (materials/data room/teaser/CIM)" patterns
+  result = result.replace(
+    /^(send|share|forward)\s+(the\s+)?(data room|teaser|cim|memo|materials|nda)\s+(to|for)\s+/i,
+    (_, _verb, _the, doc, prep) => {
+      const docTitle = doc.toLowerCase() === 'cim' ? 'CIM' : doc.toLowerCase() === 'nda' ? 'NDA' :
+        doc.replace(/\b\w/g, (c: string) => c.toUpperCase());
+      return `Send ${docTitle} ${prep.toLowerCase()} `;
+    },
+  );
+
+  // Standardize "email" patterns
+  result = result.replace(
+    /^(email|send\s+email\s+to|write\s+email\s+to)\s+/i,
+    () => 'Email ',
+  );
+
+  // Standardize "CC" → always uppercase
+  result = result.replace(/\bcc\b/gi, 'CC');
+
+  // Remove filler words: "the", "a" before company names (but keep meaningful ones)
+  result = result.replace(/\s+the\s+(?=[A-Z])/g, ' ');
+
+  // Title Case the result — capitalize first letter of each word, preserve acronyms
+  result = result.replace(/\b([a-z])/g, (_, c) => c.toUpperCase());
+
+  // Preserve known acronyms as uppercase
+  const acronyms = ['NDA', 'CIM', 'IOI', 'LOI', 'CRM', 'IC', 'MPG', 'PE', 'LLC', 'CEO', 'CFO', 'COO', 'CC'];
+  for (const acr of acronyms) {
+    const regex = new RegExp(`\\b${acr}\\b`, 'gi');
+    result = result.replace(regex, acr);
+  }
+
+  // Lowercase prepositions/articles that are mid-title
+  const lowercaseWords = ['for', 'of', 'to', 'with', 'on', 'at', 'and', 'the', 'a', 'an', 'in'];
+  for (const word of lowercaseWords) {
+    // Only lowercase if not at the start of the title
+    const regex = new RegExp(`(?<=\\s)${word.charAt(0).toUpperCase() + word.slice(1)}(?=\\s)`, 'g');
+    result = result.replace(regex, word);
+  }
+
+  // Ensure first character is always uppercase
+  result = result.charAt(0).toUpperCase() + result.slice(1);
+
+  return result;
+}
+
 /** Parse MM:SS timestamp to total seconds */
 function parseTimestampToSeconds(ts: string): number | null {
   if (!ts) return null;
@@ -548,6 +639,18 @@ ${memberList}
 - find_buyers: Research and find potential buyers
 - contact_buyers: Reach out to specific buyers
 - other: Tasks that don't fit above categories
+
+## Title Formatting Rules
+Use professional, standardized title case. Follow these patterns:
+- Finding buyers → "Find Buyers for [Company]"
+- Building buyer universe → "Build Buyer Universe for [Company]"
+- Calling/contacting owner → "Call Owner of [Company]"
+- Following up → "Follow Up with [Person/Company]"
+- Sending materials → "Send [Document Type] to [Person/Company]"
+- Emailing → "Email [Person] re: [Topic]"
+- Reconnecting → "Reconnect with [Company/Person]"
+- Scheduling → "Schedule Call with [Person/Company]"
+Always capitalize company names. Use title case (capitalize major words, lowercase prepositions like "for", "of", "to", "with").
 
 ## Extraction Rules
 1. A task is any specific action a named person is expected to perform
@@ -1050,6 +1153,11 @@ async function processSingleMeeting(
     console.log(`Extracted ${extractedTasks.length} tasks`);
   }
 
+  // Standardize task titles before saving
+  for (const task of extractedTasks) {
+    task.title = standardizeTaskTitle(task.title, task.deal_reference);
+  }
+
   // Create standup meeting record
   const { data: meeting, error: meetingError } = await supabase
     .from('standup_meetings')
@@ -1059,6 +1167,7 @@ async function processSingleMeeting(
       meeting_date: meetingDate,
       meeting_duration_minutes: meetingDuration || null,
       transcript_url: transcriptUrl || null,
+      is_ds_meeting: true,
       tasks_extracted: extractedTasks.length,
       tasks_unassigned: extractedTasks.filter((t) => !matchAssignee(t.assignee_name, teamMembers))
         .length,
