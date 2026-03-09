@@ -178,7 +178,11 @@ export function DealOutreachProfileForm({ dealId }: DealOutreachProfileFormProps
             </div>
             <div>
               <span className="text-xs text-muted-foreground">EBITDA</span>
-              <p className="font-medium">{profile.ebitda}</p>
+              <p className="font-medium">
+                {profile.ebitda
+                  ? `$${Number(profile.ebitda.replace(/,/g, '')).toLocaleString('en-US')}`
+                  : '—'}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -227,7 +231,7 @@ export function DealOutreachProfileForm({ dealId }: DealOutreachProfileFormProps
           <NumericInput
             id="ebitda"
             value={ebitda}
-            onChange={(value) => setEbitda(value)}
+            onChange={(value: string) => setEbitda(value)}
             placeholder="e.g. 1,000,000"
           />
           <p className="text-xs text-muted-foreground">
