@@ -983,7 +983,7 @@ Deno.serve(async (req: Request) => {
     authUserId = auth.userId;
   }
   // Provide a fallback auth object for downstream references
-  const auth = { userId: authUserId || 'service-role' };
+  const auth = { userId: authUserId || null };
 
   // Parse body
   let body: FindContactsRequest;
@@ -1172,7 +1172,7 @@ Deno.serve(async (req: Request) => {
       try {
         const blitzResults = await batchEnrichContacts(
           contactsWithLinkedIn.map((d) => ({ linkedinUrl: d.profileUrl })),
-          3, // concurrency
+          1, // concurrency — serialized to avoid Blitz rate limits
         );
         for (const [url, data] of blitzResults) {
           blitzEnriched.set(url, data);
@@ -1199,7 +1199,7 @@ Deno.serve(async (req: Request) => {
       console.log(`[find-contacts] Clay fallback for ${stillNeedsEmailAfterBlitz.length} contacts`);
       const clayRequestIds = await clayBatchSend(
         supabaseAdmin,
-        auth.userId!,
+        auth.userId || 'service-role',
         stillNeedsEmailAfterBlitz.map((d) => ({
           linkedinUrl: d.profileUrl || undefined,
           firstName: d.firstName,
