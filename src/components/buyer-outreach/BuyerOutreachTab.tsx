@@ -292,7 +292,7 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
 
                 return (
                   <div key={buyer.id}>
-                    <div className="grid grid-cols-[40px_1fr_120px_120px_100px] gap-2 px-3 py-2.5 border-b hover:bg-muted/20 transition-colors items-center">
+                    <div className="grid grid-cols-[40px_1fr_200px_160px_120px_120px_100px] gap-2 px-3 py-2.5 border-b hover:bg-muted/20 transition-colors items-center">
                       <div className="flex items-center justify-center">
                         <Checkbox
                           checked={selectedIds.has(buyer.id)}
@@ -319,15 +319,35 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
                         )}
                       </div>
 
+                      <div className="min-w-0">
+                        {buyer.email ? (
+                          <a href={`mailto:${buyer.email}`} className="text-xs text-primary hover:underline truncate block" title={buyer.email}>
+                            {buyer.email}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        {buyer.phone ? (
+                          <a href={`tel:${buyer.phone}`} className="text-xs text-foreground hover:underline truncate block" title={buyer.phone}>
+                            {buyer.phone}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
+
                       <div className="flex items-center gap-1.5">
                         {buyer.email && (
-                          <Mail className="h-3.5 w-3.5 text-blue-500" />
+                          <Mail className="h-3.5 w-3.5 text-primary" />
                         )}
                         {buyer.linkedin_url && (
-                          <Linkedin className="h-3.5 w-3.5 text-blue-700" />
+                          <Linkedin className="h-3.5 w-3.5 text-primary" />
                         )}
                         {buyer.phone && (
-                          <Phone className="h-3.5 w-3.5 text-green-600" />
+                          <Phone className="h-3.5 w-3.5 text-primary" />
                         )}
                         {!buyer.email && !buyer.linkedin_url && !buyer.phone && (
                           <span className="text-xs text-muted-foreground">None</span>
