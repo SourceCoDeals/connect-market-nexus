@@ -696,7 +696,7 @@ interface TeamMember {
 async function loadTeamMembers(supabase: ReturnType<typeof createClient>): Promise<TeamMember[]> {
   const { data: teamRoles } = await supabase
     .from('user_roles')
-    .select('user_id, profiles!inner(id, first_name, last_name)')
+    .select('user_id, profiles!inner(id, first_name, last_name, email)')
     .in('role', ['owner', 'admin', 'moderator']);
 
   const { data: aliases } = await supabase.from('team_member_aliases').select('profile_id, alias');
@@ -708,35 +708,75 @@ async function loadTeamMembers(supabase: ReturnType<typeof createClient>): Promi
     aliasMap.set(a.profile_id, existing);
   }
 
+  // Use profiles.id (same as user_id) for alias lookup — both reference auth.users.id.
+  // Also extract email prefix as an automatic alias for better Fireflies speaker matching.
   return (teamRoles || []).map(
-    (r: { user_id: string; profiles: { id: string; first_name: string; last_name: string } }) => ({
-      id: r.user_id,
-      name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
-      first_name: r.profiles.first_name || '',
-      last_name: r.profiles.last_name || '',
-      aliases: aliasMap.get(r.user_id) || [],
-    }),
+    (r: { user_id: string; profiles: { id: string; first_name: string; last_name: string; email: string } }) => {
+      const profileId = r.profiles.id;
+      const manualAliases = aliasMap.get(profileId) || [];
+
+      // Auto-generate aliases from email prefix (e.g., "jsmith" from "jsmith@company.com")
+      const emailPrefix = r.profiles.email?.split('@')[0];
+      const autoAliases = emailPrefix ? [emailPrefix] : [];
+
+      return {
+        id: r.user_id,
+        name: `${r.profiles.first_name || ''} ${r.profiles.last_name || ''}`.trim(),
+        first_name: r.profiles.first_name || '',
+        last_name: r.profiles.last_name || '',
+        aliases: [...manualAliases, ...autoAliases],
+      };
+    },
   );
 }
 
 function matchAssignee(name: string, teamMembers: TeamMember[]): string | null {
   if (!name || name === 'Unassigned') return null;
-  const lower = name.toLowerCase().trim();
+
+  // Normalize: strip common Fireflies speaker prefixes like "Speaker 1 - ", "Host - "
+  let lower = name.toLowerCase().trim();
+  lower = lower.replace(/^(speaker\s*\d+\s*[-–—:]\s*)/i, '');
+  lower = lower.replace(/^(host\s*[-–—:]\s*)/i, '');
+  lower = lower.trim();
+
+  if (!lower) return null;
+
+  // Pass 1: exact match on full name, first name, last name
   for (const m of teamMembers) {
     if (m.name.toLowerCase() === lower) return m.id;
     if (m.first_name.toLowerCase() === lower) return m.id;
     if (m.last_name.toLowerCase() === lower) return m.id;
+  }
+
+  // Pass 2: alias match (includes manual aliases + auto email prefix)
+  for (const m of teamMembers) {
     for (const alias of m.aliases) {
       if (alias.toLowerCase() === lower) return m.id;
     }
   }
-  // Fuzzy: check if name is contained in any team member name
-  // Require minimum 3 characters to avoid false positives (e.g., "an" matching "Dan")
+
+  // Pass 3: handle "FirstName L." or "FirstName Last..." patterns
+  const dotAbbrev = lower.match(/^(\w+)\s+(\w)\.\s*$/);
+  if (dotAbbrev) {
+    const [, first, lastInitial] = dotAbbrev;
+    for (const m of teamMembers) {
+      if (
+        m.first_name.toLowerCase() === first &&
+        m.last_name.toLowerCase().startsWith(lastInitial)
+      ) {
+        return m.id;
+      }
+    }
+  }
+
+  // Pass 4: fuzzy containment — require minimum 3 characters to avoid false positives
   if (lower.length >= 3) {
     for (const m of teamMembers) {
       if (
         m.name.toLowerCase().includes(lower) ||
-        (m.first_name.length >= 3 && lower.includes(m.first_name.toLowerCase()))
+        lower.includes(m.name.toLowerCase()) ||
+        (m.first_name.length >= 3 && lower.includes(m.first_name.toLowerCase())) ||
+        (m.last_name.length >= 3 && lower.includes(m.last_name.toLowerCase()))
       ) {
         return m.id;
       }
