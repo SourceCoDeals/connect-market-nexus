@@ -38,6 +38,7 @@ interface BuyerContact {
   buyer_type: string | null;
   is_pe_backed: boolean | null;
   buyer_company_name: string | null;
+  pe_firm_name: string | null;
 }
 
 export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
@@ -108,7 +109,7 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
       // Get buyer info
       const { data: buyerRows } = await supabase
         .from('buyers')
-        .select('id, company_name, buyer_type, is_pe_backed')
+        .select('id, company_name, buyer_type, is_pe_backed, pe_firm_name')
         .in('id', buyerIds);
 
       const buyerMap = new Map((buyerRows || []).map(b => [b.id, b]));
@@ -156,6 +157,7 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
             buyer_type: buyer?.buyer_type || null,
             is_pe_backed: buyer?.is_pe_backed || null,
             buyer_company_name: buyer?.company_name || null,
+            pe_firm_name: buyer?.pe_firm_name || null,
           } as BuyerContact;
         });
       }
@@ -167,6 +169,7 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
           buyer_type: buyer?.buyer_type || null,
           is_pe_backed: buyer?.is_pe_backed || null,
           buyer_company_name: buyer?.company_name || null,
+          pe_firm_name: buyer?.pe_firm_name || null,
         } as BuyerContact;
       });
     },
@@ -317,6 +320,11 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
                         <span className="text-xs text-muted-foreground truncate block">
                           {buyer.buyer_company_name || '—'}
                         </span>
+                        {buyer.is_pe_backed && buyer.buyer_type === 'corporate' && buyer.pe_firm_name && (
+                          <span className="text-[10px] text-muted-foreground/70 truncate block" title={buyer.pe_firm_name}>
+                            via {buyer.pe_firm_name}
+                          </span>
+                        )}
                       </div>
 
                       <div className="min-w-0">
