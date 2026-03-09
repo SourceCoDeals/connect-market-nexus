@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useShiftSelect } from '@/hooks/useShiftSelect';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -36,9 +36,11 @@ import { PushToHeyreachModal } from '@/components/remarketing/PushToHeyreachModa
 import type { ContactListMember } from '@/types/contact-list';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { cn } from '@/lib/utils';
 
 const ContactListDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: list, isLoading } = useContactList(id);
   const removeMember = useRemoveListMember();
 
@@ -339,6 +341,7 @@ const ContactListDetailPage = () => {
                 <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Company</TableHead>
+                <TableHead>Deal Owner</TableHead>
                 <TableHead>Source</TableHead>
                 <TableHead>Call Activity</TableHead>
                 <TableHead>Added</TableHead>
@@ -348,7 +351,7 @@ const ContactListDetailPage = () => {
             <TableBody>
               {filteredMembers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                     <ListChecks className="h-8 w-8 mx-auto mb-3 opacity-50" />
                     <p className="text-sm">No members match your search</p>
                   </TableCell>
@@ -363,6 +366,11 @@ const ContactListDetailPage = () => {
                       toggleSelect(member.id, !selectedIds.has(member.id), e)
                     }
                     onRemove={() => removeMember.mutate({ memberId: member.id, listId: list.id })}
+                    onNavigateToDeal={() => {
+                      if (member.entity_type === 'deal' || member.entity_type === 'listing') {
+                        navigate(`/admin/pipeline?deal=${member.entity_id}`);
+                      }
+                    }}
                   />
                 ))
               )}
@@ -401,14 +409,29 @@ function MemberRow({
   isSelected,
   onToggle,
   onRemove,
+  onNavigateToDeal,
 }: {
   member: ContactListMember;
   isSelected: boolean;
   onToggle: (e?: React.MouseEvent) => void;
   onRemove: () => void;
+  onNavigateToDeal: () => void;
 }) {
+  const isDealType = member.entity_type === 'deal' || member.entity_type === 'listing';
+
   return (
-    <TableRow className={isSelected ? 'bg-primary/5' : ''}>
+    <TableRow
+      className={cn(
+        isSelected ? 'bg-primary/5' : '',
+        isDealType && 'cursor-pointer hover:bg-muted/50',
+      )}
+      onClick={(e) => {
+        // Don't navigate if clicking checkbox or remove button
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('[role="checkbox"]')) return;
+        if (isDealType) onNavigateToDeal();
+      }}
+    >
       <TableCell
         onClick={(e) => {
           e.stopPropagation();
@@ -438,6 +461,13 @@ function MemberRow({
       </TableCell>
       <TableCell>
         <span className="text-sm">{member.contact_company || '--'}</span>
+      </TableCell>
+      <TableCell>
+        {member.deal_owner_name ? (
+          <span className="text-sm font-medium text-foreground">{member.deal_owner_name}</span>
+        ) : (
+          <span className="text-sm text-muted-foreground/50">{isDealType ? 'Unassigned' : '--'}</span>
+        )}
       </TableCell>
       <TableCell>
         <Badge variant="outline" className="text-[11px] font-normal capitalize">
@@ -474,7 +504,10 @@ function MemberRow({
           variant="ghost"
           size="icon"
           className="h-7 w-7 text-muted-foreground hover:text-destructive"
-          onClick={onRemove}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
           title="Remove from list"
         >
           <UserMinus className="h-3.5 w-3.5" />
