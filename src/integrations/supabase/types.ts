@@ -678,6 +678,60 @@ export type Database = {
           },
         ]
       }
+      buyer_outreach_events: {
+        Row: {
+          id: string
+          deal_id: string
+          buyer_id: string
+          channel: string
+          tool: string
+          event_type: string
+          event_timestamp: string
+          external_id: string | null
+          notes: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          deal_id: string
+          buyer_id: string
+          channel: string
+          tool: string
+          event_type: string
+          event_timestamp?: string
+          external_id?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          deal_id?: string
+          buyer_id?: string
+          channel?: string
+          tool?: string
+          event_type?: string
+          event_timestamp?: string
+          external_id?: string | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_outreach_events_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buyer_outreach_events_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buyer_introductions: {
         Row: {
           archived_at: string | null
