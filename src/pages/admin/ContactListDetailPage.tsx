@@ -36,6 +36,7 @@ import { PushToHeyreachModal } from '@/components/remarketing/PushToHeyreachModa
 import type { ContactListMember } from '@/types/contact-list';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+import { cn } from '@/lib/utils';
 
 const ContactListDetailPage = () => {
   const { id } = useParams<{ id: string }>();
