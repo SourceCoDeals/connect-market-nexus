@@ -1199,7 +1199,7 @@ Deno.serve(async (req: Request) => {
       console.log(`[find-contacts] Clay fallback for ${stillNeedsEmailAfterBlitz.length} contacts`);
       const clayRequestIds = await clayBatchSend(
         supabaseAdmin,
-        auth.userId!,
+        auth.userId || 'service-role',
         stillNeedsEmailAfterBlitz.map((d) => ({
           linkedinUrl: d.profileUrl || undefined,
           firstName: d.firstName,
