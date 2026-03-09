@@ -1,16 +1,27 @@
 /**
  * Find Contacts Edge Function
  *
- * Core orchestration for contact intelligence (same pipeline as AI command center):
- *   1. Check cache for recent results
- *   2. Discover employees via Serper Google search (role-specific queries)
- *   3. Filter by title criteria
- *   4. CRM pre-check — skip contacts already known with email
- *   5. PRIMARY: Clay batch email lookup (synchronous poll)
- *   6. FALLBACK: Prospeo enrichment for contacts Clay couldn't find
- *   7. Domain search fallback with multiple domain candidates
- *   8. Save to enriched_contacts table
- *   9. Log the search
+ * Two-phase contact discovery pipeline:
+ *   Phase 1 — Domain Discovery (when no domain provided):
+ *     Google the company name to find their real website domain.
+ *     Prevents wrong domain guesses from poisoning all contact searches.
+ *
+ *   Phase 2 — Contact Discovery & Enrichment:
+ *     1. Check cache for recent results
+ *     2. Domain discovery via Google (if no domain provided)
+ *     3. Discover employees via multi-layered Serper Google search
+ *        - Layer 1: Verified domain + company name + role
+ *        - Layer 2: Company name only (domain-free fallback)
+ *        - Layer 3: Company name variations (DBA, abbreviations)
+ *        - Layer 4: Specific title filter queries
+ *        - Layer 5: Broader coverage (team pages, etc.)
+ *     4. Filter by title criteria
+ *     5. CRM pre-check — skip contacts already known with email
+ *     6. PRIMARY: Clay batch email lookup (synchronous poll)
+ *     7. FALLBACK: Prospeo enrichment for contacts Clay couldn't find
+ *     8. Domain search fallback with multiple domain candidates
+ *     9. Save to enriched_contacts table
+ *    10. Log the search
  *
  * POST /find-contacts
  * Body: { company_name, title_filter?, target_count?, company_linkedin_url?, company_domain? }
@@ -21,7 +32,7 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
 import { inferDomain, inferDomainCandidates } from '../_shared/domain-utils.ts';
 import { batchEnrich, domainSearchEnrich } from '../_shared/prospeo-client.ts';
-import { googleSearch } from '../_shared/serper-client.ts';
+import { googleSearch, discoverCompanyDomain } from '../_shared/serper-client.ts';
 import { sendToClayLinkedIn, sendToClayNameDomain } from '../_shared/clay-client.ts';
 
 interface FindContactsRequest {
@@ -32,30 +43,39 @@ interface FindContactsRequest {
   company_domain?: string;
 }
 
-// Title matching utility
+// Title matching utility — expanded to catch more PE and platform company roles
 const TITLE_ALIASES: Record<string, string[]> = {
-  associate: ['associate', 'sr associate', 'senior associate', 'investment associate'],
+  associate: ['associate', 'sr associate', 'senior associate', 'investment associate', 'investment professional'],
   principal: ['principal', 'sr principal', 'senior principal', 'investment principal'],
-  vp: ['vp', 'vice president', 'vice-president', 'svp', 'senior vice president', 'evp'],
+  vp: ['vp', 'vice president', 'vice-president', 'svp', 'senior vice president', 'evp',
+    'executive vice president', 'vp of operations', 'vp operations', 'vp finance',
+    'vp business development', 'vp strategy', 'vp corporate development'],
   director: [
-    'director',
-    'managing director',
-    'sr director',
-    'senior director',
-    'associate director',
+    'director', 'managing director', 'sr director', 'senior director', 'associate director',
+    'director of operations', 'director of finance', 'director of business development',
+    'director of acquisitions', 'director of strategy', 'executive director',
   ],
-  partner: ['partner', 'managing partner', 'general partner', 'senior partner'],
+  partner: ['partner', 'managing partner', 'general partner', 'senior partner',
+    'operating partner', 'venture partner', 'founding partner', 'equity partner'],
   analyst: ['analyst', 'sr analyst', 'senior analyst', 'investment analyst'],
-  ceo: ['ceo', 'chief executive officer', 'president', 'owner', 'founder', 'co-founder'],
+  ceo: ['ceo', 'chief executive officer', 'president', 'owner', 'founder', 'co-founder',
+    'chief executive', 'managing member', 'general manager', 'gm'],
+  cfo: ['cfo', 'chief financial officer', 'head of finance', 'finance director',
+    'vp finance', 'controller', 'treasurer'],
+  coo: ['coo', 'chief operating officer', 'head of operations', 'operations director',
+    'vp operations'],
   bd: [
-    'business development',
-    'corp dev',
-    'corporate development',
-    'head of acquisitions',
-    'vp acquisitions',
-    'vp m&a',
-    'head of m&a',
+    'business development', 'corp dev', 'corporate development',
+    'head of acquisitions', 'vp acquisitions', 'vp m&a', 'head of m&a',
+    'director of acquisitions', 'acquisitions', 'deal origination',
+    'deal sourcing', 'investment origination', 'business development officer',
+    'bdo', 'head of growth', 'vp growth', 'chief development officer',
+    'chief business development officer', 'chief growth officer',
   ],
+  operating_partner: ['operating partner', 'operating executive', 'operating advisor',
+    'senior operating partner', 'executive in residence', 'eir',
+    'operating principal', 'portfolio operations'],
+  senior_associate: ['senior associate', 'sr associate', 'investment associate'],
 };
 
 function matchesTitle(title: string, filters: string[]): boolean {
@@ -101,6 +121,8 @@ function isValidLinkedInProfileUrl(url: string): boolean {
  * LinkedIn titles follow patterns like:
  *   "Ryan Brown - President at Essential Benefit Administrators | LinkedIn"
  *   "John Smith - CEO & Founder at Acme Corp | LinkedIn"
+ *   "Jane Doe, Partner - Gridiron Capital | LinkedIn"
+ *   "Mike Lee | Managing Director | LinkedIn"
  */
 function parseLinkedInTitle(resultTitle: string): {
   firstName: string;
@@ -110,6 +132,28 @@ function parseLinkedInTitle(resultTitle: string): {
 } | null {
   const cleaned = resultTitle.replace(/\s*[|·–—-]\s*LinkedIn\s*$/i, '').trim();
   if (!cleaned) return null;
+
+  // Handle "Name, Title - Company" pattern (common in LinkedIn)
+  const commaPattern = cleaned.match(/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+),\s*(.+?)(?:\s+[-–—]\s+(.+))?$/);
+  if (commaPattern) {
+    const namePart = commaPattern[1].trim();
+    const roleOrCompany = commaPattern[2].trim();
+    const afterDash = commaPattern[3]?.trim() || '';
+    const names = namePart.split(/\s+/).filter(Boolean);
+    if (names.length >= 2) {
+      const looksLikeRole = /\b(CEO|CFO|COO|CTO|VP|President|Founder|Owner|Partner|Principal|Director|Manager|Chairman|Associate|Analyst|Managing|Operating|Senior|Head)\b/i;
+      let role = '';
+      let company = '';
+      if (looksLikeRole.test(roleOrCompany)) {
+        role = roleOrCompany;
+        company = afterDash;
+      } else {
+        company = roleOrCompany;
+        role = afterDash;
+      }
+      return { firstName: names[0], lastName: names[names.length - 1], role, company };
+    }
+  }
 
   const dashParts = cleaned.split(/\s+[-–—]\s+/);
   const namePart = dashParts[0]?.trim() || '';
@@ -123,17 +167,31 @@ function parseLinkedInTitle(resultTitle: string): {
   let company = '';
   if (dashParts.length >= 2) {
     const rest = dashParts.slice(1).join(' - ').trim();
+    // Try "Role at Company" first
     const atMatch = rest.match(/^(.+?)\s+at\s+(.+)$/i);
     if (atMatch) {
       role = atMatch[1].trim();
       company = atMatch[2].trim();
     } else {
-      const looksLikeRole =
-        /\b(CEO|CFO|COO|CTO|VP|President|Founder|Owner|Partner|Principal|Director|Manager|Chairman)\b/i;
-      if (looksLikeRole.test(rest)) {
-        role = rest;
+      // Try "Role, Company" pattern
+      const commaMatch = rest.match(/^(.+?),\s+(.+)$/);
+      if (commaMatch) {
+        const looksLikeRole = /\b(CEO|CFO|COO|CTO|VP|President|Founder|Owner|Partner|Principal|Director|Manager|Chairman|Associate|Analyst|Managing|Operating|Senior|Head)\b/i;
+        if (looksLikeRole.test(commaMatch[1])) {
+          role = commaMatch[1].trim();
+          company = commaMatch[2].trim();
+        } else {
+          company = commaMatch[1].trim();
+          role = commaMatch[2].trim();
+        }
       } else {
-        company = rest;
+        const looksLikeRole =
+          /\b(CEO|CFO|COO|CTO|VP|President|Founder|Owner|Partner|Principal|Director|Manager|Chairman|Associate|Analyst|Managing|Operating|Senior|Head)\b/i;
+        if (looksLikeRole.test(rest)) {
+          role = rest;
+        } else {
+          company = rest;
+        }
       }
     }
   }
@@ -152,9 +210,59 @@ interface DiscoveredEmployee {
 }
 
 /**
+ * Build search-friendly name variations for a company.
+ * PE firms often go by abbreviations or short names.
+ * e.g., "Bernhard Capital Partners" → ["Bernhard Capital Partners", "Bernhard Capital", "BCP"]
+ */
+function getCompanyNameVariations(companyName: string): string[] {
+  const variations = [companyName];
+  const words = companyName.split(/\s+/).filter(Boolean);
+
+  const suffixes = ['partners', 'capital', 'group', 'holdings', 'advisors', 'advisory',
+    'management', 'investments', 'equity', 'fund', 'ventures', 'associates', 'llc', 'inc',
+    'corp', 'corporation', 'industries', 'enterprises', 'company', 'co'];
+  const core = words.filter(w => !suffixes.includes(w.toLowerCase()));
+
+  // Without suffix: "Bernhard Capital Partners" → "Bernhard Capital"
+  if (core.length > 0 && core.length < words.length) {
+    // Try core words only
+    if (core.length >= 1) variations.push(core.join(' '));
+    // Try core + first suffix (many firms known as "Name Capital" not just "Name")
+    const firstSuffix = words.find(w => suffixes.includes(w.toLowerCase()));
+    if (firstSuffix && core.length >= 1) {
+      variations.push(`${core.join(' ')} ${firstSuffix}`);
+    }
+  }
+
+  // Handle parenthetical names: "BigRentz (Equipt/America..." → "BigRentz", "Equipt"
+  const parenMatch = companyName.match(/^(.+?)\s*\((.+?)\)?$/);
+  if (parenMatch) {
+    variations.push(parenMatch[1].trim());
+    const inner = parenMatch[2].replace(/\.\.\.$/, '').trim();
+    // Split on / for alternate names
+    for (const alt of inner.split('/')) {
+      const trimmed = alt.trim();
+      if (trimmed.length > 2) variations.push(trimmed);
+    }
+  }
+
+  // Handle "dba" names: "Brammo Holdings (dba Mi..." → extract both
+  const dbaMatch = companyName.match(/^(.+?)\s*\((?:dba|d\/b\/a|doing business as)\s+(.+?)\)?$/i);
+  if (dbaMatch) {
+    variations.push(dbaMatch[1].trim());
+    variations.push(dbaMatch[2].replace(/\.\.\.$/, '').trim());
+  }
+
+  return [...new Set(variations.filter(v => v.length > 1))];
+}
+
+/**
  * Discover employees at a company via Serper Google search.
- * Replaces the broken Apify LinkedIn scraper with the same approach
- * used by the AI command center's discoverDecisionMakers.
+ * Uses a multi-layered search strategy:
+ *   Layer 1: Domain + company name + role (most precise)
+ *   Layer 2: Company name only + role (catches when domain guess is wrong)
+ *   Layer 3: Company name variations + role (catches abbreviations/DBAs)
+ *   Layer 4: Broader coverage queries (team pages, about pages)
  */
 async function discoverEmployeesViaSerper(
   companyName: string,
@@ -163,37 +271,66 @@ async function discoverEmployeesViaSerper(
   maxResults: number = 25,
 ): Promise<DiscoveredEmployee[]> {
   const companyDomain = domain || inferDomain(companyName);
-  const excludeNoise = '-zoominfo -dnb -rocketreach -signalhire -apollo.io';
+  const excludeNoise = '-zoominfo -dnb -rocketreach -signalhire -apollo.io -indeed.com -glassdoor';
+  const nameVariations = getCompanyNameVariations(companyName);
 
-  // Role-specific search queries (same strategy as AI command center)
-  const roleQueries = [
+  const roleQueries: string[] = [];
+
+  // ---- Layer 1: Domain + quoted company + role (most precise) ----
+  roleQueries.push(
     `${companyDomain} "${companyName}" CEO owner founder site:linkedin.com/in ${excludeNoise}`,
     `${companyDomain} "${companyName}" president chairman site:linkedin.com/in ${excludeNoise}`,
-    `${companyDomain} "${companyName}" partner principal site:linkedin.com/in ${excludeNoise}`,
+    `${companyDomain} "${companyName}" partner principal "managing director" site:linkedin.com/in ${excludeNoise}`,
     `${companyDomain} "${companyName}" VP director site:linkedin.com/in ${excludeNoise}`,
-    `"${companyName}" contact email ${excludeNoise}`,
-  ];
+  );
 
-  // Add targeted queries for specific title filters
+  // ---- Layer 2: Quoted company only (no domain — critical when domain guess is wrong) ----
+  roleQueries.push(
+    `"${companyName}" CEO founder president site:linkedin.com/in ${excludeNoise}`,
+    `"${companyName}" partner principal "managing director" site:linkedin.com/in ${excludeNoise}`,
+    `"${companyName}" VP director "head of" site:linkedin.com/in ${excludeNoise}`,
+    `"${companyName}" "business development" acquisitions site:linkedin.com/in ${excludeNoise}`,
+    `"${companyName}" CFO COO "operating partner" site:linkedin.com/in ${excludeNoise}`,
+  );
+
+  // ---- Layer 3: Company name variations (handles DBA names, abbreviations) ----
+  for (const variation of nameVariations.slice(1)) { // skip first (already used above)
+    roleQueries.push(
+      `"${variation}" CEO partner principal director site:linkedin.com/in ${excludeNoise}`,
+    );
+  }
+
+  // ---- Layer 4: Specific title filter queries ----
   if (titleFilter.length > 0) {
     for (const tf of titleFilter) {
+      // With domain
       roleQueries.push(
         `${companyDomain} "${companyName}" ${tf} site:linkedin.com/in ${excludeNoise}`,
+      );
+      // Without domain (fallback)
+      roleQueries.push(
+        `"${companyName}" "${tf}" site:linkedin.com/in ${excludeNoise}`,
       );
     }
   }
 
-  // Broader coverage query
-  roleQueries.push(`${companyDomain} "${companyName}" leadership team ${excludeNoise}`);
+  // ---- Layer 5: Broader coverage (team pages, about pages, general search) ----
+  roleQueries.push(
+    `"${companyName}" team leadership site:linkedin.com/in ${excludeNoise}`,
+    `"${companyName}" "works at" OR "working at" site:linkedin.com/in ${excludeNoise}`,
+  );
+
+  // Deduplicate queries
+  const uniqueQueries = [...new Set(roleQueries)];
 
   console.log(
-    `[find-contacts] Running ${roleQueries.length} Serper queries for "${companyName}"`,
+    `[find-contacts] Running ${uniqueQueries.length} Serper queries for "${companyName}"`,
   );
 
   // Run all queries and collect results
   const allResults: Array<{ title: string; url: string; description: string }> = [];
 
-  for (const query of roleQueries) {
+  for (const query of uniqueQueries) {
     try {
       const results = await googleSearch(query, 10);
       for (const r of results) {
@@ -208,6 +345,14 @@ async function discoverEmployeesViaSerper(
 
   console.log(`[find-contacts] Collected ${allResults.length} total search results`);
 
+  // Build company match words from all name variations
+  const allCompanyWords = new Set<string>();
+  for (const variation of nameVariations) {
+    for (const word of variation.toLowerCase().split(/\s+/)) {
+      if (word.length > 2) allCompanyWords.add(word);
+    }
+  }
+
   // Extract contacts from LinkedIn results
   const contactMap = new Map<string, DiscoveredEmployee>();
 
@@ -218,14 +363,20 @@ async function discoverEmployeesViaSerper(
     if (!parsed) continue;
 
     // Verify this person is associated with the target company
+    // Use a more lenient check: match against any company name variation words
     const combined = `${result.title} ${result.description}`.toLowerCase();
-    const compWords = companyName
-      .toLowerCase()
-      .split(/\s+/)
-      .filter((w) => w.length > 2);
-    const companyWordMatches = compWords.filter((w) => combined.includes(w));
+    const companyWordMatches = [...allCompanyWords].filter((w) => combined.includes(w));
 
-    if (companyWordMatches.length === 0 && !combined.includes(companyDomain.toLowerCase())) {
+    // Also check if the parsed company from LinkedIn title matches
+    const parsedCompanyWords = (parsed.company || '').toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const parsedCompanyMatches = parsedCompanyWords.filter(w => allCompanyWords.has(w));
+
+    // Accept if: any company word matches in text, OR parsed company matches, OR domain appears
+    const hasCompanyMatch = companyWordMatches.length > 0 ||
+      parsedCompanyMatches.length > 0 ||
+      combined.includes(companyDomain.toLowerCase().replace('.com', ''));
+
+    if (!hasCompanyMatch) {
       continue;
     }
 
@@ -235,20 +386,22 @@ async function discoverEmployeesViaSerper(
       cleanUrl = cleanUrl.replace('http://', 'https://');
     }
 
-    // Dedup key
-    const dedupKey = `${parsed.firstName.toLowerCase()}:${parsed.lastName.toLowerCase()}`;
+    // Dedup key — use LinkedIn URL slug as primary key (more reliable than name)
+    const slug = cleanUrl.split('/in/')[1]?.replace(/\/$/, '') || '';
+    const dedupKey = slug || `${parsed.firstName.toLowerCase()}:${parsed.lastName.toLowerCase()}`;
 
     // Score this contact
     let confidence = 20; // Name found
-    confidence += Math.min(companyWordMatches.length * 15, 30); // Company match
+    confidence += Math.min(companyWordMatches.length * 10, 30); // Company match (text)
+    if (parsedCompanyMatches.length > 0) confidence += 10; // Parsed company match bonus
     if (parsed.role) confidence += 20; // Has role
     if (
-      /\b(CEO|CFO|COO|CTO|President|Founder|Owner|Chairman|Partner|Principal)\b/i.test(
+      /\b(CEO|CFO|COO|CTO|President|Founder|Owner|Chairman|Partner|Principal|Managing\s*Director)\b/i.test(
         parsed.role,
       )
     ) {
       confidence += 20;
-    } else if (/\b(VP|Director|Manager|General\s*Manager)\b/i.test(parsed.role)) {
+    } else if (/\b(VP|Director|Manager|General\s*Manager|Head\s+of|Operating\s*Partner)\b/i.test(parsed.role)) {
       confidence += 10;
     }
 
@@ -484,14 +637,42 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 2. Discover employees via Serper Google search
-    //    Same strategy as AI command center's discoverDecisionMakers:
-    //    role-specific Google queries → parse LinkedIn titles → score & deduplicate
-    const companyDomain = body.company_domain?.trim() || undefined;
-    const domainCandidates = companyDomain
-      ? [companyDomain, ...inferDomainCandidates(companyName).filter((d) => d !== companyDomain)]
-      : inferDomainCandidates(companyName);
-    const primaryDomain = domainCandidates[0] || inferDomain(companyName);
+    // 2. PHASE 1: Domain Discovery — find the real company domain before searching contacts
+    //    If a domain was provided (e.g., from buyer's website), use it.
+    //    Otherwise, Google the company to find their actual website domain.
+    const providedDomain = body.company_domain?.trim() || undefined;
+    const inferredCandidates = inferDomainCandidates(companyName);
+    let primaryDomain: string;
+    let domainCandidates: string[];
+
+    if (providedDomain) {
+      // Domain was provided (extracted from buyer record) — trust it as primary
+      primaryDomain = providedDomain;
+      domainCandidates = [providedDomain, ...inferredCandidates.filter((d) => d !== providedDomain)];
+      console.log(`[find-contacts] Using provided domain: ${primaryDomain}`);
+    } else {
+      // No domain provided — discover it via Google search
+      console.log(`[find-contacts] No domain provided for "${companyName}", running domain discovery...`);
+      try {
+        const discovered = await discoverCompanyDomain(companyName, inferredCandidates);
+        if (discovered && discovered.confidence !== 'low') {
+          primaryDomain = discovered.domain;
+          domainCandidates = [discovered.domain, ...inferredCandidates.filter((d) => d !== discovered.domain)];
+          console.log(`[find-contacts] Domain discovered: ${primaryDomain} (${discovered.confidence} confidence via ${discovered.source})`);
+        } else {
+          // Discovery returned low confidence or nothing — use inferred but don't rely on it
+          primaryDomain = inferredCandidates[0] || inferDomain(companyName);
+          domainCandidates = inferredCandidates;
+          console.log(`[find-contacts] Domain discovery inconclusive, using inferred: ${primaryDomain}`);
+        }
+      } catch (err) {
+        console.warn(`[find-contacts] Domain discovery failed: ${err}, falling back to inference`);
+        primaryDomain = inferredCandidates[0] || inferDomain(companyName);
+        domainCandidates = inferredCandidates;
+      }
+    }
+
+    // 3. PHASE 2: Discover employees via Serper Google search using the resolved domain
 
     let discovered: DiscoveredEmployee[] = [];
     try {
@@ -506,7 +687,7 @@ Deno.serve(async (req: Request) => {
       errors.push(`Contact discovery failed: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    // 3. Apply title filter (Serper discovery already scores by role, but apply explicit filter)
+    // 4. Apply title filter (Serper discovery already scores by role, but apply explicit filter)
     let filtered = discovered;
     if (titleFilter.length > 0 && discovered.length > 0) {
       const titleFiltered = discovered.filter((e) => matchesTitle(e.title || '', titleFilter));
@@ -517,7 +698,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 4. CRM pre-check — skip contacts we already have email for (same as AI command center)
+    // 5. CRM pre-check — skip contacts we already have email for (same as AI command center)
     const crmAlreadyKnown = new Set<string>();
     if (filtered.length > 0) {
       const linkedInUrls = filtered.map((d) => d.profileUrl?.toLowerCase()).filter(Boolean);
@@ -576,7 +757,7 @@ Deno.serve(async (req: Request) => {
 
     const toEnrich = needsEnrichment.slice(0, targetCount);
 
-    // 5. PRIMARY: Clay batch email lookup — send all contacts, poll for results
+    // 6. PRIMARY: Clay batch email lookup — send all contacts, poll for results
     //    (Same approach as AI command center — Clay is primary, Prospeo is fallback)
     const clayRequestIds = await clayBatchSend(
       supabaseAdmin,
@@ -615,7 +796,7 @@ Deno.serve(async (req: Request) => {
       (d) => !clayEmailByLinkedIn.has((d.profileUrl || '').toLowerCase()),
     );
 
-    // 6. FALLBACK: Prospeo enrichment for contacts Clay couldn't find
+    // 7. FALLBACK: Prospeo enrichment for contacts Clay couldn't find
     let prospeoEnriched: Record<string, unknown>[] = [];
     if (stillNeedsEmail.length > 0) {
       console.log(`[find-contacts] Prospeo fallback for ${stillNeedsEmail.length} contacts`);
@@ -642,7 +823,7 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // 7. Domain search fallback — try multiple domain candidates (same as AI command center)
+      // 8. Domain search fallback — try multiple domain candidates (same as AI command center)
       if (prospeoEnriched.length < stillNeedsEmail.length / 2) {
         for (const domainCandidate of domainCandidates.slice(0, 3)) {
           if (prospeoEnriched.length >= stillNeedsEmail.length) break;
@@ -732,7 +913,7 @@ Deno.serve(async (req: Request) => {
       })
       .slice(0, targetCount);
 
-    // 8. Save to enriched_contacts
+    // 9. Save to enriched_contacts
     if (allContacts.length > 0) {
       const { error: insertErr } = await supabaseAdmin.from('enriched_contacts').upsert(
         allContacts.map((c) => ({
@@ -748,14 +929,14 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 9. Cache results
+    // 10. Cache results
     await supabaseAdmin.from('contact_search_cache').insert({
       cache_key: cacheKey,
       company_name: companyName,
       results: allContacts,
     });
 
-    // 10. Log the search
+    // 11. Log the search
     await supabaseAdmin.from('contact_search_log').insert({
       user_id: auth.userId,
       company_name: companyName,

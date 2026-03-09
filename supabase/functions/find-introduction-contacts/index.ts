@@ -31,18 +31,27 @@ interface FindIntroductionContactsRequest {
   email_domain?: string;
 }
 
-// Title filters by buyer type — priority-ordered
-const PE_TITLE_FILTER = ['bd', 'vp', 'senior associate', 'principal', 'partner', 'analyst'];
+// Title filters by buyer type — priority-ordered, expanded to catch more relevant contacts
+const PE_TITLE_FILTER = [
+  'partner', 'managing partner', 'operating partner', 'senior partner',
+  'principal', 'managing director',
+  'vp', 'vice president', 'director',
+  'bd', 'business development', 'acquisitions',
+  'senior associate',
+  'analyst',
+  'ceo', 'president', 'founder',
+];
 
 const COMPANY_TITLE_FILTER = [
-  'bd',
-  'cfo',
-  'chief financial officer',
-  'vp finance',
-  'director of finance',
-  'head of finance',
-  'finance director',
-  'ceo',
+  'ceo', 'president', 'founder', 'owner',
+  'cfo', 'chief financial officer',
+  'coo', 'chief operating officer',
+  'vp', 'vice president',
+  'bd', 'business development',
+  'director',
+  'general manager',
+  'head of finance', 'finance director', 'vp finance', 'controller',
+  'head of operations', 'vp operations',
 ];
 
 Deno.serve(async (req: Request) => {
@@ -86,8 +95,8 @@ Deno.serve(async (req: Request) => {
   const isPE = PE_BUYER_TYPES.includes(body.buyer_type?.toLowerCase() || '');
   // Platform companies and other buyer types may still have a PE firm backing them — search it too
   const hasPEFirm = !!body.pe_firm_name?.trim();
-  const peTarget = 5;
-  const companyTarget = 3;
+  const peTarget = 8;
+  const companyTarget = 5;
   // Buyers with a PE firm name need both PE + company contacts; otherwise just company
   const totalTarget = hasPEFirm ? peTarget + companyTarget : companyTarget;
 
@@ -182,7 +191,7 @@ Deno.serve(async (req: Request) => {
           body: {
             company_name: body.pe_firm_name,
             title_filter: PE_TITLE_FILTER,
-            target_count: 8, // Ask for more than 5 to allow for dedup losses
+            target_count: 15, // Ask for more to allow for dedup losses and enrichment failures
             company_domain: peDomain || undefined,
           },
           headers: { Authorization: authHeader },
@@ -211,7 +220,7 @@ Deno.serve(async (req: Request) => {
         body: {
           company_name: body.company_name,
           title_filter: COMPANY_TITLE_FILTER,
-          target_count: 5, // Ask for more than 3 to allow for dedup losses
+          target_count: 10, // Ask for more to allow for dedup losses and enrichment failures
           company_domain: companyDomain || undefined,
         },
         headers: { Authorization: authHeader },
