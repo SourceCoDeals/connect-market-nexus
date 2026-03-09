@@ -856,8 +856,18 @@ async function processEvent(
     name: contactName,
   });
 
-  // ── Step 2: DB phone lookup (fallback when no session or no session match) ──
-  const phoneMapping = !requestMapping.matched
+  // ── Step 2: Waterfall matching (email/phone against contact_list_members + listings) ──
+  const waterfallMapping = !requestMapping.matched
+    ? await resolveWaterfallMapping(supabase, {
+        phone: contactPhone,
+        allPhones,
+        email: contactEmail,
+        name: contactName,
+      })
+    : null;
+
+  // ── Step 3: DB phone RPC lookup (last resort — broadest, least accurate) ──
+  const phoneMapping = !requestMapping.matched && !waterfallMapping
     ? await resolvePhoneMapping(supabase, {
         phone: contactPhone,
         allPhones,
@@ -866,25 +876,25 @@ async function processEvent(
       })
     : null;
 
-  // ── Resolution priority: session match (phone-matched) > DB phone match > custom_fields ──
-  // Session match is most reliable: it was stored at push time with the
-  // correct per-contact deal/buyer mapping, and matched by phone number.
+  // ── Resolution priority: session match > waterfall > DB phone match > custom_fields ──
   const resolvedContactId =
-    requestMapping.matched?.contact_id || phoneMapping?.contact_id || contactId || null;
+    requestMapping.matched?.contact_id || waterfallMapping?.contact_id || phoneMapping?.contact_id || contactId || null;
   const resolvedListingId =
-    requestMapping.matched?.listing_id || phoneMapping?.listing_id || listingId || null;
+    requestMapping.matched?.listing_id || waterfallMapping?.listing_id || phoneMapping?.listing_id || listingId || null;
   const resolvedBuyerId =
     requestMapping.matched?.remarketing_buyer_id ||
+    waterfallMapping?.remarketing_buyer_id ||
     phoneMapping?.remarketing_buyer_id ||
     remarketingBuyerId ||
     null;
   const resolvedContactEmail =
-    requestMapping.matched?.contact_email || phoneMapping?.contact_email || contactEmail || null;
+    requestMapping.matched?.contact_email || waterfallMapping?.contact_email || phoneMapping?.contact_email || contactEmail || null;
   const resolvedSessionId = requestMapping.phoneburnerSessionId;
+  const matchSource = requestMapping.matched ? 'session' : waterfallMapping ? (waterfallMapping.source_entity || 'waterfall') : phoneMapping ? 'phone_rpc' : 'custom_fields';
 
   console.log(
     `[phoneburner-webhook] Resolution for phones=[${allPhones.join(',')}]: ` +
-      `session_match=${!!requestMapping.matched}, phone_db_match=${!!phoneMapping}, ` +
+      `match_source=${matchSource}, session_match=${!!requestMapping.matched}, waterfall=${!!waterfallMapping}, phone_rpc=${!!phoneMapping}, ` +
       `contact_id=${resolvedContactId}, listing_id=${resolvedListingId}, buyer_id=${resolvedBuyerId}`,
   );
 
