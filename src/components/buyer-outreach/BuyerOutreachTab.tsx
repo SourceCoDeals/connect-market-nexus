@@ -108,7 +108,7 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
       // Get buyer info
       const { data: buyerRows } = await supabase
         .from('buyers')
-        .select('id, company_name, buyer_type')
+        .select('id, company_name, buyer_type, is_pe_backed')
         .in('id', buyerIds);
 
       const buyerMap = new Map((buyerRows || []).map(b => [b.id, b]));
