@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Ban, Check, MapPin, Pencil, X } from 'lucide-react';
+import { ArrowLeft, Ban, Check, MapPin, Pencil, User, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Link } from 'react-router-dom';
 import { ScoreBadge } from '@/components/shared/ScoreBadge';
