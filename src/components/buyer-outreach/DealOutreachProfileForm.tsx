@@ -223,11 +223,11 @@ export function DealOutreachProfileForm({ dealId }: DealOutreachProfileFormProps
 
         <div className="space-y-2">
           <Label htmlFor="ebitda">EBITDA</Label>
-          <Input
+          <NumericInput
             id="ebitda"
             value={ebitda}
-            onChange={(e) => setEbitda(e.target.value)}
-            placeholder="e.g. ~$1M of EBITDA"
+            onChange={(value) => setEbitda(value)}
+            placeholder="e.g. 1,000,000"
           />
           <p className="text-xs text-muted-foreground">
             e.g. ~$1M of EBITDA, $1.2M of EBITDA, ~$600K of EBITDA
