@@ -10584,6 +10584,7 @@ export type Database = {
           extraction_confidence_avg: number | null
           fireflies_transcript_id: string
           id: string
+          is_ds_meeting: boolean
           meeting_date: string
           meeting_duration_minutes: number | null
           meeting_title: string | null
@@ -10597,6 +10598,7 @@ export type Database = {
           extraction_confidence_avg?: number | null
           fireflies_transcript_id: string
           id?: string
+          is_ds_meeting?: boolean
           meeting_date?: string
           meeting_duration_minutes?: number | null
           meeting_title?: string | null
@@ -10610,6 +10612,7 @@ export type Database = {
           extraction_confidence_avg?: number | null
           fireflies_transcript_id?: string
           id?: string
+          is_ds_meeting?: boolean
           meeting_date?: string
           meeting_duration_minutes?: number | null
           meeting_title?: string | null

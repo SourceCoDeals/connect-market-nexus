@@ -48,6 +48,7 @@ export interface StandupMeeting {
   meeting_date: string;
   meeting_duration_minutes: number | null;
   transcript_url: string | null;
+  is_ds_meeting: boolean;
   tasks_extracted: number;
   tasks_unassigned: number;
   extraction_confidence_avg: number | null;
