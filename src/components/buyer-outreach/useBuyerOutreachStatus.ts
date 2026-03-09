@@ -1,9 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getHighestPriorityStatus, type OutreachStatusType } from './StatusBadge';
-import type { Tables } from '@/integrations/supabase/types';
 
-type OutreachEvent = Tables<'buyer_outreach_events'>;
+type OutreachEvent = {
+  id: string;
+  deal_id: string;
+  buyer_id: string;
+  channel: string;
+  tool: string;
+  event_type: string;
+  event_timestamp: string;
+  notes?: string | null;
+  created_at?: string;
+};
 
 export interface BuyerOutreachSummary {
   status: OutreachStatusType;
@@ -21,7 +30,7 @@ export function useBuyerOutreachStatus(dealId: string, buyerIds: string[]) {
     queryFn: async () => {
       if (!buyerIds.length) return new Map<string, BuyerOutreachSummary>();
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('buyer_outreach_events')
         .select('*')
         .eq('deal_id', dealId)
@@ -30,19 +39,18 @@ export function useBuyerOutreachStatus(dealId: string, buyerIds: string[]) {
 
       if (error) throw error;
 
-      const events = data || [];
+      const events: OutreachEvent[] = data || [];
       const map = new Map<string, BuyerOutreachSummary>();
 
-      // Group events by buyer_id
       for (const buyerId of buyerIds) {
-        const buyerEvents = events.filter(e => e.buyer_id === buyerId);
-        const eventTypes = buyerEvents.map(e => e.event_type);
+        const buyerEvents = events.filter((e: OutreachEvent) => e.buyer_id === buyerId);
+        const eventTypes = buyerEvents.map((e: OutreachEvent) => e.event_type);
         const status = getHighestPriorityStatus(eventTypes);
         const lastEvent = buyerEvents[0] || null;
 
-        const emailEvents = buyerEvents.filter(e => e.channel === 'email');
-        const linkedinEvents = buyerEvents.filter(e => e.channel === 'linkedin');
-        const phoneEvents = buyerEvents.filter(e => e.channel === 'phone');
+        const emailEvents = buyerEvents.filter((e: OutreachEvent) => e.channel === 'email');
+        const linkedinEvents = buyerEvents.filter((e: OutreachEvent) => e.channel === 'linkedin');
+        const phoneEvents = buyerEvents.filter((e: OutreachEvent) => e.channel === 'phone');
 
         map.set(buyerId, {
           status,
