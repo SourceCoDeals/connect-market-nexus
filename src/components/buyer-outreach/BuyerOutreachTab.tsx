@@ -36,6 +36,7 @@ interface BuyerContact {
   title: string | null;
   remarketing_buyer_id: string | null;
   buyer_type: string | null;
+  is_pe_backed: boolean | null;
   buyer_company_name: string | null;
 }
 
