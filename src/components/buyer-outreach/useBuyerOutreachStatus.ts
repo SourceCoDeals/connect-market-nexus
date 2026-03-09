@@ -1,9 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getHighestPriorityStatus, type OutreachStatusType } from './StatusBadge';
-import type { Tables } from '@/integrations/supabase/types';
 
-type OutreachEvent = Tables<'buyer_outreach_events'>;
+type OutreachEvent = {
+  id: string;
+  deal_id: string;
+  buyer_id: string;
+  channel: string;
+  tool: string;
+  event_type: string;
+  event_timestamp: string;
+  notes?: string | null;
+  created_at?: string;
+};
 
 export interface BuyerOutreachSummary {
   status: OutreachStatusType;
@@ -21,7 +30,7 @@ export function useBuyerOutreachStatus(dealId: string, buyerIds: string[]) {
     queryFn: async () => {
       if (!buyerIds.length) return new Map<string, BuyerOutreachSummary>();
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('buyer_outreach_events')
         .select('*')
         .eq('deal_id', dealId)

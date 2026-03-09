@@ -8,9 +8,6 @@ import { NumericInput } from '@/components/ui/numeric-input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { FileText, Pencil, Save, X } from 'lucide-react';
-import type { Tables } from '@/integrations/supabase/types';
-
-type OutreachProfile = Tables<'deal_outreach_profiles'>;
 
 interface DealOutreachProfileFormProps {
   dealId: string;

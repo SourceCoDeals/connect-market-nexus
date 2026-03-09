@@ -21,7 +21,7 @@ export function OutreachInlineDetail({ dealId, buyerId, summary }: OutreachInlin
       const channel = summary.lastEventChannel || 'email';
       const tool = channel === 'email' ? 'smartlead' : channel === 'linkedin' ? 'heyreach' : 'phoneburner';
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('buyer_outreach_events')
         .insert({
           deal_id: dealId,
