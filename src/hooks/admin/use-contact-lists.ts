@@ -114,11 +114,44 @@ export function useContactList(listId: string | undefined) {
         }
       }
 
+      // Fetch deal owners for deal-type members
+      const dealEntityIds = (members ?? [])
+        .filter((m) => m.entity_type === 'deal' || m.entity_type === 'listing')
+        .map((m) => m.entity_id)
+        .filter(Boolean);
+      const dealOwnerMap: Record<string, { name: string; id: string }> = {};
+
+      if (dealEntityIds.length > 0) {
+        const { data: dealRows } = await supabase
+          .from('deal_pipeline')
+          .select('id, assigned_to')
+          .in('id', dealEntityIds);
+
+        const ownerIds = [...new Set((dealRows ?? []).map((d) => d.assigned_to).filter(Boolean))] as string[];
+        const ownerProfiles: Record<string, string> = {};
+        if (ownerIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name')
+            .in('id', ownerIds);
+          for (const p of profiles ?? []) {
+            ownerProfiles[p.id] = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+          }
+        }
+        for (const d of dealRows ?? []) {
+          if (d.assigned_to && ownerProfiles[d.assigned_to]) {
+            dealOwnerMap[d.id] = { name: ownerProfiles[d.assigned_to], id: d.assigned_to };
+          }
+        }
+      }
+
       const enrichedMembers: ContactListMember[] = (members ?? []).map((m) => ({
         ...m,
         last_call_date: callData[m.contact_email]?.last_call ?? null,
         total_calls: callData[m.contact_email]?.total_calls ?? 0,
         last_disposition: callData[m.contact_email]?.last_disposition ?? null,
+        deal_owner_name: dealOwnerMap[m.entity_id]?.name ?? null,
+        deal_owner_id: dealOwnerMap[m.entity_id]?.id ?? null,
       }));
 
       return {
