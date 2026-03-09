@@ -39,6 +39,8 @@ import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
 const ContactListDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { data: list, isLoading } = useContactList(id);
   const { data: list, isLoading } = useContactList(id);
   const removeMember = useRemoveListMember();
 
