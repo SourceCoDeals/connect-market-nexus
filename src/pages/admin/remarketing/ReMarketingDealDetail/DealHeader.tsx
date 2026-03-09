@@ -46,6 +46,7 @@ export function DealHeader({
   listedName,
   dataCompleteness,
   tier,
+  dealOwnerName,
   isEditingName,
   setIsEditingName,
   editedName,
