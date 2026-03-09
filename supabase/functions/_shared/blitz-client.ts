@@ -307,7 +307,7 @@ export async function findPhone(
  */
 export async function batchEnrichContacts(
   contacts: Array<{ linkedinUrl: string }>,
-  concurrency: number = 3,
+  concurrency: number = 1,
 ): Promise<Map<string, { email: string | null; phone: string | null }>> {
   const results = new Map<string, { email: string | null; phone: string | null }>();
   if (contacts.length === 0) return results;

@@ -1172,7 +1172,7 @@ Deno.serve(async (req: Request) => {
       try {
         const blitzResults = await batchEnrichContacts(
           contactsWithLinkedIn.map((d) => ({ linkedinUrl: d.profileUrl })),
-          3, // concurrency
+          1, // concurrency — serialized to avoid Blitz rate limits
         );
         for (const [url, data] of blitzResults) {
           blitzEnriched.set(url, data);
