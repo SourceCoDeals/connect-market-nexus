@@ -93,22 +93,33 @@ Deno.serve(async (req: Request) => {
   const companyDomain = extractDomain(body.company_website) || body.email_domain || null;
 
   // Create a log entry upfront so we can track even crashes
-  const { data: logRow } = await supabaseAdmin
-    .from('contact_discovery_log')
-    .insert({
-      buyer_id: body.buyer_id,
-      triggered_by: auth.userId,
-      trigger_source: (body as any).trigger_source || 'approval',
-      status: 'started',
-      pe_firm_name: hasPEFirm ? body.pe_firm_name : null,
-      company_name: body.company_name,
-      pe_domain: peDomain,
-      company_domain: companyDomain,
-    })
-    .select('id')
-    .single();
+  let logId: string | undefined;
+  try {
+    const { data: logRow, error: logInsertError } = await supabaseAdmin
+      .from('contact_discovery_log')
+      .insert({
+        buyer_id: body.buyer_id,
+        triggered_by: auth.userId || null,
+        trigger_source: (body as any).trigger_source || 'approval',
+        status: 'started',
+        pe_firm_name: hasPEFirm ? body.pe_firm_name : null,
+        company_name: body.company_name,
+        pe_domain: peDomain,
+        company_domain: companyDomain,
+      })
+      .select('id')
+      .single();
 
-  const logId = logRow?.id;
+    if (logInsertError) {
+      console.error(
+        '[find-introduction-contacts] Failed to create log entry:',
+        logInsertError.message,
+      );
+    }
+    logId = logRow?.id;
+  } catch (logErr) {
+    console.error('[find-introduction-contacts] Log entry creation threw:', logErr);
+  }
 
   /** Helper to finalize the log row */
   async function finalizeLog(updates: Record<string, unknown>) {
