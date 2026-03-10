@@ -116,12 +116,12 @@ function useInboxThreads() {
         if (firmIds.length > 0) {
           const { data: firms } = await supabase
             .from('firm_agreements')
-            .select('id, primary_company_name, nda_signed, nda_pandadoc_status, fee_agreement_signed, fee_pandadoc_status')
+            .select('id, primary_company_name, nda_signed, nda_status, fee_agreement_signed, fee_agreement_status')
             .in('id', firmIds);
 
           const firmDataMap: Record<string, Record<string, unknown>> = {};
-          (firms || []).forEach((f: Record<string, unknown>) => {
-            firmDataMap[f.id as string] = f;
+          (firms || []).forEach((f) => {
+            firmDataMap[(f as Record<string, unknown>).id as string] = f as unknown as Record<string, unknown>;
           });
 
           // Map user IDs to their firm status
