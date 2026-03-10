@@ -55,6 +55,7 @@ import {
   Search,
   Phone,
   Lightbulb,
+  Layers,
   LogOut,
   User,
 } from 'lucide-react';
@@ -221,6 +222,12 @@ export function UnifiedAdminSidebar({
             label: 'Overview',
             href: '/admin/remarketing',
             icon: <LayoutDashboard className="h-4 w-4" />,
+            exact: true,
+          },
+          {
+            label: 'Master Leads',
+            href: '/admin/remarketing/leads',
+            icon: <Layers className="h-4 w-4" />,
             exact: true,
           },
           {
