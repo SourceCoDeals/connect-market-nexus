@@ -335,11 +335,10 @@ describe('Deal field validation (from seed-buyers)', () => {
       (deal.description as string)?.trim() ||
       (deal.hero_description as string)?.trim();
     if (!hasDescription) missing.push('description');
-    const hasIndustry = !!(deal.industry as string)?.trim();
+    if (!(deal.industry as string)?.trim()) missing.push('industry');
     const cats = deal.categories as string[] | null;
     const cat = deal.category as string | null;
-    const hasCategories = (cats && cats.length > 0) || !!cat?.trim();
-    if (!hasIndustry && !hasCategories) missing.push('industry or categories');
+    if ((!cats || cats.length === 0) && !cat?.trim()) missing.push('categories');
     return missing;
   }
 
@@ -353,19 +352,14 @@ describe('Deal field validation (from seed-buyers)', () => {
     expect(validateDealFields(deal)).toContain('description');
   });
 
-  it('passes with industry but no categories', () => {
-    const deal = { executive_summary: 'A great company', industry: 'HVAC' };
-    expect(validateDealFields(deal)).toHaveLength(0);
-  });
-
-  it('passes with categories but no industry', () => {
+  it('fails when missing industry', () => {
     const deal = { executive_summary: 'A great company', categories: ['HVAC'] };
-    expect(validateDealFields(deal)).toHaveLength(0);
+    expect(validateDealFields(deal)).toContain('industry');
   });
 
-  it('fails when missing both industry and categories', () => {
-    const deal = { executive_summary: 'A great company' };
-    expect(validateDealFields(deal)).toContain('industry or categories');
+  it('fails when missing categories', () => {
+    const deal = { executive_summary: 'A great company', industry: 'HVAC' };
+    expect(validateDealFields(deal)).toContain('categories');
   });
 
   it('accepts hero_description as valid description', () => {
@@ -374,7 +368,7 @@ describe('Deal field validation (from seed-buyers)', () => {
   });
 
   it('accepts category (singular) when categories array is empty', () => {
-    const deal = { description: 'Desc', category: 'HVAC', categories: [] };
+    const deal = { description: 'Desc', industry: 'HVAC', category: 'HVAC', categories: [] };
     expect(validateDealFields(deal)).toHaveLength(0);
   });
 

@@ -35,6 +35,7 @@ import {
   GitBranch,
   GripVertical,
   Ban,
+  Undo2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSortable } from '@dnd-kit/sortable';
@@ -62,6 +63,7 @@ export const DealTableRow = ({
   onToggleBuyerSearch,
   onUpdateRank,
   onMarkNotAFit,
+  onRemoveNotAFit,
   adminProfiles,
   onAssignOwner,
   universesByListing,
@@ -90,6 +92,7 @@ export const DealTableRow = ({
   onToggleBuyerSearch: (dealId: string, currentStatus: boolean) => void;
   onUpdateRank: (dealId: string, newRank: number) => Promise<void> | void;
   onMarkNotAFit?: (dealId: string, dealName: string) => void;
+  onRemoveNotAFit?: (dealId: string) => void;
   adminProfiles?: Record<
     string,
     { id: string; email: string; first_name: string; last_name: string; displayName: string }
@@ -592,18 +595,28 @@ export const DealTableRow = ({
               />
               {listing.needs_buyer_search ? 'Remove Find Buyer Flag' : 'Flag: Find Buyer'}
             </DropdownMenuItem>
-            {onMarkNotAFit && (
+            {listing.not_a_fit && onRemoveNotAFit ? (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveNotAFit(listing.id);
+                }}
+                className="text-green-600"
+              >
+                <Undo2 className="h-4 w-4 mr-2" />
+                Remove Not a Fit
+              </DropdownMenuItem>
+            ) : onMarkNotAFit ? (
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
                   onMarkNotAFit(listing.id, displayName || 'Unknown Deal');
                 }}
-                className={listing.not_a_fit ? 'text-orange-600' : ''}
               >
-                <Ban className={cn('h-4 w-4 mr-2', listing.not_a_fit && 'text-orange-500')} />
-                {listing.not_a_fit ? 'Already Not a Fit' : 'Mark as Not a Fit'}
+                <Ban className="h-4 w-4 mr-2" />
+                Mark as Not a Fit
               </DropdownMenuItem>
-            )}
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={(e) => {
