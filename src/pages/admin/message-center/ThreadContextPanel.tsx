@@ -256,8 +256,8 @@ export function ThreadContextPanel({ userId, buyerName, buyerEmail, buyerCompany
   const { data: timeline = [], isLoading: timelineLoading } = useUserActivityTimeline(userId);
   const navigate = useNavigate();
 
-  const ndaStatus = firm ? resolveAgreementStatus(!!firm.nda_signed, firm.nda_pandadoc_status) : null;
-  const feeStatus = firm ? resolveAgreementStatus(!!firm.fee_agreement_signed, firm.fee_pandadoc_status) : null;
+  const ndaStatus = firm ? resolveAgreementStatus(!!firm.nda_signed, firm.nda_status) : null;
+  const feeStatus = firm ? resolveAgreementStatus(!!firm.fee_agreement_signed, firm.fee_agreement_status) : null;
 
   return (
     <div className="w-[280px] flex-shrink-0 flex flex-col min-h-0" style={{ borderLeft: '1px solid #F0EDE6', backgroundColor: '#FFFFFF' }}>
