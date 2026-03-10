@@ -336,16 +336,10 @@ export function ThreadContextPanel({ userId, buyerName, buyerEmail, buyerCompany
                       Signed {format(new Date(firm.fee_agreement_signed_at), 'MMM d, yyyy')}
                     </p>
                   )}
-                  {feeStatus === 'signed' && firm.fee_signed_document_url && (
-                    <a href={firm.fee_signed_document_url} target="_blank" rel="noopener noreferrer"
-                      className="text-[10px] underline flex items-center gap-1 mt-1" style={{ color: '#5A5A5A' }}>
-                      Download signed Fee Agmt <ExternalLink className="h-2.5 w-2.5" />
-                    </a>
-                  )}
-                  {feeStatus !== 'signed' && firm.fee_agreement_document_url && (
+                  {firm.fee_agreement_document_url && (
                     <a href={firm.fee_agreement_document_url} target="_blank" rel="noopener noreferrer"
                       className="text-[10px] underline flex items-center gap-1 mt-1" style={{ color: '#5A5A5A' }}>
-                      View draft <ExternalLink className="h-2.5 w-2.5" />
+                      {feeStatus === 'signed' ? 'Download signed Fee Agmt' : 'View draft'} <ExternalLink className="h-2.5 w-2.5" />
                     </a>
                   )}
                 </div>
