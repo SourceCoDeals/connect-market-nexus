@@ -108,6 +108,9 @@ export function mapRpcRowToDeal(row: Record<string, any>) {
 
     // Meeting scheduled
     meeting_scheduled: row.meeting_scheduled ?? false,
+
+    // Under LOI
+    under_loi: row.under_loi ?? false,
   };
 }
 
