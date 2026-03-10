@@ -681,6 +681,15 @@ const ReMarketingDeals = () => {
                             onMarkNotAFit={(dealId, dealName) =>
                               setNotAFitTarget({ id: dealId, name: dealName })
                             }
+                            onRemoveNotAFit={async (dealId) => {
+                              const { error } = await h.supabase
+                                .from('listings')
+                                .update({ not_a_fit: false, not_a_fit_reason: null } as never)
+                                .eq('id', dealId);
+                              if (!error) {
+                                h.queryClient.invalidateQueries({ queryKey: ['remarketing'] });
+                              }
+                            }}
                           />
                         ))}
                       </SortableContext>
