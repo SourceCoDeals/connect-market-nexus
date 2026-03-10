@@ -78,7 +78,7 @@ The SourceCo buyer experience is **substantially built and functional** across m
 ## INCONSISTENT (Works But Confuses Buyers)
 
 ### 12. Fee Agreement Appears Only at Connection Request Time
-**Files:** `src/components/docuseal/FeeAgreementGate.tsx` (modal gate), `src/pages/PendingApproval.tsx` (NDA only)
+**Files:** `src/components/pandadoc/FeeAgreementGate.tsx` (modal gate), `src/pages/PendingApproval.tsx` (NDA only)
 **What's inconsistent:** NDA is presented during onboarding (PendingApproval page), but fee agreement only appears when buyer submits their first connection request. Buyer has no advance education about the fee structure during onboarding, then hits a blocking modal at the moment of highest engagement intent.
 **How to standardize:** Either (a) present fee agreement summary during onboarding (non-blocking education), or (b) include fee agreement signing alongside NDA on PendingApproval page. The OnboardingPopup (`src/components/onboarding/OnboardingPopup.tsx`) step 3 mentions "You Only Pay if a Deal Closes" but this is a walkthrough step, not a signing step.
 
@@ -122,7 +122,7 @@ The SourceCo buyer experience is **substantially built and functional** across m
 **Recommended fix:** Add help text: "Need to change your email? Contact support@sourceco.com" or implement an email change flow with verification.
 
 ### 20. PandaDoc Error Has No Retry Button
-**Files:** `src/pages/PendingApproval.tsx:440-452`, `src/components/docuseal/PandaDocSigningPanel.tsx`
+**Files:** `src/pages/PendingApproval.tsx:440-452`, `src/components/pandadoc/PandaDocSigningPanel.tsx`
 **What creates friction:** If `get-buyer-nda-embed` fails (timeout, PandaDoc unavailable), buyer sees "Failed to prepare NDA signing form" with no retry button. Must refresh the entire page.
 **Recommended fix:** Add "Try Again" button that re-invokes the embed fetch. Add fallback: "Having trouble? Email support@sourceco.com and we'll send the NDA directly."
 
@@ -262,7 +262,7 @@ The SourceCo buyer experience is **substantially built and functional** across m
 | Rejection email | ✓ | `supabase/functions/notify-buyer-rejection/index.ts` | Professional tone; uses listing title (not real company name) |
 | Rejection idempotency | ✗ | Same function | `correlationId` logged but not checked before sending; duplicate sends possible |
 | Status updates in thread | ✓ | `src/components/deals/DealActivityLog.tsx` | System messages appear in Activity Log; visually distinct (italic, centered, cream background) |
-| Fee agreement gate | ✓ | `src/components/docuseal/FeeAgreementGate.tsx` | Full-screen modal blocks connection request if firm hasn't signed; inline PandaDoc signing |
+| Fee agreement gate | ✓ | `src/components/pandadoc/FeeAgreementGate.tsx` | Full-screen modal blocks connection request if firm hasn't signed; inline PandaDoc signing |
 
 ### PHASE 5 — MESSAGING & DEAL THREADS
 
