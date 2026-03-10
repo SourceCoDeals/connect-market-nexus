@@ -57,7 +57,7 @@ const STATUS_CONFIG: Record<PandaDocStatus, {
 
 /**
  * Color-coded badge showing agreement signing status.
- * Replaces DocuSealStatusBadge — maps PandaDoc statuses.
+ * Maps PandaDoc statuses to color-coded badges.
  * Clicking opens action menu (Send/Resend, View Signed Doc, Manual Override).
  */
 export function AgreementStatusBadge({

@@ -10,7 +10,7 @@
 -- etc.) are preserved. The webhook handler sets BOTH the new PandaDoc fields
 -- AND the existing booleans so all current queries keep working.
 --
--- DocuSeal columns are NOT dropped here — they remain for parallel deployment.
+-- Legacy columns are NOT dropped here — they remain for parallel deployment.
 -- A separate migration will drop them after PandaDoc is fully live.
 -- ============================================================================
 
