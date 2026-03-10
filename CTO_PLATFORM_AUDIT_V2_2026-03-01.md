@@ -304,7 +304,7 @@ Per-provider limits: Gemini (10 concurrent, 30 RPM), Firecrawl (5 concurrent, 20
 
 ### 4.4 API Key Management
 
-All keys stored as Supabase secrets accessed via `Deno.env.get()`: FIRECRAWL_API_KEY, GEMINI_API_KEY, FIREFLIES_API_KEY, SMARTLEAD_API_KEY, PROSPEO_API_KEY, PHONEBURNER_WEBHOOK_SECRET, DOCUSEAL_WEBHOOK_SECRET, HEYREACH_API_KEY. No hardcoded keys found. No health check logic for key validity before bulk operations.
+All keys stored as Supabase secrets accessed via `Deno.env.get()`: FIRECRAWL_API_KEY, GEMINI_API_KEY, FIREFLIES_API_KEY, SMARTLEAD_API_KEY, PROSPEO_API_KEY, PHONEBURNER_WEBHOOK_SECRET, PANDADOC_WEBHOOK_SECRET, HEYREACH_API_KEY. No hardcoded keys found. No health check logic for key validity before bulk operations.
 
 ---
 
