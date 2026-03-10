@@ -206,6 +206,7 @@ const CapTargetDeals = lazyWithRetry(
   () => import('@/pages/admin/remarketing/CapTargetDeals/index'),
 );
 const GPPartnerDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/GPPartnerDeals'));
+const MasterLeads = lazyWithRetry(() => import('@/pages/admin/remarketing/MasterLeads'));
 const SourceCoDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/SourceCoDeals'));
 const ValuationLeads = lazyWithRetry(() => import('@/pages/admin/remarketing/ValuationLeads'));
 const DailyTaskDashboard = lazyWithRetry(
@@ -386,6 +387,7 @@ function App() {
               >
                 <Route index element={<ReMarketingDashboard />} />
                 <Route path="activity-queue" element={<ReMarketingActivityQueue />} />
+                <Route path="leads" element={<MasterLeads />} />
                 <Route path="leads/captarget" element={<CapTargetDeals />} />
                 <Route path="leads/captarget/:dealId" element={<ReMarketingDealDetail />} />
                 <Route path="leads/gp-partners" element={<GPPartnerDeals />} />
