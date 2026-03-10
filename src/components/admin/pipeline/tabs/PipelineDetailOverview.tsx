@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Linkedin, Building2, Mail, Phone, Send,
   AlertCircle, MessageSquare, User, Briefcase, DollarSign, MapPin,
-  CalendarDays, Clock, Star, FileText, ListChecks,
+  CalendarDays, Clock, Star, FileText, ListChecks, FileSignature,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Deal } from '@/hooks/admin/use-deals';
@@ -34,6 +34,7 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
 
   const [followedUp, setFollowedUp] = React.useState(deal.followed_up || false);
   const [negativeFollowedUp, setNegativeFollowedUp] = React.useState(deal.negative_followed_up || false);
+  const [underLoi, setUnderLoi] = React.useState(deal.under_loi || false);
   const [buyerProfile, setBuyerProfile] = React.useState<any>(null);
 
   // Messaging
@@ -79,7 +80,8 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
   React.useEffect(() => {
     setFollowedUp(deal.followed_up || false);
     setNegativeFollowedUp(deal.negative_followed_up || false);
-  }, [deal.followed_up, deal.negative_followed_up]);
+    setUnderLoi(deal.under_loi || false);
+  }, [deal.followed_up, deal.negative_followed_up, deal.under_loi]);
 
   const isValidDate = (value?: string | null) => {
     if (!value) return false;
@@ -108,6 +110,11 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
       isFollowedUp: newValue,
       followupType: type,
     });
+  };
+
+  const handleLoiToggle = (newValue: boolean) => {
+    setUnderLoi(newValue);
+    updateDeal.mutate({ dealId: deal.deal_id, updates: { under_loi: newValue } });
   };
 
   // Format currency helper
@@ -265,6 +272,11 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
               <div className="flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: deal.stage_color || 'hsl(var(--muted-foreground))' }} />
                 <span className="text-sm font-semibold text-foreground">{stageName}</span>
+                {underLoi && (
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded" style={{ backgroundColor: '#9333EA', color: '#FFFFFF' }}>
+                    Under LOI
+                  </span>
+                )}
               </div>
               <div className="space-y-1.5 pt-0.5">
                 <div className="flex items-center justify-between text-xs">
@@ -346,6 +358,14 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
               <span className="text-[11px] text-foreground">Rejection</span>
               <Switch checked={negativeFollowedUp} onCheckedChange={(v) => handleFollowupToggle('negative', v)} className="scale-[0.65]" />
             </div>
+          </div>
+
+          {/* Under LOI Toggle */}
+          <div className="h-4 w-px bg-border" />
+          <div className="flex items-center gap-1">
+            <FileSignature className={cn('h-3.5 w-3.5', underLoi ? 'text-purple-600' : 'text-muted-foreground')} />
+            <span className="text-[11px] text-foreground">Under LOI</span>
+            <Switch checked={underLoi} onCheckedChange={handleLoiToggle} className="scale-[0.65]" />
           </div>
 
           {/* NDA / Fee Status indicators */}
