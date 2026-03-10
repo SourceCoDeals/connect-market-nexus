@@ -33,6 +33,7 @@ import {
   Star,
   Phone,
   ThumbsDown,
+  Undo2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';

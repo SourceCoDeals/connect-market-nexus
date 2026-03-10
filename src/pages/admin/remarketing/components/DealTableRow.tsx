@@ -35,6 +35,7 @@ import {
   GitBranch,
   GripVertical,
   Ban,
+  Undo2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSortable } from '@dnd-kit/sortable';
