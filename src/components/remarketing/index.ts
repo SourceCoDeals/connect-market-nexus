@@ -81,7 +81,6 @@ export type { OutreachStatus } from './OutreachStatusDialog';
 export { QuickInsightsWidget } from './QuickInsightsWidget';
 
 // Layout Components
-export { ReMarketingSidebar } from './ReMarketingSidebar';
 export { ReMarketingLayout } from './ReMarketingLayout';
 export { IntelligenceCoverageBar } from './IntelligenceCoverageBar';
 export { ScoringInsightsSidebar } from './ScoringInsightsSidebar';
