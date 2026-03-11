@@ -104,9 +104,9 @@ export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, 
               <FileText className="h-8 w-8 text-green-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-green-800">Fee Agreement Signed</h2>
+              <h2 className="text-2xl font-bold text-green-800">You're fully set up.</h2>
               <p className="text-muted-foreground mt-2">
-                You're all set. Continue to submit your connection request.
+                Fee agreement signed. Every deal on SourceCo is now open to you. Continue to submit your request — we'll make the introduction.
               </p>
             </div>
             <Button
@@ -130,35 +130,26 @@ export function FeeAgreementGate({ userId, firmId, listingTitle: _listingTitle, 
             <div className="inline-flex p-3 rounded-full bg-primary/10">
               <FileText className="h-8 w-8 text-primary" />
             </div>
-            <h2 id="fee-gate-title" className="text-2xl font-bold">One More Step Before Your Request</h2>
+            <h2 id="fee-gate-title" className="text-2xl font-bold">You found a deal worth pursuing.</h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              All deals on SourceCo are sourced exclusively by our team. A fee agreement formalizes our working relationship — it takes about 60 seconds.
+              Before we make this introduction, we need one thing in place. It takes 60 seconds and covers every introduction we make on your behalf — now and in the future.
             </p>
           </div>
 
           <div className="space-y-3">
             <div className="bg-muted/50 border border-border rounded-lg p-4">
-              <h4 className="text-sm font-semibold mb-1">What is a fee agreement?</h4>
+              <h4 className="text-sm font-semibold mb-1">Why we work this way</h4>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                A fee agreement is a standard document that confirms our working relationship as your deal source for this and future transactions. It covers the success fee SourceCo earns if and when a deal closes — nothing more.
+                SourceCo has limited capacity. We're selective about which buyers we work with actively — because every introduction we make is to a real business owner who has trusted us with confidential information. A fee agreement is how we know you're serious about closing, not just looking.
               </p>
             </div>
             <div className="bg-muted/50 border border-border rounded-lg p-4">
               <h4 className="text-sm font-semibold mb-1">What you're agreeing to</h4>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Our fee is success-only and based on a modified Lehman scale — a percentage of deal value, paid only at close. No retainers, no platform fees, no exclusivity. You're free to pursue deals from other sources at the same time.
+                Success-only. Nothing owed unless a deal closes. Our fee is a percentage of deal value at close — modified Lehman scale. No retainers, no platform fees, no exclusivity. You're free to source deals elsewhere. We only earn if we help you close.
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed mt-2">
                 The agreement covers all deals you close through SourceCo.
-              </p>
-            </div>
-            <div className="bg-muted/50 border border-border rounded-lg p-4">
-              <h4 className="text-sm font-semibold mb-1">Why we ask for this before your first request</h4>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                We're making a real introduction on your behalf — to a business owner who has trusted us with confidential information. We want that relationship formalized before it begins.
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed mt-2">
-                If you want to discuss the terms before signing, reply to your approval email.
               </p>
             </div>
           </div>

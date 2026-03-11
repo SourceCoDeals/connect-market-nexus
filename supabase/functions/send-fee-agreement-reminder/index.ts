@@ -111,8 +111,8 @@ serve(async (req: Request) => {
 
       const subject =
         reminderType === '3-day'
-          ? `Your connection request is pending a fee agreement`
-          : `Fee agreement still needed — your introduction is on hold`;
+          ? `Your introduction is on hold — one step to continue`
+          : `A week later — your introduction is still waiting for you`;
 
       const htmlContent =
         reminderType === '3-day'
