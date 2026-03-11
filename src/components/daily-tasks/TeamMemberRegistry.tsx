@@ -29,9 +29,7 @@ export function TeamMemberRegistry() {
         .select('user_id, role, profiles!inner(id, first_name, last_name, email)')
         .in('role', ['owner', 'admin', 'moderator']);
 
-      const { data: aliases } = await supabase
-        .from('team_member_aliases' as UntypedTable)
-        .select('*');
+      const { data: aliases } = await untypedFrom('team_member_aliases').select('*');
 
       const aliasMap = new Map<string, { id: string; alias: string }[]>();
       for (const a of (aliases || []) as unknown as AliasRow[]) {
@@ -86,10 +84,7 @@ export function TeamMemberRegistry() {
   // Remove alias mutation
   const removeAlias = useMutation({
     mutationFn: async (aliasId: string) => {
-      const { error } = await supabase
-        .from('team_member_aliases' as UntypedTable)
-        .delete()
-        .eq('id', aliasId);
+      const { error } = await untypedFrom('team_member_aliases').delete().eq('id', aliasId);
       if (error) throw error;
     },
     onSuccess: () => {

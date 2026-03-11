@@ -440,6 +440,7 @@ function formValuesToLandingPageDeal(
     revenue_model: null,
     business_model: null,
     growth_trajectory: null,
+    featured_deal_ids: null,
   };
 }
 

@@ -26,6 +26,7 @@ export const LISTING_PIPELINE_STATUSES: readonly ListingPipelineStatus[] = [
 // ── Connection Requests ──────────────────────────────────────────────
 export type ConnectionRequestStatus =
   | 'pending'
+  | 'approved'
   | 'notified'
   | 'reviewed'
   | 'converted'
@@ -33,6 +34,7 @@ export type ConnectionRequestStatus =
 
 export const CONNECTION_REQUEST_STATUSES: readonly ConnectionRequestStatus[] = [
   'pending',
+  'approved',
   'notified',
   'reviewed',
   'converted',

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { DialerEntityType } from '@/hooks/use-push-to-dialer';
 import {
   usePhoneBurnerConnectedUsers,
   type PhoneBurnerConnectedUser,
@@ -21,6 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Phone, Loader2, AlertCircle, CheckCircle2, Users, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+
+type DialerEntityType = 'contacts' | 'buyer_contacts' | 'buyers' | 'listings' | 'leads' | 'contact_list';
 
 interface PushToDialerModalProps {
   open: boolean;
