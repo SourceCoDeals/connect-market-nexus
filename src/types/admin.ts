@@ -176,6 +176,7 @@ export interface CreateListingData {
 
   // Source deal linkage
   source_deal_id?: string | null;
+  featured_deal_ids?: string[] | null;
 }
 
 export interface AdminConnectionRequest {

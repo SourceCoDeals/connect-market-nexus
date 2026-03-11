@@ -58,7 +58,7 @@ export const GuideInputForm = ({
         Upload Guide
       </Button>
       <input
-        ref={guideFileInputRef}
+        ref={guideFileInputRef as React.RefObject<HTMLInputElement>}
         type="file"
         accept=".pdf,.doc,.docx,.txt,.html,.htm"
         className="hidden"

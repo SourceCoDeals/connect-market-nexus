@@ -151,7 +151,7 @@ export function EnhancedAnalyticsHealthDashboard() {
     setIsTestingRunning(true);
     setTestResults([]);
 
-    const logTestResult = (testName: string, success: boolean, details?: string) => {
+    const logTestResult = (testName: string, success: boolean, details?: unknown) => {
       setTestResults((prev) => [...prev, { test: testName, success, details }]);
     };
 

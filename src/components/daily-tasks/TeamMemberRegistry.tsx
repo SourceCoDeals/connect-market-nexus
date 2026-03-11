@@ -84,10 +84,7 @@ export function TeamMemberRegistry() {
   // Remove alias mutation
   const removeAlias = useMutation({
     mutationFn: async (aliasId: string) => {
-      const { error } = await supabase
-        .from('team_member_aliases' as UntypedTable)
-        .delete()
-        .eq('id', aliasId);
+      const { error } = await untypedFrom('team_member_aliases').delete().eq('id', aliasId);
       if (error) throw error;
     },
     onSuccess: () => {

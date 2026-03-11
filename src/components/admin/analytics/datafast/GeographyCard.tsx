@@ -14,7 +14,9 @@ const LazyMapRenderer = lazy(() =>
       getCountryColor: (name: string) => string;
       geoUrl: string;
     }) => {
-      const { ComposableMap, Geographies, Geography } = m;
+      const ComposableMap = m.ComposableMap as ComponentType<Record<string, unknown>>;
+      const Geographies = m.Geographies as ComponentType<Record<string, unknown>>;
+      const Geography = m.Geography as ComponentType<Record<string, unknown>>;
       return (
         <ComposableMap
           projectionConfig={{ rotate: [-10, 0, 0], scale: 130 }}

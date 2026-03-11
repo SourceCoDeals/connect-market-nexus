@@ -21,6 +21,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Phone, Loader2, AlertCircle, CheckCircle2, Users, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
+type DialerEntityType = 'contacts' | 'buyer_contacts' | 'buyers' | 'listings' | 'leads' | 'contact_list';
+
 interface PushToDialerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
