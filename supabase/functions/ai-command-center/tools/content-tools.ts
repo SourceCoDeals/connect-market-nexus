@@ -168,13 +168,13 @@ async function generateMeetingPrep(
   if (buyerId) {
     queries.push(
       supabase.from('buyers').select('*').eq('id', buyerId).single() as any,
-      supabase
+      (supabase as any)
         .from('remarketing_scores')
         .select('*')
         .eq('buyer_id', buyerId)
         .eq('listing_id', dealId)
         .single(),
-      supabase
+      (supabase as any)
         .from('contacts')
         .select('*')
         .eq('remarketing_buyer_id', buyerId)

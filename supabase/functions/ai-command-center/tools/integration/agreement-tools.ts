@@ -172,7 +172,7 @@ export async function sendDocument(
   const sentAtColumn = documentType === 'nda' ? 'nda_sent_at' : 'fee_agreement_sent_at';
   const now = new Date().toISOString();
 
-  await supabase
+  await (supabase as any)
     .from('firm_agreements')
     .update({
       [`${columnPrefix}_pandadoc_document_id`]: documentId,
@@ -184,7 +184,7 @@ export async function sendDocument(
     .eq('id', firmId);
 
   // Log the event
-  await supabase.from('pandadoc_webhook_log').insert({
+  await (supabase as any).from('pandadoc_webhook_log').insert({
     event_type: 'document_created',
     document_id: documentId,
     document_type: documentType,
@@ -193,7 +193,7 @@ export async function sendDocument(
   });
 
   // Create buyer notification
-  const { data: buyerProfile } = await supabase
+  const { data: buyerProfile } = await (supabase as any)
     .from('profiles')
     .select('id')
     .eq('email', signerEmail)
@@ -206,7 +206,7 @@ export async function sendDocument(
         ? 'This is our standard NDA so we can freely exchange confidential information about the companies on our platform. Sign it to unlock full deal access.'
         : 'Here is our fee agreement -- you only pay a fee if you close a deal you meet on our platform. Sign to continue the process.';
 
-    await supabase.from('user_notifications').insert({
+    await (supabase as any).from('user_notifications').insert({
       user_id: buyerProfile.id,
       notification_type: 'agreement_pending',
       title: `${docLabel} Ready to Sign`,
@@ -228,9 +228,9 @@ export async function sendDocument(
       document_id: documentId,
       document_type: documentType,
       delivery_mode: deliveryMode,
-      firm_name: firm.primary_company_name,
+      firm_name: (firm as any).primary_company_name,
       signer: signerName,
-      message: `${docLabel} sent to ${signerName} (${signerEmail}) for ${firm.primary_company_name} via ${deliveryMode}. Document ID: ${documentId}`,
+      message: `${docLabel} sent to ${signerName} (${signerEmail}) for ${(firm as any).primary_company_name} via ${deliveryMode}. Document ID: ${documentId}`,
     },
   };
 }

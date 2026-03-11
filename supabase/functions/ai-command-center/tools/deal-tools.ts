@@ -284,7 +284,7 @@ async function queryDeals(
     let batch: Record<string, unknown>[] | null = null;
     try {
       // Retry each page fetch up to 2 times with exponential backoff
-      batch = await withRetry(() => fetchPage(offset, batchSize));
+      batch = await withRetry(() => fetchPage(offset, batchSize)) as any;
     } catch (primaryError) {
       // If we were using full fields, fall back to quick fields and retry
       if (fields === DEAL_FIELDS_FULL) {
@@ -298,7 +298,7 @@ async function queryDeals(
         allData = [];
         offset = 0;
         try {
-          batch = await withRetry(() => fetchPage(0, batchSize));
+          batch = await withRetry(() => fetchPage(0, batchSize)) as any;
         } catch (fallbackError) {
           const errMsg =
             fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -584,7 +584,7 @@ async function getDealDetails(
 
     if (dealsRow.buyer_contact_id) {
       contactFetches.push(
-        supabase
+        (supabase as any)
           .from('contacts')
           .select(contactFields)
           .eq('id', dealsRow.buyer_contact_id)
@@ -596,7 +596,7 @@ async function getDealDetails(
     }
     if (dealsRow.seller_contact_id) {
       contactFetches.push(
-        supabase
+        (supabase as any)
           .from('contacts')
           .select(contactFields)
           .eq('id', dealsRow.seller_contact_id)

@@ -193,11 +193,11 @@ async function universeComparison(
   // Fetch scoring stats per universe
   const universeIds = universes.map((u: { id: string }) => u.id);
   const [scoresResult, outreachResult, decisionsResult] = await Promise.all([
-    supabase
+    (supabase as any)
       .from('remarketing_scores')
-      .select('buyer_id, listing_id, composite_score, status, tier')
+      .select('buyer_id, listing_id, composite_score, status, tier, universe_id')
       .in('universe_id', universeIds),
-    supabase
+    (supabase as any)
       .from('outreach_records')
       .select('id, deal_id, stage, universe_id')
       .in('universe_id', universeIds),
