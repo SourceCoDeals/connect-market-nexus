@@ -64,7 +64,8 @@ function useAllFirmsTracking() {
     queryFn: async () => {
       const { data: firms, error } = await supabase
         .from('firm_agreements')
-        .select(`
+        .select(
+          `
           *,
           firm_members(
             id,
@@ -81,24 +82,27 @@ function useAllFirmsTracking() {
               id, first_name, last_name, email, company_name, buyer_type
             )
           )
-        `)
+        `,
+        )
         .order('primary_company_name');
 
       if (error) throw error;
       if (!firms || firms.length === 0) return [];
 
-      return firms.map((firm: any) => {
-        const primaryMember = firm.firm_members?.find((m: any) => m.is_primary_contact);
-        const anyMember = firm.firm_members?.[0];
+      return firms.map((firm: Record<string, unknown>) => {
+        const firmMembers = (firm.firm_members || []) as Record<string, unknown>[];
+        const primaryMember = firmMembers.find((m) => m.is_primary_contact);
+        const anyMember = firmMembers[0];
         const member = primaryMember || anyMember;
 
-        const contactName = member?.user
-          ? `${member.user.first_name || ''} ${member.user.last_name || ''}`.trim()
-          : member?.lead_name || null;
-        const contactEmail = member?.user?.email || member?.lead_email || null;
+        const memberUser = member?.user as Record<string, string | null> | undefined;
+        const contactName = memberUser
+          ? `${memberUser.first_name || ''} ${memberUser.last_name || ''}`.trim()
+          : (member?.lead_name as string) || null;
+        const contactEmail = memberUser?.email || (member?.lead_email as string) || null;
 
         // Build FirmMember[] for the dropdown
-        const members: FirmMember[] = (firm.firm_members || []).map((m: any) => ({
+        const members: FirmMember[] = firmMembers.map((m: Record<string, unknown>) => ({
           id: m.id,
           firm_id: firm.id,
           user_id: m.user_id,
@@ -162,7 +166,9 @@ function useOrphanUsers() {
 
       if (mErr) throw mErr;
 
-      const memberUserIds = new Set((memberships || []).map((m: any) => m.user_id));
+      const memberUserIds = new Set(
+        (memberships || []).map((m) => (m as Record<string, unknown>).user_id as string),
+      );
       return profiles.filter((p) => !memberUserIds.has(p.id)) as OrphanUser[];
     },
   });
@@ -176,13 +182,9 @@ function useRealtimeFirmAgreements() {
   useEffect(() => {
     const channel = supabase
       .channel('firm-agreements-tracking')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'firm_agreements' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
-        },
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'firm_agreements' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
+      })
       .subscribe();
 
     return () => {
@@ -218,12 +220,28 @@ export default function DocumentTrackingPage() {
     table: 'documents',
     onSelectRows: (rowIds, mode) => {
       if (mode === 'replace') setSelectedIds(new Set(rowIds));
-      else if (mode === 'add') setSelectedIds((p) => { const n = new Set(p); rowIds.forEach((id) => n.add(id)); return n; });
-      else setSelectedIds((p) => { const n = new Set(p); rowIds.forEach((id) => (n.has(id) ? n.delete(id) : n.add(id))); return n; });
+      else if (mode === 'add')
+        setSelectedIds((p) => {
+          const n = new Set(p);
+          rowIds.forEach((id) => n.add(id));
+          return n;
+        });
+      else
+        setSelectedIds((p) => {
+          const n = new Set(p);
+          rowIds.forEach((id) => (n.has(id) ? n.delete(id) : n.add(id)));
+          return n;
+        });
     },
     onClearSelection: () => setSelectedIds(new Set()),
     onSortColumn: (field) => {
-      const map: Record<string, SortField> = { company_name: 'company', nda: 'nda_status', fee: 'fee_status', members: 'members', last_signed: 'last_signed' };
+      const map: Record<string, SortField> = {
+        company_name: 'company',
+        nda: 'nda_status',
+        fee: 'fee_status',
+        members: 'members',
+        last_signed: 'last_signed',
+      };
       const f = map[field];
       if (f) toggleSort(f);
     },
@@ -231,7 +249,10 @@ export default function DocumentTrackingPage() {
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortAsc(!sortAsc);
-    else { setSortField(field); setSortAsc(true); }
+    else {
+      setSortField(field);
+      setSortAsc(true);
+    }
   };
 
   // Filter + Search
@@ -247,7 +268,8 @@ export default function DocumentTrackingPage() {
           f.contactName?.toLowerCase().includes(q) ||
           f.contactEmail?.toLowerCase().includes(q) ||
           f.email_domain?.toLowerCase().includes(q)
-        ) return true;
+        )
+          return true;
         // Also search ALL member emails/names (Phase 4A)
         if (f.members?.length) {
           return f.members.some((m) => {
@@ -263,31 +285,52 @@ export default function DocumentTrackingPage() {
     }
 
     if (filterStatus === 'signed') {
-      result = result.filter((f) => f.nda_status === 'signed' || f.fee_agreement_status === 'signed');
+      result = result.filter(
+        (f) => f.nda_status === 'signed' || f.fee_agreement_status === 'signed',
+      );
     } else if (filterStatus === 'sent') {
       result = result.filter((f) => f.nda_status === 'sent' || f.fee_agreement_status === 'sent');
     } else if (filterStatus === 'not_started') {
-      result = result.filter((f) => f.nda_status === 'not_started' && f.fee_agreement_status === 'not_started');
+      result = result.filter(
+        (f) => f.nda_status === 'not_started' && f.fee_agreement_status === 'not_started',
+      );
     } else if (filterStatus === 'unsigned') {
-      result = result.filter((f) => f.nda_status !== 'signed' || f.fee_agreement_status !== 'signed');
+      result = result.filter(
+        (f) => f.nda_status !== 'signed' || f.fee_agreement_status !== 'signed',
+      );
     } else if (filterStatus === 'needs_attention') {
       const now = new Date();
       result = result.filter((f) => {
-        const ndaSent = f.nda_sent_at ? differenceInDays(now, new Date(f.nda_sent_at)) > 7 && f.nda_status === 'sent' : false;
-        const feeSent = f.fee_agreement_sent_at ? differenceInDays(now, new Date(f.fee_agreement_sent_at)) > 7 && f.fee_agreement_status === 'sent' : false;
+        const ndaSent = f.nda_sent_at
+          ? differenceInDays(now, new Date(f.nda_sent_at)) > 7 && f.nda_status === 'sent'
+          : false;
+        const feeSent = f.fee_agreement_sent_at
+          ? differenceInDays(now, new Date(f.fee_agreement_sent_at)) > 7 &&
+            f.fee_agreement_status === 'sent'
+          : false;
         return ndaSent || feeSent;
       });
     }
 
     const statusOrder: Record<string, number> = {
-      sent: 0, redlined: 1, under_review: 2, declined: 3, expired: 4, signed: 5, not_started: 6,
+      sent: 0,
+      redlined: 1,
+      under_review: 2,
+      declined: 3,
+      expired: 4,
+      signed: 5,
+      not_started: 6,
     };
 
     result.sort((a, b) => {
       let cmp = 0;
-      if (sortField === 'company') cmp = a.primary_company_name.localeCompare(b.primary_company_name);
-      else if (sortField === 'nda_status') cmp = (statusOrder[a.nda_status] ?? 9) - (statusOrder[b.nda_status] ?? 9);
-      else if (sortField === 'fee_status') cmp = (statusOrder[a.fee_agreement_status] ?? 9) - (statusOrder[b.fee_agreement_status] ?? 9);
+      if (sortField === 'company')
+        cmp = a.primary_company_name.localeCompare(b.primary_company_name);
+      else if (sortField === 'nda_status')
+        cmp = (statusOrder[a.nda_status] ?? 9) - (statusOrder[b.nda_status] ?? 9);
+      else if (sortField === 'fee_status')
+        cmp =
+          (statusOrder[a.fee_agreement_status] ?? 9) - (statusOrder[b.fee_agreement_status] ?? 9);
       else if (sortField === 'members') cmp = b.member_count - a.member_count;
       else if (sortField === 'last_signed') {
         const aDate = Math.max(
@@ -317,8 +360,13 @@ export default function DocumentTrackingPage() {
   const needsAttention = useMemo(() => {
     const now = new Date();
     return firms.filter((f) => {
-      const ndaSent = f.nda_sent_at ? differenceInDays(now, new Date(f.nda_sent_at)) > 7 && f.nda_status === 'sent' : false;
-      const feeSent = f.fee_agreement_sent_at ? differenceInDays(now, new Date(f.fee_agreement_sent_at)) > 7 && f.fee_agreement_status === 'sent' : false;
+      const ndaSent = f.nda_sent_at
+        ? differenceInDays(now, new Date(f.nda_sent_at)) > 7 && f.nda_status === 'sent'
+        : false;
+      const feeSent = f.fee_agreement_sent_at
+        ? differenceInDays(now, new Date(f.fee_agreement_sent_at)) > 7 &&
+          f.fee_agreement_status === 'sent'
+        : false;
       return ndaSent || feeSent;
     }).length;
   }, [firms]);
@@ -352,8 +400,18 @@ export default function DocumentTrackingPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatCard label="Total Firms" value={totalFirms} />
-        <StatCard label="NDA Signed" value={ndaSigned} subtitle={`/ ${totalFirms}`} color="emerald" />
-        <StatCard label="Fee Signed" value={feeSigned} subtitle={`/ ${totalFirms}`} color="emerald" />
+        <StatCard
+          label="NDA Signed"
+          value={ndaSigned}
+          subtitle={`/ ${totalFirms}`}
+          color="emerald"
+        />
+        <StatCard
+          label="Fee Signed"
+          value={feeSigned}
+          subtitle={`/ ${totalFirms}`}
+          color="emerald"
+        />
         <StatCard
           label="Needs Attention"
           value={needsAttention}
@@ -373,8 +431,14 @@ export default function DocumentTrackingPage() {
         <Collapsible open={orphansOpen} onOpenChange={setOrphansOpen}>
           <CollapsibleTrigger className="flex items-center gap-2 w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100 transition-colors">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span className="font-medium">{orphanUsers.length} approved users have no firm record</span>
-            {orphansOpen ? <ChevronDown className="h-4 w-4 ml-auto" /> : <ChevronRight className="h-4 w-4 ml-auto" />}
+            <span className="font-medium">
+              {orphanUsers.length} approved users have no firm record
+            </span>
+            {orphansOpen ? (
+              <ChevronDown className="h-4 w-4 ml-auto" />
+            ) : (
+              <ChevronRight className="h-4 w-4 ml-auto" />
+            )}
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="mt-2 border border-border rounded-lg overflow-hidden bg-card">
@@ -383,13 +447,17 @@ export default function DocumentTrackingPage() {
                   <tr className="border-b bg-muted/50">
                     <th className="text-left px-4 py-2 font-medium text-muted-foreground">Name</th>
                     <th className="text-left px-4 py-2 font-medium text-muted-foreground">Email</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">Company</th>
+                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">
+                      Company
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {orphanUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-2">{[u.first_name, u.last_name].filter(Boolean).join(' ') || '--'}</td>
+                      <td className="px-4 py-2">
+                        {[u.first_name, u.last_name].filter(Boolean).join(' ') || '--'}
+                      </td>
                       <td className="px-4 py-2 text-muted-foreground">{u.email}</td>
                       <td className="px-4 py-2 text-muted-foreground">{u.company || '--'}</td>
                     </tr>
@@ -455,7 +523,9 @@ export default function DocumentTrackingPage() {
           <FileSignature className="h-12 w-12 text-muted-foreground/30 mb-3" />
           <p className="text-sm font-medium text-foreground">No firms found</p>
           <p className="text-xs text-muted-foreground mt-1">
-            {searchQuery || filterStatus !== 'all' ? 'Try adjusting your filters.' : 'Firms will appear here as users sign up.'}
+            {searchQuery || filterStatus !== 'all'
+              ? 'Try adjusting your filters.'
+              : 'Firms will appear here as users sign up.'}
           </p>
         </div>
       ) : (
@@ -472,37 +542,58 @@ export default function DocumentTrackingPage() {
                     />
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    <button onClick={() => toggleSort('company')} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    <button
+                      onClick={() => toggleSort('company')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
                       Firm Name <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Domain</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    <button onClick={() => toggleSort('members')} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    <button
+                      onClick={() => toggleSort('members')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
                       <Users className="h-3 w-3" /> Members <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    <button onClick={() => toggleSort('nda_status')} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    <button
+                      onClick={() => toggleSort('nda_status')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
                       <Shield className="h-3 w-3" /> NDA <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    <button onClick={() => toggleSort('last_signed')} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    <button
+                      onClick={() => toggleSort('last_signed')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
                       NDA Date <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    <button onClick={() => toggleSort('fee_status')} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      <FileSignature className="h-3 w-3" /> Fee Agmt <ArrowUpDown className="h-3 w-3" />
+                    <button
+                      onClick={() => toggleSort('fee_status')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      <FileSignature className="h-3 w-3" /> Fee Agmt{' '}
+                      <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                    <button onClick={() => toggleSort('last_signed')} className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    <button
+                      onClick={() => toggleSort('last_signed')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
                       Fee Date <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Primary Contact</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    Primary Contact
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -513,14 +604,23 @@ export default function DocumentTrackingPage() {
                   >
                     <td
                       className="px-4 py-3 w-10"
-                      onClick={(e) => { e.stopPropagation(); toggleRow(firm.id, !selectedIds.has(firm.id), e); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleRow(firm.id, !selectedIds.has(firm.id), e);
+                      }}
                     >
-                      <Checkbox checked={selectedIds.has(firm.id)} onCheckedChange={() => {}} aria-label={`Select ${firm.primary_company_name}`} />
+                      <Checkbox
+                        checked={selectedIds.has(firm.id)}
+                        onCheckedChange={() => {}}
+                        aria-label={`Select ${firm.primary_company_name}`}
+                      />
                     </td>
 
                     {/* Firm Name */}
                     <td className="px-4 py-3">
-                      <span className="font-medium text-foreground">{firm.primary_company_name}</span>
+                      <span className="font-medium text-foreground">
+                        {firm.primary_company_name}
+                      </span>
                     </td>
 
                     {/* Domain */}
@@ -546,16 +646,23 @@ export default function DocumentTrackingPage() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {firm.nda_signed_at ? (
                         <div>
-                          <span className="text-emerald-600 font-medium">{format(new Date(firm.nda_signed_at), 'MMM d, yyyy')}</span>
-                          {firm.nda_signed_by_name && <p className="text-[10px]">{firm.nda_signed_by_name}</p>}
+                          <span className="text-emerald-600 font-medium">
+                            {format(new Date(firm.nda_signed_at), 'MMM d, yyyy')}
+                          </span>
+                          {firm.nda_signed_by_name && (
+                            <p className="text-[10px]">{firm.nda_signed_by_name}</p>
+                          )}
                         </div>
                       ) : firm.nda_sent_at ? (
                         <span title={format(new Date(firm.nda_sent_at), 'MMM d, yyyy h:mm a')}>
-                          Sent {formatDistanceToNow(new Date(firm.nda_sent_at), { addSuffix: true })}
+                          Sent{' '}
+                          {formatDistanceToNow(new Date(firm.nda_sent_at), { addSuffix: true })}
                         </span>
                       ) : firm.nda_status !== 'not_started' ? (
                         <LastAuditAction firmId={firm.id} agreementType="nda" />
-                      ) : '--'}
+                      ) : (
+                        '--'
+                      )}
                     </td>
 
                     {/* Fee Status - inline dropdown */}
@@ -571,24 +678,39 @@ export default function DocumentTrackingPage() {
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {firm.fee_agreement_signed_at ? (
                         <div>
-                          <span className="text-emerald-600 font-medium">{format(new Date(firm.fee_agreement_signed_at), 'MMM d, yyyy')}</span>
-                          {firm.fee_agreement_signed_by_name && <p className="text-[10px]">{firm.fee_agreement_signed_by_name}</p>}
+                          <span className="text-emerald-600 font-medium">
+                            {format(new Date(firm.fee_agreement_signed_at), 'MMM d, yyyy')}
+                          </span>
+                          {firm.fee_agreement_signed_by_name && (
+                            <p className="text-[10px]">{firm.fee_agreement_signed_by_name}</p>
+                          )}
                         </div>
                       ) : firm.fee_agreement_sent_at ? (
-                        <span title={format(new Date(firm.fee_agreement_sent_at), 'MMM d, yyyy h:mm a')}>
-                          Sent {formatDistanceToNow(new Date(firm.fee_agreement_sent_at), { addSuffix: true })}
+                        <span
+                          title={format(new Date(firm.fee_agreement_sent_at), 'MMM d, yyyy h:mm a')}
+                        >
+                          Sent{' '}
+                          {formatDistanceToNow(new Date(firm.fee_agreement_sent_at), {
+                            addSuffix: true,
+                          })}
                         </span>
                       ) : firm.fee_agreement_status !== 'not_started' ? (
                         <LastAuditAction firmId={firm.id} agreementType="fee_agreement" />
-                      ) : '--'}
+                      ) : (
+                        '--'
+                      )}
                     </td>
 
                     {/* Contact */}
                     <td className="px-4 py-3">
                       {firm.contactName || firm.contactEmail ? (
                         <div>
-                          {firm.contactName && <p className="text-foreground text-xs">{firm.contactName}</p>}
-                          {firm.contactEmail && <p className="text-[10px] text-muted-foreground">{firm.contactEmail}</p>}
+                          {firm.contactName && (
+                            <p className="text-foreground text-xs">{firm.contactName}</p>
+                          )}
+                          {firm.contactEmail && (
+                            <p className="text-[10px] text-muted-foreground">{firm.contactEmail}</p>
+                          )}
                         </div>
                       ) : (
                         <span className="text-muted-foreground">--</span>
@@ -611,7 +733,13 @@ export default function DocumentTrackingPage() {
 
 // ─── Last Audit Action (for non-signed, non-not_started states) ──────
 
-function LastAuditAction({ firmId, agreementType }: { firmId: string; agreementType: 'nda' | 'fee_agreement' }) {
+function LastAuditAction({
+  firmId,
+  agreementType,
+}: {
+  firmId: string;
+  agreementType: 'nda' | 'fee_agreement';
+}) {
   const { data } = useQuery({
     queryKey: ['last-audit-action', firmId, agreementType],
     queryFn: async () => {
@@ -635,7 +763,9 @@ function LastAuditAction({ firmId, agreementType }: { firmId: string; agreementT
     <div>
       <span className="text-amber-600 font-medium">{data.new_status}</span>
       {data.changed_by_name && <p className="text-[10px]">by {data.changed_by_name}</p>}
-      {data.created_at && <p className="text-[10px]">{format(new Date(data.created_at), 'MMM d, yyyy')}</p>}
+      {data.created_at && (
+        <p className="text-[10px]">{format(new Date(data.created_at), 'MMM d, yyyy')}</p>
+      )}
     </div>
   );
 }
@@ -674,7 +804,9 @@ function StatCard({
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`text-2xl font-bold mt-1 ${colorClasses}`}>
         {value}
-        {subtitle && <span className="text-sm font-normal text-muted-foreground ml-0.5">{subtitle}</span>}
+        {subtitle && (
+          <span className="text-sm font-normal text-muted-foreground ml-0.5">{subtitle}</span>
+        )}
       </p>
     </div>
   );

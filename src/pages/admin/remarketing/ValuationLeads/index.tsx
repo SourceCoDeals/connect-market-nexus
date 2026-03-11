@@ -267,7 +267,7 @@ export default function ValuationLeads() {
                 : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
-            {type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+            {type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
             <span className="ml-1.5 text-xs text-muted-foreground">
               ({(leads || []).filter((l) => l.calculator_type === type && !l.is_archived).length})
             </span>
@@ -443,7 +443,7 @@ export default function ValuationLeads() {
         onMarkNotFit={(ids) => handleMarkNotFit(ids)}
         onViewDeal={(listingId) => {
           setDrawerOpen(false);
-          handleOpenDeal({ pushed_listing_id: listingId, id: '' } as any);
+          handleOpenDeal({ pushed_listing_id: listingId, id: '' } as ValuationLead);
         }}
         isPushing={isPushing}
       />

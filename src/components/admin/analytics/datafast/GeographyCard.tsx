@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 // Lazy-load react-simple-maps (~100KB) — only downloaded when map tab is viewed
 const LazyMapRenderer = lazy(() =>
   // @ts-expect-error react-simple-maps has no type declarations
-  import('react-simple-maps').then((m: any) => ({
+  import('react-simple-maps').then((m: Record<string, unknown>) => ({
     default: ({
       getCountryColor,
       geoUrl,

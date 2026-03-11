@@ -3,8 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Deal } from './types';
 
 /** Maps a single RPC row from get_deals_with_buyer_profiles to a Deal object. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mapRpcRowToDeal(row: Record<string, any>) {
+export function mapRpcRowToDeal(row: Record<string, unknown>) {
   return {
     deal_id: row.deal_id,
     title: row.deal_title || row.listing_title || 'Deal',

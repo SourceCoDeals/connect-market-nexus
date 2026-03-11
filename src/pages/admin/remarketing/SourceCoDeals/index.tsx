@@ -19,7 +19,7 @@ import {
   ThumbsDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import { DealImportDialog } from '@/components/remarketing/DealImportDialog';
 import { FilterBar, TimeframeSelector, SOURCECO_FIELDS } from '@/components/filters';
 import { EnrichmentProgressIndicator } from '@/components/remarketing/EnrichmentProgressIndicator';
@@ -55,7 +55,9 @@ export default function SourceCoDeals() {
   // Navigation blocking via beforeunload when import dialog is open
   useEffect(() => {
     if (!hook.csvUploadOpen) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [hook.csvUploadOpen]);
@@ -90,7 +92,7 @@ export default function SourceCoDeals() {
       for (const dealId of dealIds) {
         await supabase.from('enrichment_queue').delete().eq('listing_id', dealId);
         await supabase.from('remarketing_scores').delete().eq('listing_id', dealId);
-        await (supabase.from('buyer_deal_scores' as any) as any).delete().eq('deal_id', dealId);
+        await untypedFrom('buyer_deal_scores').delete().eq('deal_id', dealId);
       }
       const { error } = await supabase.from('listings').delete().in('id', dealIds);
       if (error) throw error;
@@ -378,26 +380,26 @@ export default function SourceCoDeals() {
           <ThumbsDown className="h-3.5 w-3.5" />
           {hook.hideNotFit ? 'Not Fit Hidden' : 'Show Not Fit'}
         </button>
-      <DealBulkActionBar
-        selectedIds={hook.selectedIds}
-        deals={hook.filteredDeals}
-        onClearSelection={() => hook.setSelectedIds(new Set())}
-        onRefetch={hook.refetch}
-        onApproveToActiveDeals={hook.handlePushToAllDeals}
-        isPushing={hook.isPushing}
-        onEnrichSelected={(dealIds) => hook.handleEnrichSelected(dealIds)}
-        isEnriching={hook.isEnriching}
-        onPushToDialer={() => setDialerOpen(true)}
-        onPushToSmartlead={() => setSmartleadOpen(true)}
-        onPushToHeyreach={() => setHeyreachOpen(true)}
-        onAddToList={() => setAddToListOpen(true)}
-        onMarkNotFit={handleMarkNotFit}
-        isMarkingNotFit={isMarkingNotFit}
-        onArchive={handleBulkArchive}
-        isArchiving={isArchiving}
-        onDelete={handleBulkDelete}
-        isDeleting={isDeleting}
-      />
+        <DealBulkActionBar
+          selectedIds={hook.selectedIds}
+          deals={hook.filteredDeals}
+          onClearSelection={() => hook.setSelectedIds(new Set())}
+          onRefetch={hook.refetch}
+          onApproveToActiveDeals={hook.handlePushToAllDeals}
+          isPushing={hook.isPushing}
+          onEnrichSelected={(dealIds) => hook.handleEnrichSelected(dealIds)}
+          isEnriching={hook.isEnriching}
+          onPushToDialer={() => setDialerOpen(true)}
+          onPushToSmartlead={() => setSmartleadOpen(true)}
+          onPushToHeyreach={() => setHeyreachOpen(true)}
+          onAddToList={() => setAddToListOpen(true)}
+          onMarkNotFit={handleMarkNotFit}
+          isMarkingNotFit={isMarkingNotFit}
+          onArchive={handleBulkArchive}
+          isArchiving={isArchiving}
+          onDelete={handleBulkDelete}
+          isDeleting={isDeleting}
+        />
       </div>
       <PushToDialerModal
         open={dialerOpen}

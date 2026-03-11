@@ -29,8 +29,7 @@ function useInboxThreads() {
   return useQuery({
     queryKey: ['inbox-threads'],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: requestsRaw, error: reqError } = await (supabase as any)
+      const { data: requestsRaw, error: reqError } = await supabase
         .from('connection_requests')
         .select(
           `
@@ -88,8 +87,11 @@ function useInboxThreads() {
       });
 
       // Fetch firm agreement statuses for all unique user IDs
-      const uniqueUserIds = [...new Set(requests.map(r => r.user_id as string).filter(Boolean))];
-      const firmStatusMap: Record<string, { nda_status: string | null; fee_status: string | null; firm_name: string | null }> = {};
+      const uniqueUserIds = [...new Set(requests.map((r) => r.user_id as string).filter(Boolean))];
+      const firmStatusMap: Record<
+        string,
+        { nda_status: string | null; fee_status: string | null; firm_name: string | null }
+      > = {};
 
       if (uniqueUserIds.length > 0) {
         // Get firm memberships
@@ -116,12 +118,17 @@ function useInboxThreads() {
         if (firmIds.length > 0) {
           const { data: firms } = await supabase
             .from('firm_agreements')
-            .select('id, primary_company_name, nda_signed, nda_status, fee_agreement_signed, fee_agreement_status')
+            .select(
+              'id, primary_company_name, nda_signed, nda_status, fee_agreement_signed, fee_agreement_status',
+            )
             .in('id', firmIds);
 
           const firmDataMap: Record<string, Record<string, unknown>> = {};
           (firms || []).forEach((f) => {
-            firmDataMap[(f as Record<string, unknown>).id as string] = f as unknown as Record<string, unknown>;
+            firmDataMap[(f as Record<string, unknown>).id as string] = f as unknown as Record<
+              string,
+              unknown
+            >;
           });
 
           // Map user IDs to their firm status
@@ -129,8 +136,14 @@ function useInboxThreads() {
             const firm = firmDataMap[firmId];
             if (firm) {
               firmStatusMap[userId] = {
-                nda_status: resolveAgreementStatus(!!firm.nda_signed, firm.nda_status as string | null),
-                fee_status: resolveAgreementStatus(!!firm.fee_agreement_signed, firm.fee_agreement_status as string | null),
+                nda_status: resolveAgreementStatus(
+                  !!firm.nda_signed,
+                  firm.nda_status as string | null,
+                ),
+                fee_status: resolveAgreementStatus(
+                  !!firm.fee_agreement_signed,
+                  firm.fee_agreement_status as string | null,
+                ),
                 firm_name: (firm.primary_company_name as string) || null,
               };
             }
@@ -141,7 +154,11 @@ function useInboxThreads() {
       const threads: InboxThread[] = requests.map((req) => {
         const user = req.user;
         const userId = req.user_id as string;
-        const firmInfo = firmStatusMap[userId] || { nda_status: null, fee_status: null, firm_name: null };
+        const firmInfo = firmStatusMap[userId] || {
+          nda_status: null,
+          fee_status: null,
+          firm_name: null,
+        };
         return {
           connection_request_id: req.id,
           user_id: userId || null,
@@ -197,14 +214,24 @@ export default function MessageCenter() {
   useEffect(() => {
     const channel = supabase
       .channel('admin-inbox-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connection_messages' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['inbox-threads'] });
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'connection_requests' }, () => {
-        queryClient.invalidateQueries({ queryKey: ['inbox-threads'] });
-      })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'connection_messages' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['inbox-threads'] });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'connection_requests' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['inbox-threads'] });
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [queryClient]);
 
   const selectedThread = threads.find((t) => t.connection_request_id === selectedThreadId);
@@ -351,7 +378,10 @@ export default function MessageCenter() {
         </div>
 
         {/* Filter tabs — underline style */}
-        <div className="flex items-center gap-4 mt-4 overflow-x-auto" style={{ borderBottom: '1px solid #F0EDE6' }}>
+        <div
+          className="flex items-center gap-4 mt-4 overflow-x-auto"
+          style={{ borderBottom: '1px solid #F0EDE6' }}
+        >
           {filters.map((f) => (
             <button
               key={f.key}
@@ -427,7 +457,7 @@ export default function MessageCenter() {
 
             <ScrollArea className="flex-1">
               {viewMode === 'all' ? (
-              <div>
+                <div>
                   {filteredThreads.map((thread) => (
                     <ThreadListItem
                       key={thread.connection_request_id}

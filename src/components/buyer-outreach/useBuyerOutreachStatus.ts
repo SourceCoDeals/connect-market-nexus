@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { untypedFrom } from '@/integrations/supabase/client';
 import { getHighestPriorityStatus, type OutreachStatusType } from './StatusBadge';
 
 type OutreachEvent = {
@@ -30,8 +30,7 @@ export function useBuyerOutreachStatus(dealId: string, buyerIds: string[]) {
     queryFn: async () => {
       if (!buyerIds.length) return new Map<string, BuyerOutreachSummary>();
 
-      const { data, error } = await (supabase as any)
-        .from('buyer_outreach_events')
+      const { data, error } = await untypedFrom('buyer_outreach_events')
         .select('*')
         .eq('deal_id', dealId)
         .in('buyer_id', buyerIds)

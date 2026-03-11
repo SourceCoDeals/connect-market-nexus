@@ -99,11 +99,12 @@ export function InviteTeamMemberDialog({ open, onOpenChange }: InviteTeamMemberD
       setRole('moderator');
       onOpenChange(false);
     } catch (error: unknown) {
-      const msg = error instanceof Error 
-        ? error.message 
-        : typeof error === 'object' && error && 'message' in error 
-          ? String((error as any).message) 
-          : 'Something went wrong.';
+      const msg =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'object' && error && 'message' in error
+            ? String((error as { message: string }).message)
+            : 'Something went wrong.';
       console.error('[InviteTeamMember] Error:', error);
       toast({
         title: 'Failed to invite',

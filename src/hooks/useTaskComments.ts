@@ -5,7 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { untypedFrom } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { TaskComment } from '@/types/daily-tasks';
 
@@ -16,7 +16,7 @@ export function useTaskComments(taskId: string | null) {
     queryKey: [COMMENTS_KEY, taskId],
     enabled: !!taskId,
     queryFn: async () => {
-      const { data, error } = await (supabase.from('rm_task_comments' as any) as any)
+      const { data, error } = await untypedFrom('rm_task_comments')
         .select(
           `
           *,
@@ -39,7 +39,7 @@ export function useAddTaskComment() {
 
   return useMutation({
     mutationFn: async ({ taskId, body }: { taskId: string; body: string }) => {
-      const { data, error } = await (supabase.from('rm_task_comments' as any) as any)
+      const { data, error } = await untypedFrom('rm_task_comments')
         .insert({
           task_id: taskId,
           user_id: user?.id ?? '',
@@ -51,7 +51,7 @@ export function useAddTaskComment() {
       if (error) throw error;
 
       // Log activity
-      await (supabase.from('rm_task_activity_log' as any) as any).insert({
+      await untypedFrom('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id ?? '',
         action: 'commented',
@@ -71,9 +71,7 @@ export function useDeleteTaskComment() {
 
   return useMutation({
     mutationFn: async ({ commentId, taskId }: { commentId: string; taskId: string }) => {
-      const { error } = await (supabase.from('rm_task_comments' as any) as any)
-        .delete()
-        .eq('id', commentId);
+      const { error } = await untypedFrom('rm_task_comments').delete().eq('id', commentId);
 
       if (error) throw error;
       return taskId;

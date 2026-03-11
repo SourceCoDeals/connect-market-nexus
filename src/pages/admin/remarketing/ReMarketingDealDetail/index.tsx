@@ -9,7 +9,17 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Ban, Building2, Eye, Activity, UserPlus, FolderOpen, ListChecks, Calculator, Send } from 'lucide-react';
+import {
+  Ban,
+  Building2,
+  Eye,
+  Activity,
+  UserPlus,
+  FolderOpen,
+  ListChecks,
+  Calculator,
+  Send,
+} from 'lucide-react';
 import { CreateTaskButton, EntityTasksTab, DealSignalsPanel } from '@/components/daily-tasks';
 import { NotAFitReasonDialog } from '@/components/remarketing';
 import { BuyerOutreachTab } from '@/components/buyer-outreach';
@@ -20,9 +30,7 @@ import { DealHeader } from './DealHeader';
 import { OverviewTab } from './OverviewTab';
 import { DataRoomTab } from './DataRoomTab';
 import { DealCallActivityTab } from './DealCallActivityTab';
-import {
-  DealContactHistoryTab,
-} from '@/components/remarketing/deal-detail';
+import { DealContactHistoryTab } from '@/components/remarketing/deal-detail';
 import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNotesLog';
 import { BuyerIntroductionPage } from '@/components/admin/deals/buyer-introductions/BuyerIntroductionPage';
 import { ValuationTab } from './ValuationTab';
@@ -122,7 +130,9 @@ const ReMarketingDealDetail = () => {
             handleCancelEdit={handleCancelEdit}
             updateNameMutation={updateNameMutation}
             onMarkNotAFit={() => setNotAFitDialogOpen(true)}
-            onRemoveNotAFit={() => updateDealMutation.mutate({ not_a_fit: false, not_a_fit_reason: null })}
+            onRemoveNotAFit={() =>
+              updateDealMutation.mutate({ not_a_fit: false, not_a_fit_reason: null })
+            }
           />
         </div>
         <CreateTaskButton entityType="deal" entityId={dealId!} entityName={displayName} />
@@ -132,7 +142,9 @@ const ReMarketingDealDetail = () => {
         <div className="flex items-center gap-3 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
           <Ban className="h-5 w-5 text-orange-600 shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-orange-800">This deal is marked as Not a Fit</p>
+            <p className="text-sm font-semibold text-orange-800">
+              This deal is marked as Not a Fit
+            </p>
             {deal.not_a_fit_reason && (
               <p className="text-sm text-orange-700 mt-0.5">Reason: {deal.not_a_fit_reason}</p>
             )}
@@ -198,7 +210,7 @@ const ReMarketingDealDetail = () => {
 
         <TabsContent value="overview" className="space-y-6">
           <OverviewTab
-            deal={deal as any}
+            deal={deal as Record<string, unknown>}
             dealId={dealId!}
             scoreStats={scoreStats}
             pipelineStats={pipelineStats}
@@ -238,7 +250,12 @@ const ReMarketingDealDetail = () => {
         </TabsContent>
 
         <TabsContent value="buyer-introductions" className="space-y-6">
-          <BuyerIntroductionPage listingId={dealId!} listingTitle={displayName} listingIndustry={deal.industry ?? undefined} listingCategories={deal.categories ?? undefined} />
+          <BuyerIntroductionPage
+            listingId={dealId!}
+            listingTitle={displayName}
+            listingIndustry={deal.industry ?? undefined}
+            listingCategories={deal.categories ?? undefined}
+          />
         </TabsContent>
 
         <TabsContent value="buyer-outreach" className="space-y-6">
@@ -246,11 +263,7 @@ const ReMarketingDealDetail = () => {
         </TabsContent>
 
         <TabsContent value="listing-tasks" className="space-y-6">
-          <EntityTasksTab
-            entityType="listing"
-            entityId={dealId!}
-            entityName={displayName}
-          />
+          <EntityTasksTab entityType="listing" entityId={dealId!} entityName={displayName} />
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-6">
@@ -263,7 +276,11 @@ const ReMarketingDealDetail = () => {
           />
         </TabsContent>
 
-        <TabsContent value="data-room" forceMount className="space-y-6 data-[state=inactive]:hidden">
+        <TabsContent
+          value="data-room"
+          forceMount
+          className="space-y-6 data-[state=inactive]:hidden"
+        >
           <DataRoomTab deal={deal} dealId={dealId!} scoreStats={scoreStats} />
         </TabsContent>
       </Tabs>

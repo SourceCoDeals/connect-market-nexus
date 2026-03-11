@@ -1,6 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+interface AnalyticsRow {
+  id: string;
+  listing_id: string;
+  unique_views: number;
+  saves: number;
+  connection_requests: number;
+  created_at: string;
+  action_type?: string;
+  user_id?: string;
+}
+
 export interface RevenueOptimization {
   category: string;
   current_avg_commission: number;
@@ -74,7 +85,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
         supabase
           .from('listing_analytics')
           .select('id, listing_id, unique_views, saves, connection_requests, created_at')
-          .gte('created_at', startDate.toISOString()) as any,
+          .gte('created_at', startDate.toISOString()),
         supabase
           .from('connection_requests')
           .select('id, listing_id, user_id, status, created_at')
@@ -108,8 +119,9 @@ export function useRevenueOptimization(daysBack: number = 90) {
         }
 
         const views =
-          (analytics as any[])?.filter((a: any) => a.listing_id === listing.id && a.action_type === 'view')
-            .length || 0;
+          (analytics as AnalyticsRow[])?.filter(
+            (a: AnalyticsRow) => a.listing_id === listing.id && a.action_type === 'view',
+          ).length || 0;
         const listingSaves = saves?.filter((s) => s.listing_id === listing.id).length || 0;
         const listingConnections =
           connections?.filter((c) => c.listing_id === listing.id).length || 0;
@@ -186,8 +198,9 @@ export function useRevenueOptimization(daysBack: number = 90) {
             (Date.now() - new Date(listing.created_at).getTime()) / (1000 * 60 * 60 * 24),
           );
           const views =
-            (analytics as any[])?.filter((a: any) => a.listing_id === listing.id && a.action_type === 'view')
-              .length || 0;
+            (analytics as AnalyticsRow[])?.filter(
+              (a: AnalyticsRow) => a.listing_id === listing.id && a.action_type === 'view',
+            ).length || 0;
           const listingSaves = saves?.filter((s) => s.listing_id === listing.id).length || 0;
           const listingConnections =
             connections?.filter((c) => c.listing_id === listing.id).length || 0;
@@ -241,7 +254,9 @@ export function useRevenueOptimization(daysBack: number = 90) {
         {
           stage: 'lead',
           user_count: users.filter((u) => {
-            const userViews = (analytics as any[])?.filter((a: any) => a.user_id === u.id).length || 0;
+            const userViews =
+              (analytics as AnalyticsRow[])?.filter((a: AnalyticsRow) => a.user_id === u.id)
+                .length || 0;
             return userViews > 0 && userViews < 5;
           }).length,
           avg_time_in_stage: 3, // days

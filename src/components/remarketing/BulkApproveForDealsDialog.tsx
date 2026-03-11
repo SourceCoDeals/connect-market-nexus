@@ -7,7 +7,7 @@
  */
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { batchCreateBuyerIntroductions } from '@/lib/remarketing/createBuyerIntroduction';
@@ -257,7 +257,7 @@ export function BulkApproveForDealsDialog({
       for (const group of selectedGroups) {
         for (const scoreId of [...group.pendingScoreIds, ...newScoreIds.filter(() => true)]) {
           try {
-            await (supabase.from('remarketing_outreach') as any).upsert(
+            await untypedFrom('remarketing_outreach').upsert(
               {
                 score_id: scoreId,
                 listing_id: group.listingId,

@@ -24,3 +24,16 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   },
 });
+
+/**
+ * Type-safe accessor for tables not yet in the generated Database types.
+ * Returns an untyped query builder — prefer adding the table to the codegen
+ * schema long-term, but this avoids scattering `as any` throughout the codebase.
+ *
+ * Usage: `untypedFrom('my_new_table').select('*')`
+ */
+type KnownTable = keyof Database['public']['Tables'];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function untypedFrom(table: string): ReturnType<typeof supabase.from<any>> {
+  return supabase.from(table as KnownTable);
+}

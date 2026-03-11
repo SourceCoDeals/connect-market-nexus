@@ -217,7 +217,7 @@ export function MatchList({
               return (
                 <BuyerMatchCard
                   key={score.id}
-                  score={score as any}
+                  score={score as unknown as import('@/types/remarketing').ReMarketingScore}
                   dealLocation={listing?.location ?? undefined}
                   isSelected={selectedIds.has(score.id)}
                   isHighlighted={highlightedBuyerIds.includes(

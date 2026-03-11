@@ -22,7 +22,7 @@ async function syncBuyerFromMarketplace(client: typeof supabase, buyerId: string
       .maybeSingle();
 
     if (firmAgreement) {
-      const fa = firmAgreement as any;
+      const fa = firmAgreement as Record<string, unknown>;
       const updates: Record<string, unknown> = {};
       if (fa.company_name) {
         updates.company_name = fa.company_name;
@@ -319,9 +319,7 @@ export function useUniverseActions(data: UseUniverseDataReturn) {
 
     // Filter based on mode — "unenriched" skips buyers that already have enrichment data
     const buyersToEnrich =
-      mode === 'unenriched'
-        ? buyers.filter((b) => !(b as any).data_last_updated)
-        : buyers;
+      mode === 'unenriched' ? buyers.filter((b) => !b.data_last_updated) : buyers;
 
     if (buyersToEnrich.length === 0) {
       toast.info('All buyers are already enriched');

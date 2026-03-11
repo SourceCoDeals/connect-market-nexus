@@ -1,23 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Timer, 
-  Zap, 
-  Target,
-  ArrowRight,
-  Clock,
-  CheckCircle2,
-  AlertTriangle
-} from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
+import { Timer, Zap, Target, ArrowRight, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
   ResponsiveContainer,
-  ReferenceLine
+  ReferenceLine,
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -62,10 +54,18 @@ const DEFAULT_BENCHMARKS = {
   contactToResponse: 5,
   responseToMeeting: 7,
   meetingToClose: 30,
-  total: 44
+  total: 44,
 };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ value: number; dataKey: string }>;
+  label?: string;
+}) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-popover border rounded-lg shadow-lg p-3">
@@ -89,7 +89,7 @@ export const OutreachVelocityDashboard = ({
   stageVelocities: _stageVelocities,
   summary,
   benchmarks = DEFAULT_BENCHMARKS,
-  className
+  className,
 }: OutreachVelocityDashboardProps) => {
   const getPerformanceStatus = (actual: number, benchmark: number) => {
     const ratio = actual / benchmark;
@@ -102,34 +102,34 @@ export const OutreachVelocityDashboard = ({
   const totalPerformance = getPerformanceStatus(summary.totalAvgDays, benchmarks.total);
 
   const stages = [
-    { 
-      label: 'Approval → Contact', 
-      value: summary.avgApprovalToContact, 
+    {
+      label: 'Approval → Contact',
+      value: summary.avgApprovalToContact,
       benchmark: benchmarks.approvalToContact,
-      icon: Zap
+      icon: Zap,
     },
-    { 
-      label: 'Contact → Response', 
-      value: summary.avgContactToResponse, 
+    {
+      label: 'Contact → Response',
+      value: summary.avgContactToResponse,
       benchmark: benchmarks.contactToResponse,
-      icon: Clock
+      icon: Clock,
     },
-    { 
-      label: 'Response → Meeting', 
-      value: summary.avgResponseToMeeting, 
+    {
+      label: 'Response → Meeting',
+      value: summary.avgResponseToMeeting,
       benchmark: benchmarks.responseToMeeting,
-      icon: Target
+      icon: Target,
     },
-    { 
-      label: 'Meeting → Close', 
-      value: summary.avgMeetingToClose, 
+    {
+      label: 'Meeting → Close',
+      value: summary.avgMeetingToClose,
       benchmark: benchmarks.meetingToClose,
-      icon: CheckCircle2
+      icon: CheckCircle2,
     },
   ];
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -139,17 +139,15 @@ export const OutreachVelocityDashboard = ({
               <span className="text-sm">Total Cycle Time</span>
             </div>
             <div className="flex items-center gap-2">
-              <p className={cn("text-2xl font-bold", totalPerformance.color)}>
+              <p className={cn('text-2xl font-bold', totalPerformance.color)}>
                 {summary.totalAvgDays.toFixed(0)}
               </p>
               <span className="text-sm text-muted-foreground">days</span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Benchmark: {benchmarks.total} days
-            </p>
+            <p className="text-xs text-muted-foreground">Benchmark: {benchmarks.total} days</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -160,19 +158,23 @@ export const OutreachVelocityDashboard = ({
               <p className="text-2xl font-bold">{summary.avgApprovalToContact.toFixed(1)}</p>
               <span className="text-sm text-muted-foreground">days</span>
             </div>
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={cn(
-                "text-xs mt-1",
+                'text-xs mt-1',
                 getPerformanceStatus(summary.avgApprovalToContact, benchmarks.approvalToContact).bg,
-                getPerformanceStatus(summary.avgApprovalToContact, benchmarks.approvalToContact).color
+                getPerformanceStatus(summary.avgApprovalToContact, benchmarks.approvalToContact)
+                  .color,
               )}
             >
-              {getPerformanceStatus(summary.avgApprovalToContact, benchmarks.approvalToContact).status}
+              {
+                getPerformanceStatus(summary.avgApprovalToContact, benchmarks.approvalToContact)
+                  .status
+              }
             </Badge>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -180,12 +182,10 @@ export const OutreachVelocityDashboard = ({
               <span className="text-sm">Response Rate</span>
             </div>
             <p className="text-2xl font-bold">{summary.responseRate.toFixed(0)}%</p>
-            <p className="text-xs text-muted-foreground">
-              Of contacted buyers
-            </p>
+            <p className="text-xs text-muted-foreground">Of contacted buyers</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
@@ -193,9 +193,7 @@ export const OutreachVelocityDashboard = ({
               <span className="text-sm">Meeting Conversion</span>
             </div>
             <p className="text-2xl font-bold">{summary.meetingRate.toFixed(0)}%</p>
-            <p className="text-xs text-muted-foreground">
-              Of responses
-            </p>
+            <p className="text-xs text-muted-foreground">Of responses</p>
           </CardContent>
         </Card>
       </div>
@@ -204,9 +202,7 @@ export const OutreachVelocityDashboard = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Velocity Trend</CardTitle>
-          <CardDescription>
-            Average days from approval to close over time
-          </CardDescription>
+          <CardDescription>Average days from approval to close over time</CardDescription>
         </CardHeader>
         <CardContent>
           {velocityTrends.length > 0 ? (
@@ -216,16 +212,16 @@ export const OutreachVelocityDashboard = ({
                   <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip content={<CustomTooltip />} />
-                  <ReferenceLine 
-                    y={benchmarks.total} 
-                    stroke="hsl(var(--muted-foreground))" 
-                    strokeDasharray="3 3" 
+                  <ReferenceLine
+                    y={benchmarks.total}
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeDasharray="3 3"
                     label={{ value: 'Benchmark', position: 'right', fontSize: 10 }}
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="avgDays" 
-                    stroke="hsl(var(--primary))" 
+                  <Line
+                    type="monotone"
+                    dataKey="avgDays"
+                    stroke="hsl(var(--primary))"
                     strokeWidth={2}
                     dot={{ fill: 'hsl(var(--primary))' }}
                   />
@@ -248,25 +244,23 @@ export const OutreachVelocityDashboard = ({
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Stage-by-Stage Velocity</CardTitle>
-          <CardDescription>
-            Time spent in each stage vs. benchmark
-          </CardDescription>
+          <CardDescription>Time spent in each stage vs. benchmark</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {stages.map((stage, index) => {
               const performance = getPerformanceStatus(stage.value, stage.benchmark);
               const Icon = stage.icon;
-              
+
               return (
                 <div key={stage.label}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Icon className={cn("h-4 w-4", performance.color)} />
+                      <Icon className={cn('h-4 w-4', performance.color)} />
                       <span className="text-sm font-medium">{stage.label}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={cn("font-bold", performance.color)}>
+                      <span className={cn('font-bold', performance.color)}>
                         {stage.value.toFixed(1)} days
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -275,12 +269,12 @@ export const OutreachVelocityDashboard = ({
                     </div>
                   </div>
                   <div className="relative">
-                    <Progress 
-                      value={Math.min((stage.value / (stage.benchmark * 2)) * 100, 100)} 
+                    <Progress
+                      value={Math.min((stage.value / (stage.benchmark * 2)) * 100, 100)}
                       className="h-2"
                     />
                     {/* Benchmark indicator */}
-                    <div 
+                    <div
                       className="absolute top-0 w-0.5 h-4 bg-muted-foreground -translate-y-1"
                       style={{ left: '50%' }}
                     />
@@ -311,42 +305,43 @@ export const OutreachVelocityDashboard = ({
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="font-medium text-amber-800">Slow Initial Outreach</p>
                 <p className="text-sm text-amber-700">
-                  You're taking {summary.avgApprovalToContact.toFixed(1)} days to contact approved buyers. 
-                  Aim for under {benchmarks.approvalToContact} days to improve response rates.
+                  You're taking {summary.avgApprovalToContact.toFixed(1)} days to contact approved
+                  buyers. Aim for under {benchmarks.approvalToContact} days to improve response
+                  rates.
                 </p>
               </div>
             )}
-            
+
             {summary.responseRate < 30 && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="font-medium text-blue-800">Low Response Rate</p>
                 <p className="text-sm text-blue-700">
-                  Only {summary.responseRate.toFixed(0)}% of contacted buyers respond. 
-                  Consider improving email templates or targeting higher-tier matches.
+                  Only {summary.responseRate.toFixed(0)}% of contacted buyers respond. Consider
+                  improving email templates or targeting higher-tier matches.
                 </p>
               </div>
             )}
-            
+
             {summary.avgMeetingToClose > benchmarks.meetingToClose * 1.5 && (
               <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
                 <p className="font-medium text-purple-800">Long Close Cycle</p>
                 <p className="text-sm text-purple-700">
-                  Deals take {summary.avgMeetingToClose.toFixed(0)} days to close after meetings. 
+                  Deals take {summary.avgMeetingToClose.toFixed(0)} days to close after meetings.
                   Consider streamlining the due diligence process.
                 </p>
               </div>
             )}
-            
+
             {summary.avgApprovalToContact <= benchmarks.approvalToContact &&
-             summary.responseRate >= 30 &&
-             summary.avgMeetingToClose <= benchmarks.meetingToClose && (
-              <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="font-medium text-green-800">Great Performance!</p>
-                <p className="text-sm text-green-700">
-                  Your outreach velocity is meeting or exceeding benchmarks across all stages.
-                </p>
-              </div>
-            )}
+              summary.responseRate >= 30 &&
+              summary.avgMeetingToClose <= benchmarks.meetingToClose && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="font-medium text-green-800">Great Performance!</p>
+                  <p className="text-sm text-green-700">
+                    Your outreach velocity is meeting or exceeding benchmarks across all stages.
+                  </p>
+                </div>
+              )}
           </div>
         </CardContent>
       </Card>

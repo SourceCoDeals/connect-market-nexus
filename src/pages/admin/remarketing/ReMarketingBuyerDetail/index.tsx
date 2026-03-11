@@ -375,7 +375,18 @@ const ReMarketingBuyerDetail = () => {
 
         {/* Deal History Tab */}
         <TabsContent value="history">
-          <DealHistoryTab recentScores={recentScores as any} />
+          <DealHistoryTab
+            recentScores={
+              (recentScores ?? []) as {
+                id: string;
+                listing?: { id: string; title?: string } | null;
+                composite_score: number;
+                tier: string | null;
+                status: string;
+                created_at: string;
+              }[]
+            }
+          />
         </TabsContent>
 
         {/* Contacts Tab */}
