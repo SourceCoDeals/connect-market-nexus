@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, ArrowLeft, Loader2, CheckCheck } from 'lucide-react';
 import { useConnectionMessages } from '@/hooks/use-connection-messages';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
@@ -134,7 +134,9 @@ export function GeneralChatView({
     return (
       <div className="flex flex-col h-full items-center justify-center gap-2">
         <Loader2 className="h-5 w-5 animate-spin" style={{ color: '#CBCBCB' }} />
-        <p className="text-xs" style={{ color: '#9A9A9A' }}>Loading...</p>
+        <p className="text-xs" style={{ color: '#9A9A9A' }}>
+          Loading...
+        </p>
       </div>
     );
   }
@@ -207,10 +209,7 @@ export function GeneralChatView({
                     }
                   >
                     <div className="text-sm leading-relaxed">
-                      <MessageBody
-                        body={msg.body}
-                        variant={isBuyer ? 'buyer' : 'admin'}
-                      />
+                      <MessageBody body={msg.body} variant={isBuyer ? 'buyer' : 'admin'} />
                     </div>
                   </div>
 

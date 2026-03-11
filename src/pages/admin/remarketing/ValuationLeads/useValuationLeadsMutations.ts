@@ -12,7 +12,7 @@ import {
   useGlobalGateCheck,
   useGlobalActivityMutations,
 } from '@/hooks/remarketing/useGlobalActivityQueue';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import type { ValuationLead } from './types';
 import { inferWebsite, buildListingFromLead } from './helpers';
 
@@ -27,8 +27,15 @@ interface MutationDeps {
 }
 
 export function useValuationLeadsMutations(deps: MutationDeps) {
-  const { leads, filteredLeads, selectedIds: _selectedIds, setSelectedIds, enrichmentSummary, dismissSummary, setHideNotFit } =
-    deps;
+  const {
+    leads,
+    filteredLeads,
+    selectedIds: _selectedIds,
+    setSelectedIds,
+    enrichmentSummary,
+    dismissSummary,
+    setHideNotFit,
+  } = deps;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -553,7 +560,7 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
       }
       setIsScoring(true);
       try {
-        const { queueValuationLeadScoring } = await import("@/lib/remarketing/queueScoring");
+        const { queueValuationLeadScoring } = await import('@/lib/remarketing/queueScoring');
         await queueValuationLeadScoring(mode);
       } catch {
         // Scoring failed — toast shown by queue utility

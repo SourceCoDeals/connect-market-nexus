@@ -1,11 +1,19 @@
 /**
  * Tab Visibility Context (Phase 6)
- * 
+ *
  * Replaces TabVisibilityManager singleton with React context.
  * Manages tab visibility state and prevents infinite loading loops when switching tabs.
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+  useMemo,
+} from 'react';
 
 type VisibilityListener = (isVisible: boolean) => void;
 
@@ -39,49 +47,64 @@ export const TabVisibilityProvider: React.FC<{ children: ReactNode }> = ({ child
 
   const getVisibility = useCallback(() => isVisible, [isVisible]);
 
-  const subscribe = useCallback((listener: VisibilityListener) => {
-    listeners.add(listener);
-    
-    // Immediately notify with current state
-    listener(isVisible);
-    
-    return () => {
-      listeners.delete(listener);
-    };
-  }, [listeners, isVisible]);
+  const subscribe = useCallback(
+    (listener: VisibilityListener) => {
+      listeners.add(listener);
 
-  const pauseOperation = useCallback((operationId: string) => {
-    pausedOperations.add(operationId);
-  }, [pausedOperations]);
+      // Immediately notify with current state
+      listener(isVisible);
 
-  const resumeOperation = useCallback((operationId: string) => {
-    pausedOperations.delete(operationId);
-  }, [pausedOperations]);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    [listeners, isVisible],
+  );
 
-  const shouldPauseOperation = useCallback((operationId: string) => {
-    return !isVisible || pausedOperations.has(operationId);
-  }, [isVisible, pausedOperations]);
+  const pauseOperation = useCallback(
+    (operationId: string) => {
+      pausedOperations.add(operationId);
+    },
+    [pausedOperations],
+  );
+
+  const resumeOperation = useCallback(
+    (operationId: string) => {
+      pausedOperations.delete(operationId);
+    },
+    [pausedOperations],
+  );
+
+  const shouldPauseOperation = useCallback(
+    (operationId: string) => {
+      return !isVisible || pausedOperations.has(operationId);
+    },
+    [isVisible, pausedOperations],
+  );
 
   const getTimeSinceLastVisibilityChange = useCallback(() => {
     return Date.now() - lastVisibilityChange;
   }, [lastVisibilityChange]);
 
-  const isRecentlyVisible = useCallback((thresholdMs: number = 1000) => {
-    return isVisible && getTimeSinceLastVisibilityChange() < thresholdMs;
-  }, [isVisible, getTimeSinceLastVisibilityChange]);
+  const isRecentlyVisible = useCallback(
+    (thresholdMs: number = 1000) => {
+      return isVisible && getTimeSinceLastVisibilityChange() < thresholdMs;
+    },
+    [isVisible, getTimeSinceLastVisibilityChange],
+  );
 
   useEffect(() => {
     const handleVisibilityChange = () => {
       const newVisibility = !document.hidden;
-      
+
       if (newVisibility !== isVisible) {
         // Debug log removed
-        
+
         setIsVisible(newVisibility);
         setLastVisibilityChange(Date.now());
-        
+
         // Notify all listeners
-        listeners.forEach(listener => {
+        listeners.forEach((listener) => {
           try {
             listener(newVisibility);
           } catch (error) {
@@ -98,7 +121,7 @@ export const TabVisibilityProvider: React.FC<{ children: ReactNode }> = ({ child
 
     // Listen for visibility changes
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     // Also listen for focus/blur events as backup
     const handleFocus = () => {
       if (document.hidden === false && !isVisible) {
@@ -121,29 +144,28 @@ export const TabVisibilityProvider: React.FC<{ children: ReactNode }> = ({ child
     };
   }, [isVisible, listeners, pausedOperations]);
 
-  const value = useMemo(() => ({
-    isVisible,
-    getVisibility,
-    subscribe,
-    pauseOperation,
-    resumeOperation,
-    shouldPauseOperation,
-    getTimeSinceLastVisibilityChange,
-    isRecentlyVisible,
-  }), [
-    isVisible,
-    getVisibility,
-    subscribe,
-    pauseOperation,
-    resumeOperation,
-    shouldPauseOperation,
-    getTimeSinceLastVisibilityChange,
-    isRecentlyVisible,
-  ]);
-
-  return (
-    <TabVisibilityContext.Provider value={value}>
-      {children}
-    </TabVisibilityContext.Provider>
+  const value = useMemo(
+    () => ({
+      isVisible,
+      getVisibility,
+      subscribe,
+      pauseOperation,
+      resumeOperation,
+      shouldPauseOperation,
+      getTimeSinceLastVisibilityChange,
+      isRecentlyVisible,
+    }),
+    [
+      isVisible,
+      getVisibility,
+      subscribe,
+      pauseOperation,
+      resumeOperation,
+      shouldPauseOperation,
+      getTimeSinceLastVisibilityChange,
+      isRecentlyVisible,
+    ],
   );
+
+  return <TabVisibilityContext.Provider value={value}>{children}</TabVisibilityContext.Provider>;
 };

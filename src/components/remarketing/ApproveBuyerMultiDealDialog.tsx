@@ -8,7 +8,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { createBuyerIntroductionFromApproval } from '@/lib/remarketing/createBuyerIntroduction';
 import { findIntroductionContacts } from '@/lib/remarketing/findIntroductionContacts';
@@ -64,22 +64,26 @@ export function ApproveBuyerMultiDealDialog({
       const [scoresResult, universeDealsResult] = await Promise.all([
         supabase
           .from('remarketing_scores')
-          .select(`
+          .select(
+            `
             id,
             listing_id,
             composite_score,
             status,
             listing:listings!remarketing_scores_listing_id_fkey(id, title, location, category)
-          `)
+          `,
+          )
           .eq('buyer_id', buyerId)
           .order('composite_score', { ascending: false }),
         universeId
           ? supabase
               .from('remarketing_universe_deals')
-              .select(`
+              .select(
+                `
                 listing_id,
                 listing:listings!remarketing_universe_deals_listing_id_fkey(id, title, location, category)
-              `)
+              `,
+              )
               .eq('universe_id', universeId)
               .neq('status', 'archived')
           : Promise.resolve({ data: [], error: null }),
@@ -93,7 +97,10 @@ export function ApproveBuyerMultiDealDialog({
       // Seed from universe deals (unscored)
       for (const ud of universeDealsResult.data || []) {
         const listing = ud.listing as {
-          id: string; title: string; location: string | null; category: string | null;
+          id: string;
+          title: string;
+          location: string | null;
+          category: string | null;
         } | null;
         if (!ud.listing_id || !listing) continue;
         if (!dealMap.has(ud.listing_id)) {
@@ -112,7 +119,10 @@ export function ApproveBuyerMultiDealDialog({
       // Override with actual scores
       for (const s of scoresResult.data || []) {
         const listing = s.listing as {
-          id: string; title: string; location: string | null; category: string | null;
+          id: string;
+          title: string;
+          location: string | null;
+          category: string | null;
         } | null;
         dealMap.set(s.listing_id, {
           scoreId: s.id,
@@ -224,9 +234,10 @@ export function ApproveBuyerMultiDealDialog({
       // Auto-create outreach records for each approved score
       for (let i = 0; i < allScoreIds.length; i++) {
         const scoreId = allScoreIds[i];
-        const deal = i < existingScoreIds.length
-          ? selectedDeals.find((d) => d.scoreId === scoreId)
-          : unscoredDeals[i - existingScoreIds.length];
+        const deal =
+          i < existingScoreIds.length
+            ? selectedDeals.find((d) => d.scoreId === scoreId)
+            : unscoredDeals[i - existingScoreIds.length];
         if (!deal) continue;
 
         try {
@@ -308,7 +319,8 @@ export function ApproveBuyerMultiDealDialog({
         <DialogHeader>
           <DialogTitle>Approve {buyerName} for Multiple Deals</DialogTitle>
           <DialogDescription>
-            Select which deals to approve this buyer for. Already-approved deals are shown for reference.
+            Select which deals to approve this buyer for. Already-approved deals are shown for
+            reference.
           </DialogDescription>
         </DialogHeader>
 
@@ -383,11 +395,16 @@ export function ApproveBuyerMultiDealDialog({
                       <div className="text-right flex-shrink-0">
                         {deal.compositeScore != null ? (
                           <>
-                            <div className="text-sm font-bold">{Math.round(deal.compositeScore)}</div>
+                            <div className="text-sm font-bold">
+                              {Math.round(deal.compositeScore)}
+                            </div>
                             <div className="text-[10px] text-muted-foreground">score</div>
                           </>
                         ) : (
-                          <Badge variant="outline" className="text-[10px] text-orange-600 border-orange-300">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-orange-600 border-orange-300"
+                          >
                             Not Scored
                           </Badge>
                         )}

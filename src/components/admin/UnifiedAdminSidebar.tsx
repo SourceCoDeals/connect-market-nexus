@@ -16,7 +16,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/permissions/usePermissions';
 import {
   LayoutDashboard,
@@ -392,7 +392,9 @@ export function UnifiedAdminSidebar({
         if (item.external) continue;
         const [itemPath, itemSearch] = item.href.split('?');
         if (!itemSearch) continue;
-        const pathMatch = item.exact ? location.pathname === itemPath : location.pathname.startsWith(itemPath);
+        const pathMatch = item.exact
+          ? location.pathname === itemPath
+          : location.pathname.startsWith(itemPath);
         if (pathMatch && location.search.includes(itemSearch)) return section.id;
       }
     }
@@ -402,7 +404,9 @@ export function UnifiedAdminSidebar({
         if (item.external) continue;
         const [itemPath, itemSearch] = item.href.split('?');
         if (itemSearch) continue;
-        const pathMatch = item.exact ? location.pathname === itemPath : location.pathname.startsWith(itemPath);
+        const pathMatch = item.exact
+          ? location.pathname === itemPath
+          : location.pathname.startsWith(itemPath);
         if (pathMatch) return section.id;
       }
     }
@@ -437,8 +441,8 @@ export function UnifiedAdminSidebar({
     if (itemSearch) return location.search.includes(itemSearch);
     // If this item has no search qualifier but the URL does, check if a sibling matches
     if (!itemSearch && location.search) {
-      const allItems = sections.flatMap(s => s.items);
-      const siblingMatch = allItems.some(other => {
+      const allItems = sections.flatMap((s) => s.items);
+      const siblingMatch = allItems.some((other) => {
         if (other === item) return false;
         const [otherPath, otherSearch] = other.href.split('?');
         return otherPath === itemPath && otherSearch && location.search.includes(otherSearch);
@@ -535,38 +539,34 @@ export function UnifiedAdminSidebar({
             if (collapsed) {
               return (
                 <div key={section.id}>
-                  {showSeparator && (
-                    <div className="my-2 border-t border-border/30" />
-                  )}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      className={cn(
-                        'flex items-center justify-center w-full h-9 rounded-md transition-colors relative',
-                        isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                      )}
-                    >
-                      {section.icon}
-                      {hasBadge && (
-                        <div className="absolute top-0.5 right-1 h-2 w-2 bg-notification rounded-full" />
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="font-medium">
-                    {section.label}
-                  </TooltipContent>
-                </Tooltip>
+                  {showSeparator && <div className="my-2 border-t border-border/30" />}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        className={cn(
+                          'flex items-center justify-center w-full h-9 rounded-md transition-colors relative',
+                          isActive
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                        )}
+                      >
+                        {section.icon}
+                        {hasBadge && (
+                          <div className="absolute top-0.5 right-1 h-2 w-2 bg-notification rounded-full" />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      {section.label}
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               );
             }
 
             return (
               <div key={section.id}>
-                {showSeparator && (
-                  <div className="mt-3 mb-1 mx-2 border-t border-border/30" />
-                )}
+                {showSeparator && <div className="mt-3 mb-1 mx-2 border-t border-border/30" />}
                 <button
                   onClick={() => toggleSection(section.id)}
                   className={cn(
@@ -679,9 +679,7 @@ export function UnifiedAdminSidebar({
                   <p className="text-sm font-medium leading-none">
                     {user?.first_name} {user?.last_name}
                   </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email}
-                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -690,13 +688,15 @@ export function UnifiedAdminSidebar({
                 Profile
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={async () => {
-                try {
-                  await logout();
-                } catch {
-                  window.location.href = '/login';
-                }
-              }}>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    await logout();
+                  } catch {
+                    window.location.href = '/login';
+                  }
+                }}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 Log Out
               </DropdownMenuItem>

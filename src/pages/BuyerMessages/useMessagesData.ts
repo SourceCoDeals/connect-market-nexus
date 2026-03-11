@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
@@ -102,7 +102,7 @@ export function useBuyerThreads() {
       }));
 
       // Filter out internal general-inquiry listing so it doesn't appear as a real deal
-      const realThreads = threads.filter(t => t.listing_id !== GENERAL_INQUIRY_LISTING_ID);
+      const realThreads = threads.filter((t) => t.listing_id !== GENERAL_INQUIRY_LISTING_ID);
 
       return realThreads.sort((a, b) => {
         if (a.unread_count > 0 && b.unread_count === 0) return -1;

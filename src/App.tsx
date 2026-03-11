@@ -2,10 +2,10 @@ import { Suspense, lazy, type ReactNode, type ComponentType } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { AuthProvider } from '@/context/AuthContext';
-import { AnalyticsProvider } from '@/context/AnalyticsContext';
-import { TabVisibilityProvider } from '@/context/TabVisibilityContext';
-import { NavigationStateProvider } from '@/context/NavigationStateContext';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { AnalyticsProvider } from '@/contexts/AnalyticsContext';
+import { TabVisibilityProvider } from '@/contexts/TabVisibilityContext';
+import { NavigationStateProvider } from '@/contexts/NavigationStateContext';
 import SessionTrackingProvider from '@/components/SessionTrackingProvider';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
@@ -130,7 +130,9 @@ const ListingPreview = lazyWithRetry(() => import('@/pages/ListingPreview'));
 const DataRecoveryPage = lazyWithRetry(() => import('@/pages/admin/DataRecoveryPage'));
 const FormMonitoringPage = lazyWithRetry(() => import('@/pages/admin/FormMonitoringPage'));
 const SecuritySettings = lazyWithRetry(() => import('@/pages/admin/settings/SecuritySettings'));
-const OutreachSettingsPage = lazyWithRetry(() => import('@/pages/admin/settings/OutreachSettingsPage'));
+const OutreachSettingsPage = lazyWithRetry(
+  () => import('@/pages/admin/settings/OutreachSettingsPage'),
+);
 const GlobalApprovalsPage = lazyWithRetry(() => import('@/pages/admin/GlobalApprovalsPage'));
 const DocumentTrackingPage = lazyWithRetry(() => import('@/pages/admin/DocumentTrackingPage'));
 const TestingHub = lazyWithRetry(() => import('@/pages/admin/TestingHub'));

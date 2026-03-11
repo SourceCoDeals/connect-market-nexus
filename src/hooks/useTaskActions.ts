@@ -10,7 +10,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { addDays, format } from 'date-fns';
 import type { TaskTemplateStage, TaskEntityType } from '@/types/daily-tasks';
 import { logDealActivity } from '@/lib/deal-activity-logger';

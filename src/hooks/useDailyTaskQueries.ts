@@ -4,7 +4,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 
 export const DAILY_TASKS_QUERY_KEY = 'daily-standup-tasks';
@@ -72,7 +72,13 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
         query = query.eq('task_category', 'deal_task');
 
         if (!options.includeCompleted) {
-          query = query.in('status', ['pending_approval', 'pending', 'in_progress', 'overdue', 'snoozed']);
+          query = query.in('status', [
+            'pending_approval',
+            'pending',
+            'in_progress',
+            'overdue',
+            'snoozed',
+          ]);
         }
 
         if (options.dateFrom) {

@@ -8,7 +8,7 @@ import { useFilterEngine } from '@/hooks/use-filter-engine';
 import { DEAL_LISTING_FIELDS } from '@/components/filters';
 import { useTimeframe } from '@/hooks/use-timeframe';
 import { useSavedViews } from '@/hooks/use-saved-views';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 import type { DealListing, ColumnWidths } from '../types';
 import { DEFAULT_COLUMN_WIDTHS } from '../types';

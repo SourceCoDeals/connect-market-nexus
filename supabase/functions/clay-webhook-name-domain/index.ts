@@ -13,6 +13,7 @@
 
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
+import { timingSafeEqual } from '../_shared/security.ts';
 
 serve(async (req: Request) => {
   if (req.method !== 'POST') {
@@ -20,6 +21,17 @@ serve(async (req: Request) => {
   }
 
   try {
+    // 0. Verify webhook secret
+    const webhookSecret = Deno.env.get('CLAY_WEBHOOK_SECRET');
+    if (webhookSecret) {
+      const providedSecret =
+        req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+      if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
+        console.warn('[clay-webhook-name-domain] Invalid webhook secret');
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      }
+    }
+
     // 1. Parse payload
     let payload: Record<string, unknown>;
     try {

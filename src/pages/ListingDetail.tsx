@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useMarketplace } from '@/hooks/use-marketplace';
-import { useAuth } from '@/context/AuthContext';
-import { useAnalytics } from '@/context/AnalyticsContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAnalytics } from '@/contexts/AnalyticsContext';
 import { useClickTracking } from '@/hooks/use-click-tracking';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';

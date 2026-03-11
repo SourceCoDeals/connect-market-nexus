@@ -20,7 +20,7 @@ import {
   Shield,
   XCircle,
 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cleanupAuthState } from '@/lib/auth-helpers';
@@ -430,9 +430,9 @@ const PendingApproval = () => {
                     <div className="bg-muted/40 border border-border rounded-md p-4">
                       <h5 className="text-xs font-semibold mb-1">What you're agreeing to</h5>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        You agree to keep deal details confidential and only use them to evaluate
-                        a potential acquisition. One signature covers every deal on SourceCo —
-                        you'll never be asked to sign another one.
+                        You agree to keep deal details confidential and only use them to evaluate a
+                        potential acquisition. One signature covers every deal on SourceCo — you'll
+                        never be asked to sign another one.
                       </p>
                     </div>
 
@@ -503,8 +503,8 @@ const PendingApproval = () => {
                       </p>
                     </div>
                     <p className="text-xs text-green-700">
-                      The moment your account is approved, you'll have full access to every deal
-                      in the pipeline — real financials, owner details, and the ability to request
+                      The moment your account is approved, you'll have full access to every deal in
+                      the pipeline — real financials, owner details, and the ability to request
                       introductions. We'll email you the second you're cleared.
                     </p>
                   </div>
