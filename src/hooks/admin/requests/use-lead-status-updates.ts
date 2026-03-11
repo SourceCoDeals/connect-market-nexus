@@ -247,7 +247,7 @@ export const useUpdateLeadNDAEmailStatus = () => {
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id,
+          dealId: deal.id as string,
           activityType: 'nda_email_sent',
           title: value ? 'NDA Email Sent' : 'NDA Email Status Revoked',
           description: value
