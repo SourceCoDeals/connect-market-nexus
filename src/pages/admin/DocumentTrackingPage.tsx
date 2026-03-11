@@ -102,7 +102,7 @@ function useAllFirmsTracking() {
         const contactEmail = memberUser?.email || (member?.lead_email as string) || null;
 
         // Build FirmMember[] for the dropdown
-        const members: FirmMember[] = (firmMembers as Record<string, unknown>[]).map((m: Record<string, unknown>) => ({
+        const members = (firmMembers as Record<string, unknown>[]).map((m: Record<string, unknown>) => ({
           id: m.id,
           firm_id: firm.id,
           user_id: m.user_id,

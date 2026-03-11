@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 interface CapTargetInfoCardProps {
-  deal: Record<string, unknown>;
+  deal: Record<string, any>;
   dealId: string;
 }
 

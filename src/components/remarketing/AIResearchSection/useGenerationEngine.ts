@@ -13,6 +13,7 @@ import type {
   ClarificationContext,
   AIResearchSectionProps,
 } from './types';
+import type { TargetBuyerTypeConfig } from '@/types/remarketing';
 import { getSessionToken, saveGuideToDocuments } from './helpers';
 
 interface UseGenerationEngineParams {

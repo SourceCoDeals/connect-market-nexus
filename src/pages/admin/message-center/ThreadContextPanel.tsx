@@ -300,9 +300,9 @@ export function ThreadContextPanel({
   const { data: timeline = [], isLoading: timelineLoading } = useUserActivityTimeline(userId);
   const navigate = useNavigate();
 
-  const ndaStatus = firm ? resolveAgreementStatus(firm.nda_status as string | null, firm.nda_pandadoc_status as string | null) : null;
+  const ndaStatus = firm ? resolveAgreementStatus(firm.nda_status, null) : null;
   const feeStatus = firm
-    ? resolveAgreementStatus(firm.fee_agreement_status as string | null, firm.fee_pandadoc_status as string | null)
+    ? resolveAgreementStatus(firm.fee_agreement_status, null)
     : null;
 
   return (

@@ -55,20 +55,20 @@ export function useConnectionRequestFirm(requestId: string | null) {
 
       const firm = Array.isArray(firmData.firm) ? firmData.firm[0] : firmData.firm;
 
-      const members: FirmMember[] = ((firm.firm_members as Record<string, unknown>[]) || []).map((m: Record<string, unknown>) => ({
-        id: m.id,
-        firm_id: firm.id,
-        user_id: m.user_id,
-        member_type: m.member_type || 'marketplace_user',
-        lead_email: m.lead_email,
-        lead_name: m.lead_name,
-        lead_company: m.lead_company,
-        connection_request_id: m.connection_request_id,
-        inbound_lead_id: m.inbound_lead_id,
-        is_primary_contact: m.is_primary_contact || false,
-        added_at: m.added_at,
+      const members = ((firm.firm_members as Record<string, unknown>[]) || []).map((m: Record<string, unknown>) => ({
+        id: m.id as string,
+        firm_id: firm.id as string,
+        user_id: m.user_id as string | null,
+        member_type: (m.member_type as string) || 'marketplace_user',
+        lead_email: m.lead_email as string | null,
+        lead_name: m.lead_name as string | null,
+        lead_company: m.lead_company as string | null,
+        connection_request_id: m.connection_request_id as string | null,
+        inbound_lead_id: m.inbound_lead_id as string | null,
+        is_primary_contact: (m.is_primary_contact as boolean) || false,
+        added_at: m.added_at as string | null,
         user: m.user || null,
-      }));
+      })) as FirmMember[];
 
       return {
         firm_id: firm.id,

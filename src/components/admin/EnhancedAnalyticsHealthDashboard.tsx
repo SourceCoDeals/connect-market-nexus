@@ -446,7 +446,7 @@ export function EnhancedAnalyticsHealthDashboard() {
                     key={result.test}
                     className="flex items-center justify-between p-2 border rounded"
                   >
-                    <span className="text-sm">{result.test}</span>
+                    <span className="text-sm">{String(result.test)}</span>
                     <div className="flex items-center gap-2">
                       {result.success ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
