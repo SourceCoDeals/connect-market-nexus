@@ -55,7 +55,7 @@ export function useConnectionRequestFirm(requestId: string | null) {
 
       const firm = Array.isArray(firmData.firm) ? firmData.firm[0] : firmData.firm;
 
-      const members: FirmMember[] = (firm.firm_members || []).map((m: Record<string, unknown>) => ({
+      const members: FirmMember[] = ((firm.firm_members as Record<string, unknown>[]) || []).map((m: Record<string, unknown>) => ({
         id: m.id,
         firm_id: firm.id,
         user_id: m.user_id,

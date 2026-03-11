@@ -83,8 +83,7 @@ export async function generateMemoDocx({
         data: new Uint8Array(logoBuffer),
         type: 'png',
         transformation: { width: 50, height: 50 },
-         
-      } as Record<string, unknown>);
+      } as any);
     }
   } catch {
     // Logo fetch failed — continue without it

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { StepStatus, TestStep, TITLE_ALIASES } from './types';
 

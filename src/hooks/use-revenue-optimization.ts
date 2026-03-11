@@ -255,7 +255,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
           stage: 'lead',
           user_count: users.filter((u) => {
             const userViews =
-              (analytics as AnalyticsRow[])?.filter((a: AnalyticsRow) => a.user_id === u.id)
+              (analytics as unknown as AnalyticsRow[])?.filter((a: AnalyticsRow) => a.user_id === u.id)
                 .length || 0;
             return userViews > 0 && userViews < 5;
           }).length,

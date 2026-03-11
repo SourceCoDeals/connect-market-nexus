@@ -34,6 +34,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
  */
 type KnownTable = keyof Database['public']['Tables'];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function untypedFrom(table: string): ReturnType<typeof supabase.from<any>> {
-  return supabase.from(table as KnownTable);
+export function untypedFrom(table: string) {
+  return supabase.from(table as KnownTable) as any;
 }

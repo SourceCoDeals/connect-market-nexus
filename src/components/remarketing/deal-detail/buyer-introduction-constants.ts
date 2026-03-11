@@ -40,6 +40,11 @@ export const STATUS_CONFIG: Record<
     color: 'bg-emerald-100 text-emerald-700 border-emerald-200',
     icon: CheckCircle,
   },
+  deal_created: {
+    label: 'Deal Created',
+    color: 'bg-sky-100 text-sky-700 border-sky-200',
+    icon: CheckCircle,
+  },
 };
 
 export const TIER_CONFIG: Record<

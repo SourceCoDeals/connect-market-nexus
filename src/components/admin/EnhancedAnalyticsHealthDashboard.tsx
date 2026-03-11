@@ -457,7 +457,7 @@ export function EnhancedAnalyticsHealthDashboard() {
                         <span className="text-xs text-muted-foreground">
                           {typeof result.details === 'object'
                             ? JSON.stringify(result.details).slice(0, 50) + '...'
-                            : result.details}
+                            : String(result.details)}
                         </span>
                       )}
                     </div>

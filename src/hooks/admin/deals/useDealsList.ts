@@ -180,7 +180,7 @@ export function useDeals() {
       mapped.forEach((deal) => {
         deal.memo_sent = memoSentListings.has(deal.listing_id as string);
         deal.has_data_room = dataRoomListings.has(deal.listing_id as string);
-        const tc = taskCountMap.get(deal.deal_id);
+        const tc = taskCountMap.get(deal.deal_id as string);
         if (tc) {
           deal.total_tasks = tc.total;
           deal.pending_tasks = tc.pending;
