@@ -206,9 +206,9 @@ const MyRequests = () => {
                 <FileText className="h-5 w-5 text-[#0E101A]/30" />
               </div>
             </div>
-            <h2 className="text-[15px] font-semibold text-[#0E101A]">No deals yet</h2>
+            <h2 className="text-[15px] font-semibold text-[#0E101A]">Your pipeline starts here.</h2>
             <p className="text-[13px] text-[#0E101A]/50 leading-relaxed">
-              Browse the marketplace to find opportunities and express interest.
+              Browse the marketplace and request an introduction when you find a fit. Every deal you connect on will appear here — along with your messages, status, and next steps.
             </p>
           </div>
         </div>

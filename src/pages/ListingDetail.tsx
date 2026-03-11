@@ -343,10 +343,10 @@ const ListingDetail = () => {
               <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
                 <div className="text-center mb-6">
                   <h3 className="text-base font-medium text-foreground mb-2">
-                    Interested in This Deal?
+                    Request an Introduction
                   </h3>
                   <p className="text-xs text-foreground/70 leading-relaxed">
-                    Get full access to detailed financials and business metrics
+                    Our team will make a direct introduction to the business owner.
                   </p>
                 </div>
 

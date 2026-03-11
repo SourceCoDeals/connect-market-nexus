@@ -89,7 +89,7 @@ const MarketplaceContent = () => {
       if (!hasSeenWelcome) {
         toast({
           title: 'Welcome to SourceCo',
-          description: 'Browse deals, save listings, and request access when you see a fit.',
+          description: 'Every deal here has been sourced and qualified by our team. Request an introduction when you find a fit — we handle the rest.',
         });
         localStorage.setItem('sourceco_shown_welcome', 'true');
       }

@@ -123,8 +123,8 @@ serve(async (req: Request) => {
 
       const subject =
         reminderType === '3-day'
-          ? `Your NDA is still unsigned — here's the link`
-          : `Still waiting on your NDA — can we help?`;
+          ? `You're approved but not yet in — here's what's missing`
+          : `Your deal pipeline is locked until your NDA is signed`;
 
       const htmlContent =
         reminderType === '3-day'

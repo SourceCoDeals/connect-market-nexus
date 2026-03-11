@@ -82,7 +82,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const subject = listingTitle
       ? `NDA Required - ${listingTitle} | SourceCo`
-      : customSubject || 'Non-Disclosure Agreement | SourceCo';
+      : customSubject || 'Your NDA is ready — sign to unlock the full deal pipeline';
 
     console.log('📧 Starting NDA email process', {
       userEmail,
