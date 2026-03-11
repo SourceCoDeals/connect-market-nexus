@@ -78,22 +78,27 @@ export function GeneralChatView({
           .upload(bucketPath, attachment);
 
         if (uploadError) {
-          body = body
-            ? `${body}\n[📎 ${attachment.name}](attachment://${attachment.name})`
-            : `[📎 ${attachment.name}](attachment://${attachment.name})`;
+          toast({
+            title: 'Upload failed',
+            description: `Could not upload ${attachment.name}. Message sent without attachment.`,
+            variant: 'destructive',
+          });
         } else {
           const { data: urlData } = supabase.storage
             .from('message-attachments')
             .getPublicUrl(bucketPath);
-          const publicUrl = urlData?.publicUrl || `attachment://${attachment.name}`;
-          body = body
-            ? `${body}\n[📎 ${attachment.name}](${publicUrl})`
-            : `[📎 ${attachment.name}](${publicUrl})`;
+          if (urlData?.publicUrl) {
+            body = body
+              ? `${body}\n[📎 ${attachment.name}](${urlData.publicUrl})`
+              : `[📎 ${attachment.name}](${urlData.publicUrl})`;
+          }
         }
       } catch {
-        body = body
-          ? `${body}\n[📎 ${attachment.name}](attachment://${attachment.name})`
-          : `[📎 ${attachment.name}](attachment://${attachment.name})`;
+        toast({
+          title: 'Upload failed',
+          description: `Could not upload ${attachment.name}. Message sent without attachment.`,
+          variant: 'destructive',
+        });
       } finally {
         setUploading(false);
       }

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 // The second query (.from('connection_requests') count) has no data access equivalent yet.
 export function useUnviewedConnectionRequests() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ['unviewed-connection-requests-count'],
@@ -56,8 +57,7 @@ export function useUnviewedConnectionRequests() {
           table: 'connection_requests',
         },
         () => {
-          // Invalidate the query to refetch the count
-          query.refetch();
+          queryClient.invalidateQueries({ queryKey: ['unviewed-connection-requests-count'] });
         },
       )
       .subscribe();
@@ -65,7 +65,7 @@ export function useUnviewedConnectionRequests() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, queryClient]);
 
   return {
     unviewedCount: query.data || 0,

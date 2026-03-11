@@ -45,9 +45,9 @@ import {
   // Validators
   validateDealExtraction,
   isPlaceholder,
-} from "../_shared/deal-extraction.ts";
+} from '../_shared/deal-extraction.ts';
 // Shared enrichment pipeline utilities
-import { getErrorMessage } from "../_shared/enrichment/pipeline.ts";
+import { getErrorMessage } from '../_shared/enrichment/pipeline.ts';
 // Sub-modules extracted from this file
 import { applyExistingTranscriptData, processNewTranscripts } from './transcript-processor.ts';
 import { resolveWebsiteUrl, validateWebsiteUrl, scrapeWebsite } from './website-scraper.ts';
@@ -170,13 +170,23 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { dealId, forceReExtract = false, skipExternalEnrichment = false } = await req.json();
+    let parsedBody: Record<string, unknown>;
+    try {
+      parsedBody = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const { dealId, forceReExtract = false, skipExternalEnrichment = false } = parsedBody;
 
     // Timeout budget: Deno edge functions have a ~150s hard limit.
     // Track a deadline so we can skip optional steps if running low.
     const FUNCTION_TIMEOUT_MS = 140_000; // 140s budget (10s safety margin)
     const functionStart = Date.now();
-    const hasTimeBudget = (requiredMs: number) => (Date.now() - functionStart) + requiredMs < FUNCTION_TIMEOUT_MS;
+    const hasTimeBudget = (requiredMs: number) =>
+      Date.now() - functionStart + requiredMs < FUNCTION_TIMEOUT_MS;
 
     if (!dealId) {
       return new Response(JSON.stringify({ error: 'Missing dealId' }), {
@@ -884,7 +894,10 @@ serve(async (req) => {
       isPlaceholder, // treat "Not discussed on this call." etc. as empty
     );
     if (rejected.length > 0) {
-      console.log(`[Website] ${rejected.length} fields blocked by higher-priority sources:`, rejected);
+      console.log(
+        `[Website] ${rejected.length} fields blocked by higher-priority sources:`,
+        rejected,
+      );
     }
 
     const finalUpdates: Record<string, unknown> = {

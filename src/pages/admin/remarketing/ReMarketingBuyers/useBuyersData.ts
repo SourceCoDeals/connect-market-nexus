@@ -73,7 +73,7 @@ export const useBuyersData = () => {
   // Scoped to current buyer set to avoid full table scan
   const buyerIds = useMemo(() => (buyers || []).map((b) => b.id), [buyers]);
   const { data: buyerIdsWithTranscripts } = useQuery({
-    queryKey: ['remarketing', 'buyer-transcript-ids', buyerIds.slice(0, 5)],
+    queryKey: ['remarketing', 'buyer-transcript-ids', buyerIds],
     queryFn: async () => {
       if (buyerIds.length === 0) return new Set<string>();
 
@@ -258,7 +258,11 @@ export const useBuyersData = () => {
 
       if (error) {
         // Map DB-level unique constraint violations to friendly messages
-        if (error.code === '23505' || error.message?.includes('unique') || error.message?.includes('duplicate')) {
+        if (
+          error.code === '23505' ||
+          error.message?.includes('unique') ||
+          error.message?.includes('duplicate')
+        ) {
           throw new Error(
             'A buyer with this website domain already exists. Please check your existing buyers.',
           );

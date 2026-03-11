@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 // The second query (.from('profiles') count) has no data access equivalent yet — needs a
 // getProfileCount() or similar function before full migration.
 export function useUnviewedUsers() {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const query = useQuery({
@@ -61,8 +62,7 @@ export function useUnviewedUsers() {
           table: 'profiles',
         },
         () => {
-          // Invalidate the query to refetch the count
-          query.refetch();
+          queryClient.invalidateQueries({ queryKey: ['unviewed-users-count'] });
         },
       )
       .subscribe();
@@ -70,7 +70,7 @@ export function useUnviewedUsers() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, queryClient]);
 
   return {
     unviewedCount: query.data || 0,

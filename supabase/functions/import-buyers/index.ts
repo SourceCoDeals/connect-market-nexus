@@ -17,6 +17,14 @@ interface ImportRequest {
 }
 
 /**
+ * Escape special characters in a LIKE/ILIKE pattern to prevent
+ * user-supplied values from being interpreted as wildcards.
+ */
+function escapeLikePattern(value: string): string {
+  return value.replace(/[%_\\]/g, '\\$&');
+}
+
+/**
  * Normalize a URL to its root domain.
  * Mirrors the DB's `extract_domain()` function.
  */
@@ -198,7 +206,7 @@ serve(async (req) => {
             const { data: existing } = await supabase
               .from('buyers')
               .select('id')
-              .ilike('company_website', `%${domain}%`)
+              .ilike('company_website', `%${escapeLikePattern(domain)}%`)
               .eq('archived', false)
               .limit(1)
               .single();
@@ -253,7 +261,7 @@ serve(async (req) => {
           const { data: newBuyer } = await supabase
             .from('buyers')
             .select('id')
-            .ilike('company_website', `%${domain}%`)
+            .ilike('company_website', `%${escapeLikePattern(domain)}%`)
             .eq('archived', false)
             .limit(1)
             .single();
