@@ -346,6 +346,13 @@ ANONYMIZATION RULES:
 BANNED LANGUAGE - never use these words:
 strong, robust, impressive, attractive, compelling, well-positioned, significant growth opportunity, poised for growth, track record, best-in-class, proven, synergies, uniquely positioned, market leader, healthy, diversified (without data), recession-resistant (without data), scalable (without specifics), turnkey, world-class, industry-leading, notable, solid, substantial, meaningful, considerable, well-established, high-quality, top-tier, premier, differentiated, defensible, low-hanging fruit, runway, tailwinds, fragmented market, blue-chip, mission-critical, sticky revenue, white-space.
 
+FORMATTING RULES:
+- Use **bold** (double asterisks) for all important numbers, dollar amounts, percentages, and key financial terms. Examples: **$4.3M-$5.8M**, **16% EBITDA margin**, **6 locations**, **25+ years**.
+- Use **bold** for key labels in DEAL SNAPSHOT bullets. Examples: **Revenue**: ~$4.3M-$5.8M, **EBITDA Margin**: ~14-18%.
+- Every bullet point should bold the leading metric or key term when one is present.
+- Use bullet points (- prefix) for all list items in DEAL SNAPSHOT, KEY FACTS, GROWTH CONTEXT, and OWNER OBJECTIVES.
+- Write short, direct sentences in BUSINESS OVERVIEW paragraphs. Use bullet points everywhere else.
+
 OUTPUT FORMAT - return valid markdown with exactly these section headers (## prefix), in this order. Omit GROWTH CONTEXT if no growth opportunities were explicitly stated in the memo.
 
 ## BUSINESS OVERVIEW
@@ -359,17 +366,17 @@ SECTION SPECIFICATIONS:
 ## BUSINESS OVERVIEW
 2-3 sentences maximum. State: what the company does, how it generates revenue, approximate scale, and geography (regional descriptor only). No adjectives. No history. No narrative arc.
 
-Example: "The Company is an automotive maintenance and repair operator with a multi-location footprint across two South Central markets. Revenue is generated through retail consumer repair services, tire installation and sales, and fleet maintenance contracts. The business generates approximately $4.3M-$5.8M in combined annual revenue across all locations."
+Example: "The Company is an automotive maintenance and repair operator with a multi-location footprint across two South Central markets. Revenue is generated through retail consumer repair services, tire installation and sales, and fleet maintenance contracts. The business generates approximately **$4.3M-$5.8M** in combined annual revenue across all locations."
 
 ## DEAL SNAPSHOT
-Bullet points only. Use these exact labels:
-- Revenue: [range]
-- EBITDA / SDE: [range] (note if recast pending)
-- EBITDA Margin: [range]
-- Locations: [count or approximate]
-- Region: [regional descriptor - never city or state]
-- Years in Operation: [approximate range]
-- Transaction Type: [full buyout / majority sale / etc.]
+Bullet points only. Bold the label and the value. Use these exact labels:
+- **Revenue**: **~$4.3M-$5.8M**
+- **EBITDA / SDE**: **~$750K-$850K** (note if recast pending)
+- **EBITDA Margin**: **~14-18%**
+- **Locations**: **6**
+- **Region**: South Central
+- **Years in Operation**: **25+**
+- **Transaction Type**: Full buyout
 
 Only include a line if the data exists in the memo. Do not include a line with "N/A" or "not provided."
 
@@ -377,10 +384,10 @@ Only include a line if the data exists in the memo. Do not include a line with "
 3-6 bullet points. Each bullet must be a specific, sourced operational fact. Not characterizations.
 
 Wrong: "The business benefits from significant brand recognition in its local market."
-Right: "Store-level management operates independently; the owner reports less than 5 hours per week of active involvement."
+Right: "Store-level management operates independently; the owner reports less than **5 hours per week** of active involvement."
 
 Wrong: "Strong growth potential exists in fleet maintenance."
-Right: "Fleet maintenance currently represents less than 10% of revenue; the owner has not pursued commercial contracts as a primary channel."
+Right: "Fleet maintenance currently represents less than **10%** of revenue; the owner has not pursued commercial contracts as a primary channel."
 
 ## GROWTH CONTEXT
 Only include if the lead memo contains explicit, stated growth opportunities or untapped channels. 2-4 bullet points. Each must reference a specific opportunity mentioned in the memo.
@@ -391,10 +398,10 @@ If no growth plans were stated -> omit this section entirely.
 3-5 bullet points. State the seller's transaction preferences, timeline, transition willingness, and reason for sale exactly as given in the memo. No interpretation.
 
 Example:
-- Seeking 100% buyout of all locations; not interested in partial sale or equity rollover
+- Seeking **100% buyout** of all locations; not interested in partial sale or equity rollover
 - Post-close transition support available; owner-affiliated individual could remain in a GM capacity
 - Recast financials in process; owner indicated completion is imminent
-- No asking price stated; owner referenced prior exit at ~10x as a valuation reference point
+- No asking price stated; owner referenced prior exit at **~10x** as a valuation reference point
 
 FINAL CHECK BEFORE RETURNING:
 Read every sentence. Ask: "Could an industry professional use this to identify the specific company?" If yes, generalize or remove. Confirm no city, state, company name, or personal name appears anywhere. Confirm no transcript language, colloquialisms, or references to calls/interviews appear.`;
