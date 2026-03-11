@@ -261,6 +261,24 @@ export default function MasterLeads() {
                 Score
               </SortableHeader>
               <SortableHeader
+                column="linkedinEmployeeCount"
+                currentSort={hook.sortColumn}
+                currentDir={hook.sortDirection}
+                onSort={hook.handleSort}
+                className="text-right"
+              >
+                LI Emp
+              </SortableHeader>
+              <SortableHeader
+                column="googleReviewCount"
+                currentSort={hook.sortColumn}
+                currentDir={hook.sortDirection}
+                onSort={hook.handleSort}
+                className="text-right"
+              >
+                Reviews
+              </SortableHeader>
+              <SortableHeader
                 column="pushedToActiveDeals"
                 currentSort={hook.sortColumn}
                 currentDir={hook.sortDirection}
@@ -282,7 +300,7 @@ export default function MasterLeads() {
           <TableBody>
             {hook.paginatedLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
                   <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">No leads found</p>
                 </TableCell>
@@ -362,6 +380,16 @@ export default function MasterLeads() {
                     {/* Score */}
                     <TableCell className="text-center">
                       <ScoreBadge score={lead.score} />
+                    </TableCell>
+
+                    {/* LI Employees */}
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {lead.linkedinEmployeeCount != null ? lead.linkedinEmployeeCount.toLocaleString() : '-'}
+                    </TableCell>
+
+                    {/* Google Reviews */}
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {lead.googleReviewCount != null ? lead.googleReviewCount.toLocaleString() : '-'}
                     </TableCell>
 
                     {/* Status */}

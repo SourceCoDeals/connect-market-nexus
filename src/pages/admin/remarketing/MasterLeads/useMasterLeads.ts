@@ -19,6 +19,8 @@ export interface MasterLead {
   /** For valuation leads this holds the mid valuation estimate */
   valuationEstimate: number | null;
   score: number | null;
+  linkedinEmployeeCount: number | null;
+  googleReviewCount: number | null;
   pushedToActiveDeals: boolean;
   dateAdded: string | null;
   /** Path to navigate to for the detail page */
@@ -34,6 +36,8 @@ export type SortColumn =
   | 'revenue'
   | 'ebitda'
   | 'score'
+  | 'linkedinEmployeeCount'
+  | 'googleReviewCount'
   | 'pushedToActiveDeals'
   | 'dateAdded';
 
@@ -114,6 +118,7 @@ export function useMasterLeads() {
           .select(
             `id, title, internal_company_name, website, main_contact_name, main_contact_email,
              industry, category, location, revenue, ebitda, deal_total_score,
+             linkedin_employee_count, google_review_count,
              pushed_to_all_deals, deal_source, created_at`,
           )
           .in('deal_source', ['captarget', 'gp_partner', 'sourceco'])
@@ -143,6 +148,8 @@ export function useMasterLeads() {
               ebitda: row.ebitda != null ? Number(row.ebitda) : null,
               valuationEstimate: null,
               score: row.deal_total_score != null ? Number(row.deal_total_score) : null,
+              linkedinEmployeeCount: row.linkedin_employee_count != null ? Number(row.linkedin_employee_count) : null,
+              googleReviewCount: row.google_review_count != null ? Number(row.google_review_count) : null,
               pushedToActiveDeals: !!row.pushed_to_all_deals,
               dateAdded: row.created_at,
               detailPath: `/admin/remarketing/leads/${sourcePathMap[source] ?? source}/${row.id}`,
@@ -197,6 +204,8 @@ export function useMasterLeads() {
               ebitda: row.ebitda != null ? Number(row.ebitda) : null,
               valuationEstimate: row.valuation_mid != null ? Number(row.valuation_mid) : null,
               score: row.lead_score != null ? Number(row.lead_score) : null,
+              linkedinEmployeeCount: null,
+              googleReviewCount: null,
               pushedToActiveDeals: !!row.pushed_to_all_deals,
               dateAdded: row.created_at,
               detailPath: '/admin/remarketing/leads/valuation',
@@ -238,6 +247,8 @@ export function useMasterLeads() {
           ebitda: null,
           valuationEstimate: null,
           score: null,
+          linkedinEmployeeCount: null,
+          googleReviewCount: null,
           pushedToActiveDeals: false,
           dateAdded: row.created_at,
           detailPath: `/admin/remarketing/leads/referrals/${row.id}`,
@@ -337,6 +348,14 @@ export function useMasterLeads() {
         case 'score':
           valA = a.score ?? -1;
           valB = b.score ?? -1;
+          break;
+        case 'linkedinEmployeeCount':
+          valA = a.linkedinEmployeeCount ?? -1;
+          valB = b.linkedinEmployeeCount ?? -1;
+          break;
+        case 'googleReviewCount':
+          valA = a.googleReviewCount ?? -1;
+          valB = b.googleReviewCount ?? -1;
           break;
         case 'pushedToActiveDeals':
           valA = a.pushedToActiveDeals ? 1 : 0;
