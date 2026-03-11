@@ -162,11 +162,12 @@ function validateDealFields(deal: Record<string, unknown>): string[] {
   if (!hasDescription)
     missing.push('description (executive_summary, description, or hero_description)');
 
-  if (!(deal.industry as string)?.trim()) missing.push('industry');
-
-  const cats = deal.categories as string[] | null;
-  const cat = deal.category as string | null;
-  if ((!cats || cats.length === 0) && !cat?.trim()) missing.push('categories');
+  // Industry and categories are alternatives — only flag if NEITHER is present
+  const hasIndustryOrCategory =
+    (deal.industry as string)?.trim() ||
+    (cats && cats.length > 0) ||
+    cat?.trim();
+  if (!hasIndustryOrCategory) missing.push('industry or categories');
 
   return missing;
 }
