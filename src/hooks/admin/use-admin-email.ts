@@ -180,7 +180,7 @@ export function useAdminEmail() {
         subject: 'Connection Request Update',
         message: `Thank you for your interest in "${request.listing.title}". After careful consideration, we are unable to approve your connection request at this time.${originalMessage}${request.admin_comment ? `Admin note: ${request.admin_comment}\n\n` : ''}We encourage you to continue exploring other opportunities on our marketplace that might be a better fit for your investment criteria.`,
         type: 'warning',
-        actionUrl: '${MARKETPLACE_URL}/marketplace',
+        actionUrl: `${MARKETPLACE_URL}/marketplace`,
         actionText: 'Browse Other Listings',
       };
 
