@@ -24,7 +24,8 @@ export function useConnectionRequestFirm(requestId: string | null) {
 
       const { data, error } = await supabase
         .from('connection_requests' as never)
-        .select(`
+        .select(
+          `
           firm_id,
           firm:firm_agreements!connection_requests_firm_id_fkey (
             *,
@@ -34,7 +35,8 @@ export function useConnectionRequestFirm(requestId: string | null) {
               user:profiles(id, email, first_name, last_name, company_name, buyer_type)
             )
           )
-        `)
+        `,
+        )
         .eq('id', requestId)
         .single();
 
@@ -44,13 +46,16 @@ export function useConnectionRequestFirm(requestId: string | null) {
       }
 
       if (!data) return null;
-      
-      const firmData = data as { firm_id: string | null; firm: any | any[] | null };
+
+      const firmData = data as {
+        firm_id: string | null;
+        firm: Record<string, unknown> | Record<string, unknown>[] | null;
+      };
       if (!firmData.firm) return null;
 
       const firm = Array.isArray(firmData.firm) ? firmData.firm[0] : firmData.firm;
 
-      const members: FirmMember[] = (firm.firm_members || []).map((m: any) => ({
+      const members: FirmMember[] = (firm.firm_members || []).map((m: Record<string, unknown>) => ({
         id: m.id,
         firm_id: firm.id,
         user_id: m.user_id,

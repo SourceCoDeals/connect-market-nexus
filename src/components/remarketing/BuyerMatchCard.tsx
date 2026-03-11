@@ -88,9 +88,13 @@ interface BuyerMatchCardProps {
   isSelected?: boolean;
   isHighlighted?: boolean;
   onSelect?: (id: string, selected: boolean) => void;
-  onApprove: (scoreId: string, scoreData: any) => void;
-  onPass: (scoreId: string, buyerName: string, scoreData: any) => void;
-  onToggleInterested?: (scoreId: string, interested: boolean, scoreData: any) => void;
+  onApprove: (scoreId: string, scoreData: Record<string, unknown>) => void;
+  onPass: (scoreId: string, buyerName: string, scoreData: Record<string, unknown>) => void;
+  onToggleInterested?: (
+    scoreId: string,
+    interested: boolean,
+    scoreData: Record<string, unknown>,
+  ) => void;
   onMarkInterested?: (scoreId: string, buyerId: string, listingId: string) => Promise<void>;
   onOutreachUpdate?: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   onViewed?: (scoreId: string) => void;
@@ -404,7 +408,7 @@ export const BuyerMatchCard = ({
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Intelligence Badge with missing fields */}
             <IntelligenceBadge
-              hasTranscript={!!buyer?.extraction_sources?.some((s: any) => s.type === 'transcript')}
+              hasTranscript={!!buyer?.extraction_sources?.some((s) => s.type === 'transcript')}
               missingFields={missingData}
               size="sm"
             />

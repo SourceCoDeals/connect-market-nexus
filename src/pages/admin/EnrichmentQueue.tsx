@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -398,8 +398,7 @@ export default function EnrichmentQueue() {
   /** Fetch stats for buyer_search_jobs (different status names) */
   const fetchSearchStats = useCallback(async (cutoff: string): Promise<QueueStats> => {
     const q = (status: string) =>
-      (supabase as any)
-        .from('buyer_search_jobs')
+      untypedFrom('buyer_search_jobs')
         .select('*', { count: 'exact', head: true })
         .eq('status', status)
         .gte('created_at', cutoff);
@@ -410,8 +409,7 @@ export default function EnrichmentQueue() {
       q('failed'),
     ]);
     // "searching" and "scoring" both count as processing
-    const scoringRes = await (supabase as any)
-      .from('buyer_search_jobs')
+    const scoringRes = await untypedFrom('buyer_search_jobs')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'scoring')
       .gte('created_at', cutoff);
@@ -592,8 +590,7 @@ export default function EnrichmentQueue() {
       );
 
       // Fetch buyer search jobs
-      const { data: searchJobsData } = await (supabase as any)
-        .from('buyer_search_jobs')
+      const { data: searchJobsData } = await untypedFrom('buyer_search_jobs')
         .select(
           'id, listing_id, listing_name, status, progress_pct, progress_message, buyers_found, buyers_inserted, buyers_updated, error, started_at, completed_at, created_at',
         )
@@ -601,7 +598,7 @@ export default function EnrichmentQueue() {
         .order('created_at', { ascending: false })
         .limit(100);
       setSearchItems(
-        (searchJobsData || []).map((s: any) => ({
+        (searchJobsData || []).map((s: Record<string, unknown>) => ({
           id: s.id,
           status: s.status === 'searching' || s.status === 'scoring' ? 'processing' : s.status,
           queued_at: s.created_at,
@@ -614,8 +611,7 @@ export default function EnrichmentQueue() {
       );
 
       // --- Contact Discovery Log ---
-      const { data: cdRows } = await (supabase as any)
-        .from('contact_discovery_log')
+      const { data: cdRows } = await untypedFrom('contact_discovery_log')
         .select(
           'id, buyer_id, trigger_source, status, pe_firm_name, company_name, pe_contacts_found, company_contacts_found, total_saved, skipped_duplicates, existing_contacts_count, error_message, pe_search_error, company_search_error, duration_ms, started_at, completed_at',
         )
@@ -675,7 +671,7 @@ export default function EnrichmentQueue() {
       | 'remarketing_scoring_queue'
       | 'buyer_search_jobs',
   ) => {
-    const { error } = await (supabase as any).from(table).delete().eq('status', 'failed');
+    const { error } = await untypedFrom(table).delete().eq('status', 'failed');
     if (error) {
       toast.error('Failed to clear');
       return;

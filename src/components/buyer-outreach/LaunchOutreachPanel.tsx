@@ -1,16 +1,17 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import { Mail, Linkedin, AlertTriangle, Loader2, FileText, Eye, EyeOff } from 'lucide-react';
@@ -149,12 +150,14 @@ export function LaunchOutreachPanel({
   const { data: smartleadCampaigns } = useQuery({
     queryKey: ['smartlead-campaigns-active'],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) return [];
       const res = await fetch(`${SUPABASE_URL}/functions/v1/smartlead-campaigns`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action: 'list' }),
@@ -162,8 +165,14 @@ export function LaunchOutreachPanel({
       if (!res.ok) return [];
       const { campaigns } = await res.json();
       return (campaigns || [])
-        .filter((c: any) => c.status === 'ACTIVE' || c.status === 'active')
-        .map((c: any) => ({ id: c.id, name: c.name })) as Campaign[];
+        .filter(
+          (c: { id?: number; campaignId?: number; name: string; status?: string }) =>
+            c.status === 'ACTIVE' || c.status === 'active',
+        )
+        .map((c: { id?: number; campaignId?: number; name: string; status?: string }) => ({
+          id: c.id,
+          name: c.name,
+        })) as Campaign[];
     },
     enabled: open && emailEnabled,
   });
@@ -172,12 +181,14 @@ export function LaunchOutreachPanel({
   const { data: heyreachCampaigns } = useQuery({
     queryKey: ['heyreach-campaigns-active'],
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) return [];
       const res = await fetch(`${SUPABASE_URL}/functions/v1/heyreach-campaigns`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ action: 'list' }),
@@ -185,8 +196,14 @@ export function LaunchOutreachPanel({
       if (!res.ok) return [];
       const { campaigns } = await res.json();
       return (campaigns || [])
-        .filter((c: any) => c.status === 'ACTIVE' || c.status === 'active' || !c.status)
-        .map((c: any) => ({ id: c.id || c.campaignId, name: c.name })) as Campaign[];
+        .filter(
+          (c: { id?: number; campaignId?: number; name: string; status?: string }) =>
+            c.status === 'ACTIVE' || c.status === 'active' || !c.status,
+        )
+        .map((c: { id?: number; campaignId?: number; name: string; status?: string }) => ({
+          id: c.id || c.campaignId,
+          name: c.name,
+        })) as Campaign[];
     },
     enabled: open && linkedinEnabled,
   });
@@ -195,13 +212,15 @@ export function LaunchOutreachPanel({
   const warnings = useMemo(() => {
     const result: { channel: string; field: string; count: number }[] = [];
     if (emailEnabled) {
-      const missing = selectedBuyers.filter(b => !b.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email));
+      const missing = selectedBuyers.filter(
+        (b) => !b.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email),
+      );
       if (missing.length > 0) {
         result.push({ channel: 'Email', field: 'email', count: missing.length });
       }
     }
     if (linkedinEnabled) {
-      const missing = selectedBuyers.filter(b => !b.linkedin_url);
+      const missing = selectedBuyers.filter((b) => !b.linkedin_url);
       if (missing.length > 0) {
         result.push({ channel: 'LinkedIn', field: 'LinkedIn URL', count: missing.length });
       }
@@ -209,10 +228,7 @@ export function LaunchOutreachPanel({
     return result;
   }, [selectedBuyers, emailEnabled, linkedinEnabled]);
 
-  const activeChannels = [
-    emailEnabled && 'Email',
-    linkedinEnabled && 'LinkedIn',
-  ].filter(Boolean);
+  const activeChannels = [emailEnabled && 'Email', linkedinEnabled && 'LinkedIn'].filter(Boolean);
 
   // Check if enabled channels have their campaigns selected
   const emailReady = !emailEnabled || !!smartleadCampaignId;
@@ -221,7 +237,7 @@ export function LaunchOutreachPanel({
 
   // Pick first buyer with email for the preview
   const previewBuyer = useMemo(() => {
-    return selectedBuyers.find(b => b.email) || selectedBuyers[0] || null;
+    return selectedBuyers.find((b) => b.email) || selectedBuyers[0] || null;
   }, [selectedBuyers]);
 
   const renderedMessage = useMemo(() => {
@@ -240,14 +256,16 @@ export function LaunchOutreachPanel({
     }
 
     setIsLaunching(true);
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       toast({ title: 'Not authenticated', variant: 'destructive' });
       setIsLaunching(false);
       return;
     }
 
-    const buyerIds = selectedBuyers.map(b => b.id);
+    const buyerIds = selectedBuyers.map((b) => b.id);
     const results: { channel: string; pushed: number; errors: string[] }[] = [];
 
     try {
@@ -259,7 +277,7 @@ export function LaunchOutreachPanel({
           fetch(`${SUPABASE_URL}/functions/v1/push-buyer-to-smartlead`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${session.access_token}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -268,11 +286,15 @@ export function LaunchOutreachPanel({
               campaign_id: Number(smartleadCampaignId),
             }),
           })
-            .then(r => r.json())
-            .then(data => {
-              results.push({ channel: 'Email', pushed: data.pushed || 0, errors: data.errors || [] });
+            .then((r) => r.json())
+            .then((data) => {
+              results.push({
+                channel: 'Email',
+                pushed: data.pushed || 0,
+                errors: data.errors || [],
+              });
             })
-            .catch(err => {
+            .catch((err) => {
               results.push({ channel: 'Email', pushed: 0, errors: [err.message] });
             }),
         );
@@ -283,7 +305,7 @@ export function LaunchOutreachPanel({
           fetch(`${SUPABASE_URL}/functions/v1/push-buyer-to-heyreach`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${session.access_token}`,
+              Authorization: `Bearer ${session.access_token}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
@@ -292,11 +314,15 @@ export function LaunchOutreachPanel({
               campaign_id: Number(heyreachCampaignId),
             }),
           })
-            .then(r => r.json())
-            .then(data => {
-              results.push({ channel: 'LinkedIn', pushed: data.pushed || 0, errors: data.errors || [] });
+            .then((r) => r.json())
+            .then((data) => {
+              results.push({
+                channel: 'LinkedIn',
+                pushed: data.pushed || 0,
+                errors: data.errors || [],
+              });
             })
-            .catch(err => {
+            .catch((err) => {
               results.push({ channel: 'LinkedIn', pushed: 0, errors: [err.message] });
             }),
         );
@@ -306,7 +332,7 @@ export function LaunchOutreachPanel({
 
       const totalPushed = results.reduce((sum, r) => sum + r.pushed, 0);
       const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
-      const channelSummary = results.map(r => r.channel).join(', ');
+      const channelSummary = results.map((r) => r.channel).join(', ');
 
       if (totalPushed === 0 && totalErrors > 0) {
         toast({
@@ -381,7 +407,9 @@ export function LaunchOutreachPanel({
                   </div>
                   <div>
                     <span className="text-muted-foreground">Buyer Ref: </span>
-                    <span className="text-xs italic text-muted-foreground">derived per buyer type</span>
+                    <span className="text-xs italic text-muted-foreground">
+                      derived per buyer type
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -416,7 +444,7 @@ export function LaunchOutreachPanel({
                     <SelectValue placeholder="Select Smartlead campaign" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(smartleadCampaigns || []).map(c => (
+                    {(smartleadCampaigns || []).map((c) => (
                       <SelectItem key={c.id} value={String(c.id)}>
                         {c.name}
                       </SelectItem>
@@ -444,7 +472,7 @@ export function LaunchOutreachPanel({
                     <SelectValue placeholder="Select HeyReach campaign" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(heyreachCampaigns || []).map(c => (
+                    {(heyreachCampaigns || []).map((c) => (
                       <SelectItem key={c.id} value={String(c.id)}>
                         {c.name}
                       </SelectItem>
@@ -473,9 +501,15 @@ export function LaunchOutreachPanel({
               {showPreview && (
                 <>
                   <div className="text-xs text-muted-foreground mb-1">
-                    Preview for: <span className="font-medium">{previewBuyer.first_name} {previewBuyer.last_name}</span>
+                    Preview for:{' '}
+                    <span className="font-medium">
+                      {previewBuyer.first_name} {previewBuyer.last_name}
+                    </span>
                     {previewBuyer.buyer_company_name && (
-                      <span> at <span className="font-medium">{previewBuyer.buyer_company_name}</span></span>
+                      <span>
+                        {' '}
+                        at <span className="font-medium">{previewBuyer.buyer_company_name}</span>
+                      </span>
                     )}
                   </div>
                   <Card className="bg-muted/30">
@@ -487,7 +521,11 @@ export function LaunchOutreachPanel({
                   </Card>
                   <p className="text-xs text-muted-foreground">
                     Template can be customized in{' '}
-                    <a href="/admin/settings/outreach" className="text-primary underline" target="_blank">
+                    <a
+                      href="/admin/settings/outreach"
+                      className="text-primary underline"
+                      target="_blank"
+                    >
                       Outreach Settings
                     </a>
                   </p>
@@ -506,7 +544,8 @@ export function LaunchOutreachPanel({
                 >
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>
-                    {w.count} buyer{w.count !== 1 ? 's' : ''} will be skipped for {w.channel} — missing {w.field}
+                    {w.count} buyer{w.count !== 1 ? 's' : ''} will be skipped for {w.channel} —
+                    missing {w.field}
                   </span>
                 </div>
               ))}

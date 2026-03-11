@@ -105,7 +105,7 @@ export function GeneralChatView({
     }
 
     try {
-      const { error } = await (supabase.from('connection_messages') as any).insert({
+      const { error } = await supabase.from('connection_messages').insert({
         connection_request_id: threadId,
         sender_id: user.id,
         body,
@@ -175,7 +175,7 @@ export function GeneralChatView({
               </div>
             </div>
           ) : (
-            existingMessages.map((msg: any) => {
+            existingMessages.map((msg) => {
               const isBuyer = msg.sender_role === 'buyer';
               return (
                 <div

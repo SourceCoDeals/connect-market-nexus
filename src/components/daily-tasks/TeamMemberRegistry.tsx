@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-
-type UntypedTable = Parameters<typeof supabase.from>[0];
+import { supabase, untypedFrom } from '@/integrations/supabase/client';
 
 interface AliasRow {
   id: string;
@@ -69,7 +67,7 @@ export function TeamMemberRegistry() {
   // Add alias mutation
   const addAlias = useMutation({
     mutationFn: async ({ profileId, alias }: { profileId: string; alias: string }) => {
-      const { error } = await (supabase.from('team_member_aliases' as UntypedTable).insert as any)({
+      const { error } = await untypedFrom('team_member_aliases').insert({
         profile_id: profileId,
         alias: alias.trim(),
         created_by: user?.id,

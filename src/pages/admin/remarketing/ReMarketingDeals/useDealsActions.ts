@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useShiftSelect } from '@/hooks/useShiftSelect';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
 import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
@@ -538,10 +538,7 @@ export function useDealsActions({
         ];
 
         for (const { table, column } of dependentTables) {
-          const { error: depError } = await (supabase.from(table as any).delete() as any).eq(
-            column,
-            dealId,
-          );
+          const { error: depError } = await untypedFrom(table).delete().eq(column, dealId);
           if (depError) {
             throw new Error(`Failed to delete from ${table}: ${depError.message}`);
           }

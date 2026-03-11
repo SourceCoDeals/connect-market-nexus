@@ -65,7 +65,11 @@ export const useDataQualityMonitor = () => {
           created_at: string;
           onboarding_completed?: boolean;
         })[]) || [],
-        (funnelData || []) as any,
+        (funnelData || []) as (Record<string, unknown> & {
+          session_id: string;
+          step_name?: string;
+          drop_off_reason?: string;
+        })[],
       );
       setMetrics(calculatedMetrics);
 

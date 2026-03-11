@@ -25,7 +25,7 @@ import { useSeedBuyers, type SeedBuyerResult } from '@/hooks/admin/use-seed-buye
 import { useBuyerSearchJob } from '@/hooks/admin/use-buyer-search-job';
 import { BuyerSearchSummaryDialog } from '@/components/admin/deals/buyer-introductions/BuyerSearchSummaryDialog';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
-import { supabase } from '@/integrations/supabase/client';
+import { untypedFrom } from '@/integrations/supabase/client';
 import {
   RefreshCw,
   Users,
@@ -85,7 +85,7 @@ async function recordFeedback(params: {
   dealCategories?: string[];
 }) {
   try {
-    await (supabase as any).from('buyer_discovery_feedback').upsert(
+    await untypedFrom('buyer_discovery_feedback').upsert(
       {
         listing_id: params.listingId,
         buyer_id: params.buyer.buyer_id,
@@ -111,19 +111,20 @@ async function recordFeedback(params: {
 
 const PAGE_SIZE = 5;
 
-const TIER_CONFIG: Record<BuyerScore['tier'], { label: string; color: string; icon: typeof Zap }> = {
-  move_now: {
-    label: 'Move Now',
-    color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    icon: Zap,
-  },
-  strong: { label: 'Strong', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Star },
-  speculative: {
-    label: 'Speculative',
-    color: 'bg-amber-100 text-amber-800 border-amber-200',
-    icon: HelpCircle,
-  },
-};
+const TIER_CONFIG: Record<BuyerScore['tier'], { label: string; color: string; icon: typeof Zap }> =
+  {
+    move_now: {
+      label: 'Move Now',
+      color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      icon: Zap,
+    },
+    strong: { label: 'Strong', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: Star },
+    speculative: {
+      label: 'Speculative',
+      color: 'bg-amber-100 text-amber-800 border-amber-200',
+      icon: HelpCircle,
+    },
+  };
 
 const SOURCE_BADGE: Record<BuyerScore['source'], { label: string; color: string }> = {
   ai_seeded: { label: 'AI Search', color: 'bg-purple-100 text-purple-700' },
@@ -557,7 +558,15 @@ export function RecommendedBuyersTab({
         });
       }
     },
-    [acceptingIds, createIntroduction, listingId, listingTitle, nicheCategory, listingIndustry, listingCategories],
+    [
+      acceptingIds,
+      createIntroduction,
+      listingId,
+      listingTitle,
+      nicheCategory,
+      listingIndustry,
+      listingCategories,
+    ],
   );
 
   const handleBatchAdd = async () => {
@@ -582,12 +591,9 @@ export function RecommendedBuyersTab({
     }
   };
 
-  const handleDismissClick = useCallback(
-    (buyer: BuyerScore) => {
-      setRejectingBuyer(buyer);
-    },
-    [],
-  );
+  const handleDismissClick = useCallback((buyer: BuyerScore) => {
+    setRejectingBuyer(buyer);
+  }, []);
 
   const handleDismissConfirm = useCallback(
     (reasonCategory?: string, reason?: string) => {
@@ -639,8 +645,14 @@ export function RecommendedBuyersTab({
   );
   const allInternal = available.filter(isInternal);
   const allExternal = available.filter((b) => !isInternal(b));
-  const internalBuyers = allInternal.slice(internalPage * PAGE_SIZE, (internalPage + 1) * PAGE_SIZE);
-  const externalBuyers = allExternal.slice(externalPage * PAGE_SIZE, (externalPage + 1) * PAGE_SIZE);
+  const internalBuyers = allInternal.slice(
+    internalPage * PAGE_SIZE,
+    (internalPage + 1) * PAGE_SIZE,
+  );
+  const externalBuyers = allExternal.slice(
+    externalPage * PAGE_SIZE,
+    (externalPage + 1) * PAGE_SIZE,
+  );
   const internalTotalPages = Math.max(1, Math.ceil(allInternal.length / PAGE_SIZE));
   const externalTotalPages = Math.max(1, Math.ceil(allExternal.length / PAGE_SIZE));
   const buyers = [...allInternal, ...allExternal];
@@ -740,12 +752,11 @@ export function RecommendedBuyersTab({
           {job.progress_message && (
             <p className="text-xs text-muted-foreground">{job.progress_message}</p>
           )}
-          {job.error && (
-            <p className="text-xs text-destructive">{job.error}</p>
-          )}
+          {job.error && <p className="text-xs text-destructive">{job.error}</p>}
           {job.status === 'completed' && job.buyers_found > 0 && (
             <p className="text-xs text-emerald-600">
-              Found {job.buyers_found} buyers ({job.buyers_inserted} new, {job.buyers_updated} updated)
+              Found {job.buyers_found} buyers ({job.buyers_inserted} new, {job.buyers_updated}{' '}
+              updated)
             </p>
           )}
         </div>

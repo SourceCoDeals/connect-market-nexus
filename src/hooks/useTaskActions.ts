@@ -9,7 +9,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { addDays, format } from 'date-fns';
 import type { TaskTemplateStage, TaskEntityType } from '@/types/daily-tasks';
@@ -39,7 +39,7 @@ export function useSnoozeTask() {
       if (error) throw error;
 
       // Log activity
-      await (supabase.from('rm_task_activity_log' as any) as any).insert({
+      await untypedFrom('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id ?? '',
         action: 'snoozed',
@@ -71,7 +71,7 @@ export function useUnsnoozeTask() {
 
       if (error) throw error;
 
-      await (supabase.from('rm_task_activity_log' as any) as any).insert({
+      await untypedFrom('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id ?? '',
         action: 'status_changed',
@@ -107,7 +107,7 @@ export function useConfirmAITask() {
 
       if (error) throw error;
 
-      await (supabase.from('rm_task_activity_log' as any) as any).insert({
+      await untypedFrom('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id ?? '',
         action: 'confirmed',
@@ -139,7 +139,7 @@ export function useDismissAITask() {
 
       if (error) throw error;
 
-      await (supabase.from('rm_task_activity_log' as any) as any).insert({
+      await untypedFrom('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id ?? '',
         action: 'dismissed',
@@ -167,7 +167,7 @@ export function useCancelTask() {
 
       if (error) throw error;
 
-      await (supabase.from('rm_task_activity_log' as any) as any).insert({
+      await untypedFrom('rm_task_activity_log').insert({
         task_id: taskId,
         user_id: user?.id ?? '',
         action: 'cancelled',
@@ -234,7 +234,7 @@ export function useApplyTaskTemplate() {
         createdTaskIds.push((data as Record<string, unknown>).id as string);
 
         // Log activity
-        await (supabase.from('rm_task_activity_log' as any) as any).insert({
+        await untypedFrom('rm_task_activity_log').insert({
           task_id: (data as Record<string, unknown>).id as string,
           user_id: user?.id ?? '',
           action: 'created',
@@ -301,7 +301,7 @@ export function useAddEntityTask() {
       if (error) throw error;
 
       // Log activity
-      await (supabase.from('rm_task_activity_log' as any) as any).insert({
+      await untypedFrom('rm_task_activity_log').insert({
         task_id: (data as Record<string, unknown>).id as string,
         user_id: user?.id ?? '',
         action: 'created',

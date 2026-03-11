@@ -9,7 +9,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, untypedFrom } from '@/integrations/supabase/client';
 
 export interface AlertCounts {
   total: number;
@@ -38,8 +38,7 @@ async function fetchAlertCounts(): Promise<AlertCounts> {
         .eq('status', 'overdue'),
 
       // Unacknowledged critical/warning signals (table may not exist yet)
-      (supabase
-        .from('rm_deal_signals' as any) as any)
+      untypedFrom('rm_deal_signals')
         .select('id', { count: 'exact', head: true })
         .in('signal_type', ['critical', 'warning'])
         .is('acknowledged_at', null)

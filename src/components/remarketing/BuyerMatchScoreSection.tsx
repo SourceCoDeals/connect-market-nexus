@@ -42,7 +42,10 @@ export const isDisqualified = (scoreData: {
  * Get disqualification reason from reasoning text.
  * Uses specific patterns to avoid over-triggering.
  */
-export const getDisqualificationReason = (reasoning: string | null, score?: any): string => {
+export const getDisqualificationReason = (
+  reasoning: string | null,
+  score?: { geography_score?: number; service_score?: number; owner_goals_score?: number },
+): string => {
   if (!reasoning) return 'criteria mismatch';
   const lower = reasoning.toLowerCase();
 
