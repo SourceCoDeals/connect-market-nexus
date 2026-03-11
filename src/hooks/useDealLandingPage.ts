@@ -127,6 +127,7 @@ export function useRelatedDeals(
             .eq('status', 'active')
             .eq('is_internal_deal', false)
             .not('id', 'in', `(${excludeIds.join(',')})`)
+            .gt('ebitda', 1_000_000)
             .order('created_at', { ascending: false })
             .limit(3 - featured.length);
 
@@ -136,13 +137,14 @@ export function useRelatedDeals(
         return featured;
       }
 
-      // Default: most recent active marketplace listings
+      // Default: most recent active marketplace listings with EBITDA > $1M
       const { data, error } = await supabase
         .from('listings')
         .select(selectFields)
         .eq('status', 'active')
         .eq('is_internal_deal', false)
         .neq('id', currentDealId!)
+        .gt('ebitda', 1_000_000)
         .order('created_at', { ascending: false })
         .limit(3);
 
