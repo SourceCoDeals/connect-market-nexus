@@ -3,13 +3,10 @@ import { useState } from 'react';
 import { CheckCircle, Download, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { AgreementSigningModal } from '@/components/pandadoc/AgreementSigningModal';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { resolveAgreementStatus, type AgreementDisplayStatus } from '@/lib/agreement-status';
 
-import {
-  useFirmAgreementStatus,
-  usePendingNotifications,
-} from './useMessagesData';
+import { useFirmAgreementStatus, usePendingNotifications } from './useMessagesData';
 import { useDownloadDocument } from './useMessagesActions';
 import { DocumentDialog } from './DocumentDialog';
 import type { DocItem } from './types';
@@ -28,7 +25,9 @@ function buildDocItem(
   const status = resolveAgreementStatus(statusText, pandadocStatus);
 
   const descriptions: Record<AgreementDisplayStatus, string> = {
-    signed: signedAt ? `Signed ${formatDistanceToNow(new Date(signedAt), { addSuffix: true })}` : 'Signed',
+    signed: signedAt
+      ? `Signed ${formatDistanceToNow(new Date(signedAt), { addSuffix: true })}`
+      : 'Signed',
     declined: 'Declined — contact us with questions.',
     expired: 'Expired — contact us for a new one.',
     viewed: 'Viewed — please sign to continue.',
@@ -70,16 +69,20 @@ export function PendingAgreementBanner() {
 
   const items: DocItem[] = [
     buildDocItem(
-      'nda', 'NDA',
-      (fs.nda_status ?? null) as string | null, fs.nda_signed_at as string | null,
+      'nda',
+      'NDA',
+      (fs.nda_status ?? null) as string | null,
+      fs.nda_signed_at as string | null,
       (fs.nda_pandadoc_status ?? null) as string | null,
       (fs.nda_pandadoc_signed_url ?? null) as string | null,
       (fs.nda_document_url ?? null) as string | null,
       pendingNotifications as Record<string, unknown>[],
     ),
     buildDocItem(
-      'fee_agreement', 'Fee Agreement',
-      (fs.fee_agreement_status ?? null) as string | null, fs.fee_agreement_signed_at as string | null,
+      'fee_agreement',
+      'Fee Agreement',
+      (fs.fee_agreement_status ?? null) as string | null,
+      fs.fee_agreement_signed_at as string | null,
       (fs.fee_pandadoc_status ?? null) as string | null,
       (fs.fee_pandadoc_signed_url ?? fs.fee_agreement_signed_document_url ?? null) as string | null,
       (fs.fee_agreement_document_url ?? null) as string | null,
@@ -98,9 +101,7 @@ export function PendingAgreementBanner() {
       >
         {items.map((item, idx) => (
           <div key={item.key} className="flex items-center gap-2">
-            {idx > 0 && (
-              <div className="h-3 mr-4" style={{ borderLeft: '1px solid #F0EDE6' }} />
-            )}
+            {idx > 0 && <div className="h-3 mr-4" style={{ borderLeft: '1px solid #F0EDE6' }} />}
             <span className="text-[12px] font-medium" style={{ color: '#0E101A' }}>
               {item.label}
             </span>
@@ -109,7 +110,13 @@ export function PendingAgreementBanner() {
               <>
                 <CheckCircle className="h-3 w-3" style={{ color: '#7A6F2A' }} />
                 <button
-                  onClick={() => download({ documentUrl: item.documentUrl, draftUrl: item.draftUrl, documentType: item.type })}
+                  onClick={() =>
+                    download({
+                      documentUrl: item.documentUrl,
+                      draftUrl: item.draftUrl,
+                      documentType: item.type,
+                    })
+                  }
                   className="text-[11px] flex items-center gap-0.5 hover:opacity-70 transition-opacity"
                   style={{ color: '#9A9A9A' }}
                 >
@@ -118,7 +125,9 @@ export function PendingAgreementBanner() {
               </>
             ) : item.declined ? (
               <>
-                <span className="text-[11px]" style={{ color: '#991B1B' }}>Declined</span>
+                <span className="text-[11px]" style={{ color: '#991B1B' }}>
+                  Declined
+                </span>
                 <button
                   onClick={() => {
                     setDocMessageType(item.type);
@@ -132,7 +141,9 @@ export function PendingAgreementBanner() {
               </>
             ) : (
               <>
-                <span className="text-[11px]" style={{ color: '#DEC76B' }}>Pending</span>
+                <span className="text-[11px]" style={{ color: '#DEC76B' }}>
+                  Pending
+                </span>
                 <button
                   onClick={() => {
                     setSigningDocType(item.type);

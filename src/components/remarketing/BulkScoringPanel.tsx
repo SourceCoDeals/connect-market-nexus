@@ -1,35 +1,30 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { 
-  Sparkles, 
-  Loader2, 
+  Sparkles,
+  Loader2,
   Users,
   RefreshCw,
   Clock,
   AlertCircle,
-  CheckCircle2
-} from "lucide-react";
-import { toast } from "sonner";
-import { useGlobalGateCheck } from "@/hooks/remarketing/useGlobalActivityQueue";
-import { useAuth } from "@/context/AuthContext";
+  CheckCircle2,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BulkScoringPanelProps {
   listingId: string;
@@ -58,15 +53,15 @@ export const BulkScoringPanel = ({
   selectedUniverse,
   onUniverseChange,
   onScoringComplete,
-  existingScoresCount
+  existingScoresCount,
 }: BulkScoringPanelProps) => {
   const { user } = useAuth();
   const { startOrQueueMajorOp } = useGlobalGateCheck();
   const [isScoring, setIsScoring] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [progressMessage, setProgressMessage] = useState("");
+  const [progressMessage, setProgressMessage] = useState('');
   const [lastResult, setLastResult] = useState<ScoringResult | null>(null);
-  
+
   // Scoring options
   const [rescoreExisting, setRescoreExisting] = useState(false);
 
@@ -78,7 +73,7 @@ export const BulkScoringPanel = ({
 
     setIsScoring(true);
     setProgress(5);
-    setProgressMessage("Checking activity queue...");
+    setProgressMessage('Checking activity queue...');
     setLastResult(null);
 
     try {
@@ -92,41 +87,45 @@ export const BulkScoringPanel = ({
       if (queued) {
         setIsScoring(false);
         setProgress(0);
-        setProgressMessage("");
+        setProgressMessage('');
         return;
       }
 
       setProgress(10);
-      setProgressMessage("Preparing scoring request...");
+      setProgressMessage('Preparing scoring request...');
 
       // Progress steps: 10% start -> 30% module loaded -> 60% request sent -> 100% complete
-      const { queueDealScoring } = await import("@/lib/remarketing/queueScoring");
+      const { queueDealScoring } = await import('@/lib/remarketing/queueScoring');
       setProgress(30);
-      setProgressMessage("Queuing scoring task...");
+      setProgressMessage('Queuing scoring task...');
 
       await queueDealScoring({ universeId: selectedUniverse, listingIds: [listingId] });
 
       setProgress(100);
-      toast.success("Scoring queued — processing in background");
-      setProgressMessage("Queued for background processing");
-      
+      toast.success('Scoring queued — processing in background');
+      setProgressMessage('Queued for background processing');
+
       onScoringComplete();
     } catch (error) {
       toast.error('Failed to score buyers');
-      setProgressMessage("Scoring failed");
+      setProgressMessage('Scoring failed');
     } finally {
       setTimeout(() => {
         setIsScoring(false);
         setProgress(0);
-        setProgressMessage("");
+        setProgressMessage('');
       }, 2000);
     }
   };
 
-  const tierDistribution = lastResult?.scores?.reduce((acc, score) => {
-    acc[score.tier] = (acc[score.tier] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>) || {};
+  const tierDistribution =
+    lastResult?.scores?.reduce(
+      (acc, score) => {
+        acc[score.tier] = (acc[score.tier] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    ) || {};
 
   return (
     <Card>
@@ -166,12 +165,8 @@ export const BulkScoringPanel = ({
                 Update scores for {existingScoresCount} already-scored buyers
               </p>
             </div>
-            <Switch
-              checked={rescoreExisting}
-              onCheckedChange={setRescoreExisting}
-            />
+            <Switch checked={rescoreExisting} onCheckedChange={setRescoreExisting} />
           </div>
-
         </div>
 
         {/* Score Button */}
@@ -179,7 +174,7 @@ export const BulkScoringPanel = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div>
-                <Button 
+                <Button
                   onClick={handleBulkScore}
                   disabled={!selectedUniverse || isScoring}
                   className="w-full"
@@ -239,21 +234,21 @@ export const BulkScoringPanel = ({
                 Scored {lastResult.totalProcessed} of {lastResult.totalBuyers} buyers
               </span>
             </div>
-            
+
             {Object.keys(tierDistribution).length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {['A', 'B', 'C', 'D'].map(tier => (
+                {['A', 'B', 'C', 'D'].map((tier) =>
                   tierDistribution[tier] ? (
-                    <Badge 
-                      key={tier} 
+                    <Badge
+                      key={tier}
                       variant={tier === 'A' ? 'default' : 'secondary'}
                       className="gap-1"
                     >
                       <Users className="h-3 w-3" />
                       {tierDistribution[tier]} Tier {tier}
                     </Badge>
-                  ) : null
-                ))}
+                  ) : null,
+                )}
               </div>
             )}
 
@@ -262,9 +257,7 @@ export const BulkScoringPanel = ({
                 {lastResult.errors.slice(0, 3).map((err) => (
                   <p key={err}>• {err}</p>
                 ))}
-                {lastResult.errors.length > 3 && (
-                  <p>... and {lastResult.errors.length - 3} more</p>
-                )}
+                {lastResult.errors.length > 3 && <p>... and {lastResult.errors.length - 3} more</p>}
               </div>
             )}
           </div>

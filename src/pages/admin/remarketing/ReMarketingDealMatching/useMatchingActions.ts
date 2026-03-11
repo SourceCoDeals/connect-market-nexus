@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import type { OutreachStatus } from '@/components/remarketing';
 import { createBuyerIntroductionFromApproval } from '@/lib/remarketing/createBuyerIntroduction';
@@ -178,7 +178,9 @@ export function useMatchingActions({
                 if (result && result.total_saved > 0) {
                   queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts'] });
                 } else if (result && result.total_saved === 0 && !result.message) {
-                  console.warn(`[bulk-approve] No contacts found for buyer ${scoreData.buyer_id} (${result.firmName})`);
+                  console.warn(
+                    `[bulk-approve] No contacts found for buyer ${scoreData.buyer_id} (${result.firmName})`,
+                  );
                 }
               })
               .catch((err) => {

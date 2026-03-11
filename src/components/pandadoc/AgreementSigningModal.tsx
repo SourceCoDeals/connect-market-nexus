@@ -16,7 +16,7 @@ import {
   Info,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { invalidateAgreementQueries } from '@/hooks/use-agreement-status-sync';
 
 interface AgreementSigningModalProps {
@@ -77,9 +77,14 @@ export function AgreementSigningModal({
         if (fnError) {
           setError('Failed to load signing form. Please try again.');
         } else if (data?.hasFirm === false) {
-          setError('Your account hasn\'t been set up for signing yet. Please contact our team via Messages.');
+          setError(
+            "Your account hasn't been set up for signing yet. Please contact our team via Messages.",
+          );
         } else if (alreadySigned) {
-          toast({ title: 'Already Signed', description: `Your ${docLabel} has already been signed.` });
+          toast({
+            title: 'Already Signed',
+            description: `Your ${docLabel} has already been signed.`,
+          });
           invalidateAgreementQueries(queryClient, user?.id);
           onOpenChange(false);
         } else if (data?.embedUrl) {

@@ -6,7 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import type { DealSignal } from '@/types/daily-tasks';
 
 const SIGNALS_KEY = 'deal-signals';
@@ -19,8 +19,7 @@ export function useDealSignals(options: { listingId?: string | null; dealId?: st
     queryKey: [SIGNALS_KEY, listingId, dealId],
     enabled: !!filterKey,
     queryFn: async () => {
-      let query = (supabase
-        .from('rm_deal_signals' as any) as any)
+      let query = (supabase.from('rm_deal_signals' as any) as any)
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
@@ -48,8 +47,7 @@ export function useAcknowledgeSignal() {
 
   return useMutation({
     mutationFn: async (signalId: string) => {
-      const { error } = await (supabase
-        .from('rm_deal_signals' as any) as any)
+      const { error } = await (supabase.from('rm_deal_signals' as any) as any)
         .update({
           acknowledged_by: user?.id ?? null,
           acknowledged_at: new Date().toISOString(),

@@ -7,7 +7,7 @@ import {
   useGlobalGateCheck,
   useGlobalActivityMutations,
 } from '@/hooks/remarketing/useGlobalActivityQueue';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 import type { CapTargetDeal, SyncProgress, SyncSummary, CleanupResult } from './types';
 import { hasInvalidWebsite } from './helpers';

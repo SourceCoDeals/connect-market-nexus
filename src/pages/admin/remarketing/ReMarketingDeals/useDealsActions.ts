@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useEnrichmentProgress } from '@/hooks/useEnrichmentProgress';
 import { useGlobalGateCheck } from '@/hooks/remarketing/useGlobalActivityQueue';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
@@ -538,10 +538,10 @@ export function useDealsActions({
         ];
 
         for (const { table, column } of dependentTables) {
-          const { error: depError } = await (supabase
-            .from(table as any)
-            .delete() as any)
-            .eq(column, dealId);
+          const { error: depError } = await (supabase.from(table as any).delete() as any).eq(
+            column,
+            dealId,
+          );
           if (depError) {
             throw new Error(`Failed to delete from ${table}: ${depError.message}`);
           }

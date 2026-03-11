@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 
 // TODO: Phase 6 — migrate admin_view_state read to data access layer: getAdminLastViewed() from '@/lib/data-access'
@@ -60,7 +60,7 @@ export function useUnviewedOwnerLeads() {
         },
         () => {
           query.refetch();
-        }
+        },
       )
       .subscribe();
 

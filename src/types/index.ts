@@ -6,7 +6,13 @@ export type UserRole = 'admin' | 'buyer';
 /** Internal team role for admin-panel access control. */
 export type TeamRole = 'owner' | 'admin' | 'moderator' | 'viewer';
 
-export type BuyerType =
+/**
+ * Marketplace signup buyer type — camelCase values stored in the profiles table.
+ * NOTE: The remarketing/buyers table uses the canonical snake_case BuyerType
+ * defined in src/types/remarketing.ts and src/types/status-enums.ts.
+ * A future migration should align profiles.buyer_type to the canonical enum.
+ */
+export type SignupBuyerType =
   | 'corporate'
   | 'privateEquity'
   | 'familyOffice'
@@ -15,6 +21,9 @@ export type BuyerType =
   | 'independentSponsor'
   | 'advisor'
   | 'businessOwner';
+
+/** @deprecated Use SignupBuyerType (marketplace) or BuyerType from @/types/remarketing (canonical). */
+export type BuyerType = SignupBuyerType;
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 

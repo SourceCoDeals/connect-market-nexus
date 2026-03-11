@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useMarketplace } from '@/hooks/use-marketplace';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Shield, Eye } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-utils';

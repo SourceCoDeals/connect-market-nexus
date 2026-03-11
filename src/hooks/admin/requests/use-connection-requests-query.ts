@@ -4,7 +4,7 @@ import { toast } from '@/hooks/use-toast';
 import { createUserObject } from '@/lib/auth-helpers';
 import { createListingFromData } from '@/utils/user-helpers';
 import { createQueryKey } from '@/lib/query-keys';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTabAwareQuery } from '@/hooks/use-tab-aware-query';
 
 // TODO: Phase 6 — migrate to data access layer once connection_requests queries are centralized.
@@ -113,9 +113,7 @@ export function useConnectionRequestsQuery() {
             chunks.push(ids.slice(i, i + CHUNK_SIZE));
           }
           const results = await Promise.all(
-            chunks.map((chunk) =>
-              supabase.from(table).select(select).in('id', chunk),
-            ),
+            chunks.map((chunk) => supabase.from(table).select(select).in('id', chunk)),
           );
           const allData: Record<string, unknown>[] = [];
           let firstError: unknown = null;

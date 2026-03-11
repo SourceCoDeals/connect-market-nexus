@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAnalytics } from '@/context/AnalyticsContext';
+import { useAnalytics } from '@/contexts/AnalyticsContext';
 import {
   Loader2,
   CheckCircle,

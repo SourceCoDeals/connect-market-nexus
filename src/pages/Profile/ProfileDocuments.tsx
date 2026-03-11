@@ -1,7 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
-import { FileDown, Shield, FileSignature, CheckCircle, Loader2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  FileDown,
+  Shield,
+  FileSignature,
+  CheckCircle,
+  Loader2,
+  AlertTriangle,
+  ArrowRight,
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -128,7 +136,10 @@ export function ProfileDocuments() {
   // Realtime sync for agreement status changes
   useAgreementStatusSync();
 
-  const pendingDocs = documents?.filter(d => !d.signed && (d.hasSubmission || d.status === 'sent' || d.status === 'awaiting')) || [];
+  const pendingDocs =
+    documents?.filter(
+      (d) => !d.signed && (d.hasSubmission || d.status === 'sent' || d.status === 'awaiting'),
+    ) || [];
 
   const openSigning = (type: 'nda' | 'fee_agreement') => {
     setSigningType(type);
@@ -176,7 +187,8 @@ export function ProfileDocuments() {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground">
-                You have {pendingDocs.length} document{pendingDocs.length > 1 ? 's' : ''} ready for signing
+                You have {pendingDocs.length} document{pendingDocs.length > 1 ? 's' : ''} ready for
+                signing
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Sign below to unlock full deal access and data room materials.
@@ -189,9 +201,7 @@ export function ProfileDocuments() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Documents</CardTitle>
-          <CardDescription>
-            Your agreements and signing status
-          </CardDescription>
+          <CardDescription>Your agreements and signing status</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {documents.map((doc) => (
@@ -211,16 +221,25 @@ export function ProfileDocuments() {
                   <p className="text-sm font-medium text-foreground">{doc.label}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {doc.signed ? (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-300 text-emerald-700 bg-emerald-50">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 border-emerald-300 text-emerald-700 bg-emerald-50"
+                      >
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Signed
                       </Badge>
                     ) : doc.hasSubmission ? (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-700 bg-amber-50">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-700 bg-amber-50"
+                      >
                         Ready to Sign
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 border-muted text-muted-foreground"
+                      >
                         Not Sent
                       </Badge>
                     )}
