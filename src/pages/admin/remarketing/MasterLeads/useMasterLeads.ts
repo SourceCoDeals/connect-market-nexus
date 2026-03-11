@@ -349,6 +349,14 @@ export function useMasterLeads() {
           valA = a.score ?? -1;
           valB = b.score ?? -1;
           break;
+        case 'linkedinEmployeeCount':
+          valA = a.linkedinEmployeeCount ?? -1;
+          valB = b.linkedinEmployeeCount ?? -1;
+          break;
+        case 'googleReviewCount':
+          valA = a.googleReviewCount ?? -1;
+          valB = b.googleReviewCount ?? -1;
+          break;
         case 'pushedToActiveDeals':
           valA = a.pushedToActiveDeals ? 1 : 0;
           valB = b.pushedToActiveDeals ? 1 : 0;

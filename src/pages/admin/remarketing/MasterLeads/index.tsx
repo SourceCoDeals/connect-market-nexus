@@ -382,6 +382,16 @@ export default function MasterLeads() {
                       <ScoreBadge score={lead.score} />
                     </TableCell>
 
+                    {/* LI Employees */}
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {lead.linkedinEmployeeCount != null ? lead.linkedinEmployeeCount.toLocaleString() : '-'}
+                    </TableCell>
+
+                    {/* Google Reviews */}
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {lead.googleReviewCount != null ? lead.googleReviewCount.toLocaleString() : '-'}
+                    </TableCell>
+
                     {/* Status */}
                     <TableCell className="text-center">
                       {lead.pushedToActiveDeals ? (
