@@ -208,6 +208,7 @@ export function useMasterLeads() {
               valuationEstimate: row.valuation_mid != null ? Number(row.valuation_mid) : null,
               score: row.lead_score != null ? Number(row.lead_score) : null,
               linkedinEmployeeCount: null,
+              linkedinEmployeeRange: null,
               googleReviewCount: null,
               pushedToActiveDeals: !!row.pushed_to_all_deals,
               dateAdded: row.created_at,
