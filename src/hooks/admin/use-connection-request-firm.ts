@@ -53,22 +53,25 @@ export function useConnectionRequestFirm(requestId: string | null) {
       };
       if (!firmData.firm) return null;
 
-      const firm = Array.isArray(firmData.firm) ? firmData.firm[0] : firmData.firm;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const firm: any = Array.isArray(firmData.firm) ? firmData.firm[0] : firmData.firm;
 
-      const members = ((firm.firm_members as Record<string, unknown>[]) || []).map((m: Record<string, unknown>) => ({
-        id: m.id as string,
-        firm_id: firm.id as string,
-        user_id: m.user_id as string | null,
-        member_type: (m.member_type as string) || 'marketplace_user',
-        lead_email: m.lead_email as string | null,
-        lead_name: m.lead_name as string | null,
-        lead_company: m.lead_company as string | null,
-        connection_request_id: m.connection_request_id as string | null,
-        inbound_lead_id: m.inbound_lead_id as string | null,
-        is_primary_contact: (m.is_primary_contact as boolean) || false,
-        added_at: m.added_at as string | null,
-        user: m.user || null,
-      })) as FirmMember[];
+      const members = ((firm.firm_members || []) as Record<string, unknown>[]).map(
+        (m: Record<string, unknown>) => ({
+          id: m.id as string,
+          firm_id: firm.id as string,
+          user_id: m.user_id as string | null,
+          member_type: (m.member_type as string) || 'marketplace_user',
+          lead_email: m.lead_email as string | null,
+          lead_name: m.lead_name as string | null,
+          lead_company: m.lead_company as string | null,
+          connection_request_id: m.connection_request_id as string | null,
+          inbound_lead_id: m.inbound_lead_id as string | null,
+          is_primary_contact: (m.is_primary_contact as boolean) || false,
+          added_at: m.added_at as string | null,
+          user: m.user || null,
+        }),
+      ) as FirmMember[];
 
       return {
         firm_id: firm.id,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase client used with untyped tables */
 /**
  * Integration Agreement Tools
  * Send NDAs and Fee Agreements for signing via PandaDoc.
@@ -87,7 +88,7 @@ export async function sendDocument(
   }
 
   // Verify firm exists
-  const { data: firm, error: firmError } = await supabase
+  const { data: firm, error: firmError } = await (supabase as any)
     .from('firm_agreements')
     .select('id, primary_company_name')
     .eq('id', firmId)
@@ -110,7 +111,7 @@ export async function sendDocument(
     pandadocResponse = await fetch('https://api.pandadoc.com/public/v1/documents', {
       method: 'POST',
       headers: {
-        'Authorization': `API-Key ${pandadocApiKey}`,
+        Authorization: `API-Key ${pandadocApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -157,7 +158,7 @@ export async function sendDocument(
   await fetch(`https://api.pandadoc.com/public/v1/documents/${documentId}/send`, {
     method: 'POST',
     headers: {
-      'Authorization': `API-Key ${pandadocApiKey}`,
+      Authorization: `API-Key ${pandadocApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({

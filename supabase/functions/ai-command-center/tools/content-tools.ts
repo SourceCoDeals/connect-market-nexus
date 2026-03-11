@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase client used with untyped tables */
 /**
  * Content Generation Tools
  * Meeting prep briefs, outreach email drafts, pipeline reports.
@@ -135,7 +136,7 @@ async function generateMeetingPrep(
 
   // Parallel fetch: deal + tasks + transcripts + (optional) buyer + score
   const queries: Promise<any>[] = [
-    supabase.from('listings').select('*').eq('id', dealId).single() as any,
+    (supabase as any).from('listings').select('*').eq('id', dealId).single(),
     (supabase as any)
       .from('daily_standup_tasks')
       .select('id, title, status, priority, due_date, assignee_id')
@@ -167,7 +168,7 @@ async function generateMeetingPrep(
   // Add buyer-specific queries if buyer is specified
   if (buyerId) {
     queries.push(
-      supabase.from('buyers').select('*').eq('id', buyerId).single() as any,
+      (supabase as any).from('buyers').select('*').eq('id', buyerId).single(),
       (supabase as any)
         .from('remarketing_scores')
         .select('*')
@@ -220,34 +221,34 @@ async function draftOutreachEmail(
 
   // Parallel fetch: deal + buyer + score + contacts + past outreach
   const [dealResult, buyerResult, scoreResult, contactsResult, accessResult] = await Promise.all([
-    supabase
+    (supabase as any)
       .from('listings')
       .select(
         'id, title, industry, services, revenue, ebitda, location, address_state, geographic_states, executive_summary, investment_thesis, business_model, number_of_locations, full_time_employees',
       )
       .eq('id', dealId)
       .single(),
-    supabase
+    (supabase as any)
       .from('buyers')
       .select(
         'id, company_name, pe_firm_name, buyer_type, target_services, target_geographies, target_revenue_min, target_revenue_max, thesis_summary, acquisition_appetite, business_summary',
       )
       .eq('id', buyerId)
       .single(),
-    supabase
+    (supabase as any)
       .from('remarketing_scores')
       .select('composite_score, geography_score, service_score, size_score, fit_reasoning')
       .eq('buyer_id', buyerId)
       .eq('listing_id', dealId)
       .single(),
-    supabase
+    (supabase as any)
       .from('contacts')
       .select('*')
       .eq('remarketing_buyer_id', buyerId)
       .eq('archived', false)
       .order('is_primary_at_firm', { ascending: false })
       .limit(3),
-    supabase
+    (supabase as any)
       .from('deal_data_room_access')
       .select('buyer_name, buyer_email, granted_at, is_active')
       .eq('deal_id', dealId)
@@ -281,26 +282,26 @@ async function generatePipelineReport(
   // Parallel fetch: current pipeline + recent activities + recent scoring + data room grants
   const [dealsResult, activitiesResult, scoresResult, accessResult, tasksResult] =
     await Promise.all([
-      supabase
+      (supabase as any)
         .from('listings')
         .select(
           'id, title, status, deal_source, industry, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status, updated_at',
         )
         .is('deleted_at', null),
-      supabase
+      (supabase as any)
         .from('deal_activities')
         .select('deal_id, activity_type, title, created_at')
         .gte('created_at', cutoffDate)
         .order('created_at', { ascending: false }),
-      supabase
+      (supabase as any)
         .from('remarketing_scores')
         .select('buyer_id, listing_id, status, composite_score, updated_at')
         .gte('updated_at', cutoffDate),
-      supabase
+      (supabase as any)
         .from('deal_data_room_access')
         .select('deal_id, buyer_name, granted_at, is_active')
         .gte('granted_at', cutoffDate),
-      supabase
+      (supabase as any)
         .from('daily_standup_tasks')
         .select('entity_id, title, status, completed_at')
         .eq('entity_type', 'deal')

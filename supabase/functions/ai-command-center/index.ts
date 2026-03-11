@@ -283,7 +283,7 @@ async function trackUsage(
   usage: UsageData,
 ): Promise<void> {
   try {
-    await supabase.from('ai_command_center_usage').insert({
+    await (supabase as any).from('ai_command_center_usage').insert({
       user_id: userId,
       conversation_id: conversationId || null,
       query: usage.query.substring(0, 500),

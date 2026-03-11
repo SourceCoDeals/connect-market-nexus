@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase client used with untyped tables */
 /**
  * AI Command Center — Task Management Tools (v3.1)
  *
@@ -674,7 +675,7 @@ async function snoozeTask(
   if (error) return { error: error.message };
 
   // Log activity
-  await supabase.from('rm_task_activity_log').insert({
+  await (supabase as any).from('rm_task_activity_log').insert({
     task_id: taskId,
     user_id: userId,
     action: 'snoozed',
@@ -731,7 +732,7 @@ async function createTask(
   if (error) return { error: error.message };
 
   // Log activity
-  await supabase.from('rm_task_activity_log').insert({
+  await (supabase as any).from('rm_task_activity_log').insert({
     task_id: data.id,
     user_id: userId,
     action: 'created',
@@ -740,7 +741,7 @@ async function createTask(
 
   // Log deal activity if linked to a deal
   if (entityType === 'deal' && entityId) {
-    await supabase.from('deal_activities').insert({
+    await (supabase as any).from('deal_activities').insert({
       deal_id: entityId,
       admin_id: userId,
       activity_type: 'task_created',
@@ -773,11 +774,14 @@ async function confirmAITask(
   };
   if (dueDate) updates.due_date = dueDate;
 
-  const { error } = await supabase.from('daily_standup_tasks').update(updates).eq('id', taskId);
+  const { error } = await (supabase as any)
+    .from('daily_standup_tasks')
+    .update(updates)
+    .eq('id', taskId);
 
   if (error) return { error: error.message };
 
-  await supabase.from('rm_task_activity_log').insert({
+  await (supabase as any).from('rm_task_activity_log').insert({
     task_id: taskId,
     user_id: userId,
     action: 'confirmed',
@@ -800,7 +804,7 @@ async function dismissAITask(
 
   if (error) return { error: error.message };
 
-  await supabase.from('rm_task_activity_log').insert({
+  await (supabase as any).from('rm_task_activity_log').insert({
     task_id: taskId,
     user_id: userId,
     action: 'dismissed',
@@ -834,7 +838,7 @@ async function completeTask(
   if (error) return { error: error.message };
 
   // Log activity
-  await supabase.from('rm_task_activity_log').insert({
+  await (supabase as any).from('rm_task_activity_log').insert({
     task_id: taskId,
     user_id: userId,
     action: 'completed',
@@ -843,7 +847,7 @@ async function completeTask(
 
   // Log deal activity if linked to a deal
   if (task.entity_type === 'deal' && task.entity_id) {
-    await supabase.from('deal_activities').insert({
+    await (supabase as any).from('deal_activities').insert({
       deal_id: task.entity_id,
       admin_id: userId,
       activity_type: 'task_completed',
@@ -874,7 +878,7 @@ async function addTaskComment(
 
   if (error) return { error: error.message };
 
-  await supabase.from('rm_task_activity_log').insert({
+  await (supabase as any).from('rm_task_activity_log').insert({
     task_id: taskId,
     user_id: userId,
     action: 'commented',
@@ -912,7 +916,10 @@ async function bulkCreateTasks(
   if (entityType === 'listing' || entityType === 'deal') {
     const table = entityType === 'deal' ? 'deal_pipeline' : 'listings';
     const nameCol = entityType === 'deal' ? 'id, listings!inner(title)' : 'id, title';
-    const { data: entities } = await supabase.from(table).select(nameCol).in('id', entityIds);
+    const { data: entities } = await (supabase as any)
+      .from(table)
+      .select(nameCol)
+      .in('id', entityIds);
     for (const e of entities || []) {
       const name =
         entityType === 'deal'
@@ -964,7 +971,7 @@ async function bulkCreateTasks(
     new_value: { source: 'chatbot_bulk', entity_type: entityType },
   }));
   if (activityLogs.length > 0) {
-    await supabase.from('rm_task_activity_log').insert(activityLogs);
+    await (supabase as any).from('rm_task_activity_log').insert(activityLogs);
   }
 
   // Log deal activities for deal-linked tasks
@@ -981,7 +988,7 @@ async function bulkCreateTasks(
       }),
     );
     if (dealActivities.length > 0) {
-      await supabase.from('deal_activities').insert(dealActivities);
+      await (supabase as any).from('deal_activities').insert(dealActivities);
     }
   }
 
@@ -1034,7 +1041,7 @@ async function bulkReassignTasks(
     new_value: { assignee_id: toUserId },
   }));
 
-  await supabase.from('rm_task_activity_log').insert(logs);
+  await (supabase as any).from('rm_task_activity_log').insert(logs);
 
   return { data: { reassigned: tasks.length } };
 }

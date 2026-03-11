@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase client used with untyped tables */
 /**
  * Buyer Intelligence Tools
  * Search, profile, and analyze remarketing buyers.
@@ -390,7 +391,7 @@ async function searchBuyers(
     ? Math.min(Number(args.limit) || 1000, 5000)
     : Math.min(Number(args.limit) || 25, 100);
 
-  let query = supabase
+  let query = (supabase as any)
     .from('buyers')
     .select(fields)
     .order('alignment_score', { ascending: false, nullsFirst: false })
@@ -442,7 +443,7 @@ async function searchBuyers(
   const matchedUniverseNames: Map<string, string> = new Map(); // id -> name for transparency
   if ((args.industry || args.search) && !args.universe_id) {
     const searchTerm = ((args.industry || args.search) as string).toLowerCase();
-    const { data: universes } = await supabase
+    const { data: universes } = await (supabase as any)
       .from('buyer_universes')
       .select('id, name, description')
       .eq('archived', false);
@@ -476,7 +477,7 @@ async function searchBuyers(
       const existingIds = new Set(results.map((b: BuyerRecord) => b.id));
       const universeIds = Array.from(matchingUniverseIds);
 
-      let universeQuery = supabase
+      let universeQuery = (supabase as any)
         .from('buyers')
         .select(fields)
         .in('universe_id', universeIds)
@@ -559,7 +560,8 @@ async function searchBuyers(
     const term = (args.search as string).toLowerCase();
     const searchWords = term.split(/\s+/).filter((w) => w.length > 2);
     results = results.filter((b: BuyerRecord) => {
-      if (matchingUniverseIds.size > 0 && b.universe_id && matchingUniverseIds.has(b.universe_id)) return true;
+      if (matchingUniverseIds.size > 0 && b.universe_id && matchingUniverseIds.has(b.universe_id))
+        return true;
 
       const compName = (b.company_name || '').toLowerCase();
       const peName = (b.pe_firm_name || '').toLowerCase();
@@ -692,8 +694,8 @@ async function getBuyerProfile(
   // Parallel fetch: buyer + contacts + scores + transcripts
   // Updated Feb 2026: contacts now fetched from unified contacts table (buyer_contacts is legacy)
   const [buyerResult, contactsResult, scoresResult, transcriptsResult] = await Promise.all([
-    supabase.from('buyers').select(BUYER_FIELDS_FULL).eq('id', buyerId).single(),
-    supabase
+    (supabase as any).from('buyers').select(BUYER_FIELDS_FULL).eq('id', buyerId).single(),
+    (supabase as any)
       .from('contacts')
       .select(
         'id, first_name, last_name, email, phone, title, is_primary_at_firm, nda_signed, fee_agreement_signed, linkedin_url, source, created_at',
@@ -702,7 +704,7 @@ async function getBuyerProfile(
       .eq('contact_type', 'buyer')
       .eq('archived', false)
       .order('is_primary_at_firm', { ascending: false }),
-    supabase
+    (supabase as any)
       .from('remarketing_scores')
       .select(
         'listing_id, composite_score, status, tier, geography_score, service_score, size_score, owner_goals_score, fit_reasoning',
@@ -710,7 +712,7 @@ async function getBuyerProfile(
       .eq('buyer_id', buyerId)
       .order('composite_score', { ascending: false })
       .limit(10),
-    supabase
+    (supabase as any)
       .from('call_transcripts')
       .select('id, created_at, call_type, ceo_detected, key_quotes, extracted_insights')
       .eq('buyer_id', buyerId)
@@ -734,7 +736,7 @@ async function getScoreBreakdown(
   supabase: SupabaseClient,
   args: Record<string, unknown>,
 ): Promise<ToolResult> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('remarketing_scores')
     .select('*')
     .eq('buyer_id', args.buyer_id as string)
@@ -755,7 +757,7 @@ async function getTopBuyersForDeal(
   const defaultLimit = args.state ? 1000 : 20;
   const limit = Math.min(Number(args.limit) || defaultLimit, 2000);
 
-  let query = supabase
+  let query = (supabase as any)
     .from('remarketing_scores')
     .select(
       `
@@ -794,7 +796,7 @@ async function getTopBuyersForDeal(
 
   // Fetch buyer details for the scored buyer IDs
   const buyerIds = scores.map((s: { buyer_id: string }) => s.buyer_id);
-  let buyerQuery = supabase
+  let buyerQuery = (supabase as any)
     .from('buyers')
     .select(
       'id, company_name, pe_firm_name, buyer_type, hq_state, hq_city, has_fee_agreement, geographic_footprint',
@@ -863,7 +865,7 @@ async function searchLeadSources(
 
   while (offset < requestedLimit) {
     const batchSize = Math.min(PAGE_SIZE, requestedLimit - offset);
-    let query = supabase
+    let query = (supabase as any)
       .from('listings')
       .select(LISTING_LEAD_FIELDS)
       .is('deleted_at', null)
@@ -968,7 +970,7 @@ async function searchValuationLeads(
   const calcType = (args.calculator_type as string) || 'all';
   const limit = Math.min(Number(args.limit) || 5000, 10000);
 
-  let query = supabase
+  let query = (supabase as any)
     .from('valuation_leads')
     .select(
       'id, calculator_type, display_name, business_name, industry, region, location, revenue, ebitda, lead_score, quality_tier, status, pushed_to_all_deals, excluded, created_at',
