@@ -96,7 +96,7 @@ export async function clayLookupEmail(
   const requestType = hasLinkedIn ? 'linkedin' : 'name_domain';
 
   // 1. Insert tracking row
-  const { error: insertErr } = await supabase.from('clay_enrichment_requests').insert({
+  const { error: insertErr } = await (supabase as any).from('clay_enrichment_requests').insert({
     request_id: requestId,
     request_type: requestType,
     status: 'pending',
