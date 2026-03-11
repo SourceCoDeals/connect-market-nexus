@@ -247,6 +247,8 @@ export function useMasterLeads() {
           ebitda: null,
           valuationEstimate: null,
           score: null,
+          linkedinEmployeeCount: null,
+          googleReviewCount: null,
           pushedToActiveDeals: false,
           dateAdded: row.created_at,
           detailPath: `/admin/remarketing/leads/referrals/${row.id}`,
