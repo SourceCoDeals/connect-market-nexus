@@ -54,7 +54,7 @@ interface MatchListProps {
   handleToggleInterested: (
     scoreId: string,
     interested: boolean,
-    scoreData?: ScoreRecord,
+    scoreData?: any,
   ) => Promise<void>;
   handleOutreachUpdate: (scoreId: string, status: OutreachStatus, notes: string) => Promise<void>;
   handleScoreViewed: (scoreId: string) => Promise<void>;
