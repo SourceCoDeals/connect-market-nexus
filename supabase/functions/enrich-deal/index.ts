@@ -828,6 +828,16 @@ serve(async (req) => {
         extracted = JSON.parse(toolCall.function.arguments);
       } catch (e) {
         console.error('Failed to parse tool arguments:', e);
+        // Mark the deal with a timestamp so it doesn't appear un-enriched,
+        // but don't silently proceed with empty data.
+        await supabase
+          .from('listings')
+          .update({ enriched_at: new Date().toISOString() })
+          .eq('id', dealId);
+        return new Response(JSON.stringify({ error: 'AI returned invalid JSON', dealId }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
