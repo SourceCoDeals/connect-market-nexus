@@ -247,7 +247,43 @@ These serve different entity types but share 80% structural overlap. **Consider 
 
 `user_activity` (5 columns) is a subset of `user_events` (18 columns). **Recommend merging `user_activity` into `user_events`.**
 
-### 4B. Duplicate Type Definitions (19 duplicates across files)
+### 4B. Duplicate Constants & Config
+
+#### Buyer Type Definitions: 8+ Locations, 2 Naming Conventions
+
+**CRITICAL:** Buyer types are defined in 8+ places with two competing naming conventions:
+
+| Location | Convention | Values |
+|----------|-----------|--------|
+| `src/types/index.ts` (SignupBuyerType) | camelCase | `privateEquity`, `familyOffice`, `searchFund` |
+| `src/types/status-enums.ts` (BuyerTypeEnum) | snake_case | `private_equity`, `family_office`, `search_fund` |
+| `src/types/remarketing.ts` | snake_case | `private_equity`, `corporate`, etc. |
+| `src/lib/signup-field-options.ts` | camelCase | `privateEquity`, `corporate`, etc. |
+| `src/constants/index.ts` (BUYER_TYPE_LABELS) | camelCase | Display labels only |
+| `src/pages/Signup/types.ts` | camelCase | Signup form options |
+| 10+ component files | Mixed | Local `BUYER_TYPES`, `BUYER_TYPE_LABELS`, `BUYER_TYPE_CONFIG` |
+
+**Problem:** `privateEquity` vs `private_equity`, `individual` vs `individual_buyer` — inconsistencies at data boundaries will cause bugs.
+
+**Recommendation:** Consolidate to single `src/constants/buyer-types.ts` with one canonical enum.
+
+#### Pagination: 2 Config Systems with Conflicting Defaults
+
+| Location | Variable | Value |
+|----------|----------|-------|
+| `src/constants/index.ts` | `DEFAULT_PAGE_SIZE` | **50** |
+| `src/config/app.ts` | `PAGINATION.defaultPageSize` | **25** |
+| `src/lib/database.ts` | default pageSize | 25 |
+| 3 component files | local `PAGE_SIZE` | 25 or 50 |
+
+#### Cache Timing: Duplicated with Different Values
+
+| Location | LONG stale time |
+|----------|----------------|
+| `src/constants/index.ts` (CACHE_TIMES.STALE_LONG) | **10 minutes** |
+| `src/config/app.ts` (CACHE.longStaleTime) | **30 minutes** |
+
+### 4C. Duplicate Type Definitions (19 duplicates across files)
 
 | Type Name | Defined In | Recommendation |
 |-----------|-----------|---------------|
@@ -555,6 +591,8 @@ These routes are intentionally not linked in UI — accessed via external URLs, 
 | SmartLead + HeyReach types | Shared `outreach-platform.ts` | Create generic outreach types |
 | 19 duplicate type definitions | Single canonical location | Pick one file per type, import everywhere |
 | 114 dead types in `src/types/` | — | Delete unused exports |
+| 8+ buyer type definitions | `src/constants/buyer-types.ts` | Single canonical enum, resolve camelCase vs snake_case split |
+| `constants/index.ts` + `config/app.ts` | `config/app.ts` | Eliminate dual config system, pick one source of truth |
 
 ---
 
