@@ -358,6 +358,10 @@ export function useMasterLeads() {
           valA = a.linkedinEmployeeCount ?? -1;
           valB = b.linkedinEmployeeCount ?? -1;
           break;
+        case 'linkedinEmployeeRange':
+          valA = (a.linkedinEmployeeRange || '').toLowerCase();
+          valB = (b.linkedinEmployeeRange || '').toLowerCase();
+          break;
         case 'googleReviewCount':
           valA = a.googleReviewCount ?? -1;
           valB = b.googleReviewCount ?? -1;

@@ -270,6 +270,14 @@ export default function MasterLeads() {
                 LI Emp
               </SortableHeader>
               <SortableHeader
+                column="linkedinEmployeeRange"
+                currentSort={hook.sortColumn}
+                currentDir={hook.sortDirection}
+                onSort={hook.handleSort}
+              >
+                LI Range
+              </SortableHeader>
+              <SortableHeader
                 column="googleReviewCount"
                 currentSort={hook.sortColumn}
                 currentDir={hook.sortDirection}
