@@ -44,7 +44,7 @@ export function EnhancedAnalyticsHealthDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTestingRunning, setIsTestingRunning] = useState(false);
   const [testResults, setTestResults] = useState<
-    Array<{ test: string; success: boolean; details?: unknown }>
+    Array<{ test: string; success: boolean; details?: any }>
   >([]);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
@@ -446,7 +446,7 @@ export function EnhancedAnalyticsHealthDashboard() {
                     key={result.test}
                     className="flex items-center justify-between p-2 border rounded"
                   >
-                    <span className="text-sm">{result.test}</span>
+                    <span className="text-sm">{String(result.test)}</span>
                     <div className="flex items-center gap-2">
                       {result.success ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
@@ -457,7 +457,7 @@ export function EnhancedAnalyticsHealthDashboard() {
                         <span className="text-xs text-muted-foreground">
                           {typeof result.details === 'object'
                             ? JSON.stringify(result.details).slice(0, 50) + '...'
-                            : result.details}
+                            : String(result.details)}
                         </span>
                       )}
                     </div>

@@ -43,7 +43,7 @@ import { exportLeadsToCSV } from './helpers';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import type { Operator, FilterRule } from '@/components/filters';
-import type { SortColumn } from './types';
+import type { SortColumn, ValuationLead } from './types';
 
 // Re-export formatAge for any external importers
 export { formatAge } from './helpers';

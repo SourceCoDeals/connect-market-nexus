@@ -119,7 +119,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
         }
 
         const views =
-          (analytics as AnalyticsRow[])?.filter(
+          (analytics as unknown as AnalyticsRow[])?.filter(
             (a: AnalyticsRow) => a.listing_id === listing.id && a.action_type === 'view',
           ).length || 0;
         const listingSaves = saves?.filter((s) => s.listing_id === listing.id).length || 0;
@@ -198,7 +198,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
             (Date.now() - new Date(listing.created_at).getTime()) / (1000 * 60 * 60 * 24),
           );
           const views =
-            (analytics as AnalyticsRow[])?.filter(
+            (analytics as unknown as AnalyticsRow[])?.filter(
               (a: AnalyticsRow) => a.listing_id === listing.id && a.action_type === 'view',
             ).length || 0;
           const listingSaves = saves?.filter((s) => s.listing_id === listing.id).length || 0;
@@ -255,7 +255,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
           stage: 'lead',
           user_count: users.filter((u) => {
             const userViews =
-              (analytics as AnalyticsRow[])?.filter((a: AnalyticsRow) => a.user_id === u.id)
+              (analytics as unknown as AnalyticsRow[])?.filter((a: AnalyticsRow) => a.user_id === u.id)
                 .length || 0;
             return userViews > 0 && userViews < 5;
           }).length,

@@ -606,7 +606,7 @@ export default function EnrichmentQueue() {
           completed_at: s.completed_at,
           last_error: s.error,
           attempts: 1,
-          label: s.listing_name || s.listing_id?.slice(0, 8) || '—',
+          label: (s.listing_name as string) || (s.listing_id as string)?.slice(0, 8) || '—',
         })),
       );
 

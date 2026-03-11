@@ -397,7 +397,7 @@ export function ImprovedListingEditor({
         // Content sections (populated by lead memo generator)
         custom_sections: formData.custom_sections || null,
         // Featured deals for landing page
-        featured_deal_ids: featuredDealIds,
+        ...(featuredDealIds ? { featured_deal_ids: featuredDealIds } : {}),
       };
 
       await onSubmit(transformedData, isImageChanged ? selectedImage : undefined);

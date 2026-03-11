@@ -13,6 +13,7 @@ import type {
   ClarificationContext,
   AIResearchSectionProps,
 } from './types';
+import type { TargetBuyerTypeConfig } from '@/types/remarketing';
 import { getSessionToken, saveGuideToDocuments } from './helpers';
 
 interface UseGenerationEngineParams {
@@ -735,15 +736,16 @@ export const useGenerationEngine = ({
         }
         throw error;
       }
-      if (!data?.success) throw new Error(data?.error || 'Extraction failed');
+      if (!data?.success) throw new Error((data?.error as string) || 'Extraction failed');
+      const criteria = data.criteria as Record<string, unknown> | undefined;
       const mappedCriteria: ExtractedCriteria = {
-        size_criteria: data.criteria?.size_criteria,
-        geography_criteria: data.criteria?.geography_criteria,
-        service_criteria: data.criteria?.service_criteria,
-        buyer_types_criteria: data.criteria?.buyer_types_criteria,
+        size_criteria: criteria?.size_criteria as ExtractedCriteria['size_criteria'],
+        geography_criteria: criteria?.geography_criteria as ExtractedCriteria['geography_criteria'],
+        service_criteria: criteria?.service_criteria as ExtractedCriteria['service_criteria'],
+        buyer_types_criteria: criteria?.buyer_types_criteria as ExtractedCriteria['buyer_types_criteria'],
       };
       setExtractedCriteria(mappedCriteria);
-      onGuideGenerated(guideContent, mappedCriteria, data.target_buyer_types);
+      onGuideGenerated(guideContent as string, mappedCriteria, data.target_buyer_types as TargetBuyerTypeConfig[] | undefined);
       toast.success(`Criteria extracted successfully (${data.confidence || 0}% confidence)`, {
         duration: 5000,
       });

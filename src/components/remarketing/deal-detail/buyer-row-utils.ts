@@ -41,7 +41,7 @@ export function resolveBuyerDisplayData(buyer: BuyerIntroduction, score?: BuyerS
   const hasFeeAgreement = score?.has_fee_agreement ?? snap?.has_fee_agreement ?? false;
   const companyWebsite = score?.company_website || snap?.company_website || null;
   const isPubliclyTraded = score?.is_publicly_traded ?? snap?.is_publicly_traded ?? false;
-  const statusConfig = STATUS_CONFIG[buyer.introduction_status];
+  const statusConfig = STATUS_CONFIG[buyer.introduction_status as keyof typeof STATUS_CONFIG];
 
   return {
     displayName,

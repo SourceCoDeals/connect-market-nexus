@@ -141,7 +141,7 @@ export const useUpdateLeadNDAStatus = () => {
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id,
+          dealId: deal.id as string,
           activityType: 'nda_status_changed',
           title: value ? 'NDA Signed' : 'NDA Status Revoked',
           description: value
@@ -247,7 +247,7 @@ export const useUpdateLeadNDAEmailStatus = () => {
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id,
+          dealId: deal.id as string,
           activityType: 'nda_email_sent',
           title: value ? 'NDA Email Sent' : 'NDA Email Status Revoked',
           description: value
@@ -342,7 +342,7 @@ export const useUpdateLeadFeeAgreementStatus = () => {
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id,
+          dealId: deal.id as string,
           activityType: 'fee_agreement_status_changed',
           title: value ? 'Fee Agreement Signed' : 'Fee Agreement Status Revoked',
           description: value
@@ -448,7 +448,7 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id,
+          dealId: deal.id as string,
           activityType: 'fee_agreement_email_sent',
           title: value ? 'Fee Agreement Email Sent' : 'Fee Agreement Email Status Revoked',
           description: value

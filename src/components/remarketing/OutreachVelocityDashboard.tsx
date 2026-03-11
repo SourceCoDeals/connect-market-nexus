@@ -76,7 +76,7 @@ const CustomTooltip = ({
         </p>
         <p className="text-sm">
           <span className="text-muted-foreground">Deals:</span>{' '}
-          <span className="font-medium">{payload[0].payload.deals}</span>
+          <span className="font-medium">{payload[0]?.payload?.deals}</span>
         </p>
       </div>
     );
