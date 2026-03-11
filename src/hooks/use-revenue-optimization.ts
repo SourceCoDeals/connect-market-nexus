@@ -119,7 +119,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
         }
 
         const views =
-          (analytics as AnalyticsRow[])?.filter(
+          (analytics as unknown as AnalyticsRow[])?.filter(
             (a: AnalyticsRow) => a.listing_id === listing.id && a.action_type === 'view',
           ).length || 0;
         const listingSaves = saves?.filter((s) => s.listing_id === listing.id).length || 0;
