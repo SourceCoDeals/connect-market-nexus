@@ -135,7 +135,7 @@ export async function clayLookupEmail(
   while (Date.now() < deadline) {
     await sleep(POLL_INTERVAL_MS);
 
-    const { data: row, error: pollErr } = await supabase
+    const { data: row, error: pollErr } = await (supabase as any)
       .from('clay_enrichment_requests')
       .select('status, result_email')
       .eq('request_id', requestId)

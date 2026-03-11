@@ -584,7 +584,7 @@ async function getDealDetails(
 
     if (dealsRow.buyer_contact_id) {
       contactFetches.push(
-        supabase
+        (supabase as any)
           .from('contacts')
           .select(contactFields)
           .eq('id', dealsRow.buyer_contact_id)
@@ -596,7 +596,7 @@ async function getDealDetails(
     }
     if (dealsRow.seller_contact_id) {
       contactFetches.push(
-        supabase
+        (supabase as any)
           .from('contacts')
           .select(contactFields)
           .eq('id', dealsRow.seller_contact_id)
