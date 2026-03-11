@@ -1,3 +1,4 @@
+import type { IntroductionStatus } from './status-enums';
 // Re-export canonical IntroductionStatus from status-enums (includes 'deal_created')
 export type { IntroductionStatus } from './status-enums';
 
