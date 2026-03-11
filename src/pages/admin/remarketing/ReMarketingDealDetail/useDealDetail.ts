@@ -59,11 +59,21 @@ export function useDealDetail() {
     ? `${dealOwnerProfile.first_name ?? ''} ${dealOwnerProfile.last_name ?? ''}`.trim()
     : null;
 
-  // Stop polling once enriched_at has advanced past when we started enrichment
+  // Stop polling once enriched_at has advanced past when we started enrichment,
+  // or after 3 minutes as a safety timeout to prevent infinite polling.
   useEffect(() => {
-    if (enrichStartedAt && deal?.enriched_at && deal.enriched_at > enrichStartedAt) {
+    if (!enrichStartedAt) return;
+
+    if (deal?.enriched_at && deal.enriched_at > enrichStartedAt) {
       setEnrichStartedAt(null);
+      return;
     }
+
+    const timeout = setTimeout(() => {
+      setEnrichStartedAt(null);
+    }, 180_000); // 3 minute safety timeout
+
+    return () => clearTimeout(timeout);
   }, [enrichStartedAt, deal?.enriched_at]);
 
   // Score stats decommissioned — old scoring engine removed.
@@ -195,9 +205,7 @@ export function useDealDetail() {
     onSuccess: (_, flagged) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
-      toast.success(
-        flagged ? 'Flagged: Need to find a buyer' : 'Find buyer flag cleared',
-      );
+      toast.success(flagged ? 'Flagged: Need to find a buyer' : 'Find buyer flag cleared');
     },
     onError: () => toast.error('Failed to update flag'),
   });
