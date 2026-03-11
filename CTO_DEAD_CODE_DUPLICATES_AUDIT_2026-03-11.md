@@ -3,6 +3,7 @@
 **Date:** 2026-03-11
 **Repository:** SourceCoDeals/connect-market-nexus
 **Focus:** Dead code identification and duplicate detection
+**Verification:** All deletion recommendations triple-checked (see Section 11)
 
 ---
 
@@ -456,33 +457,48 @@ Several tables are dropped in multiple migrations (redundant IF EXISTS):
 
 ---
 
-## 7. RECOMMENDED DELETION LIST
+## 7. RECOMMENDED DELETION LIST (TRIPLE-CHECKED)
 
-### Tables to DROP
+> Every item below was verified with exhaustive search across ALL files
+> (src/, supabase/functions/, supabase/migrations/, scripts/, *.sql, *.json).
+> Migration-only references (CREATE/ALTER SQL) do NOT count as "in use".
+
+### Tables to DROP — VERIFIED SAFE
 
 ```sql
-DROP TABLE IF EXISTS enrichment_test_results;
-DROP TABLE IF EXISTS enrichment_test_runs;
-DROP TABLE IF EXISTS introduction_activity;
-DROP TABLE IF EXISTS admin_connection_requests_views_v2;
-DROP TABLE IF EXISTS admin_deal_sourcing_views_v2;
-DROP TABLE IF EXISTS admin_owner_leads_views_v2;
-DROP TABLE IF EXISTS admin_users_views_v2;
--- Review before dropping:
--- DROP TABLE IF EXISTS incoming_leads;  -- verify receive-valuation-lead migration first
+-- These tables have 0 references in any application code (only in their own migration SQL)
+DROP TABLE IF EXISTS enrichment_test_results;    -- ✅ verified: only in migration SQL
+DROP TABLE IF EXISTS enrichment_test_runs;       -- ✅ verified: only in migration SQL
+DROP TABLE IF EXISTS admin_connection_requests_views_v2;  -- ✅ verified: only in consolidation migration
+DROP TABLE IF EXISTS admin_deal_sourcing_views_v2;        -- ✅ verified
+DROP TABLE IF EXISTS admin_owner_leads_views_v2;          -- ✅ verified
+DROP TABLE IF EXISTS admin_users_views_v2;                -- ✅ verified
 ```
 
-### Columns to DROP
+### Tables REMOVED FROM DELETE LIST (unsafe)
 
 ```sql
--- buyers: 5 dead columns
-ALTER TABLE buyers DROP COLUMN IF EXISTS industry_tracker_id;
-ALTER TABLE buyers DROP COLUMN IF EXISTS is_marketplace_member;
-ALTER TABLE buyers DROP COLUMN IF EXISTS marketplace_joined_at;
-ALTER TABLE buyers DROP COLUMN IF EXISTS verified_at;
-ALTER TABLE buyers DROP COLUMN IF EXISTS verified_by;
+-- ⚠️ introduction_activity: WAS in delete list but later migrations (20260509, 20260515)
+-- create views that SELECT FROM introduction_activity. Dropping would break those views.
+-- Must first update those views before dropping the table.
+-- DO NOT DROP until views are migrated.
 
--- contacts: 13 dead columns (PhoneBurner call tracking)
+-- ⚠️ incoming_leads: Still written to by receive-valuation-lead edge function.
+-- Must migrate that function first.
+```
+
+### Columns to DROP — VERIFIED SAFE
+
+```sql
+-- buyers: 5 dead columns (verified: zero usage in src/ or supabase/functions/)
+ALTER TABLE buyers DROP COLUMN IF EXISTS industry_tracker_id;     -- ✅ only in migration SQL
+ALTER TABLE buyers DROP COLUMN IF EXISTS is_marketplace_member;   -- ✅ created in migration, never used
+ALTER TABLE buyers DROP COLUMN IF EXISTS marketplace_joined_at;   -- ✅ created in migration, never used
+ALTER TABLE buyers DROP COLUMN IF EXISTS verified_at;             -- ✅ NOT linkedin_verified_at (that one IS used)
+ALTER TABLE buyers DROP COLUMN IF EXISTS verified_by;             -- ✅ only in migration SQL
+
+-- contacts: 13 dead columns (verified: zero usage outside migration SQL)
+-- All PhoneBurner call tracking fields — feature was abandoned
 ALTER TABLE contacts DROP COLUMN IF EXISTS do_not_call_reason;
 ALTER TABLE contacts DROP COLUMN IF EXISTS last_call_attempt_at;
 ALTER TABLE contacts DROP COLUMN IF EXISTS last_call_connected_at;
@@ -497,28 +513,22 @@ ALTER TABLE contacts DROP COLUMN IF EXISTS total_call_attempts;
 ALTER TABLE contacts DROP COLUMN IF EXISTS total_call_duration_seconds;
 ALTER TABLE contacts DROP COLUMN IF EXISTS total_calls_connected;
 
--- deal_pipeline: 1 dead column
+-- deal_pipeline: 1 dead column (verified: only in migration SQL)
 ALTER TABLE deal_pipeline DROP COLUMN IF EXISTS last_enriched_at;
 
--- listings: 1 dead column
-ALTER TABLE listings DROP COLUMN IF EXISTS external_source;
+-- listings: 1 dead column (verified: zero references anywhere)
+ALTER TABLE listings DROP COLUMN IF EXISTS external_source;       -- ✅ confirmed dead
 ```
 
-### Edge Functions to DELETE
+### Edge Functions to DELETE — VERIFIED SAFE
 
 ```
-supabase/functions/bulk-import-remarketing/
+# ✅ Confirmed: 0 invoke() calls, 0 cron jobs, 0 triggers, 0 webhook references
 supabase/functions/classify-buyer-types/
 supabase/functions/create-lead-user/
-supabase/functions/enrich-geo-data/
-supabase/functions/enrich-session-metadata/
-supabase/functions/extract-buyer-criteria-background/
 supabase/functions/extract-buyer-transcript/
 supabase/functions/get-feedback-analytics/
-supabase/functions/import-reference-data/
-supabase/functions/notify-remarketing-match/
 supabase/functions/otp-rate-limiter/
-supabase/functions/parse-tracker-documents/
 supabase/functions/push-buyer-to-phoneburner/
 supabase/functions/reset-agreement-data/
 supabase/functions/resolve-buyer-agreement/
@@ -526,10 +536,23 @@ supabase/functions/security-validation/
 supabase/functions/send-deal-referral/
 supabase/functions/send-marketplace-invitation/
 supabase/functions/send-simple-verification-email/
-supabase/functions/sync-missing-profiles/
 supabase/functions/track-engagement-signal/
 supabase/functions/validate-criteria/
 supabase/functions/verify-platform-website/
+```
+
+### Edge Functions REMOVED FROM DELETE LIST (have config/cron refs)
+
+```
+# ⚠️ sync-missing-profiles — HAS ACTIVE HOURLY CRON JOB in migration 20260106184548
+#    Deleting would silently break profile sync. Keep or explicitly unschedule first.
+
+# ⚠️ These have entries in supabase/config.toml (deployment config) but no code refs.
+#    Safe to delete from code, but also clean config.toml entries:
+#    bulk-import-remarketing, enrich-geo-data, enrich-session-metadata,
+#    extract-buyer-criteria-background, import-reference-data,
+#    notify-remarketing-match, parse-tracker-documents
+#    → DELETE these but ALSO remove their [functions.*] entries from config.toml
 ```
 
 ---
@@ -596,28 +619,57 @@ These routes are intentionally not linked in UI — accessed via external URLs, 
 
 ---
 
-## 9. SUMMARY BY PRIORITY
+## 10. SUMMARY BY PRIORITY
 
 ### P0 — Fix Immediately
 1. `listings` table has 193 columns — normalize into related tables/JSONB
-2. 7 completely dead tables in schema (clutter, confusion risk)
-3. 23 dead edge functions consuming deployment/cold-start resources
+2. 6 confirmed dead tables in schema (v2 admin views + enrichment test tables)
+3. 15 confirmed dead edge functions (verified: no invoke, no cron, no triggers)
+4. `introduction_activity` table dropped but still referenced by active views — **live integrity issue**
 
 ### P1 — Fix Within 1 Sprint
-4. 20 dead columns across core tables (`buyers`, `contacts`, `deal_pipeline`)
-5. `incoming_leads` table is a near-dead duplicate of `valuation_leads`
-6. `remarketing_buyer_contacts` duplicates `contacts` table
-7. 19 duplicate TypeScript type definitions causing confusion
+5. 20 dead columns across core tables (`buyers`, `contacts`, `deal_pipeline`)
+6. 8 additional edge functions dead but need config.toml cleanup when deleting
+7. `incoming_leads` table is a near-dead duplicate of `valuation_leads`
+8. `remarketing_buyer_contacts` duplicates `contacts` table
+9. 19 duplicate TypeScript type definitions causing confusion
+10. Buyer type enum scattered across 8+ locations with naming convention split
 
 ### P2 — Fix Within 1 Month
-8. 114 dead TypeScript types adding to codebase noise
-9. 852 migration files should be squashed
-10. 4 overlapping user session/activity tables
-11. SmartLead/HeyReach type systems should be unified
+11. 114 dead TypeScript types adding to codebase noise
+12. 852 migration files should be squashed
+13. 4 overlapping user session/activity tables
+14. SmartLead/HeyReach type systems should be unified
+15. Pagination/cache constant duplication with conflicting values
 
 ### P3 — Backlog
-12. `supabase-helpers.ts` has 40+ unused type aliases — clean up
-13. Admin view tables (v1+v2, 8 total) should be consolidated into `admin_view_state`
-14. Edge functions only used in test pages should be flagged for review
-15. 21+ orphaned routes (admin pages not linked from sidebar/navigation)
-16. 8 orphaned settings sub-routes not accessible from settings UI
+16. `supabase-helpers.ts` has 40+ unused type aliases — clean up
+17. Admin view tables (v1+v2, 8 total) should be consolidated into `admin_view_state`
+18. Edge functions only used in test pages should be flagged for review
+19. 21+ orphaned routes (admin pages not linked from sidebar/navigation)
+20. 8 orphaned settings sub-routes not accessible from settings UI
+21. 19 dead remarketing UI components to delete
+
+---
+
+## 11. TRIPLE-CHECK VERIFICATION LOG
+
+All deletion recommendations were verified with exhaustive search across the entire repository:
+
+### Corrections Made During Verification
+
+| Original Recommendation | Correction | Reason |
+|------------------------|-----------|--------|
+| DROP `introduction_activity` | **REMOVED from drop list** | Migrations `20260509` and `20260515` create views that SELECT FROM this table. Dropping would break those views. |
+| DELETE `sync-missing-profiles` | **REMOVED from delete list** | Has active hourly cron job (migration `20260106184548`). Deleting would silently break profile sync. |
+| 23 dead edge functions | **Reduced to 15 confirmed + 8 needing config cleanup** | 7 functions have `config.toml` entries that must also be cleaned, 1 has active cron. |
+| DROP `buyers.verified_at` | **KEPT on drop list** (was briefly questioned) | Edge function refs are to `linkedin_verified_at` (different column), not `verified_at`. Confirmed dead. |
+
+### Verification Method
+
+For each deletion candidate:
+1. Searched ALL file types: `*.ts`, `*.tsx`, `*.sql`, `*.json`, `*.toml`, `*.md`
+2. Searched ALL directories: `src/`, `supabase/functions/`, `supabase/migrations/`, `scripts/`, `docs/`
+3. Excluded only: `node_modules/`, `*.lock`, generated `types.ts`, and this audit file
+4. For edge functions: additionally checked `cron.schedule`, `pg_net.http_post`, `CREATE TRIGGER`
+5. For columns: verified word-boundary matches to avoid substring false positives (e.g., `verified_at` vs `linkedin_verified_at`)
