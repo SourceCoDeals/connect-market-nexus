@@ -41,7 +41,7 @@ export const useTabVisibility = () => {
 
 export const TabVisibilityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isVisible, setIsVisible] = useState(() => !document.hidden);
-  const [lastVisibilityChange, setLastVisibilityChange] = useState(Date.now);
+  const [lastVisibilityChange, setLastVisibilityChange] = useState(() => Date.now());
   const [listeners] = useState(new Set<VisibilityListener>());
   const [pausedOperations] = useState(new Set<string>());
 
