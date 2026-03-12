@@ -48,6 +48,7 @@ import {
 } from '../_shared/deal-extraction.ts';
 // Shared enrichment pipeline utilities
 import { getErrorMessage } from '../_shared/enrichment/pipeline.ts';
+import { isExtractableType, extractAndStoreDocumentText } from '../_shared/document-text-extractor.ts';
 // Sub-modules extracted from this file
 import { applyExistingTranscriptData, processNewTranscripts } from './transcript-processor.ts';
 import { resolveWebsiteUrl, validateWebsiteUrl, scrapeWebsite } from './website-scraper.ts';
@@ -476,6 +477,72 @@ serve(async (req) => {
     }
 
     // ========================================================================
+    // STEP 0.75: DATA ROOM DOCUMENTS (high priority — due diligence material)
+    // ========================================================================
+    let dataRoomContent = '';
+    let dataRoomDocsProcessed = 0;
+    let dataRoomStatus: 'extracted' | 'skipped_empty' | 'skipped_timeout' | 'failed' = 'skipped_empty';
+
+    if (hasTimeBudget(70_000)) {
+      // Fetch data room documents with text content
+      const { data: dataRoomDocs, error: drError } = await supabase
+        .from('data_room_documents')
+        .select('id, file_name, file_type, storage_path, text_content, text_extracted_at')
+        .eq('deal_id', dealId)
+        .eq('document_category', 'data_room')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (drError) {
+        console.warn('[DataRoom] Failed to fetch documents (non-fatal):', drError);
+        dataRoomStatus = 'failed';
+      } else if (dataRoomDocs && dataRoomDocs.length > 0) {
+        console.log(`[DataRoom] Found ${dataRoomDocs.length} data room documents`);
+
+        // Process documents that need text extraction first
+        for (const doc of dataRoomDocs) {
+          if (!doc.text_content && doc.file_type && isExtractableType(doc.file_type) && geminiApiKey && hasTimeBudget(65_000)) {
+            console.log(`[DataRoom] Extracting text from ${doc.file_name}...`);
+            await extractAndStoreDocumentText(supabase, doc.id, doc.storage_path, doc.file_type, geminiApiKey);
+            // Re-fetch the text content after extraction
+            const { data: refreshedDoc } = await supabase
+              .from('data_room_documents')
+              .select('text_content')
+              .eq('id', doc.id)
+              .single();
+            if (refreshedDoc?.text_content) {
+              doc.text_content = refreshedDoc.text_content;
+            }
+          }
+        }
+
+        // Collect text content from all documents
+        const textParts: string[] = [];
+        for (const doc of dataRoomDocs) {
+          if (doc.text_content) {
+            // Cap each document at 25K chars to stay within token limits
+            const content = doc.text_content.substring(0, 25_000);
+            textParts.push(`--- Document: ${doc.file_name} ---\n${content}`);
+            dataRoomDocsProcessed++;
+          }
+        }
+
+        if (textParts.length > 0) {
+          dataRoomContent = textParts.join('\n\n');
+          dataRoomStatus = 'extracted';
+          console.log(`[DataRoom] Collected text from ${dataRoomDocsProcessed} documents (${dataRoomContent.length} chars)`);
+        } else {
+          console.log('[DataRoom] No text content available from data room documents');
+        }
+      } else {
+        console.log('[DataRoom] No data room documents found');
+      }
+    } else {
+      dataRoomStatus = 'skipped_timeout';
+      console.log('[DataRoom] Skipping data room extraction — insufficient time budget');
+    }
+
+    // ========================================================================
     // STEP 1: WEBSITE SCRAPING
     // ========================================================================
     const lockVersion = deal.enriched_at;
@@ -699,7 +766,13 @@ serve(async (req) => {
     // ========================================================================
     console.log('Extracting deal intelligence with AI...');
 
-    const userPrompt = buildDealUserPrompt(deal.title, websiteContent);
+    // Include data room content as additional context for AI extraction
+    let enrichedWebsiteContent = websiteContent;
+    if (dataRoomContent) {
+      enrichedWebsiteContent += `\n\n=== DATA ROOM DOCUMENTS (high-priority due diligence material) ===\nThe following text was extracted from documents uploaded to the deal data room. This is authoritative company information. Extract all relevant business intelligence from these documents, including financials if present.\n\n${dataRoomContent}`;
+    }
+
+    const userPrompt = buildDealUserPrompt(deal.title, enrichedWebsiteContent);
 
     const MAX_AI_RETRIES = DEAL_AI_RETRY_CONFIG.maxRetries;
     const AI_RETRY_DELAYS = DEAL_AI_RETRY_CONFIG.delays;
@@ -1022,6 +1095,11 @@ serve(async (req) => {
           fieldsUpdated: notesFieldsUpdated.length,
           notesLength: notesContent.length,
           error: notesError,
+        },
+        dataRoomReport: {
+          status: dataRoomStatus,
+          documentsProcessed: dataRoomDocsProcessed,
+          contentLength: dataRoomContent.length,
         },
         rejectedFields: rejected,
         rejectedFieldCount: rejected.length,
