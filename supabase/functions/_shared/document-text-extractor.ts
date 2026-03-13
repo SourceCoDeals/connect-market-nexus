@@ -2,22 +2,24 @@
  * Document text extraction utility
  *
  * Extracts text content from uploaded data room files using AI (Gemini)
- * for document understanding. Supports PDF, DOCX, images, and CSV files.
+ * for document understanding. Supports PDF, DOCX, PPTX, XLSX, images, and CSV.
  *
  * Used by:
  * - data-room-upload (extract text on upload)
  * - enrich-deal (ensure data room text is available)
  */
 
-import { GEMINI_API_URL, getGeminiHeaders, DEFAULT_GEMINI_MODEL } from './ai-providers.ts';
-
 const BUCKET_NAME = 'deal-data-rooms';
+
+// Max file size for AI extraction (20MB — Gemini inline_data limit)
+const MAX_EXTRACTION_SIZE = 20 * 1024 * 1024;
 
 // File types that can have text extracted
 const EXTRACTABLE_TYPES = new Set([
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'text/csv',
   'image/jpeg',
   'image/png',
@@ -34,10 +36,25 @@ export function isExtractableType(mimeType: string | null): boolean {
 }
 
 /**
+ * Convert an ArrayBuffer to base64 in chunks to avoid stack overflow
+ * on large files (the naive String.fromCharCode spread approach fails above ~2MB).
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const CHUNK_SIZE = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+/**
  * Extract text from a file stored in Supabase storage.
  *
  * For CSV files: reads directly as text.
- * For PDF/DOCX/images: uses Gemini's multimodal capabilities for extraction.
+ * For PDF/DOCX/PPTX/XLSX/images: uses Gemini's multimodal capabilities for extraction.
  */
 export async function extractTextFromDocument(
   supabase: { storage: { from: (bucket: string) => { download: (path: string) => Promise<{ data: Blob | null; error: unknown }> } } },
@@ -61,11 +78,14 @@ export async function extractTextFromDocument(
       return { text: text.substring(0, 100_000) }; // Cap at 100K chars
     }
 
-    // For binary files (PDF, DOCX, images), use Gemini for extraction
+    // Check file size before attempting AI extraction
     const arrayBuffer = await fileData.arrayBuffer();
-    const base64 = btoa(
-      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ''),
-    );
+    if (arrayBuffer.byteLength > MAX_EXTRACTION_SIZE) {
+      return { text: null, error: `File too large for AI extraction (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB, max ${MAX_EXTRACTION_SIZE / 1024 / 1024}MB)` };
+    }
+
+    // For binary files (PDF, DOCX, PPTX, XLSX, images), use Gemini for extraction
+    const base64 = arrayBufferToBase64(arrayBuffer);
 
     // Map MIME types to Gemini-compatible types
     const geminiMimeType = mapToGeminiMimeType(fileType);
@@ -96,10 +116,10 @@ export async function extractTextFromDocument(
           ],
           generationConfig: {
             temperature: 0,
-            maxOutputTokens: 8192,
+            maxOutputTokens: 32768,
           },
         }),
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(90_000), // 90s for large documents
       },
     );
 
@@ -128,6 +148,7 @@ function mapToGeminiMimeType(fileType: string): string | null {
     'application/pdf': 'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     'image/jpeg': 'image/jpeg',
     'image/png': 'image/png',
   };

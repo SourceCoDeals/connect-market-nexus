@@ -547,23 +547,79 @@ serve(async (req) => {
     // ========================================================================
     const lockVersion = deal.enriched_at;
 
-    // Resolve website URL using shared helper
+    // Track website scraping state — website may fail but data room content
+    // can still power AI extraction, so we don't early-return when we have it.
+    let websiteContent = '';
     let websiteUrl = resolveWebsiteUrl(deal);
+    let websiteSkipReason = '';
+    let scrapedPages: { url: string; success: boolean; content: string }[] = [];
+    let successfulScrapes: typeof scrapedPages = [];
 
     if (!websiteUrl) {
+      websiteSkipReason = 'no website URL found';
+      console.log('[Website] No website URL found — skipping scrape');
+    } else {
+      const urlValidation = validateWebsiteUrl(websiteUrl);
+      if (!urlValidation.valid) {
+        websiteSkipReason = `invalid URL (${urlValidation.reason || 'blocked by security policy'})`;
+        console.log(`[Website] ${websiteSkipReason}`);
+      } else {
+        websiteUrl = urlValidation.normalizedUrl || websiteUrl;
+
+        if (!firecrawlApiKey) {
+          websiteSkipReason = 'Firecrawl not configured';
+          console.log('[Website] Firecrawl not configured — skipping scrape');
+        } else {
+          try {
+            new URL(websiteUrl);
+          } catch {
+            websiteSkipReason = `malformed URL "${websiteUrl}"`;
+            console.log(`[Website] ${websiteSkipReason}`);
+          }
+
+          if (!websiteSkipReason) {
+            console.log(`Enriching deal ${dealId} from website: ${websiteUrl}`);
+            const scrapeResult = await scrapeWebsite(websiteUrl, firecrawlApiKey!);
+            scrapedPages = scrapeResult.scrapedPages;
+            successfulScrapes = scrapeResult.successfulScrapes;
+            websiteContent = scrapeResult.websiteContent;
+
+            if (!scrapedPages[0]?.success) {
+              websiteSkipReason = 'could not reach homepage';
+              websiteContent = '';
+              console.warn('[Website] Failed to scrape homepage');
+            } else if (!websiteContent || websiteContent.length < DEAL_MIN_CONTENT_LENGTH) {
+              websiteSkipReason = `insufficient content (${websiteContent.length} chars, need ${DEAL_MIN_CONTENT_LENGTH}+)`;
+              websiteContent = '';
+              console.log(`[Website] ${websiteSkipReason}`);
+            } else {
+              console.log(`[Website] Scraped ${websiteContent.length} characters`);
+            }
+          }
+        }
+      }
+    }
+
+    // Determine if we have ANY content for AI extraction
+    const hasWebsiteContent = websiteContent.length > 0;
+    const hasDataRoomContent = dataRoomContent.length > 0;
+    const hasAnyContentForAI = hasWebsiteContent || hasDataRoomContent;
+
+    // If no content for AI extraction and no other enrichment happened, return early
+    if (!hasAnyContentForAI) {
       await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
       const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
       const allNonWebFields = [...new Set([...transcriptFieldNames, ...notesFieldsUpdated])];
-      if (transcriptFieldsApplied > 0 || notesFieldsUpdated.length > 0) {
-        const { error: markEnrichedErr } = await supabase
-          .from('listings')
-          .update({ enriched_at: new Date().toISOString() })
-          .eq('id', dealId);
-        if (markEnrichedErr)
-          console.error(
-            `[enrich-deal] Failed to mark deal ${dealId} as enriched:`,
-            markEnrichedErr,
-          );
+      const hasOtherData = transcriptFieldsApplied > 0 || notesFieldsUpdated.length > 0;
+
+      const { error: markEnrichedErr } = await supabase
+        .from('listings')
+        .update({ enriched_at: new Date().toISOString() })
+        .eq('id', dealId);
+      if (markEnrichedErr)
+        console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr);
+
+      if (hasOtherData) {
         const parts = [];
         if (transcriptFieldsApplied > 0)
           parts.push(`${transcriptReport.appliedFromExisting} from transcripts`);
@@ -571,169 +627,26 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             success: true,
-            message: `Enrichment completed (${parts.join(', ')}). Website scraping skipped: no website URL found.`,
+            message: `Enrichment completed (${parts.join(', ')}). Website scraping skipped: ${websiteSkipReason || 'unavailable'}. No data room documents.`,
             fieldsUpdated: allNonWebFields,
             transcriptReport,
             notesFieldsUpdated,
+            dataRoomReport: { status: dataRoomStatus, documentsProcessed: dataRoomDocsProcessed, contentLength: 0 },
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
-      const { error: markEnrichedErr2 } = await supabase
-        .from('listings')
-        .update({ enriched_at: new Date().toISOString() })
-        .eq('id', dealId);
-      if (markEnrichedErr2)
-        console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr2);
+
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'No website URL found. Deal marked as enriched with limited data.',
+          message: `No content available for AI extraction. Website: ${websiteSkipReason || 'unavailable'}. No data room documents. Deal marked as enriched with limited data.`,
           fieldsUpdated: [],
+          dataRoomReport: { status: dataRoomStatus, documentsProcessed: 0, contentLength: 0 },
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
-
-    // SSRF validation using shared helper
-    const urlValidation = validateWebsiteUrl(websiteUrl);
-    if (!urlValidation.valid) {
-      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
-      if (transcriptFieldsApplied > 0) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied, ${transcriptsProcessed} processed). Website scraping skipped: invalid URL.`,
-            fieldsUpdated: transcriptFieldNames,
-            transcriptReport,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
-      }
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Invalid URL: ${websiteUrl} (${urlValidation.reason || 'blocked by security policy'})`,
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-    websiteUrl = urlValidation.normalizedUrl || websiteUrl;
-
-    console.log(`Enriching deal ${dealId} from website: ${websiteUrl}`);
-
-    if (!firecrawlApiKey) {
-      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
-      if (transcriptFieldsApplied > 0) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: Firecrawl not configured.`,
-            fieldsUpdated: transcriptFieldNames,
-            transcriptReport,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
-      }
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Firecrawl API key not configured. Please enable the Firecrawl connector.',
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    // Parse URL
-    try {
-      new URL(websiteUrl);
-    } catch (urlErr) {
-      console.error(`Invalid URL "${websiteUrl}":`, urlErr);
-      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
-      if (transcriptFieldsApplied > 0) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: malformed URL "${websiteUrl}".`,
-            fieldsUpdated: transcriptFieldNames,
-            transcriptReport,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
-      }
-      return new Response(
-        JSON.stringify({
-          error: `Invalid website URL: "${websiteUrl}". Please fix the URL on this deal.`,
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    // Scrape website using shared helper
-    const { scrapedPages, successfulScrapes, websiteContent } = await scrapeWebsite(
-      websiteUrl,
-      firecrawlApiKey!,
-    );
-
-    if (!scrapedPages[0]?.success) {
-      console.warn('Failed to scrape homepage — marking as enriched with limited data');
-      await inferIndustryFromContext(deal, geminiApiKey!, supabase, dealId);
-      const { error: markEnrichedErr3 } = await supabase
-        .from('listings')
-        .update({ enriched_at: new Date().toISOString() })
-        .eq('id', dealId);
-      if (markEnrichedErr3)
-        console.error(`[enrich-deal] Failed to mark deal ${dealId} as enriched:`, markEnrichedErr3);
-      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
-      const nonWebFields = [...new Set([...transcriptFieldNames, ...notesFieldsUpdated])];
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message:
-            transcriptFieldsApplied > 0 || notesFieldsUpdated.length > 0
-              ? `Enrichment completed (${transcriptFieldsApplied} from transcripts, ${notesFieldsUpdated.length} from notes). Website scraping failed: could not reach homepage.`
-              : 'Website could not be scraped (site may be down or blocking). Deal marked as enriched with limited data.',
-          fieldsUpdated: nonWebFields,
-          transcriptReport,
-          notesFieldsUpdated,
-          warning: 'website_scrape_failed',
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    const scrapedPagesSummary = scrapedPages.map((p) => ({
-      url: p.url,
-      success: p.success,
-      chars: p.content.length,
-    }));
-
-    if (!websiteContent || websiteContent.length < DEAL_MIN_CONTENT_LENGTH) {
-      console.log(
-        `Insufficient website content scraped: ${websiteContent.length} chars (need ${DEAL_MIN_CONTENT_LENGTH}+)`,
-      );
-      const transcriptFieldsApplied = transcriptReport.appliedFromExisting + transcriptsProcessed;
-      if (transcriptFieldsApplied > 0) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: `Transcript enrichment completed (${transcriptReport.appliedFromExisting} fields applied). Website scraping skipped: insufficient content (${websiteContent.length} chars).`,
-            fieldsUpdated: transcriptFieldNames,
-            transcriptReport,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
-      }
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Could not extract sufficient content from website (${websiteContent.length} chars, need ${DEAL_MIN_CONTENT_LENGTH}+)`,
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    console.log(`Scraped ${websiteContent.length} characters from website`);
 
     if (!geminiApiKey) {
       console.log('No AI key configured, using basic extraction');
@@ -766,13 +679,49 @@ serve(async (req) => {
     // ========================================================================
     console.log('Extracting deal intelligence with AI...');
 
-    // Include data room content as additional context for AI extraction
-    let enrichedWebsiteContent = websiteContent;
-    if (dataRoomContent) {
-      enrichedWebsiteContent += `\n\n=== DATA ROOM DOCUMENTS (high-priority due diligence material) ===\nThe following text was extracted from documents uploaded to the deal data room. This is authoritative company information. Extract all relevant business intelligence from these documents, including financials if present.\n\n${dataRoomContent}`;
-    }
+    // Build the AI prompt based on available content sources.
+    // Data room documents are authoritative (CIMs, financials, legal docs) and
+    // should allow financial extraction. Website content blocks financial extraction
+    // per policy. We build separate sections so the AI can distinguish.
+    let userPrompt: string;
+    if (hasWebsiteContent && hasDataRoomContent) {
+      // Both sources available — use website prompt but add data room as separate section
+      // with explicit override allowing financial extraction from data room docs
+      userPrompt = buildDealUserPrompt(deal.title, websiteContent);
+      userPrompt += `\n\n=== DATA ROOM DOCUMENTS (AUTHORITATIVE — higher priority than website) ===
+The following text was extracted from documents uploaded to the deal data room (CIMs, financials, legal docs, etc.).
+IMPORTANT: Unlike website content, you SHOULD extract financial information (revenue, EBITDA, margins, etc.) from data room documents. These are authoritative due diligence materials.
 
-    const userPrompt = buildDealUserPrompt(deal.title, enrichedWebsiteContent);
+${dataRoomContent.substring(0, 50000)}`;
+    } else if (hasDataRoomContent) {
+      // Data room only — use a custom prompt that allows financial extraction
+      userPrompt = `Analyze the following data room documents from "${deal.title || 'Unknown Company'}" and extract DEEP business intelligence. This data drives M&A buyer matching — every detail matters.
+
+These are authoritative due diligence documents (CIMs, financials, legal docs, etc.) uploaded by an admin. Extract ALL available information including:
+- Company identity, location, industry
+- Financial information (revenue, EBITDA, margins, etc.) — these documents ARE authoritative for financials
+- Services, operations, customer types
+- Management, staffing, ownership structure
+- Growth trajectory, competitive position
+
+DEPTH REQUIREMENTS:
+- Executive summary: Write 5-8 rich sentences a PE investor can scan in 60 seconds.
+- Service mix: Describe the full service portfolio with context.
+- Customer types: Be specific about segments.
+- Key quotes: Extract up to 10 verbatim quotes.
+
+LOCATION COUNT RULES:
+- Count ALL physical locations: offices, branches, shops, stores, facilities
+- Single location business = 1
+
+Data Room Documents:
+${dataRoomContent.substring(0, 50000)}
+
+Extract all available business information using the provided tool. Be EXHAUSTIVE — capture every detail.`;
+    } else {
+      // Website only (original behavior)
+      userPrompt = buildDealUserPrompt(deal.title, websiteContent);
+    }
 
     const MAX_AI_RETRIES = DEAL_AI_RETRY_CONFIG.maxRetries;
     const AI_RETRY_DELAYS = DEAL_AI_RETRY_CONFIG.delays;
@@ -1086,7 +1035,8 @@ serve(async (req) => {
           totalPagesAttempted: scrapedPages.length,
           successfulPages: successfulScrapes.length,
           totalCharactersScraped: websiteContent.length,
-          pages: scrapedPagesSummary,
+          pages: scrapedPages.map((p) => ({ url: p.url, success: p.success, chars: p.content.length })),
+          websiteSkipReason: websiteSkipReason || undefined,
         },
         transcriptReport,
         notesFieldsUpdated,
