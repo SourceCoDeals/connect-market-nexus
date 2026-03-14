@@ -186,23 +186,38 @@ serve(async (req: Request) => {
       console.log(
         `Lead merged atomically: ${email} → valuation_leads id=${mergedId} (type=${calculatorType}, source=${leadSource})`,
       );
+
+      // Fire-and-forget: auto-find LinkedIn and phone for the new lead
+      if (mergedId) {
+        triggerContactFinding(supabaseAdmin, {
+          valuation_lead_id: mergedId,
+          full_name,
+          email,
+          website: website ?? undefined,
+          business_name: businessNameFromDomain(website) ?? undefined,
+        });
+      }
     } catch (structuredErr) {
       // ─── FALLBACK: minimal safe insert so the lead is NEVER lost ──
       console.error('Structured merge failed, attempting minimal fallback:', structuredErr);
 
       try {
-        const { error: fallbackErr } = await supabaseAdmin.from('valuation_leads').upsert(
-          {
-            email,
-            full_name,
-            calculator_type: calculatorType || 'unknown',
-            lead_source: leadSource,
-            raw_calculator_inputs: calculator_inputs,
-            raw_valuation_results: valuation_result,
-            updated_at: now,
-          },
-          { onConflict: 'email,calculator_type' },
-        );
+        const { data: fallbackRows, error: fallbackErr } = await supabaseAdmin
+          .from('valuation_leads')
+          .upsert(
+            {
+              email,
+              full_name,
+              calculator_type: calculatorType || 'unknown',
+              lead_source: leadSource,
+              raw_calculator_inputs: calculator_inputs,
+              raw_valuation_results: valuation_result,
+              updated_at: now,
+            },
+            { onConflict: 'email,calculator_type' },
+          )
+          .select('id')
+          .single();
 
         if (fallbackErr) {
           console.error('Minimal fallback also failed:', fallbackErr);
@@ -210,6 +225,17 @@ serve(async (req: Request) => {
           console.log(
             `Lead saved via FALLBACK: ${email} → valuation_leads (minimal, type=${calculatorType})`,
           );
+
+          // Trigger contact finding for fallback-saved leads too
+          if (fallbackRows?.id) {
+            triggerContactFinding(supabaseAdmin, {
+              valuation_lead_id: fallbackRows.id,
+              full_name,
+              email,
+              website: website ?? undefined,
+              business_name: businessNameFromDomain(website) ?? undefined,
+            });
+          }
         }
       } catch (fallbackCatchErr) {
         console.error('Fallback catch error:', fallbackCatchErr);
@@ -228,3 +254,46 @@ serve(async (req: Request) => {
     });
   }
 });
+
+/**
+ * Fire-and-forget: invoke find-valuation-lead-contacts to auto-discover
+ * the lead's LinkedIn URL and phone number.
+ * Errors are logged but never block the webhook response.
+ */
+function triggerContactFinding(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  payload: {
+    valuation_lead_id: string;
+    full_name: string;
+    email: string;
+    website?: string;
+    business_name?: string;
+  },
+): void {
+  supabaseAdmin.functions
+    .invoke('find-valuation-lead-contacts', {
+      body: payload,
+      headers: {
+        'x-internal-secret': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      },
+    })
+    .then((res) => {
+      if (res.error) {
+        console.error(
+          `[receive-valuation-lead] Contact finding failed for ${payload.email}:`,
+          res.error,
+        );
+      } else {
+        console.log(
+          `[receive-valuation-lead] Contact finding completed for ${payload.email}:`,
+          JSON.stringify(res.data),
+        );
+      }
+    })
+    .catch((err: unknown) => {
+      console.error(
+        `[receive-valuation-lead] Contact finding invocation error for ${payload.email}:`,
+        err,
+      );
+    });
+}
