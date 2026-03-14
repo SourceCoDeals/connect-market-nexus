@@ -300,7 +300,7 @@ Deno.serve(async (req: Request) => {
         // The hero is the first thing buyers see on cards and landing pages —
         // it must be a concise 2-3 sentence elevator pitch, fully anonymized,
         // free of transcript language, with financials as approximate ranges.
-        listingUpdate.hero_description = await buildHeroFromMemo(anthropicApiKey, teaserContent.sections, deal);
+        listingUpdate.hero_description = await buildHeroFromMemo(anthropicApiKey, teaserContent.sections, deal, supabaseAdmin);
 
         const { error: syncError } = await supabaseAdmin
           .from('listings')
@@ -324,6 +324,7 @@ Deno.serve(async (req: Request) => {
         branding,
         fullCompanyMeta,
         resolvedProjectName,
+        supabaseAdmin,
       );
 
       const { data: fullMemo, error: fullError } = await supabaseAdmin
