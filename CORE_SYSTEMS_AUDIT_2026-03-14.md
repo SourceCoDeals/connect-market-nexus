@@ -833,4 +833,131 @@ EFFORT: 1 week
 
 ---
 
-*Audit completed 2026-03-14. All findings verified against source code with line-level evidence.*
+## SECTION 6 — DEAD CODE AND DUPLICATE SYSTEMS
+
+### TABLE INVENTORY
+
+| Table | Status | Evidence |
+|-------|--------|----------|
+| chat_analytics | ACTIVE | `src/integrations/supabase/chat-analytics.ts:49,149,162`, `src/hooks/useAIConversation.ts:237` |
+| chat_feedback | ACTIVE | `src/integrations/supabase/chat-analytics.ts:83`, `src/components/ai-command-center/ChatMessages.tsx:87` |
+| chat_recommendations | **DEAD** | Already dropped by migration `20260302100000`. Zero runtime references. |
+| chat_smart_suggestions | **DEAD** | Already dropped by same migration. Zero runtime references. |
+| score_snapshots | ACTIVE | `supabase/functions/ai-command-center/tools/signal-tools.ts:257` |
+| scoring_weights_history | **DEAD** | Dropped by `20260303000000_drop_dead_objects_phase2.sql:66`. Zero references. |
+| incoming_leads | SEMI-DEAD | Single write in `receive-valuation-lead/index.ts:105`. Zero reads. `inbound_leads` is the primary table (25+ refs). |
+| collections | **DEAD** | Zero `.from('collections')` matches. Not in generated types file. |
+| collection_items | **DEAD** | Only referenced in delete cascades (`useDealsActions.ts:521`, `usePartnerActions.ts:301`). Parent `collections` is dead. |
+| buyer_learning_history | ACTIVE | Heavily used in matching actions, bulk import, AI command center, analytics. |
+| pe_backfill_log | ACTIVE | `supabase/functions/backfill-pe-platform-links/index.ts:670` |
+| pe_backfill_review_queue | ACTIVE | Edge function writes + admin review UI (`src/pages/admin/PEFirmLinkReview.tsx`) |
+
+### FINDING 34: collections and collection_items are dead tables
+```
+SEVERITY: MEDIUM
+FILES: supabase/migrations/ (table definitions),
+       src/pages/admin/remarketing/ReMarketingDeals/useDealsActions.ts (line 521),
+       src/pages/admin/remarketing/ReMarketingReferralPartnerDetail/usePartnerActions.ts (line 301)
+EVIDENCE: Zero .from('collections') matches across entire codebase. Not present
+          in generated Supabase types. collection_items only referenced in delete
+          cascades. Both tables occupy DB space with RLS policies to maintain.
+IMPACT: Dead tables creating maintenance burden and developer confusion.
+FIX: Drop both tables via migration. Remove delete-cascade references.
+EFFORT: <1hr
+```
+
+### FINDING 35: incoming_leads is a near-duplicate of inbound_leads
+```
+SEVERITY: MEDIUM
+FILES: supabase/functions/receive-valuation-lead/index.ts (line 105)
+EVIDENCE: incoming_leads has exactly 1 runtime reference (an upsert). inbound_leads
+          has 25+ references. Both store lead data. incoming_leads is described as
+          "source of truth backup" (line 244) but is never read by any code.
+IMPACT: Confusion between similarly-named tables. Data written is never consumed.
+FIX: Rename to valuation_lead_audit_log for clarity, or drop if the audit-trail
+     purpose is not needed.
+EFFORT: <1hr
+```
+
+### FINDING 36: Test edge functions deployed to production
+```
+SEVERITY: MEDIUM
+FILES: supabase/functions/pandadoc-integration-test/index.ts,
+       supabase/functions/test-classify-buyer/index.ts
+EVIDENCE: Both use requireAdmin(req, supabase) — properly auth-gated. However:
+          pandadoc-integration-test creates REAL PandaDoc documents and inserts/
+          deletes firm_agreements rows. If cleanup fails, leaves artifacts.
+          test-classify-buyer is read-only but consumes Claude API tokens.
+          Both are deployed to production Supabase project.
+IMPACT: Expanded attack surface if admin credentials compromised. Real
+        third-party API artifacts created. API quota consumption.
+FIX: Move to staging Supabase project, or gate behind ENABLE_TEST_FUNCTIONS
+     env var so they return 404 in production.
+EFFORT: <1hr
+```
+
+### FINDING 37: seed.ts is inert but should be deleted
+```
+SEVERITY: LOW
+FILES: src/seed.ts, src/main.tsx (lines 5, 17)
+EVIDENCE: Import is commented out in main.tsx. No other imports exist. Vite
+          tree-shakes it out. Contains hardcoded sample listing data.
+IMPACT: Dead weight in source tree. Could confuse new developers.
+FIX: Delete src/seed.ts entirely.
+EFFORT: <1hr
+```
+
+### Duplicate Context Directories — NO ISSUE FOUND
+```
+src/context/ does not exist. src/contexts/ is the sole canonical directory (7 files).
+AuthContext (authentication) and SessionContext (analytics tracking) have completely
+distinct responsibilities. All 90+ imports use @/contexts/. No action needed.
+```
+
+---
+
+## COMPLETE FINDINGS TABLE
+
+| # | Finding | System | Severity | Fix Time |
+|---|---------|--------|----------|----------|
+| 1 | Email consolidation migration incomplete (dead code) | 1 | MEDIUM | 1 week |
+| 2 | Mixed Resend/Brevo providers + XSS-in-email | 1 | HIGH | 1 day |
+| 3 | Service role JWT hardcoded in cron migration | 1 | CRITICAL | <1hr |
+| 4 | Dedup race condition in onboarding emails | 1 | MEDIUM | <1hr |
+| 5 | send-templated-approval-email is dead code | 1 | LOW | 1 day |
+| 6 | NDA/fee reminder filters on status that may never be set | 1 | HIGH | <1hr |
+| 7 | Reminder UNIQUE constraint breaks all reminders after first firm | 1 | CRITICAL | <1hr |
+| 8 | General Inquiry thread orphans message history | 2 | MEDIUM | 1 day |
+| 9 | GeneralChatView bypasses notification and read-flag logic | 2 | HIGH | <1hr |
+| 10 | is_read_by_buyer set by frontend only + GeneralChatView never marks read | 2 | HIGH | <1hr |
+| 11 | notify-buyer-new-message is fire-and-forget from browser | 2 | HIGH | 1 day |
+| 12 | Denormalized columns have no DELETE trigger | 2 | LOW | 1 day |
+| 13 | Service gate hard-kills buyers with empty profiles | 3 | HIGH | <1hr |
+| 14 | Buyer pool .limit(10000) with no ORDER BY | 3 | MEDIUM | <1hr |
+| 15 | Cache invalidation missing buyer_type | 3 | LOW | <1hr |
+| 16 | Parallel caches with different TTLs | 3 | LOW | 1 day |
+| 17 | Buyer type string inconsistency across scorers | 3 | MEDIUM | <1hr |
+| 18 | Redundant transcript re-application | 4 | LOW | <1hr |
+| 19 | asking_price unprotected + PROTECTED_FIELDS dead code | 4 | MEDIUM | <1hr |
+| 20 | Gemini model version inconsistency | 4 | LOW | <1hr |
+| 21 | Enrichment queue force flag gap | 4 | LOW | <1hr |
+| 22 | Website scraping has no login-wall detection | 4 | MEDIUM | <1hr |
+| 23 | No staleness check on lead memos | 5 | HIGH | 1 day |
+| 24 | Anonymization validation warns but doesn't block | 5 | MEDIUM | 1 day |
+| 25 | Unpublish correctly skips validation | 5 | N/A | N/A |
+| 26 | Revenue type check safe for typical values | 5 | LOW | N/A |
+| 27 | Zero AI cost logging for Claude calls | 5 | MEDIUM | 1 day |
+| 28 | Branding only affects PDF memos | 5 | LOW | <1hr |
+| 29 | Anon RLS bypasses approval_status check | 6+ | MEDIUM | <1hr |
+| 30 | connection_requests CHECK constraint vs on_hold | 6+ | CRITICAL | <1hr |
+| 31 | Deal alert emails violate CAN-SPAM | 6+ | HIGH | 1 day |
+| 32 | generate-teaser lacks anonymization post-processor | 5 | MEDIUM | 1 day |
+| 33 | buyer_discovery_feedback missing cross-deal learning | 3 | LOW | 1 week |
+| 34 | collections and collection_items are dead tables | 6 | MEDIUM | <1hr |
+| 35 | incoming_leads near-duplicate of inbound_leads | 6 | MEDIUM | <1hr |
+| 36 | Test edge functions deployed to production | 6 | MEDIUM | <1hr |
+| 37 | seed.ts is inert but should be deleted | 6 | LOW | <1hr |
+
+---
+
+*Audit completed 2026-03-14. All findings verified against source code with line-level evidence. 37 total findings across 6 systems.*
