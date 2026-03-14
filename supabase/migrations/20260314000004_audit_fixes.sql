@@ -50,6 +50,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trigger_recalculate_conversation_on_message_delete ON public.connection_messages;
 CREATE TRIGGER trigger_recalculate_conversation_on_message_delete
   AFTER DELETE ON public.connection_messages
   FOR EACH ROW

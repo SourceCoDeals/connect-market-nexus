@@ -29,6 +29,7 @@ interface DealTranscript {
   fireflies_transcript_id?: string;
   extracted_data?: Record<string, unknown>;
   processed_at?: string | null;
+  applied_to_deal?: boolean | null;
 }
 
 interface DealRecord {
