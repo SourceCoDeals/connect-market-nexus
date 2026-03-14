@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase client used with untyped tables */
 /**
  * Clay Email Lookup Tool + Shared Helper
  *
@@ -13,7 +14,11 @@
  */
 
 import type { SupabaseClient, ClaudeTool, ToolResult } from './common.ts';
-import { sendToClayNameDomain, sendToClayLinkedIn, sendToClayPhone } from '../../../_shared/clay-client.ts';
+import {
+  sendToClayNameDomain,
+  sendToClayLinkedIn,
+  sendToClayPhone,
+} from '../../../_shared/clay-client.ts';
 
 const POLL_INTERVAL_MS = 3_000;
 const MAX_POLL_MS = 60_000;
@@ -187,7 +192,7 @@ export async function clayBatchSend(
     const requestId = crypto.randomUUID();
     const requestType = hasLinkedIn ? 'linkedin' : 'name_domain';
 
-    const { error: insertErr } = await supabase.from('clay_enrichment_requests').insert({
+    const { error: insertErr } = await (supabase as any).from('clay_enrichment_requests').insert({
       request_id: requestId,
       request_type: requestType,
       status: 'pending',
@@ -244,7 +249,7 @@ export async function clayBatchPoll(
   while (pending.size > 0 && Date.now() < deadline) {
     await sleep(POLL_INTERVAL_MS);
 
-    const { data: rows } = await supabase
+    const { data: rows } = await (supabase as any)
       .from('clay_enrichment_requests')
       .select('request_id, status, result_email')
       .in('request_id', [...pending])
@@ -275,7 +280,15 @@ export interface ClayPhoneLookupResult {
 export async function clayLookupPhone(
   supabase: SupabaseClient,
   userId: string,
-  params: { linkedinUrl: string; company?: string; title?: string; firstName?: string; lastName?: string; sourceFunction?: string; sourceEntityId?: string },
+  params: {
+    linkedinUrl: string;
+    company?: string;
+    title?: string;
+    firstName?: string;
+    lastName?: string;
+    sourceFunction?: string;
+    sourceEntityId?: string;
+  },
 ): Promise<ClayPhoneLookupResult> {
   const linkedinUrl = params.linkedinUrl?.trim() || '';
 
@@ -285,7 +298,7 @@ export async function clayLookupPhone(
 
   const requestId = crypto.randomUUID();
 
-  const { error: insertErr } = await supabase.from('clay_enrichment_requests').insert({
+  const { error: insertErr } = await (supabase as any).from('clay_enrichment_requests').insert({
     request_id: requestId,
     request_type: 'phone',
     status: 'pending',
@@ -319,7 +332,7 @@ export async function clayLookupPhone(
   while (Date.now() < deadline) {
     await sleep(POLL_INTERVAL_MS);
 
-    const { data: row, error: pollErr } = await supabase
+    const { data: row, error: pollErr } = await (supabase as any)
       .from('clay_enrichment_requests')
       .select('status, result_phone, result_data, raw_callback_payload')
       .eq('request_id', requestId)
@@ -339,7 +352,7 @@ export async function clayLookupPhone(
 
     if (resolvedPhone) {
       if (row.status !== 'completed' || row.result_phone !== resolvedPhone) {
-        const { error: repairErr } = await supabase
+        const { error: repairErr } = await (supabase as any)
           .from('clay_enrichment_requests')
           .update({
             status: 'completed',
@@ -349,7 +362,9 @@ export async function clayLookupPhone(
           .eq('request_id', requestId);
 
         if (repairErr) {
-          console.warn(`[clayLookupPhone] Failed to repair result_phone for ${requestId}: ${repairErr.message}`);
+          console.warn(
+            `[clayLookupPhone] Failed to repair result_phone for ${requestId}: ${repairErr.message}`,
+          );
         }
       }
 
@@ -404,7 +419,8 @@ export const clayToolDefinitions: ClaudeTool[] = [
       properties: {
         linkedin_url: {
           type: 'string',
-          description: 'LinkedIn profile URL (e.g. https://www.linkedin.com/in/john-smith). Required.',
+          description:
+            'LinkedIn profile URL (e.g. https://www.linkedin.com/in/john-smith). Required.',
         },
       },
       required: ['linkedin_url'],

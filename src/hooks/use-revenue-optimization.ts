@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, untypedFrom } from '@/integrations/supabase/client';
 
 interface AnalyticsRow {
   id: string;
@@ -82,8 +82,7 @@ export function useRevenueOptimization(daysBack: number = 90) {
           .select('id, title, category, revenue, ebitda, created_at')
           .eq('status', 'active')
           .is('deleted_at', null),
-        supabase
-          .from('listing_analytics')
+        untypedFrom('listing_analytics')
           .select('id, listing_id, unique_views, saves, connection_requests, created_at')
           .gte('created_at', startDate.toISOString()),
         supabase
@@ -255,8 +254,9 @@ export function useRevenueOptimization(daysBack: number = 90) {
           stage: 'lead',
           user_count: users.filter((u) => {
             const userViews =
-              (analytics as unknown as AnalyticsRow[])?.filter((a: AnalyticsRow) => a.user_id === u.id)
-                .length || 0;
+              (analytics as unknown as AnalyticsRow[])?.filter(
+                (a: AnalyticsRow) => a.user_id === u.id,
+              ).length || 0;
             return userViews > 0 && userViews < 5;
           }).length,
           avg_time_in_stage: 3, // days

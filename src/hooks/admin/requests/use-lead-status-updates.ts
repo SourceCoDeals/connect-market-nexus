@@ -128,20 +128,20 @@ export const useUpdateLeadNDAStatus = () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
 
       // Log activity if this connection request has a deal
-       
+
       const { data: deal, error: dealError } = (await supabase
         .from('deal_pipeline')
         .select('id, contact_name')
         .eq('connection_request_id', requestId)
         .maybeSingle()) as {
-        data: Record<string, unknown> | null;
+        data: { id: string; contact_name: string | null } | null;
         error: { message: string } | null;
       };
       if (dealError) throw dealError;
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id as string,
+          dealId: deal.id,
           activityType: 'nda_status_changed',
           title: value ? 'NDA Signed' : 'NDA Status Revoked',
           description: value
@@ -240,14 +240,14 @@ export const useUpdateLeadNDAEmailStatus = () => {
         .select('id, contact_name')
         .eq('connection_request_id', requestId)
         .maybeSingle()) as {
-        data: Record<string, unknown> | null;
+        data: { id: string; contact_name: string | null } | null;
         error: { message: string } | null;
       };
       if (dealError) throw dealError;
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id as string,
+          dealId: deal.id,
           activityType: 'nda_email_sent',
           title: value ? 'NDA Email Sent' : 'NDA Email Status Revoked',
           description: value
@@ -335,14 +335,14 @@ export const useUpdateLeadFeeAgreementStatus = () => {
         .select('id, contact_name')
         .eq('connection_request_id', requestId)
         .maybeSingle()) as {
-        data: Record<string, unknown> | null;
+        data: { id: string; contact_name: string | null } | null;
         error: { message: string } | null;
       };
       if (dealError) throw dealError;
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id as string,
+          dealId: deal.id,
           activityType: 'fee_agreement_status_changed',
           title: value ? 'Fee Agreement Signed' : 'Fee Agreement Status Revoked',
           description: value
@@ -441,14 +441,14 @@ export const useUpdateLeadFeeAgreementEmailStatus = () => {
         .select('id, contact_name')
         .eq('connection_request_id', requestId)
         .maybeSingle()) as {
-        data: Record<string, unknown> | null;
+        data: { id: string; contact_name: string | null } | null;
         error: { message: string } | null;
       };
       if (dealError) throw dealError;
 
       if (deal) {
         await logDealActivity({
-          dealId: deal.id as string,
+          dealId: deal.id,
           activityType: 'fee_agreement_email_sent',
           title: value ? 'Fee Agreement Email Sent' : 'Fee Agreement Email Status Revoked',
           description: value

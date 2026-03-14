@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase client used with untyped tables */
 /**
  * Deal Pipeline Tools
  * Query, search, and inspect deals (listings) in the pipeline.
@@ -246,7 +247,7 @@ async function queryDeals(
 
   // Build base query filters
   const buildQuery = (fieldSet: string, offset: number, batchSize: number) => {
-    let query = supabase
+    let query = (supabase as any)
       .from('listings')
       .select(fieldSet)
       .is('deleted_at', null)
@@ -284,7 +285,7 @@ async function queryDeals(
     let batch: Record<string, unknown>[] | null = null;
     try {
       // Retry each page fetch up to 2 times with exponential backoff
-      batch = await withRetry(() => fetchPage(offset, batchSize)) as any;
+      batch = (await withRetry(() => fetchPage(offset, batchSize))) as any;
     } catch (primaryError) {
       // If we were using full fields, fall back to quick fields and retry
       if (fields === DEAL_FIELDS_FULL) {
@@ -298,7 +299,7 @@ async function queryDeals(
         allData = [];
         offset = 0;
         try {
-          batch = await withRetry(() => fetchPage(0, batchSize)) as any;
+          batch = (await withRetry(() => fetchPage(0, batchSize))) as any;
         } catch (fallbackError) {
           const errMsg =
             fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
@@ -536,28 +537,28 @@ async function getDealDetails(
   // Parallel fetch: deal + tasks + activities + scores + contacts
   const [dealResult, tasksResult, activitiesResult, scoresResult, sellerContactsResult] =
     await Promise.all([
-      supabase.from('listings').select(DEAL_FIELDS_FULL).eq('id', dealId).single(),
-      supabase
+      (supabase as any).from('listings').select(DEAL_FIELDS_FULL).eq('id', dealId).single(),
+      (supabase as any)
         .from('daily_standup_tasks')
         .select('id, title, status, priority, due_date, assignee_id, completed_at')
         .eq('entity_type', 'deal')
         .eq('entity_id', dealId)
         .order('created_at', { ascending: false })
         .limit(10),
-      supabase
+      (supabase as any)
         .from('deal_activities')
         .select('id, title, activity_type, description, created_at')
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false })
         .limit(5),
-      supabase
+      (supabase as any)
         .from('remarketing_scores')
         .select('buyer_id, composite_score, status, tier')
         .eq('listing_id', dealId)
         .order('composite_score', { ascending: false })
         .limit(5),
       // Fetch seller contacts linked to this deal
-      supabase
+      (supabase as any)
         .from('contacts')
         .select(contactFields)
         .eq('listing_id', dealId)
@@ -573,7 +574,7 @@ async function getDealDetails(
   let sellerContact = null;
 
   // Try deals table for FK-linked contacts
-  const { data: dealsRow } = await supabase
+  const { data: dealsRow } = await (supabase as any)
     .from('deal_pipeline')
     .select('buyer_contact_id, seller_contact_id, remarketing_buyer_id, stage_id')
     .eq('id', dealId)
@@ -632,7 +633,7 @@ async function getDealActivities(
   const dealId = args.deal_id as string;
   const limit = Math.min(Number(args.limit) || 20, 50);
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('deal_activities')
     .select('id, title, activity_type, description, metadata, admin_id, created_at')
     .eq('deal_id', dealId)
@@ -650,7 +651,7 @@ async function getDealTasks(
   const dealId = args.deal_id as string;
   const status = (args.status as string) || 'all';
 
-  let query = supabase
+  let query = (supabase as any)
     .from('daily_standup_tasks')
     .select(
       'id, title, description, status, priority, due_date, assignee_id, created_by, completed_at, completed_by, created_at',
@@ -717,7 +718,7 @@ async function getPipelineSummary(
   const groupBy = (args.group_by as string) || 'status';
 
   // Fetch all active deals with summary fields (include category for industry fallback)
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('listings')
     .select(
       'id, title, status, deal_source, industry, category, address_state, revenue, ebitda, deal_total_score, is_priority_target, remarketing_status',
