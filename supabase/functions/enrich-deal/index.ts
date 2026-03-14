@@ -870,7 +870,9 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     // ========================================================================
 
     // Run all validators (strips financials, cleans addresses, validates LinkedIn, etc.)
-    validateDealExtraction(extracted, websiteContent);
+    // When data room content is present, financial data is legitimate (CIMs, tax returns)
+    // so skip the financial field stripping that protects against website-scraped financials.
+    validateDealExtraction(extracted, websiteContent, { skipFinancialStrip: hasDataRoomContent });
 
     // Protect manually-set internal_company_name from AI overwrite
     if (deal.internal_company_name && extracted.internal_company_name) {
@@ -917,17 +919,19 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     // ========================================================================
     // STEP 5: WRITE TO DATABASE
     // ========================================================================
+    // Use 'data_room' source when data room content is present (higher priority than website)
+    const aiExtractionSource = hasDataRoomContent ? 'data_room' as const : 'website' as const;
     const { updates, sourceUpdates, rejected } = buildPriorityUpdates(
       deal,
       deal.extraction_sources,
       extracted,
-      'website',
-      undefined, // no transcriptId for website source
+      aiExtractionSource,
+      undefined, // no transcriptId for website/data_room source
       isPlaceholder, // treat "Not discussed on this call." etc. as empty
     );
     if (rejected.length > 0) {
       console.log(
-        `[Website] ${rejected.length} fields blocked by higher-priority sources:`,
+        `[${aiExtractionSource}] ${rejected.length} fields blocked by higher-priority sources:`,
         rejected,
       );
     }
@@ -1009,7 +1013,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
     if (transcriptFieldNames.length > 0)
       sourceParts.push(`${transcriptFieldNames.length} from transcripts`);
     if (notesFieldsUpdated.length > 0) sourceParts.push(`${notesFieldsUpdated.length} from notes`);
-    sourceParts.push(`${websiteFieldsUpdated.length} from website`);
+    sourceParts.push(`${websiteFieldsUpdated.length} from ${aiExtractionSource}`);
     console.log(
       `Updated ${allFieldsUpdated.length} fields (${sourceParts.join(', ')}):`,
       allFieldsUpdated,
