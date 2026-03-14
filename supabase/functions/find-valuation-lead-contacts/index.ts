@@ -5,11 +5,14 @@
  * Called fire-and-forget by receive-valuation-lead after a new lead is saved.
  *
  * Pipeline:
- *   1. Skip if lead already has both linkedin_url and phone
- *   2. Find person's LinkedIn via Serper Google search ("full_name" site:linkedin.com/in)
+ *   1. Check contact_search_cache for recent results (7-day window)
+ *   2. Skip if lead already has both linkedin_url and phone
+ *   3. Find person's LinkedIn via Serper Google search ("full_name" site:linkedin.com/in)
  *      - If website/business_name available, refine search with company context
- *   3. If LinkedIn found → Blitz phone enrichment
- *   4. Update valuation_leads row with linkedin_url and phone
+ *   4. If LinkedIn found → Blitz phone enrichment (primary)
+ *   5. If Blitz misses phone → Prospeo enrichment fallback (also returns phone)
+ *   6. Update valuation_leads row with linkedin_url and phone
+ *   7. Cache results for 7 days
  *
  * POST /find-valuation-lead-contacts
  * Body: { valuation_lead_id, full_name, email, website?, business_name? }
@@ -21,6 +24,9 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
 import { googleSearch } from '../_shared/serper-client.ts';
 import { findPhone } from '../_shared/blitz-client.ts';
+import { enrichContact } from '../_shared/prospeo-client.ts';
+
+const CACHE_TTL_DAYS = 7;
 
 interface FindValuationLeadContactsRequest {
   valuation_lead_id: string;
@@ -28,6 +34,11 @@ interface FindValuationLeadContactsRequest {
   email: string;
   website?: string;
   business_name?: string;
+}
+
+interface CachedResult {
+  linkedin_url: string | null;
+  phone: string | null;
 }
 
 Deno.serve(async (req: Request) => {
@@ -112,14 +123,26 @@ Deno.serve(async (req: Request) => {
 
     let linkedinUrl: string | null = existingLead.linkedin_url || null;
     let phone: string | null = existingLead.phone || null;
+    let fromCache = false;
 
-    // Step 2: Find LinkedIn profile via Google search
-    if (needsLinkedIn) {
+    // Step 2: Check cache for recent results (7-day TTL)
+    const cacheKey = buildCacheKey(body.full_name, body.email);
+    const cached = await getCachedResult(supabaseAdmin, cacheKey);
+
+    if (cached) {
+      console.log(`[find-valuation-lead-contacts] Cache hit for "${body.full_name}"`);
+      fromCache = true;
+      if (needsLinkedIn && cached.linkedin_url) linkedinUrl = cached.linkedin_url;
+      if (needsPhone && cached.phone) phone = cached.phone;
+    }
+
+    // Step 3: Find LinkedIn profile via Google search (if not cached)
+    if (needsLinkedIn && !linkedinUrl) {
       linkedinUrl = await findPersonLinkedIn(body.full_name, body.business_name, body.website);
     }
 
-    // Step 3: Find phone via Blitz if we have a LinkedIn URL
-    if (needsPhone && linkedinUrl) {
+    // Step 4: Find phone via Blitz (primary) if we have a LinkedIn URL
+    if (needsPhone && !phone && linkedinUrl) {
       try {
         const phoneRes = await findPhone(linkedinUrl);
         if (phoneRes.ok && phoneRes.data?.phone) {
@@ -130,12 +153,39 @@ Deno.serve(async (req: Request) => {
         }
       } catch (phoneErr) {
         console.warn(
-          `[find-valuation-lead-contacts] Phone lookup failed: ${phoneErr instanceof Error ? phoneErr.message : phoneErr}`,
+          `[find-valuation-lead-contacts] Blitz phone lookup failed: ${phoneErr instanceof Error ? phoneErr.message : phoneErr}`,
         );
       }
     }
 
-    // Step 4: Update valuation_leads with whatever we found
+    // Step 5: Prospeo fallback — if we still need phone or LinkedIn
+    const stillNeedsLinkedIn = needsLinkedIn && !linkedinUrl;
+    const stillNeedsPhone = needsPhone && !phone;
+
+    if (stillNeedsLinkedIn || stillNeedsPhone) {
+      const prospeoResult = await tryProspeoEnrichment(
+        body.full_name,
+        linkedinUrl,
+        body.website,
+      );
+
+      if (prospeoResult) {
+        if (stillNeedsLinkedIn && prospeoResult.linkedin_url) {
+          linkedinUrl = prospeoResult.linkedin_url;
+          console.log(
+            `[find-valuation-lead-contacts] Found LinkedIn for "${body.full_name}" via Prospeo`,
+          );
+        }
+        if (stillNeedsPhone && prospeoResult.phone) {
+          phone = prospeoResult.phone;
+          console.log(
+            `[find-valuation-lead-contacts] Found phone for "${body.full_name}" via Prospeo`,
+          );
+        }
+      }
+    }
+
+    // Step 6: Update valuation_leads with whatever we found
     const updates: Record<string, unknown> = {};
     if (linkedinUrl && needsLinkedIn) updates.linkedin_url = linkedinUrl;
     if (phone && needsPhone) updates.phone = phone;
@@ -160,6 +210,14 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Step 7: Cache results (even partial) for 7 days
+    if (!fromCache) {
+      await setCachedResult(supabaseAdmin, cacheKey, body.full_name, {
+        linkedin_url: linkedinUrl,
+        phone,
+      });
+    }
+
     const duration = Date.now() - startTime;
 
     // Structured audit log — queryable in Supabase Edge Function logs
@@ -172,6 +230,7 @@ Deno.serve(async (req: Request) => {
         phone_found: !!phone,
         needed_linkedin: needsLinkedIn,
         needed_phone: needsPhone,
+        from_cache: fromCache,
         duration_ms: duration,
       }),
     );
@@ -182,6 +241,7 @@ Deno.serve(async (req: Request) => {
         linkedin_url: linkedinUrl,
         phone,
         skipped: false,
+        from_cache: fromCache,
         duration_ms: duration,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -197,6 +257,59 @@ Deno.serve(async (req: Request) => {
     );
   }
 });
+
+// ─── Cache helpers ───────────────────────────────────────────────────────────
+
+/** Build a cache key from name + email (stable, unique per person). */
+function buildCacheKey(fullName: string, email: string): string {
+  return `vlead:${fullName.trim().toLowerCase()}:${email.trim().toLowerCase()}`;
+}
+
+/** Look up a cached enrichment result within the TTL window. */
+async function getCachedResult(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  cacheKey: string,
+): Promise<CachedResult | null> {
+  try {
+    const cutoff = new Date(Date.now() - CACHE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabaseAdmin
+      .from('contact_search_cache')
+      .select('results')
+      .eq('cache_key', cacheKey)
+      .gte('created_at', cutoff)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data?.results) {
+      const r = data.results as CachedResult;
+      return r;
+    }
+  } catch (err) {
+    console.warn('[find-valuation-lead-contacts] Cache read failed:', err);
+  }
+  return null;
+}
+
+/** Write enrichment results to the cache. */
+async function setCachedResult(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  cacheKey: string,
+  fullName: string,
+  result: CachedResult,
+): Promise<void> {
+  try {
+    await supabaseAdmin.from('contact_search_cache').insert({
+      cache_key: cacheKey,
+      company_name: fullName, // Reuse company_name column for person name
+      results: result,
+    });
+  } catch (err) {
+    console.warn('[find-valuation-lead-contacts] Cache write failed:', err);
+  }
+}
+
+// ─── LinkedIn search ─────────────────────────────────────────────────────────
 
 /**
  * Find a person's LinkedIn profile URL via Google search.
@@ -279,9 +392,48 @@ async function searchLinkedInProfile(query: string): Promise<string | null> {
   return null;
 }
 
+// ─── Prospeo fallback ────────────────────────────────────────────────────────
+
 /**
- * Extract a readable business name from a website domain.
+ * Try Prospeo enrichment as a fallback when Serper + Blitz didn't find everything.
+ * Returns linkedin_url and/or phone if found, null otherwise.
  */
+async function tryProspeoEnrichment(
+  fullName: string,
+  linkedinUrl: string | null,
+  website?: string,
+): Promise<{ linkedin_url: string | null; phone: string | null } | null> {
+  try {
+    const nameParts = fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    const domain = extractDomain(website);
+
+    const result = await enrichContact({
+      firstName,
+      lastName,
+      linkedinUrl: linkedinUrl || undefined,
+      domain: domain || undefined,
+    });
+
+    if (!result) return null;
+
+    return {
+      linkedin_url: result.linkedin_url || null,
+      phone: result.phone || null,
+    };
+  } catch (err) {
+    console.warn(
+      `[find-valuation-lead-contacts] Prospeo fallback failed: ${err instanceof Error ? err.message : err}`,
+    );
+    return null;
+  }
+}
+
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+/** Extract a readable business name from a website domain. */
 function extractBusinessFromDomain(website?: string): string | null {
   if (!website) return null;
   try {
@@ -300,4 +452,15 @@ function extractBusinessFromDomain(website?: string): string | null {
     /* ignore */
   }
   return null;
+}
+
+/** Extract a clean domain from a URL string. */
+function extractDomain(url?: string): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
 }
