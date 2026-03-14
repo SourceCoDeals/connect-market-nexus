@@ -34,6 +34,8 @@ export interface BuyerScore {
   buyer_type_priority?: number;
   /** Whether this buyer is PE-backed (for display purposes) */
   is_pe_backed?: boolean;
+  /** Whether this buyer is publicly traded */
+  is_publicly_traded?: boolean | null;
 }
 
 /** Inbound request shape for the score-deal-buyers edge function. */

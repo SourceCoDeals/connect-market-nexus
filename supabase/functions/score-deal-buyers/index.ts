@@ -122,7 +122,7 @@ Deno.serve(async (req: Request) => {
       'target_geographies, geographic_footprint, ' +
       'target_ebitda_min, target_ebitda_max, ' +
       'has_fee_agreement, acquisition_appetite, total_acquisitions, ' +
-      'thesis_summary, ai_seeded, ai_seeded_from_deal_id, ai_seeded_at, marketplace_firm_id';
+      'thesis_summary, ai_seeded, ai_seeded_from_deal_id, ai_seeded_at, marketplace_firm_id, is_publicly_traded';
 
     // deno-lint-ignore no-explicit-any
     let fetchedBuyers: any[] | null = null;
@@ -130,9 +130,10 @@ Deno.serve(async (req: Request) => {
     let buyerError: any = null;
 
     if (universeIds.length > 0) {
-      // Scope internal buyers to the deal's universe(s); fetch AI-seeded separately
-      // so they aren't excluded by the universe filter (they may have no universe_id).
-      const [internalResult, aiSeededResult] = await Promise.all([
+      // Scope internal buyers to the deal's universe(s).
+      // Also fetch AI-seeded buyers and buyers with no universe (manually added)
+      // separately so they aren't excluded by the universe filter.
+      const [internalResult, aiSeededResult, noUniverseResult] = await Promise.all([
         supabase
           .from('buyers')
           .select(BUYER_SELECT)
@@ -145,15 +146,27 @@ Deno.serve(async (req: Request) => {
           .eq('archived', false)
           .eq('ai_seeded', true)
           .limit(5000),
+        // Include manually-added buyers with no universe assignment
+        supabase
+          .from('buyers')
+          .select(BUYER_SELECT)
+          .eq('archived', false)
+          .is('universe_id', null)
+          .neq('ai_seeded', true)
+          .limit(5000),
       ]);
 
-      buyerError = internalResult.error || aiSeededResult.error;
+      buyerError = internalResult.error || aiSeededResult.error || noUniverseResult.error;
 
       // Merge and deduplicate by buyer id
       const seen = new Set<string>();
       // deno-lint-ignore no-explicit-any
       const merged: any[] = [];
-      for (const b of [...(internalResult.data || []), ...(aiSeededResult.data || [])]) {
+      for (const b of [
+        ...(internalResult.data || []),
+        ...(aiSeededResult.data || []),
+        ...(noUniverseResult.data || []),
+      ]) {
         if (!seen.has(b.id)) {
           seen.add(b.id);
           merged.push(b);
@@ -462,6 +475,7 @@ Deno.serve(async (req: Request) => {
         source,
         buyer_type_priority: buyerTypePriority,
         is_pe_backed: isPeBacked,
+        is_publicly_traded: buyer.is_publicly_traded ?? null,
       });
     }
 

@@ -529,6 +529,7 @@ export function RecommendedBuyersTab({
                 pe_firm_id: buyer.pe_firm_id,
                 acquisition_appetite: buyer.acquisition_appetite,
                 company_website: buyer.company_website,
+                platform_website: buyer.platform_website,
                 is_publicly_traded: buyer.is_publicly_traded ?? null,
                 is_pe_backed: buyer.is_pe_backed ?? false,
               },
