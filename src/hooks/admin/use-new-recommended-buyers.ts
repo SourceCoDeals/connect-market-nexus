@@ -13,6 +13,7 @@ export interface BuyerScore {
   has_fee_agreement: boolean;
   acquisition_appetite: string | null;
   company_website: string | null;
+  platform_website: string | null;
   is_publicly_traded: boolean | null;
   is_pe_backed: boolean;
   composite_score: number;

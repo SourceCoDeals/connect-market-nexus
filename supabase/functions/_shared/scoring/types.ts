@@ -20,6 +20,7 @@ export interface BuyerScore {
   has_fee_agreement: boolean;
   acquisition_appetite: string | null;
   company_website: string | null;
+  platform_website: string | null;
   composite_score: number;
   service_score: number;
   geography_score: number;
