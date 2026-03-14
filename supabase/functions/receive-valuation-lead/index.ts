@@ -186,6 +186,17 @@ serve(async (req: Request) => {
       console.log(
         `Lead merged atomically: ${email} → valuation_leads id=${mergedId} (type=${calculatorType}, source=${leadSource})`,
       );
+
+      // Fire-and-forget: auto-find LinkedIn and phone for the new lead
+      if (mergedId) {
+        triggerContactFinding(supabaseAdmin, {
+          valuation_lead_id: mergedId,
+          full_name,
+          email,
+          website: website ?? undefined,
+          business_name: businessNameFromDomain(website) ?? undefined,
+        });
+      }
     } catch (structuredErr) {
       // ─── FALLBACK: minimal safe insert so the lead is NEVER lost ──
       console.error('Structured merge failed, attempting minimal fallback:', structuredErr);
@@ -228,3 +239,46 @@ serve(async (req: Request) => {
     });
   }
 });
+
+/**
+ * Fire-and-forget: invoke find-valuation-lead-contacts to auto-discover
+ * the lead's LinkedIn URL and phone number.
+ * Errors are logged but never block the webhook response.
+ */
+function triggerContactFinding(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  payload: {
+    valuation_lead_id: string;
+    full_name: string;
+    email: string;
+    website?: string;
+    business_name?: string;
+  },
+): void {
+  supabaseAdmin.functions
+    .invoke('find-valuation-lead-contacts', {
+      body: payload,
+      headers: {
+        'x-internal-secret': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      },
+    })
+    .then((res) => {
+      if (res.error) {
+        console.error(
+          `[receive-valuation-lead] Contact finding failed for ${payload.email}:`,
+          res.error,
+        );
+      } else {
+        console.log(
+          `[receive-valuation-lead] Contact finding completed for ${payload.email}:`,
+          JSON.stringify(res.data),
+        );
+      }
+    })
+    .catch((err: unknown) => {
+      console.error(
+        `[receive-valuation-lead] Contact finding invocation error for ${payload.email}:`,
+        err,
+      );
+    });
+}
