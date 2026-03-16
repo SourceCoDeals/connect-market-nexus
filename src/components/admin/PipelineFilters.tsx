@@ -158,16 +158,16 @@ export function PipelineFilters({
 
   const ndaOptions = [
     { value: 'all', label: 'All NDA Status' },
-    { value: 'signed', label: 'NDA Signed', count: requests.filter(r => r.lead_nda_signed || r.user?.nda_signed).length },
-    { value: 'sent', label: 'NDA Sent (Not Signed)', count: requests.filter(r => (r.lead_nda_email_sent || r.user?.nda_email_sent) && !(r.lead_nda_signed || r.user?.nda_signed)).length },
-    { value: 'not_signed', label: 'NDA Not Signed', count: requests.filter(r => !(r.lead_nda_signed || r.user?.nda_signed)).length },
+    { value: 'signed', label: 'NDA Signed', count: requests.filter(r => r.lead_nda_signed).length },
+    { value: 'sent', label: 'NDA Sent (Not Signed)', count: requests.filter(r => r.lead_nda_email_sent && !r.lead_nda_signed).length },
+    { value: 'not_signed', label: 'NDA Not Signed', count: requests.filter(r => !r.lead_nda_signed).length },
   ];
 
   const feeAgreementOptions = [
     { value: 'all', label: 'All Fee Agreement Status' },
-    { value: 'signed', label: 'Fee Agreement Signed', count: requests.filter(r => r.lead_fee_agreement_signed || r.user?.fee_agreement_signed).length },
-    { value: 'sent', label: 'Fee Sent (Not Signed)', count: requests.filter(r => (r.lead_fee_agreement_email_sent || r.user?.fee_agreement_email_sent) && !(r.lead_fee_agreement_signed || r.user?.fee_agreement_signed)).length },
-    { value: 'not_signed', label: 'Fee Not Signed', count: requests.filter(r => !(r.lead_fee_agreement_signed || r.user?.fee_agreement_signed)).length },
+    { value: 'signed', label: 'Fee Agreement Signed', count: requests.filter(r => r.lead_fee_agreement_signed).length },
+    { value: 'sent', label: 'Fee Sent (Not Signed)', count: requests.filter(r => r.lead_fee_agreement_email_sent && !r.lead_fee_agreement_signed).length },
+    { value: 'not_signed', label: 'Fee Not Signed', count: requests.filter(r => !r.lead_fee_agreement_signed).length },
   ];
 
   const statusDropdownOptions = [
