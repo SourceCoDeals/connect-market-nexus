@@ -134,6 +134,7 @@ export interface AgreementAuditEntry {
   old_status: string | null;
   new_status: string;
   changed_by: string | null;
+  changed_by_name: string | null;
   document_url: string | null;
   notes: string | null;
   metadata: Record<string, unknown>;
@@ -158,4 +159,6 @@ export {
   useUpdateAgreementStatus,
   useAddDomainAlias,
   useRemoveDomainAlias,
+  useReassignFirmMember,
+  useRemoveFirmMember,
 } from './use-firm-agreement-mutations';
