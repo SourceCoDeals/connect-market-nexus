@@ -36,6 +36,7 @@ export function AgreementSigningModal({
   const [isDownloadingDraft, setIsDownloadingDraft] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -58,6 +59,7 @@ export function AgreementSigningModal({
       setError(null);
       setBannerDismissed(false);
       setZoomLevel(1);
+      setRetryCount(0);
       return;
     }
 
@@ -103,7 +105,7 @@ export function AgreementSigningModal({
     return () => {
       cancelled = true;
     };
-  }, [open, documentType]);
+  }, [open, documentType, retryCount]);
 
   const handleSigned = async () => {
     toast({
@@ -167,17 +169,28 @@ export function AgreementSigningModal({
         {error && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6 text-center space-y-3">
             <p className="text-sm text-destructive">{error}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                onOpenChange(false);
-                navigate('/messages?deal=general');
-              }}
-            >
-              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-              Contact Us
-            </Button>
+            <div className="flex items-center justify-center gap-2">
+              {retryCount < 2 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRetryCount((c) => c + 1)}
+                >
+                  Try Again
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false);
+                  navigate('/messages?deal=general');
+                }}
+              >
+                <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                Contact Us
+              </Button>
+            </div>
           </div>
         )}
 

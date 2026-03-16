@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
 import { sendViaBervo } from '../_shared/brevo-sender.ts';
+import { selfHealFirm } from '../_shared/firm-self-heal.ts';
 
 /**
  * confirm-agreement-signed
@@ -68,21 +69,33 @@ serve(async (req: Request) => {
       console.error('❌ resolve_user_firm_id error:', resolveErr);
     }
 
-    if (!firmId) {
-      return new Response(JSON.stringify({ error: 'No firm found', confirmed: false }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      });
+    let resolvedFirmId = firmId;
+    if (!resolvedFirmId) {
+      const { data: profileForHeal } = await supabaseAdmin
+        .from('profiles')
+        .select('email, company')
+        .eq('id', userId)
+        .single();
+      if (profileForHeal) {
+        const result = await selfHealFirm(supabaseAdmin, userId, profileForHeal);
+        if (result) resolvedFirmId = result.firmId;
+      }
+      if (!resolvedFirmId) {
+        return new Response(JSON.stringify({ error: 'No firm found', confirmed: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
     }
 
-    console.log(`🔍 Resolved firm ${firmId} for user ${userId} (${docLabel})`);
+    console.log(`🔍 Resolved firm ${resolvedFirmId} for user ${userId} (${docLabel})`);
 
     const signedCol = isNda ? 'nda_signed' : 'fee_agreement_signed';
     const documentCol = isNda ? 'nda_pandadoc_document_id' : 'fee_pandadoc_document_id';
     const { data: firm } = await supabaseAdmin
       .from('firm_agreements')
       .select(`id, primary_company_name, ${signedCol}, ${documentCol}`)
-      .eq('id', firmId)
+      .eq('id', resolvedFirmId)
       .single();
 
     if (!firm) {
@@ -90,7 +103,7 @@ serve(async (req: Request) => {
         JSON.stringify({
           error: 'Firm agreement not found',
           confirmed: false,
-          resolvedFirmId: firmId,
+          resolvedFirmId,
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
@@ -102,14 +115,14 @@ serve(async (req: Request) => {
       const { data: docData } = await supabaseAdmin
         .from('firm_agreements')
         .select(docUrlCol)
-        .eq('id', firmId)
+        .eq('id', resolvedFirmId)
         .single();
       return new Response(
         JSON.stringify({
           confirmed: true,
           alreadySigned: true,
           signedDocumentUrl: (docData as any)?.[docUrlCol] || null,
-          resolvedFirmId: firmId,
+          resolvedFirmId,
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
@@ -118,7 +131,7 @@ serve(async (req: Request) => {
     const documentId = (firm as any)[documentCol];
     if (!documentId) {
       return new Response(
-        JSON.stringify({ confirmed: false, error: 'No document found', resolvedFirmId: firmId }),
+        JSON.stringify({ confirmed: false, error: 'No document found', resolvedFirmId }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
@@ -182,7 +195,7 @@ serve(async (req: Request) => {
         JSON.stringify({
           confirmed: false,
           status: docStatus || 'unknown',
-          resolvedFirmId: firmId,
+          resolvedFirmId,
           reason: 'PandaDoc not yet confirmed',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
@@ -210,7 +223,7 @@ serve(async (req: Request) => {
       updates.fee_agreement_signed_by_name = signerName;
     }
 
-    await supabaseAdmin.from('firm_agreements').update(updates).eq('id', firmId);
+    await supabaseAdmin.from('firm_agreements').update(updates).eq('id', resolvedFirmId);
 
     // Dedup log
     await supabaseAdmin
@@ -218,7 +231,7 @@ serve(async (req: Request) => {
       .insert({
         event_type: 'document.completed',
         document_id: String(documentId),
-        external_id: firmId,
+        external_id: resolvedFirmId,
         raw_payload: { confirmed_by_frontend: userId, document_type: documentType },
         processed_at: now,
       })
@@ -233,15 +246,15 @@ serve(async (req: Request) => {
     const { data: members } = await supabaseAdmin
       .from('firm_members')
       .select('user_id')
-      .eq('firm_id', firmId);
+      .eq('firm_id', resolvedFirmId);
 
     if (members?.length) {
-      await sendBuyerSignedDocNotification(supabaseAdmin, members, firmId, docLabel, null);
+      await sendBuyerSignedDocNotification(supabaseAdmin, members, resolvedFirmId, docLabel, null);
     }
 
     // Send confirmation emails
     await sendSigningConfirmationEmails(supabaseAdmin, {
-      firmId,
+      firmId: resolvedFirmId,
       firmName,
       docLabel,
       signerName,
@@ -249,12 +262,12 @@ serve(async (req: Request) => {
       signedDocUrl: null,
     });
 
-    await createAdminNotification(supabaseAdmin, firmId, firmName, docLabel);
+    await createAdminNotification(supabaseAdmin, resolvedFirmId, firmName, docLabel);
 
-    console.log(`✅ Confirmed ${docLabel} signed for firm ${firmId} (buyer ${userId})`);
+    console.log(`✅ Confirmed ${docLabel} signed for firm ${resolvedFirmId} (buyer ${userId})`);
 
     return new Response(
-      JSON.stringify({ confirmed: true, signedDocumentUrl: null, resolvedFirmId: firmId }),
+      JSON.stringify({ confirmed: true, signedDocumentUrl: null, resolvedFirmId }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   } catch (error: unknown) {

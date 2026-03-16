@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
+import { selfHealFirm } from '../_shared/firm-self-heal.ts';
 
 /**
  * get-buyer-fee-embed
@@ -111,19 +112,37 @@ serve(async (req: Request) => {
       console.error('❌ resolve_user_firm_id error:', resolveErr);
     }
 
-    if (!firmId) {
-      return new Response(
-        JSON.stringify({ error: 'No firm found for this buyer', hasFirm: false }),
-        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+    // Self-heal: if no firm found, auto-create from profile
+    let resolvedFirmId = firmId;
+    if (!resolvedFirmId) {
+      console.log(`⚠️ No firm for user ${userId} — attempting self-heal`);
+      const { data: profileForHeal } = await supabaseAdmin
+        .from('profiles')
+        .select('email, company')
+        .eq('id', userId)
+        .single();
+
+      if (profileForHeal) {
+        const result = await selfHealFirm(supabaseAdmin, userId, profileForHeal);
+        if (result) {
+          resolvedFirmId = result.firmId;
+        }
+      }
+
+      if (!resolvedFirmId) {
+        return new Response(
+          JSON.stringify({ error: 'Could not set up your account for signing. Please try again or contact support.', hasFirm: false }),
+          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+        );
+      }
     }
 
-    console.log(`🔍 Resolved firm ${firmId} for user ${userId}`);
+    console.log(`🔍 Resolved firm ${resolvedFirmId} for user ${userId}`);
 
     const { data: firm } = await supabaseAdmin
       .from('firm_agreements')
       .select('id, fee_agreement_signed, fee_pandadoc_document_id, fee_pandadoc_status')
-      .eq('id', firmId)
+      .eq('id', resolvedFirmId)
       .single();
 
     if (!firm) {
@@ -134,7 +153,7 @@ serve(async (req: Request) => {
     }
 
     if (firm.fee_agreement_signed) {
-      return new Response(JSON.stringify({ feeSigned: true, embedUrl: null, resolvedFirmId: firmId }), {
+      return new Response(JSON.stringify({ feeSigned: true, embedUrl: null, resolvedFirmId }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
@@ -192,12 +211,12 @@ serve(async (req: Request) => {
                 fee_agreement_status: 'signed',
                 updated_at: now,
               })
-              .eq('id', firmId);
+              .eq('id', resolvedFirmId);
 
             // firm_agreements is the single source of truth — no profile-level writes
 
-            console.log(`🔧 Self-healed: fee agreement for firm ${firmId} marked as signed`);
-            return new Response(JSON.stringify({ feeSigned: true, embedUrl: null, resolvedFirmId: firmId }), {
+            console.log(`🔧 Self-healed: fee agreement for firm ${resolvedFirmId} marked as signed`);
+            return new Response(JSON.stringify({ feeSigned: true, embedUrl: null, resolvedFirmId }), {
               status: 200,
               headers: { 'Content-Type': 'application/json', ...corsHeaders },
             });
@@ -212,8 +231,8 @@ serve(async (req: Request) => {
 
           if (sessionToken) {
             const embedUrl = `https://app.pandadoc.com/s/${sessionToken}?embedded=1`;
-            await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, firmId, 'fee_agreement', false);
-            return new Response(JSON.stringify({ feeSigned: false, embedUrl, resolvedFirmId: firmId }), {
+            await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, resolvedFirmId, 'fee_agreement', false);
+            return new Response(JSON.stringify({ feeSigned: false, embedUrl, resolvedFirmId }), {
               status: 200,
               headers: { 'Content-Type': 'application/json', ...corsHeaders },
             });
@@ -260,10 +279,10 @@ serve(async (req: Request) => {
             },
           ],
           metadata: {
-            firm_id: firmId,
+            firm_id: resolvedFirmId,
             document_type: 'fee_agreement',
           },
-          tags: ['fee_agreement', `firm:${firmId}`],
+          tags: ['fee_agreement', `firm:${resolvedFirmId}`],
         }),
         signal: createController.signal,
       });
@@ -319,22 +338,22 @@ serve(async (req: Request) => {
         fee_agreement_sent_at: now,
         updated_at: now,
       })
-      .eq('id', firmId);
+      .eq('id', resolvedFirmId);
 
     await supabaseAdmin.from('pandadoc_webhook_log').insert({
       event_type: 'document_created',
       document_id: documentId,
       document_type: 'fee_agreement',
-      external_id: firmId,
+      external_id: resolvedFirmId,
       signer_email: profile.email,
       raw_payload: { created_by_buyer: userId },
     });
 
-    console.log(`✅ Created fee agreement document ${documentId} for buyer ${userId} (firm ${firmId})`);
+    console.log(`✅ Created fee agreement document ${documentId} for buyer ${userId} (firm ${resolvedFirmId})`);
 
-    await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, firmId, 'fee_agreement', true);
+    await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, resolvedFirmId, 'fee_agreement', true);
 
-    return new Response(JSON.stringify({ feeSigned: false, embedUrl, resolvedFirmId: firmId }), {
+    return new Response(JSON.stringify({ feeSigned: false, embedUrl, resolvedFirmId }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
