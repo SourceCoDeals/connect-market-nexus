@@ -21,6 +21,8 @@ export function validateStep(currentStep: number, formData: SignupFormData): str
       if (!formData.lastName) errors.push('Last name is required');
       if (!formData.company) errors.push('Company name is required');
       if (!formData.phoneNumber) errors.push('Phone number is required');
+      if (!formData.website && !formData.linkedinProfile)
+        errors.push('Please provide at least a website or LinkedIn profile so we can verify your credibility');
       if (formData.website && !isValidUrlFormat(formData.website))
         errors.push('Please enter a valid website URL');
       if (formData.linkedinProfile && !isValidLinkedInFormat(formData.linkedinProfile))
