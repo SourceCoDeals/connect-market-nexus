@@ -189,12 +189,27 @@ export const AgreementToggle = ({ user, type, checked }: AgreementToggleProps) =
     }
 
     // Checking - need to select signer if firm exists
-    if (user.firm_id) {
+    // Resolve firm via canonical approach
+    let resolvedFirmId = user.firm_id;
+    if (!resolvedFirmId && user.email) {
+      const domain = user.email.split('@')[1];
+      if (domain) {
+        const { data: firm } = await supabase
+          .from('firm_agreements')
+          .select('id')
+          .or(`email_domain.eq.${domain},website_domain.eq.${domain}`)
+          .limit(1)
+          .maybeSingle();
+        resolvedFirmId = firm?.id || null;
+      }
+    }
+
+    if (resolvedFirmId) {
       // Fetch firm members
       const { data: members, error: membersError } = await supabase
         .from('firm_members')
         .select('user_id, profiles(id, first_name, last_name)')
-        .eq('firm_id', user.firm_id)
+        .eq('firm_id', resolvedFirmId)
         .not('user_id', 'is', null);
       if (membersError) throw membersError;
 
