@@ -338,6 +338,8 @@ serve(async (req: Request) => {
 
     console.log(`✅ Created NDA document ${documentId} for buyer ${userId} (firm ${firmId})`);
 
+    await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, firmId, 'nda', true);
+
     return new Response(JSON.stringify({ ndaSigned: false, embedUrl, resolvedFirmId: firmId }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
