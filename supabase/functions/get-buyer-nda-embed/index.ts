@@ -157,7 +157,7 @@ serve(async (req: Request) => {
 
     // If already signed, no embed needed
     if (firm.nda_signed) {
-      return new Response(JSON.stringify({ ndaSigned: true, embedUrl: null, resolvedFirmId: firmId }), {
+      return new Response(JSON.stringify({ ndaSigned: true, embedUrl: null, resolvedFirmId }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
