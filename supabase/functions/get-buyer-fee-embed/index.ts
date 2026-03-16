@@ -60,7 +60,12 @@ serve(async (req: Request) => {
     }
 
     const userId = auth.userId;
-    const firmId = await resolveFirmId(supabaseAdmin, userId);
+    const { data: firmId, error: resolveErr } = await supabaseAdmin.rpc('resolve_user_firm_id', {
+      p_user_id: userId,
+    });
+    if (resolveErr) {
+      console.error('❌ resolve_user_firm_id error:', resolveErr);
+    }
 
     if (!firmId) {
       return new Response(
