@@ -158,4 +158,6 @@ export {
   useUpdateAgreementStatus,
   useAddDomainAlias,
   useRemoveDomainAlias,
+  useReassignFirmMember,
+  useRemoveFirmMember,
 } from './use-firm-agreement-mutations';
