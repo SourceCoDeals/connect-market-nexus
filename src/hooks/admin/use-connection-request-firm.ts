@@ -16,50 +16,69 @@ export interface ConnectionRequestFirmInfo {
   firmMembers: FirmMember[];
 }
 
+/**
+ * Resolves the firm for a connection request by looking up the CR's user_id
+ * and then calling the canonical `resolve_user_firm_id` RPC.
+ *
+ * This avoids trusting the potentially stale `connection_requests.firm_id` column.
+ */
 export function useConnectionRequestFirm(requestId: string | null) {
   return useQuery({
     queryKey: ['connection-request-firm', requestId],
     queryFn: async () => {
       if (!requestId) return null;
 
-      const { data, error } = await supabase
+      // Step 1: Get user_id from the connection request
+      const { data: cr, error: crError } = await supabase
         .from('connection_requests' as never)
-        .select(
-          `
-          firm_id,
-          firm:firm_agreements!connection_requests_firm_id_fkey (
-            *,
-            firm_members(
-              id, user_id, member_type, lead_email, lead_name, lead_company,
-              connection_request_id, inbound_lead_id, is_primary_contact, added_at,
-              user:profiles(id, email, first_name, last_name, company_name, buyer_type)
-            )
-          )
-        `,
-        )
+        .select('user_id')
         .eq('id', requestId)
         .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') return null;
-        throw error;
+      if (crError) {
+        if (crError.code === 'PGRST116') return null;
+        throw crError;
       }
 
-      if (!data) return null;
+      const userId = (cr as { user_id: string | null })?.user_id;
+      if (!userId) return null;
 
-      const firmData = data as {
-        firm_id: string | null;
-        firm: Record<string, unknown> | Record<string, unknown>[] | null;
-      };
-      if (!firmData.firm) return null;
+      // Step 2: Resolve the canonical firm for this user via the DB function
+      const { data: firmId, error: rpcError } = await supabase.rpc('resolve_user_firm_id', {
+        p_user_id: userId,
+      });
+
+      if (rpcError) throw rpcError;
+      if (!firmId) return null;
+
+      // Step 3: Fetch the full firm_agreements record + members
+      const { data: firm, error: firmError } = await supabase
+        .from('firm_agreements')
+        .select(`
+          *,
+          firm_members(
+            id, user_id, member_type, lead_email, lead_name, lead_company,
+            connection_request_id, inbound_lead_id, is_primary_contact, added_at,
+            user:profiles(id, email, first_name, last_name, company_name, buyer_type)
+          )
+        `)
+        .eq('id', firmId)
+        .single();
+
+      if (firmError) {
+        if (firmError.code === 'PGRST116') return null;
+        throw firmError;
+      }
+
+      if (!firm) return null;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const firm: any = Array.isArray(firmData.firm) ? firmData.firm[0] : firmData.firm;
+      const firmAny = firm as any;
 
-      const members = ((firm.firm_members || []) as Record<string, unknown>[]).map(
+      const members = ((firmAny.firm_members || []) as Record<string, unknown>[]).map(
         (m: Record<string, unknown>) => ({
           id: m.id as string,
-          firm_id: firm.id as string,
+          firm_id: firmId as string,
           user_id: m.user_id as string | null,
           member_type: (m.member_type as string) || 'marketplace_user',
           lead_email: m.lead_email as string | null,
@@ -74,16 +93,16 @@ export function useConnectionRequestFirm(requestId: string | null) {
       ) as FirmMember[];
 
       return {
-        firm_id: firm.id,
-        firm_name: firm.primary_company_name,
-        member_count: firm.member_count,
-        fee_agreement_signed: firm.fee_agreement_signed,
-        nda_signed: firm.nda_signed,
-        nda_status: firm.nda_status,
-        fee_agreement_status: firm.fee_agreement_status,
-        nda_pandadoc_status: firm.nda_pandadoc_status,
-        fee_pandadoc_status: firm.fee_pandadoc_status,
-        firmAgreement: firm as unknown as FirmAgreement,
+        firm_id: firmAny.id,
+        firm_name: firmAny.primary_company_name,
+        member_count: firmAny.member_count,
+        fee_agreement_signed: firmAny.fee_agreement_signed,
+        nda_signed: firmAny.nda_signed,
+        nda_status: firmAny.nda_status,
+        fee_agreement_status: firmAny.fee_agreement_status,
+        nda_pandadoc_status: firmAny.nda_pandadoc_status,
+        fee_pandadoc_status: firmAny.fee_pandadoc_status,
+        firmAgreement: firmAny as unknown as FirmAgreement,
         firmMembers: members,
       } as ConnectionRequestFirmInfo;
     },

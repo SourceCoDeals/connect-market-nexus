@@ -11,12 +11,28 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, FileText, Mail, User, Calendar } from 'lucide-react';
+import { Loader2, FileText, Mail, User } from 'lucide-react';
 import { User as UserType, Listing } from '@/types';
-import { formatDistanceToNow } from 'date-fns';
+import { useUserFirm } from '@/hooks/admin/use-firm-agreement-actions';
 import { EditableSignature } from '@/components/admin/EditableSignature';
 // Hook removed - edge function handles both email sending and database logging
 import { useAuth } from '@/contexts/AuthContext';
+
+/** Small helper that resolves firm-level NDA status badges */
+function FirmNDAStatusBadges({ userId }: { userId: string }) {
+  const { data: firm } = useUserFirm(userId);
+  const f = firm as { nda_signed?: boolean; nda_email_sent?: boolean } | null | undefined;
+  return (
+    <div className="flex gap-2 text-sm">
+      <Badge variant={f?.nda_signed ? 'default' : 'secondary'}>
+        {f?.nda_signed ? 'Signed' : 'Not Signed'}
+      </Badge>
+      <Badge variant={f?.nda_email_sent ? 'default' : 'outline'}>
+        {f?.nda_email_sent ? 'Email Sent' : 'Not Sent'}
+      </Badge>
+    </div>
+  );
+}
 
 interface SimpleNDADialogProps {
   open: boolean;
@@ -136,45 +152,7 @@ ${adminName}`,
                 <Badge variant="outline">{user.email}</Badge>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">NDA Status:</span>
-                    <Badge variant={user.nda_signed ? 'default' : 'secondary'}>
-                      {user.nda_signed ? 'Signed' : 'Not Signed'}
-                    </Badge>
-                  </div>
-                  {user.nda_signed && user.nda_signed_at && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">Signed:</span>
-                      <span>
-                        {formatDistanceToNow(new Date(user.nda_signed_at), { addSuffix: true })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">Email Status:</span>
-                    <Badge variant={user.nda_email_sent ? 'default' : 'secondary'}>
-                      {user.nda_email_sent ? 'Sent' : 'Not Sent'}
-                    </Badge>
-                  </div>
-                  {user.nda_email_sent && user.nda_email_sent_at && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-muted-foreground">Sent:</span>
-                      <span>
-                        {formatDistanceToNow(new Date(user.nda_email_sent_at), { addSuffix: true })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <FirmNDAStatusBadges userId={user.id} />
             </div>
 
             {/* Template Selection */}
