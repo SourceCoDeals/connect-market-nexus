@@ -211,12 +211,12 @@ serve(async (req: Request) => {
                 fee_agreement_status: 'signed',
                 updated_at: now,
               })
-              .eq('id', firmId);
+              .eq('id', resolvedFirmId);
 
             // firm_agreements is the single source of truth — no profile-level writes
 
-            console.log(`🔧 Self-healed: fee agreement for firm ${firmId} marked as signed`);
-            return new Response(JSON.stringify({ feeSigned: true, embedUrl: null, resolvedFirmId: firmId }), {
+            console.log(`🔧 Self-healed: fee agreement for firm ${resolvedFirmId} marked as signed`);
+            return new Response(JSON.stringify({ feeSigned: true, embedUrl: null, resolvedFirmId }), {
               status: 200,
               headers: { 'Content-Type': 'application/json', ...corsHeaders },
             });
