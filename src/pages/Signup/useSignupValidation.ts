@@ -12,7 +12,7 @@ export function validateStep(currentStep: number, formData: SignupFormData): str
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
         errors.push('Please enter a valid email address');
       if (!formData.password) errors.push('Password is required');
-      else if (formData.password.length < 6) errors.push('Password must be at least 6 characters');
+      else if (formData.password.length < 8) errors.push('Password must be at least 8 characters');
       if (formData.password !== formData.confirmPassword) errors.push('Passwords do not match');
       break;
     }
