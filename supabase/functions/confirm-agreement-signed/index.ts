@@ -246,10 +246,10 @@ serve(async (req: Request) => {
     const { data: members } = await supabaseAdmin
       .from('firm_members')
       .select('user_id')
-      .eq('firm_id', firmId);
+      .eq('firm_id', resolvedFirmId);
 
     if (members?.length) {
-      await sendBuyerSignedDocNotification(supabaseAdmin, members, firmId, docLabel, null);
+      await sendBuyerSignedDocNotification(supabaseAdmin, members, resolvedFirmId, docLabel, null);
     }
 
     // Send confirmation emails
