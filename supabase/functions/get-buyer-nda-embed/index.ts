@@ -6,42 +6,10 @@ import { requireAuth } from '../_shared/auth.ts';
 /**
  * get-buyer-nda-embed
  * Buyer-facing endpoint: returns the PandaDoc embedded signing session URL for the buyer's NDA.
- * Uses deterministic firm resolution: active connection_request.firm_id first,
- * then fallback to latest firm_members by added_at.
- *
- * PandaDoc flow:
- *   - If document exists: POST /public/v1/documents/{id}/session for fresh session token
- *   - If no document: create one via PandaDoc API, then get session
- *   - Returns embedUrl: https://app.pandadoc.com/s/{token}?embedded=1
+ * Uses canonical resolve_user_firm_id() RPC for deterministic firm resolution.
  */
 
 const PANDADOC_API_BASE = 'https://api.pandadoc.com/public/v1';
-
-async function resolveFirmId(supabaseAdmin: ReturnType<typeof createClient>, userId: string): Promise<string | null> {
-  // Priority 1: Most recent active connection_request with non-null firm_id
-  const { data: reqFirm } = await supabaseAdmin
-    .from('connection_requests')
-    .select('firm_id')
-    .eq('user_id', userId)
-    .not('firm_id', 'is', null)
-    .in('status', ['approved', 'pending', 'on_hold'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (reqFirm?.firm_id) return reqFirm.firm_id;
-
-  // Priority 2: Latest firm_members by added_at
-  const { data: membership } = await supabaseAdmin
-    .from('firm_members')
-    .select('firm_id')
-    .eq('user_id', userId)
-    .order('added_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return membership?.firm_id || null;
-}
 
 async function createPandaDocSession(
   pandadocApiKey: string,
@@ -93,8 +61,13 @@ serve(async (req: Request) => {
 
     const userId = auth.userId;
 
-    // Deterministic firm resolution
-    const firmId = await resolveFirmId(supabaseAdmin, userId);
+    // Canonical firm resolution via DB function
+    const { data: firmId, error: resolveErr } = await supabaseAdmin.rpc('resolve_user_firm_id', {
+      p_user_id: userId,
+    });
+    if (resolveErr) {
+      console.error('❌ resolve_user_firm_id error:', resolveErr);
+    }
 
     if (!firmId) {
       return new Response(
@@ -183,18 +156,7 @@ serve(async (req: Request) => {
               })
               .eq('id', firmId);
 
-            const { data: members } = await supabaseAdmin
-              .from('firm_members')
-              .select('user_id')
-              .eq('firm_id', firmId);
-            if (members?.length) {
-              for (const member of members) {
-                await supabaseAdmin
-                  .from('profiles')
-                  .update({ nda_signed: true, nda_signed_at: now, updated_at: now })
-                  .eq('id', member.user_id);
-              }
-            }
+            // firm_agreements is the single source of truth — no profile-level writes
 
             console.log(`🔧 Self-healed: NDA for firm ${firmId} marked as signed`);
             return new Response(JSON.stringify({ ndaSigned: true, embedUrl: null, resolvedFirmId: firmId }), {

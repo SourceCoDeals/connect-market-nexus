@@ -12,32 +12,7 @@ import { sendViaBervo } from '../_shared/brevo-sender.ts';
  * Sends confirmation emails to buyer and admins.
  */
 
-async function resolveFirmId(
-  supabaseAdmin: SupabaseClient,
-  userId: string,
-): Promise<string | null> {
-  const { data: reqFirm } = await supabaseAdmin
-    .from('connection_requests')
-    .select('firm_id')
-    .eq('user_id', userId)
-    .not('firm_id', 'is', null)
-    .in('status', ['approved', 'pending', 'on_hold'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (reqFirm?.firm_id) return reqFirm.firm_id;
-
-  const { data: membership } = await supabaseAdmin
-    .from('firm_members')
-    .select('firm_id')
-    .eq('user_id', userId)
-    .order('added_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return membership?.firm_id || null;
-}
+// resolveFirmId removed — uses canonical resolve_user_firm_id RPC
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -85,8 +60,13 @@ serve(async (req: Request) => {
     const _isFeeAgreement = documentType === 'fee_agreement';
     const docLabel = isNda ? 'NDA' : 'Fee Agreement';
 
-    // Deterministic firm resolution
-    const firmId = await resolveFirmId(supabaseAdmin, userId);
+    // Canonical firm resolution via DB function
+    const { data: firmId, error: resolveErr } = await supabaseAdmin.rpc('resolve_user_firm_id', {
+      p_user_id: userId,
+    });
+    if (resolveErr) {
+      console.error('❌ resolve_user_firm_id error:', resolveErr);
+    }
 
     if (!firmId) {
       return new Response(JSON.stringify({ error: 'No firm found', confirmed: false }), {
@@ -248,21 +228,14 @@ serve(async (req: Request) => {
         }
       });
 
-    // Sync to profiles
+    // firm_agreements is the single source of truth — no profile-level writes
+    // Fetch members for notifications only
     const { data: members } = await supabaseAdmin
       .from('firm_members')
       .select('user_id')
       .eq('firm_id', firmId);
 
     if (members?.length) {
-      const profileUpdates = isNda
-        ? { nda_signed: true, nda_signed_at: now, updated_at: now }
-        : { fee_agreement_signed: true, fee_agreement_signed_at: now, updated_at: now };
-
-      for (const member of members) {
-        await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', member.user_id);
-      }
-
       await sendBuyerSignedDocNotification(supabaseAdmin, members, firmId, docLabel, null);
     }
 
