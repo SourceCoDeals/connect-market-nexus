@@ -11,6 +11,50 @@ import { requireAuth } from '../_shared/auth.ts';
 
 const PANDADOC_API_BASE = 'https://api.pandadoc.com/public/v1';
 
+/** Notify all admins that a buyer opened a signing form */
+async function notifyAdminsSigningRequested(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  buyerName: string,
+  buyerEmail: string,
+  firmId: string,
+  docType: 'nda' | 'fee_agreement',
+  isNewDocument: boolean,
+) {
+  try {
+    const { data: adminRoles } = await supabaseAdmin
+      .from('user_roles')
+      .select('user_id')
+      .in('role', ['admin', 'owner']);
+
+    const admins = (adminRoles || []).map((r: { user_id: string }) => r.user_id);
+    if (!admins.length) return;
+
+    const docLabel = docType === 'nda' ? 'NDA' : 'Fee Agreement';
+    const action = isNewDocument ? 'initiated signing of' : 'opened signing form for';
+
+    const notifications = admins.map((adminId: string) => ({
+      admin_id: adminId,
+      title: `${docLabel} Signing Requested`,
+      message: `${buyerName} (${buyerEmail}) ${action} the ${docLabel}.`,
+      notification_type: 'document_signing_requested',
+      metadata: {
+        firm_id: firmId,
+        document_type: docType,
+        buyer_name: buyerName,
+        buyer_email: buyerEmail,
+        is_new_document: isNewDocument,
+      },
+      action_url: '/admin/documents',
+      is_read: false,
+    }));
+
+    await supabaseAdmin.from('admin_notifications').insert(notifications);
+    console.log(`🔔 Notified ${admins.length} admins: ${buyerName} requested ${docLabel} signing`);
+  } catch (err) {
+    console.error('⚠️ Failed to create admin signing notification:', err);
+  }
+}
+
 async function createPandaDocSession(
   pandadocApiKey: string,
   documentId: string,
@@ -174,6 +218,7 @@ serve(async (req: Request) => {
 
           if (sessionToken) {
             const embedUrl = `https://app.pandadoc.com/s/${sessionToken}?embedded=1`;
+            await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, firmId, 'nda', false);
             return new Response(JSON.stringify({ ndaSigned: false, embedUrl, resolvedFirmId: firmId }), {
               status: 200,
               headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -292,6 +337,8 @@ serve(async (req: Request) => {
     });
 
     console.log(`✅ Created NDA document ${documentId} for buyer ${userId} (firm ${firmId})`);
+
+    await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, firmId, 'nda', true);
 
     return new Response(JSON.stringify({ ndaSigned: false, embedUrl, resolvedFirmId: firmId }), {
       status: 200,
