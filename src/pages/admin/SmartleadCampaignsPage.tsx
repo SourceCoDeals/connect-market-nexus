@@ -153,7 +153,7 @@ export default function SmartleadCampaignsPage() {
   // Aggregate stats
   const activeCount = remoteCampaigns.filter((c) => c.status === 'ACTIVE').length;
   const draftCount = remoteCampaigns.filter((c) => c.status === 'DRAFTED').length;
-  const totalLeads = localCampaigns.reduce((sum, lc) => sum + (lc.lead_count || 0), 0);
+  const totalLeads = localCampaigns.reduce((sum, lc) => sum + ((lc as Record<string, unknown>).lead_count as number || 0), 0);
 
   return (
     <div className="container mx-auto py-6 space-y-6">
