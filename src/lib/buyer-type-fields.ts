@@ -111,7 +111,7 @@ export const getRelevantFieldsForBuyerType = (buyerType: BuyerType | 'admin'): s
   }
   
   const normalized = normalizeBuyerType(buyerType);
-  const buyerSpecificFields = BUYER_TYPE_FIELD_MAPPINGS[normalized as BuyerType] || [];
+  const buyerSpecificFields = BUYER_TYPE_FIELD_MAPPINGS[normalized as keyof typeof BUYER_TYPE_FIELD_MAPPINGS] || [];
 
   return [
     ...BUYER_TYPE_FIELD_MAPPINGS.basic,
