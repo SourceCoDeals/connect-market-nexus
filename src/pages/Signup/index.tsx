@@ -356,7 +356,7 @@ const Signup = () => {
             {currentStep === STEPS.length - 1 ? (
               <>
                 <Button
-                  type="submit"
+                  type="button"
                   onClick={handleSubmit}
                   disabled={isLoading || isSubmitting}
                   className="w-full text-sm font-medium"

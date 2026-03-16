@@ -184,6 +184,9 @@ export function useNuclearAuth() {
 
   const signup = useCallback(async (userData: Partial<AppUser>, password: string) => {
     if (!userData.email) throw new Error('Email is required');
+    if (!password || password.length < 8) {
+      throw new Error('Password must be at least 8 characters. Please go back and re-enter your password.');
+    }
 
     const websiteNormalized =
       userData.website && userData.website.trim() !== '' ? processUrl(userData.website) : '';
