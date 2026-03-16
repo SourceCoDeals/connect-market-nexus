@@ -231,8 +231,8 @@ serve(async (req: Request) => {
 
           if (sessionToken) {
             const embedUrl = `https://app.pandadoc.com/s/${sessionToken}?embedded=1`;
-            await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, firmId, 'fee_agreement', false);
-            return new Response(JSON.stringify({ feeSigned: false, embedUrl, resolvedFirmId: firmId }), {
+            await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, resolvedFirmId, 'fee_agreement', false);
+            return new Response(JSON.stringify({ feeSigned: false, embedUrl, resolvedFirmId }), {
               status: 200,
               headers: { 'Content-Type': 'application/json', ...corsHeaders },
             });
