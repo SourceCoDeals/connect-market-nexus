@@ -105,7 +105,7 @@ export function AgreementSigningModal({
     return () => {
       cancelled = true;
     };
-  }, [open, documentType]);
+  }, [open, documentType, retryCount]);
 
   const handleSigned = async () => {
     toast({
