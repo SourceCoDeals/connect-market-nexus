@@ -14,6 +14,22 @@ import { toast } from 'sonner';
 import { EditableSignature } from '@/components/admin/EditableSignature';
 // Hook removed - edge function handles both email sending and database logging
 
+/** Small helper that resolves firm-level Fee Agreement status badges */
+function FirmFeeStatusBadges({ userId }: { userId: string }) {
+  const { data: firm } = useUserFirm(userId);
+  const f = firm as { fee_agreement_signed?: boolean; fee_agreement_email_sent?: boolean } | null | undefined;
+  return (
+    <div className="flex gap-2">
+      <Badge variant={f?.fee_agreement_signed ? 'default' : 'secondary'}>
+        {f?.fee_agreement_signed ? 'Signed' : 'Pending'}
+      </Badge>
+      <Badge variant={f?.fee_agreement_email_sent ? 'default' : 'outline'}>
+        {f?.fee_agreement_email_sent ? 'Email Sent' : 'Not Sent'}
+      </Badge>
+    </div>
+  );
+}
+
 interface SimpleFeeAgreementDialogProps {
   user: UserType | null;
   listing?: Listing;

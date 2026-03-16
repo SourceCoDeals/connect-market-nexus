@@ -18,6 +18,22 @@ import { EditableSignature } from '@/components/admin/EditableSignature';
 // Hook removed - edge function handles both email sending and database logging
 import { useAuth } from '@/contexts/AuthContext';
 
+/** Small helper that resolves firm-level NDA status badges */
+function FirmNDAStatusBadges({ userId }: { userId: string }) {
+  const { data: firm } = useUserFirm(userId);
+  const f = firm as { nda_signed?: boolean; nda_email_sent?: boolean } | null | undefined;
+  return (
+    <div className="flex gap-2 text-sm">
+      <Badge variant={f?.nda_signed ? 'default' : 'secondary'}>
+        {f?.nda_signed ? 'Signed' : 'Not Signed'}
+      </Badge>
+      <Badge variant={f?.nda_email_sent ? 'default' : 'outline'}>
+        {f?.nda_email_sent ? 'Email Sent' : 'Not Sent'}
+      </Badge>
+    </div>
+  );
+}
+
 interface SimpleNDADialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
