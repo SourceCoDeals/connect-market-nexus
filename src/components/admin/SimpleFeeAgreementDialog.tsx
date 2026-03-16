@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { FileText, X, User, Mail, Send, Loader2 } from 'lucide-react';
 import { User as UserType, Listing } from '@/types';
+import { useUserFirm } from '@/hooks/admin/use-firm-agreement-actions';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { EditableSignature } from '@/components/admin/EditableSignature';
