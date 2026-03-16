@@ -156,18 +156,7 @@ serve(async (req: Request) => {
               })
               .eq('id', firmId);
 
-            const { data: members } = await supabaseAdmin
-              .from('firm_members')
-              .select('user_id')
-              .eq('firm_id', firmId);
-            if (members?.length) {
-              for (const member of members) {
-                await supabaseAdmin
-                  .from('profiles')
-                  .update({ nda_signed: true, nda_signed_at: now, updated_at: now })
-                  .eq('id', member.user_id);
-              }
-            }
+            // firm_agreements is the single source of truth — no profile-level writes
 
             console.log(`🔧 Self-healed: NDA for firm ${firmId} marked as signed`);
             return new Response(JSON.stringify({ ndaSigned: true, embedUrl: null, resolvedFirmId: firmId }), {

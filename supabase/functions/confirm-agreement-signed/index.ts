@@ -228,21 +228,14 @@ serve(async (req: Request) => {
         }
       });
 
-    // Sync to profiles
+    // firm_agreements is the single source of truth — no profile-level writes
+    // Fetch members for notifications only
     const { data: members } = await supabaseAdmin
       .from('firm_members')
       .select('user_id')
       .eq('firm_id', firmId);
 
     if (members?.length) {
-      const profileUpdates = isNda
-        ? { nda_signed: true, nda_signed_at: now, updated_at: now }
-        : { fee_agreement_signed: true, fee_agreement_signed_at: now, updated_at: now };
-
-      for (const member of members) {
-        await supabaseAdmin.from('profiles').update(profileUpdates).eq('id', member.user_id);
-      }
-
       await sendBuyerSignedDocNotification(supabaseAdmin, members, firmId, docLabel, null);
     }
 
