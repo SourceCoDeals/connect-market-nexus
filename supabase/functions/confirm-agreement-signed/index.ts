@@ -12,32 +12,7 @@ import { sendViaBervo } from '../_shared/brevo-sender.ts';
  * Sends confirmation emails to buyer and admins.
  */
 
-async function resolveFirmId(
-  supabaseAdmin: SupabaseClient,
-  userId: string,
-): Promise<string | null> {
-  const { data: reqFirm } = await supabaseAdmin
-    .from('connection_requests')
-    .select('firm_id')
-    .eq('user_id', userId)
-    .not('firm_id', 'is', null)
-    .in('status', ['approved', 'pending', 'on_hold'])
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (reqFirm?.firm_id) return reqFirm.firm_id;
-
-  const { data: membership } = await supabaseAdmin
-    .from('firm_members')
-    .select('firm_id')
-    .eq('user_id', userId)
-    .order('added_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return membership?.firm_id || null;
-}
+// resolveFirmId removed — uses canonical resolve_user_firm_id RPC
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
