@@ -195,7 +195,7 @@ serve(async (req: Request) => {
         JSON.stringify({
           confirmed: false,
           status: docStatus || 'unknown',
-          resolvedFirmId: firmId,
+          resolvedFirmId,
           reason: 'PandaDoc not yet confirmed',
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
