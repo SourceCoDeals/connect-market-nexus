@@ -168,6 +168,12 @@ const Signup = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    if (!formData.password || formData.password.length < 8) {
+      setValidationErrors(['Your password was lost. Please re-enter your password.']);
+      setCurrentStep(0);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     setIsSubmitting(true);
     try {
       await doSubmit();
@@ -175,12 +181,14 @@ const Signup = () => {
     } catch (error: unknown) {
       console.error('Signup error:', error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
-      if ((error as Error).message?.includes('User already registered'))
+      const msg = (error as Error).message || '';
+      const msgLower = msg.toLowerCase();
+      if (msgLower.includes('user already registered'))
         errorMessage = 'An account with this email already exists.';
-      else if ((error as Error).message?.includes('Password'))
-        errorMessage = 'Password requirements not met.';
-      else if ((error as Error).message?.includes('Email')) errorMessage = 'Invalid email address.';
-      else if ((error as Error).message) errorMessage = (error as Error).message;
+      else if (msgLower.includes('password'))
+        errorMessage = 'Password requirements not met. Please use at least 8 characters.';
+      else if (msgLower.includes('email')) errorMessage = 'Invalid email address.';
+      else if (msg) errorMessage = msg;
       toast({ variant: 'destructive', title: 'Signup failed', description: errorMessage });
     } finally {
       setIsSubmitting(false);
