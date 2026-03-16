@@ -121,7 +121,7 @@ export default function SmartleadCampaignsPage() {
   });
 
   const remoteCampaigns = (campaignsData?.campaigns || []) as SmartleadCampaign[];
-  const localCampaigns = (campaignsData?.local_campaigns || []) as LocalSmartleadCampaign[];
+  const localCampaigns = (campaignsData?.local_campaigns || []) as Array<Record<string, unknown> & { smartlead_campaign_id: number }>;
 
   // Build a merged view: remote campaigns enriched with local data
   const localMap = new Map(localCampaigns.map((lc) => [lc.smartlead_campaign_id, lc]));
