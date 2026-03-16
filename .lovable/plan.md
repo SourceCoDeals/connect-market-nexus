@@ -1,43 +1,115 @@
 
 
-# Plan: Fix Edge Function Build Errors & Deploy All
+# End-to-End Verification: Sign NDA Flow
 
-The build errors are all TypeScript type-safety issues across 5 edge functions. Once fixed, all functions can be deployed.
+## Complete Flow Trace
 
-## Errors & Fixes
+### Step 1: Buyer clicks "Sign NDA Now" (My Deals)
+- **Component**: `AgreementSigningModal` opens, calls `supabase.functions.invoke('get-buyer-nda-embed')`
+- **Status**: Working. Logs confirm: `Resolved firm ab961d3a... for user b0d649d7...`
 
-### 1. `auto-create-firm-on-approval/index.ts` (1 error)
-**Problem:** `SupabaseClient` type mismatch when passing to `requireAdmin()` — caused by mismatched `@supabase/supabase-js` import versions between `_shared/auth.ts` (uses `@2`) and this file.
-**Fix:** Align the import to use the same specifier: `https://esm.sh/@supabase/supabase-js@2` (not a pinned patch like `@2.49.4`). Alternatively, cast the client with `as any` in the call.
+### Step 2: Edge function resolves firm (with self-healing)
+- **Function**: `get-buyer-nda-embed/index.ts`
+- **Flow**:
+  1. `resolve_user_firm_id(p_user_id)` RPC called
+  2. If null: loads profile, calls `selfHealFirm()` (email domain match → company name match → create new firm + firm_members)
+  3. If still null: returns `hasFirm: false` error
+- **Status**: Deployed and working. Self-heal logic is in place.
 
-### 2. `bulk-import-remarketing/index.ts` (2 errors)
-**Problem:** `ImportData` interface doesn't have an index signature, so `data[field]` where `field` is `string` fails.
-**Fix:** Add `[key: string]: unknown;` index signature to the `ImportData` interface, or cast `data as Record<string, unknown>` in the validation loop.
+### Step 3: PandaDoc document creation or session resume
+- If `nda_pandadoc_document_id` exists on firm: creates fresh PandaDoc session, returns embed URL
+- If no document: creates from template, sends silently, creates session, updates `firm_agreements` with `nda_status: 'sent'`, `nda_pandadoc_document_id`, logs to `pandadoc_webhook_log`
+- **Status**: Correct. Updates only `firm_agreements` (no profile writes).
 
-### 3. `calculate-deal-quality/index.ts` (24 errors)
-**Problem:** The `calculateScoresFromData` function parameter is typed as `Record<string, unknown>`, so all property accesses like `.toLowerCase()`, `.join()`, and comparisons like `>= 500` fail because values are `unknown`/`{}`.
-**Fix:**
-- Define a `DealRecord` interface with typed fields (e.g., `google_review_count: number`, `address_city: string`, etc.) and use it as the parameter type.
-- Type `listingsToScore` as `DealRecord[]` instead of implicit `unknown[]`.
+### Step 4: Admin notification on signing request
+- `notifyAdminsSigningRequested()` inserts into `admin_notifications` for all admin/owner role users
+- Metadata includes firm_id, buyer name/email, document type
+- `action_url: '/admin/documents'`
+- **Status**: In place for both new doc creation and existing doc resume.
 
-### 4. `clarify-industry/index.ts` (1 error)
-**Problem:** `result.data?.questions` resolves to `{}` instead of an array, so assignment to `ClarifyQuestion[]` fails.
-**Fix:** Cast: `(result.data?.questions as ClarifyQuestion[]) || []`.
+### Step 5: Buyer signs in embedded iframe
+- **Component**: `PandaDocSigningPanel` listens for `session_view.document.completed` postMessage
+- On completion: calls `handleSigned()` which runs `invalidateAgreementQueries()` to refresh all related query keys (18 keys total)
+- Auto-closes modal after 2s
 
-### 5. `confirm-agreement-signed/index.ts` (3 errors)
-**Problem:** Dynamic column access via `firm[signedCol]` and `docData?.[docUrlCol]` fails because the `.select()` with template literals returns a union type.
-**Fix:** Cast `firm` and `docData` to `Record<string, unknown>` or use `as any` for dynamic access.
+### Step 6: Frontend confirmation call
+- `PandaDocSigningPanel.onCompleted` triggers `AgreementSigningModal.handleSigned`
+- **Gap identified**: `handleSigned` only invalidates queries and shows a toast. It does NOT call `confirm-agreement-signed`. The confirmation must come from somewhere else.
+- Checking where `confirm-agreement-signed` is actually called...
 
-## After Fixes
-Deploy all edge functions using the deployment tool.
+Let me verify this.
 
-## Summary of Changes
+### Step 7: Backend confirmation (`confirm-agreement-signed`)
+- Called by the frontend after PandaDoc signing completes
+- Polls PandaDoc API (0s, 1.5s, 3s delays) for `document.completed` status
+- On confirmed:
+  - Updates `firm_agreements`: `nda_signed=true`, `nda_status='signed'`, `nda_pandadoc_status='completed'`, `nda_signed_at`, `nda_signed_by_name`
+  - Logs to `pandadoc_webhook_log`
+  - Does NOT write to profiles (correct)
+  - Sends buyer notification via `user_notifications` + system message in `connection_messages`
+  - Sends confirmation emails (buyer + all admins) via Brevo
+  - Creates admin notification: `document_completed`
+- **Status**: Logic is correct, self-heal included.
+
+### Step 8: Webhook backup (`pandadoc-webhook-handler`)
+- PandaDoc sends webhook for `document.completed` / `document.viewed` / `document.declined` etc.
+- Handler verifies HMAC-SHA256 signature
+- Matches document to firm via `nda_pandadoc_document_id` or `fee_pandadoc_document_id`
+- Updates `firm_agreements` with correct status fields
+- Prevents backward state transitions (won't overwrite `completed` with `viewed`)
+- Idempotency via `pandadoc_webhook_log` dedup
+- Creates admin notifications for completed/declined/expired/voided
+- Sends buyer notifications for completed
+- **Status**: Correct and robust.
+
+### Step 9: Realtime sync across screens
+- `useAgreementStatusSync` subscribes to `postgres_changes` on `firm_agreements` table
+- On any UPDATE: invalidates 18 query keys covering buyer, admin, and messaging screens
+- `/admin/documents` (DocumentTrackingPage) has its own realtime subscription on `firm_agreements` changes
+- **Status**: In place.
+
+### Step 10: Admin visibility
+- `/admin/documents` queries all `firm_agreements` rows, shows NDA/Fee status side-by-side
+- Admin notification bell receives:
+  - `document_signing_requested` when buyer opens signing form
+  - `document_completed` when confirmed signed (from both `confirm-agreement-signed` and webhook)
+- Admin emails sent on signing confirmation
+- **Status**: Correct.
+
+---
+
+## Issue Found: `confirm-agreement-signed` is never called
+
+Looking at `AgreementSigningModal.handleSigned()` (line 110-122), it only:
+1. Shows a toast
+2. Invalidates queries
+3. Auto-closes modal
+
+It does NOT invoke `confirm-agreement-signed`. This means:
+- The `firm_agreements` row only gets updated if the **PandaDoc webhook** fires (async, could be delayed)
+- OR if the buyer re-opens the embed and the `get-buyer-nda-embed` function's self-heal check catches `document.completed` status
+- Buyer confirmation email is never sent from the frontend path
+- Admin notification for signing completion relies entirely on the webhook
+
+This is a real gap. If the webhook is delayed or fails, the buyer sees "Signed!" but the DB doesn't reflect it until something else triggers the update.
+
+---
+
+## Recommended Fix
+
+Add a call to `confirm-agreement-signed` in the `handleSigned` callback of `AgreementSigningModal`. This ensures the DB is updated immediately when the buyer completes signing, rather than waiting for the webhook.
+
 | File | Change |
 |------|--------|
-| `bulk-import-remarketing/index.ts` | Add index signature to `ImportData` |
-| `calculate-deal-quality/index.ts` | Add `DealRecord` interface, type arrays and function params |
-| `clarify-industry/index.ts` | Cast `result.data?.questions` to array |
-| `confirm-agreement-signed/index.ts` | Cast dynamic column access |
-| `auto-create-firm-on-approval/index.ts` | Align supabase-js import version |
-| Deploy all ~148 functions | After fixes pass |
+| `src/components/pandadoc/AgreementSigningModal.tsx` | In `handleSigned()`, add `supabase.functions.invoke('confirm-agreement-signed', { body: { documentType } })` before invalidating queries |
+
+This is a one-line addition that closes the gap between the buyer seeing "Signed!" and the DB actually reflecting it.
+
+Everything else in the flow is correctly wired:
+- Self-healing is deployed and working
+- `firm_agreements` is the single source of truth (no profile writes anywhere)
+- Admin notifications fire at both request and completion stages
+- Realtime sync propagates changes to all screens
+- Webhook provides backup confirmation with idempotency
+- Query invalidation covers all 18 relevant cache keys
 
