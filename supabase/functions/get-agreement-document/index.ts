@@ -77,7 +77,7 @@ serve(async (req: Request) => {
     const { data: firm } = await supabaseAdmin
       .from('firm_agreements')
       .select(`${documentCol}, ${statusCol}`)
-      .eq('id', firmId)
+      .eq('id', resolvedFirmId)
       .single();
 
     if (!firm) {

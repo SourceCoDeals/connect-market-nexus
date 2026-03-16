@@ -114,20 +114,38 @@ serve(async (req: Request) => {
       console.error('❌ resolve_user_firm_id error:', resolveErr);
     }
 
-    if (!firmId) {
-      return new Response(
-        JSON.stringify({ error: 'No firm found for this buyer', hasFirm: false }),
-        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
-      );
+    // Self-heal: if no firm found, auto-create from profile
+    let resolvedFirmId = firmId;
+    if (!resolvedFirmId) {
+      console.log(`⚠️ No firm for user ${userId} — attempting self-heal`);
+      const { data: profileForHeal } = await supabaseAdmin
+        .from('profiles')
+        .select('email, company')
+        .eq('id', userId)
+        .single();
+
+      if (profileForHeal) {
+        const result = await selfHealFirm(supabaseAdmin, userId, profileForHeal);
+        if (result) {
+          resolvedFirmId = result.firmId;
+        }
+      }
+
+      if (!resolvedFirmId) {
+        return new Response(
+          JSON.stringify({ error: 'Could not set up your account for signing. Please try again or contact support.', hasFirm: false }),
+          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+        );
+      }
     }
 
-    console.log(`🔍 Resolved firm ${firmId} for user ${userId}`);
+    console.log(`🔍 Resolved firm ${resolvedFirmId} for user ${userId}`);
 
     // Get firm agreement
     const { data: firm } = await supabaseAdmin
       .from('firm_agreements')
       .select('id, nda_signed, nda_pandadoc_document_id, nda_pandadoc_status')
-      .eq('id', firmId)
+      .eq('id', resolvedFirmId)
       .single();
 
     if (!firm) {
