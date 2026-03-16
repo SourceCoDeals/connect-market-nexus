@@ -296,12 +296,20 @@ export function useUnreadBuyerMessageCounts() {
 
       const byRequest: Record<string, number> = {};
       let total = 0;
+      let dealTotal = 0;
+      let messagesTotal = 0;
       ((data || []) as Array<{ connection_request_id: string }>).forEach((row) => {
         byRequest[row.connection_request_id] = (byRequest[row.connection_request_id] || 0) + 1;
         total++;
+        const listingId = requestListingMap[row.connection_request_id];
+        if (listingId === GENERAL_INQUIRY_LISTING_ID) {
+          messagesTotal++;
+        } else {
+          dealTotal++;
+        }
       });
 
-      return { byRequest, total };
+      return { byRequest, total, dealTotal, messagesTotal };
     },
     staleTime: 30000,
   });

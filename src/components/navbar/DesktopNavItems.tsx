@@ -47,7 +47,7 @@ const DesktopNavItems = ({ isAdmin, isApproved, onNavigateToAdmin }: DesktopNavI
       label: "Messages",
       icon: MessagesIcon,
       isActive: location.pathname === "/messages",
-      ...((unreadMessages?.total || 0) > 0 && { badge: unreadMessages?.total }),
+      ...((unreadMessages?.messagesTotal || 0) > 0 && { badge: unreadMessages?.messagesTotal }),
       highlight: true,
     },
     {
