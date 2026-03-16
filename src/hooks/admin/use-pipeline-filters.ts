@@ -139,37 +139,32 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
       filtered = filtered.filter((request) => request.user?.buyer_type === buyerTypeFilter);
     }
 
-    // Apply NDA filter
+    // Apply NDA filter — use only CR-level fields, never stale profile booleans
     if (ndaFilter !== 'all') {
       filtered = filtered.filter((request) => {
-        const ndaSigned = request.lead_nda_signed || request.user?.nda_signed;
-        const ndaSent = request.lead_nda_email_sent || request.user?.nda_email_sent;
         switch (ndaFilter) {
           case 'signed':
-            return !!ndaSigned;
+            return !!request.lead_nda_signed;
           case 'not_signed':
-            return !ndaSigned;
+            return !request.lead_nda_signed;
           case 'sent':
-            return !!ndaSent && !ndaSigned;
+            return !!request.lead_nda_email_sent && !request.lead_nda_signed;
           default:
             return true;
         }
       });
     }
 
-    // Apply Fee Agreement filter
+    // Apply Fee Agreement filter — use only CR-level fields, never stale profile booleans
     if (feeAgreementFilter !== 'all') {
       filtered = filtered.filter((request) => {
-        const feeSigned = request.lead_fee_agreement_signed || request.user?.fee_agreement_signed;
-        const feeSent =
-          request.lead_fee_agreement_email_sent || request.user?.fee_agreement_email_sent;
         switch (feeAgreementFilter) {
           case 'signed':
-            return !!feeSigned;
+            return !!request.lead_fee_agreement_signed;
           case 'not_signed':
-            return !feeSigned;
+            return !request.lead_fee_agreement_signed;
           case 'sent':
-            return !!feeSent && !feeSigned;
+            return !!request.lead_fee_agreement_email_sent && !request.lead_fee_agreement_signed;
           default:
             return true;
         }
