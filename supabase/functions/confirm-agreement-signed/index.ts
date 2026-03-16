@@ -131,7 +131,7 @@ serve(async (req: Request) => {
     const documentId = (firm as any)[documentCol];
     if (!documentId) {
       return new Response(
-        JSON.stringify({ confirmed: false, error: 'No document found', resolvedFirmId: firmId }),
+        JSON.stringify({ confirmed: false, error: 'No document found', resolvedFirmId }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
