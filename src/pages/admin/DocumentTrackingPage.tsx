@@ -624,42 +624,156 @@ export default function DocumentTrackingPage() {
   );
 }
 
-// ─── Last Audit Action (for non-signed, non-not_started states) ──────
+// ─── Expandable Firm Row ─────────────────────────────────────────────
 
-function LastAuditAction({
-  firmId,
-  agreementType,
+function FirmExpandableRow({
+  firm,
+  isSelected,
+  onToggleSelect,
 }: {
-  firmId: string;
-  agreementType: 'nda' | 'fee_agreement';
+  firm: FirmRow;
+  isSelected: boolean;
+  onToggleSelect: (checked: boolean, e: React.MouseEvent) => void;
 }) {
-  const { data } = useQuery({
-    queryKey: ['last-audit-action', firmId, agreementType],
-    queryFn: async () => {
-      const { data: logs, error } = await supabase
-        .from('agreement_audit_log')
-        .select('new_status, changed_by_name, created_at')
-        .eq('firm_id', firmId)
-        .eq('agreement_type', agreementType)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) return null;
-      return logs;
-    },
-    staleTime: 60_000,
-  });
-
-  if (!data) return <span>--</span>;
+  const [expanded, setExpanded] = useState(false);
+  const removeMember = useRemoveFirmMember();
+  const { data: auditLog = [] } = useAgreementAuditLog(expanded ? firm.id : null);
 
   return (
-    <div>
-      <span className="text-amber-600 font-medium">{data.new_status}</span>
-      {data.changed_by_name && <p className="text-[10px]">by {data.changed_by_name}</p>}
-      {data.created_at && (
-        <p className="text-[10px]">{format(new Date(data.created_at), 'MMM d, yyyy')}</p>
+    <>
+      <tr
+        className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <td
+          className="px-4 py-3 w-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(!isSelected, e);
+          }}
+        >
+          <Checkbox checked={isSelected} onCheckedChange={() => {}} aria-label={`Select ${firm.primary_company_name}`} />
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            {expanded ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+            <span className="font-medium text-foreground">{firm.primary_company_name}</span>
+          </div>
+        </td>
+        <td className="px-4 py-3 text-muted-foreground text-xs">{firm.email_domain || '--'}</td>
+        <td className="px-4 py-3 text-center"><span className="text-muted-foreground">{firm.member_count}</span></td>
+        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <AgreementStatusDropdown firm={firm.firmAgreement} members={firm.members} agreementType="nda" />
+        </td>
+        <td className="px-4 py-3 text-xs text-muted-foreground">
+          {firm.nda_signed_at ? (
+            <div>
+              <span className="text-emerald-600 font-medium">{format(new Date(firm.nda_signed_at), 'MMM d, yyyy')}</span>
+              {firm.nda_signed_by_name && <p className="text-[10px]">{firm.nda_signed_by_name}</p>}
+            </div>
+          ) : firm.nda_sent_at ? (
+            <span>{formatDistanceToNow(new Date(firm.nda_sent_at), { addSuffix: true })}</span>
+          ) : '--'}
+        </td>
+        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+          <AgreementStatusDropdown firm={firm.firmAgreement} members={firm.members} agreementType="fee_agreement" />
+        </td>
+        <td className="px-4 py-3 text-xs text-muted-foreground">
+          {firm.fee_agreement_signed_at ? (
+            <div>
+              <span className="text-emerald-600 font-medium">{format(new Date(firm.fee_agreement_signed_at), 'MMM d, yyyy')}</span>
+              {firm.fee_agreement_signed_by_name && <p className="text-[10px]">{firm.fee_agreement_signed_by_name}</p>}
+            </div>
+          ) : firm.fee_agreement_sent_at ? (
+            <span>{formatDistanceToNow(new Date(firm.fee_agreement_sent_at), { addSuffix: true })}</span>
+          ) : '--'}
+        </td>
+        <td className="px-4 py-3">
+          {firm.contactName || firm.contactEmail ? (
+            <div>
+              {firm.contactName && <p className="text-foreground text-xs">{firm.contactName}</p>}
+              {firm.contactEmail && <p className="text-[10px] text-muted-foreground">{firm.contactEmail}</p>}
+            </div>
+          ) : <span className="text-muted-foreground">--</span>}
+        </td>
+      </tr>
+
+      {/* Expanded detail panel */}
+      {expanded && (
+        <tr>
+          <td colSpan={9} className="px-0 py-0">
+            <div className="bg-muted/20 border-t border-b border-border px-6 py-4 space-y-4">
+              {/* Members section */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" /> Members ({firm.members.length})
+                </h4>
+                {firm.members.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No members</p>
+                ) : (
+                  <div className="grid gap-1.5">
+                    {firm.members.map((m) => {
+                      const name = m.user
+                        ? `${(m.user as Record<string, string>).first_name || ''} ${(m.user as Record<string, string>).last_name || ''}`.trim()
+                        : m.lead_name || '--';
+                      const email = m.user ? (m.user as Record<string, string>).email : m.lead_email;
+                      return (
+                        <div key={m.id} className="flex items-center justify-between text-xs bg-background rounded px-3 py-2 border border-border">
+                          <div>
+                            <span className="font-medium text-foreground">{name}</span>
+                            {email && <span className="text-muted-foreground ml-2">{email}</span>}
+                            <span className="ml-2 text-[10px] text-muted-foreground/60">{m.member_type}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm(`Remove ${name} from ${firm.primary_company_name}?`)) {
+                                removeMember.mutate({ memberId: m.id, firmId: firm.id });
+                              }
+                            }}
+                          >
+                            <UserMinus className="h-3 w-3 mr-1" /> Remove
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Audit Log section */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                  <History className="h-3.5 w-3.5" /> Audit Log
+                </h4>
+                {auditLog.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No changes recorded</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {auditLog.slice(0, 20).map((entry) => (
+                      <div key={entry.id} className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                        <span className="text-[10px] text-muted-foreground/60 whitespace-nowrap mt-0.5">
+                          {format(new Date(entry.created_at), 'MMM d, yyyy h:mm a')}
+                        </span>
+                        <span>
+                          <span className="font-medium text-foreground">{entry.agreement_type === 'nda' ? 'NDA' : 'Fee Agmt'}</span>
+                          {' → '}
+                          <span className="font-medium">{entry.new_status}</span>
+                          {entry.changed_by_name && <span> by {entry.changed_by_name}</span>}
+                          {entry.notes && <span className="italic"> — {entry.notes}</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
