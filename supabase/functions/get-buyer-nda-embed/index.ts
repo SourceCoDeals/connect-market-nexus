@@ -344,22 +344,22 @@ serve(async (req: Request) => {
         nda_sent_at: now,
         updated_at: now,
       })
-      .eq('id', firmId);
+      .eq('id', resolvedFirmId);
 
     await supabaseAdmin.from('pandadoc_webhook_log').insert({
       event_type: 'document_created',
       document_id: documentId,
       document_type: 'nda',
-      external_id: firmId,
+      external_id: resolvedFirmId,
       signer_email: profile.email,
       raw_payload: { created_by_buyer: userId },
     });
 
-    console.log(`✅ Created NDA document ${documentId} for buyer ${userId} (firm ${firmId})`);
+    console.log(`✅ Created NDA document ${documentId} for buyer ${userId} (firm ${resolvedFirmId})`);
 
-    await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, firmId, 'nda', true);
+    await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, resolvedFirmId, 'nda', true);
 
-    return new Response(JSON.stringify({ ndaSigned: false, embedUrl, resolvedFirmId: firmId }), {
+    return new Response(JSON.stringify({ ndaSigned: false, embedUrl, resolvedFirmId }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });

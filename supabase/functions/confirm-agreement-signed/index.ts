@@ -254,7 +254,7 @@ serve(async (req: Request) => {
 
     // Send confirmation emails
     await sendSigningConfirmationEmails(supabaseAdmin, {
-      firmId,
+      firmId: resolvedFirmId,
       firmName,
       docLabel,
       signerName,
@@ -262,12 +262,12 @@ serve(async (req: Request) => {
       signedDocUrl: null,
     });
 
-    await createAdminNotification(supabaseAdmin, firmId, firmName, docLabel);
+    await createAdminNotification(supabaseAdmin, resolvedFirmId, firmName, docLabel);
 
-    console.log(`✅ Confirmed ${docLabel} signed for firm ${firmId} (buyer ${userId})`);
+    console.log(`✅ Confirmed ${docLabel} signed for firm ${resolvedFirmId} (buyer ${userId})`);
 
     return new Response(
-      JSON.stringify({ confirmed: true, signedDocumentUrl: null, resolvedFirmId: firmId }),
+      JSON.stringify({ confirmed: true, signedDocumentUrl: null, resolvedFirmId }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   } catch (error: unknown) {

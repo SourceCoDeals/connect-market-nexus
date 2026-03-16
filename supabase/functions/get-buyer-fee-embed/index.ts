@@ -338,22 +338,22 @@ serve(async (req: Request) => {
         fee_agreement_sent_at: now,
         updated_at: now,
       })
-      .eq('id', firmId);
+      .eq('id', resolvedFirmId);
 
     await supabaseAdmin.from('pandadoc_webhook_log').insert({
       event_type: 'document_created',
       document_id: documentId,
       document_type: 'fee_agreement',
-      external_id: firmId,
+      external_id: resolvedFirmId,
       signer_email: profile.email,
       raw_payload: { created_by_buyer: userId },
     });
 
-    console.log(`✅ Created fee agreement document ${documentId} for buyer ${userId} (firm ${firmId})`);
+    console.log(`✅ Created fee agreement document ${documentId} for buyer ${userId} (firm ${resolvedFirmId})`);
 
-    await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, firmId, 'fee_agreement', true);
+    await notifyAdminsSigningRequested(supabaseAdmin, buyerName, profile.email, resolvedFirmId, 'fee_agreement', true);
 
-    return new Response(JSON.stringify({ feeSigned: false, embedUrl, resolvedFirmId: firmId }), {
+    return new Response(JSON.stringify({ feeSigned: false, embedUrl, resolvedFirmId }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
