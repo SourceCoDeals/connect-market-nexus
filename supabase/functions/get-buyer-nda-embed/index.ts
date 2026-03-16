@@ -61,8 +61,13 @@ serve(async (req: Request) => {
 
     const userId = auth.userId;
 
-    // Deterministic firm resolution
-    const firmId = await resolveFirmId(supabaseAdmin, userId);
+    // Canonical firm resolution via DB function
+    const { data: firmId, error: resolveErr } = await supabaseAdmin.rpc('resolve_user_firm_id', {
+      p_user_id: userId,
+    });
+    if (resolveErr) {
+      console.error('❌ resolve_user_firm_id error:', resolveErr);
+    }
 
     if (!firmId) {
       return new Response(
