@@ -331,8 +331,8 @@ export default function SmartleadCampaignsPage() {
                     </TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">
-                        {campaign.local?.last_synced_at
-                          ? new Date(campaign.local.last_synced_at).toLocaleDateString()
+                        {(campaign.local as Record<string, unknown>)?.last_synced_at
+                          ? new Date(String((campaign.local as Record<string, unknown>).last_synced_at)).toLocaleDateString()
                           : '—'}
                       </span>
                     </TableCell>
