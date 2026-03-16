@@ -103,7 +103,7 @@ serve(async (req: Request) => {
         JSON.stringify({
           error: 'Firm agreement not found',
           confirmed: false,
-          resolvedFirmId: firmId,
+          resolvedFirmId,
         }),
         { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
