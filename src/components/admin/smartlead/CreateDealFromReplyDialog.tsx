@@ -80,11 +80,6 @@ export function CreateDealFromReplyDialog({
     ? `${contactName}${campaignName ? ` – ${campaignName}` : ''}`
     : subject || campaignName || 'SmartLead Response';
 
-  let defaultPriority = 'medium';
-  if (['meeting_request', 'interested'].includes(aiCategory)) defaultPriority = 'high';
-  else if (['not_interested', 'unsubscribe', 'negative_hostile'].includes(aiCategory))
-    defaultPriority = 'low';
-
   const defaultDescription = [
     subject ? `Subject: ${subject}` : null,
     campaignName ? `Campaign: ${campaignName}` : null,
