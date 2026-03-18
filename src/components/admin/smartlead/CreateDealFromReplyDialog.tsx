@@ -38,14 +38,10 @@ const PRIORITY_OPTIONS = [
   { value: 'urgent', label: 'Urgent' },
 ];
 
-const DEAL_SOURCE_OPTIONS = [
-  { value: 'smartlead', label: 'SmartLead' },
+const REMARKETING_LIST_OPTIONS = [
+  { value: 'captarget', label: 'CapTarget Deals' },
   { value: 'gp_partners', label: 'GP Partner Deals' },
   { value: 'sourceco', label: 'SourceCo Deals' },
-  { value: 'captarget', label: 'CapTarget Deals' },
-  { value: 'remarketing', label: 'Remarketing' },
-  { value: 'referral', label: 'Referral' },
-  { value: 'manual', label: 'Manual' },
 ];
 
 
@@ -135,7 +131,7 @@ export function CreateDealFromReplyDialog({
   const [priority, setPriority] = useState(defaultPriority);
   const [stageId, setStageId] = useState('');
   const [listingId, setListingId] = useState('');
-  const [dealSource, setDealSource] = useState('smartlead');
+  const [dealSource, setDealSource] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Set default stage when stages load
@@ -157,7 +153,7 @@ export function CreateDealFromReplyDialog({
       setDescription(defaultDescription);
       setPriority(defaultPriority);
       setListingId('');
-      setDealSource('smartlead');
+      setDealSource('');
       // stageId will be set by the other effect
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,7 +180,7 @@ export function CreateDealFromReplyDialog({
     const dealPayload: Record<string, unknown> = {
       title: title.trim(),
       stage_id: stageId,
-      source: dealSource,
+      source: dealSource || 'smartlead',
       priority,
       contact_name: contactNameField.trim() || null,
       contact_email: contactEmail.trim() || null,
@@ -281,12 +277,13 @@ export function CreateDealFromReplyDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Remarketing List</Label>
-              <Select value={dealSource} onValueChange={setDealSource}>
+              <Select value={dealSource || 'none'} onValueChange={(v) => setDealSource(v === 'none' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select list" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEAL_SOURCE_OPTIONS.map((s) => (
+                  <SelectItem value="none">None</SelectItem>
+                  {REMARKETING_LIST_OPTIONS.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
                       {s.label}
                     </SelectItem>
