@@ -151,7 +151,7 @@ export function CreateDealFromReplyDialog({
     const dealPayload: Record<string, unknown> = {
       title: title.trim(),
       stage_id: stageId,
-      source: 'smartlead',
+      source: dealSource,
       priority,
       contact_name: contactNameField.trim() || null,
       contact_email: contactEmail.trim() || null,
