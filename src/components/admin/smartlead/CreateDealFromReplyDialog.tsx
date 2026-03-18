@@ -109,6 +109,7 @@ export function CreateDealFromReplyDialog({
       setContactPhone(derivedPhone);
       setContactWebsite(enrichedWebsite);
       setContactLinkedIn(enrichedLinkedIn);
+      setContactIndustry(enrichedIndustry);
       setDescription(defaultDescription);
       setDealSource('captarget');
     }
