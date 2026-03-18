@@ -143,7 +143,7 @@ export function CreateDealFromReplyDialog({
       setTitle(defaultTitle);
       setContactNameField(contactName);
       setContactEmail(String(item.to_email || item.sl_lead_email || '').trim());
-      setContactCompany('');
+      setContactCompany(derivedCompany);
       setContactPhone('');
       setDescription(defaultDescription);
       setPriority(defaultPriority);
