@@ -168,10 +168,12 @@ function validateDealFields(deal: Record<string, unknown>): string[] {
     missing.push('description (executive_summary, description, or hero_description)');
 
   // Industry and categories are alternatives — only flag if NEITHER is present
+  const dealCats = deal.categories as string[] | null;
+  const dealCat = (deal.category as string) || '';
   const hasIndustryOrCategory =
     (deal.industry as string)?.trim() ||
-    (cats && cats.length > 0) ||
-    cat?.trim();
+    (dealCats && dealCats.length > 0) ||
+    dealCat?.trim();
   if (!hasIndustryOrCategory) missing.push('industry or categories');
 
   return missing;
@@ -996,22 +998,26 @@ Deno.serve(async (req: Request) => {
 
         if (insertError) {
           if (insertError.code === '23505') {
+            // Re-find by exact domain match (not ilike which could match wrong rows)
             const { data: raced } = await supabase
               .from('buyers')
-              .select('id')
+              .select('id, company_website')
               .eq('archived', false)
-              .ilike('company_website', `%${domain}%`)
-              .maybeSingle();
+              .or(`company_website.ilike.%${domain}%,company_website.ilike.%www.${domain}%`)
+              .limit(10);
 
-            if (raced) {
+            // Filter to exact domain match in application code
+            const exactMatch = (raced || []).find(r => extractDomain(r.company_website) === domain);
+
+            if (exactMatch) {
               action = 'enriched_existing';
               wasNew = false;
-              buyerId = raced.id;
+              buyerId = exactMatch.id;
               existingDomainSet.add(domain);
-              domainToId.set(domain, raced.id);
+              domainToId.set(domain, exactMatch.id);
             } else {
               console.warn(
-                `Unique conflict inserting ${suggested.company_name} but couldn't re-find by domain — skipping`,
+                `Unique conflict inserting ${suggested.company_name} but couldn't re-find by domain "${domain}" — skipping`,
               );
               continue;
             }
