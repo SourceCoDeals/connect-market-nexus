@@ -244,22 +244,39 @@ export function CreateDealFromReplyDialog({
             </div>
           </div>
 
-          {/* Listing */}
-          <div className="space-y-1.5">
-            <Label>Listing (optional)</Label>
-            <Select value={listingId || 'none'} onValueChange={(v) => setListingId(v === 'none' ? '' : v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Link to a listing..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No listing</SelectItem>
-                {listings?.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Remarketing List & Listing */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Remarketing List</Label>
+              <Select value={dealSource} onValueChange={setDealSource}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select list" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEAL_SOURCE_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Listing (optional)</Label>
+              <Select value={listingId || 'none'} onValueChange={(v) => setListingId(v === 'none' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Link to a listing..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No listing</SelectItem>
+                  {listings?.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Contact fields */}
