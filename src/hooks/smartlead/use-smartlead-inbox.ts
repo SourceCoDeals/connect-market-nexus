@@ -204,8 +204,8 @@ export function useLinkInboxToDeal() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, dealId }: { id: string; dealId: string | null }) => {
-      const { error } = await supabase
-        .from('smartlead_reply_inbox')
+      const { error } = await (supabase
+        .from('smartlead_reply_inbox') as any)
         .update({ linked_deal_id: dealId })
         .eq('id', id);
 
