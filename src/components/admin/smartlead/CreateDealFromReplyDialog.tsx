@@ -135,6 +135,7 @@ export function CreateDealFromReplyDialog({
           title: title.trim(),
           internal_company_name: contactCompany.trim() || title.trim(),
           website: contactWebsite.trim() || null,
+          category: contactIndustry.trim() || null,
           main_contact_name: contactNameField.trim() || null,
           main_contact_email: contactEmail.trim() || null,
           main_contact_phone: contactPhone.trim() || null,
