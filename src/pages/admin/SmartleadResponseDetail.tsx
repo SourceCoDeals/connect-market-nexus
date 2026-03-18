@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
   ExternalLink,
@@ -27,23 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import {
   useSmartleadInboxItem,
   useRecategorizeInbox,
   useLinkInboxToDeal,
 } from '@/hooks/smartlead/use-smartlead-inbox';
+import { useCreateDeal } from '@/hooks/admin/use-deals';
+import { useDealStages } from '@/hooks/admin/deals/useDealStages';
 import { useCreateDeal } from '@/hooks/admin/use-deals';
 import { useDealStages } from '@/hooks/admin/deals/useDealStages';
 
