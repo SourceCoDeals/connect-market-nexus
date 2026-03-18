@@ -216,17 +216,24 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   try {
-    const payload = await req.json();
+    const rawBody = await req.text();
+    console.log(`[smartlead-inbox-webhook] Raw request body: ${rawBody}`);
 
-    console.log(
-      '[smartlead-inbox-webhook] Incoming payload:',
-      JSON.stringify(payload),
-    );
+    const payload = rawBody ? JSON.parse(rawBody) : {};
 
     // ─── Extract fields from webhook payload ────────────────────────────
     const messageId = payload.message_id || null;
     const fromEmail = payload.from_email || null;
     const eventTimestamp = payload.event_timestamp || null;
+
+    console.log(
+      `[smartlead-inbox-webhook] Parsed payload summary: ${JSON.stringify({
+        messageId,
+        fromEmail,
+        eventTimestamp,
+        keys: Object.keys(payload || {}),
+      })}`,
+    );
 
     // ─── Idempotency check ──────────────────────────────────────────────
     if (messageId) {
@@ -238,7 +245,14 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existing) {
-        console.log(`[smartlead-inbox-webhook] Duplicate message_id: ${messageId}`);
+        console.log(
+          `[smartlead-inbox-webhook] Duplicate detected: ${JSON.stringify({
+            messageId,
+            existingId: existing.id,
+            fromEmail,
+            eventTimestamp,
+          })}`,
+        );
         return new Response(
           JSON.stringify({ success: true, id: existing.id, duplicate: true }),
           { headers: jsonHeaders },
