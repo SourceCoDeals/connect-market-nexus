@@ -156,8 +156,8 @@ export function useUpdateInboxStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
-      const { error } = await supabase
-        .from('smartlead_reply_inbox')
+      const { error } = await (supabase
+        .from('smartlead_reply_inbox') as any)
         .update({ status })
         .in('id', ids);
 
