@@ -29,13 +29,6 @@ interface CreateDealFromReplyDialogProps {
   inboxItem: Record<string, unknown>;
 }
 
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'urgent', label: 'Urgent' },
-];
-
 const REMARKETING_LIST_OPTIONS = [
   { value: 'captarget', label: 'CapTarget Deals' },
   { value: 'gp_partners', label: 'GP Partner Deals' },
