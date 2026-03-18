@@ -19,8 +19,6 @@ import {
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCreateDeal } from '@/hooks/admin/deals';
-import { useDealStages } from '@/hooks/admin/deals/useDealStages';
 import { useLinkInboxToDeal } from '@/hooks/smartlead/use-smartlead-inbox';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
