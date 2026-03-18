@@ -91,8 +91,8 @@ export default function SmartleadResponseDetail() {
     );
   }
 
-  const category = item.manual_category || item.ai_category || 'neutral';
-  const sentiment = item.manual_sentiment || item.ai_sentiment || 'neutral';
+  const category: string = String(item.manual_category || item.ai_category || 'neutral');
+  const sentiment: string = String(item.manual_sentiment || item.ai_sentiment || 'neutral');
   const replyText: string = item.reply_body ? stripHtml(String(item.reply_body)) : String(item.reply_message || item.preview_text || '');
   const sentText: string = item.sent_message_body ? stripHtml(String(item.sent_message_body)) : String(item.sent_message || '');
 
