@@ -48,24 +48,7 @@ export function CreateDealFromReplyDialog({
   onOpenChange,
   inboxItem: item,
 }: CreateDealFromReplyDialogProps) {
-  const createDeal = useCreateDeal();
   const linkToDeal = useLinkInboxToDeal();
-  const { data: stages } = useDealStages(false);
-
-  // Fetch listings for the listing dropdown
-  const { data: listings } = useQuery({
-    queryKey: ['listings-for-deal-create'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('listings')
-        .select('id, title')
-        .order('title')
-        .limit(200);
-      if (error) throw error;
-      return data;
-    },
-    enabled: open,
-  });
 
   // Derive defaults from the inbox item
   const contactName = String(item.to_name || '').trim();
