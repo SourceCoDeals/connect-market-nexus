@@ -407,7 +407,7 @@ export default function SmartleadResponseDetail() {
         <CreateDealFromReplyDialog
           open={showCreateDealDialog}
           onOpenChange={setShowCreateDealDialog}
-          inboxItem={item}
+          inboxItem={item as unknown as Record<string, unknown>}
         />
       )}
     </div>
