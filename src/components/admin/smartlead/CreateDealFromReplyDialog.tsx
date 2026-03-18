@@ -154,6 +154,12 @@ export function CreateDealFromReplyDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Update company when campaign lead data loads
+  useEffect(() => {
+    if (derivedCompany && !contactCompany) {
+      setContactCompany(derivedCompany);
+    }
+  }, [derivedCompany]);
   const handleSubmit = async () => {
     if (!title.trim()) {
       toast.error('Title is required');
