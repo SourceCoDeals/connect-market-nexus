@@ -161,6 +161,11 @@ const FirefliesIntegrationPage = lazyWithRetry(
   () => import('@/pages/admin/FirefliesIntegrationPage'),
 );
 
+// Training Center / Objection Tracker
+const ObjectionTrackerPage = lazyWithRetry(
+  () => import('@/features/objection-tracker/ObjectionTrackerPage'),
+);
+
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() =>
   import('@/components/remarketing').then((m) => ({ default: m.ReMarketingLayout })),
@@ -507,6 +512,9 @@ function App() {
                   </RoleGate>
                 }
               />
+
+              {/* TRAINING CENTER */}
+              <Route path="training-center" element={<ObjectionTrackerPage />} />
 
               {/* APPROVALS */}
               <Route
