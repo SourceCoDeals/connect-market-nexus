@@ -161,6 +161,14 @@ export function BuyerKanbanCard({
       if (effectiveBuyerId && buyer.buyer_name) {
         ensureContactOnBuyer(effectiveBuyerId);
       }
+      // Backfill remarketing_buyer_id if we resolved it but it wasn't stored
+      if (effectiveBuyerId && !buyer.remarketing_buyer_id) {
+        supabase
+          .from('buyer_introductions' as never)
+          .update({ remarketing_buyer_id: effectiveBuyerId } as never)
+          .eq('id', buyer.id)
+          .then(() => {});
+      }
       navigate(buyerLink);
     }
   };
