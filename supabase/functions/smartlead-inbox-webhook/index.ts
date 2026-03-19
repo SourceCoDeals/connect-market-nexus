@@ -43,9 +43,9 @@ interface AIClassification {
 }
 
 async function classifyReply(replyText: string): Promise<AIClassification> {
-  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  const apiKey = Deno.env.get('GEMINI_API_KEY');
   if (!apiKey) {
-    console.warn('[smartlead-inbox-webhook] LOVABLE_API_KEY not set, skipping classification');
+    console.warn('[smartlead-inbox-webhook] GEMINI_API_KEY not set, skipping classification');
     return {
       category: 'neutral',
       sentiment: 'neutral',
