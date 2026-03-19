@@ -134,13 +134,50 @@ export function useBuyerMutations(
         await import('@/lib/remarketing/findIntroductionContacts');
       const result = await findIntroductionContacts(id!, 'manual');
       if (!result) throw new Error('Contact discovery failed');
-      return result;
+
+      // Enrich existing contacts that are missing email or phone (what Prospeo can fill)
+      const { data: contactsToEnrich } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('remarketing_buyer_id', id!)
+        .eq('contact_type', 'buyer')
+        .eq('archived', false)
+        .or('email.is.null,phone.is.null');
+
+      let enrichedCount = 0;
+      if (contactsToEnrich && contactsToEnrich.length > 0) {
+        // enrich-list-contacts enforces a max of 50 contacts per request
+        const contactIds = contactsToEnrich.slice(0, 50).map((c: { id: string }) => c.id);
+        const { data: enrichData, error: enrichError } = await invokeWithTimeout<{
+          results: Array<{ source: string | null; email: string | null; phone: string | null }>;
+        }>('enrich-list-contacts', {
+          body: { contact_ids: contactIds },
+          timeoutMs: 120_000,
+        });
+        if (enrichError) {
+          console.error('[findContactsMutation] Enrichment failed:', enrichError.message);
+        } else if (enrichData?.results) {
+          enrichedCount = enrichData.results.filter(
+            (r) => r.source && r.source !== 'existing' && (r.email || r.phone),
+          ).length;
+        }
+      }
+
+      return { ...result, enrichedCount };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
-      if (result.total_saved > 0) {
+      if (result.total_saved > 0 && result.enrichedCount > 0) {
+        toast.success(
+          `Found ${result.total_saved} new contact${result.total_saved === 1 ? '' : 's'} and enriched ${result.enrichedCount} existing contact${result.enrichedCount === 1 ? '' : 's'} at ${result.firmName}`,
+        );
+      } else if (result.total_saved > 0) {
         toast.success(
           `Found ${result.total_saved} contact${result.total_saved === 1 ? '' : 's'} at ${result.firmName}`,
+        );
+      } else if (result.enrichedCount > 0) {
+        toast.success(
+          `Enriched ${result.enrichedCount} contact${result.enrichedCount === 1 ? '' : 's'} at ${result.firmName}`,
         );
       } else {
         toast.info('No new contacts found');
