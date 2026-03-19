@@ -129,13 +129,13 @@ export const MainContactCard = ({
                       </a>
                     )}
                     {selectedContact.phone && (
-                      <a 
-                        href={`tel:${selectedContact.phone}`}
-                        className="inline-flex items-center gap-1 text-xs hover:underline"
-                      >
-                        <Phone className="h-3 w-3" />
-                        Call
-                      </a>
+                      <ClickToDialPhone
+                        phone={selectedContact.phone}
+                        name={selectedContact.name || undefined}
+                        email={selectedContact.email || undefined}
+                        label="Call"
+                        size="xs"
+                      />
                     )}
                     {selectedContact.linkedin_url && (
                       <a 
