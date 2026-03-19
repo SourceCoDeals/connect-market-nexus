@@ -252,13 +252,12 @@ serve(async (req) => {
     console.log('Geography from notes:', geographyFromNotes);
 
     // Step 2: AI extraction for complex fields
-    // Try direct Gemini first, fall back to Lovable AI Gateway
+    // Direct Gemini API
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     
     let aiExtracted: Record<string, unknown> = {};
     
-    if (geminiApiKey || lovableApiKey) {
+    if (geminiApiKey) {
       const systemPrompt = `You are an elite M&A analyst extracting EVERY piece of deal intelligence from internal notes, call summaries, and broker memos. Your output directly drives buyer matching and deal scoring — the more detail you extract, the better the matches.
 
 RULES:
