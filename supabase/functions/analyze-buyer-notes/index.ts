@@ -169,11 +169,10 @@ Deno.serve(async (req) => {
 
     // Step 2: AI extraction
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
     let aiExtracted: Record<string, unknown> = {};
 
-    if (geminiApiKey || lovableApiKey) {
+    if (geminiApiKey) {
       const systemPrompt = `You are an elite M&A analyst extracting buyer investment criteria from internal notes, call summaries, and broker memos. Extract EVERY detail about what this buyer is looking for in an acquisition target.
 
 RULES:
