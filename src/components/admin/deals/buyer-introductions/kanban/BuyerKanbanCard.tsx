@@ -75,6 +75,7 @@ export function BuyerKanbanCard({
   const buyerType = snap?.buyer_type ?? null;
   const isPeBacked = snap?.is_pe_backed ?? false;
   const source = snap?.source ?? null;
+  const peFirmName = resolvedPeFirmName || snap?.pe_firm_name || null;
   const navigate = useNavigate();
 
   const {
