@@ -44,6 +44,7 @@ const CHANNEL_ICONS: Record<string, typeof Mail> = {
 interface BuyerKanbanCardProps {
   buyer: BuyerIntroduction;
   column: KanbanColumn;
+  resolvedBuyerId?: string | null;
   onIntroduce?: (buyer: BuyerIntroduction) => void;
   onMarkInterested?: (buyer: BuyerIntroduction) => void;
   onMarkPassed?: (buyer: BuyerIntroduction) => void;

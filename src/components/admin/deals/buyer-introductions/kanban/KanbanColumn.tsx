@@ -39,6 +39,7 @@ const COLUMN_CONFIG: Record<
 interface KanbanColumnProps {
   column: KanbanColumnType;
   buyers: BuyerIntroduction[];
+  resolvedBuyerIds?: Record<string, string | null>;
   onAddBuyer?: () => void;
   onIntroduce?: (buyer: BuyerIntroduction) => void;
   onMarkInterested?: (buyer: BuyerIntroduction) => void;
