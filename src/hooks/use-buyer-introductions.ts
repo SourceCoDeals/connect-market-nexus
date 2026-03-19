@@ -28,7 +28,44 @@ export function useBuyerIntroductions(listingId: string | undefined) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as unknown as BuyerIntroduction[];
+
+      const intros = (data || []) as unknown as BuyerIntroduction[];
+      const unresolvedCompanyNames = Array.from(
+        new Set(
+          intros
+            .filter((intro) => !intro.remarketing_buyer_id)
+            .flatMap((intro) => [intro.buyer_firm_name, intro.buyer_name])
+            .filter((value): value is string => !!value?.trim())
+            .map((value) => value.trim()),
+        ),
+      );
+
+      let resolvedBuyerIdsByCompany: Record<string, string> = {};
+
+      if (unresolvedCompanyNames.length > 0) {
+        const { data: buyers, error: buyersError } = await supabase
+          .from('buyers')
+          .select('id, company_name')
+          .eq('archived', false)
+          .in('company_name', unresolvedCompanyNames);
+
+        if (buyersError) throw buyersError;
+
+        resolvedBuyerIdsByCompany = Object.fromEntries(
+          (buyers || [])
+            .filter((buyer) => !!buyer.company_name)
+            .map((buyer) => [buyer.company_name.trim().toLowerCase(), buyer.id]),
+        );
+      }
+
+      return intros.map((intro) => ({
+        ...intro,
+        resolved_buyer_id:
+          intro.remarketing_buyer_id ||
+          resolvedBuyerIdsByCompany[intro.buyer_firm_name?.trim().toLowerCase() || ''] ||
+          resolvedBuyerIdsByCompany[intro.buyer_name?.trim().toLowerCase() || ''] ||
+          null,
+      })) as unknown as BuyerIntroduction[];
     },
     enabled: !!listingId,
   });

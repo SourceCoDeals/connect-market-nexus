@@ -101,8 +101,9 @@ export function BuyerKanbanCard({
 
   const isStale = column === 'introduced' && daysSinceIntroduction != null && daysSinceIntroduction >= 7;
 
-  const buyerLink = buyer.remarketing_buyer_id
-    ? `/admin/buyers/${buyer.remarketing_buyer_id}`
+  const effectiveBuyerId = buyer.remarketing_buyer_id || resolvedBuyerId || null;
+  const buyerLink = effectiveBuyerId
+    ? `/admin/buyers/${effectiveBuyerId}`
     : buyer.contact_id
       ? `/admin/buyers/${buyer.contact_id}`
       : null;
