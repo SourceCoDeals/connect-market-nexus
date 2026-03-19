@@ -218,6 +218,7 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
             column="to_introduce"
             buyers={columns.to_introduce}
             resolvedBuyerIds={resolvedBuyerIds}
+            resolvedPeFirmNames={resolvedPeFirmNames}
             onAddBuyer={() => setAddBuyerOpen(true)}
             onIntroduce={handleIntroduceFromButton}
             onRemove={handleRemove}
@@ -226,6 +227,7 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
             column="introduced"
             buyers={columns.introduced}
             resolvedBuyerIds={resolvedBuyerIds}
+            resolvedPeFirmNames={resolvedPeFirmNames}
             onMarkInterested={handleMarkInterested}
             onMarkPassed={handleMarkPassed}
             onLogFollowUp={(buyer) => setFollowUpTarget(buyer)}
@@ -234,12 +236,14 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
             column="interested"
             buyers={columns.interested}
             resolvedBuyerIds={resolvedBuyerIds}
+            resolvedPeFirmNames={resolvedPeFirmNames}
             onApproveForPipeline={(buyer) => setApproveTarget(buyer)}
           />
           <KanbanColumn
             column="passed"
             buyers={columns.passed}
             resolvedBuyerIds={resolvedBuyerIds}
+            resolvedPeFirmNames={resolvedPeFirmNames}
             onReactivate={handleReactivate}
           />
         </div>

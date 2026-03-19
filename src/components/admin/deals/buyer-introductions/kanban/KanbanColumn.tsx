@@ -157,6 +157,7 @@ export function KanbanColumn({
                 buyer={buyer}
                 column={column}
                 resolvedBuyerId={resolvedBuyerIds?.[buyer.id] ?? null}
+                resolvedPeFirmName={resolvedPeFirmNames?.[buyer.id] ?? null}
                 onIntroduce={onIntroduce}
                 onMarkInterested={onMarkInterested}
                 onMarkPassed={onMarkPassed}
