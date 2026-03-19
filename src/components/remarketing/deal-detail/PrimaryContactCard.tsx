@@ -112,13 +112,13 @@ export const PrimaryContactCard = ({
                   </a>
                 )}
                 {phone && (
-                  <a 
-                    href={`tel:${phone}`} 
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    <Phone className="h-3.5 w-3.5" />
-                    {phone}
-                  </a>
+                  <ClickToDialPhone
+                    phone={phone}
+                    name={displayName || undefined}
+                    email={email || undefined}
+                    size="sm"
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                  />
                 )}
               </div>
               <div className="flex gap-2">
