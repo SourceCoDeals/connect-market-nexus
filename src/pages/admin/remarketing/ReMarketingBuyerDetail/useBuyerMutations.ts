@@ -3,13 +3,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import { toast } from 'sonner';
-import { BuyerData, Transcript, EditDialogType } from './types';
+import { BuyerData, Contact, Transcript, EditDialogType } from './types';
 
 export function useBuyerMutations(
   id: string | undefined,
   buyer: BuyerData | null | undefined,
   transcripts: Transcript[],
   setActiveEditDialog: (dialog: EditDialogType) => void,
+  contacts: Contact[] = [],
 ) {
   const queryClient = useQueryClient();
 
@@ -130,24 +131,66 @@ export function useBuyerMutations(
 
   const findContactsMutation = useMutation({
     mutationFn: async () => {
+      // Step 1: Enrich existing contacts that are missing email, phone, or linkedin
+      const contactsToEnrich = contacts.filter(
+        (c) => !c.email || !c.phone || !c.linkedin_url,
+      );
+
+      let enrichedCount = 0;
+      if (contactsToEnrich.length > 0) {
+        const { data: enrichData, error: enrichError } = await supabase.functions.invoke(
+          'enrich-list-contacts',
+          {
+            body: { contact_ids: contactsToEnrich.map((c) => c.id) },
+          },
+        );
+
+        if (!enrichError && enrichData?.results) {
+          enrichedCount = enrichData.results.filter(
+            (r: { source: string | null }) => r.source && r.source !== 'existing',
+          ).length;
+        }
+      }
+
+      // Step 2: Also try to discover new contacts
       const { findIntroductionContacts } =
         await import('@/lib/remarketing/findIntroductionContacts');
       const result = await findIntroductionContacts(id!, 'manual');
-      if (!result) throw new Error('Contact discovery failed');
-      return result;
+
+      return {
+        enrichedCount,
+        contactsToEnrichCount: contactsToEnrich.length,
+        newContactsFound: result?.total_saved ?? 0,
+        firmName: result?.firmName ?? buyer?.company_name ?? '',
+      };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
-      if (result.total_saved > 0) {
-        toast.success(
-          `Found ${result.total_saved} contact${result.total_saved === 1 ? '' : 's'} at ${result.firmName}`,
+
+      const messages: string[] = [];
+      if (result.enrichedCount > 0) {
+        messages.push(
+          `Enriched ${result.enrichedCount} contact${result.enrichedCount === 1 ? '' : 's'}`,
+        );
+      }
+      if (result.newContactsFound > 0) {
+        messages.push(
+          `Found ${result.newContactsFound} new contact${result.newContactsFound === 1 ? '' : 's'}`,
+        );
+      }
+
+      if (messages.length > 0) {
+        toast.success(messages.join('. '));
+      } else if (result.contactsToEnrichCount > 0) {
+        toast.info(
+          'Enrichment attempted but no additional data found. Clay fallback queued.',
         );
       } else {
-        toast.info('No new contacts found');
+        toast.info('All contacts already have complete data. No new contacts found.');
       }
     },
     onError: (error: Error) => {
-      toast.error(`Contact discovery failed: ${error.message}`);
+      toast.error(`Contact enrichment failed: ${error.message}`);
     },
   });
 

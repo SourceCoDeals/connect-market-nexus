@@ -85,7 +85,7 @@ const ReMarketingBuyerDetail = () => {
     setIsContactDialogOpen,
     newContact,
     setNewContact,
-  } = useBuyerMutations(id, buyer, transcripts, setActiveEditDialog);
+  } = useBuyerMutations(id, buyer, transcripts, setActiveEditDialog, contacts);
 
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
