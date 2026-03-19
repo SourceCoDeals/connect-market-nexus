@@ -76,6 +76,7 @@ const ReMarketingBuyerDetail = () => {
     updateFeeAgreementMutation,
     analyzeNotesMutation,
     addContactMutation,
+    updateContactMutation,
     deleteContactMutation,
     addTranscriptMutation,
     extractTranscriptMutation,
@@ -85,6 +86,17 @@ const ReMarketingBuyerDetail = () => {
     newContact,
     setNewContact,
   } = useBuyerMutations(id, buyer, transcripts, setActiveEditDialog);
+
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editContact, setEditContact] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    role: '',
+    linkedin_url: '',
+    is_primary: false,
+  });
 
   const {
     extractionProgress,
@@ -394,6 +406,18 @@ const ReMarketingBuyerDetail = () => {
           <ContactsTab
             contacts={contacts}
             onAddContact={() => setIsContactDialogOpen(true)}
+            onEditContact={(contact) => {
+              setEditingContact(contact);
+              setEditContact({
+                name: contact.name,
+                email: contact.email || '',
+                phone: contact.phone || '',
+                role: contact.role || '',
+                linkedin_url: contact.linkedin_url || '',
+                is_primary: contact.is_primary || false,
+              });
+              setIsEditDialogOpen(true);
+            }}
             onDeleteContact={(contactId) => deleteContactMutation.mutate(contactId)}
             onEnrichContacts={() => findContactsMutation.mutate()}
             isEnrichingContacts={findContactsMutation.isPending}
@@ -427,6 +451,31 @@ const ReMarketingBuyerDetail = () => {
         onContactChange={setNewContact}
         onSubmit={() => addContactMutation.mutate()}
         isPending={addContactMutation.isPending}
+      />
+
+      {/* Edit Contact Dialog */}
+      <AddContactDialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) setEditingContact(null);
+        }}
+        newContact={editContact}
+        onContactChange={setEditContact}
+        onSubmit={() => {
+          if (!editingContact) return;
+          updateContactMutation.mutate(
+            { id: editingContact.id, ...editContact },
+            {
+              onSuccess: () => {
+                setIsEditDialogOpen(false);
+                setEditingContact(null);
+              },
+            },
+          );
+        }}
+        isPending={updateContactMutation.isPending}
+        editMode
       />
 
       {/* Edit Dialogs */}
