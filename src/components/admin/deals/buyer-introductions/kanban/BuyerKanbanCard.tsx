@@ -25,6 +25,7 @@ import {
   Linkedin,
   MessageSquare,
   Clock,
+  GripVertical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
