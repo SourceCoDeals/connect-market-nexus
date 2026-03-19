@@ -552,14 +552,12 @@ export function TaskCard({
                 </div>
                 {sellerContact.phone && (
                   <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-3.5 w-3.5 text-green-700 shrink-0" />
-                    <a
-                      href={`tel:${sellerContact.phone}`}
-                      className="text-blue-600 hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {sellerContact.phone}
-                    </a>
+                    <ClickToDialPhone
+                      phone={sellerContact.phone}
+                      name={sellerContact.name || undefined}
+                      email={sellerContact.email || undefined}
+                      size="sm"
+                    />
                   </div>
                 )}
                 {sellerContact.email && (
