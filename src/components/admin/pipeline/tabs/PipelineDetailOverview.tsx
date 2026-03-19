@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Linkedin, Building2, Mail, Phone, Send,
+  Linkedin, Building2, Mail, Send,
   AlertCircle, MessageSquare, User, Briefcase, DollarSign, MapPin,
   CalendarDays, Clock, Star, FileText, ListChecks, FileSignature,
 } from 'lucide-react';
