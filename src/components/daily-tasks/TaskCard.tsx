@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { formatDistanceToNow, format, isToday, isTomorrow, isPast, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -29,7 +30,7 @@ import {
   Building2,
   Calendar,
   AlarmClock,
-  Phone,
+  
   Mail,
   User,
 } from 'lucide-react';
@@ -552,14 +553,12 @@ export function TaskCard({
                 </div>
                 {sellerContact.phone && (
                   <div className="flex items-center gap-2 text-sm">
-                    <Phone className="h-3.5 w-3.5 text-green-700 shrink-0" />
-                    <a
-                      href={`tel:${sellerContact.phone}`}
-                      className="text-blue-600 hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {sellerContact.phone}
-                    </a>
+                    <ClickToDialPhone
+                      phone={sellerContact.phone}
+                      name={`${sellerContact.first_name} ${sellerContact.last_name}`.trim() || undefined}
+                      email={sellerContact.email || undefined}
+                      size="sm"
+                    />
                   </div>
                 )}
                 {sellerContact.email && (

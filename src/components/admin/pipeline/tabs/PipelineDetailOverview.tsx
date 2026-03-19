@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-  Linkedin, Building2, Mail, Phone, Send,
+  Linkedin, Building2, Mail, Send,
   AlertCircle, MessageSquare, User, Briefcase, DollarSign, MapPin,
   CalendarDays, Clock, Star, FileText, ListChecks, FileSignature,
 } from 'lucide-react';
@@ -210,10 +211,14 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
                   </a>
                 )}
                 {(deal.contact_phone || buyerProfile?.phone_number) && (
-                  <a href={`tel:${deal.contact_phone || buyerProfile?.phone_number}`} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                    <Phone className="h-3 w-3" />
-                    <span>{deal.contact_phone || buyerProfile?.phone_number}</span>
-                  </a>
+                  <ClickToDialPhone
+                    phone={(deal.contact_phone || buyerProfile?.phone_number)!}
+                    name={deal.contact_name || undefined}
+                    email={deal.contact_email || undefined}
+                    company={deal.contact_company || undefined}
+                    size="xs"
+                    className="text-[11px] text-muted-foreground hover:text-foreground"
+                  />
                 )}
                 {buyerProfile?.linkedin_url && (
                   <a href={buyerProfile.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-primary hover:underline">
