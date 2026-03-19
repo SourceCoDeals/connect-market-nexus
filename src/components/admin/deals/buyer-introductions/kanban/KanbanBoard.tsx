@@ -176,6 +176,13 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
     [followUpTarget, updateIntroductionNotes],
   );
 
+  const resolvedBuyerIds = Object.fromEntries(
+    introductions.map((intro) => [
+      intro.id,
+      ((intro as BuyerIntroduction & { resolved_buyer_id?: string | null }).resolved_buyer_id ?? null),
+    ]),
+  );
+
   if (isLoading) {
     return (
       <div className="flex gap-4 overflow-x-auto pb-4">
