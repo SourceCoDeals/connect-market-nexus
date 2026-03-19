@@ -217,9 +217,13 @@ export function BuyerKanbanCard({
               {buyer.buyer_name}
             </span>
           )}
-          {buyer.buyer_firm_name && buyer.buyer_firm_name !== buyer.buyer_name && (
+          {peFirmName ? (
+            <p className="text-xs text-muted-foreground truncate">
+              {peFirmName} → {buyer.buyer_firm_name}
+            </p>
+          ) : buyer.buyer_firm_name && buyer.buyer_firm_name !== buyer.buyer_name ? (
             <p className="text-xs text-muted-foreground truncate">{buyer.buyer_firm_name}</p>
-          )}
+          ) : null}
         </div>
 
         {/* Overflow menu */}
