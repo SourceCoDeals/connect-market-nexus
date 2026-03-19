@@ -131,11 +131,14 @@ export const PrimaryContactCard = ({
                   </Button>
                 )}
                 {phone && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={`tel:${phone}`}>
-                      <Phone className="h-4 w-4 mr-1" />
-                      Call
-                    </a>
+                  <Button variant="outline" size="sm" className="gap-1" onClick={() => {}}>
+                    <ClickToDialPhone
+                      phone={phone}
+                      name={displayName || undefined}
+                      email={email || undefined}
+                      label="Call"
+                      size="sm"
+                    />
                   </Button>
                 )}
               </div>
