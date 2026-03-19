@@ -271,7 +271,7 @@ export function useBuyerIntroductions(listingId: string | undefined) {
           nda_status: 'not_sent',
           fee_agreement_status: 'not_sent',
           buyer_contact_id: buyerContactId,
-          remarketing_buyer_id: buyer.id,
+          remarketing_buyer_id: buyer.remarketing_buyer_id || buyer.id,
           value: buyer.expected_deal_size_low || 0,
           probability: 25,
           priority: 'medium',
