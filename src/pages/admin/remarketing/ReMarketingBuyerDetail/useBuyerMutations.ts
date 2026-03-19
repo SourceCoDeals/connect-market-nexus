@@ -153,32 +153,22 @@ export function useBuyerMutations(
 
   const addContactMutation = useMutation({
     mutationFn: async () => {
-      // Split name into first_name / last_name for the unified contacts table
       const nameParts = newContact.name.trim().split(/\s+/);
       const firstName = nameParts[0] || 'Unknown';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      // Look up the firm_id from the buyer's marketplace_firm_id
-      let firmId: string | null = null;
-      if (buyer?.marketplace_firm_id) {
-        firmId = buyer.marketplace_firm_id;
-      }
-
-      const { error } = await supabase.from('contacts').insert([
-        {
-          first_name: firstName,
-          last_name: lastName,
-          email: newContact.email || null,
-          phone: newContact.phone || null,
-          title: newContact.role || null,
-          linkedin_url: newContact.linkedin_url || null,
-          is_primary_at_firm: newContact.is_primary,
-          contact_type: 'buyer' as const,
-          remarketing_buyer_id: id!,
-          firm_id: firmId,
-          source: 'remarketing_manual',
-        },
-      ]);
+      const { error } = await supabase.rpc('upsert_buyer_contact', {
+        p_first_name: firstName,
+        p_last_name: lastName,
+        p_email: newContact.email || null,
+        p_phone: newContact.phone || null,
+        p_title: newContact.role || null,
+        p_linkedin_url: newContact.linkedin_url || null,
+        p_is_primary_at_firm: newContact.is_primary,
+        p_remarketing_buyer_id: id!,
+        p_firm_id: buyer?.marketplace_firm_id ?? null,
+        p_source: 'remarketing_manual',
+      });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -196,6 +186,39 @@ export function useBuyerMutations(
     },
     onError: () => {
       toast.error('Failed to add contact');
+    },
+  });
+
+  const updateContactMutation = useMutation({
+    mutationFn: async (contact: {
+      id: string;
+      name: string;
+      email: string;
+      phone: string;
+      role: string;
+      linkedin_url: string;
+    }) => {
+      const nameParts = contact.name.trim().split(/\s+/);
+      const firstName = nameParts[0] || 'Unknown';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      const { error } = await supabase.rpc('update_buyer_contact', {
+        p_contact_id: contact.id,
+        p_first_name: firstName,
+        p_last_name: lastName,
+        p_email: contact.email || null,
+        p_phone: contact.phone || null,
+        p_title: contact.role || null,
+        p_linkedin_url: contact.linkedin_url || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
+      toast.success('Contact updated');
+    },
+    onError: () => {
+      toast.error('Failed to update contact');
     },
   });
 
@@ -365,6 +388,7 @@ export function useBuyerMutations(
     updateFeeAgreementMutation,
     analyzeNotesMutation,
     addContactMutation,
+    updateContactMutation,
     deleteContactMutation,
     addTranscriptMutation,
     extractTranscriptMutation,

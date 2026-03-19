@@ -9,12 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Users, Mail, Phone, Linkedin, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Users, Mail, Phone, Linkedin, Sparkles, Loader2, Pencil } from 'lucide-react';
 import { Contact } from './types';
 
 interface ContactsTabProps {
   contacts: Contact[];
   onAddContact: () => void;
+  onEditContact?: (contact: Contact) => void;
   onDeleteContact: (contactId: string) => void;
   onEnrichContacts?: () => void;
   isEnrichingContacts?: boolean;
@@ -23,6 +24,7 @@ interface ContactsTabProps {
 export const ContactsTab = ({
   contacts,
   onAddContact,
+  onEditContact,
   onDeleteContact,
   onEnrichContacts,
   isEnrichingContacts,
@@ -130,18 +132,30 @@ export const ContactsTab = ({
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => {
-                        if (confirm('Delete this contact?')) {
-                          onDeleteContact(contact.id);
-                        }
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {onEditContact && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => onEditContact(contact)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => {
+                          if (confirm('Delete this contact?')) {
+                            onDeleteContact(contact.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
