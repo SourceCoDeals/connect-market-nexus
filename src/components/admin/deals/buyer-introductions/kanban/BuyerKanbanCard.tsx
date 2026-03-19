@@ -46,6 +46,7 @@ interface BuyerKanbanCardProps {
   buyer: BuyerIntroduction;
   column: KanbanColumn;
   resolvedBuyerId?: string | null;
+  resolvedPeFirmName?: string | null;
   onIntroduce?: (buyer: BuyerIntroduction) => void;
   onMarkInterested?: (buyer: BuyerIntroduction) => void;
   onMarkPassed?: (buyer: BuyerIntroduction) => void;
