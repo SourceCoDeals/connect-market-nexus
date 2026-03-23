@@ -236,7 +236,18 @@ export function AdminNavbar({ className, onSearchClick }: AdminNavbarProps) {
             </nav>
           </SheetContent>
         </Sheet>
-        <h1 className="text-base sm:text-lg font-semibold truncate">SourceCo Admin</h1>
+        <h1 className="text-base sm:text-lg font-semibold truncate">
+          SourceCo Admin
+          {/* M-20 FIX: Show environment indicator so admins know if they're on staging */}
+          {import.meta.env.MODE !== 'production' && (
+            <Badge
+              variant="outline"
+              className="ml-2 text-[10px] py-0 px-1.5 border-orange-400 text-orange-600 align-middle"
+            >
+              {import.meta.env.MODE || 'dev'}
+            </Badge>
+          )}
+        </h1>
       </div>
 
       <div className="flex items-center gap-2">

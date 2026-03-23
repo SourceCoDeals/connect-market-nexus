@@ -10,16 +10,13 @@ const DEFAULT_PRESENTER = {
 };
 
 interface DealSidebarProps {
-  executiveSummaryUrl?: string | null;
   listingId?: string;
   presentedByAdminId?: string | null;
 }
 
-export default function DealSidebar({
-  executiveSummaryUrl,
-  listingId,
-  presentedByAdminId,
-}: DealSidebarProps) {
+// C-3 FIX: Removed executiveSummaryUrl prop — executive summary should not be
+// publicly downloadable without NDA/authentication.
+export default function DealSidebar({ listingId, presentedByAdminId }: DealSidebarProps) {
   const { data: presenter } = useQuery({
     queryKey: ['deal-presenter', presentedByAdminId],
     enabled: !!presentedByAdminId,
@@ -152,33 +149,9 @@ export default function DealSidebar({
           >
             Schedule Buyer Call
           </a>
-          {executiveSummaryUrl && /^https?:\/\//.test(executiveSummaryUrl) && (
-            <a
-              href={executiveSummaryUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                background: 'none',
-                color: '#6B6560',
-                border: '1px dashed #DDD8D0',
-                borderRadius: 7,
-                padding: '11px 16px',
-                fontSize: 13,
-                fontWeight: 400,
-                cursor: 'pointer',
-                fontFamily: "'DM Sans', sans-serif",
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 7,
-                transition: 'all 0.15s',
-                textDecoration: 'none',
-              }}
-              className="hover:!border-[#6B6560] hover:!text-[#1A1714]"
-            >
-              Download Executive Summary
-            </a>
-          )}
+
+          {/* C-3 FIX: Executive summary download removed from public landing page.
+              Available only after NDA signing via authenticated listing detail page. */}
         </div>
 
         {/* Divider */}

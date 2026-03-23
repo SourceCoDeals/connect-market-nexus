@@ -288,16 +288,20 @@ export const useBuyersData = () => {
     },
   });
 
-  // Delete buyer mutation
+  // C-7 FIX: Soft delete buyers instead of hard delete to prevent data loss.
+  // Sets archived=true so the buyer is hidden from active views but data is preserved.
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('buyers').delete().eq('id', id);
+      const { error } = await supabase
+        .from('buyers')
+        .update({ archived: true, archived_at: new Date().toISOString() } as never)
+        .eq('id', id);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing'] });
-      toast.success('Buyer deleted');
+      toast.success('Buyer archived');
     },
   });
 

@@ -157,8 +157,17 @@ export default function DealLandingPage() {
   const hasTrackedView = useRef(false);
 
   // GAP 9: Track anonymous landing page views per listing
+  // M-8 FIX: Skip tracking for admin users to prevent inflating view counts
   useEffect(() => {
     if (!id || !deal || hasTrackedView.current) return;
+
+    // M-8 FIX: Skip tracking for admin users (set via localStorage on admin login)
+    try {
+      if (localStorage.getItem('sourceco_is_admin') === 'true') return;
+    } catch {
+      /* ignore */
+    }
+
     hasTrackedView.current = true;
 
     // GAP 16+18: Store deal context for signup attribution
@@ -273,11 +282,7 @@ export default function DealLandingPage() {
         >
           {/* Mobile sidebar (above content on mobile) */}
           <div className="lg:hidden">
-            <DealSidebar
-              executiveSummaryUrl={deal.executive_summary}
-              listingId={deal.id}
-              presentedByAdminId={deal.presented_by_admin_id}
-            />
+            <DealSidebar listingId={deal.id} presentedByAdminId={deal.presented_by_admin_id} />
           </div>
 
           {/* Left column — content + form */}
@@ -289,11 +294,7 @@ export default function DealLandingPage() {
           {/* Right column — sticky sidebar (desktop) */}
           <div className="hidden lg:block">
             <div style={{ position: 'sticky', top: 80 }}>
-              <DealSidebar
-                executiveSummaryUrl={deal.executive_summary}
-                listingId={deal.id}
-                presentedByAdminId={deal.presented_by_admin_id}
-              />
+              <DealSidebar listingId={deal.id} presentedByAdminId={deal.presented_by_admin_id} />
             </div>
           </div>
         </div>

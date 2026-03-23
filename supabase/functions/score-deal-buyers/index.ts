@@ -1,9 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
-import type { BuyerScore, ScoreRequest } from '../_shared/scoring/types.ts';
+import type { BuyerScore, ScoreRequest, ScoreWeights } from '../_shared/scoring/types.ts';
 import {
   SCORE_WEIGHTS,
+  getScoreWeights,
   getServiceGateMultiplier,
   getBuyerTypePriority,
 } from '../_shared/scoring/types.ts';
@@ -114,6 +115,25 @@ Deno.serve(async (req: Request) => {
       .eq('status', 'active');
 
     const universeIds = (universeLinks || []).map((l) => l.universe_id);
+
+    // H-1 FIX: Fetch universe-specific weights if the deal belongs to a universe.
+    // If no universe weights are found, fall back to DEFAULT_SCORE_WEIGHTS.
+    let weights: ScoreWeights = { ...SCORE_WEIGHTS };
+    if (universeIds.length > 0) {
+      const { data: universe } = await supabase
+        .from('buyer_universes')
+        .select('service_weight, geography_weight, owner_goals_weight')
+        .eq('id', universeIds[0])
+        .single();
+
+      if (universe) {
+        weights = getScoreWeights(universe);
+        console.log(
+          `[score-deal-buyers] Using universe weights for ${universeIds[0]}:`,
+          weights,
+        );
+      }
+    }
 
     // ── Fetch buyers (active, non-archived, scoped to deal's universes when available) ──
     const BUYER_SELECT =
@@ -307,11 +327,11 @@ Deno.serve(async (req: Request) => {
       const geo = scoreGeography(dealState, dealGeoStates, buyerGeos, buyerFootprint, buyerHqState);
       const bonus = scoreBonus(buyer);
 
-      // Calculate raw composite score using weighted dimensions (v3: no EBITDA)
+      // H-1 FIX: Use dynamic weights (universe-specific or defaults), v3: no EBITDA size
       const rawComposite = Math.round(
-        svc.score * SCORE_WEIGHTS.service +
-          geo.score * SCORE_WEIGHTS.geography +
-          bonus.score * SCORE_WEIGHTS.bonus,
+        svc.score * weights.service +
+          geo.score * weights.geography +
+          bonus.score * weights.bonus,
       );
 
       // Apply service fit gate multiplier — crushes composite for bad service fits
