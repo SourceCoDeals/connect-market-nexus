@@ -1,31 +1,44 @@
 
 
-# Add Location Column to Match Tool Leads
+# Fix Dates & Premium Redesign — Match Tool Leads
 
-## What Changes
+## Problem
+1. **Dates are wrong**: All records show "5m ago" because `created_at` was set during backfill (all Mar 24). The real dates (Mar 6–24) are preserved in `raw_inputs.original_created_at`.
+2. **Design needs elevation**: Current layout is functional but flat — needs a premium, minimal feel.
 
-**Single file**: `src/pages/admin/remarketing/MatchToolLeads/index.tsx`
+## Plan
 
-### 1. Add a Location column to the grid
+### 1. Fix dates via SQL migration
 
-- Update grid template from `[28px_1fr_1fr_1fr_100px_60px]` to `[28px_1fr_1fr_1fr_120px_100px_60px]` (both header and rows)
-- Add "Location" header between Financials and Stage
-- Add a location cell in LeadRow
+```sql
+UPDATE match_tool_leads
+SET created_at = (raw_inputs->>'original_created_at')::timestamptz
+WHERE raw_inputs->>'original_created_at' IS NOT NULL;
+```
 
-### 2. Extract location from `raw_inputs`
+This corrects all 11 backfilled records in one statement.
 
-The geo data lives in `raw_inputs` as `city`, `region`, `country`. Display logic:
-- US leads: "Portland, OR" (city + state abbreviation)
-- International: "Budapest, Hungary" (city + country)
-- Fallback: just city, or just region, or empty muted dash
+### 2. Redesign `index.tsx` — premium minimal
 
-### 3. Move geo out of the Website subtitle
+**Date column**: Show formatted date like "Mar 6" or "Mar 24" (short month + day). For today's entries, show "Today". No more vague "5m ago".
 
-Currently `geo` is shown under the domain name — remove it from there since it gets its own column now.
+**Visual elevation**:
+- Lighter, more spacious rows with `py-4` padding
+- Thinner font weights, `text-[13px]` body text
+- Header row: no uppercase, use sentence case with `text-muted-foreground/70`, minimal weight
+- Full-form rows: subtle warm emerald left accent (`border-l-[3px]`), no background tint — let the accent do the work
+- Stage pills: remove borders, use soft filled backgrounds only (gray/blue/emerald)
+- "Wants Buyers" badge: smaller, icon-less, just emerald pill text
+- Financials: format cleanly — "$1M–5M rev · $500K–1M profit" instead of raw DB values like `1m_5m`
+- Contact section: name in medium weight, email/phone in muted smaller text, no icons
+- Remove dash placeholders for empty fields — just leave blank (cleaner)
+- Location column: `text-muted-foreground` subtle styling
+- Grid: slightly wider spacing, `gap-6` for breathing room
 
 ### Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/remarketing/MatchToolLeads/index.tsx` | Add Location column, extract city/region/country from raw_inputs, remove geo from website subtitle |
+| `supabase/migrations/[timestamp]_fix_match_tool_dates.sql` | Update `created_at` from `raw_inputs.original_created_at` |
+| `src/pages/admin/remarketing/MatchToolLeads/index.tsx` | Premium redesign + proper date formatting + clean financial labels |
 
