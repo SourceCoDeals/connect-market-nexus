@@ -1,8 +1,19 @@
+import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Ban } from 'lucide-react';
+import { Search, Ban, Trash2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useMatchToolLeadsData } from './useMatchToolLeadsData';
 import type { MatchToolLead } from './types';
 
@@ -47,6 +58,7 @@ function formatFinancials(revenue: string | null, profit: string | null): string
 }
 
 export default function MatchToolLeads() {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const {
     leads,
     isLoading,
@@ -57,6 +69,7 @@ export default function MatchToolLeads() {
     selectedIds,
     setSelectedIds,
     markNotAFit,
+    deleteLeads,
   } = useMatchToolLeadsData();
 
   const toggleSelect = (id: string) => {
@@ -89,15 +102,26 @@ export default function MatchToolLeads() {
         </div>
 
         {selectedIds.size > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => markNotAFit.mutate(Array.from(selectedIds))}
-            className="h-7 text-xs"
-          >
-            <Ban className="h-3 w-3 mr-1" />
-            Not a Fit ({selectedIds.size})
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markNotAFit.mutate(Array.from(selectedIds))}
+              className="h-7 text-xs"
+            >
+              <Ban className="h-3 w-3 mr-1" />
+              Not a Fit ({selectedIds.size})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              className="h-7 text-xs text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Delete ({selectedIds.size})
+            </Button>
+          </div>
         )}
       </div>
 
@@ -160,6 +184,29 @@ export default function MatchToolLeads() {
           )}
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The selected leads will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                deleteLeads.mutate(Array.from(selectedIds));
+                setShowDeleteDialog(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
