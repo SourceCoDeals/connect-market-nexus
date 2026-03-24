@@ -6,7 +6,7 @@ import type { MatchToolLead } from './types';
 
 export const PAGE_SIZE = 50;
 
-type FilterTab = 'all' | 'has_contact' | 'website_only' | 'pushed' | 'archived';
+type FilterTab = 'all' | 'has_contact' | 'has_financials' | 'website_only' | 'pushed' | 'archived';
 
 export function useMatchToolLeadsData() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
@@ -27,6 +27,9 @@ export function useMatchToolLeadsData() {
       switch (activeTab) {
         case 'has_contact':
           query = query.not('email', 'is', null);
+          break;
+        case 'has_financials':
+          query = query.eq('submission_stage', 'financials');
           break;
         case 'website_only':
           query = query.is('email', null).eq('submission_stage', 'browse');
