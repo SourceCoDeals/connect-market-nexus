@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ExternalLink, Mail, Phone, User, Calendar, MapPin, Building2, Briefcase, Users, Sparkles, Target, TrendingUp, Globe, ArrowRight, Clock } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,11 +47,14 @@ const TIMELINE_CONFIG: Record<string, { label: string; color: string }> = {
 const FUNNEL_STEPS = ['hero', 'basics', 'financials', 'results', 'form'];
 
 export function MatchToolLeadPanel({ lead, open, onOpenChange, onEnrich, isEnriching }: MatchToolLeadPanelProps) {
+  const enrichedIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (open && lead && !lead.enrichment_data) {
+    if (open && lead && !lead.enrichment_data && !enrichedIdsRef.current.has(lead.id)) {
+      enrichedIdsRef.current.add(lead.id);
       onEnrich(lead.id, lead.website);
     }
-  }, [open, lead?.id, lead?.enrichment_data]);
+  }, [open, lead?.id]);
 
   if (!lead) return null;
 
