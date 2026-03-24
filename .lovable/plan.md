@@ -1,38 +1,70 @@
 
+# Fix “No enrichment data available” for leads that already have intel
 
-# Switch Enrichment from Lovable AI Gateway to OpenAI Direct
+## What the issue actually is
+Do I know what the issue is? Yes.
 
-## What Changes
+This is primarily a UI state bug, not an enrichment-generation bug for this lead.
 
-Both enrichment functions currently use the Lovable AI Gateway with `google/gemini-2.5-flash`. Switch to direct OpenAI API calls using the existing `OPENAI_API_KEY` secret.
+I checked the database and `spotlightreporting.com` already has `enrichment_data` saved on its `match_tool_leads` row. But the panel stores a stale `selectedLead` object in local state, so after enrichment finishes and the list refetches, the open panel still renders the old lead object without the new `enrichment_data`.
 
-### File 1: `supabase/functions/enrich-match-tool-lead/index.ts`
+That’s why the DB has intel, but the panel still says “No enrichment data available.”
 
-- Replace `LOVABLE_API_KEY` check with `OPENAI_API_KEY` check
-- Change fetch URL from `https://ai.gateway.lovable.dev/v1/chat/completions` to `https://api.openai.com/v1/chat/completions`
-- Change auth header to `Bearer ${OPENAI_API_KEY}`
-- Change model from `google/gemini-2.5-flash` to `gpt-4o-mini` (fast, cheap, great at structured extraction)
-- Keep tool calling schema identical (OpenAI native format)
-- Update error messages to reference OpenAI
+## Plan
 
-### File 2: `supabase/functions/ingest-match-tool-lead/index.ts`
+### 1. Fix the stale lead state in the dashboard
+**File:** `src/pages/admin/remarketing/MatchToolLeads/index.tsx`
 
-Same changes in the inline `enrichLead()` function (lines 78-112):
-- `LOVABLE_API_KEY` → `OPENAI_API_KEY`
-- Gateway URL → `https://api.openai.com/v1/chat/completions`
-- Model → `gpt-4o-mini`
+- Stop storing the full lead object in state
+- Store only `selectedLeadId`
+- Derive `selectedLead` from the latest `leads` query result on every render:
+  - `const selectedLead = leads.find(l => l.id === selectedLeadId) ?? null`
+- This ensures the panel always receives the freshest row after React Query invalidates/refetches
 
-### No other changes needed
-- `OPENAI_API_KEY` is already configured as a secret
-- The tool calling format is identical (OpenAI invented it)
-- Response parsing stays the same (`choices[0].message.tool_calls[0].function.arguments`)
+This is the main fix.
 
-### Files Changed
+### 2. Make the panel enrichment trigger smarter
+**File:** `src/pages/admin/remarketing/MatchToolLeads/MatchToolLeadPanel.tsx`
 
-| File | Change |
-|------|--------|
-| `supabase/functions/enrich-match-tool-lead/index.ts` | Switch AI provider to OpenAI |
-| `supabase/functions/ingest-match-tool-lead/index.ts` | Switch AI provider to OpenAI in enrichLead() |
+- Keep the auto-enrich-on-open behavior, but only trigger when:
+  - the panel is open
+  - the lead exists
+  - `lead.enrichment_data` is actually missing
+- Update the effect dependencies so it reacts correctly to refreshed lead data
+- Add a better temporary loading state message like:
+  - “Generating company intel…”
+  instead of falling straight to “No enrichment data available”
 
-Both functions will be redeployed.
+### 3. Surface real enrichment failures clearly
+**Files:**
+- `src/pages/admin/remarketing/MatchToolLeads/useMatchToolLeadsData.ts`
+- optionally `MatchToolLeadPanel.tsx`
 
+- Add `onError` toast handling for the `enrichLead` mutation
+- If the edge function returns an error, show the actual reason instead of silently failing
+- This helps distinguish:
+  - stale UI bug
+  - scraping failure
+  - AI response failure
+  - rate limit / credit issues
+
+### 4. Improve the empty state so it’s actionable
+**File:** `src/pages/admin/remarketing/MatchToolLeads/MatchToolLeadPanel.tsx`
+
+Replace the generic “No enrichment data available” with clearer states:
+- **Loading:** “Generating company intel…”
+- **Failed:** “Couldn’t generate intel for this website yet”
+- **Empty after retry:** show a small retry button or muted hint
+
+This makes the panel feel intentional instead of broken.
+
+## Expected result
+After this change:
+- if enrichment already exists in the database, the panel will show it immediately
+- if enrichment is generated while the panel is open, the panel will update automatically
+- if enrichment truly fails, the user will see a real error instead of a misleading empty state
+
+## Files to change
+- `src/pages/admin/remarketing/MatchToolLeads/index.tsx`
+- `src/pages/admin/remarketing/MatchToolLeads/MatchToolLeadPanel.tsx`
+- `src/pages/admin/remarketing/MatchToolLeads/useMatchToolLeadsData.ts`
