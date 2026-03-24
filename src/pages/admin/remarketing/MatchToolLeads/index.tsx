@@ -58,6 +58,7 @@ function formatFinancials(revenue: string | null, profit: string | null): string
 }
 
 export default function MatchToolLeads() {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const {
     leads,
     isLoading,
@@ -68,6 +69,7 @@ export default function MatchToolLeads() {
     selectedIds,
     setSelectedIds,
     markNotAFit,
+    deleteLeads,
   } = useMatchToolLeadsData();
 
   const toggleSelect = (id: string) => {
