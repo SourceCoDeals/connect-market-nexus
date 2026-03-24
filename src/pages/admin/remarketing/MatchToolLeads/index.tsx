@@ -102,15 +102,26 @@ export default function MatchToolLeads() {
         </div>
 
         {selectedIds.size > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => markNotAFit.mutate(Array.from(selectedIds))}
-            className="h-7 text-xs"
-          >
-            <Ban className="h-3 w-3 mr-1" />
-            Not a Fit ({selectedIds.size})
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markNotAFit.mutate(Array.from(selectedIds))}
+              className="h-7 text-xs"
+            >
+              <Ban className="h-3 w-3 mr-1" />
+              Not a Fit ({selectedIds.size})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              className="h-7 text-xs text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-3 w-3 mr-1" />
+              Delete ({selectedIds.size})
+            </Button>
+          </div>
         )}
       </div>
 
