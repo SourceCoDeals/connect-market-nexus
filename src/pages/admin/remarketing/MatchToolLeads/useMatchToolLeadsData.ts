@@ -6,7 +6,7 @@ import type { MatchToolLead } from './types';
 
 export const PAGE_SIZE = 50;
 
-type FilterTab = 'all' | 'has_contact' | 'website_only' | 'pushed' | 'archived';
+type FilterTab = 'all' | 'has_contact' | 'has_financials' | 'website_only' | 'pushed' | 'archived';
 
 export function useMatchToolLeadsData() {
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
