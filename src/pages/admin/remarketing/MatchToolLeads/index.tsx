@@ -1,4 +1,4 @@
-import { useState } from 'react';
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { useMatchToolLeadsData } from './useMatchToolLeadsData';
 import type { MatchToolLead } from './types';
-import { DealSourceBadge } from '@/components/remarketing/DealSourceBadge';
+
 
 const STAGE_CONFIG: Record<string, { label: string; className: string }> = {
   browse: { label: 'Website Only', className: 'bg-gray-100 text-gray-700 border-gray-200' },
