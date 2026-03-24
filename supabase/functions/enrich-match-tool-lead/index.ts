@@ -3,6 +3,27 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin } from '../_shared/auth.ts';
 
+const COMPANY_SCHEMA = {
+  name: "extract_company",
+  description: "Extract a structured company profile from website content.",
+  parameters: {
+    type: "object",
+    properties: {
+      company_name: { type: "string", description: "Official company name" },
+      one_liner: { type: "string", description: "One sentence describing what they do and where" },
+      services: { type: "array", items: { type: "string" }, description: "Specific services they offer" },
+      industry: { type: "string", description: "Industry vertical (e.g. 'Home Services — HVAC')" },
+      geography: { type: "string", description: "Primary location/service area" },
+      employee_estimate: { type: "string", description: "Estimated size range (e.g. '10-25')" },
+      year_founded: { type: "string", description: "Year founded or null" },
+      revenue_estimate: { type: "string", description: "Estimated revenue range if inferable" },
+      notable_signals: { type: "array", items: { type: "string" }, description: "Notable business signals" },
+    },
+    required: ["company_name", "one_liner", "services", "industry", "geography"],
+    additionalProperties: false,
+  },
+};
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -84,11 +105,11 @@ serve(async (req) => {
       console.warn(`[enrich-match-tool-lead] Firecrawl failed: ${scrapeResponse.status}`);
     }
 
-    // Extract with Gemini
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
+    // Extract with Lovable AI Gateway
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
       return new Response(
-        JSON.stringify({ error: 'GEMINI_API_KEY not configured' }),
+        JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -99,50 +120,64 @@ serve(async (req) => {
 
 Website: ${formattedUrl}
 Content:
-${truncatedMarkdown || '(No content available - infer from URL only)'}
+${truncatedMarkdown || '(No content available - infer from URL only)'}`;
 
-Return a JSON object with exactly these fields:
-{
-  "company_name": "string - official company name",
-  "one_liner": "string - one sentence describing what they do and where",
-  "services": ["array of specific services they offer"],
-  "industry": "string - industry vertical (e.g. 'Home Services — HVAC', 'IT Services — MSP')",
-  "geography": "string - primary location/service area",
-  "employee_estimate": "string - estimated size range (e.g. '10-25', '50-100')",
-  "year_founded": "string or null",
-  "revenue_estimate": "string or null - estimated revenue range if inferable",
-  "notable_signals": ["array of notable business signals - e.g. 'Licensed contractor', 'Multiple locations', 'Strong online reviews']"
-}`;
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: 'Extract structured company data from the provided website content. Be concise and factual.' },
+          { role: 'user', content: prompt },
+        ],
+        tools: [{ type: 'function', function: COMPANY_SCHEMA }],
+        tool_choice: { type: 'function', function: { name: 'extract_company' } },
+      }),
+    });
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0, responseMimeType: 'application/json' },
-        }),
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error(`[enrich-match-tool-lead] AI Gateway error: ${aiResponse.status} - ${errText}`);
+      
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'AI rate limit exceeded, please try again later' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    );
-
-    if (!geminiResponse.ok) {
-      const errText = await geminiResponse.text();
-      console.error(`[enrich-match-tool-lead] Gemini error: ${geminiResponse.status} - ${errText}`);
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'AI credits exhausted, please add funds' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ error: 'AI extraction failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const geminiResult = await geminiResponse.json();
-    const rawText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-
+    const aiResult = await aiResponse.json();
+    
     let enrichmentData;
     try {
-      enrichmentData = JSON.parse(rawText);
+      const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
+      if (toolCall?.function?.arguments) {
+        enrichmentData = typeof toolCall.function.arguments === 'string'
+          ? JSON.parse(toolCall.function.arguments)
+          : toolCall.function.arguments;
+      } else {
+        // Fallback: try parsing content directly
+        const content = aiResult.choices?.[0]?.message?.content || '{}';
+        enrichmentData = JSON.parse(content);
+      }
     } catch {
-      console.error('[enrich-match-tool-lead] Failed to parse Gemini response:', rawText);
+      console.error('[enrich-match-tool-lead] Failed to parse AI response:', JSON.stringify(aiResult));
       enrichmentData = { company_name: null, one_liner: 'Could not analyze website' };
     }
 

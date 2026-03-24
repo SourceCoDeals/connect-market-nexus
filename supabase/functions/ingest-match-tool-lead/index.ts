@@ -7,9 +7,29 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const COMPANY_SCHEMA = {
+  name: "extract_company",
+  description: "Extract a structured company profile from website content.",
+  parameters: {
+    type: "object",
+    properties: {
+      company_name: { type: "string", description: "Official company name" },
+      one_liner: { type: "string", description: "One sentence describing what they do and where" },
+      services: { type: "array", items: { type: "string" }, description: "Specific services they offer" },
+      industry: { type: "string", description: "Industry vertical (e.g. 'Home Services — HVAC')" },
+      geography: { type: "string", description: "Primary location/service area" },
+      employee_estimate: { type: "string", description: "Estimated size range (e.g. '10-25')" },
+      year_founded: { type: "string", description: "Year founded or null" },
+      revenue_estimate: { type: "string", description: "Estimated revenue range if inferable" },
+      notable_signals: { type: "array", items: { type: "string" }, description: "Notable business signals" },
+    },
+    required: ["company_name", "one_liner", "services", "industry", "geography"],
+    additionalProperties: false,
+  },
+};
+
 async function enrichLead(supabase: any, leadId: string, website: string) {
   try {
-    // Check if already enriched
     const { data: existing } = await supabase
       .from('match_tool_leads')
       .select('enrichment_data')
@@ -55,10 +75,10 @@ async function enrichLead(supabase: any, leadId: string, website: string) {
       console.warn(`[enrich] Firecrawl failed: ${scrapeResponse.status}`);
     }
 
-    // Extract with Gemini
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      console.warn('[enrich] GEMINI_API_KEY not configured, skipping');
+    // Extract with Lovable AI Gateway
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.warn('[enrich] LOVABLE_API_KEY not configured, skipping');
       return;
     }
 
@@ -68,46 +88,45 @@ async function enrichLead(supabase: any, leadId: string, website: string) {
 
 Website: ${formattedUrl}
 Content:
-${truncatedMarkdown || '(No content available - infer from URL only)'}
+${truncatedMarkdown || '(No content available - infer from URL only)'}`;
 
-Return a JSON object with exactly these fields:
-{
-  "company_name": "string - official company name",
-  "one_liner": "string - one sentence describing what they do and where",
-  "services": ["array of specific services they offer"],
-  "industry": "string - industry vertical (e.g. 'Home Services — HVAC', 'IT Services — MSP')",
-  "geography": "string - primary location/service area",
-  "employee_estimate": "string - estimated size range (e.g. '10-25', '50-100')",
-  "year_founded": "string or null",
-  "revenue_estimate": "string or null - estimated revenue range if inferable",
-  "notable_signals": ["array of notable business signals - e.g. 'Licensed contractor', 'Multiple locations', 'Strong online reviews']"
-}`;
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: 'Extract structured company data from the provided website content. Be concise and factual.' },
+          { role: 'user', content: prompt },
+        ],
+        tools: [{ type: 'function', function: COMPANY_SCHEMA }],
+        tool_choice: { type: 'function', function: { name: 'extract_company' } },
+      }),
+    });
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0, responseMimeType: 'application/json' },
-        }),
-      }
-    );
-
-    if (!geminiResponse.ok) {
-      console.error(`[enrich] Gemini error: ${geminiResponse.status}`);
+    if (!aiResponse.ok) {
+      console.error(`[enrich] AI Gateway error: ${aiResponse.status}`);
       return;
     }
 
-    const geminiResult = await geminiResponse.json();
-    const rawText = geminiResult.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const aiResult = await aiResponse.json();
 
     let enrichmentData;
     try {
-      enrichmentData = JSON.parse(rawText);
+      const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
+      if (toolCall?.function?.arguments) {
+        enrichmentData = typeof toolCall.function.arguments === 'string'
+          ? JSON.parse(toolCall.function.arguments)
+          : toolCall.function.arguments;
+      } else {
+        const content = aiResult.choices?.[0]?.message?.content || '{}';
+        enrichmentData = JSON.parse(content);
+      }
     } catch {
-      console.error('[enrich] Failed to parse Gemini response');
+      console.error('[enrich] Failed to parse AI response');
       enrichmentData = { company_name: null, one_liner: 'Could not analyze website' };
     }
 
@@ -153,7 +172,6 @@ serve(async (req) => {
       return json({ error: "website is required" }, 400);
     }
 
-    // Determine submission stage from whatever data is present
     let submission_stage = "browse";
     if (full_name && email) {
       submission_stage = "full_form";
@@ -166,7 +184,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Progressive upsert via merge RPC — deduplicates by website
     const { data, error } = await supabase.rpc("merge_match_tool_lead", {
       p_website: website,
       p_email: email || null,
@@ -183,7 +200,6 @@ serve(async (req) => {
     if (error) {
       console.error("merge_match_tool_lead RPC error:", error);
 
-      // Fallback: direct insert (may fail on dupe but at least we tried)
       const { error: insertError } = await supabase
         .from("match_tool_leads")
         .insert({
@@ -204,10 +220,9 @@ serve(async (req) => {
       }
     }
 
-    // Fire-and-forget enrichment — get the lead ID and enrich in background
+    // Fire-and-forget enrichment
     const leadId = data;
     if (leadId && website) {
-      // Don't await — let it run in the background
       enrichLead(supabase, leadId, website).catch((e) =>
         console.error('[ingest] enrichment fire-and-forget error:', e)
       );
@@ -216,7 +231,6 @@ serve(async (req) => {
     return json({ success: true, id: data });
   } catch (err) {
     console.error("ingest-match-tool-lead error:", err);
-    // Always return 200 so the calling tool never shows an error to the user
     return json({ error: "Internal error", success: false });
   }
 });
