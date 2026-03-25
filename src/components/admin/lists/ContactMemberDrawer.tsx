@@ -500,12 +500,12 @@ export function ContactMemberDrawer({
                       </div>
                       <div className="flex gap-2">
                         {firmRecord.nda_signed && (
-                          <Badge className="text-[10px] bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          <Badge variant="secondary" className="text-[10px]">
                             NDA ✓
                           </Badge>
                         )}
                         {firmRecord.fee_agreement_signed && (
-                          <Badge className="text-[10px] bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          <Badge variant="secondary" className="text-[10px]">
                             Fee Agreement ✓
                           </Badge>
                         )}
