@@ -71,11 +71,14 @@ function useContactEnrichedData(member: ContactListMember | null) {
           'id, first_name, last_name, email, phone, linkedin_url, title, contact_type, firm_id, nda_signed, fee_agreement_signed, created_at, remarketing_buyer_id, listing_id, company_name',
         )
         .eq('email', email)
-        .eq('archived', false)
+        .or('archived.is.null,archived.eq.false')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) return null;
+      if (error) {
+        console.warn('[ContactMemberDrawer] contacts lookup error:', error.message);
+        return null;
+      }
       return data;
     },
     enabled: !!email,
@@ -84,8 +87,9 @@ function useContactEnrichedData(member: ContactListMember | null) {
 
   // Fetch buyer/company record
   const buyerId = contactRecord?.remarketing_buyer_id || null;
+  const companyName = member?.contact_company || contactRecord?.company_name || null;
   const { data: buyerRecord, isLoading: buyerLoading } = useQuery({
-    queryKey: ['contact-member-detail', 'buyer', buyerId, email],
+    queryKey: ['contact-member-detail', 'buyer', buyerId, companyName, entityId, entityType],
     queryFn: async () => {
       // Try by buyer ID from contact first
       if (buyerId) {
@@ -98,41 +102,100 @@ function useContactEnrichedData(member: ContactListMember | null) {
           .maybeSingle();
         if (data) return data;
       }
-      // Fallback: try matching by company name
-      if (member?.contact_company) {
+      // Try by entity_id if entity is a lead/buyer type
+      if (entityId && entityType && ['lead', 'owner_lead', 'buyer', 'remarketing_buyer'].includes(entityType)) {
         const { data } = await supabase
           .from('buyers')
           .select(
             'id, company_name, company_website, buyer_type, buyer_linkedin, hq_state, hq_city, target_revenue_min, target_revenue_max, target_geographies, target_services, thesis_summary, business_summary, pe_firm_name, acquisition_appetite, has_fee_agreement, industry_vertical, is_marketplace_member, buyer_tier',
           )
-          .ilike('company_name', member.contact_company)
+          .eq('id', entityId)
+          .maybeSingle();
+        if (data) return data;
+      }
+      // Fallback: try matching by company name
+      if (companyName) {
+        const { data } = await supabase
+          .from('buyers')
+          .select(
+            'id, company_name, company_website, buyer_type, buyer_linkedin, hq_state, hq_city, target_revenue_min, target_revenue_max, target_geographies, target_services, thesis_summary, business_summary, pe_firm_name, acquisition_appetite, has_fee_agreement, industry_vertical, is_marketplace_member, buyer_tier',
+          )
+          .ilike('company_name', companyName)
           .eq('archived', false)
           .limit(1)
           .maybeSingle();
         if (data) return data;
       }
+      // Last resort: try by email domain matching
+      if (email) {
+        const domain = email.split('@')[1];
+        if (domain && !['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'].includes(domain)) {
+          const { data } = await supabase
+            .from('buyers')
+            .select(
+              'id, company_name, company_website, buyer_type, buyer_linkedin, hq_state, hq_city, target_revenue_min, target_revenue_max, target_geographies, target_services, thesis_summary, business_summary, pe_firm_name, acquisition_appetite, has_fee_agreement, industry_vertical, is_marketplace_member, buyer_tier',
+            )
+            .eq('email_domain', domain)
+            .eq('archived', false)
+            .limit(1)
+            .maybeSingle();
+          if (data) return data;
+        }
+      }
       return null;
     },
-    enabled: !!buyerId || !!member?.contact_company,
+    enabled: !!buyerId || !!companyName || !!entityId || !!email,
     staleTime: 30000,
   });
 
-  // Fetch related deals by email
+  // Fetch related deals by email or entity_id
   const { data: relatedDeals = [] } = useQuery({
-    queryKey: ['contact-member-detail', 'deals', email],
+    queryKey: ['contact-member-detail', 'deals', email, entityId],
     queryFn: async () => {
-      if (!email) return [];
-      const { data, error } = await supabase
-        .from('deal_pipeline')
-        .select('id, title, contact_name, contact_company, stage_id, priority, created_at, listing_id')
-        .eq('contact_email', email)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      if (error) return [];
-      return (data || []) as Array<{ id: string; title: string; contact_company: string | null; stage_id: string; priority: string | null; created_at: string | null; listing_id: string | null }>;
+      const results: Array<{ id: string; title: string; contact_company: string | null; stage_id: string; priority: string | null; created_at: string | null; listing_id: string | null }> = [];
+      // By email
+      if (email) {
+        const { data } = await supabase
+          .from('deal_pipeline')
+          .select('id, title, contact_name, contact_company, stage_id, priority, created_at, listing_id')
+          .eq('contact_email', email)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        if (data) results.push(...data);
+      }
+      // Also by inbound_lead_id if entity is a lead
+      if (entityId && entityType === 'lead') {
+        const { data } = await supabase
+          .from('deal_pipeline')
+          .select('id, title, contact_name, contact_company, stage_id, priority, created_at, listing_id')
+          .eq('inbound_lead_id', entityId)
+          .is('deleted_at', null)
+          .limit(5);
+        if (data) {
+          const existingIds = new Set(results.map(r => r.id));
+          results.push(...data.filter(d => !existingIds.has(d.id)));
+        }
+      }
+      return results;
     },
-    enabled: !!email,
+    enabled: !!email || !!entityId,
+    staleTime: 30000,
+  });
+
+  // Fetch inbound lead details if entity is a lead
+  const { data: leadRecord } = useQuery({
+    queryKey: ['contact-member-detail', 'lead', entityId, entityType],
+    queryFn: async () => {
+      if (!entityId) return null;
+      const { data } = await supabase
+        .from('inbound_leads')
+        .select('id, name, email, phone_number, company_name, business_website, lead_type, status, source, source_form_name, estimated_revenue_range, sale_timeline, role, message, priority_score, admin_notes, mapped_to_listing_title, created_at')
+        .eq('id', entityId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!entityId && entityType === 'lead',
     staleTime: 30000,
   });
 
@@ -173,6 +236,7 @@ function useContactEnrichedData(member: ContactListMember | null) {
     contactRecord,
     buyerRecord,
     relatedDeals,
+    leadRecord,
     connectionRequest,
     firmRecord,
     isLoading: contactLoading || buyerLoading,
@@ -200,7 +264,7 @@ export function ContactMemberDrawer({
 }: ContactMemberDrawerProps) {
   const navigate = useNavigate();
   const isDealType = member ? DEAL_ENTITY_TYPES.includes(member.entity_type) : false;
-  const { contactRecord, buyerRecord, relatedDeals, connectionRequest, firmRecord, isLoading } =
+  const { contactRecord, buyerRecord, relatedDeals, leadRecord, connectionRequest, firmRecord, isLoading } =
     useContactEnrichedData(member);
 
   return (
@@ -482,7 +546,98 @@ export function ContactMemberDrawer({
                 </>
               )}
 
-              {/* Firm Info */}
+              {/* Lead Details */}
+              {leadRecord && (
+                <>
+                  <section className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Lead Details
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs gap-1 text-primary"
+                        onClick={() => {
+                          navigate(`/admin/owner-leads`);
+                          onClose();
+                        }}
+                      >
+                        View Leads <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Status</span>
+                        <Badge variant="outline" className="text-[11px] capitalize">
+                          {leadRecord.status.split('_').join(' ')}
+                        </Badge>
+                      </div>
+                      {leadRecord.lead_type && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Lead Type</span>
+                          <span className="text-foreground capitalize">{leadRecord.lead_type.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.source && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Source</span>
+                          <span className="text-foreground capitalize">{leadRecord.source.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.estimated_revenue_range && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Est. Revenue</span>
+                          <span className="text-foreground">{leadRecord.estimated_revenue_range}</span>
+                        </div>
+                      )}
+                      {leadRecord.sale_timeline && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Sale Timeline</span>
+                          <span className="text-foreground capitalize">{leadRecord.sale_timeline.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.business_website && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <a
+                            href={leadRecord.business_website.startsWith('http') ? leadRecord.business_website : `https://${leadRecord.business_website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline truncate"
+                          >
+                            {leadRecord.business_website}
+                          </a>
+                        </div>
+                      )}
+                      {leadRecord.mapped_to_listing_title && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Mapped Listing</span>
+                          <span className="text-foreground text-xs truncate max-w-[200px]">{leadRecord.mapped_to_listing_title}</span>
+                        </div>
+                      )}
+                      {leadRecord.message && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground block mb-1">Message</span>
+                          <p className="text-foreground text-xs leading-relaxed line-clamp-3 bg-muted/30 p-2 rounded">
+                            {leadRecord.message}
+                          </p>
+                        </div>
+                      )}
+                      {leadRecord.admin_notes && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground block mb-1">Admin Notes</span>
+                          <p className="text-foreground text-xs leading-relaxed line-clamp-3">
+                            {leadRecord.admin_notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                  <Separator />
+                </>
+              )}
+
               {firmRecord && (
                 <>
                   <section className="space-y-2.5">
