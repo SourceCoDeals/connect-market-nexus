@@ -466,7 +466,7 @@ export function ContactMemberDrawer({
                       {/* Agreement status */}
                       <div className="flex items-center gap-2 pt-1">
                         {buyerRecord.has_fee_agreement && (
-                          <Badge className="text-[10px] bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          <Badge variant="secondary" className="text-[10px]">
                             Fee Agreement ✓
                           </Badge>
                         )}
