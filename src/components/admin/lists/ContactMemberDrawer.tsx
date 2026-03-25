@@ -546,7 +546,98 @@ export function ContactMemberDrawer({
                 </>
               )}
 
-              {/* Firm Info */}
+              {/* Lead Details */}
+              {leadRecord && (
+                <>
+                  <section className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Lead Details
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs gap-1 text-primary"
+                        onClick={() => {
+                          navigate(`/admin/owner-leads`);
+                          onClose();
+                        }}
+                      >
+                        View Leads <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Status</span>
+                        <Badge variant="outline" className="text-[11px] capitalize">
+                          {leadRecord.status.split('_').join(' ')}
+                        </Badge>
+                      </div>
+                      {leadRecord.lead_type && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Lead Type</span>
+                          <span className="text-foreground capitalize">{leadRecord.lead_type.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.source && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Source</span>
+                          <span className="text-foreground capitalize">{leadRecord.source.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.estimated_revenue_range && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Est. Revenue</span>
+                          <span className="text-foreground">{leadRecord.estimated_revenue_range}</span>
+                        </div>
+                      )}
+                      {leadRecord.sale_timeline && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Sale Timeline</span>
+                          <span className="text-foreground capitalize">{leadRecord.sale_timeline.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.business_website && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <a
+                            href={leadRecord.business_website.startsWith('http') ? leadRecord.business_website : `https://${leadRecord.business_website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline truncate"
+                          >
+                            {leadRecord.business_website}
+                          </a>
+                        </div>
+                      )}
+                      {leadRecord.mapped_to_listing_title && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Mapped Listing</span>
+                          <span className="text-foreground text-xs truncate max-w-[200px]">{leadRecord.mapped_to_listing_title}</span>
+                        </div>
+                      )}
+                      {leadRecord.message && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground block mb-1">Message</span>
+                          <p className="text-foreground text-xs leading-relaxed line-clamp-3 bg-muted/30 p-2 rounded">
+                            {leadRecord.message}
+                          </p>
+                        </div>
+                      )}
+                      {leadRecord.admin_notes && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground block mb-1">Admin Notes</span>
+                          <p className="text-foreground text-xs leading-relaxed line-clamp-3">
+                            {leadRecord.admin_notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                  <Separator />
+                </>
+              )}
+
               {firmRecord && (
                 <>
                   <section className="space-y-2.5">
