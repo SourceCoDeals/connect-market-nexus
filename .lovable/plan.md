@@ -1,70 +1,47 @@
 
-# Fix “No enrichment data available” for leads that already have intel
 
-## What the issue actually is
-Do I know what the issue is? Yes.
+# Add Contact Detail Drawer to List Detail Page
 
-This is primarily a UI state bug, not an enrichment-generation bug for this lead.
+## Summary
 
-I checked the database and `spotlightreporting.com` already has `enrichment_data` saved on its `match_tool_leads` row. But the panel stores a stale `selectedLead` object in local state, so after enrichment finishes and the list refetches, the open panel still renders the old lead object without the new `enrichment_data`.
+Make every row in the list detail page clickable. Clicking opens a slide-out drawer on the right showing the contact's full details, call history, and a link to navigate to the associated deal.
 
-That’s why the DB has intel, but the panel still says “No enrichment data available.”
+## Changes
 
-## Plan
+### File 1: New — `src/components/admin/lists/ContactMemberDrawer.tsx`
 
-### 1. Fix the stale lead state in the dashboard
-**File:** `src/pages/admin/remarketing/MatchToolLeads/index.tsx`
+Create a new drawer component using the existing `Sheet` UI primitive. It receives a `ContactListMember` and displays:
 
-- Stop storing the full lead object in state
-- Store only `selectedLeadId`
-- Derive `selectedLead` from the latest `leads` query result on every render:
-  - `const selectedLead = leads.find(l => l.id === selectedLeadId) ?? null`
-- This ensures the panel always receives the freshest row after React Query invalidates/refetches
+- **Header**: Contact name, role, company
+- **Contact Info section**: Email (mailto link), Phone (tel link)
+- **Source & List Info**: Entity type badge, date added
+- **Deal Owner**: Name if available
+- **Call Activity section**: Total calls, last call date, last disposition
+- **Actions footer**: 
+  - "View Deal" button (navigates to `/admin/deals/${entity_id}`) — shown for deal-type entities
+  - "Remove from List" button
 
-This is the main fix.
+The drawer will be ~480px wide (override the default `sm:max-w-sm` with `sm:max-w-md`).
 
-### 2. Make the panel enrichment trigger smarter
-**File:** `src/pages/admin/remarketing/MatchToolLeads/MatchToolLeadPanel.tsx`
+### File 2: `src/pages/admin/ContactListDetailPage.tsx`
 
-- Keep the auto-enrich-on-open behavior, but only trigger when:
-  - the panel is open
-  - the lead exists
-  - `lead.enrichment_data` is actually missing
-- Update the effect dependencies so it reacts correctly to refreshed lead data
-- Add a better temporary loading state message like:
-  - “Generating company intel…”
-  instead of falling straight to “No enrichment data available”
+- Add state: `const [drawerMember, setDrawerMember] = useState<ContactListMember | null>(null)`
+- Change the row click handler: instead of directly navigating to the deal page, set `drawerMember` to the clicked member (for ALL entity types, not just deal types)
+- Render `<ContactMemberDrawer>` at the bottom of the page, passing `drawerMember`, `onClose`, `onRemove`, and `onNavigateToDeal`
+- Keep the existing deal navigation as a button inside the drawer
 
-### 3. Surface real enrichment failures clearly
-**Files:**
-- `src/pages/admin/remarketing/MatchToolLeads/useMatchToolLeadsData.ts`
-- optionally `MatchToolLeadPanel.tsx`
+### Technical Detail
 
-- Add `onError` toast handling for the `enrichLead` mutation
-- If the edge function returns an error, show the actual reason instead of silently failing
-- This helps distinguish:
-  - stale UI bug
-  - scraping failure
-  - AI response failure
-  - rate limit / credit issues
+```
+Row click → setDrawerMember(member) → Sheet opens
+  ├── Contact info (name, email, phone, company, role)
+  ├── Call activity (from existing joined data on ContactListMember)
+  ├── Deal owner info
+  └── Actions: [View Deal] [Remove from List]
+```
 
-### 4. Improve the empty state so it’s actionable
-**File:** `src/pages/admin/remarketing/MatchToolLeads/MatchToolLeadPanel.tsx`
+| File | Change |
+|------|--------|
+| `src/components/admin/lists/ContactMemberDrawer.tsx` | New drawer component |
+| `src/pages/admin/ContactListDetailPage.tsx` | Wire drawer state, make all rows clickable |
 
-Replace the generic “No enrichment data available” with clearer states:
-- **Loading:** “Generating company intel…”
-- **Failed:** “Couldn’t generate intel for this website yet”
-- **Empty after retry:** show a small retry button or muted hint
-
-This makes the panel feel intentional instead of broken.
-
-## Expected result
-After this change:
-- if enrichment already exists in the database, the panel will show it immediately
-- if enrichment is generated while the panel is open, the panel will update automatically
-- if enrichment truly fails, the user will see a real error instead of a misleading empty state
-
-## Files to change
-- `src/pages/admin/remarketing/MatchToolLeads/index.tsx`
-- `src/pages/admin/remarketing/MatchToolLeads/MatchToolLeadPanel.tsx`
-- `src/pages/admin/remarketing/MatchToolLeads/useMatchToolLeadsData.ts`
