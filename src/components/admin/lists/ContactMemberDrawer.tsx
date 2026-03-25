@@ -26,7 +26,7 @@ import {
   Linkedin,
   MapPin,
   TrendingUp,
-  FileText,
+  
   ArrowRight,
   Loader2,
 } from 'lucide-react';
