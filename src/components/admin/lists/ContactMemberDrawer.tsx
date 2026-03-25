@@ -71,11 +71,14 @@ function useContactEnrichedData(member: ContactListMember | null) {
           'id, first_name, last_name, email, phone, linkedin_url, title, contact_type, firm_id, nda_signed, fee_agreement_signed, created_at, remarketing_buyer_id, listing_id, company_name',
         )
         .eq('email', email)
-        .eq('archived', false)
+        .or('archived.is.null,archived.eq.false')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (error) return null;
+      if (error) {
+        console.warn('[ContactMemberDrawer] contacts lookup error:', error.message);
+        return null;
+      }
       return data;
     },
     enabled: !!email,
