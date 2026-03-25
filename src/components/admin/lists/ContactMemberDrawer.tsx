@@ -471,7 +471,7 @@ export function ContactMemberDrawer({
                           </Badge>
                         )}
                         {buyerRecord.is_marketplace_member && (
-                          <Badge className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                          <Badge variant="outline" className="text-[10px]">
                             Marketplace Member
                           </Badge>
                         )}
