@@ -984,13 +984,27 @@ export function ContactMemberDrawer({
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    navigate(`/admin/remarketing/leads/valuation`);
+                    navigate(`/admin/remarketing/leads/valuation?leadId=${leadRecord.id}`);
                     onClose();
                   }}
                   className="gap-1.5"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   View Lead
+                </Button>
+              )}
+              {leadRecord?.pushed_listing_id && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigate(`/admin/deals/${leadRecord.pushed_listing_id}`, { state: { from: '/admin/lists' } });
+                    onClose();
+                  }}
+                  className="gap-1.5"
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  View Company
                 </Button>
               )}
               <Button
