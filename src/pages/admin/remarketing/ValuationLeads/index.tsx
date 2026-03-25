@@ -54,6 +54,7 @@ export { formatAge } from './helpers';
 
 export default function ValuationLeads() {
   const { setPageContext } = useAICommandCenterContext();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [dialerOpen, setDialerOpen] = useState(false);
   const [smartleadOpen, setSmartleadOpen] = useState(false);
   const [heyreachOpen, setHeyreachOpen] = useState(false);
@@ -108,6 +109,7 @@ export default function ValuationLeads() {
     handleEnrichSelected,
     handleDelete,
     selectedLead,
+    setSelectedLead,
     drawerOpen,
     setDrawerOpen,
     isPushing,
