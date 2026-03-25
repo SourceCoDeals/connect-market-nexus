@@ -183,17 +183,64 @@ function useContactEnrichedData(member: ContactListMember | null) {
     staleTime: 30000,
   });
 
-  // Fetch inbound lead details if entity is a lead
+  // Fetch lead details — try valuation_leads first (most common), then inbound_leads
   const { data: leadRecord } = useQuery({
     queryKey: ['contact-member-detail', 'lead', entityId, entityType],
     queryFn: async () => {
       if (!entityId) return null;
-      const { data } = await supabase
+      
+      // Try valuation_leads first (entity_type 'lead' usually maps here)
+      const { data: vlData } = await supabase
+        .from('valuation_leads')
+        .select('id, full_name, email, phone, business_name, website, industry, region, location, revenue, ebitda, valuation_low, valuation_mid, valuation_high, quality_tier, quality_label, exit_timing, lead_score, status, lead_source, calculator_type, growth_trend, buyer_lane, revenue_model, locations_count, created_at')
+        .eq('id', entityId)
+        .maybeSingle();
+      if (vlData) {
+        return {
+          id: vlData.id,
+          name: vlData.full_name,
+          email: vlData.email,
+          phone_number: vlData.phone,
+          company_name: vlData.business_name,
+          business_website: vlData.website,
+          lead_type: vlData.calculator_type,
+          status: vlData.status,
+          source: vlData.lead_source,
+          estimated_revenue_range: vlData.revenue ? `$${(vlData.revenue / 1_000_000).toFixed(1)}M` : null,
+          sale_timeline: vlData.exit_timing,
+          role: null as string | null,
+          message: null as string | null,
+          priority_score: vlData.lead_score,
+          admin_notes: null as string | null,
+          mapped_to_listing_title: null as string | null,
+          created_at: vlData.created_at,
+          // Extra valuation-specific fields
+          industry: vlData.industry,
+          region: vlData.region,
+          location: vlData.location,
+          revenue: vlData.revenue,
+          ebitda: vlData.ebitda,
+          valuation_low: vlData.valuation_low,
+          valuation_mid: vlData.valuation_mid,
+          valuation_high: vlData.valuation_high,
+          quality_tier: vlData.quality_tier,
+          quality_label: vlData.quality_label,
+          growth_trend: vlData.growth_trend,
+          buyer_lane: vlData.buyer_lane,
+          revenue_model: vlData.revenue_model,
+          locations_count: vlData.locations_count,
+        };
+      }
+      
+      // Fallback to inbound_leads
+      const { data: ilData } = await supabase
         .from('inbound_leads')
         .select('id, name, email, phone_number, company_name, business_website, lead_type, status, source, source_form_name, estimated_revenue_range, sale_timeline, role, message, priority_score, admin_notes, mapped_to_listing_title, created_at')
         .eq('id', entityId)
         .maybeSingle();
-      return data;
+      if (ilData) return { ...ilData, industry: null, region: null, location: null, revenue: null, ebitda: null, valuation_low: null, valuation_mid: null, valuation_high: null, quality_tier: null, quality_label: null, growth_trend: null, buyer_lane: null, revenue_model: null, locations_count: null };
+      
+      return null;
     },
     enabled: !!entityId && entityType === 'lead',
     staleTime: 30000,
@@ -570,7 +617,7 @@ export function ContactMemberDrawer({
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Status</span>
                         <Badge variant="outline" className="text-[11px] capitalize">
-                          {leadRecord.status.split('_').join(' ')}
+                          {(leadRecord.status || 'unknown').split('_').join(' ')}
                         </Badge>
                       </div>
                       {leadRecord.lead_type && (
@@ -614,6 +661,68 @@ export function ContactMemberDrawer({
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Mapped Listing</span>
                           <span className="text-foreground text-xs truncate max-w-[200px]">{leadRecord.mapped_to_listing_title}</span>
+                        </div>
+                      )}
+                      {(leadRecord.industry || leadRecord.region || leadRecord.location) && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Industry / Location</span>
+                          <span className="text-foreground text-xs truncate max-w-[200px]">
+                            {[leadRecord.industry, leadRecord.location || leadRecord.region].filter(Boolean).join(' · ')}
+                          </span>
+                        </div>
+                      )}
+                      {(leadRecord.revenue || leadRecord.ebitda) && (
+                        <div className="space-y-1">
+                          {leadRecord.revenue && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Revenue</span>
+                              <span className="text-foreground font-medium">${(leadRecord.revenue / 1_000_000).toFixed(1)}M</span>
+                            </div>
+                          )}
+                          {leadRecord.ebitda && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">EBITDA</span>
+                              <span className="text-foreground font-medium">${(leadRecord.ebitda / 1_000_000).toFixed(1)}M</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {leadRecord.valuation_mid && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Valuation Range</span>
+                          <span className="text-foreground font-medium text-xs">
+                            {leadRecord.valuation_low ? `$${(leadRecord.valuation_low / 1_000_000).toFixed(1)}M` : '?'} – {`$${(leadRecord.valuation_mid / 1_000_000).toFixed(1)}M`} – {leadRecord.valuation_high ? `$${(leadRecord.valuation_high / 1_000_000).toFixed(1)}M` : '?'}
+                          </span>
+                        </div>
+                      )}
+                      {leadRecord.quality_label && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Quality</span>
+                          <Badge variant="secondary" className="text-[10px] capitalize">{leadRecord.quality_label}</Badge>
+                        </div>
+                      )}
+                      {leadRecord.growth_trend && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Growth Trend</span>
+                          <span className="text-foreground capitalize">{leadRecord.growth_trend.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.buyer_lane && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Buyer Lane</span>
+                          <span className="text-foreground capitalize">{leadRecord.buyer_lane.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.revenue_model && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Revenue Model</span>
+                          <span className="text-foreground capitalize">{leadRecord.revenue_model.split('_').join(' ')}</span>
+                        </div>
+                      )}
+                      {leadRecord.locations_count && leadRecord.locations_count > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Locations</span>
+                          <span className="text-foreground">{leadRecord.locations_count}</span>
                         </div>
                       )}
                       {leadRecord.message && (
