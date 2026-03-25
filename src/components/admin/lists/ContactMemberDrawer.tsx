@@ -87,8 +87,9 @@ function useContactEnrichedData(member: ContactListMember | null) {
 
   // Fetch buyer/company record
   const buyerId = contactRecord?.remarketing_buyer_id || null;
+  const companyName = member?.contact_company || contactRecord?.company_name || null;
   const { data: buyerRecord, isLoading: buyerLoading } = useQuery({
-    queryKey: ['contact-member-detail', 'buyer', buyerId, email],
+    queryKey: ['contact-member-detail', 'buyer', buyerId, companyName, entityId, entityType],
     queryFn: async () => {
       // Try by buyer ID from contact first
       if (buyerId) {
@@ -101,22 +102,49 @@ function useContactEnrichedData(member: ContactListMember | null) {
           .maybeSingle();
         if (data) return data;
       }
-      // Fallback: try matching by company name
-      if (member?.contact_company) {
+      // Try by entity_id if entity is a lead/buyer type
+      if (entityId && entityType && ['lead', 'owner_lead', 'buyer', 'remarketing_buyer'].includes(entityType)) {
         const { data } = await supabase
           .from('buyers')
           .select(
             'id, company_name, company_website, buyer_type, buyer_linkedin, hq_state, hq_city, target_revenue_min, target_revenue_max, target_geographies, target_services, thesis_summary, business_summary, pe_firm_name, acquisition_appetite, has_fee_agreement, industry_vertical, is_marketplace_member, buyer_tier',
           )
-          .ilike('company_name', member.contact_company)
+          .eq('id', entityId)
+          .maybeSingle();
+        if (data) return data;
+      }
+      // Fallback: try matching by company name
+      if (companyName) {
+        const { data } = await supabase
+          .from('buyers')
+          .select(
+            'id, company_name, company_website, buyer_type, buyer_linkedin, hq_state, hq_city, target_revenue_min, target_revenue_max, target_geographies, target_services, thesis_summary, business_summary, pe_firm_name, acquisition_appetite, has_fee_agreement, industry_vertical, is_marketplace_member, buyer_tier',
+          )
+          .ilike('company_name', companyName)
           .eq('archived', false)
           .limit(1)
           .maybeSingle();
         if (data) return data;
       }
+      // Last resort: try by email domain matching
+      if (email) {
+        const domain = email.split('@')[1];
+        if (domain && !['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com'].includes(domain)) {
+          const { data } = await supabase
+            .from('buyers')
+            .select(
+              'id, company_name, company_website, buyer_type, buyer_linkedin, hq_state, hq_city, target_revenue_min, target_revenue_max, target_geographies, target_services, thesis_summary, business_summary, pe_firm_name, acquisition_appetite, has_fee_agreement, industry_vertical, is_marketplace_member, buyer_tier',
+            )
+            .eq('email_domain', domain)
+            .eq('archived', false)
+            .limit(1)
+            .maybeSingle();
+          if (data) return data;
+        }
+      }
       return null;
     },
-    enabled: !!buyerId || !!member?.contact_company,
+    enabled: !!buyerId || !!companyName || !!entityId || !!email,
     staleTime: 30000,
   });
 
