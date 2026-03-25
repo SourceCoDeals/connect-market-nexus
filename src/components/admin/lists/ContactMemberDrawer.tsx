@@ -607,11 +607,11 @@ export function ContactMemberDrawer({
                         size="sm"
                         className="h-6 px-2 text-xs gap-1 text-primary"
                         onClick={() => {
-                          navigate(`/admin/remarketing/leads/valuation`);
+                          navigate(`/admin/remarketing/leads/valuation?leadId=${leadRecord.id}`);
                           onClose();
                         }}
                       >
-                        View Leads <ArrowRight className="h-3 w-3" />
+                        View Lead <ArrowRight className="h-3 w-3" />
                       </Button>
                     </div>
                     <div className="space-y-1.5">
