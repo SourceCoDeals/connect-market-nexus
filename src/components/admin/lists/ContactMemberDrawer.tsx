@@ -625,24 +625,26 @@ export function ContactMemberDrawer({
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-foreground truncate">
-                              {deal.contact_company || 'Unknown'}
+                              {deal.title || deal.contact_company || 'Unknown'}
                             </span>
                             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            {deal.stage && (
+                            {deal.stage_id && (
                               <Badge variant="outline" className="text-[10px] capitalize">
-                                {deal.stage.split('_').join(' ')}
+                                {deal.stage_id.split('_').join(' ')}
                               </Badge>
                             )}
-                            {deal.status && (
+                            {deal.priority && (
                               <Badge variant="secondary" className="text-[10px] capitalize">
-                                {deal.status}
+                                {deal.priority}
                               </Badge>
                             )}
-                            <span className="text-[10px] text-muted-foreground ml-auto">
-                              {format(new Date(deal.created_at), 'MMM d, yyyy')}
-                            </span>
+                            {deal.created_at && (
+                              <span className="text-[10px] text-muted-foreground ml-auto">
+                                {format(new Date(deal.created_at), 'MMM d, yyyy')}
+                              </span>
+                            )}
                           </div>
                         </button>
                       ))}
