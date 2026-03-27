@@ -54,9 +54,8 @@ const ListingDetail = () => {
   // NDA gate: check if buyer has signed NDA (skip for admins and unauthenticated)
   const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
   useAgreementStatusSync();
-  const [ndaGateDismissed, setNdaGateDismissed] = useState(false);
   const showNdaGate =
-    !isAdmin && user && ndaStatus && ndaStatus.hasFirm && !ndaStatus.ndaSigned && !ndaGateDismissed;
+    !isAdmin && user && ndaStatus && ndaStatus.hasFirm && !ndaStatus.ndaSigned;
 
   useEffect(() => {
     document.title = listing ? `${listing.title} | Marketplace` : 'Listing Detail | Marketplace';

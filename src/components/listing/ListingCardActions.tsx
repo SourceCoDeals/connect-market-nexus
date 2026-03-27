@@ -14,6 +14,7 @@ interface ListingCardActionsProps {
   handleRequestConnection: (message: string) => void;
   handleToggleSave: (e: React.MouseEvent) => void;
   listingTitle?: string;
+  listingId?: string;
   // Gating props
   isProfileComplete?: boolean;
   profileCompletePct?: number;
@@ -32,6 +33,7 @@ const ListingCardActions = memo(function ListingCardActions({
   handleRequestConnection,
   handleToggleSave,
   listingTitle,
+  listingId,
   isProfileComplete = true,
   profileCompletePct = 100,
   isBuyerBlocked = false,
