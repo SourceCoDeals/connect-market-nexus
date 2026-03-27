@@ -334,7 +334,7 @@ const handler = async (req: Request): Promise<Response> => {
     let callerUserId: string | null = null;
 
     if (!isServiceRole) {
-      const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      const anonClient = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: `Bearer ${callerToken}` } },
       });
       const {
