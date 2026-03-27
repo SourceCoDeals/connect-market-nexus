@@ -207,7 +207,9 @@ export function useApplyTaskTemplate() {
           task_type: task.task_type,
           due_date: dueDate,
           assignee_id: assigneeId,
-          entity_type: 'listing' as TaskEntityType,
+          // Use 'deal' to match migration 20260510 which standardized all
+          // entity_type='listing' to 'deal' — keeps templates visible on the Deal Tasks tab
+          entity_type: 'deal' as TaskEntityType,
           entity_id: listingId,
           source: 'template',
           priority: 'medium',

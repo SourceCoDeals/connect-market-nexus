@@ -448,6 +448,7 @@ export function useEditTask() {
 
 export function useAddManualTask() {
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (
@@ -472,11 +473,82 @@ export function useAddManualTask() {
           priority_score: 50, // default mid-range for manual tasks
           extraction_confidence: 'high',
           needs_review: false,
+          created_by: user?.id,
         } as never)
         .select()
         .single();
 
       if (error) throw error;
+
+      const taskId = (data as Record<string, unknown>).id as string;
+
+      // Log activity for audit trail
+      try {
+        await untypedFrom('rm_task_activity_log').insert({
+          task_id: taskId,
+          user_id: user?.id ?? '',
+          action: 'created',
+          new_value: { source: 'manual', title: task.title },
+        });
+      } catch (logErr) {
+        console.error('Failed to log manual task creation activity:', logErr);
+      }
+
+      // Send notification if task is assigned to someone other than the creator
+      if (task.assignee_id && task.assignee_id !== user?.id) {
+        try {
+          const [{ data: assigneeProfile }, { data: assignerProfile }] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('id, email, first_name, last_name')
+              .eq('id', task.assignee_id)
+              .single(),
+            supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('id', user?.id ?? '')
+              .single(),
+          ]);
+
+          if (assigneeProfile?.email) {
+            // In-app notification
+            await supabase.from('admin_notifications').insert({
+              admin_id: task.assignee_id,
+              notification_type: 'task_assigned',
+              title: 'New Task Assigned',
+              message: `You have been assigned a new task: ${task.title}`,
+              task_id: taskId,
+              action_url: '/admin/daily-tasks',
+              metadata: {
+                task_title: task.title,
+                title: task.deal_reference || 'Task',
+                assigned_by: user?.id,
+              },
+            });
+
+            // Email notification
+            await supabase.functions.invoke('send-task-notification-email', {
+              body: {
+                assignee_email: assigneeProfile.email,
+                assignee_name:
+                  `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() ||
+                  assigneeProfile.email,
+                assigner_name: assignerProfile
+                  ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim()
+                  : 'Admin',
+                task_title: task.title,
+                task_description: task.description,
+                task_priority: 'medium',
+                task_due_date: task.due_date,
+                title: task.deal_reference || 'Task',
+              },
+            });
+          }
+        } catch (notifError) {
+          // Don't fail task creation if notification fails
+          console.error('Failed to send manual task assignment notification:', notifError);
+        }
+      }
 
       // Recompute ranks
       await recomputeRanks();
@@ -485,6 +557,7 @@ export function useAddManualTask() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [DAILY_TASKS_QUERY_KEY] });
+      qc.invalidateQueries({ queryKey: ['admin-notifications'] });
     },
   });
 }
