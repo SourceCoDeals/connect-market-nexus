@@ -1,62 +1,79 @@
 
 
-# Audit: All 4 Planned Fixes — Verified Implemented
+# Audit: All Planned Fixes — Verified & Remaining Issues
 
-## Confirmed Working
+## Confirmed Implemented
 
 | Fix | Status | Evidence |
 |-----|--------|----------|
-| Stable query key | Done | Line 27: `[...userIds].sort().join(',')` |
-| `undefined` in UserFirmBadge | Done | Line 15: `firmData !== undefined ? undefined : userId` |
-| Map-based role lookup | Done | Lines 70-80: `useMemo` builds `Map`, line 80: O(1) `.get()` |
-| Default empty Map | Done | Line 499 AdminUsers: `firmDataMap ?? new Map()` |
-| Removed `useEnhancedUserExport` | Done | Import and call removed |
-| Removed `usePermissions` | Done | Import and call removed |
+| `useMemo` → `useEffect` for page reset | Done | Line 93: `useEffect` with proper deps |
+| `React.memo` on `BuyerTierBadge` | Done | Line 24: `React.memo(function BuyerTierBadge` |
+| `React.memo` on `BuyerTierBadgeFull` | Done | Line 59 |
+| `React.memo` on `BuyerScoreBadge` | Done | Line 79 |
+| `React.memo` on `UserFirmBadge` | Done | Line 14 |
+| `React.memo` on `DualFeeAgreementToggle` | Done | Line 18 |
+| `React.memo` on `DualNDAToggle` | Done | Line 18 |
+| Inline closures removed | Done | Lines 252/260 now use `setSelectedUserForEmail` directly |
+| Stable query key | Done | Line 27 of `use-bulk-user-firms.ts` |
+| Map-based role lookup | Done | Lines 70-80 of `UsersTable.tsx` |
+| `firmDataMap ?? new Map()` default | Done | Line 499 of `AdminUsers.tsx` |
+| `undefined` in UserFirmBadge | Done | Line 16 |
+| Removed `useEnhancedUserExport` | Done | Not in imports |
+| Removed `usePermissions` | Done | Not in imports |
 
-## Remaining Issues Worth Fixing
+## Remaining Issue: `useRoleManagement()` fetches audit log unnecessarily
 
-### Issue 1: `useMemo` used for side effects (bug)
-Lines 93-97 of `UsersTable.tsx` use `useMemo` to call `setCurrentPage` — this is a React anti-pattern. `useMemo` is for computing values, not triggering state updates. Should be `useEffect`.
+`useRoleManagement()` (line 68 of `UsersTable.tsx`) always fetches **100 audit log rows** via `get_permission_audit_log` RPC. UsersTable never uses `auditLog` or `isLoadingAudit` — it only needs `allUserRoles` and `isLoadingRoles`. This is a wasted query on every table mount.
 
-### Issue 2: No memoization on row sub-components
-`BuyerTierBadge`, `BuyerScoreBadge`, `UserDataCompleteness`, `DualFeeAgreementToggle`, `DualNDAToggle`, `UserFirmBadge` — none are wrapped in `React.memo`. Every expand/collapse or page change re-renders all 50 rows and their 6+ children. This is the main remaining rendering bottleneck.
+### Fix
 
-### Issue 3: Inline closures recreated every render
-Lines 252, 260 create new arrow functions `(user) => setSelectedUserForEmail(user)` on every render, defeating any future memoization. Should use `useCallback`.
+Split the hook: create a lightweight `useAllUserRoles()` that only fetches roles, and use it in `UsersTable` instead of `useRoleManagement()`. Keep `useRoleManagement` intact for the permissions management page where the audit log is actually needed.
 
-### Issue 4: `useRoleManagement()` fetches audit log unnecessarily
-The hook returns `auditLog` and `isLoadingAudit` — UsersTable doesn't use either. The audit log query (`get_permission_audit_log` with 100 rows) fires on every table mount for no reason. The hook should be split, or UsersTable should use a lighter variant.
+### File 1: `src/hooks/permissions/useAllUserRoles.ts` (NEW)
 
-### Issue 5: Query key with 600+ sorted UUIDs
-Line 27 joins all 600+ UUIDs into one massive string for the query key. React Query serializes this on every render for cache comparison. For 600 UUIDs × 36 chars = ~22KB string. A hash would be more efficient, but this is a minor concern — the current approach is correct, just slightly heavy.
+Extract the `allUserRoles` query into its own hook:
 
-## Recommended Next Fix
+```ts
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import type { UserRoleEntry } from './useRoleManagement';
 
-Focus on Issues 1-3 as they're quick wins with real impact:
+export function useAllUserRoles() {
+  const { data: allUserRoles, isLoading: isLoadingRoles } = useQuery({
+    queryKey: ['all-user-roles'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_all_user_roles');
+      if (error) throw error;
+      return data as UserRoleEntry[];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+  return { allUserRoles, isLoadingRoles };
+}
+```
 
-### File: `src/components/admin/UsersTable.tsx`
-- Change `useMemo` on line 93 to `useEffect` for page reset
-- Wrap `onSendEmail` callbacks in `useCallback`
-- Extract row rendering into a `React.memo` wrapped `UserTableRow` component
+### File 2: `src/components/admin/UsersTable.tsx`
 
-### Files: Badge/Toggle components
-- Wrap `BuyerTierBadge`, `BuyerScoreBadge`, `UserFirmBadge`, `DualFeeAgreementToggle`, `DualNDAToggle` exports in `React.memo`
+Replace `useRoleManagement` import with `useAllUserRoles`:
 
-## Expected Impact
+```ts
+// Before
+import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
+const { allUserRoles, isLoadingRoles } = useRoleManagement();
 
-| Improvement | Effect |
-|-------------|--------|
-| `useEffect` fix | Prevents potential render-loop bugs from state updates in `useMemo` |
-| `React.memo` on sub-components | Prevents ~300 unnecessary re-renders per interaction (50 rows × 6 components) |
-| `useCallback` for handlers | Enables `React.memo` to actually skip re-renders |
+// After
+import { useAllUserRoles } from '@/hooks/permissions/useAllUserRoles';
+const { allUserRoles, isLoadingRoles } = useAllUserRoles();
+```
+
+## Summary
+
+All 14 planned optimizations from the previous rounds are verified implemented. The one remaining issue is the unnecessary audit log fetch — a small but clean fix that eliminates 1 RPC call returning 100 rows on every table mount.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/admin/UsersTable.tsx` | Fix `useMemo`→`useEffect`, add `useCallback`, extract memoized row |
-| `src/components/admin/BuyerQualityBadges.tsx` | Wrap in `React.memo` |
-| `src/components/admin/UserFirmBadge.tsx` | Wrap in `React.memo` |
-| `src/components/admin/DualFeeAgreementToggle.tsx` | Wrap in `React.memo` |
-| `src/components/admin/DualNDAToggle.tsx` | Wrap in `React.memo` |
+| `src/hooks/permissions/useAllUserRoles.ts` | NEW — lightweight roles-only hook |
+| `src/components/admin/UsersTable.tsx` | Switch from `useRoleManagement` to `useAllUserRoles` |
 
