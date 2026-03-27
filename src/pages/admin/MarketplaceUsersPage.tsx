@@ -172,6 +172,16 @@ const MarketplaceUsersPage = () => {
                 Manage buyer registrations, approvals, and profile data
               </p>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkScoreUnscored}
+              disabled={isBulkScoring}
+              className="gap-2"
+            >
+              {isBulkScoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              Score All Unscored
+            </Button>
           </div>
         </div>
       </div>
