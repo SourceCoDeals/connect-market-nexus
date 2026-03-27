@@ -105,6 +105,38 @@ function useAllDocuments() {
   });
 }
 
+function DownloadOnDemandButton({ documentType }: { documentType: 'nda' | 'fee_agreement' }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-agreement-document', {
+        body: { documentType },
+      });
+      if (error) throw error;
+      if (data?.documentUrl) {
+        window.open(data.documentUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      console.error('Failed to fetch document:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleDownload} disabled={loading}>
+      {loading ? (
+        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+      ) : (
+        <FileDown className="h-3.5 w-3.5 mr-1.5" />
+      )}
+      Download
+    </Button>
+  );
+}
+
 export function ProfileDocuments() {
   const { data: documents, isLoading } = useAllDocuments();
   const [signingOpen, setSigningOpen] = useState(false);
