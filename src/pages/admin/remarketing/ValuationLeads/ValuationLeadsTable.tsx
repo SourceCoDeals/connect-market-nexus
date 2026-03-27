@@ -668,7 +668,7 @@ export function ValuationLeadsTable({
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => setArchiveTarget({ id: lead.id, name: lead.company_name || lead.first_name || 'Unknown Lead' })}
+                            onClick={() => setArchiveTarget({ id: lead.id, name: lead.business_name || lead.display_name || lead.full_name || 'Unknown Lead' })}
                           >
                             <Archive className="h-4 w-4 mr-2" />
                             Archive Deal

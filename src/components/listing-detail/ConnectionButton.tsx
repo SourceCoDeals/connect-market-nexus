@@ -207,7 +207,7 @@ const ConnectionButton = ({
           className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white font-medium text-[13px] tracking-[0.002em] shadow-sm hover:shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sourceco-accent/30 focus:ring-offset-2"
         >
           <Send className="h-3.5 w-3.5" />
-          {isRequesting ? 'Sending request...' : 'Explore other opportunities'}
+          {isRequesting ? 'Sending request...' : 'Request Again'}
         </Button>
 
         {showFeeGate && user && ndaStatus?.firmId && (
