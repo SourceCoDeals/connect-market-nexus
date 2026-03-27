@@ -240,6 +240,7 @@ const ListingCardActions = memo(function ListingCardActions({
         onSubmit={handleDialogSubmit}
         isSubmitting={isRequesting}
         listingTitle={listingTitle}
+        listingId={listingId}
       />
     </>
   );
