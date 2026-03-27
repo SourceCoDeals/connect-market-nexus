@@ -1,79 +1,59 @@
 
 
-# Audit: All Planned Fixes — Verified & Remaining Issues
+# Phase 1: Fix Build Errors + Connection Request Gate Bypass
 
-## Confirmed Implemented
+## Part A: Fix Build Errors (3 files)
 
-| Fix | Status | Evidence |
-|-----|--------|----------|
-| `useMemo` → `useEffect` for page reset | Done | Line 93: `useEffect` with proper deps |
-| `React.memo` on `BuyerTierBadge` | Done | Line 24: `React.memo(function BuyerTierBadge` |
-| `React.memo` on `BuyerTierBadgeFull` | Done | Line 59 |
-| `React.memo` on `BuyerScoreBadge` | Done | Line 79 |
-| `React.memo` on `UserFirmBadge` | Done | Line 14 |
-| `React.memo` on `DualFeeAgreementToggle` | Done | Line 18 |
-| `React.memo` on `DualNDAToggle` | Done | Line 18 |
-| Inline closures removed | Done | Lines 252/260 now use `setSelectedUserForEmail` directly |
-| Stable query key | Done | Line 27 of `use-bulk-user-firms.ts` |
-| Map-based role lookup | Done | Lines 70-80 of `UsersTable.tsx` |
-| `firmDataMap ?? new Map()` default | Done | Line 499 of `AdminUsers.tsx` |
-| `undefined` in UserFirmBadge | Done | Line 16 |
-| Removed `useEnhancedUserExport` | Done | Not in imports |
-| Removed `usePermissions` | Done | Not in imports |
+### 1. `src/pages/admin/deals/ArchivedDeals.tsx`
+The component queries tables that don't exist in the Supabase types:
+- Uses `'deals'` → should be `'deal_pipeline'`
+- Uses `'deal_pipeline_stages'` → should be `'deal_stages'`
+- Uses `archive_reason` on listings → column doesn't exist; remove or use `as unknown as ArchivedListing[]`
+- Uses `primary_owner` → should be `primary_owner_id`
 
-## Remaining Issue: `useRoleManagement()` fetches audit log unnecessarily
+**Fix**: Replace table names and cast queries appropriately. Remove `archive_reason` from the select and interface (or mark nullable with a fallback).
 
-`useRoleManagement()` (line 68 of `UsersTable.tsx`) always fetches **100 audit log rows** via `get_permission_audit_log` RPC. UsersTable never uses `auditLog` or `isLoadingAudit` — it only needs `allUserRoles` and `isLoadingRoles`. This is a wasted query on every table mount.
+### 2. `src/pages/admin/remarketing/ValuationLeads/ValuationLeadsTable.tsx` (line 671)
+Uses `lead.company_name` and `lead.first_name` — neither exists on `ValuationLead` type.
+- `company_name` → `business_name`
+- `first_name` → `display_name || full_name`
 
-### Fix
+**Fix**: Replace property references with correct field names.
 
-Split the hook: create a lightweight `useAllUserRoles()` that only fetches roles, and use it in `UsersTable` instead of `useRoleManagement()`. Keep `useRoleManagement` intact for the permissions management page where the audit log is actually needed.
+## Part B: Close Connection Request Gate Bypass
 
-### File 1: `src/hooks/permissions/useAllUserRoles.ts` (NEW)
+### 3. `src/components/listing/ListingCardActions.tsx`
+Currently has **zero** gates — no profile completeness check, no fee agreement check, no buyer type block. Users can bypass all gates from the marketplace grid.
 
-Extract the `allUserRoles` query into its own hook:
+**Fix**: Add new props for gating state and render appropriate blocking UI instead of the request button:
+- Add `isProfileComplete`, `profileCompletePct`, `isBuyerBlocked`, `isFeeCovered` props
+- When profile is incomplete: show "Complete Profile" message instead of request button
+- When buyer type is blocked: show "Seller Account" message
+- When fee not covered: trigger a callback instead of opening dialog
 
-```ts
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import type { UserRoleEntry } from './useRoleManagement';
+### 4. `src/components/ListingCard.tsx`
+Must compute and pass the new gating props to `ListingCardActions`:
+- Import `useAuth`, `isProfileComplete`, `getProfileCompletionPercentage`
+- Import `useMyAgreementStatus`
+- Pass computed values to ListingCardActions
 
-export function useAllUserRoles() {
-  const { data: allUserRoles, isLoading: isLoadingRoles } = useQuery({
-    queryKey: ['all-user-roles'],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_all_user_roles');
-      if (error) throw error;
-      return data as UserRoleEntry[];
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-  return { allUserRoles, isLoadingRoles };
-}
-```
+### 5. `src/pages/ListingDetail.tsx` (line 358)
+`isAdmin={false}` hardcoded → change to `isAdmin={isAdmin}` to use the computed value from line 52.
 
-### File 2: `src/components/admin/UsersTable.tsx`
+## Part C: Fix Rejected Request UX
 
-Replace `useRoleManagement` import with `useAllUserRoles`:
-
-```ts
-// Before
-import { useRoleManagement } from '@/hooks/permissions/useRoleManagement';
-const { allUserRoles, isLoadingRoles } = useRoleManagement();
-
-// After
-import { useAllUserRoles } from '@/hooks/permissions/useAllUserRoles';
-const { allUserRoles, isLoadingRoles } = useAllUserRoles();
-```
-
-## Summary
-
-All 14 planned optimizations from the previous rounds are verified implemented. The one remaining issue is the unnecessary audit log fetch — a small but clean fix that eliminates 1 RPC call returning 100 rows on every table mount.
+### 6. `src/components/listing-detail/ConnectionButton.tsx` (line 210)
+Button text says "Explore other opportunities" but submits a new request for the same listing.
+**Fix**: Change text to "Request Again" to match the actual action.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/hooks/permissions/useAllUserRoles.ts` | NEW — lightweight roles-only hook |
-| `src/components/admin/UsersTable.tsx` | Switch from `useRoleManagement` to `useAllUserRoles` |
+| `src/pages/admin/deals/ArchivedDeals.tsx` | Fix table names: `deals`→`deal_pipeline`, `deal_pipeline_stages`→`deal_stages`; remove `archive_reason`; fix `primary_owner`→`primary_owner_id` |
+| `src/pages/admin/remarketing/ValuationLeads/ValuationLeadsTable.tsx` | Fix `company_name`→`business_name`, `first_name`→`display_name \|\| full_name` |
+| `src/components/listing/ListingCardActions.tsx` | Add profile/fee/buyer-type gate props and blocking UI |
+| `src/components/ListingCard.tsx` | Compute and pass gating props to ListingCardActions |
+| `src/pages/ListingDetail.tsx` | Change `isAdmin={false}` to `isAdmin={isAdmin}` |
+| `src/components/listing-detail/ConnectionButton.tsx` | Fix rejected button text from "Explore other opportunities" to "Request Again" |
 
