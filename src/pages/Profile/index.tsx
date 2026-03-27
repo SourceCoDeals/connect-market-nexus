@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -30,7 +31,18 @@ const defaultPreferences: NotificationPreferences = {
   platformAnnouncements: true,
 };
 
+const VALID_TABS = ['profile', 'documents', 'deal-alerts', 'team', 'notifications', 'security'];
+
 const Profile = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = VALID_TABS.includes(searchParams.get('tab') || '') ? searchParams.get('tab')! : 'profile';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    setSearchParams(value === 'profile' ? {} : { tab: value }, { replace: true });
+  }, [setSearchParams]);
+
   const {
     user,
     isLoading,
@@ -87,7 +99,7 @@ const Profile = () => {
     <div className="container max-w-4xl py-8">
       <h1 className="text-3xl font-bold mb-6">My Profile</h1>
 
-      <Tabs defaultValue="profile" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="profile">Profile Information</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
@@ -225,8 +237,13 @@ const Profile = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
-                <Button onClick={handleSaveNotifications}>Save Preferences</Button>
+              <div className="space-y-2 pt-2">
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveNotifications}>Save Preferences</Button>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">
+                  Preferences are saved locally to this browser and may not affect all email notifications.
+                </p>
               </div>
             </CardContent>
           </Card>
