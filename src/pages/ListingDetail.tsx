@@ -162,7 +162,7 @@ const ListingDetail = () => {
       <NdaGateModal
         userId={user!.id}
         firmId={ndaStatus.firmId}
-        onSigned={() => setNdaGateDismissed(true)}
+        onSigned={() => {/* NDA signed — component will re-render with updated ndaStatus */}}
       />
     );
   }
