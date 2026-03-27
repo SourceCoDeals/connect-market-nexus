@@ -3,10 +3,10 @@
  * Quiet luxury palette: #0E101A, #DEC76B, #F0EDE6.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MessageSquare, Send } from 'lucide-react';
+import { MessageSquare, Send, ArrowDown } from 'lucide-react';
 import {
   useConnectionMessages,
   useSendMessage,
