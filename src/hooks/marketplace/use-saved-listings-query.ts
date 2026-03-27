@@ -39,7 +39,7 @@ export const useSavedListings = (filters: FilterOptions = {}) => {
       // Build the query for listings
       let query = supabase
         .from('listings')
-        .select(MARKETPLACE_SAFE_COLUMNS, { count: 'exact' })
+        .select(MARKETPLACE_SAFE_COLUMNS_STRING, { count: 'exact' })
         .in('id', listingIds)
         .eq('status', 'active')
         .is('deleted_at', null)
