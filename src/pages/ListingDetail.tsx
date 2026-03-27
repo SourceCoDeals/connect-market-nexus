@@ -355,7 +355,7 @@ const ListingDetail = () => {
                     connectionExists={connectionExists}
                     connectionStatus={connectionStatusValue}
                     isRequesting={isRequesting}
-                    isAdmin={false}
+                    isAdmin={isAdmin}
                     handleRequestConnection={handleRequestConnection}
                     listingTitle={listing.title}
                     listingId={id!}

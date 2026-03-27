@@ -53,9 +53,8 @@ interface ArchivedListing {
   title: string;
   internal_company_name: string | null;
   remarketing_status: string;
-  archive_reason: string | null;
   updated_at: string;
-  primary_owner: string | null;
+  primary_owner_id: string | null;
 }
 
 function useArchivedPipelineDeals() {
@@ -63,8 +62,8 @@ function useArchivedPipelineDeals() {
     queryKey: ['deals', 'archived'],
     queryFn: async () => {
       // Fetch archived deals with basic fields
-      const { data, error } = await supabase
-        .from('deals')
+      const { data, error } = await (supabase
+        .from('deal_pipeline') as any)
         .select('id, title, listing_id, deleted_at, metadata, assigned_to, stage_id')
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false });
@@ -88,11 +87,11 @@ function useArchivedPipelineDeals() {
       const stageIds = [...new Set(deals.map(d => d.stage_id).filter(Boolean))] as string[];
       const stageMap = new Map<string, string>();
       if (stageIds.length > 0) {
-        const { data: stages } = await supabase
-          .from('deal_pipeline_stages')
+        const { data: stages } = await (supabase
+          .from('deal_stages') as any)
           .select('id, name')
           .in('id', stageIds);
-        for (const s of stages || []) stageMap.set(s.id, s.name || '');
+        for (const s of (stages as any[]) || []) stageMap.set(s.id, s.name || '');
       }
 
       return deals.map((d) => ({
@@ -117,12 +116,12 @@ function useArchivedRemarketingDeals() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('listings')
-        .select('id, title, internal_company_name, remarketing_status, archive_reason, updated_at, primary_owner')
+        .select('id, title, internal_company_name, remarketing_status, updated_at, primary_owner_id')
         .eq('remarketing_status', 'archived')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as ArchivedListing[];
+      return (data || []) as unknown as ArchivedListing[];
     },
   });
 }
@@ -357,7 +356,7 @@ export default function ArchivedDeals() {
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground">
-                            {deal.archive_reason || 'No reason'}
+                            {'No reason'}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -366,7 +365,7 @@ export default function ArchivedDeals() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm">{getAdminName(deal.primary_owner) || '—'}</span>
+                          <span className="text-sm">{getAdminName(deal.primary_owner_id) || '—'}</span>
                         </TableCell>
                         <TableCell>
                           <Button

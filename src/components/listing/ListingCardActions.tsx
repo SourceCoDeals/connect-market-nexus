@@ -1,6 +1,7 @@
 import { useState, memo } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Bookmark, CheckCircle2, Clock, XCircle, Send, Eye } from "lucide-react";
+import { Bookmark, CheckCircle2, Clock, XCircle, Send, Eye, AlertCircle, ShieldX } from "lucide-react";
 import ConnectionRequestDialog from "@/components/connection/ConnectionRequestDialog";
 
 interface ListingCardActionsProps {
@@ -13,6 +14,12 @@ interface ListingCardActionsProps {
   handleRequestConnection: (message: string) => void;
   handleToggleSave: (e: React.MouseEvent) => void;
   listingTitle?: string;
+  // Gating props
+  isProfileComplete?: boolean;
+  profileCompletePct?: number;
+  isBuyerBlocked?: boolean;
+  isFeeCovered?: boolean;
+  onFeeGateOpen?: () => void;
 }
 
 const ListingCardActions = memo(function ListingCardActions({
@@ -24,7 +31,12 @@ const ListingCardActions = memo(function ListingCardActions({
   isSaving,
   handleRequestConnection,
   handleToggleSave,
-  listingTitle
+  listingTitle,
+  isProfileComplete = true,
+  profileCompletePct = 100,
+  isBuyerBlocked = false,
+  isFeeCovered = true,
+  onFeeGateOpen,
 }: ListingCardActionsProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -79,6 +91,19 @@ const ListingCardActions = memo(function ListingCardActions({
   const handleConnectionClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Gate: buyer type blocked
+    if (isBuyerBlocked) return;
+
+    // Gate: profile incomplete
+    if (!isProfileComplete) return;
+
+    // Gate: fee agreement not covered
+    if (!isFeeCovered) {
+      onFeeGateOpen?.();
+      return;
+    }
+
     if (!connectionDisabled || connectionStatus === "rejected") {
       setIsDialogOpen(true);
     }
@@ -88,6 +113,49 @@ const ListingCardActions = memo(function ListingCardActions({
     handleRequestConnection(message);
     setIsDialogOpen(false);
   };
+
+  // Buyer type blocked — show seller account message
+  if (isBuyerBlocked) {
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-muted/50 border border-border">
+          <ShieldX className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-[12px] text-muted-foreground">Seller accounts cannot request access</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Profile incomplete — show completion prompt
+  if (!isProfileComplete) {
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border">
+          <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <span className="text-[12px] text-muted-foreground">
+              Complete your profile to request access
+            </span>
+            <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-foreground/70 transition-all duration-300"
+                style={{ width: `${profileCompletePct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+        <Link to="/profile" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="outline"
+            size="sm"
+            className={`w-full ${viewType === 'list' ? 'h-8' : 'h-9'} text-[12px] font-medium`}
+          >
+            Complete Profile ({profileCompletePct}%)
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <>
