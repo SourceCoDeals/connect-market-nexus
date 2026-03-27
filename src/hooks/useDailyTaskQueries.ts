@@ -52,6 +52,18 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
         if (error) console.warn('mark_overdue_standup_tasks RPC failed:', error.message);
       });
 
+      // Wake snoozed tasks whose snoozed_until has passed (fire-and-forget;
+      // serves as a client-side fallback when pg_cron is not enabled)
+      supabase.rpc('wake_snoozed_tasks' as never).then(({ error }) => {
+        if (error) console.warn('wake_snoozed_tasks RPC failed:', error.message);
+      });
+
+      // Generate seller follow-up tasks for overdue cadence (fire-and-forget;
+      // client-side fallback for the daily pg_cron job)
+      supabase.rpc('generate_seller_follow_up_tasks' as never).then(({ error }) => {
+        if (error) console.warn('generate_seller_follow_up_tasks RPC failed:', error.message);
+      });
+
       // Try full select with all relation joins first
       let selectClause = FULL_SELECT;
       let retried = false;

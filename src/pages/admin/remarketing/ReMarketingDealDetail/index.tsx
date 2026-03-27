@@ -194,13 +194,9 @@ const ReMarketingDealDetail = () => {
             <Send className="mr-1.5 h-3.5 w-3.5" />
             Buyer Outreach
           </TabsTrigger>
-          <TabsTrigger value="listing-tasks" className="text-sm">
-            <ListChecks className="mr-1.5 h-3.5 w-3.5" />
-            Listing Tasks
-          </TabsTrigger>
           <TabsTrigger value="tasks" className="text-sm">
             <ListChecks className="mr-1.5 h-3.5 w-3.5" />
-            Deal Tasks
+            Tasks
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -260,10 +256,6 @@ const ReMarketingDealDetail = () => {
 
         <TabsContent value="buyer-outreach" className="space-y-6">
           <BuyerOutreachTab dealId={dealId!} dealName={displayName} />
-        </TabsContent>
-
-        <TabsContent value="listing-tasks" className="space-y-6">
-          <EntityTasksTab entityType="listing" entityId={dealId!} entityName={displayName} />
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-6">

@@ -207,7 +207,9 @@ export function useApplyTaskTemplate() {
           task_type: task.task_type,
           due_date: dueDate,
           assignee_id: assigneeId,
-          entity_type: 'listing' as TaskEntityType,
+          // Use 'deal' to match migration 20260510 which standardized all
+          // entity_type='listing' to 'deal' — keeps templates visible on the Deal Tasks tab
+          entity_type: 'deal' as TaskEntityType,
           entity_id: listingId,
           source: 'template',
           priority: 'medium',
@@ -327,25 +329,11 @@ export function useAddEntityTask() {
       // Send notification if task is assigned to someone else
       if (task.assignee_id && task.assignee_id !== user?.id) {
         try {
-          const [{ data: assigneeProfile }, { data: assignerProfile }, { data: dealData }] =
-            await Promise.all([
-              supabase
-                .from('profiles')
-                .select('id, email, first_name, last_name')
-                .eq('id', task.assignee_id)
-                .single(),
-              supabase
-                .from('profiles')
-                .select('first_name, last_name')
-                .eq('id', user?.id ?? '')
-                .single(),
-              task.entity_type === 'deal'
-                ? supabase.from('deal_pipeline').select('title').eq('id', task.entity_id).single()
-                : Promise.resolve({ data: null }),
-            ]);
+          const { data: dealData } = task.entity_type === 'deal'
+            ? await supabase.from('deal_pipeline').select('title').eq('id', task.entity_id).single()
+            : { data: null };
 
-          if (assigneeProfile?.email) {
-            // Create admin notification
+          {
             await supabase.from('admin_notifications').insert({
               admin_id: task.assignee_id,
               notification_type: 'task_assigned',
@@ -365,24 +353,6 @@ export function useAddEntityTask() {
               },
             });
 
-            // Send email notification
-            await supabase.functions.invoke('send-task-notification-email', {
-              body: {
-                assignee_email: assigneeProfile.email,
-                assignee_name:
-                  `${assigneeProfile.first_name} ${assigneeProfile.last_name}`.trim() ||
-                  assigneeProfile.email,
-                assigner_name: assignerProfile
-                  ? `${assignerProfile.first_name} ${assignerProfile.last_name}`.trim()
-                  : 'Admin',
-                task_title: task.title,
-                task_description: task.description,
-                task_priority: task.priority || 'medium',
-                task_due_date: task.due_date,
-                title: dealData?.title || task.deal_reference || 'Task',
-                deal_id: task.entity_type === 'deal' ? task.entity_id : undefined,
-              },
-            });
           }
         } catch (notifError) {
           // Don't fail task creation if notification fails
