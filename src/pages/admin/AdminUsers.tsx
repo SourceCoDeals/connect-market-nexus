@@ -60,6 +60,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast as toastDirect } from '@/hooks/use-toast';
 import { invokeEdgeFunction } from '@/lib/invoke-edge-function';
 import { useQuery } from '@tanstack/react-query';
+import { useBulkUserFirms } from '@/hooks/admin/use-bulk-user-firms';
 
 type PrimaryView = 'buyers' | 'owners';
 type SecondaryView = 'marketplace' | 'non-marketplace';
