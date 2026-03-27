@@ -1,7 +1,7 @@
 import { useSimilarListings } from '@/hooks/use-similar-listings';
 import { Listing } from '@/types';
 import { Link } from 'react-router-dom';
-import { formatCurrency } from '@/lib/currency-utils';
+import { getListingImage } from '@/lib/listing-image-utils';
 import { getListingImage } from '@/lib/listing-image-utils';
 import { stateToRegion } from '@/lib/deal-to-listing-anonymizer';
 import {
@@ -50,12 +50,6 @@ export function SimilarListingsCarousel({ currentListing }: SimilarListingsCarou
         <CarouselContent className="-ml-3">
           {similarListings.map((listing) => {
             const image = getListingImage(listing.image_url ?? null, listing.category);
-            const ebitdaMargin = listing.revenue > 0 
-              ? ((Number(listing.ebitda) / Number(listing.revenue)) * 100).toFixed(1)
-              : '0.0';
-            const ebitdaMultiple = listing.ebitda > 0
-              ? (Number(listing.revenue) / Number(listing.ebitda)).toFixed(1)
-              : '0.0';
 
             return (
               <CarouselItem key={listing.id} className="pl-3 md:basis-1/2 lg:basis-1/3">
