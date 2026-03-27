@@ -166,12 +166,14 @@ const ListingCardActions = memo(function ListingCardActions({
         {/* Approved State - Dark "View Deal Details" primary */}
         {connectionExists && connectionStatus === "approved" ? (
           <>
-            <Button
-              className={`w-full ${viewType === 'list' ? 'h-8' : 'h-10'} px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200`}
-            >
-              <Eye className="h-3.5 w-3.5 mr-2" />
-              <span>View Deal Details</span>
-            </Button>
+            <Link to={listingId ? `/listing/${listingId}` : '#'} onClick={(e) => e.stopPropagation()}>
+              <Button
+                className={`w-full ${viewType === 'list' ? 'h-8' : 'h-10'} px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200`}
+              >
+                <Eye className="h-3.5 w-3.5 mr-2" />
+                <span>View Deal Details</span>
+              </Button>
+            </Link>
             
             <Button
               variant="ghost"
