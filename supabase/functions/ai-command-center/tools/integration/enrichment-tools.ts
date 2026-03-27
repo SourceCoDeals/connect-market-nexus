@@ -397,7 +397,7 @@ export async function enrichBuyerContacts(
         search_query: cacheKey,
       })),
     // Contacts with Prospeo email
-    ...prospeoEnriched.map(
+    ...(prospeoEnriched as Array<Record<string, unknown>>).map(
       (e: {
         first_name?: string;
         last_name?: string;
@@ -1661,7 +1661,7 @@ export async function findDecisionMakers(
   // deno-lint-ignore no-explicit-any
   const prospeoByLinkedIn = new Map<string, any>();
   // deno-lint-ignore no-explicit-any
-  for (const e of prospeoEnrichedContacts) {
+  for (const e of prospeoEnrichedContacts as any[]) {
     if (e.linkedin_url) {
       prospeoByLinkedIn.set(e.linkedin_url.toLowerCase(), e);
     }
