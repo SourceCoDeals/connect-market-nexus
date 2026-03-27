@@ -45,6 +45,7 @@ const MarketplaceContent = () => {
   const { user, authChecked } = useAuth();
   const isMobile = useIsMobile();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
   const { listingsConnected } = useRealtime();
 
   const pagination = useSimplePagination();
