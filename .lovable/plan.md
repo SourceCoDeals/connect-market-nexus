@@ -1,59 +1,70 @@
 
 
-# Phase 1: Fix Build Errors + Connection Request Gate Bypass
+# Phase 2: Connection Request System — Remaining Fixes & Hardening
 
-## Part A: Fix Build Errors (3 files)
+## What's Already Done (Phase 1 — Verified)
 
-### 1. `src/pages/admin/deals/ArchivedDeals.tsx`
-The component queries tables that don't exist in the Supabase types:
-- Uses `'deals'` → should be `'deal_pipeline'`
-- Uses `'deal_pipeline_stages'` → should be `'deal_stages'`
-- Uses `archive_reason` on listings → column doesn't exist; remove or use `as unknown as ArchivedListing[]`
-- Uses `primary_owner` → should be `primary_owner_id`
+All 6 fixes from Phase 1 are confirmed implemented:
+- ListingCardActions now has profile completeness, buyer type, and fee agreement gates
+- ListingCard computes and passes gating props
+- ListingDetail passes actual `isAdmin` value
+- ConnectionButton shows "Request Again" for rejected requests
+- ArchivedDeals and ValuationLeadsTable build errors fixed
 
-**Fix**: Replace table names and cast queries appropriately. Remove `archive_reason` from the select and interface (or mark nullable with a fallback).
+## Remaining Issues to Fix
 
-### 2. `src/pages/admin/remarketing/ValuationLeads/ValuationLeadsTable.tsx` (line 671)
-Uses `lead.company_name` and `lead.first_name` — neither exists on `ValuationLead` type.
-- `company_name` → `business_name`
-- `first_name` → `display_name || full_name`
+### Issue 1: FeeAgreementGate silent skip when user has no firm
 
-**Fix**: Replace property references with correct field names.
+**Problem**: In `ConnectionButton.tsx` (lines 213 and 249), the FeeAgreementGate only renders when `ndaStatus?.firmId` exists. If a user has no firm resolved (new user, generic email domain), `showFeeGate` becomes true but the component never mounts. The dialog just... doesn't open. The user clicks and nothing happens — no error, no feedback.
 
-## Part B: Close Connection Request Gate Bypass
+**Fix**: When `showFeeGate` is true but `firmId` is null, show an inline message telling the user to contact support or complete their company info, instead of silently failing. Add a fallback branch:
 
-### 3. `src/components/listing/ListingCardActions.tsx`
-Currently has **zero** gates — no profile completeness check, no fee agreement check, no buyer type block. Users can bypass all gates from the marketplace grid.
+```
+if (showFeeGate && (!ndaStatus?.firmId)) → show "Contact support to set up your fee agreement"
+```
 
-**Fix**: Add new props for gating state and render appropriate blocking UI instead of the request button:
-- Add `isProfileComplete`, `profileCompletePct`, `isBuyerBlocked`, `isFeeCovered` props
-- When profile is incomplete: show "Complete Profile" message instead of request button
-- When buyer type is blocked: show "Seller Account" message
-- When fee not covered: trigger a callback instead of opening dialog
+**File**: `src/components/listing-detail/ConnectionButton.tsx` — add fallback UI in both render locations (lines 213 and 249)
 
-### 4. `src/components/ListingCard.tsx`
-Must compute and pass the new gating props to `ListingCardActions`:
-- Import `useAuth`, `isProfileComplete`, `getProfileCompletionPercentage`
-- Import `useMyAgreementStatus`
-- Pass computed values to ListingCardActions
+### Issue 2: NDA gate is dismissible — user can browse confidential info
 
-### 5. `src/pages/ListingDetail.tsx` (line 358)
-`isAdmin={false}` hardcoded → change to `isAdmin={isAdmin}` to use the computed value from line 52.
+**Problem**: `ListingDetail.tsx` line 57 has `ndaGateDismissed` state that lets users close the NDA gate and view deal details without signing. The "Back to listings" button in `NdaGateModal` navigates away (good), but there's no dismiss callback being passed — the `ndaGateDismissed` state must be set somewhere else or via browser back.
 
-## Part C: Fix Rejected Request UX
+**Investigation**: Looking at `NdaGateModal.tsx`, it has no dismiss/close button except "Back to listings". The `ndaGateDismissed` state in `ListingDetail.tsx` is initialized to `false` and never set to `true` anywhere in the visible code. This means the gate is NOT actually dismissible — `ndaGateDismissed` is dead code. No fix needed, but should clean up the unused state.
 
-### 6. `src/components/listing-detail/ConnectionButton.tsx` (line 210)
-Button text says "Explore other opportunities" but submits a new request for the same listing.
-**Fix**: Change text to "Request Again" to match the actual action.
+**Fix**: Remove `ndaGateDismissed` state variable and simplify `showNdaGate` condition.
 
-## Files Changed
+**File**: `src/pages/ListingDetail.tsx`
+
+### Issue 3: ListingCardActions "View Deal Details" button doesn't navigate
+
+**Problem**: The "View Deal Details" button for approved connections (line 167-172) has no `onClick` handler and no `Link` wrapper. It renders as a button that does nothing when clicked.
+
+**Fix**: Wrap it in a `Link` to `/listing/{id}` or add an `onClick` that navigates. The component needs the listing ID as a prop.
+
+**File**: `src/components/listing/ListingCardActions.tsx` — add `listingId` prop and wrap approved button in navigation
+
+### Issue 4: No rate limiting on connection requests from ListingCard
+
+**Problem**: The `use-connections.ts` mutation has no rate limiting. Users could spam-click the request button. The RPC deduplicates (merges), but each click still fires a full mutation with email notifications and quality scoring.
+
+**Fix**: Add the existing `createDebouncedSubmission` wrapper from `src/lib/rate-limiter.ts` to the request mutation, or add a simple guard in ListingCard/ConnectionButton that disables the button for 3 seconds after submission.
+
+**Files**: `src/components/listing/ListingCardActions.tsx` and `src/components/listing-detail/ConnectionButton.tsx` — the `isRequesting` state already disables during mutation, so this is partially handled. The real gap is rapid re-clicks before the mutation starts. Add `isPending` check — already done via React Query's `isPending`. This is actually fine. No change needed.
+
+### Issue 5: ConnectionRequestDialog missing `listingId` from ListingCardActions
+
+**Problem**: `ListingCardActions.tsx` line 233-239 passes `listingTitle` to `ConnectionRequestDialog` but NOT `listingId`. Without `listingId`, the AI draft button (`handleAIDraft` in the dialog) won't work — it returns early on line 61: `if (!listingId) return`.
+
+**Fix**: Add `listingId` prop to `ListingCardActions` and pass it through to `ConnectionRequestDialog`.
+
+**Files**: `src/components/listing/ListingCardActions.tsx` (add prop), `src/components/ListingCard.tsx` (pass `listing.id`)
+
+## Summary of Changes
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/deals/ArchivedDeals.tsx` | Fix table names: `deals`→`deal_pipeline`, `deal_pipeline_stages`→`deal_stages`; remove `archive_reason`; fix `primary_owner`→`primary_owner_id` |
-| `src/pages/admin/remarketing/ValuationLeads/ValuationLeadsTable.tsx` | Fix `company_name`→`business_name`, `first_name`→`display_name \|\| full_name` |
-| `src/components/listing/ListingCardActions.tsx` | Add profile/fee/buyer-type gate props and blocking UI |
-| `src/components/ListingCard.tsx` | Compute and pass gating props to ListingCardActions |
-| `src/pages/ListingDetail.tsx` | Change `isAdmin={false}` to `isAdmin={isAdmin}` |
-| `src/components/listing-detail/ConnectionButton.tsx` | Fix rejected button text from "Explore other opportunities" to "Request Again" |
+| `src/components/listing-detail/ConnectionButton.tsx` | Add fallback UI when fee gate triggers but no firmId exists |
+| `src/pages/ListingDetail.tsx` | Remove dead `ndaGateDismissed` state |
+| `src/components/listing/ListingCardActions.tsx` | Add `listingId` prop; pass to dialog; make "View Deal Details" navigate |
+| `src/components/ListingCard.tsx` | Pass `listing.id` as `listingId` to ListingCardActions |
 
