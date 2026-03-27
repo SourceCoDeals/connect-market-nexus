@@ -396,8 +396,8 @@ export function useReassignTask() {
                 task_description: task.description,
                 task_priority: task.priority || 'medium',
                 task_due_date: task.due_date,
-                title: dealData?.title || 'Task',
-                deal_id: task.entity_type === 'deal' ? task.entity_id : undefined,
+                deal_title: dealData?.title || 'Task',
+                deal_id: task.entity_type === 'deal' ? task.entity_id : '',
               },
             });
           }
@@ -540,7 +540,8 @@ export function useAddManualTask() {
                 task_description: task.description,
                 task_priority: 'medium',
                 task_due_date: task.due_date,
-                title: task.deal_reference || 'Task',
+                deal_title: task.deal_reference || 'Task',
+                deal_id: '',
               },
             });
           }

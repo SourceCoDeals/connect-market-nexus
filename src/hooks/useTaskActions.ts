@@ -381,8 +381,8 @@ export function useAddEntityTask() {
                 task_description: task.description,
                 task_priority: task.priority || 'medium',
                 task_due_date: task.due_date,
-                title: dealData?.title || task.deal_reference || 'Task',
-                deal_id: task.entity_type === 'deal' ? task.entity_id : undefined,
+                deal_title: dealData?.title || task.deal_reference || 'Task',
+                deal_id: task.entity_type === 'deal' ? task.entity_id : '',
               },
             });
           }
