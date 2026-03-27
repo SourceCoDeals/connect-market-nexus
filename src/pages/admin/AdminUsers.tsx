@@ -1,4 +1,4 @@
-import { useState, useEffect, Component, type ErrorInfo, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, Component, type ErrorInfo, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAdmin } from '@/hooks/use-admin';
 import {
