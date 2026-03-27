@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { parseCurrency } from '@/lib/currency-utils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Save, Target, ExternalLink } from 'lucide-react';
+import { Loader2, Save, Target, ExternalLink, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { usePublishListing } from '@/hooks/admin/listings/use-publish-listing';
+import { Badge } from '@/components/ui/badge';
 
 // Import section components
 import { EditorFinancialCard } from './editor-sections/EditorFinancialCard';
@@ -209,6 +211,65 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     custom_sections: listing?.custom_sections || null,
   };
 };
+
+/** Inline publish status banner for the editor */
+function PublishStatusBanner({ listing }: { listing: AdminListing }) {
+  const { publishListing, unpublishListing, isPublishing } = usePublishListing();
+  const isPublished = listing.is_internal_deal === false && listing.published_at;
+
+  if (isPublished) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
+          <div>
+            <span className="text-sm font-medium text-green-800">Published on Marketplace</span>
+            {listing.published_at && (
+              <span className="ml-2 text-xs text-green-600">
+                since {new Date(listing.published_at).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => unpublishListing(listing.id)}
+          disabled={isPublishing}
+          className="text-amber-600 border-amber-200 hover:bg-amber-50"
+        >
+          {isPublishing ? 'Processing...' : 'Unpublish'}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0" />
+        <div>
+          <span className="text-sm font-medium text-amber-800">
+            {listing.is_internal_deal === false ? 'Unpublished Draft' : 'Internal Deal'}
+          </span>
+          <Badge variant="secondary" className="ml-2 text-xs">Not Live</Badge>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="default"
+        size="sm"
+        onClick={() => publishListing(listing.id)}
+        disabled={isPublishing}
+        className="gap-1.5"
+      >
+        <Globe className="h-3.5 w-3.5" />
+        {isPublishing ? 'Publishing...' : 'Publish to Marketplace'}
+      </Button>
+    </div>
+  );
+}
 
 export function ImprovedListingEditor({
   onSubmit,
@@ -467,6 +528,13 @@ export function ImprovedListingEditor({
                 <Target className="h-4 w-4 shrink-0" />
                 This listing will be created as a draft. Use the Publish button on the card to make
                 it live on the marketplace.
+              </div>
+            )}
+
+            {/* Publish Status Banner */}
+            {listing?.id && (
+              <div className="mb-6">
+                <PublishStatusBanner listing={listing} />
               </div>
             )}
 

@@ -35,7 +35,7 @@ import {
 interface AdminListingCardProps {
   listing: AdminListing;
   viewMode: 'grid' | 'table';
-  listingType?: 'marketplace' | 'research';
+  listingType?: 'marketplace' | 'research' | 'all';
   isSelected: boolean;
   onSelect: (selected: boolean) => void;
   onEdit: () => void;
