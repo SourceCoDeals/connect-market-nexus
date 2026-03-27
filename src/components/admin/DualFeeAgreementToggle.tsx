@@ -251,4 +251,4 @@ export const DualFeeAgreementToggle = React.memo(function DualFeeAgreementToggle
       )}
     </div>
   );
-}
+});
