@@ -43,7 +43,8 @@ import { CreateDealAlertDialog } from '@/components/deal-alerts/CreateDealAlertD
 
 const MarketplaceContent = () => {
   const { user, authChecked } = useAuth();
-  const { shouldShowOnboarding, completeOnboarding } = useOnboarding();
+  const isMobile = useIsMobile();
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const { listingsConnected } = useRealtime();
 
   const pagination = useSimplePagination();
