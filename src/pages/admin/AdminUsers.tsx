@@ -139,6 +139,11 @@ const AdminUsers = () => {
   });
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [isBulkScoring, setIsBulkScoring] = useState(false);
+
+  // Batch-fetch all firm data in ONE query instead of per-row
+  const userIds = useMemo(() => usersData.map((u) => u.id), [usersData]);
+  const { data: firmDataMap } = useBulkUserFirms(userIds);
+
   const [filteredOwnerLeads, setFilteredOwnerLeads] = useState<OwnerLead[]>([]);
   const { markAsViewed: markUsersAsViewed } = useMarkUsersViewed();
   const { markAsViewed: markOwnerLeadsAsViewed } = useMarkOwnerLeadsViewed();
