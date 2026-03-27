@@ -46,17 +46,18 @@ export function useListingsByType(
             )
             .is('deleted_at', null);
 
-          // Filter by listing type with different image conditions
+          // Filter by listing type
           if (type === 'marketplace') {
             // Marketplace: public-facing with images
             query = query
               .eq('is_internal_deal', false)
               .not('image_url', 'is', null)
               .neq('image_url', '');
-          } else {
+          } else if (type === 'research') {
             // Research: internal deals without images (remarketing deals)
             query = query.eq('is_internal_deal', true);
           }
+          // type === 'all': no additional filter — show everything
 
           // Apply status filter if provided
           if (status && status !== 'all') {
