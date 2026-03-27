@@ -136,6 +136,7 @@ const AdminUsers = () => {
     staleTime: 60_000,
   });
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [isBulkScoring, setIsBulkScoring] = useState(false);
   const [filteredOwnerLeads, setFilteredOwnerLeads] = useState<OwnerLead[]>([]);
   const { markAsViewed: markUsersAsViewed } = useMarkUsersViewed();
   const { markAsViewed: markOwnerLeadsAsViewed } = useMarkOwnerLeadsViewed();
