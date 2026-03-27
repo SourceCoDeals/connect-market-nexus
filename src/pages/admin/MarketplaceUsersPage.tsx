@@ -1,7 +1,7 @@
-import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import { useState, useEffect, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdmin } from '@/hooks/use-admin';
-import { AlertCircle, RefreshCw, Loader2, Users } from 'lucide-react';
+import { AlertCircle, RefreshCw, Loader2, Users, Zap } from 'lucide-react';
 import { UsersTable } from '@/components/admin/UsersTable';
 import { MobileUsersTable } from '@/components/admin/MobileUsersTable';
 import { User } from '@/types';
