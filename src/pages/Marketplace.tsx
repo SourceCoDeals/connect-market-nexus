@@ -8,8 +8,10 @@ import OnboardingPopup from '@/components/onboarding/OnboardingPopup';
 import { SearchSessionProvider } from '@/contexts/SearchSessionContext';
 import { useSearchSession } from '@/hooks/use-search-session';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
-import { LayoutGrid, LayoutList } from 'lucide-react';
+import { LayoutGrid, LayoutList, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { useAllSavedListingIds } from '@/hooks/marketplace/use-saved-listings';
