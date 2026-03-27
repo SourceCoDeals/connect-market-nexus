@@ -14,6 +14,7 @@ interface ListingCardActionsProps {
   handleRequestConnection: (message: string) => void;
   handleToggleSave: (e: React.MouseEvent) => void;
   listingTitle?: string;
+  listingId?: string;
   // Gating props
   isProfileComplete?: boolean;
   profileCompletePct?: number;
@@ -32,6 +33,7 @@ const ListingCardActions = memo(function ListingCardActions({
   handleRequestConnection,
   handleToggleSave,
   listingTitle,
+  listingId,
   isProfileComplete = true,
   profileCompletePct = 100,
   isBuyerBlocked = false,
@@ -164,12 +166,14 @@ const ListingCardActions = memo(function ListingCardActions({
         {/* Approved State - Dark "View Deal Details" primary */}
         {connectionExists && connectionStatus === "approved" ? (
           <>
-            <Button
-              className={`w-full ${viewType === 'list' ? 'h-8' : 'h-10'} px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200`}
-            >
-              <Eye className="h-3.5 w-3.5 mr-2" />
-              <span>View Deal Details</span>
-            </Button>
+            <Link to={listingId ? `/listing/${listingId}` : '#'} onClick={(e) => e.stopPropagation()}>
+              <Button
+                className={`w-full ${viewType === 'list' ? 'h-8' : 'h-10'} px-4 text-[13px] font-semibold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-sm hover:shadow transition-all duration-200`}
+              >
+                <Eye className="h-3.5 w-3.5 mr-2" />
+                <span>View Deal Details</span>
+              </Button>
+            </Link>
             
             <Button
               variant="ghost"
@@ -236,6 +240,7 @@ const ListingCardActions = memo(function ListingCardActions({
         onSubmit={handleDialogSubmit}
         isSubmitting={isRequesting}
         listingTitle={listingTitle}
+        listingId={listingId}
       />
     </>
   );

@@ -206,6 +206,7 @@ const ListingCard = memo(function ListingCard({
                   handleToggleSave={handleToggleSave}
                   handleRequestConnection={handleRequestConnection}
                   listingTitle={listing.title}
+                  listingId={listing.id}
                   isProfileComplete={profileComplete}
                   profileCompletePct={profilePct}
                   isBuyerBlocked={buyerBlocked}
