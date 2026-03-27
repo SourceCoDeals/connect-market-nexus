@@ -181,7 +181,7 @@ async function fetchDealContext(
     console.error(`[recommended-buyer-tools] Deal fetch failed: ${error.message}`);
     return null;
   }
-  return data;
+  return data as Record<string, unknown>;
 }
 
 // ---------- Implementation: get_recommended_buyers ----------
