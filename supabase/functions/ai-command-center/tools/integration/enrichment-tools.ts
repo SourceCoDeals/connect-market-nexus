@@ -397,7 +397,8 @@ export async function enrichBuyerContacts(
         search_query: cacheKey,
       })),
     // Contacts with Prospeo email
-    ...(prospeoEnriched as Array<Record<string, unknown>>).map(
+    // deno-lint-ignore no-explicit-any
+    ...(prospeoEnriched as any[]).map(
       (e: {
         first_name?: string;
         last_name?: string;
