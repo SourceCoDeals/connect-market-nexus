@@ -51,7 +51,7 @@ export function useSessionHeartbeat(userId?: string | null) {
 
   useEffect(() => {
     // Delay first heartbeat to let the JWT settle after login/refresh
-    const initialTimer = setTimeout(() => {
+    const delayTimer = setTimeout(() => {
       sendHeartbeat();
     }, 3000);
 
