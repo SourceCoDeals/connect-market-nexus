@@ -49,6 +49,7 @@ import {
 } from '@/components/remarketing';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
+import { ArchiveDealDialog } from '@/components/admin/deals/ArchiveDealDialog';
 
 // Local hooks & types
 import { useCapTargetData } from './useCapTargetData';
@@ -349,6 +350,12 @@ export default function CapTargetDeals() {
         onOpenChange={actions.setAddToListOpen}
         selectedDeals={data.selectedDealsForList}
         entityType="captarget_deal"
+      />
+      <ArchiveDealDialog
+        open={!!actions.archiveTarget}
+        onOpenChange={(open) => { if (!open) actions.setArchiveTarget(null); }}
+        deal={actions.archiveTarget ? { id: actions.archiveTarget.id, name: actions.archiveTarget.name } : null}
+        onConfirmArchive={actions.confirmArchiveDeal}
       />
 
       {/* Active / Inactive Tabs */}

@@ -67,6 +67,7 @@ interface GPPartnerTableProps {
   setAddDealOpen: (open: boolean) => void;
   setCsvUploadOpen: (open: boolean) => void;
   onMarkNotFit?: (dealId: string) => void;
+  onArchiveDeal?: (dealId: string, dealName: string) => void;
 }
 
 export function GPPartnerTable({
@@ -86,6 +87,7 @@ export function GPPartnerTable({
   setAddDealOpen,
   setCsvUploadOpen,
   onMarkNotFit,
+  onArchiveDeal,
 }: GPPartnerTableProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -388,6 +390,7 @@ export function GPPartnerTable({
                         queryClient={queryClient}
                         toast={toast}
                         onMarkNotFit={onMarkNotFit}
+                        onArchiveDeal={onArchiveDeal}
                       />
                     </TableCell>
                   </TableRow>
@@ -409,6 +412,7 @@ function DealRowActions({
   queryClient,
   toast,
   onMarkNotFit,
+  onArchiveDeal,
 }: {
   deal: GPPartnerDeal;
   navigate: (path: string, opts?: { state?: Record<string, unknown> }) => void;
@@ -417,6 +421,7 @@ function DealRowActions({
   queryClient: ReturnType<typeof useQueryClient>;
   toast: ReturnType<typeof useToast>['toast'];
   onMarkNotFit?: (dealId: string) => void;
+  onArchiveDeal?: (dealId: string, dealName: string) => void;
 }) {
   return (
     <DropdownMenu>
@@ -538,21 +543,7 @@ function DealRowActions({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-amber-600 focus:text-amber-600"
-          onClick={async () => {
-            const { error } = await supabase
-              .from('listings')
-              .update({ remarketing_status: 'archived' } as never)
-              .eq('id', deal.id);
-            if (error) {
-              toast({ title: 'Error', description: error.message, variant: 'destructive' });
-            } else {
-              toast({
-                title: 'Deal archived (remarketing)',
-                description: 'Deal has been archived in remarketing. Marketplace status unchanged.',
-              });
-              queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
-            }
-          }}
+          onClick={() => onArchiveDeal?.(deal.id, deal.internal_company_name || deal.title || 'Unknown Deal')}
         >
           <Archive className="h-4 w-4 mr-2" />
           Archive Deal

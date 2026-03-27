@@ -24,14 +24,12 @@ import { Switch } from '@/components/ui/switch';
 import { Archive, CalendarIcon, ClipboardList } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useSoftDeleteDeal } from '@/hooks/admin/use-deals';
 import { useAddEntityTask } from '@/hooks/useTaskActions';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Deal } from '@/hooks/admin/use-deals';
 import type { TaskType } from '@/types/daily-tasks';
 
-const ARCHIVE_REASONS = [
+export const ARCHIVE_REASONS = [
   'Not Interested',
   'Hired a Banker/Broker',
   'Not the Right Time',
@@ -39,7 +37,7 @@ const ARCHIVE_REASONS = [
   'Other',
 ] as const;
 
-type ArchiveReason = (typeof ARCHIVE_REASONS)[number];
+export type ArchiveReason = (typeof ARCHIVE_REASONS)[number];
 
 const FOLLOW_UP_TASK_TYPES: { value: TaskType; label: string }[] = [
   { value: 'follow_up_with_buyer', label: 'Follow Up' },
@@ -57,14 +55,32 @@ const FOLLOW_UP_PRESETS = [
   { label: '6 months', days: 180 },
 ] as const;
 
+/** Minimal deal info needed by the dialog */
+export interface ArchiveDealInfo {
+  id: string;
+  name: string;
+  listingTitle?: string;
+  contactName?: string;
+  stageName?: string;
+  assignedTo?: string;
+}
+
 interface ArchiveDealDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  deal: Deal | null;
-  onArchived?: () => void;
+  deal: ArchiveDealInfo | null;
+  /** Called with the full reason string. The parent performs the actual archive. */
+  onConfirmArchive: (reason: string) => Promise<void>;
+  isPending?: boolean;
 }
 
-export function ArchiveDealDialog({ open, onOpenChange, deal, onArchived }: ArchiveDealDialogProps) {
+export function ArchiveDealDialog({
+  open,
+  onOpenChange,
+  deal,
+  onConfirmArchive,
+  isPending: externalPending,
+}: ArchiveDealDialogProps) {
   const { user } = useAuth();
   const [reason, setReason] = useState<ArchiveReason | ''>('');
   const [notes, setNotes] = useState('');
@@ -74,8 +90,8 @@ export function ArchiveDealDialog({ open, onOpenChange, deal, onArchived }: Arch
   const [followUpTaskType, setFollowUpTaskType] = useState<TaskType>('follow_up_with_buyer');
   const [followUpAssignee, setFollowUpAssignee] = useState<string>('');
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
-  const softDeleteMutation = useSoftDeleteDeal();
   const addTaskMutation = useAddEntityTask();
   const { data: adminProfiles } = useAdminProfiles();
 
@@ -89,10 +105,11 @@ export function ArchiveDealDialog({ open, onOpenChange, deal, onArchived }: Arch
       setFollowUpDate(undefined);
       setFollowUpTaskType('follow_up_with_buyer');
       setFollowUpAssignee('');
+      setIsArchiving(false);
     } else if (deal) {
       // Pre-fill follow-up title and assignee when dialog opens
-      setFollowUpTitle(`Follow up: ${deal.title}`);
-      setFollowUpAssignee(deal.assigned_to || user?.id || '');
+      setFollowUpTitle(`Follow up: ${deal.name}`);
+      setFollowUpAssignee(deal.assignedTo || user?.id || '');
     }
   }, [open, deal, user?.id]);
 
@@ -103,33 +120,34 @@ export function ArchiveDealDialog({ open, onOpenChange, deal, onArchived }: Arch
       ? `Other: ${notes.trim()}`
       : reason + (notes.trim() ? ` — ${notes.trim()}` : '');
 
-    // Archive the deal
-    await softDeleteMutation.mutateAsync({
-      dealId: deal.deal_id,
-      reason: fullReason,
-    });
+    setIsArchiving(true);
+    try {
+      // Let the parent perform the actual archive
+      await onConfirmArchive(fullReason);
 
-    // Create follow-up task if enabled
-    if (addFollowUp && followUpDate && followUpTitle.trim()) {
-      await addTaskMutation.mutateAsync({
-        title: followUpTitle.trim(),
-        description: `Archived deal follow-up. Reason: ${fullReason}`,
-        assignee_id: followUpAssignee || null,
-        task_type: followUpTaskType,
-        due_date: format(followUpDate, 'yyyy-MM-dd'),
-        priority: 'medium',
-        entity_type: 'deal',
-        entity_id: deal.deal_id,
-        deal_id: deal.deal_id,
-        deal_reference: deal.title,
-      });
+      // Create follow-up task if enabled
+      if (addFollowUp && followUpDate && followUpTitle.trim()) {
+        await addTaskMutation.mutateAsync({
+          title: followUpTitle.trim(),
+          description: `Archived deal follow-up. Reason: ${fullReason}`,
+          assignee_id: followUpAssignee || null,
+          task_type: followUpTaskType,
+          due_date: format(followUpDate, 'yyyy-MM-dd'),
+          priority: 'medium',
+          entity_type: 'deal',
+          entity_id: deal.id,
+          deal_id: deal.id,
+          deal_reference: deal.name,
+        });
+      }
+
+      onOpenChange(false);
+    } finally {
+      setIsArchiving(false);
     }
-
-    onArchived?.();
-    onOpenChange(false);
   };
 
-  const isPending = softDeleteMutation.isPending || addTaskMutation.isPending;
+  const isPending = isArchiving || externalPending || addTaskMutation.isPending;
   const isValid = !!reason && (reason !== 'Other' || notes.trim().length > 0);
   const isFollowUpValid = !addFollowUp || (followUpDate && followUpTitle.trim());
 
@@ -155,12 +173,16 @@ export function ArchiveDealDialog({ open, onOpenChange, deal, onArchived }: Arch
             <Alert>
               <AlertDescription>
                 <div className="space-y-1 text-sm">
-                  <div><strong>Deal:</strong> {deal.title}</div>
-                  <div><strong>Listing:</strong> {deal.listing_title}</div>
-                  {deal.contact_name && (
-                    <div><strong>Contact:</strong> {deal.contact_name}</div>
+                  <div><strong>Deal:</strong> {deal.name}</div>
+                  {deal.listingTitle && (
+                    <div><strong>Listing:</strong> {deal.listingTitle}</div>
                   )}
-                  <div><strong>Stage:</strong> {deal.stage_name}</div>
+                  {deal.contactName && (
+                    <div><strong>Contact:</strong> {deal.contactName}</div>
+                  )}
+                  {deal.stageName && (
+                    <div><strong>Stage:</strong> {deal.stageName}</div>
+                  )}
                 </div>
               </AlertDescription>
             </Alert>
