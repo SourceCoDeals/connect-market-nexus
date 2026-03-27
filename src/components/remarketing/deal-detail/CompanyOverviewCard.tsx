@@ -152,6 +152,7 @@ interface CompanyOverviewCardProps {
     googleRating: number | null;
     googleReviewCount: number | null;
     googleMapsUrl: string;
+    hiredBroker: boolean;
   }) => Promise<void>;
 }
 
@@ -214,6 +215,7 @@ export const CompanyOverviewCard = ({
     googleRating: googleRating?.toString() || "",
     googleReviewCount: googleReviewCount?.toString() || "",
     googleMapsUrl: googleMapsUrl || "",
+    hiredBroker: !!hiredBroker,
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -260,6 +262,7 @@ export const CompanyOverviewCard = ({
         googleRating: formData.googleRating ? parseFloat(formData.googleRating) : null,
         googleReviewCount: formData.googleReviewCount ? parseInt(formData.googleReviewCount) : null,
         googleMapsUrl: formData.googleMapsUrl,
+        hiredBroker: formData.hiredBroker,
       });
       setIsEditOpen(false);
       toast.success("Company overview updated");
@@ -292,6 +295,7 @@ export const CompanyOverviewCard = ({
       googleRating: googleRating?.toString() || "",
       googleReviewCount: googleReviewCount?.toString() || "",
       googleMapsUrl: googleMapsUrl || "",
+      hiredBroker: !!hiredBroker,
     });
     setIsEditOpen(true);
   };
@@ -952,6 +956,18 @@ export const CompanyOverviewCard = ({
                   className="mt-1"
                 />
               </div>
+            </div>
+
+            {/* Hired a Broker */}
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox
+                id="edit-hired-broker"
+                checked={formData.hiredBroker}
+                onCheckedChange={(checked) => setFormData({ ...formData, hiredBroker: !!checked })}
+              />
+              <label htmlFor="edit-hired-broker" className="text-sm font-medium cursor-pointer select-none">
+                Hired a Broker
+              </label>
             </div>
           </div>
           <DialogFooter>

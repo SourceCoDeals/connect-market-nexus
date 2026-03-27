@@ -234,6 +234,7 @@ export function OverviewTab({
             google_rating: data.googleRating,
             google_review_count: data.googleReviewCount,
             google_maps_url: data.googleMapsUrl,
+            hired_broker: data.hiredBroker,
           });
         }}
       />
