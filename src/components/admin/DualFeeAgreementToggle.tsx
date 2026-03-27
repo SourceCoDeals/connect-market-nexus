@@ -12,7 +12,7 @@ interface DualFeeAgreementToggleProps {
   user: User;
   onSendEmail?: (user: User) => void;
   size?: 'sm' | 'default';
-  firmData?: Record<string, unknown> | null;
+  firmData?: { [key: string]: unknown } | null;
 }
 
 export function DualFeeAgreementToggle({

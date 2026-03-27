@@ -12,7 +12,7 @@ interface DualNDAToggleProps {
   user: User;
   onSendEmail?: (user: User) => void;
   size?: 'sm' | 'default';
-  firmData?: Record<string, unknown> | null;
+  firmData?: { [key: string]: unknown } | null;
 }
 
 export const DualNDAToggle = ({ user, onSendEmail, size = 'default', firmData }: DualNDAToggleProps) => {

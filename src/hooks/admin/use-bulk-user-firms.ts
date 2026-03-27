@@ -43,7 +43,11 @@ export function useBulkUserFirms(userIds: string[]) {
           console.error('[useBulkUserFirms] firm_members query error:', error);
           continue;
         }
-        if (data) allRows.push(...data);
+        if (data) {
+          for (const row of data) {
+            if (row.user_id) allRows.push({ user_id: row.user_id, firm_id: row.firm_id });
+          }
+        }
       }
 
       if (allRows.length === 0) return new Map();
