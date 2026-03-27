@@ -39,6 +39,7 @@ import { GPPartnerKPICards } from './GPPartnerKPICards';
 import { GPPartnerTable } from './GPPartnerTable';
 import { GPPartnerPagination } from './GPPartnerPagination';
 import { AddDealDialog } from './AddDealDialog';
+import { ArchiveDealDialog } from '@/components/admin/deals/ArchiveDealDialog';
 
 export default function GPPartnerDeals() {
   const hook = useGPPartnerDeals();
@@ -50,6 +51,7 @@ export default function GPPartnerDeals() {
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<{id: string; name: string} | null>(null);
 
   const handleBulkArchive = useCallback(async () => {
     setIsArchiving(true);
@@ -423,6 +425,7 @@ export default function GPPartnerDeals() {
         setAddDealOpen={hook.setAddDealOpen}
         setCsvUploadOpen={hook.setCsvUploadOpen}
         onMarkNotFit={handleMarkNotFitSingle}
+        onArchiveDeal={(dealId, dealName) => setArchiveTarget({id: dealId, name: dealName})}
       />
 
       {/* Pagination */}
@@ -452,6 +455,23 @@ export default function GPPartnerDeals() {
         onImportComplete={hook.handleImportComplete}
         dealSource="gp_partners"
         hideFromAllDeals
+      />
+
+      {/* Archive Deal Dialog */}
+      <ArchiveDealDialog
+        open={!!archiveTarget}
+        onOpenChange={(open) => { if (!open) setArchiveTarget(null); }}
+        deal={archiveTarget ? { id: archiveTarget.id, name: archiveTarget.name } : null}
+        onConfirmArchive={async (reason) => {
+          if (!archiveTarget) return;
+          const { error } = await supabase
+            .from('listings')
+            .update({ remarketing_status: 'archived', archive_reason: reason } as never)
+            .eq('id', archiveTarget.id);
+          if (error) throw error;
+          setArchiveTarget(null);
+          hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'gp-partner-deals'] });
+        }}
       />
     </div>
   );

@@ -59,6 +59,7 @@ import {
   LogOut,
   User,
   GraduationCap,
+  Archive,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -173,6 +174,11 @@ export function UnifiedAdminSidebar({
             label: 'Pipeline',
             href: '/admin/deals/pipeline',
             icon: <GitBranch className="h-4 w-4" />,
+          },
+          {
+            label: 'Archived Deals',
+            href: '/admin/deals/archived',
+            icon: <Archive className="h-4 w-4" />,
           },
           {
             label: 'Deal Sourcing',

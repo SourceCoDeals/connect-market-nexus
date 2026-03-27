@@ -180,6 +180,7 @@ const ReMarketingUniverseDetail = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingUniverseDetail'),
 );
 const ReMarketingDeals = lazyWithRetry(() => import('@/pages/admin/remarketing/ReMarketingDeals'));
+const ArchivedDeals = lazyWithRetry(() => import('@/pages/admin/deals/ArchivedDeals'));
 const ReMarketingDealDetail = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingDealDetail'),
 );
@@ -332,6 +333,7 @@ function App() {
 
               {/* DEALS */}
               <Route path="deals" element={<ReMarketingDeals />} />
+              <Route path="deals/archived" element={<ArchivedDeals />} />
               <Route path="deals/:dealId" element={<ReMarketingDealDetail />} />
               <Route
                 path="deals/pipeline"
