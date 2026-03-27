@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PaginationState } from './use-simple-pagination';
 import { Listing, ListingStatus } from '@/types';
 import { expandLocations } from '@/lib/location-hierarchy';
+import { MARKETPLACE_SAFE_COLUMNS_STRING } from '@/lib/marketplace-columns';
 
 /**
  * For Tier 3 buyers, fetch the count of Tier 1/2 connection requests per listing.
@@ -86,7 +87,7 @@ async function fetchListings(state: PaginationState, buyerTier?: number | null) 
 
   let query = supabase
     .from('listings')
-    .select(BUYER_VISIBLE_COLUMNS, { count: 'exact' })
+    .select(MARKETPLACE_SAFE_COLUMNS_STRING, { count: 'exact' })
     .eq('status', 'active')
     .is('deleted_at', null)
     .eq('is_internal_deal', false); // Only show marketplace deals, not internal/research deals

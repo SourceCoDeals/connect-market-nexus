@@ -48,11 +48,8 @@ export function useListingsByType(
 
           // Filter by listing type
           if (type === 'marketplace') {
-            // Marketplace: public-facing with images
-            query = query
-              .eq('is_internal_deal', false)
-              .not('image_url', 'is', null)
-              .neq('image_url', '');
+            // Marketplace: published listings (is_internal_deal=false is sufficient)
+            query = query.eq('is_internal_deal', false);
           } else if (type === 'research') {
             // Research: internal deals without images (remarketing deals)
             query = query.eq('is_internal_deal', true);
@@ -125,13 +122,11 @@ export function useListingTypeCounts() {
       }
 
       const [marketplaceResult, researchResult] = await Promise.all([
-        // Marketplace: public-facing with images
+        // Marketplace: published listings
         supabase
           .from('listings')
           .select('id', { count: 'exact', head: true })
           .is('deleted_at', null)
-          .not('image_url', 'is', null)
-          .neq('image_url', '')
           .eq('is_internal_deal', false),
         // Research: internal deals without images (remarketing)
         supabase
