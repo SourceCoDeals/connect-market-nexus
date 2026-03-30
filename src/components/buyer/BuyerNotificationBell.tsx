@@ -116,6 +116,8 @@ export function BuyerNotificationBell() {
         return <MessageSquare className="w-4 h-4 text-primary" />;
       case 'agreement_pending':
         return <FileSignature className="w-4 h-4 text-amber-600" />;
+      case 'agreement_signed':
+        return <CheckCircle className="w-4 h-4 text-emerald-600" />;
       case 'request_created':
         return <Bell className="w-4 h-4 text-blue-500" />;
       default:
@@ -140,7 +142,7 @@ export function BuyerNotificationBell() {
       }
     } else if (n.notification_type === 'new_message' && n.connection_request_id) {
       navigate(`/messages?deal=${n.connection_request_id}`);
-    } else if (n.notification_type === 'agreement_pending') {
+    } else if (n.notification_type === 'agreement_pending' || n.notification_type === 'agreement_signed') {
       navigate('/profile?tab=documents');
     } else if (n.notification_type === 'request_approved' && n.connection_request_id) {
       navigate(`/deals/${n.connection_request_id}`);
