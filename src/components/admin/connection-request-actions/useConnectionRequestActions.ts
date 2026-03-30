@@ -123,11 +123,11 @@ export function useConnectionRequestActions({
           .from('user_notifications')
           .insert({
             user_id: user.id,
-            type: 'request_approved',
+            notification_type: 'request_approved',
             title: 'Connection Approved',
             message: `Your introduction request for "${listingTitle}" has been approved.`,
-            action_url: '/my-deals',
-            metadata: { listing_id: listingId, request_id: requestId },
+            connection_request_id: requestId || null,
+            metadata: { listing_id: listingId },
           })
           .then(({ error: notifErr }) => {
             if (notifErr) console.error('[Phase 87] Failed to insert approval notification:', notifErr);
@@ -187,11 +187,11 @@ export function useConnectionRequestActions({
           .from('user_notifications')
           .insert({
             user_id: user.id,
-            type: 'status_changed',
+            notification_type: 'status_changed',
             title: 'Connection Update',
             message: `Your introduction request for "${rejListingTitle}" was not approved at this time.`,
-            action_url: '/my-deals',
-            metadata: { listing_id: listing?.id, request_id: requestId },
+            connection_request_id: requestId || null,
+            metadata: { listing_id: listing?.id },
           })
           .then(({ error: notifErr }) => {
             if (notifErr) console.error('[Phase 87] Failed to insert rejection notification:', notifErr);
