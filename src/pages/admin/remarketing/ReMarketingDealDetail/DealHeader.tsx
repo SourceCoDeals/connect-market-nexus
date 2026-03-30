@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { ScoreBadge } from '@/components/shared/ScoreBadge';
 import { DealSourceBadge } from '@/components/remarketing';
 import { getDisplayLocation } from '@/lib/location-display';
+import { CopyDealInfoButton } from './CopyDealInfoButton';
 import type { ScoreTier } from '@/types/remarketing';
 
 interface DealHeaderDeal {
