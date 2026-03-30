@@ -1,112 +1,87 @@
 
 
-# Phase 80-85: Document Signing System — End-to-End Audit & Fixes
+# Phase 86-92: Connection Request Lifecycle — End-to-End Audit
 
-## Root Cause: PandaDoc Secrets Missing
-
-The entire document signing pipeline is broken because **none of the required PandaDoc secrets are configured** in the Supabase Edge Function secrets:
-
-| Required Secret | Status |
-|----------------|--------|
-| `PANDADOC_API_KEY` | **MISSING** |
-| `PANDADOC_NDA_TEMPLATE_UUID` | **MISSING** |
-| `PANDADOC_FEE_TEMPLATE_UUID` | **MISSING** |
-| `PANDADOC_WEBHOOK_KEY` | **MISSING** |
-
-Edge function logs for `get-buyer-nda-embed` and `confirm-agreement-signed` are completely empty — no calls have succeeded. Every signing attempt returns a 500 error ("PandaDoc not configured").
-
-Legacy `DOCUSEAL_*` secrets still exist but the codebase has fully migrated to PandaDoc.
-
-## Architecture (Verified Working Code)
+## Flow Summary
 
 ```text
-BUYER SIGNING FLOW:
-  ListingDetail → NdaGateModal → get-buyer-nda-embed (edge fn)
-                                   ├─ resolves firm via resolve_user_firm_id RPC
-                                   ├─ self-heals missing firm records
-                                   ├─ creates PandaDoc document from template
-                                   ├─ creates embedded signing session
-                                   └─ returns embedUrl → PandaDocSigningPanel (iframe)
+BUYER SUBMITS REQUEST:
+  ConnectionButton → fee gate check → ConnectionRequestDialog (AI draft)
+  → useRequestConnection (RPC: enhanced_merge_or_create_connection_request)
+  → logs user_activity + journey milestone
+  → fires buyer quality scoring (async)
+  → sends 2 emails: user_confirmation + admin_notification (via send-connection-notification)
+  → toast: "Request sent"
 
-  ProfileDocuments / DealActionCard / AgreementSection
-    → AgreementSigningModal → get-buyer-nda-embed / get-buyer-fee-embed
-    → PandaDocSigningPanel (iframe)
-    → on signed → confirm-agreement-signed (edge fn)
-                    ├─ polls PandaDoc API for completion status
-                    ├─ updates firm_agreements
-                    ├─ sends buyer/admin confirmation emails
-                    └─ creates notifications
+ADMIN REVIEWS:
+  ConnectionRequestsTable → ConnectionRequestRow → ConnectionRequestActions
+  → Approve: updateStatus(approved) + system message + approval email
+  → Reject: updateStatus(rejected) + system message + rejection email
+  → On Hold: updateStatus(on_hold) — NO email sent
+  → Flag: flagMutation + creates daily task for assigned admin
 
-ADMIN FLOW:
-  Connection Request Actions → SendAgreementDialog → create-pandadoc-document (edge fn)
-                                                       ├─ creates document from template
-                                                       ├─ sends via email or embedded
-                                                       ├─ creates buyer notification
-                                                       └─ inserts system message
-
-WEBHOOK BACKUP:
-  PandaDoc → pandadoc-webhook-handler (edge fn)
-              ├─ HMAC-SHA256 signature verification
-              ├─ idempotency via pandadoc_webhook_log
-              ├─ updates firm_agreements
-              └─ admin notifications
+BUYER SEES RESULT:
+  My Deals page (MyRequests.tsx) — two-column deal command center
+  Realtime: toast appears on status change
+  Notification bell: NO persistent notification for status changes
+  Email: approval/rejection emails sent
 ```
 
-## Findings Beyond Missing Secrets
+## Findings
 
-### Phase 80: Add PandaDoc secrets (CRITICAL — BLOCKER)
-User must add 4 secrets via Supabase dashboard:
-- `PANDADOC_API_KEY` — API key from PandaDoc settings
-- `PANDADOC_NDA_TEMPLATE_UUID` — template ID for NDA
-- `PANDADOC_FEE_TEMPLATE_UUID` — template ID for Fee Agreement
-- `PANDADOC_WEBHOOK_KEY` — webhook shared key for HMAC verification
+### Phase 86: Realtime toast fires for ALL users, not just the affected buyer (HIGH)
+`useRealtimeConnections` subscribes to ALL updates on `connection_requests` without any `user_id` filter. When Admin A approves Buyer X's request:
+- Buyer Y (unrelated) sees "Connection Approved! ✅" toast
+- Admin B sees the same toast
+- Only Buyer X should see it
 
-Without these, nothing works. This is a user action — cannot be automated.
+**Fix**: Add `filter: 'user_id=eq.${user?.id}'` to the UPDATE subscription, and skip toasts for admin users. Requires access to current user ID in the hook.
 
-### Phase 81: Clean up legacy DocuSeal secrets (LOW)
-Remove stale secrets: `DOCUSEAL_API_KEY`, `DOCUSEAL_FEE_TEMPLATE_ID`, `DOCUSEAL_NDA_TEMPLATE_ID`, `DOCUSEAL_WEBHOOK_SECRET`. These reference the old signing provider and create confusion.
+### Phase 87: No persistent user_notification for connection status changes (MEDIUM)
+When a connection request is approved/rejected/put on hold, the buyer gets:
+- An email (approval or rejection)
+- A realtime toast (if online)
+- But NO entry in `user_notifications` table
 
-### Phase 82: ProfileDocuments uses `as never` type casting for firm_agreements query (MEDIUM)
-Line 53 in `ProfileDocuments.tsx`:
-```typescript
-supabase.from('firm_agreements' as never) as unknown as ReturnType<typeof supabase.from>
-```
-This suggests `firm_agreements` may be missing from the generated Supabase types. The query selects columns like `nda_pandadoc_signed_url` which may not exist in the schema. If columns are missing, the query silently returns null for those fields but doesn't error. Should verify all referenced columns exist.
+This means the buyer's notification bell never shows "Your request for [Deal] was approved." If the buyer was offline, they'd only know via email — the bell would be empty.
 
-### Phase 83: NdaGateModal `onSigned` callback is a no-op (MEDIUM)
-In `ListingDetail.tsx` line 165:
-```typescript
-onSigned={() => {/* NDA signed — component will re-render with updated ndaStatus */}}
-```
-The comment assumes `ndaStatus` will automatically re-render, but `useBuyerNdaStatus` has `staleTime: 30_000` (30 seconds). After signing, the user would stare at the gate modal for up to 30 seconds before seeing the deal. The `onSigned` callback should call `queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] })`.
+**Fix**: In `useConnectionRequestActions.handleAccept()` and `handleReject()`, insert a `user_notifications` row with type `request_approved` or `status_changed`.
 
-### Phase 84: AgreementSigningModal error UX on missing PandaDoc config (LOW)
-When PandaDoc returns 500 ("PandaDoc not configured"), the modal shows a generic "Failed to load signing form" error. The edge function already returns this specific error message — the modal should surface it more clearly and direct the user to contact support with more context.
+### Phase 88: `send-connection-notification` requires auth but landing page calls it unauthenticated (HIGH)
+The edge function calls `requireAuth(req)` and returns 401 if not authenticated. But `useDealLandingFormSubmit` (anonymous landing page form) calls it without auth — those admin notification emails silently fail with 401. The form submission itself succeeds (direct insert to `connection_requests`), but admins never get the email notification.
 
-### Phase 85: Edge functions need redeployment after any code changes (LOW)
-Several edge functions in the signing pipeline may have stale deployments. After secrets are added, all signing-related edge functions should be redeployed:
-- `get-buyer-nda-embed`
-- `get-buyer-fee-embed`
-- `confirm-agreement-signed`
-- `create-pandadoc-document`
-- `get-agreement-document`
-- `get-document-download`
-- `pandadoc-webhook-handler`
+**Fix**: Either make the edge function accept unauthenticated calls for `admin_notification` type, or use the service role key for the landing page invocation.
+
+### Phase 89: Landing page submissions use direct insert bypassing RPC duplicate logic (MEDIUM)
+Authenticated marketplace submissions use `enhanced_merge_or_create_connection_request` RPC which handles duplicates and merging. Landing page submissions (`useDealLandingFormSubmit`) do a raw `.insert()` with only a manual email+listing dedup check. If the same lead submits from different browsers or after clearing localStorage, duplicates can be created.
+
+The landing page also lacks the `user_id` field (anonymous), so the dedup check (`lead_email` + `listing_id`) is the only guard. This is acceptable but should be documented.
+
+### Phase 90: Approval email CTA links to /messages but buyer deals are at /my-deals (LOW-MEDIUM)
+The approval email in `send-connection-notification` has a CTA button linking to `https://marketplace.sourcecodeals.com/messages`. But the buyer's deal command center is at `/my-deals` (MyRequests). The messages tab within a deal is at `/my-deals?deal=X&tab=messages`. Linking to `/messages` takes them to a separate message center that may not show the relevant thread clearly.
+
+**Fix**: Change the approval email CTA from `/messages` to `/my-deals`.
+
+### Phase 91: `on_hold` status has no email notification to buyer (LOW)
+When an admin puts a request on hold, no email is sent and no system message is created. The buyer has no idea their request status changed unless they check the My Deals page. This is potentially intentional (on_hold is an internal state), but should be explicitly documented.
+
+### Phase 92: Rejected request "Request Again" creates a second connection request (LOW)
+When a buyer's request is rejected, the UI shows a "Request Again" button. This goes through the same `useRequestConnection` which calls the `enhanced_merge_or_create_connection_request` RPC. The RPC should handle this as a duplicate/update, but need to verify it doesn't create a separate row that confuses admin view.
 
 ## Implementation Plan
 
-| Phase | Fix | Priority | Type |
-|-------|-----|----------|------|
-| 80 | Guide user to add PandaDoc secrets | Critical | User action |
-| 81 | Remove legacy DocuSeal secrets | Low | User action |
-| 82 | Verify firm_agreements schema columns | Medium | Code audit |
-| 83 | Fix NdaGateModal onSigned to invalidate queries | Medium | Code fix |
-| 84 | Improve error messages for missing config | Low | Code fix |
-| 85 | Redeploy all signing edge functions | Low | Deployment |
+| Phase | Fix | Priority | Files |
+|-------|-----|----------|-------|
+| 86 | Add user_id filter to realtime subscription + skip admin toasts | High | `use-realtime-connections.ts` |
+| 87 | Insert user_notification on approve/reject | Medium | `useConnectionRequestActions.ts` |
+| 88 | Fix auth requirement for landing page admin notifications | High | `send-connection-notification/index.ts` or `useDealLandingFormSubmit.ts` |
+| 89 | Document landing page dedup behavior (no code change needed) | Low | Documentation |
+| 90 | Fix approval email CTA to /my-deals | Low-Medium | `send-connection-notification/index.ts` |
+| 91 | Document on_hold as internal-only status (no buyer notification by design) | Low | Documentation |
+| 92 | Verify RPC handles re-request after rejection correctly | Low | Audit only |
 
 ## Execution
 
-**Phase 80 requires user action first** — without PandaDoc secrets, nothing else matters. I will prompt you to add the secrets.
-
-**Phases 83-84** are code fixes that can be implemented immediately regardless of secrets. Phase 83 is the most impactful — it fixes a 30-second stale gate after signing.
+**Response 1**: Phases 86, 87, 88 (high/medium priority — realtime fix, notification gaps, auth issue)
+**Response 2**: Phases 90, 92 (email CTA fix, re-request verification)
 
