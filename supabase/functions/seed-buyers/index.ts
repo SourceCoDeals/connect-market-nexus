@@ -745,7 +745,7 @@ Deno.serve(async (req: Request) => {
     );
 
     // ── Fetch past feedback for this niche (for calibration) ──
-    const dealIndustry = (deal.industry as string) || '';
+    const dealIndustryFeedback = (deal.industry as string) || '';
     const dealCategories = (deal.categories as string[]) || [];
     let feedbackSection = '';
     if (dealIndustry || dealCategories.length > 0) {
