@@ -28,6 +28,7 @@ function getCurrentStageIndex(
 ): number {
   if (status === 'rejected') return 0;
   if (status === 'approved') return 3;
+  if (status === 'on_hold') return 2;
   const needsFee = feeStatus === 'sent' && !feeCovered;
   if (!ndaSigned || needsFee) return 1;
   return 2;
