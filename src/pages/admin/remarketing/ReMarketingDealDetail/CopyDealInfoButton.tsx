@@ -5,11 +5,8 @@ import { useState } from 'react';
 import { formatCompactCurrency } from '@/lib/utils';
 
 /** Accept any deal shape — we read fields dynamically. */
-type CopyDealDeal = Record<string, unknown>;
-
-function val(deal: CopyDealDeal, key: string): unknown {
-  return deal[key];
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CopyDealDeal = Record<string, any>;
 
 function str(deal: CopyDealDeal, key: string): string | null {
   const v = deal[key];
