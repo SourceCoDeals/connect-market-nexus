@@ -212,9 +212,61 @@ export function useConnectionRequestActions({
     }
   };
 
-  const handleResetToPending = () => {
+  const handleResetToPending = async () => {
     if (!requestId) return;
-    updateStatus.mutate({ requestId, status: 'pending' });
+    try {
+      await updateStatus.mutateAsync({ requestId, status: 'pending' });
+      // Phase 94: Send a system message so both admin and buyer see the reversal
+      await sendMessage.mutateAsync({
+        connection_request_id: requestId,
+        body: 'Status has been reverted to pending for further review.',
+        sender_role: 'admin',
+        message_type: 'decision',
+      });
+      // Insert clarifying user notification
+      if (user.id) {
+        const listingTitle = listing?.title || 'the listing';
+        supabase
+          .from('user_notifications')
+          .insert({
+            user_id: user.id,
+            notification_type: 'status_changed',
+            title: 'Request Under Review',
+            message: `Your introduction request for "${listingTitle}" is back under review.`,
+            connection_request_id: requestId,
+            metadata: { listing_id: listing?.id },
+          })
+          .then(({ error: notifErr }) => {
+            if (notifErr) console.error('[Phase 94] Failed to insert undo notification:', notifErr);
+          });
+      }
+    } catch (err) {
+      toast({
+        title: 'Action failed',
+        description: err instanceof Error ? err.message : 'Could not reset status.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Phase 95: On Hold handler
+  const handleOnHold = async () => {
+    if (!requestId || updateStatus.isPending) return;
+    try {
+      await updateStatus.mutateAsync({ requestId, status: 'on_hold' });
+      await sendMessage.mutateAsync({
+        connection_request_id: requestId,
+        body: 'This request has been placed on hold for further evaluation.',
+        sender_role: 'admin',
+        message_type: 'decision',
+      });
+    } catch (err) {
+      toast({
+        title: 'Action failed',
+        description: err instanceof Error ? err.message : 'Could not place on hold.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // ─── Flag for Review ───
@@ -347,6 +399,7 @@ export function useConnectionRequestActions({
     handleAccept,
     handleReject,
     handleResetToPending,
+    handleOnHold,
     handleFlagForReview,
     handleUnflag,
     requestAccessToggle,
