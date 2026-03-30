@@ -64,8 +64,12 @@ export function formatDealAsText(deal: CopyDealDeal): string {
     line('Industry', str(deal, 'industry')) +
     line('Category', str(deal, 'category')) +
     line('Location', str(deal, 'location')) +
+    line('Street Address', str(deal, 'street_address')) +
     line('City', str(deal, 'address_city')) +
     line('State', str(deal, 'address_state')) +
+    line('Zip', str(deal, 'address_zip')) +
+    line('Country', str(deal, 'address_country')) +
+    line('Founded', num(deal, 'founded_year')) +
     line('Status', str(deal, 'status')) +
     line('Deal Source', str(deal, 'deal_source')) +
     line('Priority Target', deal.is_priority_target === true)
@@ -83,7 +87,11 @@ export function formatDealAsText(deal: CopyDealDeal): string {
     line('EBITDA', ebitda != null ? formatCompactCurrency(ebitda) : null) +
     line('EBITDA Margin', ebitdaMargin) +
     line('Quality Score', num(deal, 'deal_total_score') != null ? `${num(deal, 'deal_total_score')}/100` : null) +
-    line('Seller Interest Score', num(deal, 'seller_interest_score') != null ? `${num(deal, 'seller_interest_score')}/100` : null)
+    line('Seller Interest Score', num(deal, 'seller_interest_score') != null ? `${num(deal, 'seller_interest_score')}/100` : null) +
+    line('Scoring Notes', str(deal, 'scoring_notes')) +
+    line('Revenue Source Quote', str(deal, 'revenue_source_quote')) +
+    line('EBITDA Source Quote', str(deal, 'ebitda_source_quote')) +
+    line('Financial Notes', str(deal, 'financial_notes'))
   );
 
   text += section('ONLINE PRESENCE',
@@ -92,7 +100,10 @@ export function formatDealAsText(deal: CopyDealDeal): string {
       : num(deal, 'google_rating')) +
     (num(deal, 'google_rating') == null && num(deal, 'google_review_count') != null
       ? line('Google Reviews', num(deal, 'google_review_count'))
-      : '')
+      : '') +
+    line('LinkedIn URL', str(deal, 'linkedin_url')) +
+    line('Google Maps URL', str(deal, 'google_maps_url')) +
+    line('Fireflies URL', str(deal, 'fireflies_url'))
   );
 
   text += section('CONTACT',
@@ -121,14 +132,24 @@ export function formatDealAsText(deal: CopyDealDeal): string {
     line('Revenue Model', str(deal, 'revenue_model')) +
     line('Business Model', str(deal, 'business_model')) +
     line('Growth Trajectory', str(deal, 'growth_trajectory')) +
-    line('Customer Types', safeJoin(deal.customer_types))
+    line('Customer Types', safeJoin(deal.customer_types)) +
+    line('Customer Concentration', str(deal, 'customer_concentration')) +
+    line('Customer Geography', str(deal, 'customer_geography')) +
+    line('Competitive Position', str(deal, 'competitive_position'))
   );
 
   text += section('OWNER INFO',
     line('Owner Goals', str(deal, 'owner_goals')) +
     line('Ownership Structure', str(deal, 'ownership_structure')) +
     line('Special Requirements', str(deal, 'special_requirements')) +
-    line('Owner Response', str(deal, 'owner_response'))
+    line('Owner Response', str(deal, 'owner_response')) +
+    line('Seller Motivation', str(deal, 'seller_motivation')) +
+    line('Seller Involvement Preference', str(deal, 'seller_involvement_preference')) +
+    line('Timeline Preference', str(deal, 'timeline_preference')) +
+    line('Transition Preferences', str(deal, 'transition_preferences')) +
+    line('Timeline Notes', str(deal, 'timeline_notes')) +
+    line('Management Depth', str(deal, 'management_depth')) +
+    line('Growth Drivers', safeJoin(deal.growth_drivers))
   );
 
   text += section('ADDITIONAL DETAILS',
@@ -140,7 +161,9 @@ export function formatDealAsText(deal: CopyDealDeal): string {
   text += section('NOTES',
     line('Owner Notes', str(deal, 'owner_notes')) +
     line('General Notes', str(deal, 'general_notes')) +
-    line('Internal Notes', str(deal, 'internal_notes'))
+    line('Internal Notes', str(deal, 'internal_notes')) +
+    line('Notes', str(deal, 'notes')) +
+    line('CapTarget Call Notes', str(deal, 'captarget_call_notes'))
   );
 
   return text.trim();
