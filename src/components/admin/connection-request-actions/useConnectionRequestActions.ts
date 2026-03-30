@@ -399,6 +399,7 @@ export function useConnectionRequestActions({
     handleAccept,
     handleReject,
     handleResetToPending,
+    handleOnHold,
     handleFlagForReview,
     handleUnflag,
     requestAccessToggle,
