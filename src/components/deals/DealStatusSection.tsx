@@ -64,14 +64,14 @@ export function DealStatusSection({
   requestCreatedAt,
 }: DealStatusSectionProps) {
   const currentIndex = getCurrentStageIndex(requestStatus, ndaSigned, feeCovered, feeStatus);
-  const isRejected = requestStatus === 'rejected';
   const explanation = getStageExplanation(
     currentIndex,
-    isRejected,
+    requestStatus,
     ndaSigned,
     feeCovered,
     feeStatus,
   );
+  const isRejected = requestStatus === 'rejected';
 
   return (
     <div className="rounded-lg border border-[#F0EDE6] bg-white p-5">
