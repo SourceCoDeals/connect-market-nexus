@@ -142,7 +142,14 @@ export function formatDealAsText(deal: CopyDealDeal): string {
     line('Owner Goals', str(deal, 'owner_goals')) +
     line('Ownership Structure', str(deal, 'ownership_structure')) +
     line('Special Requirements', str(deal, 'special_requirements')) +
-    line('Owner Response', str(deal, 'owner_response'))
+    line('Owner Response', str(deal, 'owner_response')) +
+    line('Seller Motivation', str(deal, 'seller_motivation')) +
+    line('Seller Involvement Preference', str(deal, 'seller_involvement_preference')) +
+    line('Timeline Preference', str(deal, 'timeline_preference')) +
+    line('Transition Preferences', str(deal, 'transition_preferences')) +
+    line('Timeline Notes', str(deal, 'timeline_notes')) +
+    line('Management Depth', str(deal, 'management_depth')) +
+    line('Growth Drivers', safeJoin(deal.growth_drivers))
   );
 
   text += section('ADDITIONAL DETAILS',
