@@ -17,9 +17,9 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
   const navigate = useNavigate();
   const isNda = documentType === 'nda';
 
-  const handleGoToMessages = () => {
+  const handleGoToDocuments = () => {
     onDismiss();
-    navigate('/messages');
+    navigate('/profile?tab=documents');
   };
 
   return (
@@ -64,14 +64,14 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
           <Button
             size="lg"
             className="w-full bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground font-semibold text-base h-12"
-            onClick={handleGoToMessages}
+            onClick={handleGoToDocuments}
           >
-            View in Messages
+            View &amp; Sign Document
             <ArrowRight className="h-5 w-5 ml-2" />
           </Button>
 
           <p className="text-xs text-muted-foreground">
-            You can also sign from the banner on your My Deals page.
+            You can also sign from your Profile &gt; Documents tab.
           </p>
         </div>
       </DialogContent>
