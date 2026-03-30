@@ -132,7 +132,10 @@ export function formatDealAsText(deal: CopyDealDeal): string {
     line('Revenue Model', str(deal, 'revenue_model')) +
     line('Business Model', str(deal, 'business_model')) +
     line('Growth Trajectory', str(deal, 'growth_trajectory')) +
-    line('Customer Types', safeJoin(deal.customer_types))
+    line('Customer Types', safeJoin(deal.customer_types)) +
+    line('Customer Concentration', str(deal, 'customer_concentration')) +
+    line('Customer Geography', str(deal, 'customer_geography')) +
+    line('Competitive Position', str(deal, 'competitive_position'))
   );
 
   text += section('OWNER INFO',
