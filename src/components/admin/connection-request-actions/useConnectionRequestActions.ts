@@ -249,6 +249,26 @@ export function useConnectionRequestActions({
     }
   };
 
+  // Phase 95: On Hold handler
+  const handleOnHold = async () => {
+    if (!requestId || updateStatus.isPending) return;
+    try {
+      await updateStatus.mutateAsync({ requestId, status: 'on_hold' });
+      await sendMessage.mutateAsync({
+        connection_request_id: requestId,
+        body: 'This request has been placed on hold for further evaluation.',
+        sender_role: 'admin',
+        message_type: 'decision',
+      });
+    } catch (err) {
+      toast({
+        title: 'Action failed',
+        description: err instanceof Error ? err.message : 'Could not place on hold.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // ─── Flag for Review ───
 
   const handleFlagForReview = async (assignedToId: string) => {
