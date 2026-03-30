@@ -234,7 +234,8 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
-      const buyerMessagesUrl = `https://marketplace.sourcecodeals.com/messages`;
+      // Phase 90: CTA links to /my-deals (deal command center) instead of /messages
+      const buyerMessagesUrl = `https://marketplace.sourcecodeals.com/my-deals`;
       const subject = `You're in — introduction to ${escapeHtml(listingTitle)} approved.`;
       const htmlContent = `
 <!DOCTYPE html>
