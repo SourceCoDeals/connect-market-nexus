@@ -4,35 +4,35 @@ import { toast } from 'sonner';
 import { useState } from 'react';
 import { formatCompactCurrency } from '@/lib/utils';
 
-interface CopyDealDeal {
-  title?: string | null;
-  internal_company_name?: string | null;
-  website?: string | null;
-  industry?: string | null;
-  category?: string | null;
-  location?: string | null;
-  address_city?: string | null;
-  address_state?: string | null;
-  status?: string | null;
-  revenue?: number | null;
-  ebitda?: number | null;
-  deal_total_score?: number | null;
-  seller_interest_score?: number | null;
-  full_time_employees?: number | null;
-  linkedin_employee_count?: number | null;
-  linkedin_employee_range?: string | null;
-  google_review_count?: number | null;
-  google_rating?: number | null;
-  main_contact_name?: string | null;
-  main_contact_email?: string | null;
-  main_contact_phone?: string | null;
-  main_contact_title?: string | null;
-  executive_summary?: string | null;
-  description?: string | null;
-  service_mix?: string[] | null;
-  geographic_states?: string[] | null;
-  deal_source?: string | null;
-  is_priority_target?: boolean | null;
+/** Accept any deal shape — we read fields dynamically. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CopyDealDeal = Record<string, any>;
+
+function str(deal: CopyDealDeal, key: string): string | null {
+  const v = deal[key];
+  if (v == null || v === '') return null;
+  return String(v);
+}
+
+function num(deal: CopyDealDeal, key: string): number | null {
+  const v = deal[key];
+  if (v == null) return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+function safeJoin(v: unknown): string | null {
+  if (v == null) return null;
+  if (Array.isArray(v)) return v.length ? v.join(', ') : null;
+  if (typeof v === 'string') {
+    if (!v.trim()) return null;
+    try {
+      const parsed = JSON.parse(v);
+      if (Array.isArray(parsed)) return parsed.length ? parsed.join(', ') : null;
+    } catch { /* not JSON */ }
+    return v;
+  }
+  return null;
 }
 
 function line(label: string, value: unknown): string {
@@ -48,68 +48,99 @@ function section(title: string, lines: string): string {
 }
 
 export function formatDealAsText(deal: CopyDealDeal): string {
-  const name = deal.internal_company_name || deal.title || 'Untitled Deal';
-  
-  const ebitdaMargin = deal.revenue && deal.ebitda
-    ? `${((deal.ebitda / deal.revenue) * 100).toFixed(1)}%`
+  const name = str(deal, 'internal_company_name') || str(deal, 'title') || 'Untitled Deal';
+
+  const revenue = num(deal, 'revenue');
+  const ebitda = num(deal, 'ebitda');
+  const ebitdaMargin = revenue && ebitda
+    ? `${((ebitda / revenue) * 100).toFixed(1)}%`
     : null;
 
   let text = `DEAL: ${name}\n${'='.repeat(40)}\n`;
 
   text += section('COMPANY OVERVIEW',
     line('Company Name', name) +
-    line('Website', deal.website) +
-    line('Industry', deal.industry) +
-    line('Category', deal.category) +
-    line('Location', deal.location) +
-    line('City', deal.address_city) +
-    line('State', deal.address_state) +
-    line('Status', deal.status) +
-    line('Deal Source', deal.deal_source) +
-    line('Priority Target', deal.is_priority_target)
+    line('Website', str(deal, 'website')) +
+    line('Industry', str(deal, 'industry')) +
+    line('Category', str(deal, 'category')) +
+    line('Location', str(deal, 'location')) +
+    line('City', str(deal, 'address_city')) +
+    line('State', str(deal, 'address_state')) +
+    line('Status', str(deal, 'status')) +
+    line('Deal Source', str(deal, 'deal_source')) +
+    line('Priority Target', deal.is_priority_target === true)
   );
 
   text += section('EMPLOYEES',
-    line('Full-Time Employees', deal.full_time_employees) +
-    line('LinkedIn Employee Count', deal.linkedin_employee_count) +
-    line('LinkedIn Employee Range', deal.linkedin_employee_range)
+    line('Full-Time Employees', num(deal, 'full_time_employees')) +
+    line('Part-Time Employees', num(deal, 'part_time_employees')) +
+    line('LinkedIn Employee Count', num(deal, 'linkedin_employee_count')) +
+    line('LinkedIn Employee Range', str(deal, 'linkedin_employee_range'))
   );
 
   text += section('FINANCIALS',
-    line('Revenue', deal.revenue != null ? formatCompactCurrency(deal.revenue) : null) +
-    line('EBITDA', deal.ebitda != null ? formatCompactCurrency(deal.ebitda) : null) +
+    line('Revenue', revenue != null ? formatCompactCurrency(revenue) : null) +
+    line('EBITDA', ebitda != null ? formatCompactCurrency(ebitda) : null) +
     line('EBITDA Margin', ebitdaMargin) +
-    line('Quality Score', deal.deal_total_score != null ? `${deal.deal_total_score}/100` : null) +
-    line('Seller Interest Score', deal.seller_interest_score != null ? `${deal.seller_interest_score}/100` : null)
+    line('Quality Score', num(deal, 'deal_total_score') != null ? `${num(deal, 'deal_total_score')}/100` : null) +
+    line('Seller Interest Score', num(deal, 'seller_interest_score') != null ? `${num(deal, 'seller_interest_score')}/100` : null)
   );
 
   text += section('ONLINE PRESENCE',
-    line('Google Rating', deal.google_rating != null && deal.google_review_count != null
-      ? `${deal.google_rating} (${deal.google_review_count} reviews)`
-      : deal.google_rating) +
-    (deal.google_rating == null && deal.google_review_count != null
-      ? line('Google Reviews', deal.google_review_count)
+    line('Google Rating', num(deal, 'google_rating') != null && num(deal, 'google_review_count') != null
+      ? `${num(deal, 'google_rating')} (${num(deal, 'google_review_count')} reviews)`
+      : num(deal, 'google_rating')) +
+    (num(deal, 'google_rating') == null && num(deal, 'google_review_count') != null
+      ? line('Google Reviews', num(deal, 'google_review_count'))
       : '')
   );
 
   text += section('CONTACT',
-    line('Name', deal.main_contact_name) +
-    line('Title', deal.main_contact_title) +
-    line('Email', deal.main_contact_email) +
-    line('Phone', deal.main_contact_phone)
+    line('Name', str(deal, 'main_contact_name')) +
+    line('Title', str(deal, 'main_contact_title')) +
+    line('Email', str(deal, 'main_contact_email')) +
+    line('Phone', str(deal, 'main_contact_phone'))
   );
 
-  if (deal.executive_summary) {
-    text += section('EXECUTIVE SUMMARY', deal.executive_summary);
+  if (str(deal, 'executive_summary')) {
+    text += section('EXECUTIVE SUMMARY', str(deal, 'executive_summary')!);
   }
 
-  if (deal.description) {
-    text += section('DESCRIPTION', deal.description);
+  if (str(deal, 'description')) {
+    text += section('DESCRIPTION', str(deal, 'description')!);
   }
 
   text += section('SERVICES & GEOGRAPHY',
-    line('Service Mix', deal.service_mix?.join(', ')) +
-    line('Geographic States', deal.geographic_states?.join(', '))
+    line('Service Mix', safeJoin(deal.service_mix)) +
+    line('Services', safeJoin(deal.services)) +
+    line('Geographic States', safeJoin(deal.geographic_states)) +
+    line('Number of Locations', num(deal, 'number_of_locations'))
+  );
+
+  text += section('BUSINESS MODEL',
+    line('Revenue Model', str(deal, 'revenue_model')) +
+    line('Business Model', str(deal, 'business_model')) +
+    line('Growth Trajectory', str(deal, 'growth_trajectory')) +
+    line('Customer Types', safeJoin(deal.customer_types))
+  );
+
+  text += section('OWNER INFO',
+    line('Owner Goals', str(deal, 'owner_goals')) +
+    line('Ownership Structure', str(deal, 'ownership_structure')) +
+    line('Special Requirements', str(deal, 'special_requirements')) +
+    line('Owner Response', str(deal, 'owner_response'))
+  );
+
+  text += section('ADDITIONAL DETAILS',
+    line('Key Risks', str(deal, 'key_risks')) +
+    line('Technology Systems', str(deal, 'technology_systems')) +
+    line('Real Estate Info', str(deal, 'real_estate_info'))
+  );
+
+  text += section('NOTES',
+    line('Owner Notes', str(deal, 'owner_notes')) +
+    line('General Notes', str(deal, 'general_notes')) +
+    line('Internal Notes', str(deal, 'internal_notes'))
   );
 
   return text.trim();

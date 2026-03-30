@@ -22,7 +22,7 @@ interface DealHeaderDeal {
 }
 
 interface DealHeaderProps {
-  deal: DealHeaderDeal;
+  deal: DealHeaderDeal & Record<string, unknown>;
   backTo: string;
   displayName: string;
   listedName: string | null;
