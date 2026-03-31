@@ -8,7 +8,7 @@ import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { XCircle, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { isProfileComplete, getProfileCompletionPercentage } from '@/lib/profile-completeness';
+import { isProfileComplete, getProfileCompletionPercentage, getMissingFieldLabels } from '@/lib/profile-completeness';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -141,13 +141,22 @@ const ConnectionButton = ({
             <p className="text-sm font-medium text-amber-900">Complete Your Profile</p>
           </div>
           <p className="text-xs text-amber-700 mt-0.5">
-            You need to complete your buyer profile before requesting deal access.
+            Complete your buyer profile before requesting deal access.
           </p>
+          {(() => {
+            const missingLabels = getMissingFieldLabels(user);
+            return missingLabels.length > 0 ? (
+              <ul className="mt-2 text-xs text-amber-800 list-disc list-inside space-y-0.5 text-left">
+                {missingLabels.map((label) => (
+                  <li key={label}>{label}</li>
+                ))}
+              </ul>
+            ) : null;
+          })()}
           {pct > 0 && (
             <div className="mt-2 space-y-1">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-amber-600">Profile completeness</span>
-                <span className="font-mono text-xs text-amber-900">{pct}%</span>
+                <span className="text-xs text-amber-600">{pct}% complete</span>
               </div>
               <div className="h-1 bg-amber-100 rounded-full overflow-hidden">
                 <div
