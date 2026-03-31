@@ -14,7 +14,8 @@ export type AdminNotificationType =
   | 'deal_reassignment'
   | 'alert_dismissed'
   | 'alert_snoozed'
-  | 'document_question';
+  | 'document_question'
+  | 'listing_saved';
 
 export interface AdminNotification {
   id: string;

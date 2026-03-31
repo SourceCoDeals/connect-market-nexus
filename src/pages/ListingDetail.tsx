@@ -29,7 +29,7 @@ import { InternalCompanyInfoDisplay } from '@/components/admin/InternalCompanyIn
 import { BuyerDataRoom } from '@/components/marketplace/BuyerDataRoom';
 import { MFAGate } from '@/components/auth/MFAGate';
 import { NdaGateModal } from '@/components/pandadoc/NdaGateModal';
-import { useBuyerNdaStatus } from '@/hooks/admin/use-pandadoc';
+import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { AgreementStatusBanner } from '@/components/marketplace/AgreementStatusBanner';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 
@@ -54,10 +54,10 @@ const ListingDetail = () => {
   const isAdmin = user?.is_admin === true;
 
   // NDA gate: check if buyer has signed NDA (skip for admins and unauthenticated)
-  const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
+  const { data: agreementStatus } = useMyAgreementStatus(!isAdmin && !!user);
   useAgreementStatusSync();
   const showNdaGate =
-    !isAdmin && user && ndaStatus && ndaStatus.hasFirm && !ndaStatus.ndaSigned;
+    !isAdmin && user && agreementStatus && agreementStatus.firm_id && !agreementStatus.nda_covered;
 
   useEffect(() => {
     document.title = listing ? `${listing.title} | Marketplace` : 'Listing Detail | Marketplace';
@@ -159,11 +159,11 @@ const ListingDetail = () => {
   const isInactive = listing?.status === 'inactive';
 
   // Show NDA gate modal for unsigned buyers
-  if (showNdaGate && ndaStatus?.firmId) {
+  if (showNdaGate && agreementStatus?.firm_id) {
     return (
       <NdaGateModal
         userId={user!.id}
-        firmId={ndaStatus.firmId}
+        firmId={agreementStatus.firm_id}
         onSigned={() => {
           queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
           queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });

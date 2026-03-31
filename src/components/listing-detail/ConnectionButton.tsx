@@ -4,7 +4,6 @@ import ConnectionRequestDialog from '@/components/connection/ConnectionRequestDi
 import { FeeAgreementGate } from '@/components/pandadoc/FeeAgreementGate';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBuyerNdaStatus } from '@/hooks/admin/use-pandadoc';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { XCircle, AlertCircle } from 'lucide-react';
@@ -38,7 +37,6 @@ const ConnectionButton = ({
   useAgreementStatusSync();
   const { user } = useAuth();
   const { data: coverage } = useMyAgreementStatus(!isAdmin && !!user);
-  const { data: ndaStatus } = useBuyerNdaStatus(!isAdmin ? user?.id : undefined);
 
   const handleDialogSubmit = (message: string) => {
     handleRequestConnection(message);
@@ -50,7 +48,7 @@ const ConnectionButton = ({
       // Gate: profile must be complete
       if (user && !isAdmin && !isProfileComplete(user)) return;
       // Gate: NDA must be signed
-      if (!isAdmin && ndaStatus && ndaStatus.hasFirm && !ndaStatus.ndaSigned) return;
+      if (!isAdmin && coverage && !coverage.nda_covered) return;
       // Gate: fee agreement must be covered
       if (!isAdmin && coverage && !coverage.fee_covered) {
         setShowFeeGate(true);
@@ -241,10 +239,10 @@ const ConnectionButton = ({
         listingTitle={listingTitle}
       />
 
-      {showFeeGate && user && ndaStatus?.firmId && (
+      {showFeeGate && user && coverage?.firm_id && (
         <FeeAgreementGate
           userId={user.id}
-          firmId={ndaStatus.firmId}
+          firmId={coverage.firm_id}
           listingTitle={listingTitle}
           onSigned={() => {
             setShowFeeGate(false);
@@ -253,7 +251,7 @@ const ConnectionButton = ({
           onDismiss={() => setShowFeeGate(false)}
         />
       )}
-      {showFeeGate && user && !ndaStatus?.firmId && (
+      {showFeeGate && user && !coverage?.firm_id && (
         <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
           <p className="text-sm font-medium text-amber-900">Fee Agreement Required</p>
           <p className="text-xs text-amber-700 mt-0.5">
