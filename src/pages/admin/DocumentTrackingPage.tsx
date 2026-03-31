@@ -366,7 +366,7 @@ export default function DocumentTrackingPage() {
     });
 
     return result;
-  }, [firms, searchQuery, filterStatus, sortField, sortAsc]);
+  }, [firms, searchQuery, filterStatus, sortField, sortAsc, marketplaceOnly]);
 
   // Stats
   const totalFirms = firms.length;
