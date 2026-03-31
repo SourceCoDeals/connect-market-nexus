@@ -80,7 +80,7 @@ function useAllDocuments() {
       docs.push({
         type: 'nda',
         label: 'Non-Disclosure Agreement (NDA)',
-        signed: firm.nda_status === 'signed' || firm.nda_signed === true || firm.nda_pandadoc_status === 'completed',
+        signed: firm.nda_status === 'signed' || !!firm.nda_signed_at || firm.nda_pandadoc_status === 'completed',
         signedAt: firm.nda_signed_at,
         documentUrl: firm.nda_pandadoc_signed_url || firm.nda_document_url || null,
         hasSubmission: !!firm.nda_pandadoc_document_id,
