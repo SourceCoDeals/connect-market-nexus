@@ -48,9 +48,10 @@ const MarketplaceContent = () => {
   const { listingsConnected } = useRealtime();
 
   const pagination = useSimplePagination();
-  // Pass buyer tier for Tier 3 time-gating (admins bypass)
+  // Pass buyer tier for Tier 3 time-gating and buyer type for visibility filtering (admins bypass)
   const buyerTier = user?.is_admin ? null : (user?.buyer_tier ?? null);
-  const { data: listingsData, isLoading, error } = useSimpleListings(pagination.state, buyerTier);
+  const buyerType = user?.is_admin ? null : (user?.buyer_type ?? null);
+  const { data: listingsData, isLoading, error } = useSimpleListings(pagination.state, buyerTier, buyerType);
   const { data: metadata } = useListingMetadata();
 
   // Batch fetch saved & connection status (2 queries total instead of 40+)

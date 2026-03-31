@@ -55,6 +55,17 @@ export const useSaveListingMutation = () => {
           ? 'The listing has been saved to your favorites.'
           : 'The listing has been removed from your favorites.',
       });
+      // Clean up annotation when unsaving
+      if (variables.action === 'unsave') {
+        try {
+          const raw = localStorage.getItem('sourceco_saved_listing_notes');
+          if (raw) {
+            const notes = JSON.parse(raw);
+            delete notes[variables.listingId];
+            localStorage.setItem('sourceco_saved_listing_notes', JSON.stringify(notes));
+          }
+        } catch { /* ignore */ }
+      }
       // Notify admins when a buyer saves a listing (fire-and-forget)
       if (variables.action === 'save') {
         supabase.functions
