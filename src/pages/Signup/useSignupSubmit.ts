@@ -48,7 +48,7 @@ export function useSignupSubmit(formData: SignupFormData) {
       website: processUrl(website),
       linkedin_profile: processLinkedInUrl(linkedinProfile),
       phone_number: phoneNumber,
-      buyer_type: buyerType as BuyerType,
+      buyer_type: (buyerType === 'businessOwner' ? 'searchFund' : buyerType) as BuyerType,
       ideal_target_description: idealTargetDescription,
       business_categories: businessCategories,
       target_locations: targetLocations,

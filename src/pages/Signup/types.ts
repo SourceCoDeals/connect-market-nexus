@@ -106,5 +106,5 @@ export const BUYER_TYPE_OPTIONS = [
   { value: "individual", label: "Individual Investor", description: "High-net-worth individuals making personal investments" },
   { value: "independentSponsor", label: "Independent Sponsor", description: "Deal-by-deal investment professionals" },
   { value: "advisor", label: "Advisor / Banker", description: "Investment bankers and M&A advisors" },
-  { value: "businessOwner", label: "Business Owner", description: "Current business owners exploring opportunities" },
+  { value: "businessOwner", label: "Business Owner / Operator", description: "Current operators exploring add-on or platform acquisitions" },
 ];

@@ -218,8 +218,8 @@ const ListingDetail = () => {
               </div>
             )}
 
-            {/* Enhanced Financial Grid */}
-            <div className="mt-6">
+            {/* Enhanced Financial Grid — only visible to approved connections and admins */}
+            {(isAdmin || (connectionExists && connectionStatusValue === 'approved')) && <div className="mt-6">
               <EnhancedFinancialGrid
                 metrics={[
                   {
@@ -267,7 +267,7 @@ const ListingDetail = () => {
                       },
                 ]}
               />
-            </div>
+            </div>}
 
             {/* Structured Business Details */}
             <BusinessDetailsGrid geographic_states={listing.geographic_states} />
