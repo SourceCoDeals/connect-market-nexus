@@ -1,44 +1,22 @@
 
 
-# Fix: Guide Users to Exact Missing Fields on Profile Page
+# Lower Profile Completeness Threshold from 100% to 90%
 
 ## Problem
 
-When a buyer clicks "Complete Profile (73%)" from a listing card, they land on `/profile` with a big form and no idea which fields need filling. The missing-field info exists in `ConnectionButton` (on the listing detail page) but is completely absent from the Profile page itself.
+The `isProfileComplete()` function requires **every** required field to be filled (100%). Users at 91% are blocked from requesting access, even though optional "about me" fields aren't meaningful for deal qualification.
 
-## Solution
+## Change — Single File
 
-Add a **completion banner** at the top of the Profile form that:
-1. Shows the completion percentage and a progress bar
-2. Lists the exact missing fields by name (e.g., "Phone", "Search Stage", "Acquisition Equity")
-3. Auto-scrolls to / highlights the first missing field
-4. Disappears once the profile is 100% complete
+**`src/lib/profile-completeness.ts`** (line 59-60)
 
-Also pass `?incomplete=true` query param from the listing card and listing detail "Complete My Profile" links so the banner can appear prominently when arriving from that flow.
+Change `isProfileComplete` from checking for zero missing fields to checking if completion percentage ≥ 90%:
 
-## Changes
+```ts
+export const isProfileComplete = (user: Partial<User>): boolean => {
+  return getProfileCompletionPercentage(user) >= 90;
+};
+```
 
-### File 1: `src/pages/Profile/ProfileForm.tsx`
-
-- Import `getMissingFieldLabels`, `getProfileCompletionPercentage`, `isProfileComplete` from `profile-completeness`
-- Add a banner component at the top of the form (inside `<CardContent>`, before the form fields) that:
-  - Shows an amber alert box with `AlertCircle` icon: "Complete these fields to unlock deal access"
-  - Lists each missing field as a bullet
-  - Shows a progress bar with percentage
-  - Only renders when profile is incomplete
-- Add `required` red asterisk styling to labels of fields that are in the missing list
-
-### File 2: `src/components/listing/ListingCardActions.tsx` (line 157)
-
-- Change `<Link to="/profile">` → `<Link to="/profile?tab=profile&complete=1">`
-
-### File 3: `src/components/listing-detail/ConnectionButton.tsx` (line 170-175)
-
-- Change `<Link to="/profile">` → `<Link to="/profile?tab=profile&complete=1">`
-
-### Technical Details
-
-- Reuses existing `getMissingFieldLabels(user)` and `getProfileCompletionPercentage(user)` — no new logic needed
-- The banner is always visible when fields are missing, regardless of query param (the param just ensures the correct tab is active)
-- Missing field labels come from `FIELD_LABELS` map — already human-readable
+That's it. Every consumer (`ConnectionButton`, `ListingCard`, `ListingCardActions`, `ProfileForm`) already calls this function — they all inherit the new threshold automatically.
 
