@@ -20,6 +20,7 @@ interface ListingCardActionsProps {
   profileCompletePct?: number;
   isBuyerBlocked?: boolean;
   isFeeCovered?: boolean;
+  isNdaCovered?: boolean;
   onFeeGateOpen?: () => void;
 }
 
