@@ -217,6 +217,7 @@ export default function DocumentTrackingPage() {
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [orphansOpen, setOrphansOpen] = useState(false);
+  const [marketplaceOnly, setMarketplaceOnly] = useState(false);
 
   // AI Command Center
   const { setPageContext } = useAICommandCenterContext();
