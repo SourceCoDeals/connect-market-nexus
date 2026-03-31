@@ -77,7 +77,7 @@ export const useSignupForm = () => {
         website: data.website || '',
         phone_number: data.phone_number || '',
         linkedin_profile: data.linkedinProfile || '',
-        buyer_type: data.buyerType,
+        buyer_type: data.buyerType === 'businessOwner' ? 'searchFund' : data.buyerType,
         ideal_target_description: data.idealTargetDescription,
         business_categories: data.businessCategories,
         target_locations: data.targetLocations,
