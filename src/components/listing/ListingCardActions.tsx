@@ -110,6 +110,12 @@ const ListingCardActions = memo(function ListingCardActions({
     // Gate: profile incomplete
     if (!isProfileComplete) return;
 
+    // Gate: NDA not covered — redirect to listing detail for signing
+    if (!isNdaCovered) {
+      window.location.href = listingId ? `/listing/${listingId}` : '/marketplace';
+      return;
+    }
+
     // Gate: fee agreement not covered
     if (!isFeeCovered) {
       onFeeGateOpen?.();
