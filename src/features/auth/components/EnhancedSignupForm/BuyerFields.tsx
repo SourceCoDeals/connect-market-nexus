@@ -491,7 +491,7 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           </div>
 
           <div>
-            <Label htmlFor="ownerTimeline">Timeline (Optional)</Label>
+            <Label htmlFor="ownerTimeline">Timeline *</Label>
             <Select onValueChange={(value) => setValue('ownerTimeline', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select timeline" />
