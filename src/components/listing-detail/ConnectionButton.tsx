@@ -6,9 +6,10 @@ import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
-import { XCircle, AlertCircle } from 'lucide-react';
+import { XCircle, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, getProfileCompletionPercentage, getMissingFieldLabels } from '@/lib/profile-completeness';
+import { APP_CONFIG } from '@/config/app';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -49,8 +50,8 @@ const ConnectionButton = ({
       if (listingStatus === 'inactive' || listingStatus === 'sold') return;
       // Gate: profile must be complete
       if (user && !isAdmin && !isProfileComplete(user)) return;
-      // Gate: NDA must be signed
-      if (!isAdmin && coverage && !coverage.nda_covered) return;
+      // Gate: NDA must be signed (block when loading too — safe-by-default)
+      if (!isAdmin && (!coverage || !coverage.nda_covered)) return;
       // Gate: fee agreement must be covered
       if (!isAdmin && coverage && !coverage.fee_covered) {
         setShowFeeGate(true);
@@ -173,6 +174,26 @@ const ConnectionButton = ({
         >
           Complete My Profile
         </Link>
+      </div>
+    );
+  }
+
+  // Block users who haven't signed an NDA
+  if (!isAdmin && coverage && !coverage.nda_covered) {
+    return (
+      <div className="space-y-3">
+        <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <ShieldAlert className="h-4 w-4 text-amber-500" />
+            <p className="text-sm font-medium text-amber-900">NDA Required</p>
+          </div>
+          <p className="text-xs text-amber-700 mt-0.5">
+            You must sign a confidentiality agreement before requesting deal access. This is a one-time process.
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Contact <a href={`mailto:${APP_CONFIG.adminEmail}`} className="underline text-amber-700 hover:text-amber-900">{APP_CONFIG.adminEmail}</a> to get your NDA set up.
+          </p>
+        </div>
       </div>
     );
   }
