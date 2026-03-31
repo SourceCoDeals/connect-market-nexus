@@ -8,7 +8,7 @@ import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { XCircle, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { isProfileComplete, getProfileCompletionPercentage } from '@/lib/profile-completeness';
+import { isProfileComplete, getProfileCompletionPercentage, getMissingFieldLabels } from '@/lib/profile-completeness';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -133,18 +133,29 @@ const ConnectionButton = ({
   // Block users with incomplete profiles from requesting connections
   if (user && !isAdmin && !isProfileComplete(user)) {
     const pct = getProfileCompletionPercentage(user);
+    const missingLabels = getMissingFieldLabels(user);
     return (
       <div className="space-y-3">
-        <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
+        <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg">
           <div className="flex items-center justify-center gap-2 mb-1">
             <AlertCircle className="h-4 w-4 text-amber-500" />
             <p className="text-sm font-medium text-amber-900">Complete Your Profile</p>
           </div>
-          <p className="text-xs text-amber-700 mt-0.5">
-            You need to complete your buyer profile before requesting deal access.
+          <p className="text-xs text-amber-700 mt-1 text-center">
+            Fill in the following to request deal access:
           </p>
+          {missingLabels.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {missingLabels.map((label) => (
+                <li key={label} className="flex items-center gap-2 text-xs text-amber-800">
+                  <span className="h-1 w-1 rounded-full bg-amber-500 shrink-0" />
+                  {label}
+                </li>
+              ))}
+            </ul>
+          )}
           {pct > 0 && (
-            <div className="mt-2 space-y-1">
+            <div className="mt-3 space-y-1">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-amber-600">Profile completeness</span>
                 <span className="font-mono text-xs text-amber-900">{pct}%</span>
