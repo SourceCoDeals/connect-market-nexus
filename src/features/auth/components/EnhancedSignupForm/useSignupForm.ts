@@ -193,7 +193,7 @@ export const useSignupForm = () => {
             return watch('ownerIntent') && watch('ownerTimeline');
           case 'advisor': {
             const onBehalf = watch('onBehalfOfBuyer');
-            if (onBehalf === false || onBehalf === 'no') {
+            if (onBehalf === 'no') {
               return !!watch('mandateBlurb');
             }
             return !!onBehalf;
