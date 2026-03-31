@@ -91,7 +91,7 @@ function useAllDocuments() {
       docs.push({
         type: 'fee_agreement',
         label: 'Fee Agreement',
-        signed: firm.fee_agreement_status === 'signed' || firm.fee_agreement_signed === true || firm.fee_pandadoc_status === 'completed',
+        signed: firm.fee_agreement_status === 'signed' || !!firm.fee_agreement_signed_at || firm.fee_pandadoc_status === 'completed',
         signedAt: firm.fee_agreement_signed_at,
         documentUrl: firm.fee_pandadoc_signed_url || firm.fee_agreement_document_url || null,
         hasSubmission: !!firm.fee_pandadoc_document_id,
