@@ -377,8 +377,8 @@ export const BuyerFields: React.FC<BuyerFieldsProps> = ({ form, watch, setValue,
           <div className="flex items-center space-x-2">
             <Checkbox
               id="flexSub2mEbitda"
-              checked={watch('flexSub2mEbitda') || false}
-              onCheckedChange={(checked) => setValue('flexSub2mEbitda', checked as boolean)}
+              checked={watch('flexSub2mEbitda') === true}
+              onCheckedChange={(checked) => setValue('flexSub2mEbitda', checked === true)}
             />
             <Label htmlFor="flexSub2mEbitda">Flexible on size? (can pursue less than $2M EBITDA) *</Label>
           </div>
