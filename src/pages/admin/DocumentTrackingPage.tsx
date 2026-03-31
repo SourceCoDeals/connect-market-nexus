@@ -28,6 +28,8 @@ import { useRemoveFirmMember } from '@/hooks/admin/use-firm-agreements';
 import { useAgreementAuditLog } from '@/hooks/admin/use-firm-agreements';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -215,6 +217,7 @@ export default function DocumentTrackingPage() {
   const [sortAsc, setSortAsc] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [orphansOpen, setOrphansOpen] = useState(false);
+  const [marketplaceOnly, setMarketplaceOnly] = useState(false);
 
   // AI Command Center
   const { setPageContext } = useAICommandCenterContext();
@@ -264,6 +267,12 @@ export default function DocumentTrackingPage() {
   // Filter + Search
   const filteredFirms = useMemo(() => {
     let result = [...firms];
+
+    if (marketplaceOnly) {
+      result = result.filter(f =>
+        f.members.some(m => m.member_type === 'marketplace_user' && m.user_id)
+      );
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -357,7 +366,7 @@ export default function DocumentTrackingPage() {
     });
 
     return result;
-  }, [firms, searchQuery, filterStatus, sortField, sortAsc]);
+  }, [firms, searchQuery, filterStatus, sortField, sortAsc, marketplaceOnly]);
 
   // Stats
   const totalFirms = firms.length;
@@ -486,6 +495,16 @@ export default function DocumentTrackingPage() {
             placeholder="Search by firm, contact, email, or domain..."
             className="w-full text-sm border border-border rounded-lg pl-9 pr-3 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all"
           />
+        </div>
+        <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2">
+          <Switch
+            id="marketplace-only"
+            checked={marketplaceOnly}
+            onCheckedChange={setMarketplaceOnly}
+          />
+          <Label htmlFor="marketplace-only" className="text-sm whitespace-nowrap cursor-pointer">
+            Marketplace Only
+          </Label>
         </div>
         <select
           value={filterStatus}
