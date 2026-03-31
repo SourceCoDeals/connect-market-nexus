@@ -28,7 +28,7 @@ const ConnectionButton = ({
   isAdmin,
   handleRequestConnection,
   listingTitle,
-  listingId,
+  listingId: _listingId,
   listingStatus,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
