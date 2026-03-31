@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { MultiCategorySelect } from '@/components/ui/category-select';
 import { MultiLocationSelect } from '@/components/ui/location-select';
@@ -21,6 +21,8 @@ import { ChipInput } from '@/components/ui/chip-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DEAL_INTENT_OPTIONS } from '@/lib/signup-field-options';
 import { ProfileSettings } from './ProfileSettings';
+import { Progress } from '@/components/ui/progress';
+import { getMissingFieldLabels, getProfileCompletionPercentage, isProfileComplete } from '@/lib/profile-completeness';
 import type { ProfileFormProps } from './types';
 
 export function ProfileForm({
