@@ -294,15 +294,9 @@ export async function handleImport({
 
       if (!parsedData) continue;
 
-      // Skip rows without a website — can't enrich or deduplicate without one
       const rawWebsite = parsedData.website;
-      if (!rawWebsite || (typeof rawWebsite === 'string' && !rawWebsite.trim())) {
-        results.errors.push(`Row ${i + 2}: Skipped — no website provided`);
-        continue;
-      }
 
-      // Skip rows where "website" is actually a generic email domain (gmail.com, etc.)
-      if (isGenericEmailDomain(rawWebsite as string)) {
+      if (rawWebsite && typeof rawWebsite === 'string' && rawWebsite.trim() && isGenericEmailDomain(rawWebsite as string)) {
         const companyName = (parsedData.title as string) || 'Unknown';
         results.skippedGenericDomains.push(
           `${companyName} (${rawWebsite} is a personal email domain, not a company website)`
