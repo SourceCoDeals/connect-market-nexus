@@ -296,8 +296,7 @@ export async function handleImport({
 
       const rawWebsite = parsedData.website;
 
-      // Skip rows where "website" is actually a generic email domain (gmail.com, etc.)
-      if (isGenericEmailDomain(rawWebsite as string)) {
+      if (rawWebsite && typeof rawWebsite === 'string' && rawWebsite.trim() && isGenericEmailDomain(rawWebsite as string)) {
         const companyName = (parsedData.title as string) || 'Unknown';
         results.skippedGenericDomains.push(
           `${companyName} (${rawWebsite} is a personal email domain, not a company website)`
