@@ -272,3 +272,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.calculate-buyer-quality-score]
 verify_jwt = false
+[functions.request-agreement-email]
+verify_jwt = false

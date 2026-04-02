@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Shield, FileSignature, CheckCircle, Mail } from 'lucide-react';
+import { Loader2, Shield, FileSignature, CheckCircle, Mail, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { invalidateAgreementQueries } from '@/hooks/use-agreement-status-sync';
+import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 
 interface AgreementSigningModalProps {
   open: boolean;
@@ -16,7 +17,7 @@ interface AgreementSigningModalProps {
 
 /**
  * Email-based agreement request dialog.
- * Replaces the old PandaDoc embedded signing modal.
+ * Shows signed status, previous request dates, and allows requesting unsigned docs.
  */
 export function AgreementSigningModal({
   open,
@@ -30,10 +31,31 @@ export function AgreementSigningModal({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { data: agreementStatus } = useMyAgreementStatus(open);
 
   const activeType = chosenType;
   const docLabel = activeType === 'nda' ? 'NDA' : 'Fee Agreement';
   const Icon = activeType === 'nda' ? Shield : FileSignature;
+
+  const isNdaSigned = agreementStatus?.nda_covered ?? false;
+  const isFeeSigned = agreementStatus?.fee_covered ?? false;
+
+  // Get requested_at from the agreement status (cast to access extra fields)
+  const statusAny = agreementStatus as Record<string, unknown> | undefined;
+  const ndaRequestedAt = statusAny?.nda_requested_at as string | null | undefined;
+  const feeRequestedAt = statusAny?.fee_requested_at as string | null | undefined;
+
+  const getRequestedAt = (type: 'nda' | 'fee_agreement') => {
+    const raw = type === 'nda' ? ndaRequestedAt : feeRequestedAt;
+    if (!raw) return null;
+    try {
+      return new Date(raw).toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+    } catch {
+      return null;
+    }
+  };
 
   const handleRequest = async () => {
     setIsRequesting(true);
@@ -101,25 +123,44 @@ export function AgreementSigningModal({
               Choose which agreement you'd like to sign. You only need one to access deals.
             </p>
             <div className="grid gap-3">
+              {/* NDA Option */}
               <Button
                 variant="outline"
-                className="w-full justify-start gap-3 h-auto py-4"
-                onClick={() => setChosenType('nda')}
+                className={`w-full justify-start gap-3 h-auto py-4 ${isNdaSigned ? 'opacity-60 cursor-default border-emerald-200 bg-emerald-50/50' : ''}`}
+                onClick={() => !isNdaSigned && setChosenType('nda')}
+                disabled={isNdaSigned}
               >
-                <Shield className="h-5 w-5 text-primary" />
+                {isNdaSigned ? (
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                ) : (
+                  <Shield className="h-5 w-5 text-primary" />
+                )}
                 <div className="text-left">
-                  <div className="font-medium">Non-Disclosure Agreement</div>
+                  <div className="font-medium">
+                    Non-Disclosure Agreement
+                    {isNdaSigned && <span className="ml-2 text-xs text-emerald-600 font-normal">Signed</span>}
+                  </div>
                   <div className="text-xs text-muted-foreground">Standard NDA for deal access</div>
                 </div>
               </Button>
+
+              {/* Fee Agreement Option */}
               <Button
                 variant="outline"
-                className="w-full justify-start gap-3 h-auto py-4"
-                onClick={() => setChosenType('fee_agreement')}
+                className={`w-full justify-start gap-3 h-auto py-4 ${isFeeSigned ? 'opacity-60 cursor-default border-emerald-200 bg-emerald-50/50' : ''}`}
+                onClick={() => !isFeeSigned && setChosenType('fee_agreement')}
+                disabled={isFeeSigned}
               >
-                <FileSignature className="h-5 w-5 text-primary" />
+                {isFeeSigned ? (
+                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                ) : (
+                  <FileSignature className="h-5 w-5 text-primary" />
+                )}
                 <div className="text-left">
-                  <div className="font-medium">Fee Agreement</div>
+                  <div className="font-medium">
+                    Fee Agreement
+                    {isFeeSigned && <span className="ml-2 text-xs text-emerald-600 font-normal">Signed</span>}
+                  </div>
                   <div className="text-xs text-muted-foreground">Advisory fee agreement for deal access</div>
                 </div>
               </Button>
@@ -145,6 +186,17 @@ export function AgreementSigningModal({
           </div>
         ) : (
           <div className="space-y-4 py-2">
+            {/* Previous request info */}
+            {activeType && getRequestedAt(activeType) && (
+              <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-700">
+                  An email was sent to <strong>{user?.email}</strong> on {getRequestedAt(activeType)}.
+                  You can request again below if needed.
+                </p>
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground">
               We'll email you the {docLabel} to review and sign. Once you've signed it, simply reply to the email with the signed copy attached.
             </p>
