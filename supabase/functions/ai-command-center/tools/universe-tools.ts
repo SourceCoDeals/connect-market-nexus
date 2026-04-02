@@ -294,7 +294,8 @@ async function getUniverseBuyerFits(
     string,
     { status: string; is_disqualified: boolean; min_score: number | null; reasons: string[] }
   >();
-  for (const score of allScores) {
+  for (const _score of allScores) {
+    const score = _score as Record<string, any>;
     const existing = buyerScoreMap.get(score.buyer_id);
     const isNotFit =
       score.is_disqualified || score.status === 'passed' || score.status === 'disqualified';
