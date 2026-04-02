@@ -116,6 +116,7 @@ export function UnifiedAdminSidebar({
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
   const { unviewedCount: unviewedOwnerLeadsCount } = useUnviewedOwnerLeads();
   const { data: unreadMessages } = useUnreadMessageCounts();
+  const { data: pendingDocRequestCount = 0 } = usePendingDocumentRequests();
 
   const sections: NavSection[] = useMemo(
     () => [
