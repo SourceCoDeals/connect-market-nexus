@@ -1,186 +1,111 @@
 
 
-# Revamp Document Signing: Email-Based NDA & Fee Agreement Workflow
+# Document Signing Revamp — Gap Analysis & Implementation Plan
 
-## Summary
+## What's Already Done (Working)
 
-Replace the PandaDoc embedded signing system with a simple email-based workflow. Buyers click "Request NDA" or "Request Fee Agreement" buttons, which sends them the document via email from support@sourcecodeals.com. Admins manually track who received documents and toggle signed status when returned. The marketplace gate changes from requiring BOTH NDA and Fee Agreement to requiring at least ONE.
+1. **Database**: `document_requests` table created with RLS policies. `firm_agreements` has `nda_requested_at`, `fee_agreement_requested_at`, `nda_requested_by`, `fee_agreement_requested_by` columns.
+2. **Edge Function**: `request-agreement-email` sends email via Brevo, inserts `document_requests`, updates `firm_agreements` timestamps, notifies admins.
+3. **Buyer UI — AgreementSigningModal**: Rewritten for email-based flow (no PandaDoc embed).
+4. **Buyer UI — NdaGateModal**: Rewritten for email-based flow.
+5. **Buyer UI — FeeAgreementGate**: Rewritten for email-based flow.
+6. **ConnectionButton**: Gate changed to "at least one of NDA or Fee Agreement".
+7. **Admin sidebar**: Red badge for pending doc requests via `usePendingDocumentRequests`.
+8. **DocumentTrackingPage**: Has `pending_requests` filter, amber row highlighting for pending requests, realtime subscription on `document_requests`.
+9. **DealDocumentsCard & DealActionCard**: Already use `AgreementSigningModal` (email-based).
+10. **Realtime sync**: `useAgreementStatusSync` subscribes to `document_requests`.
+
+## What's Broken or Missing
+
+### Critical — Broken
+
+1. **PendingApproval page** — Still calls `get-buyer-nda-embed` (PandaDoc) and renders `PandaDocSigningPanel` iframe. Will fail for all users on that page.
+
+2. **Server-side RPC gate mismatch** — `enhanced_merge_or_create_connection_request` still enforces NDA-only (`check_agreement_coverage(email, 'nda')`). Client says "at least one" but server blocks users who only have Fee Agreement signed. Connection requests will fail with "NDA must be signed" for fee-only users.
+
+3. **ProfileDocuments tab** — Still queries PandaDoc-specific columns (`nda_pandadoc_signed_url`, `nda_pandadoc_document_id`, `nda_pandadoc_status`, etc.) and uses PandaDoc status resolution. Need to simplify to show email-based request status and use `AgreementSigningModal`.
+
+4. **BuyerMessages AgreementSection** — Still references PandaDoc columns (`nda_pandadoc_status`, `nda_pandadoc_signed_url`, `fee_pandadoc_status`, etc.) for status resolution. Should use simplified status from `firm_agreements.nda_status`/`fee_agreement_status` directly.
+
+5. **Admin MessageCenter** — References `nda_pandadoc_status` and `fee_pandadoc_status` for status resolution.
+
+6. **`last_requested` sort not implemented** — Declared as a sort type but never handled in the sort logic. Sorting by "most recent request first" doesn't work.
+
+### Missing — Planned but Not Built
+
+7. **Pending Requests stat card** — The plan called for a "Pending Requests" stat card on DocumentTrackingPage. Currently has Total Firms, NDA Signed, Fee Signed, Needs Attention, Orphan Users — but no pending request count card.
+
+8. **Admin attribution on sign toggle** — When admin toggles status to "signed" via `AgreementStatusDropdown`, the `document_requests` record is not updated (no `signed_at`, `signed_toggled_by`, `signed_toggled_by_name`). Admin attribution isn't tracked on the request itself.
+
+9. **Email attachment** — The edge function sends a plain HTML email explaining the process, but doesn't actually attach or link the NDA/Fee Agreement PDF. Need PDF templates in Supabase Storage and download links in the email.
+
+10. **EmailTestCentre** — Still references `confirm-agreement-signed` function for NDA/fee completion email tests. Should reference the new flow.
+
+### Cleanup — PandaDoc Remnants
+
+11. **PandaDocSigningPanel.tsx** — Component still exists; used by PendingApproval.
+12. **SendAgreementDialog.tsx** — Still references PandaDoc embed URLs.
+13. **Edge functions still deployed**: `get-buyer-nda-embed`, `get-buyer-fee-embed`, `confirm-agreement-signed`, `pandadoc-webhook-handler`, `get-agreement-document` — should be deprecated/removed.
+14. **`use-pandadoc.ts` hooks** — Still imported by PendingApproval and possibly others.
 
 ---
 
-## Current State
+## Implementation Plan
 
-- **PandaDoc integration**: 5 edge functions (`get-buyer-nda-embed`, `get-buyer-fee-embed`, `confirm-agreement-signed`, `pandadoc-webhook-handler`, `get-agreement-document`) handle embedded signing
-- **Frontend components**: `PandaDocSigningPanel`, `AgreementSigningModal`, `NdaGateModal`, `FeeAgreementGate` embed PandaDoc iframes
-- **Buyer surfaces**: Profile Documents tab, My Deals (DealDocumentsCard, DealActionCard), Messages (AgreementSection), PendingApproval page, ListingDetail NDA gate
-- **Admin surface**: DocumentTrackingPage with `AgreementStatusDropdown` for manual status changes
-- **Marketplace gate**: ConnectionButton requires `nda_covered` AND `fee_covered`
-- **Database**: `firm_agreements` table tracks statuses, `agreement_audit_log` for history
+### Step 1: Fix Server-Side RPC Gate
+Update `enhanced_merge_or_create_connection_request` to accept connection requests when the user has at least one signed agreement (NDA OR Fee Agreement), not just NDA. This aligns the server gate with the client-side `ConnectionButton` logic.
 
-## What Changes
+### Step 2: Fix PendingApproval Page
+Replace `get-buyer-nda-embed` / `PandaDocSigningPanel` with the email-based `AgreementSigningModal`. Users on this page should see the same "Request NDA via Email" button.
 
-### 1. Database: Add Document Request Tracking
+### Step 3: Fix ProfileDocuments Tab
+Remove PandaDoc column queries. Show simplified status: Not Requested / Requested / Email Sent / Signed. Add "Request via Email" buttons that open `AgreementSigningModal`. Show request timestamps from `document_requests` or `firm_agreements`.
 
-**New table: `document_requests`**
-- `id`, `firm_id`, `user_id`, `agreement_type` (nda/fee_agreement), `requested_at`, `email_sent_at`, `signed_at`, `signed_toggled_by` (admin user_id), `signed_toggled_by_name`, `status` (requested/email_sent/signed/cancelled), `created_at`
-- Tracks each individual signing request so admins see a queue of pending requests
+### Step 4: Fix BuyerMessages AgreementSection
+Remove PandaDoc status references. Use `firm_agreements.nda_status` and `fee_agreement_status` directly. Update `buildDocItem` to work without PandaDoc columns.
 
-**New columns on `firm_agreements`:**
-- `nda_requested_at`, `fee_agreement_requested_at` — timestamp of most recent request
-- `nda_requested_by` (user_id), `fee_agreement_requested_by` (user_id)
+### Step 5: Fix Admin MessageCenter
+Remove PandaDoc status resolution. Use `nda_status`/`fee_agreement_status` directly.
 
-### 2. New Edge Function: `request-agreement-email`
+### Step 6: Complete DocumentTrackingPage
+- Implement `last_requested` sort logic (sort by most recent `nda_requested_at` or `fee_agreement_requested_at`).
+- Add "Pending Requests" stat card showing count of firms with active requests.
+- Wire admin sign toggle to update `document_requests` with `signed_toggled_by`, `signed_toggled_by_name`, and `signed_at`.
 
-Replaces `get-buyer-nda-embed` and `get-buyer-fee-embed`. When a buyer clicks "Request NDA" or "Request Fee Agreement":
+### Step 7: Add PDF Links to Email
+Upload NDA and Fee Agreement PDFs to Supabase Storage (`agreement-templates` bucket). Update `request-agreement-email` edge function to include a download link in the email body.
 
-1. Resolves firm via `resolve_user_firm_id` (with self-heal)
-2. Checks if already signed — returns early if so
-3. Inserts a row into `document_requests` with status `requested`
-4. Sends an email to the buyer from support@sourcecodeals.com with the appropriate document attached (NDA or Fee Agreement PDF from Supabase Storage)
-5. Updates `document_requests.status` to `email_sent` and sets `email_sent_at`
-6. Creates `admin_notifications` for all admins: "John Doe (john@acme.com) requested NDA signing"
-7. Updates `firm_agreements` with `nda_requested_at`/`fee_agreement_requested_at`
-8. Returns `{ success: true, message: "Document sent to your email" }`
+### Step 8: Clean Up PandaDoc Remnants
+- Delete `PandaDocSigningPanel.tsx`
+- Update/remove `SendAgreementDialog.tsx` PandaDoc references
+- Update `EmailTestCentre` to reference new flow
+- Remove `use-pandadoc.ts` if no longer needed
+- Delete deprecated edge functions: `get-buyer-nda-embed`, `get-buyer-fee-embed`, `confirm-agreement-signed`, `pandadoc-webhook-handler`
 
-### 3. Buyer-Side UI Changes
-
-**A. Replace `AgreementSigningModal`** — Instead of opening a PandaDoc embed, show a simple confirmation dialog: "We'll email you the [NDA/Fee Agreement] to sign. Click below to request it." with a "Send to My Email" button. On success, show: "Document sent! Check your inbox at [email]. Return the signed copy to support@sourcecodeals.com."
-
-**B. Replace `NdaGateModal`** — Change from full-screen PandaDoc embed to a gate that says: "Sign your NDA to view this deal. Click below and we'll email you the document." with a "Request NDA via Email" button.
-
-**C. Replace `FeeAgreementGate`** — Same pattern: "Request Fee Agreement via Email" button instead of embedded form.
-
-**D. Profile Documents tab** — Show document status with new states:
-- Not Requested → "Request NDA" / "Request Fee Agreement" button
-- Requested/Email Sent → "Document sent to your email — return signed copy to support@sourcecodeals.com" with timestamp
-- Signed → Green checkmark with signed date
-
-**E. My Deals: `DealDocumentsCard` and `DealActionCard`** — Replace "Sign Now" PandaDoc buttons with "Request via Email" buttons. Show pending status if already requested.
-
-**F. Messages: `AgreementSection`** — Update to show email-based flow status instead of PandaDoc status.
-
-**G. PendingApproval page** — Replace PandaDoc embed with email request button for NDA.
-
-### 4. Admin Document Tracking Revamp
-
-**A. Pending Requests Badge** — Add a red notification badge next to "Document Tracking" in the admin sidebar showing count of pending (requested but not signed) document requests.
-
-**B. New filter: "Pending Requests"** — Adds a filter option to show only firms with active signing requests.
-
-**C. Row highlighting** — Firms with pending requests get an amber/yellow background row highlight so admins immediately see which firms need attention.
-
-**D. Sort by most recent request** — Default sort changes to show most recent document requests first (new `last_requested` sort option).
-
-**E. Admin sign-off toggle** — When admin toggles a document to "signed", the system:
-- Records which admin did it (`signed_toggled_by`, `signed_toggled_by_name`)
-- Updates `document_requests.status` to `signed` with `signed_at`
-- Updates `firm_agreements` status to `signed` with admin attribution
-- Logs to `agreement_audit_log` with admin name
-- Shows the admin name in the audit trail
-
-**F. Visible admin attribution** — In the expanded row audit log and inline date columns, show which admin marked the document as signed.
-
-**G. Stats cards update** — Add "Pending Requests" stat card showing count of outstanding requests.
-
-### 5. Marketplace Gate Change
-
-**ConnectionButton** gate logic changes from:
-```
-NDA required AND Fee Agreement required
-```
-to:
-```
-At least ONE of (NDA signed OR Fee Agreement signed) required
-```
-
-Specifically:
-- Change `!coverage.nda_covered` block to check `!coverage.nda_covered && !coverage.fee_covered`
-- Remove the fee agreement gate entirely from the connection flow
-- Update the `enhanced_merge_or_create_connection_request` RPC server-side gate to match (require at least one instead of NDA specifically)
-
-### 6. Realtime & Sync
-
-- Extend `useAgreementStatusSync` to also subscribe to `document_requests` table changes
-- When a request comes in, invalidate `admin-document-tracking` and `admin-pending-doc-requests` query keys
-- Admin sidebar badge updates in realtime
-
-### 7. Edge Functions to Deprecate/Remove
-
-- `get-buyer-nda-embed` — replaced by `request-agreement-email`
-- `get-buyer-fee-embed` — replaced by `request-agreement-email`
-- `confirm-agreement-signed` — no longer needed (admin toggles manually)
-- `pandadoc-webhook-handler` — no longer needed
-- `get-agreement-document` — keep if PDF download is still needed, otherwise remove
-
-### 8. Components to Remove/Replace
-
-- `src/components/pandadoc/PandaDocSigningPanel.tsx` — delete
-- `src/components/pandadoc/AgreementSigningModal.tsx` — rewrite as email request dialog
-- `src/components/pandadoc/NdaGateModal.tsx` — rewrite as email request gate
-- `src/components/pandadoc/FeeAgreementGate.tsx` — rewrite as email request gate
+### Step 9: Admin Attribution on Status Change
+Update `AgreementStatusDropdown` mutation to also update the corresponding `document_requests` record when status changes to "signed" — recording which admin toggled it and when.
 
 ---
 
 ## Technical Details
 
-### Database Migration
-
+### RPC Migration (Step 1)
 ```sql
--- Document request tracking table
-CREATE TABLE public.document_requests (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  firm_id uuid REFERENCES public.firm_agreements(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  agreement_type text NOT NULL CHECK (agreement_type IN ('nda', 'fee_agreement')),
-  status text NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'email_sent', 'signed', 'cancelled')),
-  requested_at timestamptz NOT NULL DEFAULT now(),
-  email_sent_at timestamptz,
-  signed_at timestamptz,
-  signed_toggled_by uuid REFERENCES auth.users(id),
-  signed_toggled_by_name text,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.document_requests ENABLE ROW LEVEL SECURITY;
-
--- Users can see their own requests
-CREATE POLICY "Users can view own requests" ON public.document_requests
-  FOR SELECT TO authenticated
-  USING (user_id = auth.uid());
-
--- Users can insert their own requests  
-CREATE POLICY "Users can create own requests" ON public.document_requests
-  FOR INSERT TO authenticated
-  WITH CHECK (user_id = auth.uid());
-
--- Admins can view and update all
-CREATE POLICY "Admins can manage all requests" ON public.document_requests
-  FOR ALL TO authenticated
-  USING (public.is_admin(auth.uid()));
-
--- Add request tracking to firm_agreements
-ALTER TABLE public.firm_agreements 
-  ADD COLUMN IF NOT EXISTS nda_requested_at timestamptz,
-  ADD COLUMN IF NOT EXISTS nda_requested_by uuid,
-  ADD COLUMN IF NOT EXISTS fee_agreement_requested_at timestamptz,
-  ADD COLUMN IF NOT EXISTS fee_agreement_requested_by uuid;
+-- Change NDA-only gate to "at least one agreement"
+-- Replace the check_agreement_coverage('nda') block with:
+-- Check both NDA and fee coverage; block only if NEITHER is signed
 ```
 
-### Email Sending
+### Storage Bucket (Step 7)
+```sql
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('agreement-templates', 'agreement-templates', true);
+```
+Admin uploads NDA.pdf and FeeAgreement.pdf. Edge function generates signed URLs or public links.
 
-The `request-agreement-email` edge function will use Brevo (existing email provider) to send the document. The NDA and Fee Agreement PDFs should be uploaded to Supabase Storage (`agreement-templates` bucket) so they can be attached or linked in the email.
-
-### Implementation Order
-
-1. Database migration (new table + columns)
-2. Upload NDA/Fee Agreement PDF templates to Storage
-3. Create `request-agreement-email` edge function
-4. Rewrite buyer-facing components (AgreementSigningModal → EmailRequestDialog, NdaGateModal, FeeAgreementGate)
-5. Update Profile Documents, My Deals cards, Messages section, PendingApproval
-6. Revamp admin DocumentTrackingPage (pending badge, row highlighting, request queue)
-7. Update admin sidebar with pending requests badge
-8. Change marketplace gate logic (at least one document)
-9. Update server-side RPC gate
-10. Add realtime subscriptions for document_requests
-11. Remove/deprecate PandaDoc edge functions and components
+### Files Changed
+- 1 database migration (RPC gate + admin attribution)
+- 1 edge function update (`request-agreement-email` — add PDF link)
+- ~8 component files updated (PendingApproval, ProfileDocuments, AgreementSection, MessageCenter, DocumentTrackingPage, AgreementStatusDropdown)
+- ~4 files deleted (PandaDoc components + edge functions)
 
