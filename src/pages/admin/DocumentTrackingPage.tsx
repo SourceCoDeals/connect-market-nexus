@@ -668,7 +668,7 @@ export default function DocumentTrackingPage() {
           </div>
           <div className="divide-y divide-amber-200">
             {pendingRequests.map((req) => (
-              <PendingRequestRow key={req.id} req={req} />
+              <PendingRequestRow key={req.id} req={req} deliveryEvent={req.email_correlation_id ? deliveryMap.get(req.email_correlation_id) : undefined} />
             ))}
           </div>
         </div>
