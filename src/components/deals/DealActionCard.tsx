@@ -170,7 +170,6 @@ export function DealActionCard({
       <AgreementSigningModal
         open={signingOpen}
         onOpenChange={setSigningOpen}
-        documentType={signingType}
       />
     </>
   );

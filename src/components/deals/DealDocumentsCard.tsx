@@ -133,39 +133,28 @@ export function DealDocumentsCard({
           </div>
 
           {/* Fee Agreement row */}
-          {showFee && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <FileSignature
-                  className={cn('h-4 w-4', feeCovered ? 'text-emerald-600' : 'text-[#8B6F47]')}
-                />
-                <span className="text-[13px] text-[#0E101A]/70">Fee Agreement</span>
-              </div>
-              {feeCovered ? (
-                <div className="flex items-center gap-1.5">
-                  <Check className="h-3 w-3 text-emerald-600" />
-                  <span className="text-[12px] font-medium text-emerald-700">Signed</span>
-                </div>
-              ) : (
-                <button
-                  onClick={() => openSigning('fee_agreement')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-[12px] font-semibold bg-[#0E101A] text-white hover:bg-[#0E101A]/85 transition-colors"
-                >
-                  Request <ArrowRight className="h-3 w-3" />
-                </button>
-              )}
+          {/* Fee Agreement row — always visible */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <FileSignature
+                className={cn('h-4 w-4', feeCovered ? 'text-emerald-600' : 'text-[#8B6F47]')}
+              />
+              <span className="text-[13px] text-[#0E101A]/70">Fee Agreement</span>
             </div>
-          )}
-
-          {!showFee && !feeCovered && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <FileSignature className="h-4 w-4 text-[#0E101A]/20" />
-                <span className="text-[13px] text-[#0E101A]/40">Fee Agreement</span>
+            {feeCovered ? (
+              <div className="flex items-center gap-1.5">
+                <Check className="h-3 w-3 text-emerald-600" />
+                <span className="text-[12px] font-medium text-emerald-700">Signed</span>
               </div>
-              <span className="text-[11px] text-[#0E101A]/30">Not yet sent</span>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={() => openSigning('fee_agreement')}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-[12px] font-semibold bg-[#0E101A] text-white hover:bg-[#0E101A]/85 transition-colors"
+              >
+                Request <ArrowRight className="h-3 w-3" />
+              </button>
+            )}
+          </div>
 
           <div className="border-t border-[#F0EDE6]" />
 
