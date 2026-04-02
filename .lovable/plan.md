@@ -1,60 +1,43 @@
 
 
-# Agreement Emails — Already Working via Brevo
+# Redesign Listing Detail — Premium Agreement Status UX
 
-## Current State (Verified)
+## Issues Identified
 
-The agreement emails are **already fully set up and sending via Brevo**. Here's the proof from the database:
+1. **Top banners are loud and clunky** — Two full-width colored banners (amber/blue backgrounds) at the top look like error alerts, not premium UI. They use heavy background tints which violate the "Quiet Luxury" design system (white-dominant, hairline dividers, spacing over tints).
 
-- `adambhaile00@gmail.com` — 3 NDA requests and 1 Fee Agreement request, all with `status: email_sent`
-- `dustin@critical-services-group.com` — 1 NDA request with `status: email_sent`
-- `firm_agreements` table correctly updated to `nda_status: sent` with timestamps
+2. **Duplicate information** — The top `AgreementStatusBanner` shows "NDA waiting to be signed" AND the sidebar shows "Your NDA has been sent to..." — same info repeated in two places with different styles.
 
-The `request-agreement-email` edge function is deployed, uses `sendViaBervo()` (shared Brevo sender with retry logic), and the `BREVO_API_KEY` secret is configured.
+3. **Sidebar document status card is visually harsh** — Blue background tint with bold text doesn't match the premium minimal aesthetic of the rest of the sidebar.
 
-## What's Already Working
+4. **"Agreement Required" block in sidebar is alarming** — Amber background with ShieldAlert icon feels like a warning/error. Should feel like a gentle next-step prompt.
 
-| Component | Status |
-|-----------|--------|
-| Edge function `request-agreement-email` | Deployed, functional |
-| Brevo API integration via `sendViaBervo()` | Working (retries, error handling) |
-| Sender: `support@sourcecodeals.com` | Configured |
-| Reply-to: `support@sourcecodeals.com` | Configured |
-| DOCX attachments in storage bucket | Uploaded (NDA.docx, FeeAgreement.docx) |
-| Download links in email body | Working |
-| `document_requests` tracking | Recording all requests |
-| `firm_agreements` status sync | Updating to "sent" on success |
-| Admin notifications on request | Working |
+5. **Top banners show for BOTH NDA and Fee Agreement separately** — Creates visual clutter with two banners stacked.
 
-## Two Emails Defined
+## Solution
 
-### 1. NDA Email
-- **Subject**: "Your NDA (Non-Disclosure Agreement) from SourceCo"
-- **From**: SourceCo `<support@sourcecodeals.com>`
-- **Reply-to**: SourceCo Support `<support@sourcecodeals.com>`
-- **Body**: Greeting, download button (links to NDA.docx in storage), 3-step signing instructions (review → sign → reply with signed copy), footer
-- **Trigger**: Buyer clicks "Request NDA" in AgreementSigningModal, NdaGateModal, or admin sends from UsersTable/Document Tracking
+### 1. Remove top `AgreementStatusBanner` from listing detail entirely
+The sidebar already shows the relevant status. No need for redundant top banners on the listing page. The banners are useful on other pages but on listing detail the sidebar is the right place.
 
-### 2. Fee Agreement Email
-- **Subject**: "Your Fee Agreement from SourceCo"
-- **From**: SourceCo `<support@sourcecodeals.com>`
-- **Reply-to**: SourceCo Support `<support@sourcecodeals.com>`
-- **Body**: Same structure as NDA but with Fee Agreement document
-- **Trigger**: Buyer clicks "Request Fee Agreement" in AgreementSigningModal, FeeAgreementGate, or admin sends
+### 2. Redesign sidebar agreement section — premium style
+Replace the amber "Agreement Required" block and the blue "NDA sent" block with a single, clean card that follows the quiet luxury aesthetic:
 
-## Possible Issue: Email Deliverability
+- **When unsigned & not sent**: Clean white card with subtle border, gentle copy: "Sign an agreement to request introductions." with a refined button.
+- **When sent/pending**: Clean white card showing status with a subtle left-border accent (blue), email info, and next steps. No background tints.
+- **When signed**: Either hide entirely (the connection button is active) or show a subtle green checkmark.
 
-If emails aren't arriving in inboxes despite successful Brevo API calls, the likely cause is:
+### 3. Consolidate into one sidebar status section
+Instead of separate "Agreement Required" and "Document Status" blocks, merge into one contextual section inside the existing CTA card, between the heading and the ConnectionButton.
 
-1. **`support@sourcecodeals.com` not verified as a sender in Brevo** — Brevo requires senders to be verified in their dashboard (Settings → Senders). The API call succeeds (returns 200 + messageId) but Brevo may silently drop or flag the email if the sender isn't verified.
+## Files Changed
 
-2. **SPF/DKIM/DMARC not configured** for `sourcecodeals.com` pointing to Brevo's sending infrastructure.
+- `src/pages/ListingDetail.tsx` — Remove `AgreementStatusBanner` import and usage from listing detail page (lines 176-180)
+- `src/components/listing-detail/ConnectionButton.tsx` — Redesign the agreement gate UI (lines 176-210) and the document status card (lines 372-382 in ListingDetail.tsx, move logic into ConnectionButton) to use premium minimal styling: white background, hairline borders, muted text, no color tints
 
-## What You Need to Do in Brevo Dashboard
-
-1. Go to **Brevo → Settings → Senders & IP → Senders** and verify `support@sourcecodeals.com` is listed as a verified sender
-2. Go to **Brevo → Settings → Senders & IP → Domains** and verify `sourcecodeals.com` has SPF and DKIM records configured
-3. Check **Brevo → Transactional → Email Logs** to see if the emails appear there and what their delivery status is (delivered, bounced, blocked)
-
-These are Brevo dashboard actions — no code changes needed. The platform code is complete and working correctly.
+### Design Tokens (from existing design system)
+- Background: `bg-white` (not `bg-amber-50` or `bg-blue-50`)
+- Border: `border border-slate-200/60` (hairline)
+- Accent: Left border `border-l-2 border-blue-400` for pending status
+- Text: `text-foreground` for headings, `text-muted-foreground` for body
+- Icon: Muted, not colored (`text-slate-400`)
 
