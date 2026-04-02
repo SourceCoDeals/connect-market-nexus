@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import ConnectionRequestDialog from '@/components/connection/ConnectionRequestDialog';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
-import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
