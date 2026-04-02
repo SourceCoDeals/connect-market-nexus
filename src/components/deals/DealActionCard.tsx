@@ -83,7 +83,7 @@ export function DealActionCard({
         unlock:
           "Once signed, you'll receive access to the company name, confidential deal memo, and detailed financials.",
         variant: 'action' as const,
-        cta: { label: 'Request NDA', onClick: () => openSigning('nda') },
+        cta: { label: 'Request Agreement', onClick: () => setSigningOpen(true) },
       };
     }
 
