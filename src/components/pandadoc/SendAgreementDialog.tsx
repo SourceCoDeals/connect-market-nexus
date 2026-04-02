@@ -55,11 +55,14 @@ export function SendAgreementDialog({
     if (!isValidEmail) return;
     setSending(true);
     try {
-      const { error } = await supabase.functions.invoke('request-agreement-email', {
-        body: { documentType, recipientEmail: email, recipientName: buyerName, firmId },
+      const result = await sendAgreementEmail({
+        documentType,
+        recipientEmail: email,
+        recipientName: buyerName,
+        firmId,
       });
 
-      if (error) throw error;
+      if (!result.success) throw new Error(result.error || 'Failed to send');
 
       toast({
         title: `${docLabel} Sent`,

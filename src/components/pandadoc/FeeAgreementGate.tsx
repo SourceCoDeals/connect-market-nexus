@@ -30,29 +30,21 @@ export function FeeAgreementGate({ userId, firmId: _firmId, listingTitle: _listi
     setError(null);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('request-agreement-email', {
-        body: { documentType: 'fee_agreement' },
-      });
+      const result = await sendAgreementEmail({ documentType: 'fee_agreement' });
 
-      if (fnError) {
-        setError('Failed to send Fee Agreement. Please try again.');
-        return;
-      }
-
-      if (data?.alreadySigned) {
+      if (result.alreadySigned) {
         invalidateAgreementQueries(queryClient, userId);
         onSigned();
+        setIsRequesting(false);
         return;
       }
 
-      if (data?.success) {
+      if (result.success) {
         setSent(true);
         invalidateAgreementQueries(queryClient, userId);
       } else {
-        setError(data?.error || 'Something went wrong.');
+        setError(result.error || 'Something went wrong.');
       }
-    } catch {
-      setError('Something went wrong. Please try again.');
     } finally {
       setIsRequesting(false);
     }
