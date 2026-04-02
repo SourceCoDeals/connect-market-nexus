@@ -29,7 +29,7 @@ import { InternalCompanyInfoDisplay } from '@/components/admin/InternalCompanyIn
 import { BuyerDataRoom } from '@/components/marketplace/BuyerDataRoom';
 import { MFAGate } from '@/components/auth/MFAGate';
 
-import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
+
 
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 
