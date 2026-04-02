@@ -11,7 +11,7 @@ import { invalidateAgreementQueries } from '@/hooks/use-agreement-status-sync';
 interface AgreementSigningModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  documentType: 'nda' | 'fee_agreement';
+  documentType?: 'nda' | 'fee_agreement';
 }
 
 /**
@@ -26,12 +26,14 @@ export function AgreementSigningModal({
   const [isRequesting, setIsRequesting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chosenType, setChosenType] = useState<'nda' | 'fee_agreement' | null>(documentType ?? null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const docLabel = documentType === 'nda' ? 'NDA' : 'Fee Agreement';
-  const Icon = documentType === 'nda' ? Shield : FileSignature;
+  const activeType = chosenType;
+  const docLabel = activeType === 'nda' ? 'NDA' : 'Fee Agreement';
+  const Icon = activeType === 'nda' ? Shield : FileSignature;
 
   const handleRequest = async () => {
     setIsRequesting(true);
@@ -39,7 +41,7 @@ export function AgreementSigningModal({
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('request-agreement-email', {
-        body: { documentType },
+        body: { documentType: activeType },
       });
 
       if (fnError) {
@@ -73,6 +75,7 @@ export function AgreementSigningModal({
   const handleClose = () => {
     setSent(false);
     setError(null);
+    if (!documentType) setChosenType(null);
     onOpenChange(false);
   };
 
@@ -81,12 +84,48 @@ export function AgreementSigningModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Icon className="h-5 w-5" />
-            {sent ? `${docLabel} Sent` : `Request ${docLabel}`}
+            {activeType ? (
+              <>
+                <Icon className="h-5 w-5" />
+                {sent ? `${docLabel} Sent` : `Request ${docLabel}`}
+              </>
+            ) : (
+              'Choose Your Agreement'
+            )}
           </DialogTitle>
         </DialogHeader>
 
-        {sent ? (
+        {!activeType ? (
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Choose which agreement you'd like to sign. You only need one to access deals.
+            </p>
+            <div className="grid gap-3">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto py-4"
+                onClick={() => setChosenType('nda')}
+              >
+                <Shield className="h-5 w-5 text-primary" />
+                <div className="text-left">
+                  <div className="font-medium">Non-Disclosure Agreement</div>
+                  <div className="text-xs text-muted-foreground">Standard NDA for deal access</div>
+                </div>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto py-4"
+                onClick={() => setChosenType('fee_agreement')}
+              >
+                <FileSignature className="h-5 w-5 text-primary" />
+                <div className="text-left">
+                  <div className="font-medium">Fee Agreement</div>
+                  <div className="text-xs text-muted-foreground">Advisory fee agreement for deal access</div>
+                </div>
+              </Button>
+            </div>
+          </div>
+        ) : sent ? (
           <div className="flex flex-col items-center gap-4 py-6 text-center">
             <div className="p-3 rounded-full bg-emerald-100">
               <CheckCircle className="h-8 w-8 text-emerald-600" />
@@ -116,23 +155,33 @@ export function AgreementSigningModal({
               </div>
             )}
 
-            <Button
-              onClick={handleRequest}
-              disabled={isRequesting}
-              className="w-full"
-            >
-              {isRequesting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Send {docLabel} to My Email
-                </>
+            <div className="flex gap-2">
+              {!documentType && (
+                <Button
+                  variant="ghost"
+                  onClick={() => { setChosenType(null); setError(null); }}
+                >
+                  Back
+                </Button>
               )}
-            </Button>
+              <Button
+                onClick={handleRequest}
+                disabled={isRequesting}
+                className="flex-1"
+              >
+                {isRequesting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Send {docLabel} to My Email
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         )}
       </DialogContent>
