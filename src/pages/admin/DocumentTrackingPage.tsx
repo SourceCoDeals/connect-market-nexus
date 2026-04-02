@@ -655,6 +655,14 @@ export default function DocumentTrackingPage() {
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                    <button
+                      onClick={() => toggleSort('last_requested')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      Requested <ArrowUpDown className="h-3 w-3" />
+                    </button>
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                     Primary Contact
                   </th>
                 </tr>
