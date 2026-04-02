@@ -840,6 +840,7 @@ function FirmExpandableRow({
             <div>
               <span className="text-emerald-600 font-medium">{format(new Date(firm.nda_signed_at), 'MMM d, yyyy')}</span>
               {firm.nda_signed_by_name && <p className="text-[10px]">{firm.nda_signed_by_name}</p>}
+              {firm.nda_marked_by_admin && <p className="text-[10px] text-muted-foreground/70">Marked by {firm.nda_marked_by_admin}</p>}
             </div>
           ) : firm.nda_sent_at ? (
             <span>{formatDistanceToNow(new Date(firm.nda_sent_at), { addSuffix: true })}</span>
@@ -853,6 +854,7 @@ function FirmExpandableRow({
             <div>
               <span className="text-emerald-600 font-medium">{format(new Date(firm.fee_agreement_signed_at), 'MMM d, yyyy')}</span>
               {firm.fee_agreement_signed_by_name && <p className="text-[10px]">{firm.fee_agreement_signed_by_name}</p>}
+              {firm.fee_marked_by_admin && <p className="text-[10px] text-muted-foreground/70">Marked by {firm.fee_marked_by_admin}</p>}
             </div>
           ) : firm.fee_agreement_sent_at ? (
             <span>{formatDistanceToNow(new Date(firm.fee_agreement_sent_at), { addSuffix: true })}</span>
