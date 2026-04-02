@@ -22,7 +22,6 @@ interface ListingCardActionsProps {
   isBuyerBlocked?: boolean;
   isFeeCovered?: boolean;
   isNdaCovered?: boolean;
-  onFeeGateOpen?: () => void;
 }
 
 const ListingCardActions = memo(function ListingCardActions({
