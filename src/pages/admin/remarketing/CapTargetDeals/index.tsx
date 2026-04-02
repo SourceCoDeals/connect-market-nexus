@@ -224,6 +224,8 @@ export default function CapTargetDeals() {
         priorityDeals={data.kpiStats.priorityDeals}
         avgScore={data.kpiStats.avgScore}
         needsScoring={data.kpiStats.needsScoring}
+        activeFilter={data.kpiFilter}
+        onCardClick={data.setKpiFilter}
       />
 
       {/* Enrichment Progress Bar */}
@@ -353,8 +355,14 @@ export default function CapTargetDeals() {
       />
       <ArchiveDealDialog
         open={!!actions.archiveTarget}
-        onOpenChange={(open) => { if (!open) actions.setArchiveTarget(null); }}
-        deal={actions.archiveTarget ? { id: actions.archiveTarget.id, name: actions.archiveTarget.name } : null}
+        onOpenChange={(open) => {
+          if (!open) actions.setArchiveTarget(null);
+        }}
+        deal={
+          actions.archiveTarget
+            ? { id: actions.archiveTarget.id, name: actions.archiveTarget.name }
+            : null
+        }
         onConfirmArchive={actions.confirmArchiveDeal}
       />
 

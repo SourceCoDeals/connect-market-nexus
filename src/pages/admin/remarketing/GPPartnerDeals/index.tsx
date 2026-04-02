@@ -303,6 +303,8 @@ export default function GPPartnerDeals() {
         priorityDeals={hook.kpiStats.priorityDeals}
         avgScore={hook.kpiStats.avgScore}
         needsScoring={hook.kpiStats.needsScoring}
+        activeFilter={hook.kpiFilter}
+        onCardClick={hook.setKpiFilter}
       />
 
       {/* Enrichment Progress Bar */}

@@ -52,7 +52,7 @@ export default function SourceCoDeals() {
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isMarkingNotFit, setIsMarkingNotFit] = useState(false);
-  const [archiveTarget, setArchiveTarget] = useState<{id: string; name: string} | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Navigation blocking via beforeunload when import dialog is open
   useEffect(() => {
@@ -328,6 +328,8 @@ export default function SourceCoDeals() {
         priorityDeals={hook.kpiStats.priorityDeals}
         avgScore={hook.kpiStats.avgScore}
         needsScoring={hook.kpiStats.needsScoring}
+        activeFilter={hook.kpiFilter}
+        onCardClick={hook.setKpiFilter}
       />
 
       {/* Enrichment Progress Bar */}
@@ -449,7 +451,7 @@ export default function SourceCoDeals() {
         setAddDealOpen={hook.setAddDealOpen}
         setCsvUploadOpen={hook.setCsvUploadOpen}
         onMarkNotFit={handleMarkNotFitSingle}
-        onArchiveDeal={(dealId, dealName) => setArchiveTarget({id: dealId, name: dealName})}
+        onArchiveDeal={(dealId, dealName) => setArchiveTarget({ id: dealId, name: dealName })}
       />
 
       {/* Pagination */}
@@ -484,7 +486,9 @@ export default function SourceCoDeals() {
       {/* Archive Deal Dialog */}
       <ArchiveDealDialog
         open={!!archiveTarget}
-        onOpenChange={(open) => { if (!open) setArchiveTarget(null); }}
+        onOpenChange={(open) => {
+          if (!open) setArchiveTarget(null);
+        }}
         deal={archiveTarget ? { id: archiveTarget.id, name: archiveTarget.name } : null}
         onConfirmArchive={async (reason) => {
           if (!archiveTarget) return;
