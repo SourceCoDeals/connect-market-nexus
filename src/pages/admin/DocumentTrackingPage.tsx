@@ -781,7 +781,7 @@ function FirmExpandableRow({
       {/* Expanded detail panel */}
       {expanded && (
         <tr>
-          <td colSpan={9} className="px-0 py-0">
+          <td colSpan={10} className="px-0 py-0">
             <div className="bg-muted/20 border-t border-b border-border px-6 py-4 space-y-4">
               {/* Members section */}
               <div>
