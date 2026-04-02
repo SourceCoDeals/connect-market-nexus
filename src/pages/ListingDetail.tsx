@@ -53,8 +53,8 @@ const ListingDetail = () => {
 
   const isAdmin = user?.is_admin === true;
 
-  // NDA gate: check if buyer has signed NDA (skip for admins and unauthenticated)
-  const { data: agreementStatus } = useMyAgreementStatus(!isAdmin && !!user);
+  // Agreement status handled by ConnectionButton sidebar component
+
   useAgreementStatusSync();
 
   useEffect(() => {
