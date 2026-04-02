@@ -2,7 +2,7 @@
  * DealActionCard — Single-purpose next-action callout for the buyer.
  *
  * Shows the ONE most important thing the buyer needs to do or know
- * about this deal right now. Signing CTAs are bold and unmissable.
+ * about this deal right now. Uses "either doc" rule.
  */
 
 import { useState } from 'react';
@@ -33,7 +33,9 @@ export function DealActionCard({
     setSigningOpen(true);
   };
 
-  // Determine the single most important action/status
+  // Either doc unlocks access
+  const hasAnyAgreement = ndaSigned || feeCovered;
+
   const getAction = () => {
     if (requestStatus === 'rejected') {
       return {
@@ -71,17 +73,17 @@ export function DealActionCard({
       };
     }
 
-    // Pending status — check what's needed
-    if (!ndaSigned) {
+    // Pending status — check what's needed (either doc)
+    if (!hasAnyAgreement) {
       return {
         icon: Shield,
-        title: 'Sign your NDA to proceed',
+        title: 'Sign an agreement to proceed',
         description:
-          'Your Non-Disclosure Agreement needs to be signed before your interest can be presented to the owner.',
+          'An NDA or Fee Agreement needs to be signed before your interest can be presented to the owner.',
         unlock:
           "Once signed, you'll receive access to the company name, confidential deal memo, and detailed financials.",
         variant: 'action' as const,
-        cta: { label: 'Sign NDA Now', onClick: () => openSigning('nda') },
+        cta: { label: 'Request NDA', onClick: () => openSigning('nda') },
       };
     }
 
