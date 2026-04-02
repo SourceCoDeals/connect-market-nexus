@@ -174,29 +174,47 @@ const ConnectionButton = ({
 
   // Block users who haven't signed at least one agreement (NDA or Fee Agreement)
   if (!isAdmin && coverage && !coverage.nda_covered && !coverage.fee_covered) {
+    const hasPending = coverage.nda_status === 'sent' || coverage.fee_status === 'sent';
+    const pendingType = coverage.nda_status === 'sent' ? 'NDA' : 'Fee Agreement';
+
     return (
       <div className="space-y-3">
-        <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <ShieldAlert className="h-4 w-4 text-amber-500" />
-            <p className="text-sm font-medium text-amber-900">Agreement Required</p>
+        {hasPending ? (
+          /* Sent / pending state — subtle left-accent card */
+          <div className="w-full border border-slate-200/60 rounded-lg overflow-hidden">
+            <div className="border-l-2 border-blue-400 px-4 py-4">
+              <p className="text-sm font-medium text-foreground">
+                {pendingType} Sent
+              </p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                Sent to <span className="font-medium text-foreground">{user?.email}</span>. Review, sign, and reply to{' '}
+                <span className="font-medium text-foreground">support@sourcecodeals.com</span>.
+              </p>
+              <p className="text-[11px] text-muted-foreground/70 mt-2">
+                Once processed, you'll be able to request introductions.
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-amber-700 mt-0.5">
-            You must sign an NDA or Fee Agreement before requesting deal access. This is a one-time process.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-2 w-full text-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAgreementModal(true);
-            }}
-          >
-            <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
-            Request Agreement via Email
-          </Button>
-        </div>
+        ) : (
+          /* Not yet requested — clean prompt */
+          <div className="w-full border border-slate-200/60 rounded-lg px-4 py-4">
+            <p className="text-sm font-medium text-foreground">Sign an Agreement</p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              An NDA or Fee Agreement is required to request deal access. This is a one-time process.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full text-xs border-slate-200 hover:border-slate-300 text-foreground"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAgreementModal(true);
+              }}
+            >
+              Request Agreement via Email
+            </Button>
+          </div>
+        )}
         {showAgreementModal && (
           <AgreementSigningModal
             open={showAgreementModal}
