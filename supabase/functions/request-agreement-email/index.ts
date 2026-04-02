@@ -7,8 +7,8 @@ import { sendViaBervo } from '../_shared/brevo-sender.ts';
 
 /**
  * request-agreement-email
- * Buyer-facing: sends the NDA or Fee Agreement document via email.
- * Replaces get-buyer-nda-embed and get-buyer-fee-embed.
+ * Sends NDA or Fee Agreement via email.
+ * Updates both document_requests (ops queue) and firm_agreements (canonical status).
  */
 
 serve(async (req: Request) => {
@@ -22,7 +22,6 @@ serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Auth: any authenticated user
     const auth = await requireAuth(req);
     if (!auth.authenticated || !auth.userId) {
       return new Response(JSON.stringify({ error: auth.error }), {
@@ -60,14 +59,14 @@ serve(async (req: Request) => {
     let buyerName: string;
     let firmId: string | null;
     let targetUserId: string = userId;
+    let adminId: string | null = null;
 
     if (isAdmin && overrideEmail) {
-      // Admin sending to a specific buyer
+      adminId = userId;
       buyerEmail = overrideEmail;
       buyerName = overrideName || overrideEmail;
       firmId = overrideFirmId || null;
 
-      // Try to resolve firm from the buyer's profile if firmId not provided
       if (!firmId) {
         const { data: buyerProfile } = await supabaseAdmin
           .from('profiles')
@@ -82,14 +81,11 @@ serve(async (req: Request) => {
       }
 
       if (!firmId) {
-        // Try self-heal for the target user
         if (targetUserId !== userId) {
           const healResult = await selfHealFirm(supabaseAdmin, targetUserId);
           firmId = healResult?.firmId ?? null;
         }
-        if (!firmId && overrideFirmId) {
-          firmId = overrideFirmId;
-        }
+        if (!firmId && overrideFirmId) firmId = overrideFirmId;
         if (!firmId) {
           return new Response(JSON.stringify({ error: 'No firm found for this buyer.' }), {
             status: 404,
@@ -98,7 +94,6 @@ serve(async (req: Request) => {
         }
       }
     } else {
-      // Self-service: buyer requesting their own document
       const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('email, first_name, last_name, company')
@@ -146,7 +141,7 @@ serve(async (req: Request) => {
       });
     }
 
-    // Insert document request
+    // Insert document request with recipient tracking
     const { data: docRequest, error: insertErr } = await supabaseAdmin
       .from('document_requests')
       .insert({
@@ -155,6 +150,9 @@ serve(async (req: Request) => {
         agreement_type: documentType,
         status: 'requested',
         requested_at: new Date().toISOString(),
+        recipient_email: buyerEmail,
+        recipient_name: buyerName,
+        requested_by_admin_id: adminId,
       })
       .select('id')
       .single();
@@ -164,7 +162,6 @@ serve(async (req: Request) => {
     }
 
     const docLabel = documentType === 'nda' ? 'NDA (Non-Disclosure Agreement)' : 'Fee Agreement';
-    // Build PDF download link if available in storage
     const pdfFileName = documentType === 'nda' ? 'NDA.pdf' : 'FeeAgreement.pdf';
     const { data: pdfUrl } = supabaseAdmin.storage
       .from('agreement-templates')
@@ -226,15 +223,27 @@ serve(async (req: Request) => {
         .eq('id', docRequest.id);
     }
 
-    // Update firm_agreements with request timestamp
+    // Update firm_agreements: request timestamp + canonical status to 'sent'
+    const now = new Date().toISOString();
     const requestedAtCol = documentType === 'nda' ? 'nda_requested_at' : 'fee_agreement_requested_at';
     const requestedByCol = documentType === 'nda' ? 'nda_requested_by' : 'fee_agreement_requested_by';
+    const sentAtCol = documentType === 'nda' ? 'nda_sent_at' : 'fee_agreement_sent_at';
+    const emailSentAtCol = documentType === 'nda' ? 'nda_email_sent_at' : 'fee_agreement_email_sent_at';
+
+    const firmUpdate: Record<string, unknown> = {
+      [requestedAtCol]: now,
+      [requestedByCol]: userId,
+    };
+
+    if (emailResult.success) {
+      firmUpdate[statusCol] = 'sent';
+      firmUpdate[sentAtCol] = now;
+      firmUpdate[emailSentAtCol] = now;
+    }
+
     await supabaseAdmin
       .from('firm_agreements')
-      .update({
-        [requestedAtCol]: new Date().toISOString(),
-        [requestedByCol]: userId,
-      })
+      .update(firmUpdate)
       .eq('id', firmId);
 
     // Notify all admins
@@ -251,7 +260,7 @@ serve(async (req: Request) => {
           notification_type: 'document_signing_requested',
           title: `${docLabel} Requested`,
           message: `${buyerName} (${buyerEmail}) has requested their ${docLabel}. Check your email inbox.`,
-          user_id: userId,
+          user_id: targetUserId,
           metadata: { firm_id: firmId, document_type: documentType, request_id: docRequest?.id },
         }));
         await supabaseAdmin.from('admin_notifications').insert(notifications);

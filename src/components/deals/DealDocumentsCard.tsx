@@ -1,8 +1,6 @@
 /**
  * DealDocumentsCard — Agreements + Data Room preview card.
- *
- * Shows NDA/Fee Agreement signing status with prominent CTAs,
- * plus a data room preview teasing locked contents to motivate signing.
+ * Uses "either doc" rule for access gating.
  */
 
 import { useState } from 'react';
@@ -49,9 +47,9 @@ export function DealDocumentsCard({
     setSigningOpen(true);
   };
 
+  const hasAnyAgreement = ndaSigned || feeCovered;
   const showFee = feeStatus === 'sent' || feeCovered;
 
-  // Check buyer's data room access
   const { data: access } = useQuery({
     queryKey: ['buyer-data-room-access', dealId, user?.id],
     queryFn: async () => {
@@ -68,7 +66,6 @@ export function DealDocumentsCard({
     enabled: !!dealId && !!user?.id && requestStatus !== 'pending',
   });
 
-  // Get document + memo counts
   const { data: docCount = 0 } = useQuery({
     queryKey: ['buyer-data-room-doc-count', dealId],
     queryFn: async () => {
@@ -105,7 +102,6 @@ export function DealDocumentsCard({
   return (
     <>
       <div className="rounded-lg border border-[#F0EDE6] bg-white overflow-hidden">
-        {/* Section header */}
         <div className="px-5 py-3 border-b border-[#F0EDE6]">
           <h3 className="text-[10px] font-semibold text-[#0E101A]/30 uppercase tracking-[0.12em]">
             Documents & Agreements
@@ -131,7 +127,7 @@ export function DealDocumentsCard({
                 onClick={() => openSigning('nda')}
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-[12px] font-semibold bg-[#0E101A] text-white hover:bg-[#0E101A]/85 transition-colors"
               >
-                Sign Now <ArrowRight className="h-3 w-3" />
+                Request <ArrowRight className="h-3 w-3" />
               </button>
             )}
           </div>
@@ -155,7 +151,7 @@ export function DealDocumentsCard({
                   onClick={() => openSigning('fee_agreement')}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md text-[12px] font-semibold bg-[#0E101A] text-white hover:bg-[#0E101A]/85 transition-colors"
                 >
-                  Sign Now <ArrowRight className="h-3 w-3" />
+                  Request <ArrowRight className="h-3 w-3" />
                 </button>
               )}
             </div>
@@ -171,7 +167,6 @@ export function DealDocumentsCard({
             </div>
           )}
 
-          {/* Divider */}
           <div className="border-t border-[#F0EDE6]" />
 
           {/* Data Room section */}
@@ -185,7 +180,6 @@ export function DealDocumentsCard({
           </div>
 
           {docsLocked ? (
-            /* Locked state — tease what's inside */
             <div className="space-y-2 pl-[30px]">
               <div className="flex items-center gap-2.5 opacity-40">
                 <Building2 className="h-3.5 w-3.5 text-[#0E101A]/50 shrink-0" />
@@ -203,15 +197,14 @@ export function DealDocumentsCard({
                 <Lock className="h-3 w-3 text-[#0E101A]/30 ml-auto shrink-0" />
               </div>
               <p className="text-[11px] text-[#8B6F47] mt-2 font-medium">
-                {!ndaSigned
-                  ? 'Sign your NDA to begin unlocking these materials.'
+                {!hasAnyAgreement
+                  ? 'Sign an agreement (NDA or Fee Agreement) to begin unlocking these materials.'
                   : requestStatus === 'pending'
                     ? 'Available once your request is approved by the owner.'
                     : 'Documents are being prepared by our team.'}
               </p>
             </div>
           ) : (
-            /* Unlocked state — show actual counts */
             <div className="pl-[30px] space-y-2">
               <p className="text-[13px] text-[#0E101A]/60">
                 {totalDocs > 0
