@@ -151,7 +151,7 @@ export function ProfileDocuments() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Documents</CardTitle>
-          <CardDescription>Your signed agreements will appear here</CardDescription>
+          <CardDescription>Your agreements and signing status</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -159,7 +159,7 @@ export function ProfileDocuments() {
               <Shield className="h-5 w-5 text-muted-foreground" />
             </div>
             <p className="text-sm text-muted-foreground">
-              No signed documents yet. Once you sign your NDA or Fee Agreement, copies will be available here.
+              Request an NDA or Fee Agreement to get started with deal access.
             </p>
           </div>
         </CardContent>
