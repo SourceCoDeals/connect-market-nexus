@@ -569,7 +569,7 @@ export default function DocumentTrackingPage() {
             {pendingRequests.map((req) => (
               <div key={req.id} className="px-4 py-3 flex items-center justify-between hover:bg-amber-100/50 transition-colors">
                 <div className="flex items-center gap-3">
-                  {req.document_type === 'nda' ? (
+                {req.agreement_type === 'nda' ? (
                     <Shield className="h-4 w-4 text-primary" />
                   ) : (
                     <FileSignature className="h-4 w-4 text-primary" />
@@ -578,7 +578,7 @@ export default function DocumentTrackingPage() {
                     <p className="text-sm font-medium text-foreground">
                       {req.recipient_name || req.recipient_email || 'Unknown'}
                       <span className="ml-2 text-xs text-muted-foreground">
-                        {req.document_type === 'nda' ? 'NDA' : 'Fee Agreement'}
+                        {req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'}
                       </span>
                     </p>
                     {req.recipient_email && req.recipient_name && (
@@ -600,13 +600,16 @@ export default function DocumentTrackingPage() {
                           .update({
                             status: 'signed',
                             updated_at: new Date().toISOString(),
+                            signed_toggled_by: user?.id || null,
+                            signed_toggled_by_name: user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : null,
+                            signed_at: new Date().toISOString(),
                           })
                           .eq('id', req.id);
 
                         // Also update firm_agreements if we have a firm_id
                         if (req.firm_id) {
-                          const statusCol = req.document_type === 'nda' ? 'nda_status' : 'fee_agreement_status';
-                          const signedAtCol = req.document_type === 'nda' ? 'nda_signed_at' : 'fee_agreement_signed_at';
+                          const statusCol = req.agreement_type === 'nda' ? 'nda_status' : 'fee_agreement_status';
+                          const signedAtCol = req.agreement_type === 'nda' ? 'nda_signed_at' : 'fee_agreement_signed_at';
                           await supabase
                             .from('firm_agreements')
                             .update({
