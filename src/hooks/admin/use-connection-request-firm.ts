@@ -10,8 +10,8 @@ export interface ConnectionRequestFirmInfo {
   nda_signed: boolean;
   nda_status: string | null;
   fee_agreement_status: string | null;
-  nda_pandadoc_status: string | null;
-  fee_pandadoc_status: string | null;
+  nda_pandadoc_status: null;
+  fee_pandadoc_status: null;
   firmAgreement: FirmAgreement | null;
   firmMembers: FirmMember[];
 }
