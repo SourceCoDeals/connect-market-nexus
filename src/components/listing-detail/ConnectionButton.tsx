@@ -9,9 +9,9 @@ import { AgreementSigningModal } from '@/components/pandadoc/AgreementSigningMod
 import { XCircle, AlertCircle, Check, RotateCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, getProfileCompletionPercentage, getMissingFieldLabels } from '@/lib/profile-completeness';
-import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { sendAgreementEmail, docTypeLabel } from '@/lib/agreement-email';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
