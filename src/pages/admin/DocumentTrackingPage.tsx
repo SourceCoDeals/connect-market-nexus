@@ -198,7 +198,7 @@ function useOrphanUsers() {
 interface PendingRequest {
   id: string;
   user_id: string | null;
-  document_type: string;
+  agreement_type: string;
   status: string;
   created_at: string;
   recipient_email: string | null;
@@ -212,7 +212,7 @@ function usePendingRequestQueue() {
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await untypedFrom('document_requests')
-        .select('id, user_id, document_type, status, created_at, recipient_email, recipient_name, firm_id')
+        .select('id, user_id, agreement_type, status, created_at, recipient_email, recipient_name, firm_id')
         .in('status', ['requested', 'email_sent'])
         .order('created_at', { ascending: false })
         .limit(50);
