@@ -37,15 +37,15 @@ import { logEnrichmentEvent } from '../_shared/enrichment-events.ts';
 // Configuration - RELIABILITY-FIRST
 // Moderate parallelism to avoid rate limits across concurrent queue processors.
 // Each deal enrichment makes 1 Firecrawl + 1 Gemini + optional LinkedIn/Google calls.
-const BATCH_SIZE = 5; // Fetch 5 items per run — smaller batches to stay within function runtime
+const BATCH_SIZE = 3; // Fetch 3 items per run — sequential processing within 130s function limit
 const CONCURRENCY_LIMIT = 1; // Sequential processing — each item makes 2+ Gemini calls
 const MAX_ATTEMPTS = 3; // Maximum retry attempts
 const PROCESSING_TIMEOUT_MS = 120000; // 120s per item — enrich-deal processes transcripts + notes + website
-const INTER_CHUNK_DELAY_MS = 5000; // 5s between items — Gemini rate limits at ~15 RPM, each item uses 2+ calls
+const INTER_CHUNK_DELAY_MS = 3000; // 3s between items — respect Gemini rate limits
 
 // Stop early to avoid the platform killing the function mid-item.
 // enrich-deal uses 140s budget internally, so this worker needs at least that long.
-const MAX_FUNCTION_RUNTIME_MS = 540000; // 9min — allow time for sequential items with 5s delays between
+const MAX_FUNCTION_RUNTIME_MS = 130000; // 130s — stay under 150s platform limit
 
 // N06 FIX: Maximum number of self-continuations to prevent infinite loops.
 // Each invocation processes BATCH_SIZE items, so 50 continuations = up to 500 items.
