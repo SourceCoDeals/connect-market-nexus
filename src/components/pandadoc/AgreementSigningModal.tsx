@@ -11,7 +11,7 @@ import { invalidateAgreementQueries } from '@/hooks/use-agreement-status-sync';
 interface AgreementSigningModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  documentType: 'nda' | 'fee_agreement';
+  documentType?: 'nda' | 'fee_agreement';
 }
 
 /**
