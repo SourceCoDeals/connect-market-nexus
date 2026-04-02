@@ -33,7 +33,6 @@ const ConnectionButton = ({
   listingStatus,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [showFeeGate, setShowFeeGate] = useState(false);
   useRealtime();
   useAgreementStatusSync();
   const { user } = useAuth();
