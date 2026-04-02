@@ -190,6 +190,7 @@ export function UnifiedAdminSidebar({
             label: 'Document Tracking',
             href: '/admin/documents',
             icon: <FileCheck className="h-4 w-4" />,
+            badge: pendingDocRequestCount,
           },
           {
             label: 'Lists',
