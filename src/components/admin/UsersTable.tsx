@@ -75,9 +75,8 @@ export function UsersTable({
   }, [allUserRoles]);
 
   const getUserRole = (userId: string): AppRole => roleMap.get(userId) || 'viewer';
-  const logEmailMutation = useLogFeeAgreementEmail();
-  const logNDAEmail = useLogNDAEmail();
-  const { user: currentAuthUser } = useAuth();
+
+
 
   // Pagination
   const totalPages = Math.ceil(users.length / PAGE_SIZE);

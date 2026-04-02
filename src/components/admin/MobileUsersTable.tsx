@@ -319,54 +319,8 @@ export const MobileUsersTable = ({
 }: MobileUsersTableProps) => {
   const [selectedUserForEmail, setSelectedUserForEmail] = useState<User | null>(null);
   const [selectedUserForNDA, setSelectedUserForNDA] = useState<User | null>(null);
-  const logEmailMutation = useLogFeeAgreementEmail();
-  
-  const handleSendEmail = async (emailData: {
-    userId: string;
-    userEmail: string;
-    subject: string;
-    content: string;
-    attachments?: Array<{name: string, content: string}>;
-    useTemplate: boolean;
-  }) => {
-    // Get current user for admin info
-    const current_auth_user = await supabase.auth.getUser();
-    if (!current_auth_user.data.user) {
-      return;
-    }
 
-    try {
-      // Get admin profile info
-      const { data: adminProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('email, first_name, last_name')
-        .eq('id', current_auth_user.data.user.id)
-        .single();
 
-      if (profileError || !adminProfile) {
-        throw new Error('Failed to fetch admin profile');
-      }
-
-      const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
-
-      // Use the hook for optimistic updates and consistent behavior
-      await logEmailMutation.mutateAsync({
-        userId: emailData.userId,
-        userEmail: emailData.userEmail,
-        subject: emailData.subject,
-        content: emailData.content,
-        attachments: emailData.attachments,
-        adminId: current_auth_user.data.user.id,
-        adminEmail: adminProfile.email,
-        adminName: adminName,
-        notes: emailData.useTemplate ? 'Template fee agreement email sent' : 'Custom fee agreement email sent'
-      });
-
-    } catch (error: unknown) {
-      console.error('Mobile: Error in handleSendEmail:', error);
-      // Error handling is done by the hook
-    }
-  };
   if (isLoading) {
     return (
       <div className="space-y-4">
