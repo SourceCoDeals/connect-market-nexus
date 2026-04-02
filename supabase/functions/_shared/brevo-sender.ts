@@ -107,6 +107,10 @@ export async function sendViaBervo(
     payload.params = { trackClicks: false, trackOpens: true };
   }
 
+  if (options.attachment && options.attachment.length > 0) {
+    payload.attachment = options.attachment;
+  }
+
   // C-4 FIX: Add List-Unsubscribe header for CAN-SPAM compliance on non-transactional emails.
   // Transactional emails (password reset, NDA signing) are exempt from CAN-SPAM unsubscribe requirements.
   if (!options.isTransactional) {
