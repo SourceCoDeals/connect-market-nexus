@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Building2, Phone, Mail, Globe, Calendar, DollarSign, MessageSquare, ExternalLink, StickyNote, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Building2, Mail, Globe, Calendar, DollarSign, MessageSquare, ExternalLink, StickyNote, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 import { format } from "date-fns";
 import {
   OwnerLead,
