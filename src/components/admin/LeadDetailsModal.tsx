@@ -5,7 +5,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Mail, Phone, User, MessageSquare, Calendar, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Building2, Mail, User, MessageSquare, Calendar, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 import { InboundLead } from '@/hooks/admin/use-inbound-leads';
 import { useInboundLeadFirm } from '@/hooks/admin/use-inbound-lead-firm';
 import { format } from 'date-fns';
