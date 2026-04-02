@@ -6,7 +6,8 @@
  *
  * Extracted from BuyerMatchCard.tsx for maintainability.
  */
-import { Mail, Phone, Linkedin } from 'lucide-react';
+import { Mail, Linkedin } from 'lucide-react';
+import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 import type { ReMarketingBuyer } from '@/types/remarketing';
 
 interface BuyerMatchDetailsProps {

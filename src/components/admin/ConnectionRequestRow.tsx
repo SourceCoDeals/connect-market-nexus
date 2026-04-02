@@ -37,6 +37,7 @@ import { BuyerProfileHoverCard } from "./BuyerProfileHoverCard";
 import { ExpandableBusinessProfile } from "./ExpandableBusinessProfile";
 import { EnhancedBuyerProfile } from "./EnhancedBuyerProfile";
 import { AssociatedContactsDisplay } from "./AssociatedContactsDisplay";
+import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 import { getBuyerTier } from "@/lib/buyer-metrics";
 import { extractDomainFromEmail, mapRoleToBuyerType, getLeadTierInfo } from "@/lib/url-utils";
 import { DuplicateChannelWarning } from "./DuplicateChannelWarning";

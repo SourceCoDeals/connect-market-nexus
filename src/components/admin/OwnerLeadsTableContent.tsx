@@ -110,7 +110,7 @@ function LeadDetailsDialog({ lead, onNotesUpdate }: { lead: OwnerLead; onNotesUp
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <ClickToDialPhone
                   phone={lead.phone_number}
-                  name={lead.full_name || undefined}
+                  name={lead.name || undefined}
                   email={lead.email || undefined}
                   company={lead.company_name || undefined}
                   size="sm"

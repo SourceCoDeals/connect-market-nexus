@@ -676,9 +676,9 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
                         {buyer.phone ? (
                           <ClickToDialPhone
                             phone={buyer.phone}
-                            name={buyer.name || undefined}
+                            name={`${buyer.first_name} ${buyer.last_name}`.trim() || undefined}
                             email={buyer.email || undefined}
-                            company={buyer.company || undefined}
+                            company={buyer.company_name || buyer.buyer_company_name || undefined}
                             size="xs"
                           />
                         ) : (

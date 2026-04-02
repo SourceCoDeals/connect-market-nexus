@@ -115,7 +115,7 @@ export function LeadDetailsModal({ lead, isOpen, onClose }: LeadDetailsModalProp
                 <div className="flex items-center gap-2 mt-1">
                   <ClickToDialPhone
                     phone={lead.phone_number}
-                    name={lead.full_name || undefined}
+                    name={lead.name || undefined}
                     email={lead.email || undefined}
                     company={lead.company_name || undefined}
                     size="sm"

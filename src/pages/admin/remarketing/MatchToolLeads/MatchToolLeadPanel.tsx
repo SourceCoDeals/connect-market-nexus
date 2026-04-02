@@ -185,7 +185,7 @@ export function MatchToolLeadPanel({ lead, open, onOpenChange, onEnrich, isEnric
                   phone={lead.phone}
                   name={lead.full_name || undefined}
                   email={lead.email || undefined}
-                  company={lead.company_name || undefined}
+                  company={lead.business_name || undefined}
                   size="sm"
                 />
               )}
