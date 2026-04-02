@@ -24,22 +24,18 @@ function getCurrentStageIndex(
   status: string,
   ndaSigned: boolean,
   feeCovered: boolean,
-  feeStatus?: string,
 ): number {
   if (status === 'rejected') return 0;
   if (status === 'approved') return 3;
   if (status === 'on_hold') return 2;
-  const needsFee = feeStatus === 'sent' && !feeCovered;
-  if (!ndaSigned || needsFee) return 1;
+  const hasAnyAgreement = ndaSigned || feeCovered;
+  if (!hasAnyAgreement) return 1;
   return 2;
 }
 
 function getStageExplanation(
   index: number,
   status: string,
-  ndaSigned: boolean,
-  feeCovered: boolean,
-  feeStatus?: string,
 ): string {
   if (status === 'rejected') return 'This opportunity is no longer available at this time.';
   if (status === 'on_hold')
@@ -47,11 +43,7 @@ function getStageExplanation(
   if (index === 3)
     return 'Great news — the owner selected your firm. Expect an email from our team shortly.';
   if (index === 1) {
-    if (!ndaSigned)
-      return 'Sign your NDA to proceed. Your interest cannot be presented until documents are complete.';
-    if (feeStatus === 'sent' && !feeCovered)
-      return 'Your Fee Agreement is ready for signature. Complete this to finalize your documentation.';
-    return 'Complete your required documents to move forward.';
+    return 'Sign an agreement (NDA or Fee Agreement) to proceed. Your interest cannot be presented until at least one document is complete.';
   }
   return 'Your interest is being presented to the owner alongside other qualified buyers. Decisions typically take 3–7 business days.';
 }
@@ -60,16 +52,12 @@ export function DealStatusSection({
   requestStatus,
   ndaSigned,
   feeCovered,
-  feeStatus,
   requestCreatedAt,
-}: DealStatusSectionProps) {
-  const currentIndex = getCurrentStageIndex(requestStatus, ndaSigned, feeCovered, feeStatus);
+}: Omit<DealStatusSectionProps, 'feeStatus'>) {
+  const currentIndex = getCurrentStageIndex(requestStatus, ndaSigned, feeCovered);
   const explanation = getStageExplanation(
     currentIndex,
     requestStatus,
-    ndaSigned,
-    feeCovered,
-    feeStatus,
   );
   const isRejected = requestStatus === 'rejected';
 

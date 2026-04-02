@@ -56,7 +56,7 @@ export function AgreementStatusBanner({ show = 'both', className }: AgreementSta
         icon: Clock,
         message: 'Your NDA is waiting to be signed. Check your email or sign it from the pending approval page.',
       });
-    } else if ((coverage.nda_status === 'not_started' || !coverage.nda_covered) && !coverage.fee_covered) {
+    } else if (!coverage.nda_covered && !coverage.fee_covered) {
       banners.push({
         key: 'nda',
         variant: 'locked',
@@ -99,15 +99,7 @@ export function AgreementStatusBanner({ show = 'both', className }: AgreementSta
         message: 'A fee agreement has been sent to your firm. Please check your email to sign.',
       });
     }
-    // Show info banner when NDA is covered but fee agreement hasn't been started yet
-    else if (coverage.nda_covered && (coverage.fee_status === 'not_started' || !coverage.fee_covered)) {
-      banners.push({
-        key: 'fee',
-        variant: 'info',
-        icon: Clock,
-        message: 'A fee agreement is required before your first connection request. You\'ll be prompted to sign when you request access to a deal.',
-      });
-    }
+    // If NDA is covered, fee is optional — show nothing about fee requirement
   }
 
   if (banners.length === 0) return null;

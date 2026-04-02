@@ -41,12 +41,34 @@ function useAllDocuments() {
       });
 
       if (resolveError) {
-        console.error('Failed to resolve firm:', resolveError);
-        return [];
+        console.warn('Failed to resolve firm:', resolveError);
       }
 
       const firmId = resolvedFirmId as string | null;
-      if (!firmId) return [];
+
+      // If no firm yet, still show both docs as requestable
+      if (!firmId) {
+        return [
+          {
+            type: 'nda' as const,
+            label: 'Non-Disclosure Agreement (NDA)',
+            signed: false,
+            signedAt: null,
+            requested: false,
+            requestedAt: null,
+            status: null,
+          },
+          {
+            type: 'fee_agreement' as const,
+            label: 'Fee Agreement',
+            signed: false,
+            signedAt: null,
+            requested: false,
+            requestedAt: null,
+            status: null,
+          },
+        ];
+      }
 
       const { data: firmRaw } = await (
         supabase.from('firm_agreements' as never) as unknown as ReturnType<typeof supabase.from>
@@ -57,7 +79,13 @@ function useAllDocuments() {
         .eq('id', firmId)
         .maybeSingle();
 
-      if (!firmRaw) return [];
+      if (!firmRaw) {
+        return [
+          { type: 'nda' as const, label: 'Non-Disclosure Agreement (NDA)', signed: false, signedAt: null, requested: false, requestedAt: null, status: null },
+          { type: 'fee_agreement' as const, label: 'Fee Agreement', signed: false, signedAt: null, requested: false, requestedAt: null, status: null },
+        ];
+      }
+
       const firm = firmRaw as unknown as {
         nda_status: string | null;
         nda_signed_at: string | null;
@@ -123,7 +151,7 @@ export function ProfileDocuments() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Documents</CardTitle>
-          <CardDescription>Your signed agreements will appear here</CardDescription>
+          <CardDescription>Your agreements and signing status</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -131,7 +159,7 @@ export function ProfileDocuments() {
               <Shield className="h-5 w-5 text-muted-foreground" />
             </div>
             <p className="text-sm text-muted-foreground">
-              No signed documents yet. Once you sign your NDA or Fee Agreement, copies will be available here.
+              Request an NDA or Fee Agreement to get started with deal access.
             </p>
           </div>
         </CardContent>

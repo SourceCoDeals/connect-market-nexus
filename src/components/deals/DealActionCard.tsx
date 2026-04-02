@@ -26,12 +26,6 @@ export function DealActionCard({
   requestCreatedAt,
 }: DealActionCardProps) {
   const [signingOpen, setSigningOpen] = useState(false);
-  const [signingType, setSigningType] = useState<'nda' | 'fee_agreement'>('nda');
-
-  const openSigning = (type: 'nda' | 'fee_agreement') => {
-    setSigningType(type);
-    setSigningOpen(true);
-  };
 
   // Either doc unlocks access
   const hasAnyAgreement = ndaSigned || feeCovered;
@@ -83,7 +77,7 @@ export function DealActionCard({
         unlock:
           "Once signed, you'll receive access to the company name, confidential deal memo, and detailed financials.",
         variant: 'action' as const,
-        cta: { label: 'Request NDA', onClick: () => openSigning('nda') },
+        cta: { label: 'Request Agreement', onClick: () => setSigningOpen(true) },
       };
     }
 
@@ -96,7 +90,7 @@ export function DealActionCard({
         unlock:
           'Signing completes your documentation, allowing our team to present your interest to the owner.',
         variant: 'action' as const,
-        cta: { label: 'Sign Agreement Now', onClick: () => openSigning('fee_agreement') },
+        cta: { label: 'Sign Agreement Now', onClick: () => setSigningOpen(true) },
       };
     }
 
@@ -170,7 +164,6 @@ export function DealActionCard({
       <AgreementSigningModal
         open={signingOpen}
         onOpenChange={setSigningOpen}
-        documentType={signingType}
       />
     </>
   );
