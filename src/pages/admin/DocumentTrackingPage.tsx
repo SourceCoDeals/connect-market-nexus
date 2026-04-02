@@ -1104,6 +1104,36 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
             {req.recipient_email && req.recipient_name && (
               <p className="text-xs text-muted-foreground">{req.recipient_email}</p>
             )}
+            {/* Delivery state indicator */}
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {req.last_email_error ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20">
+                  ⚠ {req.last_email_error.length > 40 ? req.last_email_error.substring(0, 40) + '…' : req.last_email_error}
+                </span>
+              ) : deliveryEvent ? (
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                  deliveryEvent.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                  deliveryEvent.status === 'opened' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                  deliveryEvent.status === 'bounced' || deliveryEvent.status === 'blocked' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                  'bg-muted text-muted-foreground border-border'
+                }`}>
+                  {deliveryEvent.status === 'delivered' ? '✓ Delivered' :
+                   deliveryEvent.status === 'opened' ? '👁 Opened' :
+                   deliveryEvent.status === 'bounced' ? '✕ Bounced' :
+                   deliveryEvent.status === 'blocked' ? '✕ Blocked' :
+                   deliveryEvent.status === 'spam_complaint' ? '⚠ Spam' :
+                   deliveryEvent.status}
+                </span>
+              ) : req.status === 'email_sent' ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                  ✉ Sent to provider
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border">
+                  Requested
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
