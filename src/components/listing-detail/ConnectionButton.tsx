@@ -192,7 +192,7 @@ const ConnectionButton = ({
       setResendingType(type);
       try {
         const { error } = await supabase.functions.invoke('request-agreement-email', {
-          body: { agreementType: type },
+          body: { documentType: type },
         });
         if (error) throw error;
         toast.success(`${type === 'nda' ? 'NDA' : 'Fee Agreement'} resent to your email`);
