@@ -205,7 +205,7 @@ async function getSmartleadCampaigns(
       smartlead_campaign_id: c.smartlead_campaign_id,
       name: c.name,
       status: c.status,
-      deal_name: c.deal_id ? dealMap.get(c.deal_id) || null : null,
+      deal_name: c.deal_id ? dealMap.get(c.deal_id as string) || null : null,
       deal_id: c.deal_id,
       lead_count: c.lead_count,
       stats: stats

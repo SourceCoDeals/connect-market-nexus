@@ -282,7 +282,7 @@ serve(async (req) => {
           deal,
           dealId as string,
           transcriptsWithExtracted,
-          forceReExtract,
+          forceReExtract as boolean,
         );
         transcriptReport.appliedFromExisting = existingResult.appliedFieldCount;
         transcriptReport.appliedFromExistingTranscripts = existingResult.appliedTranscriptCount;
