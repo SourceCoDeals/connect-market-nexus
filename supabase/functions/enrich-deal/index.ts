@@ -801,6 +801,16 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       } catch (err) {
         lastAiError = getErrorMessage(err);
         console.error(`AI call exception (attempt ${attempt + 1}):`, lastAiError);
+
+        // Treat timeouts as soft rate-limit signals so other concurrent items back off.
+        // Gemini often silently drops requests under load instead of returning 429.
+        const isTimeout = lastAiError.includes('timed out') || lastAiError.includes('abort');
+        if (isTimeout) {
+          await reportRateLimit(supabase, 'gemini', 15).catch((e: unknown) => {
+            console.warn('[enrich-deal] Timeout rate-limit report failed:', e);
+          });
+        }
+
         if (attempt < MAX_AI_RETRIES - 1) {
           await new Promise((r) => setTimeout(r, AI_RETRY_DELAYS[attempt]));
         }

@@ -38,7 +38,7 @@ import { logEnrichmentEvent } from '../_shared/enrichment-events.ts';
 // Moderate parallelism to avoid rate limits across concurrent queue processors.
 // Each deal enrichment makes 1 Firecrawl + 1 Gemini + optional LinkedIn/Google calls.
 const BATCH_SIZE = 10; // Fetch 10 items per run
-const CONCURRENCY_LIMIT = 2; // Process 2 items in parallel — reduced to avoid Gemini rate limits on large batches
+const CONCURRENCY_LIMIT = 1; // Process 1 item at a time — sequential to avoid overwhelming Gemini on large batches
 const MAX_ATTEMPTS = 3; // Maximum retry attempts
 const PROCESSING_TIMEOUT_MS = 120000; // 120s per item — enrich-deal processes transcripts + notes + website
 const INTER_CHUNK_DELAY_MS = 2000; // 2s between parallel chunks — gives Gemini breathing room
