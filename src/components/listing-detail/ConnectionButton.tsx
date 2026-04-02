@@ -5,10 +5,10 @@ import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
+import { AgreementSigningModal } from '@/components/pandadoc/AgreementSigningModal';
 import { XCircle, AlertCircle, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, getProfileCompletionPercentage, getMissingFieldLabels } from '@/lib/profile-completeness';
-import { APP_CONFIG } from '@/config/app';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
