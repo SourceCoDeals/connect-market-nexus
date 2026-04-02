@@ -1,79 +1,77 @@
 
 
-# Fix Document Signing — Root Causes Found
+# Fix Agreement Status Inconsistency — Root Cause Found
 
-## Summary of Findings
+## The Problem
 
-Three concrete bugs are preventing the system from working:
+`check_agreement_coverage('ahaile14@gmail.com', 'nda')` returns `not_covered` even though the user IS a marketplace member of the SourceCo firm which has `nda_status = 'signed'`.
 
-### Bug 1: `selfHealFirm()` called with wrong arguments (CRITICAL)
-In `supabase/functions/request-agreement-email/index.ts`, `selfHealFirm` is called with 2 arguments on lines 85 and 117, but the function signature requires 3 (`supabaseAdmin, userId, profile`). For any user without an existing firm (like Gmail users), this crashes with `TypeError: Cannot read properties of undefined (reading 'company')`, killing the entire request silently.
+**Root cause**: The function has an early return on generic domains (gmail.com) at line 44-48 that exits BEFORE reaching the firm_member fallback lookup at line 143. The firm_member lookup was added later but placed AFTER the generic domain guard, so it never executes for Gmail/Yahoo/etc users.
 
-### Bug 2: `get_my_agreement_status` RPC missing timestamp fields
-The modal tries to read `nda_requested_at` and `fee_requested_at` from `useMyAgreementStatus()`, but the underlying RPC only returns coverage booleans and status strings — no timestamps. So the "previously requested" info line never shows.
+## Data Verification
 
-### Bug 3: Field name mismatch in modal
-Line 46 of `AgreementSigningModal.tsx` reads `fee_requested_at` but the DB column and edge function use `fee_agreement_requested_at`.
-
-## Why Document Tracking Appears Unchanged
-The Document Tracking page code IS intact (pending queue, amber highlighting, etc.). But since the edge function crashes before inserting into `document_requests` or updating `firm_agreements`, there is no new data for the page to display. Fix the edge function and data will flow.
-
----
-
-## Implementation Plan
-
-### Step 1: Fix selfHealFirm calls in edge function
-**File:** `supabase/functions/request-agreement-email/index.ts`
-
-On line 85 (admin branch), profile data is already fetched but not passed:
-```typescript
-// Line 85 — currently:
-const healResult = await selfHealFirm(supabaseAdmin, targetUserId);
-// Fix to:
-const { data: healProfile } = await supabaseAdmin
-  .from('profiles').select('email, company').eq('id', targetUserId).maybeSingle();
-const healResult = await selfHealFirm(supabaseAdmin, targetUserId, {
-  email: overrideEmail, company: healProfile?.company
-});
+```text
+profiles:          nda_signed=true, fee_agreement_signed=true (stale booleans)
+resolve_user_firm: returns SourceCo (43b0...) — correct
+SourceCo firm:     nda_status=signed, fee_agreement_status=signed — correct
+firm_members:      user IS a marketplace_user member of SourceCo — correct
+check_agreement_coverage: returns NOT COVERED — BUG (generic domain guard blocks)
+get_my_agreement_status:  calls check_agreement_coverage → also returns not covered
 ```
 
-On line 117 (buyer branch), profile is already fetched on line 97-101:
-```typescript
-// Line 117 — currently:
-const healResult = await selfHealFirm(supabaseAdmin, userId);
-// Fix to:
-const healResult = await selfHealFirm(supabaseAdmin, userId, {
-  email: profile.email, company: profile.company
-});
+This single bug causes ALL downstream inconsistencies:
+- Marketplace cards show "Sign Agreement" instead of unlocked access
+- ProfileDocuments (which uses `resolve_user_firm_id`) correctly shows signed
+- Notification bell says signed (from old profile booleans or different code path)
+- The entire system appears contradictory
+
+## Solution
+
+### Step 1: Fix `check_agreement_coverage` — Move firm_member lookup BEFORE the generic domain early-return
+
+**Migration**: Restructure the function so the resolution order is:
+
+1. Domain lookup (skip for generic domains) — existing
+2. PE parent lookup (skip for generic domains) — existing  
+3. **Firm member lookup via `profiles.email` join** — move this BEFORE the generic domain guard, OR remove the early return and let all paths execute sequentially
+
+The cleanest fix: instead of returning early for generic domains, just skip the domain-based lookups but still allow the firm_member fallback to run. Change the logic from:
+
+```text
+IF generic → RETURN not_covered  (blocks everything)
 ```
 
-Then redeploy the function.
+to:
 
-### Step 2: Add timestamp fields to `get_my_agreement_status` RPC
-**Migration:** Update the RPC to also return `nda_requested_at` and `fee_agreement_requested_at` from `firm_agreements`, so the buyer modal can show request history.
+```text
+IF NOT generic → try domain lookup
+IF NOT generic → try PE parent lookup  
+ALWAYS → try firm_member lookup (this is the safety net for Gmail users)
+```
 
-The RPC already resolves `firm_id` via `check_agreement_coverage`. Add a lookup to `firm_agreements` for the timestamps and include them in the return columns.
+### Step 2: Fix `get_my_agreement_status` to also include firm_member resolution
 
-### Step 3: Fix field name mismatch in AgreementSigningModal
-**File:** `src/components/pandadoc/AgreementSigningModal.tsx`
+Since `get_my_agreement_status` delegates entirely to `check_agreement_coverage`, fixing Step 1 automatically fixes this. But verify the `firm_id` and timestamps are correctly populated from the firm_member path.
 
-Line 46: change `fee_requested_at` to `fee_agreement_requested_at`.
+### Step 3: Fix `enhanced_merge_or_create_connection_request` server-side gate
 
-Update the `AgreementCoverage` interface in `use-agreement-status.ts` to include the two new timestamp fields.
+This RPC also calls `check_agreement_coverage`. Once Step 1 is fixed, this gate will also correctly allow Gmail users with signed agreements through.
 
-### Step 4: Verify end-to-end
-After deploying, test by requesting an NDA as a Gmail user. Confirm:
-- Edge function returns 200
-- `document_requests` row is inserted
-- `firm_agreements` timestamps are updated
-- Document Tracking page shows the pending request
-- Modal shows "email sent on [date]" on reopening
+### Step 4: Suppress stale notifications for already-signed users
+
+Per user preference: keep old `agreement_pending` notifications visible as history but never surface alert popups. The `BuyerNotificationBell` already has this logic (lines 80-87) — it checks `agreementStatus.nda_covered` and auto-marks-read. Once Step 1 is fixed, `nda_covered` will return `true` for this user, and the auto-dismiss will work.
+
+No frontend code changes needed. This is entirely a database function fix.
 
 ---
 
 ## Files Changed
-- `supabase/functions/request-agreement-email/index.ts` — pass profile to selfHealFirm (2 call sites)
-- `src/components/pandadoc/AgreementSigningModal.tsx` — fix `fee_requested_at` to `fee_agreement_requested_at`
-- `src/hooks/use-agreement-status.ts` — add timestamp fields to AgreementCoverage interface
-- New migration: update `get_my_agreement_status` RPC to return request timestamps
+- New migration: recreate `check_agreement_coverage()` with firm_member lookup running for ALL users (not blocked by generic domain guard)
+
+## What This Fixes
+- Gmail/Yahoo/personal-email users who are firm members will correctly show as covered
+- Marketplace cards, listing detail, profile documents, connection requests, and notifications will all agree
+- The edge function `request-agreement-email` will correctly detect "already signed" for these users
+- Server-side connection request gate will allow access for these users
+- No frontend changes required — all consumers already use `check_agreement_coverage` or `get_my_agreement_status`
 
