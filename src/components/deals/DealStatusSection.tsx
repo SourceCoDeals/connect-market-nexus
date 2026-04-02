@@ -36,8 +36,6 @@ function getCurrentStageIndex(
 function getStageExplanation(
   index: number,
   status: string,
-  ndaSigned: boolean,
-  feeCovered: boolean,
 ): string {
   if (status === 'rejected') return 'This opportunity is no longer available at this time.';
   if (status === 'on_hold')
