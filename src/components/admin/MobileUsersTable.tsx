@@ -433,9 +433,17 @@ export const MobileUsersTable = ({
         open={!!selectedUserForNDA}
         onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
         user={selectedUserForNDA}
-        onSendEmail={async (user) => {
-          const { error } = await supabase.functions.invoke('send-nda-email', {
-            body: { userEmail: user.email, userId: user.id }
+        onSendEmail={async (user, options) => {
+          const { error } = await supabase.functions.invoke('request-agreement-email', {
+            body: {
+              documentType: 'nda',
+              recipientEmail: user.email,
+              recipientName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+              adminOverride: true,
+              customSubject: options?.subject,
+              customMessage: options?.message,
+              customSignatureText: options?.customSignatureText,
+            },
           });
           if (error) throw error;
         }}

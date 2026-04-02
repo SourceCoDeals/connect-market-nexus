@@ -364,34 +364,18 @@ export function UsersTable({
         onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
         user={selectedUserForNDA}
         onSendEmail={async (user, options) => {
-          if (!currentAuthUser) {
-            throw new Error('Authentication required');
-          }
-
-          const { data: adminProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('id', currentAuthUser.id)
-            .single();
-
-          if (profileError || !adminProfile) {
-            throw new Error('Admin profile not found');
-          }
-
-          const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
-
-          await logNDAEmail.mutateAsync({
-            userId: user.id,
-            userEmail: user.email,
-            customSubject: options?.subject || 'NDA Agreement | SourceCo',
-            customMessage: options?.message || 'Please review and sign the attached NDA.',
-            adminId: currentAuthUser.id,
-            adminEmail: adminProfile.email,
-            adminName: adminName,
-            notes: options?.message
-              ? `Custom NDA email sent: ${options.subject}`
-              : 'Standard NDA email sent',
+          const { error } = await supabase.functions.invoke('request-agreement-email', {
+            body: {
+              documentType: 'nda',
+              recipientEmail: user.email,
+              recipientName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+              adminOverride: true,
+              customSubject: options?.subject,
+              customMessage: options?.message,
+              customSignatureText: options?.customSignatureText,
+            },
           });
+          if (error) throw error;
         }}
       />
     </>

@@ -161,9 +161,9 @@ const ListingDetail = () => {
   // Show NDA gate modal for unsigned buyers (skip for inactive/sold listings)
   if (showNdaGate && !isInactive && (listing?.status as string) !== 'sold') {
     return (
-      <NdaGateModal
-        userId={user!.id}
-        firmId={agreementStatus.firm_id}
+        <NdaGateModal
+          userId={user!.id}
+          firmId={agreementStatus?.firm_id || ''}
         onSigned={() => {
           queryClient.invalidateQueries({ queryKey: ['buyer-nda-status'] });
           queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
