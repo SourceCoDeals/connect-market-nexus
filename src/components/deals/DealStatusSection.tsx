@@ -24,13 +24,12 @@ function getCurrentStageIndex(
   status: string,
   ndaSigned: boolean,
   feeCovered: boolean,
-  feeStatus?: string,
 ): number {
   if (status === 'rejected') return 0;
   if (status === 'approved') return 3;
   if (status === 'on_hold') return 2;
-  const needsFee = feeStatus === 'sent' && !feeCovered;
-  if (!ndaSigned || needsFee) return 1;
+  const hasAnyAgreement = ndaSigned || feeCovered;
+  if (!hasAnyAgreement) return 1;
   return 2;
 }
 
