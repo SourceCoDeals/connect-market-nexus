@@ -250,6 +250,17 @@ interface PendingRequest {
   recipient_email: string | null;
   recipient_name: string | null;
   firm_id: string | null;
+  email_correlation_id: string | null;
+  email_provider_message_id: string | null;
+  last_email_error: string | null;
+}
+
+interface DeliveryEvent {
+  email: string;
+  status: string;
+  correlation_id: string | null;
+  error_message: string | null;
+  sent_at: string | null;
 }
 
 function usePendingRequestQueue() {
@@ -258,13 +269,34 @@ function usePendingRequestQueue() {
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await untypedFrom('document_requests')
-        .select('id, user_id, agreement_type, status, created_at, recipient_email, recipient_name, firm_id')
+        .select('id, user_id, agreement_type, status, created_at, recipient_email, recipient_name, firm_id, email_correlation_id, email_provider_message_id, last_email_error')
         .in('status', ['requested', 'email_sent'])
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
       return (data || []) as PendingRequest[];
+    },
+  });
+}
+
+/** Fetch latest delivery events from brevo webhook logs for given correlation IDs */
+function useDeliveryEvents(correlationIds: string[]) {
+  return useQuery<DeliveryEvent[]>({
+    queryKey: ['admin-delivery-events', correlationIds],
+    staleTime: 30_000,
+    enabled: correlationIds.length > 0,
+    queryFn: async () => {
+      if (correlationIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('email_delivery_logs')
+        .select('email, status, correlation_id, error_message, sent_at')
+        .eq('email_type', 'brevo_webhook')
+        .in('correlation_id', correlationIds)
+        .order('sent_at', { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as DeliveryEvent[];
     },
   });
 }
