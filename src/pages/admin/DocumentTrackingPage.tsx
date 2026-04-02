@@ -790,6 +790,11 @@ function FirmExpandableRow({
           <div className="flex items-center gap-1.5">
             {expanded ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
             <span className="font-medium text-foreground">{firm.primary_company_name}</span>
+            {firm.hasPendingRequest && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                Requested
+              </span>
+            )}
           </div>
         </td>
         <td className="px-4 py-3 text-muted-foreground text-xs">{firm.email_domain || '--'}</td>
