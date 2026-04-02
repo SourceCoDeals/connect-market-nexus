@@ -35,7 +35,7 @@ export function DealDocumentsCard({
   requestStatus,
   ndaSigned,
   feeCovered,
-  feeStatus,
+  feeStatus: _feeStatus,
   onViewDocuments,
 }: DealDocumentsCardProps) {
   const { user } = useAuth();
