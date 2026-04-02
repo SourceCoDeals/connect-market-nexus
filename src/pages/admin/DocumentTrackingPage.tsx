@@ -333,7 +333,27 @@ export default function DocumentTrackingPage() {
   const { data: firms = [], isLoading, error } = useAllFirmsTracking();
   const { data: orphanUsers = [] } = useOrphanUsers();
   const { data: pendingRequests = [] } = usePendingRequestQueue();
-  
+
+  // Gather correlation IDs from pending requests for delivery event lookup
+  const correlationIds = useMemo(() =>
+    pendingRequests
+      .map(r => r.email_correlation_id)
+      .filter((id): id is string => !!id),
+    [pendingRequests]
+  );
+  const { data: deliveryEvents = [] } = useDeliveryEvents(correlationIds);
+
+  // Build lookup: correlation_id -> latest delivery event
+  const deliveryMap = useMemo(() => {
+    const map = new Map<string, DeliveryEvent>();
+    for (const ev of deliveryEvents) {
+      if (ev.correlation_id && !map.has(ev.correlation_id)) {
+        map.set(ev.correlation_id, ev);
+      }
+    }
+    return map;
+  }, [deliveryEvents]);
+
   useRealtimeFirmAgreements();
 
   const [searchQuery, setSearchQuery] = useState('');
