@@ -190,19 +190,14 @@ const ConnectionButton = ({
 
     const handleResend = async (type: 'nda' | 'fee_agreement') => {
       setResendingType(type);
-      try {
-        const { error } = await supabase.functions.invoke('request-agreement-email', {
-          body: { documentType: type },
-        });
-        if (error) throw error;
-        toast.success(`${type === 'nda' ? 'NDA' : 'Fee Agreement'} resent to your email`);
+      const result = await sendAgreementEmail({ documentType: type });
+      if (result.success) {
+        toast.success(`${docTypeLabel(type)} resent to your email`);
         queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
-      } catch (err) {
-        toast.error('Failed to resend. Please try again.');
-        console.error('[resend-agreement]', err);
-      } finally {
-        setResendingType(null);
+      } else {
+        toast.error(result.error || 'Failed to resend. Please try again.');
       }
+      setResendingType(null);
     };
 
     const DocumentRow = ({ label, status, type }: { label: string; status: string; type: 'nda' | 'fee_agreement' }) => {
