@@ -41,7 +41,7 @@ const ListingDetail = () => {
   // Click tracking for engagement analytics
   const { getClickData, resetTracking } = useClickTracking(true);
   const { sessionId } = useSessionContext();
-  const queryClient = useQueryClient();
+  
   const hasFlushOnUnmountRef = useRef(false);
 
   const { useListing, useRequestConnection, useConnectionStatus } = useMarketplace();
