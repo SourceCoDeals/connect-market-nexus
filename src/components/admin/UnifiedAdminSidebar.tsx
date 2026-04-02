@@ -78,7 +78,7 @@ import { useUnviewedConnectionRequests } from '@/hooks/admin/use-unviewed-connec
 import { useUnviewedUsers } from '@/hooks/admin/use-unviewed-users';
 import { useUnviewedOwnerLeads } from '@/hooks/admin/use-unviewed-owner-leads';
 import { useUnreadMessageCounts } from '@/hooks/use-connection-messages';
-
+import { usePendingDocumentRequests } from '@/hooks/admin/use-pending-document-requests';
 interface NavItem {
   label: string;
   href: string;
