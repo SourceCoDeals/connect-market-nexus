@@ -6,7 +6,6 @@ import { useAnalytics } from '@/contexts/AnalyticsContext';
 import { useAnalyticsTracking } from '@/hooks/use-analytics-tracking';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { isProfileComplete, getProfileCompletionPercentage } from '@/lib/profile-completeness';
-import { toast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { RichTextDisplay } from '@/components/ui/rich-text-display';
 import { formatCurrency } from '@/lib/currency-utils';
