@@ -27,9 +27,6 @@ import { SimpleNDADialog } from './SimpleNDADialog';
 import { UserFirmBadge } from './UserFirmBadge';
 import type { BulkFirmData } from '@/hooks/admin/use-bulk-user-firms';
 
-import { useLogFeeAgreementEmail } from '@/hooks/admin/use-fee-agreement';
-import { useLogNDAEmail } from '@/hooks/admin/use-nda';
-import { useAuth } from '@/contexts/AuthContext';
 import { useAllUserRoles } from '@/hooks/permissions/useAllUserRoles';
 import { RoleBadge } from './permissions/RoleBadge';
 import { AppRole } from '@/hooks/permissions/usePermissions';
@@ -78,9 +75,8 @@ export function UsersTable({
   }, [allUserRoles]);
 
   const getUserRole = (userId: string): AppRole => roleMap.get(userId) || 'viewer';
-  const logEmailMutation = useLogFeeAgreementEmail();
-  const logNDAEmail = useLogNDAEmail();
-  const { user: currentAuthUser } = useAuth();
+
+
 
   // Pagination
   const totalPages = Math.ceil(users.length / PAGE_SIZE);
@@ -344,36 +340,18 @@ export function UsersTable({
         isOpen={!!selectedUserForEmail}
         onClose={() => setSelectedUserForEmail(null)}
         onSendEmail={async (user, options) => {
-          if (!currentAuthUser) {
-            throw new Error('Authentication required');
-          }
-
-          const { data: adminProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('id', currentAuthUser.id)
-            .single();
-
-          if (profileError || !adminProfile) {
-            throw new Error('Admin profile not found');
-          }
-
-          const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
-
-          await logEmailMutation.mutateAsync({
-            userId: user.id,
-            userEmail: user.email,
-            subject: options?.subject,
-            content: options?.content,
-            attachments: options?.attachments,
-            customSignatureText: options?.customSignatureText,
-            adminId: currentAuthUser.id,
-            adminEmail: adminProfile.email,
-            adminName: adminName,
-            notes: options?.subject
-              ? `Custom fee agreement email: ${options.subject}`
-              : 'Standard fee agreement email sent',
+          const { error } = await supabase.functions.invoke('request-agreement-email', {
+            body: {
+              documentType: 'fee_agreement',
+              recipientEmail: user.email,
+              recipientName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+              adminOverride: true,
+              customSubject: options?.subject,
+              customMessage: options?.content,
+              customSignatureText: options?.customSignatureText,
+            },
           });
+          if (error) throw error;
         }}
       />
 
@@ -382,34 +360,18 @@ export function UsersTable({
         onOpenChange={(open) => !open && setSelectedUserForNDA(null)}
         user={selectedUserForNDA}
         onSendEmail={async (user, options) => {
-          if (!currentAuthUser) {
-            throw new Error('Authentication required');
-          }
-
-          const { data: adminProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('email, first_name, last_name')
-            .eq('id', currentAuthUser.id)
-            .single();
-
-          if (profileError || !adminProfile) {
-            throw new Error('Admin profile not found');
-          }
-
-          const adminName = `${adminProfile.first_name} ${adminProfile.last_name}`;
-
-          await logNDAEmail.mutateAsync({
-            userId: user.id,
-            userEmail: user.email,
-            customSubject: options?.subject || 'NDA Agreement | SourceCo',
-            customMessage: options?.message || 'Please review and sign the attached NDA.',
-            adminId: currentAuthUser.id,
-            adminEmail: adminProfile.email,
-            adminName: adminName,
-            notes: options?.message
-              ? `Custom NDA email sent: ${options.subject}`
-              : 'Standard NDA email sent',
+          const { error } = await supabase.functions.invoke('request-agreement-email', {
+            body: {
+              documentType: 'nda',
+              recipientEmail: user.email,
+              recipientName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+              adminOverride: true,
+              customSubject: options?.subject,
+              customMessage: options?.message,
+              customSignatureText: options?.customSignatureText,
+            },
           });
+          if (error) throw error;
         }}
       />
     </>
