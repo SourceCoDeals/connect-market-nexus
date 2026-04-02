@@ -264,26 +264,6 @@ const ConnectionButton = ({
         listingTitle={listingTitle}
       />
 
-      {showFeeGate && user && coverage?.firm_id && (
-        <FeeAgreementGate
-          userId={user.id}
-          firmId={coverage.firm_id}
-          listingTitle={listingTitle}
-          onSigned={() => {
-            setShowFeeGate(false);
-            setIsDialogOpen(true);
-          }}
-          onDismiss={() => setShowFeeGate(false)}
-        />
-      )}
-      {showFeeGate && user && !coverage?.firm_id && (
-        <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
-          <p className="text-sm font-medium text-amber-900">Fee Agreement Required</p>
-          <p className="text-xs text-amber-700 mt-0.5">
-            We couldn't resolve your firm. Please contact support to set up your fee agreement.
-          </p>
-        </div>
-      )}
     </div>
   );
 };
