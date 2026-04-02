@@ -43,14 +43,16 @@ interface FirmRow {
   nda_email_sent_at: string | null;
   nda_signed_at: string | null;
   nda_signed_by_name: string | null;
+  nda_requested_at: string | null;
   fee_agreement_status: AgreementStatus;
   fee_agreement_sent_at: string | null;
   fee_agreement_email_sent_at: string | null;
   fee_agreement_signed_at: string | null;
   fee_agreement_signed_by_name: string | null;
+  fee_agreement_requested_at: string | null;
+  hasPendingRequest: boolean;
   contactName: string | null;
   contactEmail: string | null;
-  // For AgreementStatusDropdown compatibility
   firmAgreement: FirmAgreement;
   members: FirmMember[];
 }
@@ -125,6 +127,13 @@ function useAllFirmsTracking() {
           user: m.user || null,
         })) as FirmMember[];
 
+        const ndaRequestedAt = (firm.nda_requested_at as string) || null;
+        const feeRequestedAt = (firm.fee_agreement_requested_at as string) || null;
+        const hasPendingRequest = (
+          (ndaRequestedAt && (firm.nda_status as string) !== 'signed') ||
+          (feeRequestedAt && (firm.fee_agreement_status as string) !== 'signed')
+        );
+
         return {
           id: firm.id,
           primary_company_name: firm.primary_company_name,
@@ -135,11 +144,14 @@ function useAllFirmsTracking() {
           nda_email_sent_at: firm.nda_email_sent_at,
           nda_signed_at: firm.nda_signed_at,
           nda_signed_by_name: firm.nda_signed_by_name,
+          nda_requested_at: ndaRequestedAt,
           fee_agreement_status: (firm.fee_agreement_status || 'not_started') as AgreementStatus,
           fee_agreement_sent_at: firm.fee_agreement_sent_at || firm.fee_agreement_email_sent_at,
           fee_agreement_email_sent_at: firm.fee_agreement_email_sent_at,
           fee_agreement_signed_at: firm.fee_agreement_signed_at,
           fee_agreement_signed_by_name: firm.fee_agreement_signed_by_name,
+          fee_agreement_requested_at: feeRequestedAt,
+          hasPendingRequest: !!hasPendingRequest,
           contactName,
           contactEmail,
           firmAgreement: firm as unknown as FirmAgreement,
@@ -193,6 +205,10 @@ function useRealtimeFirmAgreements() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'firm_agreements' }, () => {
         queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'document_requests' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
+        queryClient.invalidateQueries({ queryKey: ['admin-pending-doc-requests'] });
+      })
       .subscribe();
 
     return () => {
@@ -203,8 +219,8 @@ function useRealtimeFirmAgreements() {
 
 // ─── Component ───────────────────────────────────────────────────────
 
-type FilterStatus = 'all' | 'signed' | 'sent' | 'not_started' | 'unsigned' | 'needs_attention';
-type SortField = 'company' | 'nda_status' | 'fee_status' | 'members' | 'last_signed';
+type FilterStatus = 'all' | 'signed' | 'sent' | 'not_started' | 'unsigned' | 'needs_attention' | 'pending_requests';
+type SortField = 'company' | 'nda_status' | 'fee_status' | 'members' | 'last_signed' | 'last_requested';
 
 export default function DocumentTrackingPage() {
   const { data: firms = [], isLoading, error } = useAllFirmsTracking();
@@ -297,6 +313,8 @@ export default function DocumentTrackingPage() {
         }
         return false;
       });
+    } else if (filterStatus === 'pending_requests') {
+      result = result.filter((f) => f.hasPendingRequest);
     }
 
     if (filterStatus === 'signed') {
@@ -517,6 +535,7 @@ export default function DocumentTrackingPage() {
           <option value="not_started">Not Started</option>
           <option value="unsigned">Not Fully Signed</option>
           <option value="needs_attention">Needs Attention (&gt;7d)</option>
+          <option value="pending_requests">Pending Requests</option>
         </select>
       </div>
 
@@ -661,7 +680,7 @@ function FirmExpandableRow({
   return (
     <>
       <tr
-        className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+        className={`hover:bg-muted/30 transition-colors cursor-pointer ${isSelected ? 'bg-primary/5' : firm.hasPendingRequest ? 'bg-amber-50/60' : ''}`}
         onClick={() => setExpanded(!expanded)}
       >
         <td

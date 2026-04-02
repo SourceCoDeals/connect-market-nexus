@@ -78,7 +78,7 @@ import { useUnviewedConnectionRequests } from '@/hooks/admin/use-unviewed-connec
 import { useUnviewedUsers } from '@/hooks/admin/use-unviewed-users';
 import { useUnviewedOwnerLeads } from '@/hooks/admin/use-unviewed-owner-leads';
 import { useUnreadMessageCounts } from '@/hooks/use-connection-messages';
-
+import { usePendingDocumentRequests } from '@/hooks/admin/use-pending-document-requests';
 interface NavItem {
   label: string;
   href: string;
@@ -116,6 +116,7 @@ export function UnifiedAdminSidebar({
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
   const { unviewedCount: unviewedOwnerLeadsCount } = useUnviewedOwnerLeads();
   const { data: unreadMessages } = useUnreadMessageCounts();
+  const { data: pendingDocRequestCount = 0 } = usePendingDocumentRequests();
 
   const sections: NavSection[] = useMemo(
     () => [
@@ -190,6 +191,7 @@ export function UnifiedAdminSidebar({
             label: 'Document Tracking',
             href: '/admin/documents',
             icon: <FileCheck className="h-4 w-4" />,
+            badge: pendingDocRequestCount,
           },
           {
             label: 'Lists',
@@ -405,6 +407,7 @@ export function UnifiedAdminSidebar({
       unviewedConnectionRequestsCount,
       unviewedUsersCount,
       unviewedOwnerLeadsCount,
+      pendingDocRequestCount,
       canAccessSettings,
     ],
   );

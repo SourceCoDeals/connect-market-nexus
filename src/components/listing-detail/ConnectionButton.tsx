@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import ConnectionRequestDialog from '@/components/connection/ConnectionRequestDialog';
-import { FeeAgreementGate } from '@/components/pandadoc/FeeAgreementGate';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
@@ -33,7 +32,6 @@ const ConnectionButton = ({
   listingStatus,
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [showFeeGate, setShowFeeGate] = useState(false);
   useRealtime();
   useAgreementStatusSync();
   const { user } = useAuth();
@@ -50,14 +48,9 @@ const ConnectionButton = ({
       if (listingStatus === 'inactive' || listingStatus === 'sold') return;
       // Gate: profile must be complete
       if (user && !isAdmin && !isProfileComplete(user)) return;
-      // Gate: NDA must be signed (block when loading too — safe-by-default)
-      if (!isAdmin && (!coverage || !coverage.nda_covered)) return;
-      // Gate: fee agreement must be covered
-      if (!isAdmin && coverage && !coverage.fee_covered) {
-        setShowFeeGate(true);
-      } else {
-        setIsDialogOpen(true);
-      }
+      // Gate: at least ONE agreement must be signed (NDA or Fee Agreement)
+      if (!isAdmin && (!coverage || (!coverage.nda_covered && !coverage.fee_covered))) return;
+      setIsDialogOpen(true);
     }
   };
 
@@ -178,20 +171,20 @@ const ConnectionButton = ({
     );
   }
 
-  // Block users who haven't signed an NDA
-  if (!isAdmin && coverage && !coverage.nda_covered) {
+  // Block users who haven't signed at least one agreement (NDA or Fee Agreement)
+  if (!isAdmin && coverage && !coverage.nda_covered && !coverage.fee_covered) {
     return (
       <div className="space-y-3">
         <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
             <ShieldAlert className="h-4 w-4 text-amber-500" />
-            <p className="text-sm font-medium text-amber-900">NDA Required</p>
+            <p className="text-sm font-medium text-amber-900">Agreement Required</p>
           </div>
           <p className="text-xs text-amber-700 mt-0.5">
-            You must sign a confidentiality agreement before requesting deal access. This is a one-time process.
+            You must sign an NDA or Fee Agreement before requesting deal access. This is a one-time process.
           </p>
           <p className="text-xs text-muted-foreground mt-2">
-            Contact <a href={`mailto:${APP_CONFIG.adminEmail}`} className="underline text-amber-700 hover:text-amber-900">{APP_CONFIG.adminEmail}</a> to get your NDA set up.
+            Contact <a href={`mailto:${APP_CONFIG.adminEmail}`} className="underline text-amber-700 hover:text-amber-900">{APP_CONFIG.adminEmail}</a> to get started.
           </p>
         </div>
       </div>
@@ -271,26 +264,6 @@ const ConnectionButton = ({
         listingTitle={listingTitle}
       />
 
-      {showFeeGate && user && coverage?.firm_id && (
-        <FeeAgreementGate
-          userId={user.id}
-          firmId={coverage.firm_id}
-          listingTitle={listingTitle}
-          onSigned={() => {
-            setShowFeeGate(false);
-            setIsDialogOpen(true);
-          }}
-          onDismiss={() => setShowFeeGate(false)}
-        />
-      )}
-      {showFeeGate && user && !coverage?.firm_id && (
-        <div className="w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-center">
-          <p className="text-sm font-medium text-amber-900">Fee Agreement Required</p>
-          <p className="text-xs text-amber-700 mt-0.5">
-            We couldn't resolve your firm. Please contact support to set up your fee agreement.
-          </p>
-        </div>
-      )}
     </div>
   );
 };
