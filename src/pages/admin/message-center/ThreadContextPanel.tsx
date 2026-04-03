@@ -307,7 +307,7 @@ export function ThreadContextPanel({
 
   return (
     <div
-      className="w-[280px] flex-shrink-0 flex flex-col min-h-0"
+      className="w-[260px] flex-shrink-0 hidden lg:flex flex-col min-h-0"
       style={{ borderLeft: '1px solid #F0EDE6', backgroundColor: '#FFFFFF' }}
     >
       <ScrollArea className="flex-1">
