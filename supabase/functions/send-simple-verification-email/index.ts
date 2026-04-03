@@ -82,8 +82,8 @@ support@sourcecodeals.com`;
         recipientEmail: email,
       }),
       textContent,
-      senderName: 'Adam Haile',
-      replyTo: 'adam.haile@sourcecodeals.com',
+      senderName: 'SourceCo',
+      replyTo: 'support@sourcecodeals.com',
       isTransactional: true,
     });
 

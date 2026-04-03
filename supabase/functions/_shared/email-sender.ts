@@ -12,9 +12,9 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // ── Locked sender identity ──────────────────────────────────────────────────
-const VERIFIED_SENDER_EMAIL = 'adam.haile@sourcecodeals.com';
-const VERIFIED_SENDER_NAME = 'Adam Haile - SourceCo';
-const DEFAULT_REPLY_TO = 'adam.haile@sourcecodeals.com';
+const VERIFIED_SENDER_EMAIL = 'support@sourcecodeals.com';
+const VERIFIED_SENDER_NAME = 'SourceCo';
+const DEFAULT_REPLY_TO = 'support@sourcecodeals.com';
 
 // ── Support profile for operational/system emails ───────────────────────────
 export const SUPPORT_REPLY_TO = 'support@sourcecodeals.com';
