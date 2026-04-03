@@ -22,6 +22,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { sendAgreementEmail } from '@/lib/agreement-email';
 import { invalidateAgreementQueries } from '@/hooks/use-agreement-status-sync';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ListingSidebarActionsProps {
   listingId: string;
@@ -176,6 +177,22 @@ export function ListingSidebarActions({
         setJustRequested(true);
         setCooldownLeft(60);
         invalidateAgreementQueries(queryClient, user?.id);
+
+        // Notify support inbox about the document request
+        const docTypes = [
+          ...(feeNeedsRequest ? ['Fee Agreement'] : []),
+          ...(ndaNeedsRequest ? ['NDA'] : []),
+        ].join(' & ');
+        supabase.functions
+          .invoke('notify-support-inbox', {
+            body: {
+              type: 'document_request',
+              buyerName: user?.email || 'Buyer',
+              buyerEmail: user?.email,
+              documentType: docTypes,
+            },
+          })
+          .catch((err: unknown) => console.warn('notify-support-inbox error:', err));
       } else {
         const firstError = (results[0] as any)?.error;
         toast({
