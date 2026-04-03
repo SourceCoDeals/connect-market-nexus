@@ -41,9 +41,9 @@ export interface SendEmailOptions {
   htmlContent: string;
   /** Plain text fallback */
   textContent?: string;
-  /** Reply-to override (defaults to adam.haile@sourcecodeals.com) */
+  /** Reply-to override (defaults to support@sourcecodeals.com) */
   replyTo?: string;
-  /** Sender name override (defaults to "Adam Haile - SourceCo") */
+  /** Sender name override (defaults to "SourceCo") */
   senderName?: string;
   /** Is transactional (skips unsubscribe header) */
   isTransactional?: boolean;
