@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Mail, CheckCircle, XCircle, AlertTriangle, Eye, Search, BookOpen } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, AlertTriangle, Eye, Search, BookOpen, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { EmailCatalog } from '@/components/admin/emails/EmailCatalog';
 import { AdminEmailRouting } from '@/components/admin/emails/AdminEmailRouting';
