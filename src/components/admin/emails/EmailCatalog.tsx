@@ -40,19 +40,19 @@ const RECIPIENT_STYLES: Record<RecipientType, string> = {
 };
 
 // Shared preview building blocks
-const wrapperStart = `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-  <div style="background: #1a1a2e; padding: 24px 32px; text-align: center;">
-    <span style="color: #ffffff; font-size: 20px; font-weight: 700; letter-spacing: 0.5px;">SourceCo</span>
+const LOGO_URL = 'https://cdn.prod.website-files.com/66851dae8a2c8c3f8cd9c703/66af956d372d85d43f02f481_Group%202%20(4)%20(1).png';
+const wrapperStart = `<div style="font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E8E4DD; border-radius: 8px; overflow: hidden;">
+  <div style="padding: 32px 30px 24px; text-align: center; border-bottom: 1px solid #E8E4DD;">
+    <img src="${LOGO_URL}" alt="SourceCo" height="40" style="height: 40px; width: auto;" />
   </div>
-  <div style="padding: 32px;">`;
+  <div style="padding: 32px 30px; font-size: 15px; line-height: 1.7; color: #1A1A1A;">`;
 const wrapperEnd = `</div>
-  <div style="background: #f8fafc; padding: 20px 32px; text-align: center; border-top: 1px solid #e2e8f0;">
-    <p style="margin: 0; font-size: 12px; color: #94a3b8;">© SourceCo Deals Inc. All rights reserved.</p>
-    <p style="margin: 4px 0 0; font-size: 11px; color: #cbd5e1;">You're receiving this because of your SourceCo account.</p>
+  <div style="padding: 24px 30px; text-align: center; border-top: 1px solid #E8E4DD;">
+    <p style="margin: 0; font-size: 12px; color: #9B9B9B;">&copy; 2026 SourceCo</p>
   </div>
 </div>`;
-const ctaBtn = (text: string) => `<div style="text-align: center; margin: 28px 0;"><a href="#" style="background: #1a1a2e; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; display: inline-block;">${text}</a></div>`;
-const infoBox = (color: string, border: string, text: string) => `<div style="background: ${color}; border-left: 4px solid ${border}; padding: 16px; border-radius: 4px; margin-bottom: 20px;"><p style="margin: 0; color: #1e293b; font-size: 14px;">${text}</p></div>`;
+const ctaBtn = (text: string) => `<div style="text-align: center; margin: 28px 0;"><a href="#" style="background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; display: inline-block;">${text}</a></div>`;
+const infoBox = (text: string) => `<div style="background: #F7F6F3; padding: 16px; border-radius: 6px; margin-bottom: 20px;"><p style="margin: 0; color: #1A1A1A; font-size: 14px;">${text}</p></div>`;
 
 const EMAIL_CATALOG: CatalogCategory[] = [
   {
