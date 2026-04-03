@@ -317,7 +317,7 @@ const ListingDetail = () => {
                 <MFAGate loadingText="Verifying identity for data room access...">
                   <BuyerDataRoom dealId={id!} />
                 </MFAGate>
-              </MFAGate>
+              </div>
             )}
 
             {isAdmin && listing.owner_notes && (
