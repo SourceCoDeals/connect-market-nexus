@@ -68,9 +68,8 @@ Questions? Reply back to this email.
 
 Thank you for your patience.
 
-Adam Haile
-SourceCo
-adam.haile@sourcecodeals.com`;
+The SourceCo Team
+support@sourcecodeals.com`;
 
     const result = await sendEmail({
       templateName: 'verification',
