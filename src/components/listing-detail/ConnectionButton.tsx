@@ -100,7 +100,7 @@ const ConnectionButton = ({
     }
 
     return {
-      text: 'Request Full Deal Details',
+      text: 'Request Connection and Data Room Access',
       className: 'bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground border-none',
       disabled: false,
     };
