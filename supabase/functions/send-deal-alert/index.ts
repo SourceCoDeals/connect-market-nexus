@@ -202,18 +202,16 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = { messageId: brevoResult.messageId };
 
     if (!brevoResponse.ok) {
-      const errText = await brevoResponse.text();
       await logEmailDelivery(supabaseClient, {
         email: user_email,
         emailType: 'deal_alert',
         status: 'failed',
         correlationId: crypto.randomUUID(),
-        errorMessage: `Brevo error ${brevoResponse.status}: ${errText}`,
+        errorMessage: brevoResult.error || 'Send failed',
       });
-      throw new Error(`Brevo error ${brevoResponse.status}: ${errText}`);
+      throw new Error(brevoResult.error || 'Send failed');
     }
 
-    const emailResponse = await brevoResponse.json();
     console.log('Email sent via Brevo:', emailResponse);
 
     await logEmailDelivery(supabaseClient, {
