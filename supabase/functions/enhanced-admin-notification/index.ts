@@ -53,11 +53,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending admin notification for new user: ${email}`);
 
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333; border-bottom: 2px solid #007bff; padding-bottom: 10px;">New User Registration</h2>
+    const htmlContent = wrapEmailHtml({
+      bodyHtml: `
+        <h2 style="margin-bottom: 16px;">New User Registration</h2>
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #007bff; margin-top: 0;">User Details</h3>
+          <h3 style="color: #1a1a2e; margin-top: 0;">User Details</h3>
           <p><strong>Name:</strong> ${escapeHtml(first_name || '')} ${escapeHtml(last_name || '')}</p>
           <p><strong>Email:</strong> ${escapeHtml(email || '')}</p>
           <p><strong>Company:</strong> ${escapeHtml(company || '') || 'Not provided'}</p>
@@ -67,11 +67,12 @@ const handler = async (req: Request): Promise<Response> => {
           <p style="margin: 0; color: #856404;"><strong>Action Required:</strong> Please review and approve/reject this user registration in the admin panel.</p>
         </div>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${req.headers.get('origin')}/admin/marketplace/users" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Review User Registration</a>
+          <a href="${req.headers.get('origin')}/admin/marketplace/users" style="background-color: #1a1a2e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Review User Registration</a>
         </div>
-        <p style="color: #666; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">This is an automated notification from your application's user registration system.</p>
-      </div>
-    `;
+      `,
+      preheader: `New user registration: ${first_name} ${last_name} (${email})`,
+      recipientEmail: adminEmail,
+    });
 
     const result = await sendEmail({
       templateName: 'admin_new_user_notification',

@@ -94,20 +94,23 @@ const handler = async (req: Request): Promise<Response> => {
       textContent = `Hi ${firstName},\n\nYour SourceCo account is approved and your NDA is already on file. You have full access right now.\n\nBrowse deals: ${siteUrl}/marketplace\n\nQuestions? Reply to this email.\n\n— The SourceCo Team`;
     } else {
       subject = "You're approved — one step to full access.";
-      htmlContent = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+      htmlContent = wrapEmailHtml({
+        bodyHtml: `
   <p>Hi ${firstName},</p>
   <p>You're approved.</p>
   <p>Before you can browse deal details and request introductions, you'll need to sign your NDA. It covers your use of the platform — one signature, and you're in for good. Takes about 60 seconds.</p>
   <p style="margin: 24px 0;"><a href="${siteUrl}/pending-approval" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Sign Your NDA</a></p>
-  <h3 style="color: #0e101a; font-size: 16px; margin: 24px 0 8px 0;">A few things to know before you start</h3>
-  <ul style="padding-left: 20px; color: #374151;">
+  <h3 style="font-size: 16px; margin: 24px 0 8px 0;">A few things to know before you start</h3>
+  <ul style="padding-left: 20px;">
     <li>Every deal on SourceCo is off-market — you won't find these anywhere else</li>
     <li>We introduce a small number of buyers per deal. When you request an introduction, tell us specifically why you're a strong fit — generic messages rarely get selected</li>
     <li>Before your first introduction request, you'll be asked to sign a fee agreement. It's success-only — nothing owed unless a deal closes</li>
   </ul>
   <p>Questions? Reply to this email.</p>
-  <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>
-</div>`;
+  <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>`,
+        preheader: 'Sign your NDA in 60 seconds and the full deal pipeline is yours.',
+        recipientEmail: email,
+      });
       textContent = `Hi ${firstName}, you're approved. Sign your NDA to get full access: ${siteUrl}/pending-approval\n\nQuestions? Reply to this email.\n\n— The SourceCo Team`;
     }
 
