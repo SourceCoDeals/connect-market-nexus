@@ -118,6 +118,9 @@ export default function EmailDashboardPage() {
           <TabsTrigger value="catalog" className="gap-1.5">
             <BookOpen className="h-4 w-4" /> Email Catalog
           </TabsTrigger>
+          <TabsTrigger value="routing" className="gap-1.5">
+            <Users className="h-4 w-4" /> Admin Routing
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="delivery" className="space-y-6 mt-0">
