@@ -3,12 +3,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ChevronDown, ChevronRight, Mail, Eye } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Mail, Eye, Copy, Check } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from '@/components/ui/sonner';
 
 type RecipientType = 'Buyer' | 'Admin' | 'Owner' | 'User' | 'System' | 'Dynamic';
+type EmailStatus = 'active' | 'broken' | 'deprecated';
 
 interface CatalogEmail {
   name: string;
@@ -19,6 +21,8 @@ interface CatalogEmail {
   variant?: string;
   designNotes: string;
   previewHtml: string;
+  status?: EmailStatus;
+  statusNote?: string;
 }
 
 interface CatalogCategory {
@@ -395,7 +399,7 @@ const EMAIL_CATALOG: CatalogCategory[] = [
       },
       {
         name: 'Feedback Notification',
-        subject: '[Emoji] New Feedback: [Category]',
+        subject: '${priorityEmoji} New Feedback: [Category] (URGENT if urgent)',
         recipient: 'Admin',
         trigger: 'User submits feedback',
         edgeFunction: 'send-feedback-notification',
@@ -472,7 +476,47 @@ const EMAIL_CATALOG: CatalogCategory[] = [
       },
     ],
   },
+  {
+    name: 'Broken / Deprecated',
+    emails: [
+      {
+        name: 'Admin Digest',
+        subject: '[Type] Admin Digest - SourceCo Marketplace',
+        recipient: 'Admin',
+        trigger: 'Scheduled digest of admin activity',
+        edgeFunction: 'admin-digest',
+        status: 'broken',
+        statusNote: 'Calls deleted enhanced-email-delivery function — needs migration to sendEmail()',
+        designNotes: 'Was: branded wrapper with digest summary table. Currently non-functional.',
+        previewHtml: `${wrapperStart}<h2 style="color: #1e293b; margin: 0 0 16px;">Admin Digest</h2><p style="color: #ef4444; font-weight: 600;">⚠️ This email is currently broken.</p><p style="color: #475569; line-height: 1.6;">This function calls the deleted <code>enhanced-email-delivery</code> function and will fail at runtime.</p><div style="background: #fef2f2; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #fecaca;"><p style="margin: 0; font-size: 13px; color: #991b1b;">Needs migration to use sendEmail() from _shared/email-sender.ts</p></div>${wrapperEnd}`,
+      },
+    ],
+  },
 ];
+
+const SENDER_EMAIL = 'adam.haile@sourcecodeals.com';
+
+function CopyableText({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success(`${label} copied`);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={handleCopy} className="inline-flex items-center gap-1 hover:text-foreground transition-colors group" title={`Copy ${label}`}>
+      <span>{text}</span>
+      {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />}
+    </button>
+  );
+}
+
+const STATUS_STYLES: Record<EmailStatus, string> = {
+  active: '',
+  broken: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/20',
+  deprecated: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20',
+};
 
 export function EmailCatalog() {
   const [search, setSearch] = useState('');
@@ -510,10 +554,16 @@ export function EmailCatalog() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">{totalEmails} email types across {EMAIL_CATALOG.length} categories</span>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{totalEmails} email types across {EMAIL_CATALOG.length} categories</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-muted rounded-md">
+            <span className="text-xs text-muted-foreground">From:</span>
+            <CopyableText text={SENDER_EMAIL} label="Sender email" />
+          </div>
         </div>
         <div className="relative w-72">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -561,21 +611,35 @@ export function EmailCatalog() {
                   </TableHeader>
                   <TableBody>
                     {category.emails.map(email => (
-                      <TableRow key={email.edgeFunction + email.name}>
+                      <TableRow key={email.edgeFunction + email.name} className={email.status === 'broken' ? 'bg-red-500/5' : ''}>
                         <TableCell className="font-medium text-sm">
-                          {email.name}
+                          <div className="flex items-center gap-1.5">
+                            {email.name}
+                            {email.status && email.status !== 'active' && (
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase border ${STATUS_STYLES[email.status]}`}>
+                                {email.status}
+                              </span>
+                            )}
+                          </div>
                           {email.variant && (
                             <span className="block text-xs text-muted-foreground mt-0.5 font-normal">{email.variant}</span>
                           )}
+                          {email.statusNote && (
+                            <span className="block text-xs text-red-600 dark:text-red-400 mt-0.5 font-normal">{email.statusNote}</span>
+                          )}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground font-mono text-xs">{email.subject}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          <CopyableText text={email.subject} label="Subject line" />
+                        </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${RECIPIENT_STYLES[email.recipient]}`}>
                             {email.recipient}
                           </span>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{email.trigger}</TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">{email.edgeFunction}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          <CopyableText text={email.edgeFunction} label="Function name" />
+                        </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -616,16 +680,25 @@ export function EmailCatalog() {
           </DialogHeader>
           {previewEmail && (
             <div className="flex-1 overflow-y-auto space-y-4">
+              {previewEmail.status === 'broken' && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-md px-3 py-2 text-xs text-red-700 dark:text-red-400">
+                  ⚠️ <strong>BROKEN:</strong> {previewEmail.statusNote}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-muted-foreground text-xs">Subject</span>
-                  <p className="font-mono text-xs mt-0.5">{previewEmail.subject}</p>
+                  <p className="font-mono text-xs mt-0.5"><CopyableText text={previewEmail.subject} label="Subject" /></p>
                 </div>
                 <div>
                   <span className="text-muted-foreground text-xs">Edge Function</span>
-                  <p className="font-mono text-xs mt-0.5">{previewEmail.edgeFunction}</p>
+                  <p className="font-mono text-xs mt-0.5"><CopyableText text={previewEmail.edgeFunction} label="Function" /></p>
                 </div>
-                <div className="col-span-2">
+                <div>
+                  <span className="text-muted-foreground text-xs">From</span>
+                  <p className="font-mono text-xs mt-0.5">{SENDER_EMAIL}</p>
+                </div>
+                <div>
                   <span className="text-muted-foreground text-xs">Design Notes</span>
                   <p className="text-xs mt-0.5">{previewEmail.designNotes}</p>
                 </div>
