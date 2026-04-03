@@ -1,89 +1,108 @@
 
+Goal
 
-# Deep Investigation Results — Why Emails Are Not Arriving
+Pin down the admin-documents agreement flow specifically, because that is the path you just tested.
 
-## Evidence-Based Analysis
+What I found
 
-### What I verified in the actual deployed code and database
+1. No — this was not rebuilt end-to-end from scratch.
+The admin-documents UI was rerouted to the newer `request-agreement-email` path, but the surrounding tracking/state model was not rebuilt with it.
 
-**1. The sender identity theory was WRONG all along.**
+2. Admin Documents is using the new function.
+The resend in admin documents goes through:
+- `src/components/admin/firm-agreements/AgreementStatusDropdown.tsx`
+- `src/lib/agreement-email.ts`
+- `supabase/functions/request-agreement-email/index.ts`
 
-Proof: On March 31, emails to `adambhaile00@gmail.com` were sent using `notifications@sourcecodeals.com` (the old "unverified" fallback) via `user-journey-notifications` and `send-verification-success-email`. Those emails **worked and arrived**. The sender identity was never the root cause — changing it to `adam.haile@` or `support@` was unnecessary (though not harmful).
+So for the issue you just tested, the main target is not the legacy NDA/Fee functions.
 
-**2. Brevo IS accepting and delivering emails.**
+3. “Sent to provider” is a UI status, not proof of inbox delivery.
+That label is shown when `document_requests.status === 'email_sent'`.
+That status is set as soon as `request-agreement-email` gets a successful response back from `sendViaBervo()` and writes the row update.
+So it means “accepted by the email API,” not “arrived in Gmail.”
 
-On April 2 at 20:31, an NDA email was sent. At 20:40, the Brevo webhook confirmed `status: delivered` for that exact message (correlation_id matches the Brevo message-id `202604022031.78436361084@smtp-relay.mailin.fr`). Brevo delivered it to Gmail's servers successfully.
+4. There is a definite tracking bug in the admin queue.
+The pending-request UI tries to match delivery webhook events using `email_correlation_id`.
+But:
+- `request-agreement-email` stores `email_correlation_id` as an app UUID
+- `brevo-webhook` stores `correlation_id` as the normalized Brevo `message-id`
+- `document_requests` already stores that provider id in `email_provider_message_id`
+- the admin page ignores that field when looking up delivery events
 
-**3. The emails ARE being sent — Gmail is either filtering them or they need time.**
+Result: even if webhook events exist, the admin queue cannot map them back correctly, so it can stay stuck on “Sent to provider.”
 
-Database shows 8+ emails to `adambhaile00@gmail.com` logged as "sent" today with valid Brevo message IDs. Zero errors. The webhook confirmed delivery for at least one previous send.
+5. The sender identity is still inconsistent in this path.
+`request-agreement-email` uses:
+- sender = `SENDER_EMAIL` or `support@sourcecodeals.com`
+- reply-to = `adam.haile@sourcecodeals.com`
 
-### The ACTUAL remaining problems (code-side)
+But your manual proof is specifically that sending as `adam.haile@sourcecodeals.com` works.
+So this admin-documents path is still not explicitly locked to the identity you know works.
 
-**Problem A: 12 functions still bypass `sendViaBervo` and call Brevo directly**
+6. The UI copy is also misleading.
+Several agreement screens hardcode `support@sourcecodeals.com` as the sender/inbox text, regardless of what the function is actually using.
 
-Despite the previous "migration" work, these functions were NOT converted:
-- `send-onboarding-day2` — direct fetch, sender: `noreply@sourcecodeals.com`
-- `send-onboarding-day7` — direct fetch, sender: `noreply@sourcecodeals.com`
-- `send-first-request-followup` — direct fetch, sender: `noreply@sourcecodeals.com`
-- `send-deal-alert` — direct fetch, sender: `adam.haile@` (works, but no retry)
-- `send-deal-referral` — direct fetch, sender: `noreply@sourcecodeals.com`
-- `send-templated-approval-email` — direct fetch, sender: `noreply@sourcecodeals.com`
-- `send-contact-response` — direct fetch, sender: `noreply@sourcecodeals.com`
-- `send-feedback-email` — direct fetch, sender: `adam.haile@` (works, but no retry)
-- `send-feedback-notification` — direct fetch, sender: `adam.haile@` (works, but no retry)
-- `send-task-notification-email` — direct fetch, sender: `adam.haile@` (works, but no retry)
-- `send-nda-email` — direct fetch (legacy)
-- `send-fee-agreement-email` — direct fetch (legacy)
+What I would build next
 
-These miss retry logic, consistent error handling, and unsubscribe compliance.
+1. Rebuild `request-agreement-email` as the single canonical admin agreement sender
+Keep it as the only admin-documents send path, and stop treating delivery tracking as an afterthought.
 
-**Problem B: The agreement emails specifically — why they're not arriving at Gmail**
+2. Fix the identity model
+Use one canonical provider-tracking key for the agreement flow:
+- store normalized Brevo message-id
+- use that same normalized provider id everywhere for webhook matching and UI state
+- keep the app UUID only as an internal request correlation id
 
-The agreement emails ARE reaching Brevo, and Brevo IS returning success. For at least one send on April 2, Brevo confirmed delivery to Gmail. But they're not appearing in inbox.
+3. Fix the admin queue status model
+Replace the current vague state flow with:
+- Requested
+- Accepted by provider
+- Delivered
+- Opened
+- Bounced / Blocked / Spam
+This will remove the false sense that “sent” means “delivered.”
 
-Possible causes (all outside code control):
-- Gmail is classifying them as spam/promotions (check All Mail, Spam, Promotions tabs)
-- The high volume of repeated sends to the same address (8+ NDA/fee agreement sends in 24 hours) may have triggered Gmail's rate limiting or filtering
-- The attachment (NDA.docx, FeeAgreement.docx) may be triggering Gmail's security scanning
+4. Fix the join bug in `DocumentTrackingPage`
+Change delivery lookup to use `email_provider_message_id` instead of `email_correlation_id`, with normalization on both sides.
 
-**What I CANNOT guarantee from code alone**: That Gmail will put emails in the Primary inbox. That's Gmail's decision based on sender reputation, content, frequency, and recipient behavior.
+5. Lock the sender identity for agreements
+For this specific flow, I would stop relying on mixed fallback behavior and explicitly use the sender identity that you know works manually.
+Given your evidence, that should be `adam.haile@sourcecodeals.com` unless you tell me otherwise.
 
-## The Fix — What Still Needs to Be Done
+6. Make the UI match reality
+Update all agreement/admin copy that currently says support@ so the displayed sender/reply-to matches the actual configuration.
 
-### Step 1: Migrate remaining 12 direct-fetch functions to `sendViaBervo`
-Convert `send-onboarding-day2`, `send-onboarding-day7`, `send-first-request-followup`, `send-deal-alert`, `send-deal-referral`, `send-templated-approval-email`, `send-contact-response`, `send-feedback-email`, `send-feedback-notification`, `send-task-notification-email`, `send-nda-email`, `send-fee-agreement-email` to use `sendViaBervo`. This ensures retry logic, consistent sender, and unsubscribe compliance for ALL functions.
+7. Add stronger diagnostics to the agreement sender
+On every resend, log:
+- resolved sender
+- resolved reply-to
+- recipient
+- request row id
+- provider message-id
+- attachment names/sizes
+- final status written to `document_requests`
 
-### Step 2: Add diagnostic logging to `sendViaBervo`
-Log the actual sender email being used in every send so we can verify from logs what identity is being used without guessing.
+Technical details
 
-### Step 3: Deploy all modified functions
+- Admin resend trigger:
+  `src/components/admin/firm-agreements/AgreementStatusDropdown.tsx`
+- Unified agreement sender:
+  `supabase/functions/request-agreement-email/index.ts`
+- Misleading pending badge:
+  `src/pages/admin/DocumentTrackingPage.tsx`
+- Shared mail sender:
+  `supabase/functions/_shared/brevo-sender.ts`
+- Webhook correlation logic:
+  `supabase/functions/brevo-webhook/index.ts`
 
-### Step 4: User verification steps
-The user needs to:
-1. Check Gmail **All Mail** folder (not just inbox) — emails may be in Spam or Promotions
-2. Check the Brevo dashboard → Logs/Activity to see actual delivery status for the message IDs from the edge function logs
-3. Send ONE test email (not multiple) to avoid triggering Gmail's repeated-send filtering
-4. If found in Spam, mark as "Not Spam" to train Gmail
+Most important conclusion
 
-## Files to Change
-- `supabase/functions/send-onboarding-day2/index.ts`
-- `supabase/functions/send-onboarding-day7/index.ts`
-- `supabase/functions/send-first-request-followup/index.ts`
-- `supabase/functions/send-deal-alert/index.ts`
-- `supabase/functions/send-deal-referral/index.ts`
-- `supabase/functions/send-templated-approval-email/index.ts`
-- `supabase/functions/send-contact-response/index.ts`
-- `supabase/functions/send-feedback-email/index.ts`
-- `supabase/functions/send-feedback-notification/index.ts`
-- `supabase/functions/send-task-notification-email/index.ts`
-- `supabase/functions/send-nda-email/index.ts`
-- `supabase/functions/send-fee-agreement-email/index.ts`
-- `supabase/functions/_shared/brevo-sender.ts` (add sender logging)
+The biggest codebase-level issue I found is not “the click didn’t call the function.”
+It is that the admin agreement flow currently mixes:
+- one app correlation id
+- one provider message id
+- one sender identity in code
+- different sender text in the UI
 
-## Honest Assessment
-
-The code changes (migrating to `sendViaBervo`) will make the system more robust and consistent, but **the core delivery issue may not be code-related**. The evidence shows Brevo is accepting and even confirming delivery of emails. If Gmail is filtering them, the fix is on the Gmail/Brevo reputation side, not in the application code.
-
-The user should check: Brevo dashboard → Transactional → Logs → search for the message IDs from the edge function logs to see Brevo's view of delivery status.
-
+That means the flow is both hard to trust and hard to diagnose.
+So the right move is not another small patch — it is to rebuild this one admin agreement path so sending, tracking, and UI all use the same truth model.
