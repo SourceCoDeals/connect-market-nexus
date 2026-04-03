@@ -177,8 +177,8 @@ const ConnectionButton = ({
     );
   }
 
-  // Block users who haven't signed at least one agreement (NDA or Fee Agreement)
-  if (!isAdmin && coverage && !coverage.nda_covered && !coverage.fee_covered) {
+  // Block users who haven't signed a Fee Agreement
+  if (!isAdmin && coverage && !coverage.fee_covered) {
     const ndaStatus = coverage.nda_status ?? 'not_started';
     const feeStatus = coverage.fee_status ?? 'not_started';
     const ndaSent = ndaStatus === 'sent';
