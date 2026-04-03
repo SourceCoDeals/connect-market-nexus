@@ -232,6 +232,12 @@ export default function MessageCenter() {
   }, [queryClient]);
 
   const selectedThread = threads.find((t) => t.connection_request_id === selectedThreadId);
+  
+  // Get all threads for the selected buyer (for thread selector in ThreadView)
+  const selectedBuyerThreads = useMemo(() => {
+    if (!selectedThread?.user_id) return [];
+    return threads.filter(t => t.user_id === selectedThread.user_id);
+  }, [threads, selectedThread]);
 
   // Filter threads
   const filteredThreads = useMemo(() => {
