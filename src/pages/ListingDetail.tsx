@@ -332,7 +332,7 @@ const ListingDetail = () => {
 
           {/* Sidebar - 30% */}
           <div className="lg:col-span-3">
-            <div className="sticky top-32 space-y-8">
+            <div className="space-y-8">
               {/* Interested in This Deal? - Premium CTA */}
               <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
                 <div className="text-center mb-6">
