@@ -90,13 +90,21 @@ export function ConversationList({
               >
                 <Search className="h-3.5 w-3.5" style={{ color: '#9A9A9A' }} />
               </button>
-              <button
-                onClick={onSelectGeneral}
-                className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-[#F8F8F6] transition-colors"
-                title="New message"
+              <NewMessagePicker
+                open={pickerOpen}
+                onOpenChange={setPickerOpen}
+                threads={threads}
+                onSelectGeneral={onSelectGeneral}
+                onSelectThread={onSelectThread}
+                onReferenceChange={onReferenceChange}
               >
-                <MessageSquarePlus className="h-3.5 w-3.5" style={{ color: '#9A9A9A' }} />
-              </button>
+                <button
+                  className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-[#F8F8F6] transition-colors"
+                  title="New message"
+                >
+                  <MessageSquarePlus className="h-3.5 w-3.5" style={{ color: '#9A9A9A' }} />
+                </button>
+              </NewMessagePicker>
             </div>
           </div>
         )}
