@@ -99,7 +99,7 @@ export function AgreementStatusBanner({ show = 'both', className }: AgreementSta
         message: 'A fee agreement has been sent to your firm. Please check your email to sign.',
       });
     }
-    // If NDA is covered, fee is optional — show nothing about fee requirement
+    // Fee agreement is the gate; if not covered and no pending status, no banner needed
   }
 
   if (banners.length === 0) return null;
