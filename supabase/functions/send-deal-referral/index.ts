@@ -63,26 +63,25 @@ serve(async (req: Request) => {
 
     const emailHtml = wrapEmailHtml({
       bodyHtml: `
-        <h1 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 600; color: #0f172a;">${referrerName} thought you'd be interested</h1>
-        <p style="margin: 0 0 32px 0; font-size: 14px; color: #64748b;">They shared a business listing with you</p>
+        <p>${referrerName} shared a business listing with you on SourceCo.</p>
         ${personalMessage ? `
-          <div style="margin-bottom: 32px; padding: 16px; background-color: #f8fafc; border-left: 2px solid #cbd5e1; border-radius: 4px;">
-            <p style="margin: 0; font-size: 14px; color: #475569; font-style: italic;">"${personalMessage}"</p>
+          <div style="margin: 20px 0; padding: 16px; background-color: #F7F6F3; border-radius: 6px;">
+            <p style="margin: 0; font-size: 14px; color: #1A1A1A; font-style: italic;">"${personalMessage}"</p>
           </div>
         ` : ''}
-        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-bottom: 32px;">
-          <h2 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #0f172a;">${listing.title}</h2>
+        <div style="border: 1px solid #E8E4DD; border-radius: 6px; padding: 24px; margin: 24px 0;">
+          <p style="margin: 0 0 12px 0; font-size: 18px; font-weight: 600; color: #1A1A1A;">${listing.title}</p>
           <div style="margin-bottom: 16px;">
-            <span style="display: inline-block; padding: 4px 12px; background-color: #f1f5f9; border-radius: 4px; font-size: 12px; color: #475569; margin-right: 8px;">${listing.category}</span>
-            <span style="display: inline-block; padding: 4px 12px; background-color: #f1f5f9; border-radius: 4px; font-size: 12px; color: #475569;">${listing.location}</span>
+            <span style="display: inline-block; padding: 4px 12px; background-color: #F7F6F3; border-radius: 4px; font-size: 12px; color: #6B6B6B; margin-right: 8px;">${listing.category}</span>
+            <span style="display: inline-block; padding: 4px 12px; background-color: #F7F6F3; border-radius: 4px; font-size: 12px; color: #6B6B6B;">${listing.location}</span>
           </div>
-          <div style="padding-top: 16px; border-top: 1px solid #e2e8f0;">
-            <p style="margin: 0 0 4px 0; font-size: 12px; color: #64748b;">Revenue: <strong style="color: #0f172a;">${formatCurrency(Number(listing.revenue))}</strong></p>
-            <p style="margin: 0; font-size: 12px; color: #64748b;">EBITDA: <strong style="color: #0f172a;">${formatCurrency(Number(listing.ebitda))}</strong></p>
+          <div style="padding-top: 16px; border-top: 1px solid #E8E4DD;">
+            <p style="margin: 0 0 4px 0; font-size: 13px; color: #6B6B6B;">Revenue: <strong style="color: #1A1A1A;">${formatCurrency(Number(listing.revenue))}</strong></p>
+            <p style="margin: 0; font-size: 13px; color: #6B6B6B;">EBITDA: <strong style="color: #1A1A1A;">${formatCurrency(Number(listing.ebitda))}</strong></p>
           </div>
         </div>
         <div style="text-align: center;">
-          <a href="${Deno.env.get('SITE_URL') || 'https://marketplace.sourcecodeals.com'}/listing/${listingId}" style="display: inline-block; padding: 12px 32px; background-color: #1a1a2e; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">View full listing</a>
+          <a href="${Deno.env.get('SITE_URL') || 'https://marketplace.sourcecodeals.com'}/listing/${listingId}" style="display: inline-block; padding: 14px 32px; background-color: #000000; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600;">View Full Listing</a>
         </div>`,
       preheader: `${referrerName} shared a business opportunity with you`,
       recipientEmail: recipientEmail,

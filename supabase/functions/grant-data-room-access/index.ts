@@ -168,16 +168,15 @@ Deno.serve(async (req: Request) => {
 function buildDataRoomEmailHtml(projectName: string, buyerName: string, dataRoomUrl: string, buyerEmail: string): string {
   return wrapEmailHtml({
     bodyHtml: `
-    <h1 style="color: #1e293b; font-size: 22px; margin: 0 0 20px 0;">Data Room Access — Project ${projectName}</h1>
     <p>Hi ${buyerName},</p>
-    <p>You've been granted access to the data room for <strong>Project ${projectName}</strong>.</p>
-    <p>The data room contains deal details, supporting documentation, and diligence materials. Your access link is personal — please don't share or forward it. All access is tracked.</p>
-    <div style="text-align: center; margin: 24px 0;">
-      <a href="${dataRoomUrl}" style="display: inline-block; background: #1a1a2e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">Open Data Room</a>
+    <p>You have been granted access to the data room for <strong>Project ${projectName}</strong>.</p>
+    <p>The data room contains deal details, supporting documentation, and diligence materials. Your access link is personal. Do not share or forward it. All access is tracked.</p>
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${dataRoomUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">Open Data Room</a>
     </div>
-    <p>If you have questions about the materials or want to discuss the opportunity, reply to this email — it goes directly to our deal team.</p>
-    <p style="font-size: 14px; color: #666; margin-top: 30px;">SourceCo Deal Team</p>
-    <p style="font-size: 12px; color: #94a3b8; margin-top: 20px;">This communication is confidential and intended solely for the named recipient.</p>`,
+    <p>If you have questions about the materials or want to discuss the opportunity, reply to this email. It goes directly to our deal team.</p>
+    <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>
+    <p style="font-size: 12px; color: #9B9B9B; margin-top: 16px;">This communication is confidential and intended solely for the named recipient.</p>`,
     preheader: `Data room access granted for Project ${projectName}`,
     recipientEmail: buyerEmail,
   });

@@ -14,13 +14,12 @@ interface BuyerRejectionRequest {
 function buildRejectionHtml(buyerName: string, companyName: string, buyerEmail: string): string {
   return wrapEmailHtml({
     bodyHtml: `
-    <h1 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 24px 0; line-height: 1.4;">Regarding Your Interest in ${companyName}</h1>
-    <p style="margin: 0 0 16px 0;">Thank you for your interest in ${companyName}.</p>
-    <p style="margin: 0 0 16px 0;">After careful review, this opportunity is no longer available for your profile at this time. We are intentional about limiting buyer introductions so that every connection made is a genuine fit for both sides &mdash; and we've noted your interest should anything change.</p>
-    <p style="margin: 0 0 16px 0;">We're committed to finding you the right match.</p>
-    <p style="margin: 24px 0 4px 0;">Sincerely,</p>
-    <p style="margin: 0; font-weight: 600;">The SourceCo Team</p>`,
-    preheader: `Regarding your interest in ${companyName}`,
+    <p>Thank you for your interest in ${companyName}.</p>
+    <p>After reviewing your profile against this specific opportunity, we have decided not to move forward with an introduction at this time. We limit introductions to a small number of buyers per deal to ensure strong alignment on both sides.</p>
+    <p>Your interest has been noted. If the situation changes, we will reach out directly.</p>
+    <p>In the meantime, continue browsing the pipeline. New deals are added regularly and your next match may already be live.</p>
+    <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,
+    preheader: `Update on your interest in ${companyName}`,
     recipientEmail: buyerEmail,
   });
 }

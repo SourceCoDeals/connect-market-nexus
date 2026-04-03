@@ -80,25 +80,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     const emailHtml = wrapEmailHtml({
       bodyHtml: `
-        <h2 style="margin: 0 0 16px 0; color: #1e293b;">A deal matching your criteria just came in</h2>
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0;">
-          <div style="font-size: 20px; font-weight: bold; color: #1e293b; margin-bottom: 10px;">${safeTitle}</div>
-          <div style="color: #64748b; margin-bottom: 15px;">📍 ${safeLocation} • 🏷️ ${safeCategory}</div>
-          <div style="margin: 15px 0;">
-            <span style="display: inline-block; text-align: center; background: white; padding: 15px; border-radius: 6px; margin-right: 10px;">
-              <div style="font-size: 12px; color: #64748b; text-transform: uppercase;">Revenue</div>
-              <div style="font-size: 18px; font-weight: bold; color: #1e293b;">${formatCurrency(listing_data.revenue)}</div>
+        <p>A deal matching your criteria was just added to the pipeline.</p>
+        <div style="background: #F7F6F3; border-radius: 6px; padding: 20px; margin: 20px 0;">
+          <div style="font-size: 18px; font-weight: 600; color: #1A1A1A; margin-bottom: 12px;">${safeTitle}</div>
+          <div style="color: #6B6B6B; margin-bottom: 16px; font-size: 14px;">${safeLocation} · ${safeCategory}</div>
+          <div style="margin: 16px 0;">
+            <span style="display: inline-block; text-align: center; background: #FFFFFF; padding: 14px 20px; border-radius: 6px; margin-right: 10px; border: 1px solid #E8E4DD;">
+              <div style="font-size: 11px; color: #6B6B6B; text-transform: uppercase; letter-spacing: 0.5px;">Revenue</div>
+              <div style="font-size: 18px; font-weight: 600; color: #1A1A1A; margin-top: 4px;">${formatCurrency(listing_data.revenue)}</div>
             </span>
-            <span style="display: inline-block; text-align: center; background: white; padding: 15px; border-radius: 6px;">
-              <div style="font-size: 12px; color: #64748b; text-transform: uppercase;">EBITDA</div>
-              <div style="font-size: 18px; font-weight: bold; color: #1e293b;">${formatCurrency(listing_data.ebitda)}</div>
+            <span style="display: inline-block; text-align: center; background: #FFFFFF; padding: 14px 20px; border-radius: 6px; border: 1px solid #E8E4DD;">
+              <div style="font-size: 11px; color: #6B6B6B; text-transform: uppercase; letter-spacing: 0.5px;">EBITDA</div>
+              <div style="font-size: 18px; font-weight: 600; color: #1A1A1A; margin-top: 4px;">${formatCurrency(listing_data.ebitda)}</div>
             </span>
           </div>
-          <div style="margin: 15px 0; color: #374151;">${safeDescription}</div>
-          <a href="${siteUrl}/listing/${listing_data.id}" style="display: inline-block; background: #1a1a2e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500;">View Deal →</a>
+          <div style="margin: 16px 0; color: #1A1A1A; font-size: 14px; line-height: 1.6;">${safeDescription}</div>
+          <a href="${siteUrl}/listing/${listing_data.id}" style="display: inline-block; background: #000000; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">View Deal</a>
         </div>
-        <p><strong>Why you're receiving this:</strong> This deal matches your mandate on SourceCo.</p>
-        <p style="font-size: 12px; color: #64748b;"><a href="${siteUrl}/profile?tab=alerts" style="color: #64748b;">Manage your alerts</a></p>`,
+        <p style="font-size: 13px; color: #6B6B6B;">You are receiving this because this deal matches your mandate on SourceCo. <a href="${siteUrl}/profile?tab=alerts" style="color: #6B6B6B;">Manage your alerts</a></p>`,
       preheader: `New deal matching your mandate: ${safeTitle}`,
       recipientEmail: user_email,
     });
@@ -107,7 +106,7 @@ const handler = async (req: Request): Promise<Response> => {
       templateName: 'deal_alert',
       to: user_email,
       toName: user_email.split('@')[0],
-      subject: `New deal — matches your mandate.`,
+      subject: `New deal matching your mandate: ${safeTitle}`,
       htmlContent: emailHtml,
       senderName: 'SourceCo Marketplace',
       isTransactional: false, // deal alerts are not strictly transactional

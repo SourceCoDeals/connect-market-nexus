@@ -117,16 +117,15 @@ const handler = async (req: Request): Promise<Response> => {
         const result = await sendEmail({
           templateName: 'password_reset',
           to: email,
-          subject: 'Reset Your Password — SourceCo',
+          subject: 'Reset your SourceCo password',
           htmlContent: wrapEmailHtml({
             bodyHtml: `
-            <p>Hi,</p>
-            <p>We received a request to reset your password. Click the button below to set a new password:</p>
-            <p style="margin: 24px 0; text-align: center;">
-              <a href="${resetUrl}" style="display: inline-block; background: #1a1a2e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600;">Reset Password</a>
-            </p>
-            <p>This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
-            <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>`,
+            <p>We received a request to reset your password. Click the button below to set a new one.</p>
+            <div style="text-align: center; margin: 28px 0;">
+              <a href="${resetUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">Reset Password</a>
+            </div>
+            <p>This link expires in 1 hour. If you did not request a password reset, you can safely ignore this email.</p>
+            <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,
             preheader: 'Reset your SourceCo password',
             recipientEmail: email,
           }),
