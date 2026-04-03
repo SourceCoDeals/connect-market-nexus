@@ -1327,7 +1327,7 @@ function DismissButton({ requestId, label }: { requestId: string; label: string 
     setDismissing(true);
     try {
       const { error } = await untypedFrom('document_requests')
-        .update({ status: 'dismissed', updated_at: new Date().toISOString() })
+        .update({ status: 'dismissed' })
         .eq('id', requestId);
 
       if (error) throw error;
