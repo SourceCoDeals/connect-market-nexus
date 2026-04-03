@@ -399,7 +399,7 @@ const EMAIL_CATALOG: CatalogCategory[] = [
       },
       {
         name: 'Feedback Notification',
-        subject: '[Emoji] New Feedback: [Category]',
+        subject: '${priorityEmoji} New Feedback: [Category] (URGENT if urgent)',
         recipient: 'Admin',
         trigger: 'User submits feedback',
         edgeFunction: 'send-feedback-notification',
