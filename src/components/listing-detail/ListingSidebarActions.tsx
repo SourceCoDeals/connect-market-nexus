@@ -119,8 +119,14 @@ export function ListingSidebarActions({
     return '';
   };
 
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+
   const fee = resolveDocLabel(feeCovered, feeStatus);
   const nda = resolveDocLabel(ndaCovered, ndaStatus);
+
+  const feeNeedsRequest = fee.dot === 'none';
+  const ndaNeedsRequest = nda.dot === 'none';
+  const bothNeedRequest = feeNeedsRequest && ndaNeedsRequest;
 
   const StatusDot = ({ variant }: { variant: 'signed' | 'pending' | 'none' }) => (
     <div
