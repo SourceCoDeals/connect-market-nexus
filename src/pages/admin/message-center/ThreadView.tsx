@@ -496,14 +496,23 @@ export function ThreadView({ thread, allBuyerThreads = [], onSelectThread, onBac
         </div>
       )}
     </div>
-    {/* Buyer context panel */}
+    {/* Buyer context panel — slide-over overlay */}
     {showContext && (
-      <ThreadContextPanel
-        userId={thread.user_id}
-        buyerName={thread.buyer_name}
-        buyerEmail={thread.buyer_email}
-        buyerCompany={thread.buyer_company}
-      />
+      <>
+        <div
+          className="absolute inset-0 z-10 bg-black/10"
+          onClick={() => setShowContext(false)}
+        />
+        <div className="absolute inset-y-0 right-0 z-20 w-[340px] shadow-xl">
+          <ThreadContextPanel
+            userId={thread.user_id}
+            buyerName={thread.buyer_name}
+            buyerEmail={thread.buyer_email}
+            buyerCompany={thread.buyer_company}
+            onClose={() => setShowContext(false)}
+          />
+        </div>
+      </>
     )}
     </div>
   );
