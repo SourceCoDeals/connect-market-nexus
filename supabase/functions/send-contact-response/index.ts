@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
-import { sendViaBervo } from '../_shared/brevo-sender.ts';
+import { sendEmail } from '../_shared/email-sender.ts';
 
 interface ContactResponseData {
   to: string;
@@ -54,13 +54,15 @@ serve(async (req: Request) => {
       emailText = `Hello${userName ? ` ${userName}` : ''},\n\n${emailContent.mainText}\n\nYour ${category || 'feedback'}:\n"${content}"\n\nBest regards,\nThe SourceCo Team`;
     }
 
-    const result = await sendViaBervo({
+    const result = await sendEmail({
+      templateName: `contact_response_${category || 'general'}`,
       to,
       subject: emailSubject,
       htmlContent: `<div style="font-family: Arial, sans-serif; white-space: pre-wrap;">${emailText}</div>`,
       textContent: emailText,
       senderName: 'SourceCo Team',
       isTransactional: true,
+      metadata: { feedbackId, category },
     });
 
     if (!result.success) {
@@ -70,7 +72,7 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        messageId: result.messageId,
+        messageId: result.providerMessageId,
         feedbackId,
         emailSent: true,
       }),

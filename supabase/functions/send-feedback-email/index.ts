@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin, escapeHtmlWithBreaks } from '../_shared/auth.ts';
-import { sendViaBervo } from '../_shared/brevo-sender.ts';
+import { sendEmail } from '../_shared/email-sender.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -40,8 +40,6 @@ const handler = async (req: Request): Promise<Response> => {
       templateId: _templateId,
     }: EmailData = await req.json();
 
-    const correlationId = crypto.randomUUID();
-
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
@@ -58,45 +56,27 @@ const handler = async (req: Request): Promise<Response> => {
       </div>
     `;
 
-    const result = await sendViaBervo({
+    const result = await sendEmail({
+      templateName: 'feedback_response',
       to,
       subject,
       htmlContent,
       textContent: content,
       senderName: 'SourceCo Feedback',
-      replyToEmail: Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com',
-      replyToName: 'SourceCo Support',
+      replyTo: Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com',
       isTransactional: true,
+      metadata: { feedbackId },
     });
 
     if (!result.success) {
       console.error('Email sending failed:', result.error);
-
-      await supabase.from('email_delivery_logs').insert({
-        email: to,
-        email_type: 'feedback_response',
-        status: 'failed',
-        correlation_id: correlationId,
-        error_message: result.error,
-        sent_at: null,
-      });
-
       return new Response(JSON.stringify({ error: result.error }), {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
-    console.log('Email sent successfully:', result.messageId);
-
-    await supabase.from('email_delivery_logs').insert({
-      email: to,
-      email_type: 'feedback_response',
-      status: 'sent',
-      correlation_id: correlationId,
-      error_message: null,
-      sent_at: new Date().toISOString(),
-    });
+    console.log('Email sent successfully:', result.providerMessageId);
 
     if (feedbackId) {
       await supabase
@@ -111,15 +91,12 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
-        messageId: result.messageId,
-        correlationId,
+        messageId: result.providerMessageId,
+        correlationId: result.correlationId,
       }),
       {
         status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
       },
     );
   } catch (error: unknown) {
