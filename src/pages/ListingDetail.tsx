@@ -32,11 +32,14 @@ import { MFAGate } from '@/components/auth/MFAGate';
 
 
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
+import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
+import { ListingSidebarActions } from '@/components/listing-detail/ListingSidebarActions';
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [showDealSourcingDialog, setShowDealSourcingDialog] = useState(false);
+  const dataRoomRef = useRef<HTMLDivElement>(null);
 
   // Click tracking for engagement analytics
   const { getClickData, resetTracking } = useClickTracking(true);
