@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Mail, CheckCircle, XCircle, AlertTriangle, Eye, Clock, Search } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, AlertTriangle, Eye, Search } from 'lucide-react';
 import { format } from 'date-fns';
 
 type TimeRange = '24h' | '7d' | '30d' | 'all';
