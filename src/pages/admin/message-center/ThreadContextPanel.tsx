@@ -34,6 +34,7 @@ interface ThreadContextPanelProps {
   buyerName: string;
   buyerEmail: string | null;
   buyerCompany: string | null;
+  onClose?: () => void;
 }
 
 const STATUS_CONFIG: Record<
