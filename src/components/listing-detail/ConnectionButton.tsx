@@ -198,13 +198,6 @@ const ConnectionButton = ({
             Sign your documents to unlock the data room and request introductions.
           </p>
         )}
-
-        {showAgreementModal && (
-          <AgreementSigningModal
-            open={showAgreementModal}
-            onOpenChange={setShowAgreementModal}
-          />
-        )}
       </div>
     );
   }
