@@ -27,7 +27,7 @@ export interface InboxThread {
 }
 
 export type InboxFilter = "all" | "unread" | "waiting_on_admin" | "waiting_on_buyer" | "claimed" | "closed";
-export type ViewMode = "all" | "by_deal";
+export type ViewMode = "all" | "by_deal" | "by_buyer";
 
 export interface DealGroup {
   listing_id: string;
