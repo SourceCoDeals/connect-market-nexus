@@ -204,17 +204,9 @@ const ConnectionButton = ({
 
     return (
       <div className="space-y-3">
-        {(anyPending || ndaSigned || feeSigned) && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Documents</p>
-            <DocumentRow label="NDA" status={ndaSent ? 'sent' : ndaSigned ? 'signed' : ndaStatus} type="nda" />
-            <DocumentRow label="Fee Agreement" status={feeSent ? 'sent' : feeSigned ? 'signed' : feeStatus} type="fee_agreement" />
-          </div>
-        )}
-
-        {anyPending && !ndaSigned && !feeSigned && (
+        {anyPending && !feeSigned && (
           <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
-            Once processed, you'll be able to request introductions.
+            Once your Fee Agreement is processed, you'll be able to request introductions.
           </p>
         )}
 
