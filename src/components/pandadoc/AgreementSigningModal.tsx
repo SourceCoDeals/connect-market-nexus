@@ -109,7 +109,7 @@ export function AgreementSigningModal({
         {!activeType ? (
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Choose which agreement you'd like to sign. You only need one to access deals.
+              Choose which agreement you'd like to sign. A signed Fee Agreement is required for full deal access.
             </p>
             <div className="grid gap-3">
               {/* NDA Option */}
