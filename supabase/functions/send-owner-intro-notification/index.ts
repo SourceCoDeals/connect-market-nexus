@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { logEmailDelivery } from '../_shared/email-logger.ts';
-
+import { sendViaBervo } from '../_shared/brevo-sender.ts';
 interface OwnerIntroRequest {
   dealId: string;
   listingId: string;
