@@ -75,19 +75,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (ndaSigned) {
       subject = "You're in — full access is live.";
-      htmlContent = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+      htmlContent = wrapEmailHtml({
+        bodyHtml: `
   <p>Hi ${firstName},</p>
   <p>You're in. Your NDA is already on file — you have full access to the deal pipeline right now.</p>
   <p style="margin: 24px 0;"><a href="${siteUrl}/marketplace" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Browse Deals</a></p>
-  <h3 style="color: #0e101a; font-size: 16px; margin: 24px 0 8px 0;">Before you submit your first request</h3>
-  <ul style="padding-left: 20px; color: #374151;">
+  <h3 style="font-size: 16px; margin: 24px 0 8px 0;">Before you submit your first request</h3>
+  <ul style="padding-left: 20px;">
     <li>Every deal is off-market — you won't find these anywhere else</li>
     <li>We introduce a small number of buyers per deal. Tell us specifically why you're a strong fit — generic messages rarely get selected</li>
     <li>Your first introduction request will prompt you to sign a fee agreement — success-only, nothing owed unless a deal closes, covers every introduction we make on your behalf</li>
   </ul>
   <p>Questions? Reply to this email.</p>
-  <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>
-</div>`;
+  <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>`,
+        preheader: 'Your NDA is on file. Browse deals and request introductions now.',
+        recipientEmail: email,
+      });
       textContent = `Hi ${firstName},\n\nYour SourceCo account is approved and your NDA is already on file. You have full access right now.\n\nBrowse deals: ${siteUrl}/marketplace\n\nQuestions? Reply to this email.\n\n— The SourceCo Team`;
     } else {
       subject = "You're approved — one step to full access.";
