@@ -4,15 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Shield,
   FileSignature,
-  CheckCircle,
   Loader2,
-  AlertTriangle,
   Mail,
-  Clock,
 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { AgreementSigningModal } from '@/components/pandadoc/AgreementSigningModal';
@@ -46,27 +40,10 @@ function useAllDocuments() {
 
       const firmId = resolvedFirmId as string | null;
 
-      // If no firm yet, still show both docs as requestable
       if (!firmId) {
         return [
-          {
-            type: 'nda' as const,
-            label: 'Non-Disclosure Agreement (NDA)',
-            signed: false,
-            signedAt: null,
-            requested: false,
-            requestedAt: null,
-            status: null,
-          },
-          {
-            type: 'fee_agreement' as const,
-            label: 'Fee Agreement',
-            signed: false,
-            signedAt: null,
-            requested: false,
-            requestedAt: null,
-            status: null,
-          },
+          { type: 'nda' as const, label: 'Non-Disclosure Agreement (NDA)', signed: false, signedAt: null, requested: false, requestedAt: null, status: null },
+          { type: 'fee_agreement' as const, label: 'Fee Agreement', signed: false, signedAt: null, requested: false, requestedAt: null, status: null },
         ];
       }
 
@@ -124,6 +101,16 @@ function useAllDocuments() {
   });
 }
 
+function StatusDot({ variant }: { variant: 'signed' | 'sent' | 'none' }) {
+  if (variant === 'signed') {
+    return <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />;
+  }
+  if (variant === 'sent') {
+    return <span className="inline-block w-1.5 h-1.5 rounded-full border border-amber-400 flex-shrink-0" />;
+  }
+  return <span className="inline-block w-1.5 h-1.5 rounded-full border border-muted-foreground/30 flex-shrink-0" />;
+}
+
 export function ProfileDocuments() {
   const { data: documents, isLoading } = useAllDocuments();
   const [signingOpen, setSigningOpen] = useState(false);
@@ -148,118 +135,81 @@ export function ProfileDocuments() {
 
   if (!documents || documents.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Documents</CardTitle>
-          <CardDescription>Your agreements and signing status</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="rounded-full bg-muted p-3 mb-3">
-              <Shield className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Request an NDA or Fee Agreement to get started with deal access.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="py-12 text-center">
+        <Shield className="h-5 w-5 text-muted-foreground mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">
+          Request an NDA or Fee Agreement to get started with deal access.
+        </p>
+      </div>
     );
   }
 
   return (
     <>
       {pendingDocs.length > 0 && (
-        <div className="rounded-lg border-2 border-amber-300/60 bg-amber-50 p-4 mb-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-full bg-amber-100 flex-shrink-0">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                {pendingDocs.length} document{pendingDocs.length > 1 ? 's' : ''} requested — check your email
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Sign and return to adam.haile@sourcecodeals.com to unlock full deal access.
-              </p>
-            </div>
-          </div>
+        <div className="rounded-lg bg-muted/50 px-4 py-3 mb-6">
+          <p className="text-sm text-foreground">
+            {pendingDocs.length} document{pendingDocs.length > 1 ? 's' : ''} sent to your email for signing
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Sign and return to support@sourcecodeals.com to unlock full deal access.
+          </p>
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Documents</CardTitle>
-          <CardDescription>Your agreements and signing status</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {documents.map((doc) => (
-            <div
-              key={doc.type}
-              className="flex items-center justify-between p-4 rounded-lg border border-border bg-card"
-            >
-              <div className="flex items-center gap-3">
-                <div className="rounded-full bg-accent p-2">
+      <div className="space-y-0">
+        <h2 className="text-lg font-semibold text-foreground mb-1">Documents</h2>
+        <p className="text-sm text-muted-foreground mb-6">Your agreements and signing status</p>
+
+        <div className="divide-y divide-border">
+          {documents.map((doc) => {
+            const dotVariant = doc.signed ? 'signed' : doc.requested ? 'sent' : 'none';
+            const statusLabel = doc.signed ? 'Signed' : doc.requested ? 'Sent to email' : 'Not requested';
+            const timestamp = doc.signed && doc.signedAt
+              ? `Signed ${format(new Date(doc.signedAt), 'MMM d, yyyy')}`
+              : doc.requested && doc.requestedAt
+                ? `Requested ${format(new Date(doc.requestedAt), 'MMM d, yyyy')}`
+                : null;
+
+            return (
+              <div key={doc.type} className="flex items-center justify-between py-4">
+                <div className="flex items-center gap-3 min-w-0">
                   {doc.type === 'nda' ? (
-                    <Shield className="h-4 w-4 text-accent-foreground" />
+                    <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   ) : (
-                    <FileSignature className="h-4 w-4 text-accent-foreground" />
+                    <FileSignature className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   )}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{doc.label}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {doc.signed ? (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-300 text-emerald-700 bg-emerald-50">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Signed
-                      </Badge>
-                    ) : doc.requested ? (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-700 bg-amber-50">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Sent to Email
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-muted text-muted-foreground">
-                        Not Requested
-                      </Badge>
-                    )}
-                    {doc.signedAt && (
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(doc.signedAt), 'MMM d, yyyy')}
+                  <div className="min-w-0">
+                    <p className="text-sm text-foreground">{doc.label}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <StatusDot variant={dotVariant} />
+                      <span className={`text-xs ${doc.signed ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                        {statusLabel}
                       </span>
-                    )}
+                      {timestamp && (
+                        <>
+                          <span className="text-muted-foreground/30 text-xs">·</span>
+                          <span className="text-xs text-muted-foreground">{timestamp}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {doc.signed ? (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-300 text-emerald-700 bg-emerald-50">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Complete
-                </Badge>
-              ) : doc.requested ? (
-                <div className="text-right">
-                  <p className="text-[10px] text-muted-foreground">Check your inbox</p>
-                  <Button variant="outline" size="sm" className="mt-1" onClick={() => openSigning(doc.type)}>
-                    <Mail className="h-3.5 w-3.5 mr-1.5" />
-                    Resend
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  className="bg-sourceco hover:bg-sourceco/90 text-sourceco-foreground font-medium"
-                  onClick={() => openSigning(doc.type)}
-                >
-                  <Mail className="h-3.5 w-3.5 mr-1" />
-                  Request via Email
-                </Button>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+                {!doc.signed && (
+                  <button
+                    onClick={() => openSigning(doc.type)}
+                    className="text-xs text-foreground hover:text-foreground/70 transition-colors flex items-center gap-1 flex-shrink-0 ml-4"
+                  >
+                    <Mail className="h-3 w-3" />
+                    {doc.requested ? 'Resend' : 'Request'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <AgreementSigningModal
         open={signingOpen}
