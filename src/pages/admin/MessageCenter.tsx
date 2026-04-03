@@ -511,7 +511,10 @@ export default function MessageCenter() {
                       key={thread.connection_request_id}
                       thread={thread}
                       isSelected={selectedThreadId === thread.connection_request_id}
-                      onClick={() => setSelectedThreadId(thread.connection_request_id)}
+                      onClick={() => {
+                        setSelectedThreadId(thread.connection_request_id);
+                        setSelectedBuyerUserId(null);
+                      }}
                       adminProfiles={adminProfiles}
                     />
                   ))}
@@ -526,14 +529,17 @@ export default function MessageCenter() {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : viewMode === 'by_deal' ? (
                 <div>
                   {dealGroups.map((group) => (
                     <DealGroupSection
                       key={group.listing_id}
                       group={group}
                       selectedThreadId={selectedThreadId}
-                      onSelectThread={setSelectedThreadId}
+                      onSelectThread={(id) => {
+                        setSelectedThreadId(id);
+                        setSelectedBuyerUserId(null);
+                      }}
                       adminProfiles={adminProfiles}
                     />
                   ))}
@@ -541,6 +547,31 @@ export default function MessageCenter() {
                     <div className="p-8 text-center">
                       <Filter className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                       <p className="text-xs text-muted-foreground">No deals with conversations</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {buyerGroups.map((group) => (
+                    <BuyerGroupSection
+                      key={group.user_id}
+                      group={group}
+                      isSelected={selectedBuyerUserId === group.user_id}
+                      selectedThreadId={selectedThreadId}
+                      onClick={() => {
+                        setSelectedBuyerUserId(group.user_id);
+                        // Auto-select most recent thread
+                        if (group.threads.length > 0) {
+                          setSelectedThreadId(group.threads[0].connection_request_id);
+                        }
+                      }}
+                      onSelectThread={(id) => setSelectedThreadId(id)}
+                    />
+                  ))}
+                  {buyerGroups.length === 0 && (
+                    <div className="p-8 text-center">
+                      <Filter className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">No buyers with conversations</p>
                     </div>
                   )}
                 </div>
