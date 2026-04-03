@@ -669,9 +669,12 @@ export default function DocumentTrackingPage() {
             <span className="text-xs text-amber-700">Check inbox at support@sourcecodeals.com</span>
           </div>
           <div className="divide-y divide-amber-200">
-            {pendingRequests.map((req) => (
-              <PendingRequestRow key={req.id} req={req} deliveryEvent={req.email_correlation_id ? deliveryMap.get(req.email_correlation_id) : undefined} />
-            ))}
+            {pendingRequests.map((req) => {
+              const normalizedId = req.email_provider_message_id?.replace(/^<|>$/g, '').trim();
+              return (
+                <PendingRequestRow key={req.id} req={req} deliveryEvent={normalizedId ? deliveryMap.get(normalizedId) : undefined} />
+              );
+            })}
           </div>
         </div>
       )}
