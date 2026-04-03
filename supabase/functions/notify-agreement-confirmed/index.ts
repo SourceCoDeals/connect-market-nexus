@@ -102,10 +102,9 @@ Deno.serve(async (req) => {
           templateName: 'notify-agreement-confirmed',
           to: email,
           subject,
-          html,
-          tags: ['agreement-confirmed', agreementType],
+          htmlContent: html,
           metadata: { firmId, agreementType, firmName },
-        }, supabase);
+        });
         sent++;
       } catch (err) {
         console.error(`Failed to send to ${email}:`, err);
