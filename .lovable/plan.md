@@ -1,50 +1,61 @@
 
 
-# Email Catalog Refinement: Ultra-Premium Polish Pass
+# Two New Features: "Agreement Signed" Notification Email + Listing Page Signing Encouragement
 
-## Current State
+## Feature 1: Send Email When Admin Marks Agreement as Signed
 
-The catalog is clean (no em dashes, no emojis, no borders, correct brand palette). But it's not yet at Apple/Stripe level. Several patterns create visual heaviness and corporate filler that undermine the premium feel.
+### Problem
+When an admin marks a buyer's NDA or Fee Agreement as "signed" via the Document Tracking dashboard, the buyer has no idea. They need an email telling them they can now request connection introductions on the marketplace.
 
-## Issues Found
+### Implementation
 
-### 1. Stacked grey boxes create visual heaviness (~12 emails)
-Many emails chain `infoBox()` + `detailBox()` back-to-back, creating two grey `#F7F6F3` blocks in a row. This looks boxy and cluttered. Apple emails never stack tinted sections. The fix: consolidate into a single block, or replace the `infoBox` with a plain text sentence and keep only one grey block for structured data.
+**New edge function: `notify-agreement-confirmed`**
+- Create `supabase/functions/notify-agreement-confirmed/index.ts`
+- Uses `wrapEmailHtml()` from the shared wrapper
+- Accepts: `recipientEmail`, `recipientName`, `agreementType` ('nda' | 'fee_agreement'), `firmName`
+- Subject: `Your [NDA/Fee Agreement] has been confirmed`
+- Body: Clean, minimal letter. Tells the buyer their document has been recorded, and they can now browse deals and request introductions. Single black CTA button: "Browse Deals" linking to `/marketplace`
+- No emojis, no em dashes, no borders
 
-Affected: Connection Admin Notification, Deal Alert, New Deal Owner Assigned, Deal Reassignment, Owner Inquiry, Owner Intro, Enhanced Admin Notification, Task Notification, Admin New Message, Journey Admin New User, Journey User Created, Journey Email Verified, Journey Profile Approved.
+**Hook into the existing "Mark Signed" flow:**
+- In `src/hooks/admin/use-firm-agreement-mutations.ts`, inside the `onSuccess` handler of `useUpdateAgreementStatus` (around line 233), when `params.newStatus === 'signed'`:
+  - After the existing `document_requests` update, invoke the new edge function for each firm member with an email
+  - Pass the signer info and agreement type
 
-### 2. Corporate filler copy (~8 instances)
-Phrases like "In the meantime, feel free to explore other opportunities" and "Our team will review your application and get back to you shortly" are generic padding. Premium emails say what needs to be said and stop. Every sentence should carry information.
+**Update EmailCatalog.tsx:**
+- Add a new entry under the "Agreements & Documents" category for this email
 
-### 3. Inconsistent sign-offs
-Some emails end with "Best regards, The SourceCo Team" and others just end with a CTA. Should standardize: external-facing emails (to Buyers/Users) get a brief sign-off; internal admin notifications do not.
+### Files Changed
+- `supabase/functions/notify-agreement-confirmed/index.ts` (new)
+- `src/hooks/admin/use-firm-agreement-mutations.ts` (add edge function call on signed)
+- `src/components/admin/emails/EmailCatalog.tsx` (add catalog entry)
 
-### 4. Preview wrapper missing outer background
-Production emails render on `#FAFAF8` background. The preview wrapper uses only `#FFFFFF`, making previews look different from production. Adding the warm off-white outer background would make previews match reality.
+---
 
-### 5. Quotation marks around message excerpts
-The Messaging category emails wrap excerpts in typographic quotes (`"Hi Jane..."`). This adds unnecessary decoration. The grey background already signals it's a quote.
+## Feature 2: Encourage Unsigned Buyers to Save/Bookmark Listings
 
-### 6. Some preview headings use larger font-size
-Deal Referral has `font-size: 17px` and User Notification has a pseudo-heading at `font-size: 15px`. These should be regular body text to maintain the letter-like feel.
+### Problem
+When a buyer without signed documents views a listing, the current UI shows the signing gate but doesn't proactively encourage them to save the listing so they can return after signing.
 
-## Plan
+### Implementation
 
-### Single file: `src/components/admin/emails/EmailCatalog.tsx`
+**Enhance the agreement gate block in `ConnectionButton.tsx`:**
+- In the existing unsigned-user block (lines 180-291), add a prominent message encouraging them to save/bookmark the listing: "Save this listing so you can request access after signing."
+- This sits alongside the existing "Sign an Agreement" card
+- No new components needed. Just copy refinement and a visual nudge within the existing gate UI
 
-1. **Add outer background to wrapper**: Wrap the preview in a `#FAFAF8` container so it matches production rendering.
+**Enhance `ListingCardActions.tsx`:**
+- In the grid/list card view, when `isNdaCovered` and `isFeeCovered` are both false, add a subtle text nudge near the save button: "Save for later. Sign your agreement to request access."
 
-2. **Eliminate stacked grey boxes**: For every email that chains `infoBox` + `detailBox`, merge into a single block or convert the `infoBox` to plain text. No two grey boxes should appear consecutively.
+### Files Changed
+- `src/components/listing-detail/ConnectionButton.tsx` (add save encouragement text in the agreement gate block)
+- `src/components/listing/ListingCardActions.tsx` (add subtle nudge text when unsigned)
 
-3. **Tighten copy**: Remove filler phrases. Every sentence must convey new information. Cut "In the meantime" and "feel free to" patterns. Shorten where possible.
+---
 
-4. **Standardize sign-offs**: User/Buyer-facing emails get a simple closing line. Admin notifications do not.
+## Summary
 
-5. **Remove decorative quotes**: Strip `"..."` wrapping from message excerpts in Messaging emails.
-
-6. **Normalize font sizes**: Remove `font-size: 17px` and any pseudo-heading styling from body content. All body text is `15px` (inherited from wrapper).
-
-7. **Simplify Feedback Notification**: Remove the nested white `#FFFFFF` div inside the `#F7F6F3` detail box (line 409). This creates a box-within-a-box.
-
-### No edge function changes needed.
+Two changes:
+1. New edge function + mutation hook update to email buyers when their agreement is marked signed, directing them to the marketplace
+2. UX copy improvements on listing pages to encourage unsigned buyers to bookmark listings for later
 
