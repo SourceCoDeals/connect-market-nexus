@@ -194,6 +194,11 @@ export function UnifiedAdminSidebar({
             badge: pendingDocRequestCount,
           },
           {
+            label: 'Email Dashboard',
+            href: '/admin/emails',
+            icon: <Mail className="h-4 w-4" />,
+          },
+          {
             label: 'Lists',
             href: '/admin/lists',
             icon: <ListChecks className="h-4 w-4" />,

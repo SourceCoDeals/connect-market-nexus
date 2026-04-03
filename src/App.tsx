@@ -533,6 +533,7 @@ function App() {
 
               {/* DOCUMENT TRACKING */}
               <Route path="documents" element={<DocumentTrackingPage />} />
+              <Route path="emails" element={<EmailDashboardPage />} />
 
               {/* ANALYTICS */}
               <Route
