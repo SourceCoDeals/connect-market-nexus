@@ -1,13 +1,6 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.10';
-import { logEmailDelivery } from '../_shared/email-logger.ts';
-import { sendViaBervo } from '../_shared/brevo-sender.ts';
-
-/**
- * send-onboarding-day2
- * Daily cron job that sends a pipeline digest email to buyers
- * who were approved ~2 days ago and have not yet submitted any connection request.
- */
+import { sendEmail } from '../_shared/email-sender.ts';
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -67,18 +60,18 @@ serve(async (req: Request) => {
 
       if (existingRequest) continue;
 
+      // Check outbound_emails for dedup instead of legacy email_delivery_logs
       const { data: alreadySent } = await supabase
-        .from('email_delivery_logs')
+        .from('outbound_emails')
         .select('id')
-        .eq('email', recipientEmail)
-        .eq('email_type', 'onboarding_day2')
-        .eq('status', 'sent')
+        .eq('recipient_email', recipientEmail)
+        .eq('template_name', 'onboarding_day2')
+        .eq('status', 'accepted')
         .maybeSingle();
 
       if (alreadySent) continue;
 
       const safeFirstName = (profile.first_name || 'there').replace(/<[^>]*>/g, '');
-
       const subject = `What's in the pipeline right now.`;
 
       const htmlContent = `
@@ -99,9 +92,8 @@ serve(async (req: Request) => {
 
       const textContent = `Hi ${safeFirstName},\n\nYou've been in the pipeline for a couple of days. Every deal on SourceCo is off-market — sourced by our team before it reaches buyers.\n\nBrowse the pipeline: ${siteUrl}/marketplace\n\nBe specific when you request an introduction — generic messages rarely get selected.\n\nQuestions? Reply to this email.\n\n— The SourceCo Team`;
 
-      const correlationId = crypto.randomUUID();
-
-      const result = await sendViaBervo({
+      const result = await sendEmail({
+        templateName: 'onboarding_day2',
         to: recipientEmail,
         toName: safeFirstName,
         subject,
@@ -113,32 +105,15 @@ serve(async (req: Request) => {
 
       if (result.success) {
         sentCount++;
-        await logEmailDelivery(supabase, {
-          email: recipientEmail,
-          emailType: 'onboarding_day2',
-          status: 'sent',
-          correlationId,
-        });
       } else {
         console.error(`Email error for ${recipientEmail}:`, result.error);
-        await logEmailDelivery(supabase, {
-          email: recipientEmail,
-          emailType: 'onboarding_day2',
-          status: 'failed',
-          correlationId,
-          errorMessage: result.error,
-        });
       }
     }
 
     console.log(`Onboarding day 2 batch complete: ${sentCount} sent out of ${profiles.length} eligible`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        totalEligible: profiles.length,
-        sent: sentCount,
-      }),
+      JSON.stringify({ success: true, totalEligible: profiles.length, sent: sentCount }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     );
   } catch (error: unknown) {

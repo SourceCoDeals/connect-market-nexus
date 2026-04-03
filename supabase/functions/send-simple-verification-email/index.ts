@@ -3,8 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
-import { logEmailDelivery } from '../_shared/email-logger.ts';
-import { sendViaBervo } from '../_shared/brevo-sender.ts';
+import { sendEmail } from '../_shared/email-sender.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
@@ -20,15 +19,11 @@ interface EmailRequest {
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
 
-  console.log('=== SIMPLE VERIFICATION EMAIL FUNCTION START ===');
-
   if (req.method === 'OPTIONS') {
-    console.log('Handling CORS preflight request');
     return corsPreflightResponse(req);
   }
 
   try {
-    // AUTH: Admin-only — this generates account recovery links
     const auth = await requireAdmin(req, supabase);
     if (!auth.isAdmin) {
       return new Response(JSON.stringify({ error: auth.error }), {
@@ -37,33 +32,20 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    console.log('=== PARSING REQUEST ===');
     const { email, firstName = '', lastName = '' }: EmailRequest = await req.json();
 
-    console.log(`Processing email for: ${email}`);
-    console.log(`Name: ${firstName} ${lastName}`);
-
-    const correlationId = crypto.randomUUID();
-
-    console.log('=== GENERATING RECOVERY LINK ===');
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'recovery',
       email: email,
-      options: {
-        redirectTo: 'https://marketplace.sourcecodeals.com/',
-      },
+      options: { redirectTo: 'https://marketplace.sourcecodeals.com/' },
     });
 
     if (linkError || !linkData.properties?.action_link) {
-      console.error('Failed to generate recovery link:', linkError);
       throw new Error('Failed to generate verification link');
     }
 
     const verificationLink = linkData.properties.action_link;
-    console.log('✅ Recovery link generated successfully');
-
-    const displayName =
-      firstName && lastName ? `${firstName} ${lastName}` : firstName || 'Valued User';
+    const displayName = firstName && lastName ? `${firstName} ${lastName}` : firstName || 'Valued User';
 
     const textContent = `Hi ${displayName},
 
@@ -89,77 +71,38 @@ Adam Haile
 SourceCo
 adam.haile@sourcecodeals.com`;
 
-    console.log('=== SENDING EMAIL VIA BREVO (sendViaBervo) ===');
-
-    const result = await sendViaBervo({
+    const result = await sendEmail({
+      templateName: 'verification',
       to: email,
       toName: displayName,
       subject: 'Email Verification - Technical Issue Resolved',
       htmlContent: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"><pre style="font-family: Arial, sans-serif; white-space: pre-wrap; margin: 0;">${textContent}</pre></div>`,
       textContent,
       senderName: 'Adam Haile',
-      senderEmail: Deno.env.get('SENDER_EMAIL') || 'adam.haile@sourcecodeals.com',
-      replyToEmail: 'adam.haile@sourcecodeals.com',
-      replyToName: 'Adam Haile',
+      replyTo: 'adam.haile@sourcecodeals.com',
       isTransactional: true,
     });
 
     if (!result.success) {
-      console.error('❌ Failed to send email:', result.error);
-      await logEmailDelivery(supabase, {
-        email,
-        emailType: 'verification',
-        status: 'failed',
-        correlationId,
-        errorMessage: result.error,
-      });
       throw new Error(result.error || 'Failed to send email');
     }
-
-    console.log('✅ Email sent successfully:', result.messageId);
-
-    await logEmailDelivery(supabase, {
-      email,
-      emailType: 'verification',
-      status: 'sent',
-      correlationId,
-    });
 
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Verification email sent successfully',
-        messageId: result.messageId,
+        messageId: result.providerMessageId,
       }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      },
+      { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   } catch (error: unknown) {
-    console.error('❌ Error in simple verification email function:', error);
-
-    try {
-      await logEmailDelivery(supabase, {
-        email: 'unknown',
-        emailType: 'verification',
-        status: 'failed',
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-    } catch (_) {
-      /* logging best-effort */
-    }
-
+    console.error('Error in simple verification email function:', error);
     return new Response(
       JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString(),
       }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      },
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
 };

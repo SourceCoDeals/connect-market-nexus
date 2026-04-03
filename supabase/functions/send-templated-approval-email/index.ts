@@ -2,8 +2,7 @@ import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
-import { logEmailDelivery } from '../_shared/email-logger.ts';
-import { sendViaBervo } from '../_shared/brevo-sender.ts';
+import { sendEmail } from '../_shared/email-sender.ts';
 
 interface SendTemplatedApprovalRequest {
   userId: string;
@@ -108,7 +107,8 @@ const handler = async (req: Request): Promise<Response> => {
       textContent = `Hi ${firstName}, you're approved. Sign your NDA to get full access: ${siteUrl}/pending-approval\n\nQuestions? Reply to this email.\n\n— The SourceCo Team`;
     }
 
-    const result = await sendViaBervo({
+    const result = await sendEmail({
+      templateName: 'templated_approval',
       to: email,
       toName: firstName,
       subject,
@@ -116,41 +116,22 @@ const handler = async (req: Request): Promise<Response> => {
       textContent,
       senderName: 'SourceCo',
       isTransactional: true,
+      metadata: { userId, version: ndaSigned ? 'B_nda_signed' : 'A_nda_unsigned' },
     });
 
-    const correlationId = crypto.randomUUID();
-
     if (!result.success) {
-      console.error('Templated approval email failed:', result.error);
-      await logEmailDelivery(supabase, {
-        email,
-        emailType: 'templated_approval',
-        status: 'failed',
-        correlationId,
-        errorMessage: result.error,
-      });
       throw new Error(`Email API error: ${result.error}`);
     }
 
-    console.log('Templated approval email sent successfully:', result.messageId);
-
-    await logEmailDelivery(supabase, {
-      email,
-      emailType: 'templated_approval',
-      status: 'sent',
-      correlationId,
-    });
+    console.log('Templated approval email sent successfully:', result.providerMessageId);
 
     return new Response(
       JSON.stringify({
         success: true,
         version: ndaSigned ? 'B_nda_signed' : 'A_nda_unsigned',
-        messageId: result.messageId || 'unknown',
+        messageId: result.providerMessageId || 'unknown',
       }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      },
+      { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   } catch (error: unknown) {
     console.error('Error in send-templated-approval-email:', error);
@@ -158,10 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         error: error instanceof Error ? error.message : String(error) || 'Failed to send approval email',
       }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      },
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
 };
