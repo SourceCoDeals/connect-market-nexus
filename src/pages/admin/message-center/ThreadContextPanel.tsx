@@ -294,6 +294,7 @@ export function ThreadContextPanel({
   buyerName,
   buyerEmail,
   buyerCompany,
+  onClose,
 }: ThreadContextPanelProps) {
   useAgreementStatusSync();
   const { data: firm, isLoading: firmLoading } = useThreadBuyerFirm(userId);
