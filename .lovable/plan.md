@@ -1,189 +1,72 @@
 
-Goal
 
-Do a true reset of the email system: preserve all current email functionality, but stop using the mixed legacy architecture entirely.
+# Phase 5-7: Complete Email Architecture Migration
 
-Why a full wipe/rebuild is justified
+## Current State — What the Investigation Proves
 
-The codebase is still running multiple generations of email architecture at once:
-- agreement emails have both the new `request-agreement-email` path and legacy NDA/Fee email paths still present
-- some UI surfaces call the shared helper, others still invoke edge functions directly
-- `enhanced-admin-notification` still contains old multi-provider logic
-- sender identity is still inconsistent across functions (`SENDER_EMAIL`, `ADMIN_EMAIL`, `NOREPLY_EMAIL`, hardcoded values)
-- delivery tracking is not a clean source of truth: “sent to provider” is app acceptance, while webhook delivery uses a different identifier model
-- admin/test UI still references old sender assumptions and legacy behavior
+The code is working correctly. Brevo's API accepts every email (HTTP 201 with valid message IDs). But **no delivery webhook events have arrived from Brevo for today's emails** — meaning Brevo is either:
+- Not delivering to Gmail (silent failure at SMTP level)
+- Not sending webhook callbacks (webhook URL misconfigured in Brevo dashboard)
 
-That means patching one function at a time will keep missing hidden old paths. A real fix needs a clean replacement architecture and then a hard cutover.
+The last confirmed delivery webhook was April 2. Today: 7+ emails accepted by Brevo, zero delivery confirmations. The working emails from March 31 (verification, approval) were different email types without DOCX attachments.
 
-Phase count
+## Critical Root Cause Hypothesis
 
-This should be done in 7 phases.
+The DOCX attachments on agreement emails may be causing Gmail to silently reject or quarantine them. The March 31 emails that worked had no attachments. This theory can be tested immediately by sending a plain-text agreement email without attachment.
 
-```text
-Current:
-UI -> many edge functions -> mixed sender rules -> mixed logs -> webhook -> confusing UI states
+## What Phases 5-7 Should Include
 
-Target:
-UI/helpers -> one email domain service layer -> one provider adapter -> one message model -> one event model -> clear admin status UI
-```
+### Phase 5A — Diagnostic test (do first)
+Send one agreement email **without** the DOCX attachment to isolate whether attachments are the delivery blocker. If it arrives, attachments are the problem and we switch to download links.
 
-Phase 1 — Full inventory + freeze legacy usage
-What happens:
-- map every email-sending edge function, every UI trigger, every admin trigger, and every auth/system trigger
-- classify each flow by business purpose: agreements, approvals, connection requests, onboarding, feedback, task notifications, admin notifications, auth emails
-- identify every legacy path to be removed from live usage
+### Phase 5B — Migrate remaining 6 email families to `sendEmail()`
+Convert these functions from `sendViaBervo()` to the new `sendEmail()` core:
+- `send-connection-notification` (connection requests — the emails that used to work)
+- `send-approval-email` (admin approvals)
+- `user-journey-notifications` (onboarding journey)
+- `send-user-notification` (generic notifications)
+- `notify-deal-owner-change` (deal ownership)
+- `enhanced-email-delivery` (admin custom emails)
+- `notify-buyer-rejection`, `notify-buyer-new-message`, `notify-admin-new-message`
 
-What gets flagged immediately:
-- legacy agreement flows (`send-nda-email`, `send-fee-agreement-email`)
-- old mixed-provider admin notification flow (`enhanced-admin-notification`)
-- all direct UI invocations that bypass the canonical helper layer
-- outdated test center docs and hardcoded sender copy
+Each converts from `sendViaBervo({...})` to `sendEmail({...})` and gains the new `outbound_emails` tracking.
 
-Output:
-- one approved deletion/cutover list
-- one keep/replace list for every email flow
+### Phase 5C — Replace attachment strategy
+If Phase 5A confirms attachments block delivery:
+- Upload NDA.docx / FeeAgreement.docx to public Supabase storage
+- Generate signed download URLs
+- Replace attachment with a "Download Document" button in the email HTML
+- This matches the Lovable email infrastructure pattern (no attachment support)
 
-Phase 2 — Build a brand-new email data model
-What happens:
-- stop treating old `email_delivery_logs` semantics as the foundation
-- introduce a clean new model with:
-  - one outbound message record per logical email
-  - one append-only event stream for accepted/delivered/opened/bounced/blocked/spam/failed
-  - a dedicated provider message id as the canonical external id
-  - a separate internal request id for app correlation
+### Phase 6 — Admin UI rebuild
+- `DocumentTrackingPage.tsx` reads from `outbound_emails` + `email_events` exclusively
+- Status badges: Queued → Accepted → Delivered → Opened (or Bounced/Blocked/Spam)
+- Remove all references to legacy `email_delivery_logs` for status display
+- Fix all hardcoded sender copy
 
-Why this matters:
-- no more mixing “accepted by API” and “delivered to inbox” in the same ambiguous field
-- admin UI can finally show true states instead of “sent to provider”
+### Phase 7 — Deletion
+- Delete legacy `send-nda-email`, `send-fee-agreement-email` edge functions
+- Delete `brevo-sender.ts` and `email-logger.ts` (replaced by `email-sender.ts`)
+- Remove dead imports across all edge functions
+- Clean up `email_delivery_logs` references (keep table for historical data, stop writing to it)
 
-Output:
-- new source of truth for email observability
-- old logs become legacy history only, not runtime truth
+## User Action Required (Before Implementation)
+1. Check Brevo dashboard → Transactional → Logs → search for message ID `202604031136.47859355396@smtp-relay.mailin.fr` to see Brevo's own delivery status
+2. Check Brevo dashboard → Settings → Webhooks → confirm the webhook URL is `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/brevo-webhook`
+3. Check Gmail **All Mail** folder (not just inbox/spam) for any emails from sourcecodeals.com today
 
-Phase 3 — Rebuild the sending core from scratch
-What happens:
-- create one new shared sending layer for the whole app
-- one provider only
-- one sender identity policy
-- one reply-to policy
-- one idempotency rule
-- one error format
-- one logging path
-- one attachment policy
+## Files to Change
+- `supabase/functions/_shared/email-sender.ts` (minor: add attachment-free mode)
+- `supabase/functions/request-agreement-email/index.ts` (switch to download links if attachments fail)
+- `supabase/functions/send-connection-notification/index.ts` → migrate to `sendEmail()`
+- `supabase/functions/send-approval-email/index.ts` → migrate to `sendEmail()`
+- `supabase/functions/user-journey-notifications/index.ts` → migrate to `sendEmail()`
+- `supabase/functions/send-user-notification/index.ts` → migrate to `sendEmail()`
+- `supabase/functions/notify-deal-owner-change/index.ts` → migrate to `sendEmail()`
+- `supabase/functions/enhanced-email-delivery/index.ts` → migrate to `sendEmail()`
+- `supabase/functions/notify-buyer-rejection/index.ts` → migrate to `sendEmail()`
+- `supabase/functions/notify-buyer-new-message/index.ts` → migrate to `sendEmail()`
+- `supabase/functions/notify-admin-new-message/index.ts` → migrate to `sendEmail()`
+- `src/pages/admin/DocumentTrackingPage.tsx` (read from outbound_emails only)
+- Delete: `send-nda-email`, `send-fee-agreement-email`, `brevo-sender.ts`, `email-logger.ts`
 
-Rules of the new core:
-- every outbound email must go through the same provider adapter
-- no edge function may call the provider directly anymore
-- no function may choose its own sender fallback anymore
-- every send must return both internal message id and provider message id
-
-Output:
-- a single trusted delivery engine
-- no more direct Brevo/Resend calls scattered across the codebase
-
-Phase 4 — Rebuild agreements as the first clean domain
-What happens:
-- replace the current agreement send model with one fresh agreement-specific flow built on the new core
-- remove legacy NDA/Fee functions from live usage
-- route admin documents, buyer modals, resend actions, and admin user tables into the same new agreement service
-- rebuild attachment handling and request tracking on the new message model
-
-Why first:
-- this is the path you are actively testing
-- this is also where the old/new system overlap is most dangerous today
-
-Output:
-- one agreement sender
-- one agreement status model
-- one agreement inbox/delivery view
-
-Phase 5 — Rebuild every other email family onto the new core
-Families to migrate:
-- account approval/rejection
-- connection request confirmation/admin notification/approval
-- auth-adjacent emails
-- onboarding emails
-- feedback/contact emails
-- task notifications
-- admin notifications
-- deal alerts/referrals/message notifications
-
-Rule:
-- no family keeps its old edge function internals
-- domain-specific functions may remain only as thin wrappers if needed, but all delivery must go through the new core
-
-Output:
-- all business functionality preserved
-- old email behavior replaced, not patched
-
-Phase 6 — Rebuild observability, admin UI, and test tooling
-What happens:
-- replace “sent to provider” wording with explicit lifecycle states:
-  - queued / accepted by provider / delivered / opened / bounced / blocked / spam / failed
-- update admin documents to read only the new message/event model
-- update testing hub/email test center so it documents only the new system
-- remove stale hardcoded sender strings from UI copy
-
-Why this matters:
-- today the UI can say something that sounds successful even when it only means “provider accepted request”
-- after rebuild, the UI must describe reality
-
-Output:
-- trustworthy admin diagnostics
-- trustworthy operator language
-- no leftover old sender references
-
-Phase 7 — Hard cutover and deletion
-What happens:
-- switch all UI call sites to the new architecture
-- remove legacy helper paths
-- delete old email edge functions that are replaced
-- delete legacy test definitions/copy that refer to old senders or old flows
-- remove dead code around old sender env names and mixed fallback logic
-
-Important:
-I would not delete first and rebuild second. I would build the new system, cut traffic over, verify, then delete the old code completely. That is the safest way to truly wipe old architecture without breaking live functionality.
-
-Technical details
-
-Current evidence from the codebase that this must be a full rebuild:
-- admin documents currently use `request-agreement-email`, but legacy NDA/Fee hooks still exist elsewhere
-- `enhanced-admin-notification` still contains old Resend/Brevo retry logic and does not use the shared sender layer
-- `send-approval-email` still has old sender fallback logic
-- multiple UI files still invoke email functions directly instead of going through a single domain helper
-- `email_delivery_logs` is being used for both app send attempts and webhook provider events, which keeps observability muddy
-- UI still contains old sender text like `support@sourcecodeals.com` in multiple places
-
-Scope expectation
-
-This is not a one-function fix. It is a system replacement covering:
-- email edge functions
-- shared sender utilities
-- agreement flows
-- admin notification flows
-- auth-related send flows
-- admin/test dashboards
-- message tracking schema
-- UI helper layer
-- legacy code deletion
-
-Success criteria
-
-I would consider the rebuild complete only when all of these are true:
-1. every email path uses the new core
-2. no live UI path invokes legacy email functions
-3. there is one canonical provider message id model
-4. admin UI no longer uses legacy correlation logic
-5. old sender env/fallback patterns are gone
-6. old agreement email functions are deleted or fully detached
-7. all user-facing copy reflects the actual sender/reply behavior
-8. the old email architecture is no longer referenced anywhere in live code
-
-Recommended execution order
-
-- Phase 1-3: foundation
-- Phase 4: agreements first
-- Phase 5: remaining email families
-- Phase 6-7: UI/test rebuild + hard deletion
-
-So the answer is: 7 phases for a proper wipe-and-rebuild, with agreements handled first but the entire platform migrated onto one brand-new email architecture before legacy code is deleted.
