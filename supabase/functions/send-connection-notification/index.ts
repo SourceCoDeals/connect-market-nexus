@@ -52,46 +52,25 @@ function buildAdminNotificationHtml(
   requesterName: string,
   requesterEmail: string,
   listingTitle: string,
-  listingUrl: string,
+  _listingUrl: string,
   adminUrl: string,
   message?: string,
 ): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
-<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
-  <div style="max-width: 600px; margin: 0 auto; padding: 40px 24px;">
-    <div style="margin-bottom: 32px;">
-      <div style="font-size: 11px; font-weight: 600; letter-spacing: 1.2px; color: #9A9A9A; text-transform: uppercase; margin-bottom: 8px;">SOURCECO</div>
-    </div>
-    <h1 style="color: #0E101A; font-size: 20px; font-weight: 700; margin: 0 0 24px 0; line-height: 1.4;">
-      New Connection Request: ${escapeHtml(listingTitle)}
-    </h1>
-    <div style="color: #3A3A3A; font-size: 15px; line-height: 1.7;">
-      <p style="margin: 0 0 16px 0;">
-        <strong>${escapeHtml(requesterName)}</strong> (${escapeHtml(requesterEmail)}) has submitted a connection request for <strong>${escapeHtml(listingTitle)}</strong>.
-      </p>
-      ${message ? `
-      <div style="background: #FCF9F0; border-left: 4px solid #DEC76B; padding: 16px; border-radius: 0 8px 8px 0; margin: 0 0 24px 0;">
-        <p style="margin: 0 0 4px 0; font-size: 12px; color: #9A9A9A; font-weight: 600;">BUYER MESSAGE</p>
-        <p style="margin: 0; color: #3A3A3A; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(message)}"</p>
-      </div>` : ''}
-      <p style="margin: 0 0 24px 0;">Log in to the admin dashboard to review and respond.</p>
-    </div>
+  return wrapEmailHtml({
+    bodyHtml: `
+    <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 24px 0;">New Connection Request: ${escapeHtml(listingTitle)}</h1>
+    <p><strong>${escapeHtml(requesterName)}</strong> (${escapeHtml(requesterEmail)}) has submitted a connection request for <strong>${escapeHtml(listingTitle)}</strong>.</p>
+    ${message ? `
+    <div style="background: #FCF9F0; border-left: 4px solid #DEC76B; padding: 16px; border-radius: 0 8px 8px 0; margin: 0 0 24px 0;">
+      <p style="margin: 0 0 4px 0; font-size: 12px; color: #9A9A9A; font-weight: 600;">BUYER MESSAGE</p>
+      <p style="margin: 0; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(message)}"</p>
+    </div>` : ''}
+    <p>Log in to the admin dashboard to review and respond.</p>
     <div style="text-align: center; margin: 32px 0;">
-      <a href="${adminUrl}" style="display: inline-block; background: #0E101A; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
-        View in Dashboard
-      </a>
-    </div>
-    <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid #E5DDD0;">
-      <p style="color: #9A9A9A; font-size: 12px; margin: 0;">
-        This is an automated notification from SourceCo. You received this because a buyer submitted a connection request.
-      </p>
-    </div>
-  </div>
-</body>
-</html>`;
+      <a href="${adminUrl}" style="display: inline-block; background: #1a1a2e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">View in Dashboard</a>
+    </div>`,
+    preheader: `${requesterName} submitted a connection request for ${listingTitle}.`,
+  });
 }
 
 const handler = async (req: Request): Promise<Response> => {
