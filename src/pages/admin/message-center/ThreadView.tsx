@@ -105,7 +105,7 @@ export function ThreadView({ thread, allBuyerThreads = [], onSelectThread, onBac
   const [newMessage, setNewMessage] = useState('');
   const [reference, setReference] = useState<MessageReference | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [showContext, setShowContext] = useState(false);
+  const [showContext, setShowContext] = useState(true);
 
   // Get current admin ID for claim
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
@@ -245,21 +245,15 @@ export function ThreadView({ thread, allBuyerThreads = [], onSelectThread, onBac
         {/* Quick actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Context panel toggle */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={() => setShowContext(!showContext)}
-                >
-                  {showContext ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{showContext ? 'Hide buyer context' : 'Show buyer context'}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => setShowContext(!showContext)}
+          >
+            {showContext ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
+            {showContext ? 'Hide Profile' : 'Buyer Profile'}
+          </Button>
 
           {/* Pipeline link */}
           {thread.pipeline_deal_id && (
