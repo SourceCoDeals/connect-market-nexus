@@ -47,28 +47,26 @@ const handler = async (req: Request): Promise<Response> => {
 
     const htmlBody = wrapEmailHtml({
       bodyHtml: `
-        <p style="font-size: 15px;">Hi ${safeName},</p>
-        <p style="font-size: 14px; line-height: 1.6;">
-          You've been invited to join the <strong>SourceCo Marketplace</strong> — a curated platform connecting qualified acquisition buyers with exclusive deal flow.
-        </p>
+        <p>Hi ${safeName},</p>
+        <p>You have been invited to join SourceCo, a private marketplace connecting qualified acquisition buyers with off-market deal flow.</p>
         ${safeCustomMsg ? `
-          <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
-            <p style="font-size: 13px; color: #6b7280; margin: 0 0 4px 0; font-weight: 500;">Personal note:</p>
-            <p style="font-size: 14px; margin: 0; line-height: 1.5;">${safeCustomMsg}</p>
+          <div style="background: #F7F6F3; border-radius: 6px; padding: 16px; margin: 20px 0;">
+            <p style="font-size: 13px; color: #6B6B6B; margin: 0 0 4px 0; font-weight: 600;">Personal note:</p>
+            <p style="font-size: 14px; margin: 0; line-height: 1.6;">${safeCustomMsg}</p>
           </div>
         ` : ''}
-        <p style="font-size: 14px; line-height: 1.6;"><strong>What you get access to:</strong></p>
-        <ul style="font-size: 14px; line-height: 1.8; padding-left: 20px;">
+        <p style="font-weight: 600;">What you get access to:</p>
+        <ul style="line-height: 1.8; padding-left: 20px;">
           <li>Exclusive off-market deal opportunities</li>
           <li>Direct introductions to business owners</li>
           <li>Secure data room access for diligence</li>
           <li>AI-powered deal matching based on your criteria</li>
         </ul>
         <div style="text-align: center; margin: 28px 0;">
-          <a href="${signupUrl}" style="display: inline-block; background: #1a1a2e; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 14px; font-weight: 500;">Create Your Profile</a>
+          <a href="${signupUrl}" style="display: inline-block; background: #000000; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-size: 14px; font-weight: 600;">Create Your Profile</a>
         </div>
-        <p style="font-size: 12px; color: #9ca3af; text-align: center;">Questions? Reply to this email or contact us at deals@sourcecodeals.com</p>`,
-      preheader: `You're invited to join SourceCo Marketplace`,
+        <p style="font-size: 13px; color: #6B6B6B; text-align: center;">Questions? Reply to this email or contact deals@sourcecodeals.com</p>`,
+      preheader: 'You have been invited to join SourceCo',
       recipientEmail: to,
     });
 

@@ -227,17 +227,16 @@ Deno.serve(async (req: Request) => {
       },
       htmlContent: wrapEmailHtml({
         bodyHtml: `
-          <h2 style="color: #0E101A; margin-bottom: 16px;">Your ${docLabel}</h2>
           <p>Hi ${buyerName},</p>
-          <p>${attachmentList.length > 0 ? 'Please find the document attached to this email.' : downloadLink ? 'Please download your document using the button below.' : 'Your document will be sent to you shortly by our team.'}</p>
+          <p>${attachmentList.length > 0 ? 'Your ' + docLabel + ' is attached to this email.' : downloadLink ? 'Download your document using the button below.' : 'Your document will be sent to you shortly by our team.'}</p>
           ${downloadLink}
-          <p><strong>To complete the signing process:</strong></p>
+          <p style="font-weight: 600;">To complete the signing process:</p>
           <ol style="line-height: 1.8;">
             <li>Review the document carefully</li>
             <li>Sign where indicated</li>
             <li>Reply to this email with the signed copy attached</li>
           </ol>
-          <p>If you have any questions or need modifications, simply reply to this email and we'll get back to you promptly.</p>
+          <p>If you have questions or need modifications, reply to this email.</p>
         `,
         preheader: `Review and sign your ${docLabel} to complete your SourceCo setup.`,
         recipientEmail: buyerEmail,

@@ -74,44 +74,44 @@ const handler = async (req: Request): Promise<Response> => {
     let textContent: string;
 
     if (ndaSigned) {
-      subject = "You're in — full access is live.";
+      subject = "Your account is active. Full access is live.";
       htmlContent = wrapEmailHtml({
         bodyHtml: `
   <p>Hi ${firstName},</p>
-  <p>You're in. Your NDA is already on file — you have full access to the deal pipeline right now.</p>
-  <p style="margin: 24px 0;"><a href="${siteUrl}/marketplace" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Browse Deals</a></p>
-  <h3 style="font-size: 16px; margin: 24px 0 8px 0;">Before you submit your first request</h3>
-  <ul style="padding-left: 20px;">
-    <li>Every deal is off-market — you won't find these anywhere else</li>
-    <li>We introduce a small number of buyers per deal. Tell us specifically why you're a strong fit — generic messages rarely get selected</li>
-    <li>Your first introduction request will prompt you to sign a fee agreement — success-only, nothing owed unless a deal closes, covers every introduction we make on your behalf</li>
+  <p>Your account is approved and your NDA is on file. You have full access to the deal pipeline now.</p>
+  <p style="margin: 24px 0;"><a href="${siteUrl}/marketplace" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600;">Browse Deals</a></p>
+  <p style="font-weight: 600; margin: 24px 0 8px 0;">Before you submit your first request</p>
+  <ul style="padding-left: 20px; line-height: 1.8;">
+    <li>Every deal is off-market. You will not find these anywhere else.</li>
+    <li>We introduce a small number of buyers per deal. Tell us specifically why you are a strong fit. Generic messages rarely get selected.</li>
+    <li>Your first introduction request will prompt you to sign a fee agreement. It is success-only. Nothing is owed unless a deal closes. It covers every introduction we make on your behalf.</li>
   </ul>
   <p>Questions? Reply to this email.</p>
-  <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>`,
+  <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,
         preheader: 'Your NDA is on file. Browse deals and request introductions now.',
         recipientEmail: email,
       });
-      textContent = `Hi ${firstName},\n\nYour SourceCo account is approved and your NDA is already on file. You have full access right now.\n\nBrowse deals: ${siteUrl}/marketplace\n\nQuestions? Reply to this email.\n\n— The SourceCo Team`;
+      textContent = `Hi ${firstName},\n\nYour SourceCo account is approved and your NDA is on file. You have full access now.\n\nBrowse deals: ${siteUrl}/marketplace\n\nQuestions? Reply to this email.\n\nThe SourceCo Team`;
     } else {
-      subject = "You're approved — one step to full access.";
+      subject = "You're approved. One step to full access.";
       htmlContent = wrapEmailHtml({
         bodyHtml: `
   <p>Hi ${firstName},</p>
-  <p>You're approved.</p>
-  <p>Before you can browse deal details and request introductions, you'll need to sign your NDA. It covers your use of the platform — one signature, and you're in for good. Takes about 60 seconds.</p>
-  <p style="margin: 24px 0;"><a href="${siteUrl}/pending-approval" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Sign Your NDA</a></p>
-  <h3 style="font-size: 16px; margin: 24px 0 8px 0;">A few things to know before you start</h3>
-  <ul style="padding-left: 20px;">
-    <li>Every deal on SourceCo is off-market — you won't find these anywhere else</li>
-    <li>We introduce a small number of buyers per deal. When you request an introduction, tell us specifically why you're a strong fit — generic messages rarely get selected</li>
-    <li>Before your first introduction request, you'll be asked to sign a fee agreement. It's success-only — nothing owed unless a deal closes</li>
+  <p>Your account is approved.</p>
+  <p>Before you can browse deal details and request introductions, you need to sign your NDA. It covers your use of the platform. One signature and you are in for good. Takes about 60 seconds.</p>
+  <p style="margin: 24px 0;"><a href="${siteUrl}/pending-approval" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600;">Sign Your NDA</a></p>
+  <p style="font-weight: 600; margin: 24px 0 8px 0;">A few things to know before you start</p>
+  <ul style="padding-left: 20px; line-height: 1.8;">
+    <li>Every deal on SourceCo is off-market. You will not find these anywhere else.</li>
+    <li>We introduce a small number of buyers per deal. When you request an introduction, tell us specifically why you are a strong fit. Generic messages rarely get selected.</li>
+    <li>Before your first introduction request, you will be asked to sign a fee agreement. It is success-only. Nothing is owed unless a deal closes.</li>
   </ul>
   <p>Questions? Reply to this email.</p>
-  <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>`,
+  <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,
         preheader: 'Sign your NDA in 60 seconds and the full deal pipeline is yours.',
         recipientEmail: email,
       });
-      textContent = `Hi ${firstName}, you're approved. Sign your NDA to get full access: ${siteUrl}/pending-approval\n\nQuestions? Reply to this email.\n\n— The SourceCo Team`;
+      textContent = `Hi ${firstName}, you are approved. Sign your NDA to get full access: ${siteUrl}/pending-approval\n\nQuestions? Reply to this email.\n\nThe SourceCo Team`;
     }
 
     const result = await sendEmail({

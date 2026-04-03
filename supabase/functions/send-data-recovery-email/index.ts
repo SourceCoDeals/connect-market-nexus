@@ -39,14 +39,13 @@ const handler = async (req: Request): Promise<Response> => {
           subject: 'Complete Your Profile - Missing Information',
           htmlContent: wrapEmailHtml({
             bodyHtml: `
-              <h2 style="color: #1e293b;">Complete Your Profile</h2>
               <p>Hi ${escapeHtml(user.first_name || 'there')},</p>
-              <p>We noticed that some important information is missing from your profile.</p>
+              <p>Some important information is missing from your profile. Please take a moment to complete it so we can match you with relevant deals.</p>
               ${escapeHtml(template)}
-              <div style="margin: 30px 0;">
-                <a href="https://marketplace.sourcecodeals.com/profile" style="background-color: #1a1a2e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Complete Profile Now</a>
+              <div style="text-align: center; margin: 28px 0;">
+                <a href="https://marketplace.sourcecodeals.com/profile" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600;">Complete Profile</a>
               </div>
-              <p style="color: #666; font-size: 14px;">Best regards,<br>The SourceCo Team</p>`,
+              <p style="color: #6B6B6B;">The SourceCo Team</p>`,
             preheader: 'Complete your SourceCo profile',
             recipientEmail: user.email,
           }),

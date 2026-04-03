@@ -24,25 +24,25 @@ function buildWelcomeHtml(userName: string): string {
   return wrapEmailHtml({
     bodyHtml: `
   <p>Hi ${escapeHtml(userName)},</p>
-  <p>Your application is in. Our team will review it — typically within one business day — and you'll hear from us by email the moment you're cleared.</p>
+  <p>Your application is in. Our team will review it, typically within one business day, and you will hear from us by email the moment you are cleared.</p>
   <p>While you wait, verify your email address using the link we just sent you.</p>
-  <h3 style="font-size: 16px; margin: 24px 0 8px 0;">What you're applying for</h3>
-  <p>SourceCo is a private marketplace for off-market, founder-led businesses. Every deal in the pipeline has been sourced and qualified by our team before it reaches buyers — you're not browsing a listing aggregator, you're accessing curated deal flow.</p>
-  <p>Once approved, you'll sign a single NDA that unlocks your access to the platform, then a fee agreement before your first introduction. Both take about 60 seconds each.</p>
+  <p style="font-weight: 600; margin: 24px 0 8px 0;">What you are applying for</p>
+  <p>SourceCo is a private marketplace for off-market, founder-led businesses. Every deal in the pipeline has been sourced and qualified by our team before it reaches buyers. You are not browsing a listing aggregator. You are accessing curated deal flow.</p>
+  <p>Once approved, you will sign a single NDA that unlocks your access to the platform, then a fee agreement before your first introduction. Both take about 60 seconds each.</p>
   <p>Questions before then? Reply to this email.</p>
-  <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>`,
-    preheader: "Off-market deal flow, reviewed by our team. We'll be in touch shortly.",
+  <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,
+    preheader: 'Off-market deal flow, reviewed by our team. We will be in touch shortly.',
   });
 }
 
 function buildApprovalHtml(userName: string): string {
   return wrapEmailHtml({
     bodyHtml: `
-    <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 24px 0;">Account Approved!</h1>
-    <p>Great news, <strong>${escapeHtml(userName)}</strong>! Your SourceCo account has been approved. You now have full access to our business marketplace.</p>
+    <p>Hi ${escapeHtml(userName)},</p>
+    <p>Your SourceCo account has been approved. You now have full access to the marketplace.</p>
     <p>Log in now to browse deals, submit connection requests, and start exploring opportunities.</p>
     <div style="text-align: center; margin: 32px 0;">
-      <a href="${LOGIN_URL}" style="display: inline-block; background: #1a1a2e; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">Browse Deals</a>
+      <a href="${LOGIN_URL}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">Browse Deals</a>
     </div>`,
     preheader: 'Your SourceCo account has been approved. Browse deals now.',
   });
@@ -51,13 +51,13 @@ function buildApprovalHtml(userName: string): string {
 function buildRejectionHtml(userName: string, reason: string): string {
   return wrapEmailHtml({
     bodyHtml: `
-    <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 24px 0;">Account Update</h1>
-    <p>Hi ${escapeHtml(userName)}, after reviewing your application, we were unable to approve your account at this time.</p>
-    <div style="background: #FCF9F0; border-left: 4px solid #DEC76B; padding: 16px; border-radius: 0 8px 8px 0; margin: 0 0 24px 0;">
-      <p style="margin: 0 0 4px 0; font-size: 12px; color: #9A9A9A; font-weight: 600;">REASON</p>
+    <p>Hi ${escapeHtml(userName)},</p>
+    <p>After reviewing your application, we were unable to approve your account at this time.</p>
+    <div style="background: #F7F6F3; padding: 16px; border-radius: 6px; margin: 20px 0;">
+      <p style="margin: 0 0 4px 0; font-size: 12px; color: #9B9B9B; font-weight: 600; text-transform: uppercase;">Reason</p>
       <p style="margin: 0; font-size: 14px;">${escapeHtml(reason)}</p>
     </div>
-    <p>If you believe this was in error or would like to discuss further, please reach out to adam.haile@sourcecodeals.com.</p>`,
+    <p>If you believe this was in error or would like to discuss further, reach out to adam.haile@sourcecodeals.com.</p>`,
     preheader: 'An update on your SourceCo application.',
   });
 }
@@ -67,16 +67,16 @@ function buildEmailVerifiedHtml(userName: string): string {
     bodyHtml: `
   <p>Hi ${escapeHtml(userName)},</p>
   <p>Your email is confirmed. Your application is now with our team.</p>
-  <p>We review applications same day during business hours. You'll get an email the moment you're approved — typically within a few hours, never more than one business day.</p>
-  <h3 style="font-size: 16px; margin: 24px 0 8px 0;">What happens when you're approved</h3>
-  <ul style="padding-left: 20px;">
-    <li>You'll sign a single NDA — covers your use of the platform, takes about 60 seconds</li>
-    <li>Full access to browse every deal in the pipeline immediately after</li>
-    <li>When you find a fit, request an introduction — we handle it from there</li>
+  <p>We review applications same day during business hours. You will get an email the moment you are approved, typically within a few hours, never more than one business day.</p>
+  <p style="font-weight: 600; margin: 24px 0 8px 0;">What happens when you are approved</p>
+  <ul style="padding-left: 20px; line-height: 1.8;">
+    <li>You sign a single NDA. Covers your use of the platform. Takes about 60 seconds.</li>
+    <li>Full access to browse every deal in the pipeline immediately after.</li>
+    <li>When you find a fit, request an introduction. We handle it from there.</li>
   </ul>
-  <p style="margin: 24px 0;"><a href="${LOGIN_URL}" style="display: inline-block; background-color: #1e293b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">Log In</a></p>
-  <p style="color: #6b7280; margin-top: 32px;">&mdash; The SourceCo Team</p>`,
-    preheader: "Our team reviews applications same day. We'll email you the moment you're cleared.",
+  <p style="margin: 24px 0;"><a href="${LOGIN_URL}" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600;">Log In</a></p>
+  <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,
+    preheader: 'Our team reviews applications same day. We will email you the moment you are cleared.',
   });
 }
 
@@ -108,20 +108,20 @@ const handler = async (req: Request): Promise<Response> => {
         break;
 
       case 'email_verified':
-        subject = 'Email confirmed — you\'re in the queue.';
+        subject = 'Email confirmed. You are in the queue.';
         htmlContent = buildEmailVerifiedHtml(user_name || 'there');
         textContent = `Hi ${user_name || 'there'}, your email is confirmed. Your application is now with our team. Log in: ${LOGIN_URL}`;
         break;
 
       case 'profile_approved':
-        subject = 'Account Approved — Welcome to SourceCo';
+        subject = 'Account approved. Welcome to SourceCo.';
         htmlContent = buildApprovalHtml(user_name || 'there');
-        textContent = `Great news, ${user_name || 'there'}! Your account has been approved. Log in: ${LOGIN_URL}`;
+        textContent = `Hi ${user_name || 'there'}, your account has been approved. Log in: ${LOGIN_URL}`;
         break;
 
       case 'profile_rejected': {
         const reason = (event.metadata?.rejection_reason as string) || 'Application did not meet our criteria';
-        subject = 'SourceCo Account Update';
+        subject = 'SourceCo account update';
         htmlContent = buildRejectionHtml(user_name || 'there', reason);
         textContent = `Hi ${user_name || 'there'}, we were unable to approve your account. Reason: ${reason}`;
         break;
@@ -162,23 +162,18 @@ const handler = async (req: Request): Promise<Response> => {
           const { data: adminProfiles } = await supabase.from('profiles').select('id, first_name, last_name, email').in('id', adminIds);
 
           const company = (event.metadata?.company as string) || '';
-          const adminSubject = `New User Registration: ${user_name} (${user_email})`;
-          const adminHtml = `
-<!DOCTYPE html><html><head><meta charset="utf-8" /></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<div style="max-width:600px;margin:0 auto;padding:40px 24px;">
-  <div style="font-size:11px;font-weight:600;letter-spacing:1.2px;color:#9A9A9A;text-transform:uppercase;margin-bottom:8px;">SOURCECO</div>
-  <h1 style="color:#0E101A;font-size:20px;font-weight:700;margin:0 0 24px 0;">New User Registration</h1>
-  <div style="color:#3A3A3A;font-size:15px;line-height:1.7;">
-    <p style="margin:0 0 16px 0;">A new user has registered on the marketplace:</p>
-    <div style="background:#FCF9F0;border-left:4px solid #DEC76B;padding:16px;border-radius:0 8px 8px 0;margin:0 0 24px 0;">
-      <p style="margin:0;color:#3A3A3A;font-size:14px;"><strong>Name:</strong> ${escapeHtml(user_name)}<br/><strong>Email:</strong> ${escapeHtml(user_email)}${company ? `<br/><strong>Company:</strong> ${escapeHtml(company)}` : ''}</p>
+          const adminSubject = `New user registration: ${user_name} (${user_email})`;
+          const adminHtml = wrapEmailHtml({
+            bodyHtml: `
+    <p>A new user has registered on the marketplace:</p>
+    <div style="background: #F7F6F3; padding: 16px; border-radius: 6px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px;"><strong>Name:</strong> ${escapeHtml(user_name)}<br/><strong>Email:</strong> ${escapeHtml(user_email)}${company ? `<br/><strong>Company:</strong> ${escapeHtml(company)}` : ''}</p>
     </div>
-  </div>
-  <div style="text-align:center;margin:32px 0;">
-    <a href="https://marketplace.sourcecodeals.com/admin/users" style="display:inline-block;background:#0E101A;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">Review Users</a>
-  </div>
-</div></body></html>`;
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="https://marketplace.sourcecodeals.com/admin/users" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">Review Users</a>
+    </div>`,
+            preheader: `New registration: ${user_name} (${user_email})`,
+          });
 
           for (const admin of adminProfiles || []) {
             if (!admin.email) continue;
