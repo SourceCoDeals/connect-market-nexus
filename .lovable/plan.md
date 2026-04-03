@@ -1,18 +1,14 @@
 
 
-# Remove "General Inquiry" from My Deals
+# Remove Sticky Sidebar on Listing Detail
 
-## Problem
+## Change
 
-The `resolve-buyer-message-thread` edge function creates a connection request tied to an internal listing (`00000000-0000-0000-0000-000000000001`) when a buyer messages without an existing thread. This "General Inquiry" request then appears in My Deals as a real deal, which is confusing.
+In `src/pages/ListingDetail.tsx` line 335, remove `sticky top-32` from the sidebar wrapper so it scrolls naturally with the page content.
 
-## Fix
+Same fix in `src/pages/ListingPreview.tsx` line 224.
 
-Filter out the internal general inquiry listing from the `useUserConnectionRequests` hook so it never appears in My Deals.
-
-### File: `src/hooks/marketplace/use-connections.ts`
-
-Add a `.neq('listing_id', '00000000-0000-0000-0000-000000000001')` filter to the query at line ~312, right after the `.eq('user_id', authUser.id)` filter. This ensures the general inquiry thread is excluded from My Deals while still being available for the messaging system (which has its own separate query).
-
-One line change, surgical fix.
+### Files changed
+- `src/pages/ListingDetail.tsx` — remove `sticky top-32` from sidebar div
+- `src/pages/ListingPreview.tsx` — same fix for consistency
 
