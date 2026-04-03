@@ -133,12 +133,31 @@ function useAllFirmsTracking() {
       if (error) throw error;
       if (!firms || firms.length === 0) return [];
 
-      // Fetch latest "signed" audit entries to get admin attribution
-      const { data: auditEntries } = await supabase
-        .from('agreement_audit_log')
-        .select('firm_id, agreement_type, changed_by_name, created_at')
-        .eq('new_status', 'signed')
-        .order('created_at', { ascending: false });
+      // Fetch audit entries + document requests in parallel
+      const [auditRes, docReqRes] = await Promise.all([
+        supabase
+          .from('agreement_audit_log')
+          .select('firm_id, agreement_type, changed_by_name, created_at')
+          .eq('new_status', 'signed')
+          .order('created_at', { ascending: false }),
+        untypedFrom('document_requests')
+          .select('id, firm_id, agreement_type, status, created_at, recipient_email, recipient_name, email_provider_message_id, last_email_error')
+          .order('created_at', { ascending: false })
+          .limit(500),
+      ]);
+
+      const auditEntries = auditRes.data;
+      const allDocRequests = (docReqRes.data || []) as Array<DocumentRequestRecord & { firm_id: string | null }>;
+
+      // Build doc requests per firm
+      const docRequestsByFirm = new Map<string, DocumentRequestRecord[]>();
+      for (const dr of allDocRequests) {
+        if (dr.firm_id) {
+          const existing = docRequestsByFirm.get(dr.firm_id) || [];
+          existing.push(dr);
+          docRequestsByFirm.set(dr.firm_id, existing);
+        }
+      }
 
       // Build lookup: firmId -> { nda: adminName, fee_agreement: adminName }
       const adminMap = new Map<string, { nda?: string; fee_agreement?: string }>();
