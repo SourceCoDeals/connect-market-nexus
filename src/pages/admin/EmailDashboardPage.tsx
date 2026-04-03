@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Mail, CheckCircle, XCircle, AlertTriangle, Eye, Search, BookOpen } from 'lucide-react';
+import { Mail, CheckCircle, XCircle, AlertTriangle, Eye, Search, BookOpen, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { EmailCatalog } from '@/components/admin/emails/EmailCatalog';
+import { AdminEmailRouting } from '@/components/admin/emails/AdminEmailRouting';
 
 type TimeRange = '24h' | '7d' | '30d' | 'all';
 
@@ -116,6 +117,9 @@ export default function EmailDashboardPage() {
           </TabsTrigger>
           <TabsTrigger value="catalog" className="gap-1.5">
             <BookOpen className="h-4 w-4" /> Email Catalog
+          </TabsTrigger>
+          <TabsTrigger value="routing" className="gap-1.5">
+            <Users className="h-4 w-4" /> Admin Routing
           </TabsTrigger>
         </TabsList>
 
@@ -246,6 +250,10 @@ export default function EmailDashboardPage() {
 
         <TabsContent value="catalog" className="mt-0">
           <EmailCatalog />
+        </TabsContent>
+
+        <TabsContent value="routing" className="mt-0">
+          <AdminEmailRouting />
         </TabsContent>
       </Tabs>
     </div>
