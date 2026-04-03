@@ -280,19 +280,21 @@ function usePendingRequestQueue() {
   });
 }
 
-/** Fetch latest delivery events from brevo webhook logs for given correlation IDs */
-function useDeliveryEvents(correlationIds: string[]) {
+/** Fetch latest delivery events from brevo webhook logs for given provider message IDs */
+function useDeliveryEvents(providerMessageIds: string[]) {
   return useQuery<DeliveryEvent[]>({
-    queryKey: ['admin-delivery-events', correlationIds],
+    queryKey: ['admin-delivery-events', providerMessageIds],
     staleTime: 30_000,
-    enabled: correlationIds.length > 0,
+    enabled: providerMessageIds.length > 0,
     queryFn: async () => {
-      if (correlationIds.length === 0) return [];
+      if (providerMessageIds.length === 0) return [];
+      // Normalize: strip angle brackets so we match both <id> and id formats
+      const normalized = providerMessageIds.map(id => id.replace(/^<|>$/g, '').trim());
       const { data, error } = await supabase
         .from('email_delivery_logs')
         .select('email, status, correlation_id, error_message, sent_at')
         .eq('email_type', 'brevo_webhook')
-        .in('correlation_id', correlationIds)
+        .in('correlation_id', normalized)
         .order('sent_at', { ascending: false });
 
       if (error) throw error;
