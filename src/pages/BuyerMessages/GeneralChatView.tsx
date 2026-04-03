@@ -45,17 +45,17 @@ export function GeneralChatView({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Use external reference state if provided, else local
+  const [localReference, setLocalReference] = useState<MessageReference | null>(null);
+  const reference = externalOnReferenceChange ? (externalReference ?? null) : localReference;
+  const setReference = externalOnReferenceChange || setLocalReference;
+
   // Auto-focus input when reference changes (topic picked)
   useEffect(() => {
     if (reference) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [reference]);
-
-  // Use external reference state if provided, else local
-  const [localReference, setLocalReference] = useState<MessageReference | null>(null);
-  const reference = externalOnReferenceChange ? (externalReference ?? null) : localReference;
-  const setReference = externalOnReferenceChange || setLocalReference;
 
   const { data: resolvedThread, isLoading: resolving } = useResolvedThreadId();
   const threadId = resolvedThread?.connection_request_id;
