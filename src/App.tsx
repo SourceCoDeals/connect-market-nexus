@@ -134,6 +134,7 @@ const OutreachSettingsPage = lazyWithRetry(
 );
 const GlobalApprovalsPage = lazyWithRetry(() => import('@/pages/admin/GlobalApprovalsPage'));
 const DocumentTrackingPage = lazyWithRetry(() => import('@/pages/admin/DocumentTrackingPage'));
+const EmailDashboardPage = lazyWithRetry(() => import('@/pages/admin/EmailDashboardPage'));
 const TestingHub = lazyWithRetry(() => import('@/pages/admin/TestingHub'));
 const MessageCenter = lazyWithRetry(() => import('@/pages/admin/MessageCenter'));
 const MessagesLayout = lazyWithRetry(() => import('@/pages/admin/MessagesLayout'));
@@ -532,6 +533,7 @@ function App() {
 
               {/* DOCUMENT TRACKING */}
               <Route path="documents" element={<DocumentTrackingPage />} />
+              <Route path="emails" element={<EmailDashboardPage />} />
 
               {/* ANALYTICS */}
               <Route
