@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   XCircle,
   Mail,
+  X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { resolveAgreementStatus, type AgreementDisplayStatus } from '@/lib/agreement-status';
