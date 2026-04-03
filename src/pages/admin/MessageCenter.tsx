@@ -24,7 +24,6 @@ import { ThreadView } from './message-center/ThreadView';
 import { DealGroupSection } from './message-center/DealGroupSection';
 import { BuyerGroupSection } from './message-center/BuyerGroupSection';
 import { MessageCenterSkeleton, MessageCenterEmpty } from './message-center/MessageCenterShells';
-import { MessageCenterSkeleton, MessageCenterEmpty } from './message-center/MessageCenterShells';
 
 // ─── Inbox Threads Hook ───
 
