@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { XCircle, AlertCircle } from 'lucide-react';
-import { XCircle, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, getProfileCompletionPercentage, getMissingFieldLabels } from '@/lib/profile-completeness';
 
