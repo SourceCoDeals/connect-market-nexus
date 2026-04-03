@@ -57,7 +57,7 @@ function buildRejectionHtml(userName: string, reason: string): string {
       <p style="margin: 0 0 4px 0; font-size: 12px; color: #9B9B9B; font-weight: 600; text-transform: uppercase;">Reason</p>
       <p style="margin: 0; font-size: 14px;">${escapeHtml(reason)}</p>
     </div>
-    <p>If you believe this was in error or would like to discuss further, reach out to adam.haile@sourcecodeals.com.</p>`,
+    <p>If you believe this was in error or would like to discuss further, reach out to support@sourcecodeals.com.</p>`,
     preheader: 'An update on your SourceCo application.',
   });
 }
