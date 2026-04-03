@@ -1,78 +1,38 @@
 
 
-# Email System — What's Done vs What Remains
+# Email System — Final Status & Remaining Work
 
-## Current State (All Working)
+## What's Fully Complete
 
-The core infrastructure is complete and operational:
-- All 30+ email-sending edge functions use `sendEmail()` from `_shared/email-sender.ts`
-- Brevo API key rotated and confirmed working
-- Sender identity locked to `adam.haile@sourcecodeals.com`
-- Every send tracked in `outbound_emails` + `email_events`
-- Brevo webhook updates delivery status and populates `suppressed_emails`
-- Bounce suppression active in `sendEmail()`
-- Email Dashboard at `/admin/emails`
-- Shared template wrapper (`wrapEmailHtml()`) adopted by 7 high-traffic functions
+1. **Unified sender**: All 33 edge functions use `sendEmail()` from `_shared/email-sender.ts`. Zero legacy code remains.
+2. **API key**: Rotated and confirmed working.
+3. **Sender identity**: Locked to `adam.haile@sourcecodeals.com` everywhere.
+4. **Tracking**: Every send logs to `outbound_emails` + `email_events`.
+5. **Webhook**: `brevo-webhook` updates delivery status and populates `suppressed_emails`.
+6. **Bounce suppression**: Active in `sendEmail()`.
+7. **Email Dashboard**: Live at `/admin/emails`.
+8. **Legacy cleanup**: `enhanced-email-delivery`, `send-approval-email`, `send-password-reset-email`, `brevo-sender.ts`, `email-logger.ts` — all deleted.
+9. **Template wrapper**: 30 of 33 email-sending functions use `wrapEmailHtml()`.
 
-## What Still Needs Work
+## What Actually Remains
 
-### 1. Template wrapper adoption is incomplete
+### 1. One function still uses raw HTML (minor)
+`notify-admin-new-message` builds its own full HTML document instead of using `wrapEmailHtml()`. This is the only remaining function with raw HTML (aside from `notify-deal-owner-change` which intentionally uses React Email templates, and `send-transactional-email` which is a generic sender).
 
-Only 7 of ~30 email-sending functions use `wrapEmailHtml()`. The remaining ~23 still build raw inline HTML with no consistent branding. These include:
+**Work**: Import `wrapEmailHtml`, replace the raw HTML builder. Redeploy.
 
-- `send-first-request-followup` — raw HTML div
-- `send-onboarding-day2` — raw HTML
-- `send-onboarding-day7` — raw HTML
-- `send-deal-alert` — raw HTML
-- `send-deal-referral` — raw HTML
-- `send-feedback-email` — raw HTML
-- `send-contact-response` — raw HTML
-- `send-marketplace-invitation` — raw HTML
-- `send-memo-email` — has its OWN local `wrapEmailHtml()` function instead of using the shared one
-- `send-verification-success-email` — raw HTML
-- `send-simple-verification-email` — raw HTML
-- `send-data-recovery-email` — raw HTML
-- `send-task-notification-email` — raw HTML
-- `send-owner-inquiry-notification` — raw HTML
-- `send-owner-intro-notification` — raw HTML
-- `send-feedback-notification` — raw HTML
-- `notify-deal-owner-change` — raw HTML
-- `notify-deal-reassignment` — raw HTML
-- `notify-buyer-rejection` — raw HTML
-- `notify-buyer-new-message` — raw HTML
-- `notify-new-deal-owner` — raw HTML
-- `grant-data-room-access` — raw HTML
-- `approve-marketplace-buyer` — raw HTML
-- `password-reset` — raw HTML
+### 2. Update plan.md
+The `.lovable/plan.md` is completely stale — it still lists 23 functions as needing migration when only 1 remains. Needs a full rewrite to reflect the completed state.
 
-**Why it matters**: Recipients get visually inconsistent emails — some branded with SourceCo header/footer, others plain HTML. It looks unprofessional and erodes trust.
+### 3. That's it.
 
-**Work**: Migrate each to import and use the shared `wrapEmailHtml()`. Batch into groups of 5-8, redeploy after each batch.
+The email system is essentially done. Every function sends through one utility, one identity, with tracking, suppression, branded templates, and a monitoring dashboard. The only remaining item is one function needing a 5-line template wrapper change and updating the plan doc.
 
-### 2. `send-memo-email` has a duplicate local wrapper
+## Implementation
 
-This function defines its own `wrapEmailHtml()` locally (line 128) instead of using the shared one from `_shared/email-template-wrapper.ts`. This means its branding diverges from the rest of the platform.
+### Step 1
+Migrate `notify-admin-new-message` to use `wrapEmailHtml()` — replace the `buildAdminNotificationHtml` function body with a call to the shared wrapper, keeping the same inner HTML content. Redeploy.
 
-**Work**: Replace the local function with the shared import.
-
-### 3. No remaining consolidation or deletion needed
-
-The plan.md confirms all legacy functions (`enhanced-email-delivery`, `send-password-reset-email`, `send-approval-email`) are already deleted. `send-templated-approval-email` is the canonical approval sender. No duplicates remain.
-
-## Recommended Execution
-
-### Phase 1: Migrate remaining functions to shared wrapper (batched)
-- Batch A (high-traffic user-facing): `send-first-request-followup`, `send-onboarding-day2`, `send-onboarding-day7`, `send-deal-alert`, `send-deal-referral`, `send-memo-email`
-- Batch B (admin/system notifications): `notify-deal-owner-change`, `notify-deal-reassignment`, `notify-buyer-rejection`, `notify-buyer-new-message`, `notify-new-deal-owner`, `send-feedback-notification`
-- Batch C (remaining): `send-feedback-email`, `send-contact-response`, `send-marketplace-invitation`, `send-verification-success-email`, `send-simple-verification-email`, `send-data-recovery-email`, `send-task-notification-email`, `send-owner-inquiry-notification`, `send-owner-intro-notification`, `grant-data-room-access`, `approve-marketplace-buyer`, `password-reset`
-
-Each function gets the same change: import `wrapEmailHtml` from `../_shared/email-template-wrapper.ts`, wrap the existing body HTML with it, and redeploy.
-
-### Phase 2: Verify and update plan.md
-
-After all migrations, update plan.md to reflect full wrapper adoption.
-
-## Summary
-
-The email system is functionally complete — every email sends through one utility, one identity, with tracking and suppression. The only remaining work is cosmetic consistency: migrating the ~23 functions that still build raw HTML to use the shared branded wrapper. This is low-risk, high-impact polish work.
+### Step 2
+Rewrite `.lovable/plan.md` to reflect the completed state: all functions migrated, all legacy code deleted, system fully operational.
 
