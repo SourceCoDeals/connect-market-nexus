@@ -233,6 +233,7 @@ function useAllFirmsTracking() {
           contactEmail,
           firmAgreement: firm as unknown as FirmAgreement,
           members,
+          documentRequests: docRequestsByFirm.get(firm.id as string) || [],
         } as FirmRow;
       });
     },
