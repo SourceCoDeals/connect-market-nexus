@@ -1,74 +1,75 @@
 
 
-# Email System — Current State & What Remains
+# Email System — Current State & Remaining Work
 
-## What's Already Done (Working Correctly)
+## What's Already Done
 
-1. **Single sender utility**: All 34 edge functions now use `sendEmail()` from `_shared/email-sender.ts`. Zero references to legacy `sendViaBervo()`, `brevo-sender.ts`, or `email-logger.ts` remain.
-2. **Correct API key**: `BREVO_API_KEY` was rotated and confirmed working — emails are arriving via Brevo.
-3. **Locked sender identity**: Every email goes out as `adam.haile@sourcecodeals.com` with consistent reply-to.
-4. **Tracking**: Every send creates an `outbound_emails` record with status updates and `email_events` entries.
-5. **Legacy cleanup**: `send-nda-email`, `send-fee-agreement-email`, `brevo-sender.ts`, and `email-logger.ts` are all deleted.
+1. **Unified sender**: All edge functions use `sendEmail()` from `_shared/email-sender.ts`. Zero legacy `sendViaBervo` or `brevo-sender.ts` references remain.
+2. **Correct API key**: `BREVO_API_KEY` rotated and confirmed working.
+3. **Locked sender identity**: `adam.haile@sourcecodeals.com` everywhere.
+4. **Tracking**: Every send logs to `outbound_emails` + `email_events`.
+5. **Webhook connected**: `brevo-webhook` updates `outbound_emails` status on delivery/bounce/open/click events AND populates `suppressed_emails`.
+6. **Bounce suppression**: `suppressed_emails` table exists. `sendEmail()` checks it before every send. Webhook auto-populates it on hard bounce, spam complaint, and unsubscribe.
+7. **Email Dashboard**: `/admin/emails` page exists with stats, filters, and log table. Linked in admin sidebar.
+8. **Template wrapper created**: `_shared/email-template-wrapper.ts` with `wrapEmailHtml()` exists but is NOT yet used by any edge function (except `send-memo-email` which has its own inline version).
 
 ## What Still Needs Work
 
-### 1. Brevo Webhook Not Connected to New Tables
-The `brevo-webhook` edge function still writes to legacy tables (`email_delivery_logs`, `engagement_signals`, `document_requests`). It does NOT update `outbound_emails` or `email_events` — meaning delivery confirmations, bounces, opens, and clicks from Brevo are never recorded against the new tracking system.
+### 1. Consolidate Duplicate/Unused Edge Functions
+Three functions have no frontend callers and should be deleted:
+- **`enhanced-email-delivery`** — generic wrapper, zero value over `sendEmail()` directly
+- **`send-password-reset-email`** — zero frontend callers (Supabase Auth handles password reset natively)
 
-**Why it matters**: You can see "accepted" in the admin UI but never "delivered", "opened", or "bounced". The new tracking tables stay stuck at "accepted" forever.
+Two functions overlap:
+- **`send-approval-email`** — called from `use-admin-email.ts` (line 323)
+- **`send-templated-approval-email`** — called from `EmailTestCentre.tsx` and is the canonical approval email
 
-**Fix**: Update `brevo-webhook` to match incoming Brevo message IDs against `outbound_emails.provider_message_id` and update status + insert `email_events`.
+One of these should be consolidated. `send-templated-approval-email` appears to be the real one; `send-approval-email` should be migrated to call the same logic or be replaced.
 
-### 2. No Consolidated Email Dashboard
-The `DocumentTrackingPage` reads from `outbound_emails` for agreement emails only. There's no single admin view showing ALL platform emails, their delivery status, open rates, or failures.
+Additionally, `enhanced-admin-notification` is called from `use-nuclear-auth.ts` (line 331) for new user signup notifications. It's a thin wrapper — could be replaced with a direct `sendEmail()` call from a simpler function, but it has an active caller so it can't just be deleted without a migration.
 
-**Why it matters**: You have no visibility into whether onboarding emails, deal alerts, task notifications, etc. are actually being delivered.
+**Work**: Delete 2 unused functions, consolidate 2 approval functions into 1, evaluate `enhanced-admin-notification`.
 
-**Fix**: Build an admin Email Dashboard page that queries `outbound_emails` with filters by template, status, date range.
+### 2. Adopt Shared Email Template Wrapper
+`wrapEmailHtml()` exists in `_shared/email-template-wrapper.ts` but zero edge functions import it. Every function still builds its own raw HTML. The highest-traffic email templates should be migrated to use the wrapper for consistent branding:
 
-### 3. Stale/Duplicate Edge Functions
-Several edge functions do overlapping things:
-- `send-approval-email` vs `send-templated-approval-email` — both send approval emails
-- `enhanced-email-delivery` — generic wrapper that adds no value over calling `sendEmail()` directly
-- `enhanced-admin-notification` — same pattern
-- `send-password-reset-email` — may conflict with Supabase Auth's built-in password reset
+Priority templates to migrate:
+- `request-agreement-email` (NDA/Fee Agreement sends)
+- `send-templated-approval-email` (buyer approval)
+- `send-connection-notification` (connection request updates)
+- `send-user-notification` (general notifications)
+- `user-journey-notifications` (onboarding emails)
+- `send-deal-alert` (deal alerts)
 
-**Why it matters**: Maintenance burden, confusion about which function to call, potential for sending duplicate emails.
+**Work**: Update ~6-8 edge functions to import and use `wrapEmailHtml()` instead of inline HTML construction.
 
-**Fix**: Audit each for active callers in the frontend. Consolidate where possible, delete unused ones.
+### 3. Update plan.md to Reflect Reality
+The `.lovable/plan.md` file is outdated — it still lists items 1, 2, 4, 5 as "needs work" when they're already done.
 
-### 4. Email Templates Are Raw HTML Strings
-Most edge functions build HTML with inline string concatenation. There's no consistent branding, no shared layout, and no preview capability.
+**Work**: Rewrite `plan.md` to reflect current state.
 
-**Why it matters**: Emails look inconsistent, are hard to maintain, and can't be previewed before sending.
+### 4. Email Test Centre Accuracy
+`EmailTestCentre.tsx` references specific function names and payloads. After consolidation, it needs to be updated to match the surviving functions.
 
-**Fix**: Create a shared HTML email layout wrapper and migrate the most important templates to use it.
+**Work**: Update test centre entries after consolidation.
 
-### 5. No Suppression/Bounce Handling
-If Brevo reports a hard bounce or spam complaint, nothing prevents the system from trying to send to that address again. There's no suppression list.
+## Recommended Execution
 
-**Why it matters**: Repeatedly sending to bounced addresses damages sender reputation and can get the domain blocked.
+### Phase 1: Delete unused functions + consolidate approval emails
+- Delete `enhanced-email-delivery` and `send-password-reset-email`
+- Merge `send-approval-email` into `send-templated-approval-email` (update `use-admin-email.ts` to call `send-templated-approval-email`)
+- Evaluate `enhanced-admin-notification` — replace with simpler inline call or keep
 
-**Fix**: Add a `suppressed_emails` check inside `sendEmail()` before calling Brevo, populated by the webhook on bounce/complaint events.
+### Phase 2: Migrate top templates to use shared wrapper
+- Update 6-8 edge functions to use `wrapEmailHtml()` from `_shared/email-template-wrapper.ts`
+- Redeploy all changed functions
 
-## Recommended Phases
-
-### Phase 1: Connect Brevo Webhook to New Tables
-Update `brevo-webhook/index.ts` to write delivery events to `outbound_emails` (status updates) and `email_events` (event log). This closes the tracking loop.
-
-### Phase 2: Add Bounce Suppression
-Create a `suppressed_emails` table. Populate it from webhook bounce/complaint events. Check it in `sendEmail()` before sending.
-
-### Phase 3: Consolidate Duplicate Functions
-Audit frontend call sites for overlapping email functions. Merge or delete redundant ones.
-
-### Phase 4: Email Dashboard
-Build an admin page showing all `outbound_emails` with status badges, filters, and delivery stats.
-
-### Phase 5: Template Standardization
-Create a shared HTML email wrapper with consistent branding. Migrate high-traffic templates to use it.
+### Phase 3: Cleanup
+- Update `plan.md`
+- Update `EmailTestCentre.tsx` references
+- Final verification pass
 
 ## Summary
 
-The core sending infrastructure is solid and working. The remaining work is about closing the observability loop (webhook → tracking), preventing reputation damage (suppression), reducing complexity (consolidating duplicates), and improving visibility (dashboard). None of these are blockers for emails being sent — they're operational maturity improvements.
+The core email infrastructure is solid and working. What remains is cleanup work: removing dead code (2 unused functions), consolidating duplicates (2 approval functions → 1), and adopting the shared HTML wrapper across the most important templates for consistent branding. None of this blocks email delivery — it's maintenance and polish.
 
