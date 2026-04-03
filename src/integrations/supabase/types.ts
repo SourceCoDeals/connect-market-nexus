@@ -11205,6 +11205,33 @@ export type Database = {
         }
         Relationships: []
       }
+      suppressed_emails: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          reason: string
+          source_event: string | null
+          source_message_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          reason: string
+          source_event?: string | null
+          source_message_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          reason?: string
+          source_event?: string | null
+          source_message_id?: string | null
+        }
+        Relationships: []
+      }
       team_member_aliases: {
         Row: {
           alias: string
