@@ -1136,7 +1136,6 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
       await untypedFrom('document_requests')
         .update({
           status: 'signed',
-          updated_at: now,
           signed_toggled_by: user?.id || null,
           signed_toggled_by_name: adminName,
           signed_at: now,
