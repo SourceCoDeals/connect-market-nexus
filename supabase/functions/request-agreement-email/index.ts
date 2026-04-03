@@ -3,6 +3,7 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
 import { selfHealFirm } from '../_shared/firm-self-heal.ts';
 import { sendEmail } from '../_shared/email-sender.ts';
+import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
 
 /**
  * request-agreement-email — REBUILT from scratch on the new email architecture.
