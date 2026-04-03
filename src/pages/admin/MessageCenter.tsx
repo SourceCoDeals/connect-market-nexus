@@ -475,13 +475,13 @@ export default function MessageCenter() {
         </div>
       ) : (
         <div
-          className="flex-1 min-h-0 mx-6 mb-6 rounded-xl overflow-hidden flex"
-          style={{ border: '1px solid #F0EDE6', backgroundColor: '#FFFFFF' }}
+          className="flex-1 min-h-0 overflow-hidden flex"
+          style={{ borderTop: '1px solid #F0EDE6', backgroundColor: '#FFFFFF' }}
         >
           {/* Thread List (left panel) */}
           <div
             className={cn(
-              'w-[380px] flex-shrink-0 flex flex-col min-h-0',
+              'w-[320px] flex-shrink-0 flex flex-col min-h-0',
               selectedThreadId ? 'hidden md:flex' : 'flex',
             )}
             style={{ borderRight: '1px solid #F0EDE6' }}
