@@ -169,8 +169,8 @@ const ListingCardActions = memo(function ListingCardActions({
     );
   }
 
-  // No agreement signed — allow browsing but prompt signing for access
-  if (!isNdaCovered && !isFeeCovered) {
+  // Fee Agreement not signed — allow browsing but prompt signing for access
+  if (!isFeeCovered) {
     return (
       <>
         <div className="space-y-1.5">
