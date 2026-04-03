@@ -1,152 +1,43 @@
 
-# Deep Investigation Plan — Why Agreement Emails Still Aren’t Reaching Inbox
 
-## What I found in the code
+# Fix Email Delivery — Root Causes Identified
 
-1. **Agreement emails use a different sender path than the emails that already work**
-   - `request-agreement-email` hardcodes:
-     - `senderEmail: 'support@sourcecodeals.com'`
-     - `replyToEmail: 'support@sourcecodeals.com'`
-   - But the known-working flows do **not** follow that same pattern:
-     - `send-connection-notification` uses the shared sender defaults and Adam-style reply-to
-     - `user-journey-notifications` uses the shared sender defaults
-     - `send-approval-email` uses admin/default sender logic
-   - So agreement emails are on a **different From/Reply-To configuration** than the emails you said used to work.
+## Investigation Results
 
-2. **Agreement sending is still split across old and new systems**
-   - Buyer-side flows now go through `request-agreement-email`
-   - But some admin hooks still call legacy functions:
-     - `src/hooks/admin/use-nda.ts` → `send-nda-email`
-     - `src/hooks/admin/use-fee-agreement.ts` → `send-fee-agreement-email`
-   - That means agreement emails are **not fully unified**, so behavior can differ depending on where the send originated.
+### What's actually happening
+I tested end-to-end and found three distinct problems:
 
-3. **The new agreement flow is not sending the document the same way as before**
-   - `request-agreement-email` sends a **public download link** to the document
-   - The older NDA/Fee Agreement flows send **actual attachments**
-   - So even aside from inbox delivery, the agreement flow is no longer using the same delivery format as the previously working admin email flows.
+### Problem 1: Brevo webhook is blocked (no delivery tracking)
+**`brevo-webhook` is missing from `supabase/config.toml`**. Without an explicit `verify_jwt = false` entry, Supabase defaults to requiring JWT authentication. Since Brevo sends webhooks without a JWT, every webhook call is rejected at the gateway with a 401 — before your code ever runs. This is why there are zero webhook logs and zero delivery confirmations.
 
-4. **Delivery observability is currently mismatched**
-   - `document_requests` stores `email_correlation_id` as the app UUID
-   - `brevo-webhook` writes `email_delivery_logs.correlation_id` as the **Brevo message-id**
-   - Admin UI currently tries to join webhook events using the app correlation UUID
-   - Result: even if Brevo does send a webhook, the UI can fail to show the true delivered/opened/bounced state
+### Problem 2: Emails accepted by Brevo but not reaching inbox
+The function is working correctly — today's test at 09:45 UTC returned HTTP 200, Brevo returned a message ID (`<202604030945.84272144271@smtp-relay.mailin.fr>`), and the database recorded `email_sent`. But the email never arrives. This points to a **Brevo sender verification issue**: the sender `notifications@sourcecodeals.com` may not be properly authenticated in Brevo (no verified domain or sender identity for that address).
 
-## Most likely root cause, ranked
+There is no `SENDER_EMAIL` secret configured, so ALL email functions (agreement, connection notification, approval, journey) fall back to `notifications@sourcecodeals.com`. If that address isn't verified in Brevo, all emails silently fail after acceptance.
 
-### 1. Highest-confidence cause
-**Agreement emails are using the wrong / less-proven sender identity path**
-- The failing agreement flow is the one hardcoded to `support@sourcecodeals.com`
-- The other flows you say worked before are aligned to Adam/admin/default sender behavior
-- So the cleanest isolation step is to temporarily switch agreement emails to:
-  - `adam.haile@sourcecodeals.com` as From, or
-  - the same sender selection logic as the working flows
+### Problem 3: Missing config entries for webhook and data room functions  
+`brevo-webhook` and `grant-data-room-access` are not in `config.toml`, meaning they require JWT and will fail when called externally.
 
-### 2. Very likely contributing issue
-**You currently cannot trust the delivery UI to tell you what happened**
-- Webhook correlation is wired wrong for agreement emails
-- So “sent” may only mean “accepted by Brevo,” while the UI still cannot correctly prove delivered vs blocked vs bounced
+## Plan
 
-### 3. Structural issue
-**Agreement sends are split between legacy and new functions**
-- That creates inconsistent behavior, inconsistent sender rules, and inconsistent attachment behavior
+### Step 1: Add `brevo-webhook` and `grant-data-room-access` to config.toml
+Add `verify_jwt = false` entries for both functions so Brevo's webhook calls and data room access requests are not blocked at the gateway.
 
-## Implementation plan
+### Step 2: Add `SENDER_EMAIL` secret
+Add the secret `SENDER_EMAIL` with value `adam.haile@sourcecodeals.com` (or whatever verified sender is configured in Brevo). This is the sender address that the connection notifications and other previously-working emails used. Without this secret, every email function defaults to `notifications@sourcecodeals.com` which appears to not be deliverable.
 
-### Step 1 — Make agreement emails use the exact same sender approach as the known-good emails
-Update `request-agreement-email` so it no longer hardcodes `support@sourcecodeals.com`.
+### Step 3: Redeploy affected functions
+Redeploy `brevo-webhook`, `request-agreement-email`, `send-connection-notification`, `send-approval-email`, and `user-journey-notifications` so they pick up the config changes and can use the new secret.
 
-For the immediate diagnostic pass:
-- temporarily send agreement emails **from `adam.haile@sourcecodeals.com`**
-- align reply-to with the same known-good identity
-- use the same sender-selection rule used by the working notification flows
+### Step 4: Verify end-to-end
+Test a resend and confirm:
+- Edge function returns 200
+- Email arrives in inbox
+- Brevo webhook fires and is received (delivery status updates in admin UI)
 
-This gives us a true apples-to-apples test against the emails that already worked before.
+## Files Changed
+- `supabase/config.toml` — Add `brevo-webhook` and `grant-data-room-access` with `verify_jwt = false`
 
-### Step 2 — Unify all agreement send entry points
-Remove split behavior so every NDA / Fee Agreement send uses one path:
-- buyer request
-- buyer resend
-- admin send
-- admin resend
+## User Action Required
+You need to verify in your Brevo dashboard (Settings → Senders & IPs → Senders) which sender email address is actually verified. The secret should match that verified sender. If `adam.haile@sourcecodeals.com` is verified there, that's what we use. If `support@sourcecodeals.com` is verified, we use that instead.
 
-Specifically:
-- move admin NDA/Fee Agreement hooks off `send-nda-email` / `send-fee-agreement-email`
-- route them through the same unified agreement sender used by buyer flows
-- or make the legacy functions thin wrappers to the unified path
-
-That eliminates path-specific sender/config differences.
-
-### Step 3 — Restore “same as before” document delivery behavior
-Because the old agreement system sent attachments and the new one only sends a public link, restore parity:
-- extend the shared Brevo sender to support attachments
-- have `request-agreement-email` attach the NDA / Fee Agreement file directly
-- keep link fallback only if attachment loading fails
-
-This makes agreement emails behave like the older admin agreement sends, not like a downgraded replacement.
-
-### Step 4 — Fix webhook correlation so delivery status is real
-Update the agreement delivery tracking so webhook events map back to the original request row correctly.
-
-Best approach:
-- keep storing Brevo `messageId` on `document_requests`
-- when webhook fires, look up the matching `document_requests` row by `email_provider_message_id`
-- then write the webhook event using the original app correlation id, or have the UI join by provider message id instead
-
-This is required so the dashboard can honestly show:
-- Sent to provider
-- Delivered
-- Opened
-- Bounced
-- Blocked
-- Spam complaint
-
-### Step 5 — Add explicit sender + provider audit data
-For every agreement send, persist enough metadata to debug future failures fast:
-- sender email actually used
-- reply-to actually used
-- provider message id
-- latest provider status
-- latest provider error / bounce reason
-
-This can live on `document_requests` and/or `email_delivery_logs`.
-
-### Step 6 — Verify both agreement paths end to end after the sender switch
-Run one full test from each surface:
-1. buyer resend from listing detail
-2. admin send/resend from document tracking
-
-For each, verify all of these:
-- edge function returns success
-- `document_requests` row updates
-- provider message id is stored
-- webhook callback lands
-- delivery state updates in admin UI
-- email actually arrives in `adambhaile00@gmail.com`
-
-### Step 7 — Re-check all previously working email types after the agreement fix
-Once agreement emails are aligned to the known-good sender strategy, smoke-test:
-- connection request confirmation
-- approval email
-- user journey / onboarding emails
-
-Goal: confirm we did not break the older working flows while normalizing agreement emails.
-
-## Files likely involved
-
-- `supabase/functions/request-agreement-email/index.ts`
-- `supabase/functions/_shared/brevo-sender.ts`
-- `supabase/functions/brevo-webhook/index.ts`
-- `src/lib/agreement-email.ts`
-- `src/hooks/admin/use-nda.ts`
-- `src/hooks/admin/use-fee-agreement.ts`
-- `src/components/admin/firm-agreements/AgreementStatusDropdown.tsx`
-- `src/pages/admin/DocumentTrackingPage.tsx`
-
-## Expected outcome
-
-After this pass:
-- agreement emails will send using the same trusted sender pattern as the emails that worked before
-- admin and buyer sends will no longer diverge
-- agreements will again be delivered in the same style as before (with attachments, if restored)
-- the dashboard will show true provider-backed delivery states instead of misleading “sent” states
-- we will be able to identify whether any remaining issue is truly provider-side rather than app-side
