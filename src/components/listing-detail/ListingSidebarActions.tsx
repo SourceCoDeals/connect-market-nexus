@@ -419,7 +419,8 @@ export function ListingSidebarActions({
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Type your question..."
-                  className="min-h-[60px] max-h-[100px] text-xs resize-none bg-background border-border/60"
+                  className="min-h-[80px] max-h-[200px] text-xs resize-none bg-background border-border/60"
+                  rows={3}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
