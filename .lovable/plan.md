@@ -1,88 +1,109 @@
 
+# Listing Sidebar: Action Rows + Deal Inquiry Messaging
 
-# Three Changes: Fee Agreement Required, Data Room Messaging, Motivational Copy
+## What We're Building
 
-## Summary
+Redesign the listing detail sidebar to include structured action rows (inspired by the reference screenshots), alongside the existing connection request flow:
 
-Three interconnected changes:
-1. **Access rule change**: Fee Agreement is now the required document (not NDA). NDA alone is insufficient. Fee Agreement alone is sufficient.
-2. **Data room motivation copy**: Update all agreement prompts to emphasize what they unlock -- the data room containing the CIM, real company name, and full business details.
-3. **Listing detail CTA**: Prominently tell buyers that requesting a connection grants data room access (immediately if fee agreement is signed).
+1. **Explore Data Room** -- navigates to the data room section on the page. Enabled only when fee agreement is signed AND connection is approved.
+2. **Ask a Question** -- opens an inline chat/message panel. Enabled when fee agreement is signed (no connection required).
+3. **Tooltips on disabled rows** explaining what the buyer needs to do.
+4. **"Viewed" timestamp** on data room row if they've accessed it before.
+5. **Full messaging system** for questions: messages routed to admin Message Center, history preserved on both sides.
 
-## 1. Access Rule Change: Fee Agreement Required
+## Architecture Decision: Reuse connection_messages
 
-### Current rule
-`!nda_covered && !fee_covered` = blocked (either one works)
+Rather than creating a new table, we'll reuse the existing `connection_messages` + `connection_requests` infrastructure. When a buyer "asks a question" on a listing without a connection request, we auto-create a connection request with source `inquiry` (or reuse an existing one). This means:
+- Admin Message Center already picks it up automatically
+- Realtime subscriptions already work
+- Email notifications (notify-admin-new-message) already fire
+- Read receipts already work
 
-### New rule
-`!fee_covered` = blocked (fee agreement is the gate; NDA alone is not enough; fee alone is fine)
+## Database Changes
 
-### Files changed
-
-**Client-side gates (4 files):**
-
-- `src/components/listing-detail/ConnectionButton.tsx`
-  - Line 58: change `(!coverage.nda_covered && !coverage.fee_covered)` to `!coverage.fee_covered`
-  - Line 181: change `!coverage.nda_covered && !coverage.fee_covered` to `!coverage.fee_covered`
-
-- `src/components/listing/ListingCardActions.tsx`
-  - Line 114: change `!isNdaCovered && !isFeeCovered` to `!isFeeCovered`
-  - Line 173: change `!isNdaCovered && !isFeeCovered` to `!isFeeCovered`
-
-- `src/components/ListingCard.tsx`
-  - The `isNdaCovered` prop is no longer needed for gating but can stay for display. The card passes both to `ListingCardActions` which handles the logic.
-
-- `src/pages/PendingApproval.tsx`
-  - Line 43: change `agreementStatus?.nda_covered || agreementStatus?.fee_covered` to `agreementStatus?.fee_covered`
-
-**Server-side gate (1 migration):**
-
-- `enhanced_merge_or_create_connection_request` RPC: Change the check from "at least one (NDA or Fee)" to "Fee Agreement must be signed". Update error message to "A Fee Agreement must be signed before requesting deal access."
-
-**Banner (1 file):**
-
-- `src/components/marketplace/AgreementStatusBanner.tsx`
-  - Line 59-65: Update the locked message from "An agreement (NDA or Fee Agreement) is required" to "A signed Fee Agreement is required to request deal access and unlock the data room."
-  - Line 102: Remove the comment about NDA being sufficient; fee is now the gate.
-
-## 2. Motivational Copy: Emphasize Data Room Access
-
-Update all agreement-related prompts to make clear what signing unlocks.
-
-**ConnectionButton.tsx (unsigned block, lines 260-270):**
-- Change "Sign an Agreement" heading to "Sign Your Fee Agreement"
-- Change "An NDA or Fee Agreement is required to request deal access" to "A signed Fee Agreement unlocks the data room, including the CIM, real company name, and full business details."
-- Change "Save this listing so you can request access after signing" to "Sign now to unlock full deal access."
-
-**ListingCardActions.tsx (unsigned block, lines 196-199):**
-- Change "Sign Agreement to Request Access" to "Sign Fee Agreement to Unlock Access"
-- Change "Save this listing for later. Sign your agreement to request access." to "Sign your Fee Agreement to unlock the data room and request introductions."
-
-**BlurredFinancialTeaser.tsx (lines 64-68):**
-- Update heading to "Unlock the Data Room"
-- Update description to mention CIM, real company name, and full financials: "Request a connection to access the full data room, including the Confidential Information Memorandum (CIM), real company name, and complete financials."
-
-**notify-agreement-confirmed edge function:**
-- Update email body to specifically mention data room access: "You now have full access to browse deals, request introductions, and access the data room on approved deals."
-
-## 3. Listing Detail Sidebar: Prominent Data Room CTA
-
-**ListingDetail.tsx (lines 331-338):**
-- Update sidebar heading from "Request an Introduction" to "Request Access to This Deal"
-- Update description from "Our team will make a direct introduction to the business owner." to "Request a connection to unlock the data room. Once approved, you get immediate access to the CIM, real company name, and full business details."
-
-**ConnectionButton.tsx (line 103, button text):**
-- Change "Request Full Deal Details" (line 103) to "Request Connection and Data Room Access"
+### Migration: Add `inquiry` to connection_requests source options
+- No schema change needed -- `source` is already a text column, and `connection_requests` doesn't have a check constraint on it. We just use `source = 'inquiry'` when auto-creating.
 
 ## Files Changed
 
-- `src/components/listing-detail/ConnectionButton.tsx` -- gate logic + copy
-- `src/components/listing/ListingCardActions.tsx` -- gate logic + copy
-- `src/components/ListingCard.tsx` -- minor (gate logic flows through props)
-- `src/pages/PendingApproval.tsx` -- gate logic
-- `src/components/marketplace/AgreementStatusBanner.tsx` -- banner copy
-- `src/components/listing-detail/BlurredFinancialTeaser.tsx` -- copy
-- `src/pages/ListingDetail.tsx` -- sidebar copy
-- `supabase/functions/notify-agreement-confirmed/index.ts` -- email copy
-- New SQL migration -- server-side gate update
+### 1. New Component: `src/components/listing-detail/ListingSidebarActions.tsx`
 
+The "Interested?" action card with rows:
+
+```
+Explore data room          >    (enabled if fee_covered + approved connection)
+Ask a question             >    (enabled if fee_covered)
+Request a connection       >    (existing ConnectionButton logic)
+```
+
+Each row: icon on left, label, chevron on right. Disabled rows are greyed out with a tooltip explaining the requirement.
+
+If "Explore data room" was viewed before, show "Viewed [date]" subtitle (query `data_room_access` for the user's last access).
+
+If "Ask a question" is clicked, expand an inline message input below the row (or open a small chat panel). Messages are sent via `useSendMessage` with `sender_role: 'buyer'`.
+
+### 2. New Hook: `src/hooks/marketplace/use-deal-inquiry.ts`
+
+- `useDealInquiry(listingId)`: finds or creates a connection_request for the current user + listing with `source = 'inquiry'`, `status = 'pending'`.
+- Returns the `connection_request_id` so messages can be sent against it.
+- If a real connection request already exists for this listing, reuse that one (no duplicate).
+
+### 3. Update: `src/pages/ListingDetail.tsx`
+
+- Replace the current sidebar card (lines 330-374) with `ListingSidebarActions` component that includes:
+  - The new action rows (data room, ask question)
+  - The existing `ConnectionButton` (for requesting connections)
+  - The existing `EnhancedSaveButton`
+- Pass agreement coverage, connection status, and listing info as props.
+
+### 4. Update: `src/components/listing-detail/ConnectionButton.tsx`
+
+- No major changes. It stays as-is inside the sidebar actions component. The agreement gate / document signing UI remains in ConnectionButton.
+
+### 5. Buyer-side message history
+
+- When "Ask a question" is active, show the message thread inline using `useConnectionMessages(inquiryRequestId)`.
+- Buyer can see all past messages and send new ones.
+- Messages are marked read via `useMarkMessagesReadByBuyer`.
+
+### 6. Admin side
+
+- No changes needed. The auto-created inquiry connection request appears in the admin Message Center automatically. The `source: 'inquiry'` field lets admins distinguish inquiry-only threads from full connection requests.
+- The thread will show the listing title and buyer info as usual.
+
+## Sidebar Layout (from top to bottom)
+
+```text
+┌──────────────────────────────────┐
+│  Request Access to This Deal     │
+│  (existing description copy)     │
+│                                  │
+│  ┌────────────────────────────┐  │
+│  │ ◇ Explore data room     > │  │  (or greyed + tooltip)
+│  │   Viewed Nov 19, 2025      │  │  (if viewed before)
+│  ├────────────────────────────┤  │
+│  │ ? Ask a question        > │  │  (or greyed + tooltip)
+│  ├────────────────────────────┤  │
+│  │ [ConnectionButton]         │  │  (existing component)
+│  ├────────────────────────────┤  │
+│  │ [Save] [Share]             │  │
+│  └────────────────────────────┘  │
+└──────────────────────────────────┘
+```
+
+## Tooltip Text (when disabled)
+
+- **Data Room (no fee agreement)**: "Sign your Fee Agreement to unlock the data room."
+- **Data Room (fee signed but no approved connection)**: "Request a connection to access the data room."
+- **Ask a Question (no fee agreement)**: "Sign your Fee Agreement to ask questions about this deal."
+
+## Files Summary
+
+| File | Action |
+|---|---|
+| `src/components/listing-detail/ListingSidebarActions.tsx` | New -- action rows with gating/tooltips |
+| `src/hooks/marketplace/use-deal-inquiry.ts` | New -- find/create inquiry connection request |
+| `src/pages/ListingDetail.tsx` | Update sidebar to use new component |
+| `src/components/listing-detail/ConnectionButton.tsx` | Minor -- stays as-is, embedded in new layout |
+
+No new database tables. No new edge functions. No migrations needed (source is a free-text column).
