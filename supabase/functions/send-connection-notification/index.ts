@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAuth, escapeHtml, escapeHtmlWithBreaks } from '../_shared/auth.ts';
 import { sendEmail } from '../_shared/email-sender.ts';
+import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
 
 interface ConnectionNotificationRequest {
   type: 'user_confirmation' | 'admin_notification' | 'approval_notification';
