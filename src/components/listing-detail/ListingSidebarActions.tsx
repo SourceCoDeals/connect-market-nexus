@@ -120,11 +120,16 @@ export function ListingSidebarActions({
         sender_role: 'buyer',
       });
       setMessage('');
+
+      // Auto-save listing when buyer sends a question
+      if (!isSaved) {
+        saveListing.mutate({ listingId, action: 'save' });
+      }
     } catch (err) {
       console.error('Failed to send message:', err);
       toast({
         title: 'Failed to send',
-        description: 'Please try again.',
+        description: err instanceof Error ? err.message : 'Please try again.',
         variant: 'destructive',
       });
     }
