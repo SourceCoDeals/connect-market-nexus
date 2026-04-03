@@ -345,7 +345,7 @@ export default function DocumentTrackingPage() {
   );
   const { data: deliveryEvents = [] } = useDeliveryEvents(providerMessageIds);
 
-  // Build lookup: correlation_id -> latest delivery event
+  // Build lookup: normalized provider message id -> latest delivery event
   const deliveryMap = useMemo(() => {
     const map = new Map<string, DeliveryEvent>();
     for (const ev of deliveryEvents) {
