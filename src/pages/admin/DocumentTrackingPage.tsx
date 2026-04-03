@@ -1176,6 +1176,13 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
       toast({ title: 'Marked as signed', description: `${req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'} marked as signed.` });
       setSignDialogOpen(false);
+
+      // Fire-and-forget: notify firm members their agreement is confirmed
+      if (req.firm_id) {
+        supabase.functions.invoke('notify-agreement-confirmed', {
+          body: { firmId: req.firm_id, agreementType: req.agreement_type },
+        }).catch((err) => console.error('notify-agreement-confirmed failed:', err));
+      }
     } catch {
       toast({ title: 'Failed to update', variant: 'destructive' });
     } finally {
