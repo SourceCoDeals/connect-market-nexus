@@ -200,6 +200,7 @@ export default function MessageCenter() {
   const { data: threads = [], isLoading } = useInboxThreads();
   const { data: adminProfiles } = useAdminProfiles();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedBuyerUserId, setSelectedBuyerUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<InboxFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('all');
