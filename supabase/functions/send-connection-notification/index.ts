@@ -123,9 +123,9 @@ const handler = async (req: Request): Promise<Response> => {
       const subject = `Introduction approved: ${escapeHtml(listingTitle)}`;
       const htmlContent = wrapEmailHtml({
         bodyHtml: `
-    <p>Your introduction to <strong>${escapeHtml(listingTitle)}</strong> has been approved.</p>
+    <p>Your introduction to ${escapeHtml(listingTitle)} has been approved.</p>
     <p>We are making a direct introduction to the business owner. You will receive a message from our team with next steps, typically within one business day.</p>
-    <p style="font-weight: 600;">What to expect</p>
+    <p>What to expect</p>
     <ul style="padding-left: 20px; line-height: 1.8;">
       <li>Our team facilitates the initial introduction</li>
       <li>You receive access to deal details and supporting materials</li>
