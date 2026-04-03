@@ -162,21 +162,19 @@ serve(async (req: Request) => {
       isTransactional: true,
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Brevo API error:', errorData);
+    if (!result.success) {
+      console.error('Brevo send error:', result.error);
       await logEmailDelivery(supabase, {
         email: recipientEmail,
         emailType: 'deal_referral',
         status: 'failed',
         correlationId: crypto.randomUUID(),
-        errorMessage: `Failed to send email: ${response.statusText}`,
+        errorMessage: result.error || 'Send failed',
       });
-      throw new Error(`Failed to send email: ${response.statusText}`);
+      throw new Error(`Failed to send email: ${result.error}`);
     }
 
-    const emailResult = await response.json();
-    console.log('Email sent successfully via Brevo:', emailResult);
+    console.log('Email sent successfully:', result.messageId);
 
     await logEmailDelivery(supabase, {
       email: recipientEmail,
@@ -198,14 +196,13 @@ serve(async (req: Request) => {
 
     if (updateError) {
       console.error('Failed to update referral record:', updateError);
-      // Don't throw - email was already sent successfully
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Referral sent successfully',
-        messageId: emailResult.messageId,
+        messageId: result.messageId,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
