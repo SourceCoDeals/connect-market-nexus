@@ -1,70 +1,100 @@
 
-# Listing Sidebar: Action Rows + Deal Inquiry Messaging
 
-## What We're Building
+# Redesign Listing Sidebar — Premium, Crystal-Clear Layout
 
-Redesign the listing detail sidebar to include structured action rows (inspired by the reference screenshots), alongside the existing connection request flow:
+## Problem
 
-1. **Explore Data Room** -- navigates to the data room section on the page. Enabled only when fee agreement is signed AND connection is approved.
-2. **Ask a Question** -- opens an inline chat/message panel. Enabled when fee agreement is signed (no connection required).
-3. **Tooltips on disabled rows** explaining what the buyer needs to do.
-4. **"Viewed" timestamp** on data room row if they've accessed it before.
-5. **Full messaging system** for questions: messages routed to admin Message Center, history preserved on both sides.
+The current sidebar mixes action rows, document statuses, connection buttons, and informational copy in a way that's cluttered. The blue left-border color on document rows feels random. It's not immediately clear which documents are signed vs pending. Tooltips use disabled-state opacity rather than discoverable (i) info icons.
 
-## Architecture Decision: Reuse connection_messages
+## Design Principles
 
-Rather than creating a new table, we reuse the existing `connection_messages` + `connection_requests` infrastructure. When a buyer "asks a question" on a listing without a connection request, we auto-create a connection request with `source = 'inquiry'`. This means:
-- Admin Message Center picks it up automatically
-- Realtime subscriptions, email notifications, and read receipts all work out of the box
-- No new tables or edge functions needed
+- **No colored borders** (no blue, no emerald left-borders on document rows)
+- **Spacing over decoration** — whitespace separates sections, not borders or tints
+- **Neutral palette** — slate/gray tones only; status communicated via subtle text + icons
+- **Info icons** — small `(i)` circle icons on locked rows that users hover for tooltip guidance
+- **Logical sequence**: Documents status → Actions → Connection CTA → Save/Share
 
-## Sidebar Layout
+## New Sidebar Layout
 
 ```text
-┌──────────────────────────────────┐
-│  Request Access to This Deal     │
-│  (existing description copy)     │
-│                                  │
-│  ┌────────────────────────────┐  │
-│  │ ◇ Explore data room     > │  │  (greyed + tooltip if locked)
-│  │   Viewed Nov 19, 2025      │  │  (if viewed before)
-│  ├────────────────────────────┤  │
-│  │ ? Ask a question        > │  │  (greyed + tooltip if no fee)
-│  ├────────────────────────────┤  │
-│  │ [ConnectionButton]         │  │  (existing component)
-│  ├────────────────────────────┤  │
-│  │ [Save] [Share]             │  │
-│  └────────────────────────────┘  │
-└──────────────────────────────────┘
+┌──────────────────────────────────────┐
+│                                      │
+│  Request Access to This Deal         │
+│  Request a connection to unlock      │
+│  the data room...                    │
+│                                      │
+│  ── DOCUMENTS ──────────────────     │
+│                                      │
+│  Fee Agreement          ● Signed     │  (green dot + "Signed")
+│  NDA                    ○ Pending    │  (hollow dot + "Pending")
+│                                      │
+│  ── ACTIONS ────────────────────     │
+│                                      │
+│  ◇ Explore data room       (i)  >   │  (info icon shows tooltip)
+│     Viewed Nov 19, 2025              │
+│                                      │
+│  ? Ask a question          (i)  >   │
+│                                      │
+│  ┌──────────────────────────────┐    │
+│  │  Request Connection          │    │  (primary CTA)
+│  └──────────────────────────────┘    │
+│                                      │
+│  [Save]                    [Share]   │
+│                                      │
+└──────────────────────────────────────┘
 ```
 
-## Gating Rules
+## Changes
 
-- **Explore Data Room**: Fee agreement signed + connection approved. Tooltip if locked explains the missing step.
-- **Ask a Question**: Fee agreement signed only. No connection required. Opens inline chat.
-- **Request Connection**: Existing ConnectionButton logic (fee agreement gate).
+### 1. `ListingSidebarActions.tsx` — Complete redesign
 
-## Tooltip Text (when disabled)
+**Document status section (new):**
+- Receives `ndaCovered`, `ndaStatus`, `feeStatus` as additional props
+- Renders a "DOCUMENTS" label (uppercase tracking-wider, 10px, muted) 
+- Each document row: name on left, status indicator on right
+- Status indicators: `● Signed` (small green text, no background), `○ Sent` (small muted text), `—` (not started, show "Not requested")
+- No colored left-borders, no card wrappers — just clean rows with bottom border-dashed separators
+- Remove blue accents entirely
 
-- Data Room (no fee): "Sign your Fee Agreement to unlock the data room."
-- Data Room (fee signed, no approved connection): "Request a connection to access the data room."
-- Ask a Question (no fee): "Sign your Fee Agreement to ask questions about this deal."
+**Action rows (redesigned):**
+- "ACTIONS" section label
+- Each row: icon + label + flex spacer + info `Info` icon (small circle-i from lucide) + chevron
+- Disabled rows: 60% opacity, info icon is always visible and hoverable regardless of disabled state
+- Info icon triggers tooltip on hover explaining what's needed
+- No colored accents — icons use `text-muted-foreground`, labels use `text-foreground`
 
-## Technical Details
+**Tooltip via (i) icon:**
+- Replace the current "entire row is tooltip trigger when disabled" pattern
+- Instead, always show a small `Info` (lucide `Info` icon, 14px) next to the chevron on locked rows
+- The `Info` icon is the tooltip trigger — works even when row is disabled
+- Tooltip content stays the same (explains what to sign/request)
 
-### New Files
-- `src/components/listing-detail/ListingSidebarActions.tsx` -- action rows with gating, tooltips, inline question chat
-- `src/hooks/marketplace/use-deal-inquiry.ts` -- find or create inquiry connection_request for messaging
+### 2. `ConnectionButton.tsx` — Document rows cleanup
 
-### Modified Files
-- `src/pages/ListingDetail.tsx` -- replace sidebar card content with new component
+**Remove the `DocumentRow` component** inside the unsigned block (lines 203-239). Document status display now lives in `ListingSidebarActions`.
 
-### How "Ask a Question" Works
-1. Hook `useDealInquiry(listingId)` checks for an existing connection_request for this user+listing. If none exists, creates one with `source = 'inquiry'` on first message send.
-2. Messages sent via existing `useSendMessage` hook with `sender_role: 'buyer'`.
-3. Thread appears in admin Message Center automatically (existing infrastructure).
-4. Buyer sees message history inline in the sidebar panel.
-5. Email notifications fire automatically (existing `notify-admin-new-message` edge function).
+The unsigned block (lines 181-294) simplifies to:
+- If `bothNotRequested`: show the "Sign Your Fee Agreement" card with the request button
+- If documents are sent/pending: show a simple "Once processed, you'll be able to request introductions" note + "Request Another Agreement" button
+- No more blue left-borders, no "Sent" badges, no "Resend" buttons here — that all moves to `ListingSidebarActions`
 
-### No database changes needed
-`connection_requests.source` is a free-text column -- we use value `'inquiry'` to distinguish question-only threads from full connection requests.
+Wait — actually, `ConnectionButton` is used independently and must be self-contained. The document rows should stay in `ConnectionButton` but be restyled to match the new aesthetic. Let me reconsider.
+
+**Better approach**: Keep `ConnectionButton` self-contained but pass document status display responsibility to the parent. In the sidebar layout (`ListingDetail.tsx`), the `ListingSidebarActions` component renders the document status section ABOVE the `ConnectionButton`. The `ConnectionButton` still handles its own gating logic but the duplicate document display is removed from it — the `ConnectionButton` in unsigned state just shows the CTA card (sign agreement prompt) without the document status rows.
+
+### 3. `ListingDetail.tsx` — Pass additional props
+
+Pass `ndaCovered`, `ndaStatus`, `feeStatus` from `agreementCoverage` to `ListingSidebarActions` so it can render document status.
+
+### 4. Color cleanup
+
+- Remove all `border-blue-400`, `border-emerald-400` left-border treatments from document rows
+- Status text: "Signed" in `text-emerald-600` (small, subtle), "Sent" in `text-foreground/50`, "Not requested" in `text-muted-foreground`
+- Status dots: small 6px circles — filled green for signed, hollow for pending, empty for not started
+
+## Files Changed
+
+- `src/components/listing-detail/ListingSidebarActions.tsx` — redesign with document status section + info icon tooltips
+- `src/components/listing-detail/ConnectionButton.tsx` — remove duplicate document status display from unsigned block, keep only the sign/request CTA
+- `src/pages/ListingDetail.tsx` — pass additional agreement props to ListingSidebarActions
+
