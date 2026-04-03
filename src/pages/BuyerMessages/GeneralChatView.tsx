@@ -43,11 +43,19 @@ export function GeneralChatView({
   const [attachment, setAttachment] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Use external reference state if provided, else local
   const [localReference, setLocalReference] = useState<MessageReference | null>(null);
   const reference = externalOnReferenceChange ? (externalReference ?? null) : localReference;
   const setReference = externalOnReferenceChange || setLocalReference;
+
+  // Auto-focus input when reference changes (topic picked)
+  useEffect(() => {
+    if (reference) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [reference]);
 
   const { data: resolvedThread, isLoading: resolving } = useResolvedThreadId();
   const threadId = resolvedThread?.connection_request_id;
@@ -257,6 +265,7 @@ export function GeneralChatView({
 
       {/* Input */}
       <MessageInput
+        ref={inputRef}
         value={newMessage}
         onChange={(e) => setNewMessage(e.target.value)}
         onSend={handleSend}
