@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin, escapeHtml, escapeHtmlWithBreaks } from '../_shared/auth.ts';
 import { logEmailDelivery } from '../_shared/email-logger.ts';
+import { sendViaBervo } from '../_shared/brevo-sender.ts';
 
 interface UserNotificationRequest {
   email: string;
@@ -55,14 +56,12 @@ const handler = async (req: Request): Promise<Response> => {
     const textContent = message;
 
     if (isPlainText) {
-      // Simple HTML wrapper for plain text message
       htmlContent = `
         <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
           <pre style="font-family: Arial, sans-serif; white-space: pre-wrap; margin: 0;">${escapeHtml(message)}</pre>
         </div>
       `;
     } else {
-      // Original styled email format for other types
       const typeColors: Record<string, string> = {
         info: '#3b82f6',
         success: '#059669',
@@ -114,12 +113,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const senderEmail = fromEmail || Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com';
+
     const result = await sendViaBervo({
       to: email,
       toName: email.split('@')[0],
-      subject: subject,
-      htmlContent: htmlContent,
-      textContent: textContent,
+      subject,
+      htmlContent,
+      textContent,
       senderName: 'SourceCo Marketplace',
       senderEmail,
       replyToEmail: senderEmail,
@@ -131,6 +131,13 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (!result.success) {
+      await logEmailDelivery(supabase, {
+        email,
+        emailType: 'user_notification',
+        status: 'failed',
+        correlationId,
+        errorMessage: result.error,
+      });
       throw new Error(result.error || 'Failed to send email');
     }
 
