@@ -6,12 +6,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRealtime } from '@/components/realtime/RealtimeProvider';
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { AgreementSigningModal } from '@/components/pandadoc/AgreementSigningModal';
-import { XCircle, AlertCircle, Check, RotateCw } from 'lucide-react';
+import { XCircle, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { isProfileComplete, getProfileCompletionPercentage, getMissingFieldLabels } from '@/lib/profile-completeness';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { sendAgreementEmail, docTypeLabel } from '@/lib/agreement-email';
 
 interface ConnectionButtonProps {
   connectionExists: boolean;
@@ -36,8 +33,8 @@ const ConnectionButton = ({
 }: ConnectionButtonProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
-  const [resendingType, setResendingType] = useState<string | null>(null);
-  const queryClient = useQueryClient();
+  
+  
   useRealtime();
   useAgreementStatusSync();
   const { user } = useAuth();
@@ -188,70 +185,14 @@ const ConnectionButton = ({
     const anyPending = ndaSent || feeSent;
     const bothNotRequested = !ndaSent && !feeSent && !ndaSigned && !feeSigned;
 
-    const handleResend = async (type: 'nda' | 'fee_agreement') => {
-      setResendingType(type);
-      const result = await sendAgreementEmail({ documentType: type });
-      if (result.success) {
-        toast.success(`${docTypeLabel(type)} resent to your email`);
-        queryClient.invalidateQueries({ queryKey: ['my-agreement-status'] });
-      } else {
-        toast.error(result.error || 'Failed to resend. Please try again.');
-      }
-      setResendingType(null);
-    };
 
-    const DocumentRow = ({ label, status, type }: { label: string; status: string; type: 'nda' | 'fee_agreement' }) => {
-      const isSent = status === 'sent';
-      const isSigned = status === 'signed';
-      if (!isSent && !isSigned) return null;
-
-      return (
-        <div className="w-full border border-slate-200/60 rounded-lg overflow-hidden">
-          <div className={`border-l-2 ${isSigned ? 'border-emerald-400' : 'border-blue-400'} px-4 py-3`}>
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-foreground">{label}</p>
-              {isSigned ? (
-                <span className="flex items-center gap-1 text-xs text-emerald-600">
-                  <Check className="h-3 w-3" /> Signed
-                </span>
-              ) : (
-                <span className="text-xs text-blue-600">Sent</span>
-              )}
-            </div>
-            {isSent && (
-              <>
-                <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                  Sent to <span className="font-medium text-foreground">{user?.email}</span>. Review, sign, and reply to{' '}
-                  <span className="font-medium text-foreground">adam.haile@sourcecodeals.com</span>.
-                </p>
-                <button
-                  onClick={() => handleResend(type)}
-                  disabled={resendingType === type}
-                  className="mt-2 text-xs text-blue-600 hover:underline disabled:opacity-50 flex items-center gap-1"
-                >
-                  <RotateCw className={`h-3 w-3 ${resendingType === type ? 'animate-spin' : ''}`} />
-                  {resendingType === type ? 'Sending…' : 'Resend'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      );
-    };
+    // Document status display now handled by ListingSidebarActions
 
     return (
       <div className="space-y-3">
-        {(anyPending || ndaSigned || feeSigned) && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Documents</p>
-            <DocumentRow label="NDA" status={ndaSent ? 'sent' : ndaSigned ? 'signed' : ndaStatus} type="nda" />
-            <DocumentRow label="Fee Agreement" status={feeSent ? 'sent' : feeSigned ? 'signed' : feeStatus} type="fee_agreement" />
-          </div>
-        )}
-
-        {anyPending && !ndaSigned && !feeSigned && (
+        {anyPending && !feeSigned && (
           <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
-            Once processed, you'll be able to request introductions.
+            Once your Fee Agreement is processed, you'll be able to request introductions.
           </p>
         )}
 
