@@ -1335,8 +1335,10 @@ function DismissButton({ requestId, label }: { requestId: string; label: string 
       queryClient.invalidateQueries({ queryKey: ['admin-pending-doc-requests'] });
       queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
       toast({ title: 'Request dismissed', description: `Dismissed request from ${label}` });
-    } catch {
-      toast({ title: 'Failed to dismiss', variant: 'destructive' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : typeof err === 'object' && err !== null && 'message' in err ? String((err as Record<string, unknown>).message) : 'Unknown error';
+      console.error('[DismissButton] Failed to dismiss request:', err);
+      toast({ title: 'Failed to dismiss', description: msg, variant: 'destructive' });
     } finally {
       setDismissing(false);
     }
