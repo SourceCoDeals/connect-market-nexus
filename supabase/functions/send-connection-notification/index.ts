@@ -33,7 +33,7 @@ function buildUserConfirmationHtml(
       <p style="margin: 0 0 4px 0; font-size: 12px; color: #9B9B9B; font-weight: 600; text-transform: uppercase;">Your message</p>
       <p style="margin: 0; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(message)}"</p>
     </div>` : ''}
-    <p style="font-weight: 600;">What happens if you are selected</p>
+    <p>What happens if you are selected</p>
     <ul style="padding-left: 20px; line-height: 1.8;">
       <li>We make a direct introduction to the business owner</li>
       <li>You receive access to deal details and supporting materials</li>
