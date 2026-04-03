@@ -637,7 +637,9 @@ export function EmailCatalog() {
                           </span>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{email.trigger}</TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">{email.edgeFunction}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          <CopyableText text={email.edgeFunction} label="Function name" />
+                        </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
