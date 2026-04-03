@@ -344,7 +344,7 @@ const handler = async (req: Request): Promise<Response> => {
         success: true,
         message: 'Owner intro notification sent successfully',
         primary_owner_name: ownerName,
-        message_id: emailResult.messageId,
+        message_id: result.messageId,
         recipient: primaryOwnerData.email,
       }),
       {

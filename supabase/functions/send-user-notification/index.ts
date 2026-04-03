@@ -113,52 +113,25 @@ const handler = async (req: Request): Promise<Response> => {
       `;
     }
 
-    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
-    if (!brevoApiKey) {
-      throw new Error('BREVO_API_KEY not configured');
-    }
-
-    const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': brevoApiKey,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        sender: {
-          name: 'SourceCo Marketplace',
-          email: fromEmail || Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com',
-        },
-        to: [
-          {
-            email: email,
-            name: email.split('@')[0], // Use email prefix as name fallback
-          },
-        ],
-        subject: subject,
-        htmlContent: htmlContent,
-        textContent: textContent,
-        replyTo: {
-          email: fromEmail || Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com',
-          name: fromEmail?.includes('bill.martin')
-            ? 'Bill Martin - SourceCo'
-            : fromEmail?.includes('tomos.mughan')
-              ? 'Tomos Mughan - SourceCo'
-              : 'Adam Haile - SourceCo',
-        },
-        // Disable click tracking to prevent broken links
-        params: {
-          trackClicks: false,
-          trackOpens: true,
-        },
-      }),
+    const senderEmail = fromEmail || Deno.env.get('ADMIN_EMAIL') || 'adam.haile@sourcecodeals.com';
+    const result = await sendViaBervo({
+      to: email,
+      toName: email.split('@')[0],
+      subject: subject,
+      htmlContent: htmlContent,
+      textContent: textContent,
+      senderName: 'SourceCo Marketplace',
+      senderEmail,
+      replyToEmail: senderEmail,
+      replyToName: fromEmail?.includes('bill.martin')
+        ? 'Bill Martin - SourceCo'
+        : fromEmail?.includes('tomos.mughan')
+          ? 'Tomos Mughan - SourceCo'
+          : 'Adam Haile - SourceCo',
     });
 
-    if (!emailResponse.ok) {
-      const errorText = await emailResponse.text();
-      console.error('Error sending email via Brevo:', errorText);
-      throw new Error(`Brevo API error: ${errorText}`);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to send email');
     }
 
     console.log('User notification sent successfully');
