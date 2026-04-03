@@ -1,56 +1,29 @@
 
 
-# Fix Email Links — Messages Screen + Full Audit
+# Fix Agreement Confirmation Email — NDA vs Fee Agreement Copy
 
-## Issues Found
+## Problem
 
-### 1. `notify-buyer-new-message` (line 69) — WRONG
-- **Current**: `https://marketplace.sourcecodeals.com/my-deals`
-- **Should be**: `https://marketplace.sourcecodeals.com/messages`
-- This is the email buyers get when an admin replies. The "View Message" button must take them to their messages screen, not My Deals.
+The `notify-agreement-confirmed` email sends the same copy for both NDA and Fee Agreement confirmations: "You now have full access to browse deals, request introductions, and access the data room on approved deals." This is misleading when only the NDA is signed — the Fee Agreement is what actually unlocks deal access and data room.
 
-### 2. `send-connection-notification` approval (line 123) — CORRECT
-- Links to `/my-deals` for connection approval notifications — correct, the deal appears there.
+## Solution
 
-### 3. `notify-agreement-confirmed` (line 60) — WRONG DOMAIN
-- **Current**: `https://app.sourcecodeals.com/marketplace`
-- **Should be**: `https://marketplace.sourcecodeals.com/marketplace`
-- The `app.sourcecodeals.com` domain is stale/wrong. All buyer-facing links should use `marketplace.sourcecodeals.com`.
+Differentiate the email body and CTA based on `agreementType`:
 
-### 4. `email-template-wrapper.ts` unsubscribe (line 44) — WRONG DOMAIN
-- **Current**: `https://app.sourcecodeals.com/unsubscribe?email=...`
-- **Should be**: `https://marketplace.sourcecodeals.com/unsubscribe?email=...`
+### When `agreementType === 'fee_agreement'` (unlocks access)
+- Copy: "Your Fee Agreement for [firm] has been recorded and confirmed. You now have full access to browse deals, request introductions, and access the data room on approved deals."
+- CTA button: "Browse Deals" → links to `/marketplace`
+- Preheader: "Your Fee Agreement is confirmed. You can now request deal introductions."
 
-### 5. `email-sender.ts` unsubscribe header (line 162) — WRONG DOMAIN
-- **Current**: `https://app.sourcecodeals.com` fallback
-- **Should be**: `https://marketplace.sourcecodeals.com`
+### When `agreementType === 'nda'` (does NOT unlock access)
+- Copy: "Your NDA for [firm] has been recorded and confirmed. To unlock full access to deals and the data room, your Fee Agreement also needs to be signed. If you have not yet received your Fee Agreement, reply to this email and we will send it over."
+- CTA button: "View Your Documents" → links to `/profile?tab=documents`
+- Preheader: "Your NDA is confirmed. Sign your Fee Agreement to unlock deal access."
 
-### 6. `send-marketplace-invitation` (line 44) — WRONG DOMAIN
-- **Current**: `https://app.sourcecodeals.com/welcome`
-- **Should be**: `https://marketplace.sourcecodeals.com/welcome`
+### Also check if Fee Agreement is already signed
+Query `firm_agreements` for `fee_agreement_signed` status. If the firm already has a signed Fee Agreement when the NDA confirmation fires, use the full-access copy instead (since they already have both).
 
-### 7. Other links verified as CORRECT
-- `send-verification-success-email` → `/login` ✓
-- `send-data-recovery-email` → `/profile` ✓
-- `send-connection-notification` login/listing/admin URLs → all correct ✓
-- `send-task-notification-email` → admin pipeline URL ✓
-- `send-feedback-notification` → `/admin` ✓
-- `send-onboarding-day2` → uses `SITE_URL` env var with correct fallback ✓
-- `send-deal-alert` → uses `SITE_URL` env var ✓
-
-## Changes
-
-### Files to update:
-
-1. **`supabase/functions/notify-buyer-new-message/index.ts`** — Change line 69 loginUrl from `/my-deals` to `/messages`
-
-2. **`supabase/functions/notify-agreement-confirmed/index.ts`** — Change line 60 appUrl from `https://app.sourcecodeals.com` to `https://marketplace.sourcecodeals.com`
-
-3. **`supabase/functions/_shared/email-template-wrapper.ts`** — Change line 44 unsubscribe URL domain from `app.sourcecodeals.com` to `marketplace.sourcecodeals.com`
-
-4. **`supabase/functions/_shared/email-sender.ts`** — Change line 162 fallback from `app.sourcecodeals.com` to `marketplace.sourcecodeals.com`
-
-5. **`supabase/functions/send-marketplace-invitation/index.ts`** — Change line 44 fallback from `app.sourcecodeals.com` to `marketplace.sourcecodeals.com`
-
-### Deploy all updated edge functions after changes.
+## File changed
+- `supabase/functions/notify-agreement-confirmed/index.ts` — add conditional copy based on agreement type and firm's fee agreement status
+- Deploy `notify-agreement-confirmed`
 
