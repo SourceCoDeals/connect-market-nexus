@@ -19,6 +19,7 @@ import {
   ChevronRight,
   History,
   UserMinus,
+  X,
 } from 'lucide-react';
 import { formatDistanceToNow, format, differenceInDays } from 'date-fns';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
@@ -51,6 +52,17 @@ import {
 
 // ─── Types ───────────────────────────────────────────────────────────
 
+interface DocumentRequestRecord {
+  id: string;
+  agreement_type: string;
+  status: string;
+  created_at: string;
+  recipient_email: string | null;
+  recipient_name: string | null;
+  email_provider_message_id: string | null;
+  last_email_error: string | null;
+}
+
 interface FirmRow {
   id: string;
   primary_company_name: string;
@@ -75,6 +87,7 @@ interface FirmRow {
   contactEmail: string | null;
   firmAgreement: FirmAgreement;
   members: FirmMember[];
+  documentRequests: DocumentRequestRecord[];
 }
 
 interface OrphanUser {
@@ -120,12 +133,31 @@ function useAllFirmsTracking() {
       if (error) throw error;
       if (!firms || firms.length === 0) return [];
 
-      // Fetch latest "signed" audit entries to get admin attribution
-      const { data: auditEntries } = await supabase
-        .from('agreement_audit_log')
-        .select('firm_id, agreement_type, changed_by_name, created_at')
-        .eq('new_status', 'signed')
-        .order('created_at', { ascending: false });
+      // Fetch audit entries + document requests in parallel
+      const [auditRes, docReqRes] = await Promise.all([
+        supabase
+          .from('agreement_audit_log')
+          .select('firm_id, agreement_type, changed_by_name, created_at')
+          .eq('new_status', 'signed')
+          .order('created_at', { ascending: false }),
+        untypedFrom('document_requests')
+          .select('id, firm_id, agreement_type, status, created_at, recipient_email, recipient_name, email_provider_message_id, last_email_error')
+          .order('created_at', { ascending: false })
+          .limit(500),
+      ]);
+
+      const auditEntries = auditRes.data;
+      const allDocRequests = (docReqRes.data || []) as Array<DocumentRequestRecord & { firm_id: string | null }>;
+
+      // Build doc requests per firm
+      const docRequestsByFirm = new Map<string, DocumentRequestRecord[]>();
+      for (const dr of allDocRequests) {
+        if (dr.firm_id) {
+          const existing = docRequestsByFirm.get(dr.firm_id) || [];
+          existing.push(dr);
+          docRequestsByFirm.set(dr.firm_id, existing);
+        }
+      }
 
       // Build lookup: firmId -> { nda: adminName, fee_agreement: adminName }
       const adminMap = new Map<string, { nda?: string; fee_agreement?: string }>();
@@ -201,6 +233,7 @@ function useAllFirmsTracking() {
           contactEmail,
           firmAgreement: firm as unknown as FirmAgreement,
           members,
+          documentRequests: docRequestsByFirm.get(firm.id as string) || [],
         } as FirmRow;
       });
     },
@@ -1006,6 +1039,48 @@ function FirmExpandableRow({
                 )}
               </div>
 
+              {/* Document Requests History */}
+              {firm.documentRequests.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <FileSignature className="h-3.5 w-3.5" /> Document Requests ({firm.documentRequests.length})
+                  </h4>
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {firm.documentRequests.map((dr) => (
+                      <div key={dr.id} className="flex items-center justify-between text-[11px] bg-background rounded px-3 py-1.5 border border-border">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground/60 whitespace-nowrap">
+                            {format(new Date(dr.created_at), 'MMM d, yyyy')}
+                          </span>
+                          <span className="font-medium text-foreground">
+                            {dr.agreement_type === 'nda' ? 'NDA' : 'Fee Agmt'}
+                          </span>
+                          {dr.recipient_name && (
+                            <span className="text-muted-foreground">{dr.recipient_name}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                            dr.status === 'signed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            dr.status === 'dismissed' ? 'bg-muted text-muted-foreground border-border' :
+                            dr.status === 'email_sent' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            'bg-muted text-muted-foreground border-border'
+                          }`}>
+                            {dr.status === 'signed' ? 'Signed' :
+                             dr.status === 'dismissed' ? 'Dismissed' :
+                             dr.status === 'email_sent' ? 'Email Sent' :
+                             'Requested'}
+                          </span>
+                          {dr.last_email_error && (
+                            <span className="text-[10px] text-destructive" title={dr.last_email_error}>Error</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Audit Log section */}
               <div>
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
@@ -1172,6 +1247,7 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
           >
             Mark Signed
           </Button>
+          <DismissButton requestId={req.id} label={req.recipient_name || req.recipient_email || 'request'} />
         </div>
       </div>
 
@@ -1236,6 +1312,48 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ─── Dismiss Button ──────────────────────────────────────────────────
+
+function DismissButton({ requestId, label }: { requestId: string; label: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [dismissing, setDismissing] = useState(false);
+
+  const handleDismiss = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissing(true);
+    try {
+      const { error } = await untypedFrom('document_requests')
+        .update({ status: 'dismissed', updated_at: new Date().toISOString() })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['admin-pending-request-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-pending-doc-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
+      toast({ title: 'Request dismissed', description: `Dismissed request from ${label}` });
+    } catch {
+      toast({ title: 'Failed to dismiss', variant: 'destructive' });
+    } finally {
+      setDismissing(false);
+    }
+  };
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+      onClick={handleDismiss}
+      disabled={dismissing}
+      title="Dismiss this request"
+    >
+      {dismissing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+    </Button>
   );
 }
 
