@@ -10,6 +10,7 @@ import {
   Archive,
   LayoutList,
   FolderOpen,
+  Users,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,10 +18,11 @@ import { cn } from '@/lib/utils';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { resolveAgreementStatus } from '@/lib/agreement-status';
 
-import type { InboxThread, InboxFilter, ViewMode, DealGroup } from './message-center/types';
+import type { InboxThread, InboxFilter, ViewMode, DealGroup, BuyerGroup } from './message-center/types';
 import { ThreadListItem } from './message-center/ThreadListItem';
 import { ThreadView } from './message-center/ThreadView';
 import { DealGroupSection } from './message-center/DealGroupSection';
+import { BuyerGroupSection } from './message-center/BuyerGroupSection';
 import { MessageCenterSkeleton, MessageCenterEmpty } from './message-center/MessageCenterShells';
 
 // ─── Inbox Threads Hook ───
@@ -200,9 +202,10 @@ export default function MessageCenter() {
   const { data: threads = [], isLoading } = useInboxThreads();
   const { data: adminProfiles } = useAdminProfiles();
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [selectedBuyerUserId, setSelectedBuyerUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<InboxFilter>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('by_buyer');
 
   // Realtime subscription for new messages
   useEffect(() => {
@@ -229,6 +232,12 @@ export default function MessageCenter() {
   }, [queryClient]);
 
   const selectedThread = threads.find((t) => t.connection_request_id === selectedThreadId);
+  
+  // Get all threads for the selected buyer (for thread selector in ThreadView)
+  const selectedBuyerThreads = useMemo(() => {
+    if (!selectedThread?.user_id) return [];
+    return threads.filter(t => t.user_id === selectedThread.user_id);
+  }, [threads, selectedThread]);
 
   // Filter threads
   const filteredThreads = useMemo(() => {
@@ -294,6 +303,41 @@ export default function MessageCenter() {
     });
   }, [filteredThreads]);
 
+  // Group by buyer
+  const buyerGroups = useMemo((): BuyerGroup[] => {
+    const groupMap = new Map<string, BuyerGroup>();
+    filteredThreads.forEach((t) => {
+      const key = t.user_id || `anon-${t.connection_request_id}`;
+      if (!groupMap.has(key)) {
+        groupMap.set(key, {
+          user_id: t.user_id || key,
+          buyer_name: t.buyer_name,
+          buyer_company: t.buyer_company,
+          buyer_email: t.buyer_email,
+          buyer_type: t.buyer_type,
+          threads: [],
+          total_unread: 0,
+          last_activity: t.last_message_at || t.created_at,
+          last_message_preview: t.last_message_preview,
+          last_message_sender_role: t.last_message_sender_role,
+        });
+      }
+      const group = groupMap.get(key)!;
+      group.threads.push(t);
+      group.total_unread += t.unread_count;
+      const tTime = t.last_message_at || t.created_at;
+      if (new Date(tTime) > new Date(group.last_activity)) {
+        group.last_activity = tTime;
+        group.last_message_preview = t.last_message_preview;
+        group.last_message_sender_role = t.last_message_sender_role;
+      }
+    });
+    return Array.from(groupMap.values()).sort((a, b) => {
+      if (a.total_unread > 0 && b.total_unread === 0) return -1;
+      if (a.total_unread === 0 && b.total_unread > 0) return 1;
+      return new Date(b.last_activity).getTime() - new Date(a.last_activity).getTime();
+    });
+  }, [filteredThreads]);
   // Counts
   const counts = useMemo(
     () => ({
@@ -367,6 +411,21 @@ export default function MessageCenter() {
             >
               <FolderOpen className="w-3.5 h-3.5" />
               By Deal
+            </button>
+            <button
+              onClick={() => setViewMode('by_buyer')}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                viewMode === 'by_buyer' ? 'shadow-sm' : 'hover:opacity-80',
+              )}
+              style={
+                viewMode === 'by_buyer'
+                  ? { backgroundColor: '#FAFAF8', color: '#0E101A' }
+                  : { color: '#9A9A9A' }
+              }
+            >
+              <Users className="w-3.5 h-3.5" />
+              By Buyer
             </button>
           </div>
         </div>
@@ -457,7 +516,10 @@ export default function MessageCenter() {
                       key={thread.connection_request_id}
                       thread={thread}
                       isSelected={selectedThreadId === thread.connection_request_id}
-                      onClick={() => setSelectedThreadId(thread.connection_request_id)}
+                      onClick={() => {
+                        setSelectedThreadId(thread.connection_request_id);
+                        setSelectedBuyerUserId(null);
+                      }}
                       adminProfiles={adminProfiles}
                     />
                   ))}
@@ -472,14 +534,17 @@ export default function MessageCenter() {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : viewMode === 'by_deal' ? (
                 <div>
                   {dealGroups.map((group) => (
                     <DealGroupSection
                       key={group.listing_id}
                       group={group}
                       selectedThreadId={selectedThreadId}
-                      onSelectThread={setSelectedThreadId}
+                      onSelectThread={(id) => {
+                        setSelectedThreadId(id);
+                        setSelectedBuyerUserId(null);
+                      }}
                       adminProfiles={adminProfiles}
                     />
                   ))}
@@ -487,6 +552,31 @@ export default function MessageCenter() {
                     <div className="p-8 text-center">
                       <Filter className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                       <p className="text-xs text-muted-foreground">No deals with conversations</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  {buyerGroups.map((group) => (
+                    <BuyerGroupSection
+                      key={group.user_id}
+                      group={group}
+                      isSelected={selectedBuyerUserId === group.user_id}
+                      selectedThreadId={selectedThreadId}
+                      onClick={() => {
+                        setSelectedBuyerUserId(group.user_id);
+                        // Auto-select most recent thread
+                        if (group.threads.length > 0) {
+                          setSelectedThreadId(group.threads[0].connection_request_id);
+                        }
+                      }}
+                      onSelectThread={(id) => setSelectedThreadId(id)}
+                    />
+                  ))}
+                  {buyerGroups.length === 0 && (
+                    <div className="p-8 text-center">
+                      <Filter className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">No buyers with conversations</p>
                     </div>
                   )}
                 </div>
@@ -504,7 +594,12 @@ export default function MessageCenter() {
             {selectedThreadId && selectedThread ? (
               <ThreadView
                 thread={selectedThread}
-                onBack={() => setSelectedThreadId(null)}
+                allBuyerThreads={selectedBuyerThreads}
+                onSelectThread={(id: string) => setSelectedThreadId(id)}
+                onBack={() => {
+                  setSelectedThreadId(null);
+                  setSelectedBuyerUserId(null);
+                }}
                 adminProfiles={adminProfiles}
               />
             ) : (
