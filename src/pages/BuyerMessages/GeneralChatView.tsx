@@ -257,6 +257,7 @@ export function GeneralChatView({
 
       {/* Input */}
       <MessageInput
+        ref={inputRef}
         value={newMessage}
         onChange={(e) => setNewMessage(e.target.value)}
         onSend={handleSend}
