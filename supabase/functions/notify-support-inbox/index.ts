@@ -104,18 +104,13 @@ Deno.serve(async (req) => {
       showFooter: false,
     });
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    await sendEmail(supabaseAdmin, {
+    await sendEmail({
+      templateName: 'support-inbox-notification',
       to: SUPPORT_EMAIL,
       subject,
-      html: fullHtml,
+      htmlContent: fullHtml,
       replyTo: SUPPORT_REPLY_TO,
       senderName: SUPPORT_SENDER_NAME,
-      tags: ['support-inbox', type],
     });
 
     return new Response(
