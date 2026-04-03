@@ -405,6 +405,21 @@ export default function MessageCenter() {
               <FolderOpen className="w-3.5 h-3.5" />
               By Deal
             </button>
+            <button
+              onClick={() => setViewMode('by_buyer')}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                viewMode === 'by_buyer' ? 'shadow-sm' : 'hover:opacity-80',
+              )}
+              style={
+                viewMode === 'by_buyer'
+                  ? { backgroundColor: '#FAFAF8', color: '#0E101A' }
+                  : { color: '#9A9A9A' }
+              }
+            >
+              <Users className="w-3.5 h-3.5" />
+              By Buyer
+            </button>
           </div>
         </div>
 
