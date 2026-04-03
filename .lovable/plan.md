@@ -1,94 +1,79 @@
 
 
-# Comprehensive Admin Email Routing -- Full Audit & Rebuild
+# Stop Admin Emails + Change Sender to support@sourcecodeals.com
 
-## What We're Building
+## Two Requirements
 
-Rebuild the Admin Routing tab to show a detailed, per-admin breakdown of every email they send or receive, plus a complete map of all 25+ email types across the platform with exact recipient routing.
+1. **No individual admin gets any notification email from the platform.** All platform notifications (messages, connection requests, feedback, new users, document signings) go ONLY to `support@sourcecodeals.com`.
 
-## Complete Email Audit Results
+2. **Sender identity must be `support@sourcecodeals.com`**, not `adam.haile@sourcecodeals.com`. Every platform email (including buyer-facing) should come from `support@sourcecodeals.com` with sender name "SourceCo".
 
-### Sender Identity
-- **All emails** send FROM `adam.haile@sourcecodeals.com` (locked in `email-sender.ts` line 15)
-- **Sender name** varies: "Adam Haile - SourceCo" (default), "SourceCo" (most operational), "Adam Haile" (verification), "SourceCo Marketplace" (invitations/referrals)
+## Important Caveat: Brevo Verified Sender
 
-### Who Receives What
+The platform uses Brevo (Sendinblue) to send emails. Brevo requires the FROM address to be a verified sender. Currently `adam.haile@sourcecodeals.com` is the verified sender. Before we can change the FROM to `support@sourcecodeals.com`, that address must be verified in Brevo. If it's not verified, Brevo will reject all sends.
 
-**support@sourcecodeals.com (shared inbox)**:
-- New buyer message (notify-support-inbox)
-- Admin reply copy (notify-support-inbox)
-- Document request (notify-support-inbox)
+**Recommendation**: We change the locked sender to `support@sourcecodeals.com` in the code. You'll need to verify `support@sourcecodeals.com` as a sender in your Brevo account. If it's already verified, this will work immediately. If not, we should verify it first. We'll proceed with the code changes assuming it can be verified.
 
-**ADMIN_NOTIFICATION_EMAIL env var (single address, fallback: admin@sourcecodeals.com)**:
-- New user registration (enhanced-admin-notification)
-- Listing saved (enhanced-admin-notification)
+## Edge Functions That Email Individual Admins (must change to support@ only)
 
-**ADMIN_NOTIFICATION_EMAILS env var (comma-separated, fallback: adam.haile@sourcecodeals.com)**:
-- Admin digest (admin-digest)
+### 1. `send-connection-notification` (lines 158-193)
+- Currently: loops through ALL admins via `user_roles` query, sends to each
+- Fix: Replace the admin loop with a single send to `support@sourcecodeals.com`
 
-**All admins via profiles query (is_admin=true) -- loops through each**:
-- Feedback submitted (send-feedback-notification) -- queries profiles.is_admin
-- Connection request admin notification (send-connection-notification) -- queries user_roles.admin
+### 2. `send-feedback-notification` (lines 28-76)
+- Currently: queries `profiles.is_admin`, loops through all admins
+- Fix: Send only to `support@sourcecodeals.com`
 
-**OWNER_INQUIRY_RECIPIENT_EMAIL env var (fallback: adam.haile@sourcecodeals.com)**:
-- Owner inquiry from landing page (send-owner-inquiry-notification)
+### 3. `user-journey-notifications` (lines 157-197)
+- Currently: on `user_created`, loops through all admin profiles
+- Fix: Send only to `support@sourcecodeals.com`
 
-**Specific admin (assigned task recipient)**:
-- Task assigned (send-task-notification-email) -- goes to assignee_email
-- Deal owner change (notify-deal-owner-change) -- goes to previous deal owner
+### 4. `enhanced-admin-notification` (line 52)
+- Currently: sends to `ADMIN_NOTIFICATION_EMAIL` env var (fallback: `admin@sourcecodeals.com`)
+- Fix: Hardcode to `support@sourcecodeals.com`, ignore env var
 
-**Buyer-facing (to individual buyer)**:
-- Welcome email (user-journey-notifications: user_created)
-- Email verified confirmation (user-journey-notifications: email_verified)
-- Profile approved (user-journey-notifications: profile_approved)
-- Profile rejected (user-journey-notifications: profile_rejected)
-- Verification success (send-verification-success-email)
-- Simple verification (send-simple-verification-email)
-- Password reset (password-reset)
-- Onboarding day 2 (send-onboarding-day2)
-- Onboarding day 7 (send-onboarding-day7)
-- Connection user confirmation (send-connection-notification: user_confirmation)
-- Connection approved (send-connection-notification: approval_notification)
-- Agreement NDA/Fee sent (request-agreement-email)
-- Agreement confirmed (notify-agreement-confirmed)
-- Admin reply notification (notify-buyer-new-message)
-- Deal alert (send-deal-alert)
-- Deal memo (send-memo-email)
-- Marketplace invitation (send-marketplace-invitation)
-- Deal referral (send-deal-referral)
-- Data room access granted (grant-data-room-access)
-- Marketplace buyer approved (approve-marketplace-buyer)
-- Feedback response (send-feedback-email)
-- User notification (send-user-notification)
-- First request followup (send-first-request-followup)
-- Contact response (send-contact-response)
-- Data recovery (send-data-recovery-email)
-- Templated approval (send-templated-approval-email)
+### 5. `admin-digest` (line 204)
+- Currently: sends to `ADMIN_NOTIFICATION_EMAILS` env var (fallback: `adam.haile@sourcecodeals.com`)
+- Fix: Send only to `support@sourcecodeals.com`
 
-**Owner-facing**:
-- Owner intro notification (send-owner-intro-notification) -- to listing primary owner
+### 6. `notify-remarketing-match`
+- Currently: queries `profiles.is_admin` for admin recipients
+- Fix: Send only to `support@sourcecodeals.com`
 
-**Deprecated (no longer called)**:
-- notify-admin-new-message (previously emailed all admins on new messages)
+## Sender Identity Change
 
-## Plan
+### `_shared/email-sender.ts` (lines 15-17)
+- Change `VERIFIED_SENDER_EMAIL` from `adam.haile@sourcecodeals.com` to `support@sourcecodeals.com`
+- Change `VERIFIED_SENDER_NAME` from `Adam Haile - SourceCo` to `SourceCo`
+- Change `DEFAULT_REPLY_TO` from `adam.haile@sourcecodeals.com` to `support@sourcecodeals.com`
 
-### `src/components/admin/emails/AdminEmailRouting.tsx` -- complete rewrite
+### Hardcoded `adam.haile` references in other functions
+- `send-feedback-notification` line 70: replyTo change to `support@`
+- `send-feedback-email` line 61: replyTo change to `support@`
+- `send-simple-verification-email` lines 71-87: change signature and replyTo
+- `send-user-notification` line 58: change contact email reference
+- `send-owner-inquiry-notification` line 63: change fallback to `support@`
+- `user-journey-notifications` line 60: change contact email in rejection copy
 
-Replace current simple routing tables with a comprehensive 4-section layout:
+## Update Admin Email Routing Component
 
-**Section 1: All Platform Emails** -- Master table of every email type, grouped by category (Admin Notifications, Buyer Lifecycle, Deal Flow, Agreements, Messaging, System). Columns: Email Type, Edge Function, Recipient, Sender Name, Reply-To. This is the single source of truth.
+### `src/components/admin/emails/AdminEmailRouting.tsx`
+- Update all routing entries to reflect that every admin notification goes to `support@sourcecodeals.com`
+- Remove "All admins" recipient entries
+- Update sender identity references
 
-**Section 2: Admin-Specific Routing** -- Per-admin card for each admin in ADMIN_PROFILES showing:
-- Their email address and title
-- Which emails they personally receive (based on env var config and query logic)
-- Which emails they send (memo emails use the calling admin's profile)
-- Badge for "Shared Inbox Access" if they monitor support@
-
-**Section 3: Shared Inbox** -- Keep existing, unchanged
-
-**Section 4: Environment Variables** -- Show which env vars control routing: `ADMIN_NOTIFICATION_EMAIL`, `ADMIN_NOTIFICATION_EMAILS`, `OWNER_INQUIRY_RECIPIENT_EMAIL`, `ADMIN_EMAIL` -- with current fallback values
-
-### Files changed
-- `src/components/admin/emails/AdminEmailRouting.tsx` -- full rewrite with comprehensive routing data
+## Files Changed
+- `supabase/functions/_shared/email-sender.ts` -- change sender identity
+- `supabase/functions/send-connection-notification/index.ts` -- send to support@ only
+- `supabase/functions/send-feedback-notification/index.ts` -- send to support@ only
+- `supabase/functions/user-journey-notifications/index.ts` -- send to support@ only
+- `supabase/functions/enhanced-admin-notification/index.ts` -- send to support@ only
+- `supabase/functions/admin-digest/index.ts` -- send to support@ only
+- `supabase/functions/notify-remarketing-match/index.ts` -- send to support@ only
+- `supabase/functions/send-feedback-email/index.ts` -- update replyTo
+- `supabase/functions/send-simple-verification-email/index.ts` -- update signature/replyTo
+- `supabase/functions/send-user-notification/index.ts` -- update contact email
+- `supabase/functions/send-owner-inquiry-notification/index.ts` -- update fallback
+- `src/components/admin/emails/AdminEmailRouting.tsx` -- update routing display
+- Deploy all updated edge functions
 
