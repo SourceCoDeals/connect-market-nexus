@@ -1,85 +1,94 @@
 
 
-# Add Email Catalog Section to Email Dashboard
+# Fix Email Catalog — Accuracy & Completeness Audit
 
-## What We're Building
+## Problems Found
 
-A new "Email Catalog" section on the `/admin/emails` dashboard that shows every email the platform sends, organized by category, with the subject line, recipient type, trigger description, and the edge function that sends it.
+### 1. Missing emails (8 emails not in the catalog)
 
-This is a static reference catalog — not driven by live data, but a hardcoded registry of all 34+ email types so you can see the complete picture in one place.
+The catalog has 32 entries but the actual codebase has 40+ distinct email sends across 32 edge functions. These are missing:
 
-## Implementation
+**From `send-connection-notification` (3 email types in one function):**
+- Connection Request Confirmation — `Introduction request received — [Deal]` → User
+- Connection Approval — `You're in — introduction to [Deal] approved.` → Buyer  
+- Connection Admin Notification — `New Connection Request: [Deal] — [Buyer]` → Admin
 
-### Single file change: `src/pages/admin/EmailDashboardPage.tsx`
+The catalog lists "Connection Request Confirmation" and "Connection Approval" but points to non-existent functions (`send-connection-confirmation`, `send-connection-approval`). The real function is `send-connection-notification` for all three. And the admin notification is entirely missing.
 
-Add a new tabbed section below the existing delivery log. Two tabs: **Delivery Log** (current content) and **Email Catalog** (new).
+**From `user-journey-notifications` (4 email types in one function):**
+- User Created — `Your application to SourceCo is in.` → User
+- Email Verified — `Email confirmed — you're in the queue.` → User  
+- Profile Approved — `Account Approved — Welcome to SourceCo` → User
+- Profile Rejected — `SourceCo Account Update` → User
+- Admin notification on signup — `New User Registration: [Name] ([Email])` → Admin
 
-The catalog will be a grouped, searchable table with these columns:
-- **Email Name** — human-readable name
-- **Subject Line** — exact subject copy
-- **Recipient** — who gets it (Buyer, Owner, Admin, etc.)
-- **Trigger** — what causes it to send
-- **Edge Function** — the function name (for internal reference)
+The catalog has "Journey: Admin New User" but doesn't have the 4 user-facing journey emails.
 
-### Categories (groups)
+**From `send-templated-approval-email` (2 variants):**
+- Approved (NDA signed) — `You're in — full access is live.` → Buyer
+- Approved (NDA unsigned) — `You're approved — one step to full access.` → Buyer
 
-1. **Onboarding & Auth** (6 emails)
-   - Signup confirmation (Supabase Auth built-in)
-   - Email verification resolved — "Email Verified Successfully — What's Next"
-   - Technical verification fix — "Email Verification - Technical Issue Resolved"
-   - Password reset — "Reset Your Password — SourceCo"
-   - Onboarding Day 2 — "Still exploring? Here's what to do next"
-   - Onboarding Day 7 — day 7 re-engagement
+Not in catalog at all.
 
-2. **Buyer Lifecycle** (7 emails)
-   - Marketplace approval — "Welcome to SourceCo Marketplace"
-   - Marketplace invitation — "[Name], you're invited to SourceCo Marketplace"
-   - Buyer rejection — "Update on Your Interest in [Deal]"
-   - Connection request confirmation — user gets confirmation
-   - Connection approval notification — buyer notified of approval
-   - Deal alert — "New Match: [Deal Title]"
-   - Deal referral — "[Referrer] shared a deal with you"
+**From `notify-deal-reassignment`:**
+- `Deal Modified: [Company]` → Owner (listed but subject is wrong in catalog)
 
-3. **Agreements & Documents** (3 emails)
-   - NDA request — "NDA Required — [Deal]"
-   - Fee agreement request — "Fee Agreement Required — [Deal]"
-   - Data room access granted — "Data room open — Project [Name]"
+### 2. Wrong subject lines (doesn't match actual code)
 
-4. **Deal & Owner Notifications** (5 emails)
-   - New deal owner notification — "You've been assigned a new deal"
-   - Deal reassignment — "Deal reassignment notification"
-   - Owner inquiry notification — admin notified of owner inquiry
-   - Owner intro notification — owner notified of buyer introduction
-   - Memo email — custom subject (admin-composed)
+| Catalog says | Code actually sends |
+|---|---|
+| `Welcome to SourceCo Marketplace` | `Project [Name] — Investment Opportunity` |
+| `[Name], you're invited to SourceCo Marketplace` | `[Name], you're invited to SourceCo Marketplace` (correct) |
+| `Update on Your Interest in [Deal]` | `Regarding Your Interest in [Company]` |
+| `New Match: [Deal Title]` | `New deal — matches your mandate.` |
+| `[Referrer] shared a deal with you` | `[Referrer] shared a business opportunity with you` |
+| `NDA Required — [Deal]` | `Your NDA from SourceCo` |
+| `Fee Agreement Required — [Deal]` | `Your Fee Agreement from SourceCo` |
+| `Data room open — Project [Name]` | `Data room open — Project [Name]` (correct) |
+| `You've been assigned a new deal — [Deal]` | `✨ New Deal Assigned: [Deal]` |
+| `Deal ownership update — [Deal]` | `Deal Modified: [Company]` |
+| `New inquiry from [Buyer] — [Deal]` | `🏢 New Owner Inquiry: [Company] ([Revenue])` |
+| `Buyer introduction update — [Deal]` | `🤝 Owner Intro Requested: [Buyer] → [Company]` |
+| `New message from SourceCo re: [Deal]` | `New message from SourceCo re: [Deal]` (correct) |
+| `New Buyer Message: [Deal] — [Buyer]` | `New Buyer Message: [Deal] — [Buyer]` (correct) |
+| `Still exploring? Here's what to do next` | `Still looking? Here's what other buyers are pursuing.` |
+| `Your SourceCo journey — 1 week check-in` | `What's in the pipeline right now.` |
+| `Quick update on your request` | `Quick update on your request.` (period) |
+| `[Task Title] — assigned to you` | `New Task Assigned: [Task Title]` |
+| `New signup: [Name] from [Company]` | `New User Registration: [Name] ([Email])` |
 
-5. **Messaging** (2 emails)
-   - Buyer new message — "New message on [Deal]"
-   - Admin new message — "New buyer message from [Buyer]"
+### 3. Wrong edge function names
 
-6. **Admin & System** (6 emails)
-   - New user registration (enhanced) — "New User Registration - Action Required"
-   - Journey admin new user — admin notified of signup
-   - Feedback notification — "[Category] Feedback from [User]"
-   - Contact response — "Thank you for your [category] feedback"
-   - Task notification — "[Task Title] assigned to you"
-   - Data recovery — "Complete Your Profile - Missing Information"
+| Catalog says | Actual function |
+|---|---|
+| `resolve-email-verification` | `send-verification-success-email` / `send-simple-verification-email` |
+| `send-custom-reset-email` | `password-reset` |
+| `invite-marketplace-buyer` | `send-marketplace-invitation` |
+| `send-connection-confirmation` | `send-connection-notification` (type: user_confirmation) |
+| `send-connection-approval` | `send-connection-notification` (type: approval_notification) |
+| `journey-admin-new-user` | `user-journey-notifications` (event_type: user_created, admin notify) |
+| `send-task-notification` | `send-task-notification-email` |
+| `notify-owner-inquiry` | `send-owner-inquiry-notification` |
+| `notify-owner-intro` | `send-owner-intro-notification` |
 
-7. **Platform Notifications** (3 emails)
-   - User notification (generic) — dynamic subject
-   - First request followup — "Quick update on your request"
-   - Feedback email — custom admin reply
+### 4. No "design preview" capability
 
-### UI Design
+The user asked for design previews. Currently the catalog is text-only. We should add an expandable preview row that shows a rendered HTML preview of each email's template design when clicked — or at minimum a "Preview" button that renders the email HTML in an iframe/modal.
 
-- Use the existing Tabs component to split "Delivery Log" and "Email Catalog"
-- Each category rendered as a collapsible section with a count badge
-- Search bar to filter across all categories
-- Clean table layout matching the existing dashboard aesthetic
-- Color-coded recipient badges (green=Buyer, blue=Admin, amber=Owner, gray=System)
+## Plan
 
-### Technical Details
+### Step 1: Create corrected & complete email catalog data
 
-- All data is a static TypeScript array — no database queries needed
-- Filterable by category and searchable by name/subject/function
-- Sits in the same `EmailDashboardPage.tsx` file as a new component
+Rewrite the `EMAIL_CATALOG` array with:
+- All 40+ actual email types from every edge function that calls `sendEmail()`
+- Exact subject lines copied from the source code
+- Correct edge function names
+- Add a `variants` note where one function sends multiple email types
+
+### Step 2: Add email preview capability
+
+Add an expandable row or modal that shows a mini HTML preview of each email's design. Since we can't render the actual edge function HTML client-side, we'll add a `designNotes` field describing the template layout (e.g., "Branded wrapper, CTA button, bullet list") and a `previewHtml` field with a representative static HTML snippet that can be rendered in an iframe.
+
+### Files changed
+- `src/components/admin/emails/EmailCatalog.tsx` — complete rewrite of the data array + add preview UI
 
