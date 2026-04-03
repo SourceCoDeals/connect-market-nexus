@@ -1,21 +1,37 @@
 
 
-# Make Buyer Profile Panel Discoverable
+# Restructure Buyer Profile Panel — Slide-Over Instead of Inline Column
 
 ## Problem
 
-The context panel toggle exists (the `PanelRightOpen` icon) but it's a tiny 28px ghost button that blends in with other action icons. Users can't tell it toggles the buyer profile sidebar.
+The 260px inline column gets cut off at the viewport edge, text truncates everywhere ("Fee Agreen...", "Independent '..."), and it competes for horizontal space with the chat area. At 1251px viewport width, 320px list + chat + 260px panel = not enough room.
 
-## Fix
+## Solution
 
-Two changes to make it obvious:
+Replace the fixed inline column with a **slide-over drawer** that overlays the chat area from the right. Hidden by default, toggled via the "Buyer Profile" button.
 
-### 1. Default `showContext` back to `true`
-- Line 108: Change `useState(false)` → `useState(true)` so the buyer profile is visible when you open a conversation (the original behavior before the layout fix)
+### Layout changes
 
-### 2. Make the toggle button more visible
-- Line 251-258: Change from a tiny ghost icon to a labeled button with text: "Buyer Profile" with the panel icon, using `variant="outline"` and proper sizing so it's clearly clickable
+**`src/pages/admin/message-center/ThreadView.tsx`**
+- Default `showContext` to `false`
+- Remove the inline `ThreadContextPanel` from the flex layout
+- Instead, render it as a positioned overlay (absolute right-0, full height) with a backdrop click to close
+- Chat area always gets full width
 
-### File changed
-- `src/pages/admin/message-center/ThreadView.tsx` — restore default showContext to true, improve toggle button visibility
+**`src/pages/admin/message-center/ThreadContextPanel.tsx`**
+- Change width from `w-[260px]` to `w-[340px]` — more room for content since it's an overlay now
+- Remove `hidden lg:flex` — visibility controlled by parent toggle
+- Add a close button in the header
+- Add shadow for overlay effect (`shadow-xl`)
+- Accept an `onClose` callback prop
+
+### Result
+- Chat always uses full available width (~930px)
+- Buyer Profile opens as a 340px overlay with proper shadow, text no longer truncates
+- Click "Buyer Profile" button or close button to toggle
+- No horizontal overflow issues
+
+### Files changed
+- `src/pages/admin/message-center/ThreadView.tsx` — default hidden, render as overlay
+- `src/pages/admin/message-center/ThreadContextPanel.tsx` — wider, add close button, remove responsive hide
 
