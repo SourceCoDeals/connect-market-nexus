@@ -87,6 +87,8 @@ function useClaimThread() {
 
 export interface ThreadViewProps {
   thread: InboxThread;
+  allBuyerThreads?: InboxThread[];
+  onSelectThread?: (id: string) => void;
   onBack: () => void;
   adminProfiles?: Record<string, unknown> | null;
 }
