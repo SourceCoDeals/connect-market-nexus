@@ -25,11 +25,7 @@ const handler = async (req: Request): Promise<Response> => {
     const body: FeedbackNotificationRequest = await req.json();
     const { feedbackId, message, pageUrl, category, priority, userEmail, userName } = body;
 
-    const { data: adminUsers, error: adminError } = await supabase.from('profiles').select('email, first_name, last_name').eq('is_admin', true);
-    if (adminError) throw adminError;
-    if (!adminUsers || adminUsers.length === 0) {
-      return new Response(JSON.stringify({ success: true, message: 'No admin users to notify' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const supportEmail = 'support@sourcecodeals.com';
 
     const safeUserName = escapeHtml(userName || '');
     const safeUserEmail = escapeHtml(userEmail || '');
