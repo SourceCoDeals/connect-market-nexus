@@ -37,6 +37,19 @@ export interface DealGroup {
   last_activity: string;
 }
 
+export interface BuyerGroup {
+  user_id: string;
+  buyer_name: string;
+  buyer_company: string | null;
+  buyer_email: string | null;
+  buyer_type: string | null;
+  threads: InboxThread[];
+  total_unread: number;
+  last_activity: string;
+  last_message_preview: string | null;
+  last_message_sender_role: string | null;
+}
+
 // Activity timeline event for the user profile panel
 export interface UserActivityEvent {
   id: string;
