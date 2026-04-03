@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { sendEmail } from '../_shared/email-sender.ts';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAuth, escapeHtml, escapeHtmlWithBreaks } from '../_shared/auth.ts';
+import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
 
 interface NewMessageNotificationRequest {
   connection_request_id: string;
