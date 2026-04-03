@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
-import { FolderOpen, MessageCircleQuestion, ChevronRight, Send, Loader2, Info } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { FolderOpen, MessageCircleQuestion, ChevronRight, Send, Loader2, Info, Mail } from 'lucide-react';
 import { format } from 'date-fns';
-import { AgreementSigningModal } from '@/components/pandadoc/AgreementSigningModal';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,6 +18,9 @@ import {
   useMarkMessagesReadByBuyer,
 } from '@/hooks/use-connection-messages';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { sendAgreementEmail } from '@/lib/agreement-email';
+import { invalidateAgreementQueries } from '@/hooks/use-agreement-status-sync';
 import { cn } from '@/lib/utils';
 
 interface ListingSidebarActionsProps {
@@ -49,9 +51,15 @@ export function ListingSidebarActions({
 }: ListingSidebarActionsProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [chatOpen, setChatOpen] = useState(false);
   const [message, setMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Document request state
+  const [isRequestingDocs, setIsRequestingDocs] = useState(false);
+  const [justRequested, setJustRequested] = useState(false);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
 
   const canExploreDataRoom = feeCovered && connectionApproved;
   const canAskQuestion = feeCovered;
@@ -80,6 +88,18 @@ export function ListingSidebarActions({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [visibleMessages.length, chatOpen]);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldownLeft <= 0) return;
+    const t = setInterval(() => {
+      setCooldownLeft((prev) => {
+        if (prev <= 1) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [cooldownLeft]);
 
   const handleSendMessage = async () => {
     const body = message.trim();
@@ -119,14 +139,61 @@ export function ListingSidebarActions({
     return '';
   };
 
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
-
   const fee = resolveDocLabel(feeCovered, feeStatus);
   const nda = resolveDocLabel(ndaCovered, ndaStatus);
 
-  const feeNeedsRequest = fee.dot === 'none';
-  const ndaNeedsRequest = nda.dot === 'none';
-  const bothNeedRequest = feeNeedsRequest && ndaNeedsRequest;
+  const feeNeedsRequest = !feeCovered;
+  const ndaNeedsRequest = !ndaCovered;
+  const anyNeedsRequest = feeNeedsRequest || ndaNeedsRequest;
+
+  // Determine button label
+  const getRequestButtonLabel = () => {
+    if (cooldownLeft > 0) return `Resend in ${cooldownLeft}s`;
+    if (justRequested) return 'Resend Documents';
+    if (feeNeedsRequest && ndaNeedsRequest) return 'Request Documents';
+    if (feeNeedsRequest) return 'Request Fee Agreement';
+    if (ndaNeedsRequest) return 'Request NDA';
+    return 'Request Documents';
+  };
+
+  const handleRequestDocuments = useCallback(async () => {
+    if (isRequestingDocs || cooldownLeft > 0) return;
+    setIsRequestingDocs(true);
+
+    try {
+      const requests: Promise<unknown>[] = [];
+      if (feeNeedsRequest) requests.push(sendAgreementEmail({ documentType: 'fee_agreement' }));
+      if (ndaNeedsRequest) requests.push(sendAgreementEmail({ documentType: 'nda' }));
+
+      const results = await Promise.all(requests);
+      const anySuccess = results.some((r: any) => r?.success);
+
+      if (anySuccess) {
+        toast({
+          title: 'Documents sent',
+          description: `Check your inbox at ${user?.email}`,
+        });
+        setJustRequested(true);
+        setCooldownLeft(60);
+        invalidateAgreementQueries(queryClient, user?.id);
+      } else {
+        const firstError = (results[0] as any)?.error;
+        toast({
+          title: 'Failed to send',
+          description: firstError || 'Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Failed to send',
+        description: 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRequestingDocs(false);
+    }
+  }, [isRequestingDocs, cooldownLeft, feeNeedsRequest, ndaNeedsRequest, user, queryClient, toast]);
 
   const StatusDot = ({ variant }: { variant: 'signed' | 'pending' | 'none' }) => (
     <div
@@ -161,16 +228,8 @@ export function ListingSidebarActions({
                     fee.dot === 'none' && 'text-muted-foreground',
                   )}
                 >
-                  {fee.label}
+                  {justRequested && fee.dot === 'none' ? 'Requested' : fee.label}
                 </span>
-                {feeNeedsRequest && !bothNeedRequest && (
-                  <button
-                    onClick={() => setShowAgreementModal(true)}
-                    className="text-[11px] font-medium text-foreground hover:text-foreground/70 transition-colors ml-1"
-                  >
-                    Request
-                  </button>
-                )}
               </div>
             </div>
             {/* NDA */}
@@ -186,26 +245,33 @@ export function ListingSidebarActions({
                     nda.dot === 'none' && 'text-muted-foreground',
                   )}
                 >
-                  {nda.label}
+                  {justRequested && nda.dot === 'none' ? 'Requested' : nda.label}
                 </span>
-                {ndaNeedsRequest && !bothNeedRequest && (
-                  <button
-                    onClick={() => setShowAgreementModal(true)}
-                    className="text-[11px] font-medium text-foreground hover:text-foreground/70 transition-colors ml-1"
-                  >
-                    Request
-                  </button>
-                )}
               </div>
             </div>
           </div>
-          {bothNeedRequest && (
-            <button
-              onClick={() => setShowAgreementModal(true)}
-              className="text-xs font-medium text-foreground hover:text-foreground/70 transition-colors mt-2"
+
+          {/* Prominent Request Button */}
+          {anyNeedsRequest && (
+            <Button
+              onClick={handleRequestDocuments}
+              disabled={isRequestingDocs || cooldownLeft > 0}
+              className="w-full mt-3 bg-foreground text-background hover:bg-foreground/90 text-xs h-9"
             >
-              Request documents →
-            </button>
+              {isRequestingDocs ? (
+                <>
+                  <Loader2 size={14} className="mr-1.5 animate-spin" />
+                  Sending...
+                </>
+              ) : cooldownLeft > 0 ? (
+                getRequestButtonLabel()
+              ) : (
+                <>
+                  <Mail size={14} className="mr-1.5" />
+                  {getRequestButtonLabel()}
+                </>
+              )}
+            </Button>
           )}
         </div>
 
@@ -356,12 +422,6 @@ export function ListingSidebarActions({
             </div>
           </div>
         )}
-
-        {/* Agreement Signing Modal */}
-        <AgreementSigningModal
-          open={showAgreementModal}
-          onOpenChange={setShowAgreementModal}
-        />
       </div>
     </TooltipProvider>
   );
