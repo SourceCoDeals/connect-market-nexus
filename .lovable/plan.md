@@ -1,52 +1,56 @@
 
 
-# Fix Email Links + Redesign Profile Documents Tab
+# Add "New Message" Topic Picker to Messages Screen
 
-## Issues Found
+## What We're Building
 
-1. **Message notification email** (`notify-buyer-new-message`) links to `/my-requests` (line 69) -- should link to `/my-deals` directly (the redirect works, but the URL is outdated)
-2. **Profile Documents banner** says "Sign and return to adam.haile@sourcecodeals.com" -- should say `support@sourcecodeals.com` since we migrated operational emails
-3. **Profile Documents tab** uses Card/Badge components with colored borders that don't match the Quiet Luxury minimal aesthetic used elsewhere
-4. **Request timestamps** are available in the data (`requestedAt`) but not displayed in the Documents tab -- users should see when they requested each document
+When a buyer clicks the compose/new message button (the `MessageSquarePlus` icon in the sidebar header), instead of just jumping to the general SourceCo Team chat, show a topic picker dialog that lets them choose what to message about:
 
-## Changes
+1. **General Support** -- always available, routes to the existing SourceCo Team general chat
+2. **Documents** -- always available, routes to general chat with a `@Document` reference pre-attached
+3. **About a specific deal** -- only available if they have a signed fee agreement. Shows a list of marketplace listings they've interacted with (saved, connected, inquired). If fee agreement is not signed, the deal options are shown but disabled with a tooltip explaining they need to sign their fee agreement first.
 
-### 1. `supabase/functions/notify-buyer-new-message/index.ts` -- Fix CTA link
+## Access Rules
 
-Change line 69 from:
-```
-const loginUrl = 'https://marketplace.sourcecodeals.com/my-requests';
-```
-to:
-```
-const loginUrl = 'https://marketplace.sourcecodeals.com/my-deals';
-```
+- **General support + Documents**: No fee agreement required. Anyone can message about these.
+- **Deal-specific topics**: Requires signed fee agreement. If unsigned, deal options appear grayed out with an `(i)` tooltip: "Sign your Fee Agreement to message about specific deals."
 
-Deploy the function.
+## UX Flow
 
-### 2. `src/pages/Profile/ProfileDocuments.tsx` -- Redesign + sync timestamps
+1. User clicks `MessageSquarePlus` button in ConversationList header
+2. A small modal/popover appears with topic categories
+3. User picks a topic:
+   - "General Support" → opens GeneralChatView (same as today)
+   - "Documents" → opens GeneralChatView with a document reference pre-set
+   - A specific deal → opens GeneralChatView with a deal reference pre-set (or navigates to existing thread if one exists)
+4. Modal closes, chat opens with context pre-attached
 
-**Fix support email**: Change "adam.haile@sourcecodeals.com" to "support@sourcecodeals.com" in the pending banner.
+## Technical Changes
 
-**Redesign to match Quiet Luxury aesthetic**: Replace Card/Badge-heavy layout with clean, minimal rows using the same pattern as the listing sidebar Documents section:
-- Remove Card wrapper, use whitespace-based separation
-- Each document row: icon + name on left, status + timestamp on right
-- Status shown as subtle text (not colored badges): "Signed", "Sent to email", "Not requested"
-- Small emerald dot for signed, hollow dot for sent, no dot for not requested
-- Show request timestamp: "Requested Mar 28, 2026" below status when available
-- Show signed timestamp: "Signed Mar 30, 2026" when available
-- Resend / Request buttons remain but styled as minimal text buttons, not outlined badges
-- Remove the redundant "Complete" badge on the right side (the signed status on the left is sufficient)
-- Pending banner: softer styling, remove amber border, use subtle background
+### 1. New component: `src/pages/BuyerMessages/NewMessagePicker.tsx`
 
-### 3. Verify other email CTAs link correctly
+A popover anchored to the compose button with three sections:
+- **Quick Topics**: "General Support", "Documents (NDA & Fee Agreement)"
+- **Your Deals**: List of deals from `threads` + any saved listings. Each deal row shows deal title. Disabled + tooltip if no fee agreement.
 
-- `notify-agreement-confirmed` links to `/marketplace` -- correct (browse deals after signing)
-- `request-agreement-email` -- no app link in body (just instructions to reply) -- correct
-- `send-connection-notification` approval links to `/my-deals` -- correct
+Uses `useFirmAgreementStatus()` to check `fee_agreement_signed` for the gate.
+
+When a deal topic is selected:
+- If a thread already exists for that deal → call `onSelectThread(threadId)` 
+- If no thread exists → call `onSelectGeneral()` with a deal reference pre-set via `onReferenceChange`
+
+### 2. `src/pages/BuyerMessages/ConversationList.tsx`
+
+- Replace the direct `onSelectGeneral` call on the compose button with opening the `NewMessagePicker` popover
+- Pass `threads`, agreement status, and callbacks as props
+
+### 3. `src/pages/BuyerMessages/index.tsx`
+
+- Pass `onReferenceChange` (the `setReference` setter) down to `ConversationList` so the picker can pre-attach a reference before opening the general chat
+- Add a new callback `onStartNewMessage` that handles the picker's selection logic
 
 ### Files changed
-- `supabase/functions/notify-buyer-new-message/index.ts` -- fix link URL
-- `src/pages/Profile/ProfileDocuments.tsx` -- redesign + fix email + show timestamps
-- Deploy `notify-buyer-new-message`
+- `src/pages/BuyerMessages/NewMessagePicker.tsx` -- new component (topic picker popover)
+- `src/pages/BuyerMessages/ConversationList.tsx` -- wire compose button to picker
+- `src/pages/BuyerMessages/index.tsx` -- pass reference setter and handle new message topic selection
 
