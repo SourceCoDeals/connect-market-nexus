@@ -1,47 +1,49 @@
 
 
-# Dismiss Pending Requests + Show Email Status in Main Table
+# Fix: "Failed to dismiss" — RLS Policy Missing WITH CHECK
 
-## What We're Building
+## Root Cause
 
-1. **Dismiss button on pending requests**: Add a "Dismiss" action to each pending request row. This sets the `document_requests` status to `dismissed` (a new status value) so it stops appearing in the pending queue. The record stays in the database untouched otherwise.
+The `document_requests` table has RLS enabled with an `ALL` policy for admins:
 
-2. **Email delivery status in the main firm table**: Surface email open/delivery status for document requests directly in the main firm agreements table rows, so you always know who requested, when, and whether they opened the email.
+```
+cmd: ALL
+qual (USING): is_admin(auth.uid())
+with_check: NULL
+```
 
-## Implementation
+While PostgreSQL documentation says a missing `WITH CHECK` should default to the `USING` expression, Supabase's PostgREST layer can behave differently — an `ALL` policy without an explicit `WITH CHECK` may silently block `UPDATE` operations, returning zero rows affected (which Supabase treats as success with no error, but can also manifest as permission errors depending on the client).
 
-### Step 1: Add `dismissed` status support (Migration)
+The fix: replace the single `ALL` policy with explicit `SELECT` and `UPDATE` policies for admins, both with proper clauses.
 
-Add a simple migration comment: no schema change needed. The `status` column is already a plain `text` field (not an enum), so we can write `dismissed` directly. No migration required.
+## Migration
 
-### Step 2: Dismiss button on PendingRequestRow
+```sql
+DROP POLICY IF EXISTS "Admins can manage all document requests" ON public.document_requests;
 
-In `DocumentTrackingPage.tsx`, add a dismiss button (X icon) next to "Mark Signed" on each pending request row. On click:
-- Update `document_requests` row: set `status = 'dismissed'`
-- Invalidate the pending queue queries
-- Toast confirmation
-- The row disappears from the pending queue but remains in the database with full history
+CREATE POLICY "Admins can select all document requests"
+  ON public.document_requests FOR SELECT TO authenticated
+  USING (public.is_admin(auth.uid()));
 
-### Step 3: Update pending queue query to exclude dismissed
+CREATE POLICY "Admins can update all document requests"
+  ON public.document_requests FOR UPDATE TO authenticated
+  USING (public.is_admin(auth.uid()))
+  WITH CHECK (public.is_admin(auth.uid()));
 
-The query at line 273 already filters `IN ('requested', 'email_sent')`, so dismissed items are automatically excluded. No change needed.
+CREATE POLICY "Admins can delete all document requests"
+  ON public.document_requests FOR DELETE TO authenticated
+  USING (public.is_admin(auth.uid()));
 
-### Step 4: Update sidebar badge count to exclude dismissed
+CREATE POLICY "Admins can insert document requests"
+  ON public.document_requests FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin(auth.uid()));
+```
 
-`use-pending-document-requests.ts` already filters `.in('status', ['requested', 'email_sent'])`, so dismissed items won't inflate the badge. No change needed.
+## Also: Surface actual error in toast
 
-### Step 5: Show request history + email status in the main firm table
+Update the catch block in `DismissButton` to log and display the actual error message instead of a generic "Failed to dismiss", so future issues are easier to debug.
 
-In each firm's row in the main table, add a subtle indicator showing:
-- Whether there are document requests for this firm (and how many)
-- The latest email delivery status (Delivered, Opened, Bounced, etc.)
-- When the last request was made
-
-This requires joining/correlating `document_requests` data with the firm rows. The firm data query will be extended to fetch associated `document_requests` for each firm, and the row component will render small status badges showing request history and email open status.
-
-### Files Changed
-
-- `src/pages/admin/DocumentTrackingPage.tsx`:
-  - Add dismiss handler + X button to `PendingRequestRow`
-  - Add request history / email status indicators to the main firm table rows
+### Files changed
+- New SQL migration (RLS policy fix)
+- `src/pages/admin/DocumentTrackingPage.tsx` — improve error logging in dismiss catch block
 
