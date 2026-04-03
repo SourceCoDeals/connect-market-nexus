@@ -54,8 +54,8 @@ const ConnectionButton = ({
       if (listingStatus === 'inactive' || listingStatus === 'sold') return;
       // Gate: profile must be complete
       if (user && !isAdmin && !isProfileComplete(user)) return;
-      // Gate: at least ONE agreement must be signed (NDA or Fee Agreement)
-      if (!isAdmin && (!coverage || (!coverage.nda_covered && !coverage.fee_covered))) return;
+      // Gate: Fee Agreement must be signed
+      if (!isAdmin && (!coverage || !coverage.fee_covered)) return;
       setIsDialogOpen(true);
     }
   };
