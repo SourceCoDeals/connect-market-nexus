@@ -34,7 +34,7 @@ const ConnectionButton = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   
-  const queryClient = useQueryClient();
+  
   useRealtime();
   useAgreementStatusSync();
   const { user } = useAuth();
