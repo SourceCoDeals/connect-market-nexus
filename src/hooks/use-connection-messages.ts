@@ -287,7 +287,7 @@ export function useUnreadBuyerMessageCounts() {
 
       const { data: requests } = await supabase
         .from('connection_requests')
-        .select('id, listing_id')
+        .select('id, listing_id, last_message_sender_role, last_message_at')
         .eq('user_id', user.id);
 
       const requestIds = (requests || []).map((r) => r.id);
@@ -296,6 +296,7 @@ export function useUnreadBuyerMessageCounts() {
       // Build a map of request_id -> listing_id
       const requestListingMap: Record<string, string | null> = {};
       (requests || []).forEach((r) => { requestListingMap[r.id] = r.listing_id; });
+
       const { data, error } = await supabase
         .from('connection_messages' as never)
         .select('connection_request_id')
@@ -317,6 +318,22 @@ export function useUnreadBuyerMessageCounts() {
           messagesTotal++;
         } else {
           dealTotal++;
+        }
+      });
+
+      // Also count threads where buyer sent the last message (awaiting admin reply)
+      // but only if there's actually a last_message_at (not empty threads)
+      (requests || []).forEach((r) => {
+        if (r.last_message_sender_role === 'buyer' && r.last_message_at && !byRequest[r.id]) {
+          // Thread is awaiting admin reply — count as 1 notification
+          byRequest[r.id] = (byRequest[r.id] || 0); // don't inflate per-request unread
+          const listingId = requestListingMap[r.id];
+          if (listingId === GENERAL_INQUIRY_LISTING_ID) {
+            messagesTotal++;
+          } else {
+            dealTotal++;
+          }
+          total++;
         }
       });
 
