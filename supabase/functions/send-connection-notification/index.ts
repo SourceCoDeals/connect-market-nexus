@@ -26,14 +26,14 @@ function buildUserConfirmationHtml(
 ): string {
   return wrapEmailHtml({
     bodyHtml: `
-    <p>We received your introduction request for <strong>${escapeHtml(listingTitle)}</strong>.</p>
+    <p>We received your introduction request for ${escapeHtml(listingTitle)}.</p>
     <p>Our team reviews every request and selects buyers based on fit. You will hear from us within 24 hours.</p>
     ${message ? `
     <div style="background: #F7F6F3; padding: 16px; border-radius: 6px; margin: 20px 0;">
       <p style="margin: 0 0 4px 0; font-size: 12px; color: #9B9B9B; font-weight: 600; text-transform: uppercase;">Your message</p>
       <p style="margin: 0; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(message)}"</p>
     </div>` : ''}
-    <p style="font-weight: 600;">What happens if you are selected</p>
+    <p>What happens if you are selected</p>
     <ul style="padding-left: 20px; line-height: 1.8;">
       <li>We make a direct introduction to the business owner</li>
       <li>You receive access to deal details and supporting materials</li>
@@ -58,7 +58,7 @@ function buildAdminNotificationHtml(
 ): string {
   return wrapEmailHtml({
     bodyHtml: `
-    <p><strong>${escapeHtml(requesterName)}</strong> (${escapeHtml(requesterEmail)}) submitted a connection request for <strong>${escapeHtml(listingTitle)}</strong>.</p>
+    <p>${escapeHtml(requesterName)} (${escapeHtml(requesterEmail)}) submitted a connection request for ${escapeHtml(listingTitle)}.</p>
     ${message ? `
     <div style="background: #F7F6F3; padding: 16px; border-radius: 6px; margin: 20px 0;">
       <p style="margin: 0 0 4px 0; font-size: 12px; color: #9B9B9B; font-weight: 600; text-transform: uppercase;">Buyer message</p>
@@ -123,9 +123,9 @@ const handler = async (req: Request): Promise<Response> => {
       const subject = `Introduction approved: ${escapeHtml(listingTitle)}`;
       const htmlContent = wrapEmailHtml({
         bodyHtml: `
-    <p>Your introduction to <strong>${escapeHtml(listingTitle)}</strong> has been approved.</p>
+    <p>Your introduction to ${escapeHtml(listingTitle)} has been approved.</p>
     <p>We are making a direct introduction to the business owner. You will receive a message from our team with next steps, typically within one business day.</p>
-    <p style="font-weight: 600;">What to expect</p>
+    <p>What to expect</p>
     <ul style="padding-left: 20px; line-height: 1.8;">
       <li>Our team facilitates the initial introduction</li>
       <li>You receive access to deal details and supporting materials</li>
