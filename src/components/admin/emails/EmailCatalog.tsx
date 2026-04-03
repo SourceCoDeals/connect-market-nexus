@@ -476,7 +476,47 @@ const EMAIL_CATALOG: CatalogCategory[] = [
       },
     ],
   },
+  {
+    name: 'Broken / Deprecated',
+    emails: [
+      {
+        name: 'Admin Digest',
+        subject: '[Type] Admin Digest - SourceCo Marketplace',
+        recipient: 'Admin',
+        trigger: 'Scheduled digest of admin activity',
+        edgeFunction: 'admin-digest',
+        status: 'broken',
+        statusNote: 'Calls deleted enhanced-email-delivery function — needs migration to sendEmail()',
+        designNotes: 'Was: branded wrapper with digest summary table. Currently non-functional.',
+        previewHtml: `${wrapperStart}<h2 style="color: #1e293b; margin: 0 0 16px;">Admin Digest</h2><p style="color: #ef4444; font-weight: 600;">⚠️ This email is currently broken.</p><p style="color: #475569; line-height: 1.6;">This function calls the deleted <code>enhanced-email-delivery</code> function and will fail at runtime.</p><div style="background: #fef2f2; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #fecaca;"><p style="margin: 0; font-size: 13px; color: #991b1b;">Needs migration to use sendEmail() from _shared/email-sender.ts</p></div>${wrapperEnd}`,
+      },
+    ],
+  },
 ];
+
+const SENDER_EMAIL = 'adam.haile@sourcecodeals.com';
+
+function CopyableText({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success(`${label} copied`);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={handleCopy} className="inline-flex items-center gap-1 hover:text-foreground transition-colors group" title={`Copy ${label}`}>
+      <span>{text}</span>
+      {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />}
+    </button>
+  );
+}
+
+const STATUS_STYLES: Record<EmailStatus, string> = {
+  active: '',
+  broken: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/20',
+  deprecated: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/20',
+};
 
 export function EmailCatalog() {
   const [search, setSearch] = useState('');
