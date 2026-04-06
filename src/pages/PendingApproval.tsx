@@ -7,7 +7,7 @@ import {
   Clock,
   LogOut,
   Loader2,
-  Info,
+  
   RefreshCw,
   Shield,
   XCircle,
