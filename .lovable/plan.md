@@ -1,32 +1,41 @@
 
 
-# Redesign Connection Request Dialog — Premium Minimal
+# Send Marketplace Approval Email from adam.haile@sourcecodeals.com
 
-## Current Issues
-- Blue info box with colored background clashes with the platform's "quiet luxury" white-dominant aesthetic
-- Bold colored accents and tinted backgrounds feel generic
-- Layout is functional but not refined
+## Problem
 
-## Changes — Single File
+All emails currently send from `support@sourcecodeals.com` because `email-sender.ts` hardcodes the sender email with no override. The marketplace access approval email ("Project X: Investment Opportunity") needs to come from `adam.haile@sourcecodeals.com` as it did before.
 
-### `src/components/connection/ConnectionRequestDialog.tsx`
+## Changes
 
-**Dialog container**: Keep `sm:max-w-2xl`, add `p-8` for more breathing room.
+### 1. `supabase/functions/_shared/email-sender.ts`
 
-**Header**: Remove `DialogDescription` wrapper — render the intro text as a plain `<p>` with `text-sm text-[#6B6B6B]` (platform secondary color). Keep the bold listing title. Increase spacing below header.
+Add an optional `senderEmail` field to the `SendEmailOptions` interface. When provided, use it instead of `VERIFIED_SENDER_EMAIL`. This keeps the default as `support@` for all other emails but allows specific emails to override.
 
-**Textarea**: Style with `border border-[#E5E5E5] focus:border-[#0E101A] focus:ring-0 rounded-lg bg-white text-sm` — clean single-border input, no colored focus ring. Keep placeholder, rows, min/max length.
+```typescript
+// Add to SendEmailOptions:
+senderEmail?: string;
 
-**Helper text row**: Keep both strings, style `text-xs text-[#9A9A9A]` — lighter, more receded.
+// Line 103 changes from:
+const senderEmail = VERIFIED_SENDER_EMAIL;
+// To:
+const senderEmail = options.senderEmail || VERIFIED_SENDER_EMAIL;
+```
 
-**Info box ("How to get selected")**: Replace blue tinted box with a borderless section using only typography and spacing: a `text-xs font-medium text-[#6B6B6B] uppercase tracking-wide` label, followed by `text-sm text-[#6B6B6B]` body text. No background, no border — separation via spacing only (consistent with quiet luxury principles).
+### 2. `supabase/functions/approve-marketplace-buyer/index.ts`
 
-**Footer buttons**: 
-- Cancel: `variant="outline"` with `border-[#E5E5E5] text-[#6B6B6B] hover:bg-[#F5F5F5]`
-- Send Request: `bg-[#0E101A] text-white hover:bg-[#1a1d2e]` — dark, minimal, no colored brand button. Remove `font-semibold`, use `font-medium`.
-- Add `gap-3` between buttons.
+Add `senderEmail: 'adam.haile@sourcecodeals.com'` and update `senderName` to `'Adam Haile'` in the `sendEmail` call. Update `replyTo` to `'adam.haile@sourcecodeals.com'` as well.
 
-**Spacing**: Use `space-y-6` for main content sections instead of `space-y-4`.
+### 3. `src/components/admin/emails/AdminEmailRouting.tsx`
 
-No copy or functionality changes. Same character counter, same validation, same placeholder.
+Update the "Marketplace Access Approved" entry to reflect `adam.haile@sourcecodeals.com` as the sender instead of `support@`.
+
+### 4. Deploy
+
+Deploy `approve-marketplace-buyer` edge function.
+
+### Files changed
+- `supabase/functions/_shared/email-sender.ts` — add optional `senderEmail` field
+- `supabase/functions/approve-marketplace-buyer/index.ts` — use adam.haile sender
+- `src/components/admin/emails/AdminEmailRouting.tsx` — update dashboard entry
 
