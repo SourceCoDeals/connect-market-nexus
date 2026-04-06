@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   FileText,
   File,
@@ -249,7 +250,7 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
   const totalCount = documents.length + memos.length;
 
   return (
-    <div className="space-y-0 py-2">
+    <div className="flex flex-col max-h-[80vh]">
       {/* Vault Header */}
       <VaultHeader />
 
@@ -280,6 +281,8 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
         </div>
       )}
 
+      {/* Scrollable content area */}
+      <ScrollArea className="flex-1 min-h-0">
       {/* Published Memos */}
       {memos.length > 0 && (
         <div className="px-5 pt-5 pb-2">
@@ -403,8 +406,10 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
         </div>
       )}
 
+      </ScrollArea>
+
       {/* Security Footer */}
-      <div className="border-t border-border/20 px-5 py-3 mt-2">
+      <div className="border-t border-border/20 px-5 py-3 shrink-0">
         <p className="text-[10px] text-muted-foreground/40 text-center">
           Documents shared under NDA. Unauthorized distribution is prohibited.
         </p>
@@ -423,8 +428,8 @@ function VaultHeader() {
           Secure Data Room
         </h3>
       </div>
-      <span className="text-[10px] text-white/30 tracking-wide">
-        256-bit encrypted
+      <span className="text-[10px] text-white/30 tracking-widest uppercase">
+        Confidential
       </span>
     </div>
   );

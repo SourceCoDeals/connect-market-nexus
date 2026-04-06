@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
 import { useSessionContext } from '@/contexts/SessionContext';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ChevronLeft, ExternalLink, Shield } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-utils';
 import { isProfileComplete, getProfileCompletionPercentage } from '@/lib/profile-completeness';
@@ -40,7 +41,7 @@ const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [showDealSourcingDialog, setShowDealSourcingDialog] = useState(false);
-  const dataRoomRef = useRef<HTMLDivElement>(null);
+  const [dataRoomOpen, setDataRoomOpen] = useState(false);
 
   // Click tracking for engagement analytics
   const { getClickData, resetTracking } = useClickTracking(true);
@@ -301,14 +302,15 @@ const ListingDetail = () => {
               />
             </div>
 
-            {/* Buyer Data Room - shows memos and documents if buyer has access */}
-            {/* MFA verification required when user has MFA enrolled */}
+            {/* Data Room Modal */}
             {!isAdmin && user && (
-              <div ref={dataRoomRef}>
-                <MFAGate loadingText="Verifying identity for data room access...">
-                  <BuyerDataRoom dealId={id!} connectionApproved={connectionStatusValue === 'approved'} />
-                </MFAGate>
-              </div>
+              <Dialog open={dataRoomOpen} onOpenChange={setDataRoomOpen}>
+                <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden border-border/30 bg-background">
+                  <MFAGate loadingText="Verifying identity for data room access...">
+                    <BuyerDataRoom dealId={id!} connectionApproved={connectionStatusValue === 'approved'} />
+                  </MFAGate>
+                </DialogContent>
+              </Dialog>
             )}
 
             {isAdmin && listing.owner_notes && (
@@ -346,9 +348,7 @@ const ListingDetail = () => {
                       feeStatus={agreementCoverage?.fee_status ?? 'not_started'}
                       connectionApproved={connectionStatusValue === 'approved'}
                       connectionStatus={connectionStatusValue}
-                      onExploreDataRoom={() => {
-                        dataRoomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }}
+                      onExploreDataRoom={() => setDataRoomOpen(true)}
                     />
                   )}
 
