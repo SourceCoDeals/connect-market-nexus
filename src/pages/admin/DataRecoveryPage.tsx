@@ -25,7 +25,7 @@ const DataRecoveryPage = () => {
           </div>
         </div>
 
-        <div className="px-8 py-8">
+        <div className="px-4 md:px-8 py-8">
           <DataRecoveryTab users={usersData} />
         </div>
       </div>
