@@ -124,7 +124,7 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between mb-4"
       >
-        <span className={EDITOR_DESIGN.microHeader}>Company Overview</span>
+        <span className={EDITOR_DESIGN.microHeader}>Listing Setup</span>
         <ChevronDown
           className={cn('h-4 w-4 text-foreground/60 transition-transform', !isOpen && '-rotate-90')}
         />
