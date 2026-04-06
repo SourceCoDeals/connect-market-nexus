@@ -110,7 +110,8 @@ Deno.serve(async (req) => {
       subject,
       htmlContent: fullHtml,
       replyTo: SUPPORT_REPLY_TO,
-      senderName: SUPPORT_SENDER_NAME,
+      senderName: NOREPLY_SENDER_NAME,
+      senderEmail: NOREPLY_SENDER_EMAIL,
     });
 
     return new Response(
