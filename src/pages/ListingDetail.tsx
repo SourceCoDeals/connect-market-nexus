@@ -13,7 +13,7 @@ import { ChevronLeft, ExternalLink, Shield } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-utils';
 import ConnectionButton from '@/components/listing-detail/ConnectionButton';
 import BlurredFinancialTeaser from '@/components/listing-detail/BlurredFinancialTeaser';
-import { CustomSection } from '@/components/listing-detail/CustomSection';
+
 import { ExecutiveSummaryGenerator } from '@/components/listing-detail/ExecutiveSummaryGenerator';
 import { ListingHeader } from '@/components/listing-detail/ListingHeader';
 import { EnhancedFinancialGrid } from '@/components/listing-detail/EnhancedFinancialGrid';
