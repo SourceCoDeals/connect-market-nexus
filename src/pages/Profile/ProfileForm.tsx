@@ -59,27 +59,39 @@ export function ProfileForm({
 
       <CardContent>
         {!profileComplete && (
-          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="space-y-1">
-                <p className="font-medium text-sm text-amber-900">
-                  Complete these fields to unlock deal access
-                </p>
-                <p className="text-xs text-amber-700">
-                  {completionPct}% complete — fill in the remaining fields below to request introductions.
-                </p>
-              </div>
+          <div className="mb-6 rounded-lg border border-[#E5E5E5] p-4 space-y-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-[#0E101A]">
+                {completionPct}% complete
+              </p>
+              <p className="text-xs text-[#6B6B6B]">
+                Fill in the remaining fields to request introductions.
+              </p>
             </div>
-            <Progress value={completionPct} className="h-2" />
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-amber-800 pl-1">
-              {missingLabels.map((label) => (
-                <li key={label} className="flex items-center gap-1.5">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0" />
-                  {label}
-                </li>
-              ))}
-            </ul>
+            <div className="h-1 rounded-full bg-[#E5E5E5] overflow-hidden">
+              <div
+                className="h-full bg-[#0E101A] transition-all duration-500"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+            {missingKeys.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                {missingKeys.map((key, i) => (
+                  <span key={key} className="inline-flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => scrollToField(key)}
+                      className="text-xs font-medium text-[#0E101A] underline-offset-2 hover:underline cursor-pointer"
+                    >
+                      {(FIELD_LABELS as Record<string, string>)[key] ?? key}
+                    </button>
+                    {i < missingKeys.length - 1 && (
+                      <span className="text-[#C0C0C0] ml-1.5">·</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
