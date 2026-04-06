@@ -13,11 +13,11 @@ import { ChevronLeft, ExternalLink, Shield } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency-utils';
 import ConnectionButton from '@/components/listing-detail/ConnectionButton';
 import BlurredFinancialTeaser from '@/components/listing-detail/BlurredFinancialTeaser';
-import { CustomSection } from '@/components/listing-detail/CustomSection';
+
 import { ExecutiveSummaryGenerator } from '@/components/listing-detail/ExecutiveSummaryGenerator';
 import { ListingHeader } from '@/components/listing-detail/ListingHeader';
 import { EnhancedFinancialGrid } from '@/components/listing-detail/EnhancedFinancialGrid';
-import { BusinessDetailsGrid } from '@/components/listing-detail/BusinessDetailsGrid';
+
 import { DealAdvisorCard } from '@/components/listing-detail/DealAdvisorCard';
 import { DealSourcingCriteriaDialog } from '@/components/listing-detail/DealSourcingCriteriaDialog';
 
@@ -253,16 +253,7 @@ const ListingDetail = () => {
               />
             </div>}
 
-            {/* Structured Business Details */}
-            <BusinessDetailsGrid
-              geographic_states={listing.geographic_states}
-              services={listing.services}
-              number_of_locations={listing.number_of_locations}
-              customer_types={listing.customer_types}
-              revenue_model={listing.revenue_model}
-              business_model={listing.business_model}
-              growth_trajectory={listing.growth_trajectory}
-            />
+            {/* Business Details removed - all content now in body description */}
 
             {/* Internal Company Information - Admin Only */}
             {isAdmin && listing && (
@@ -286,20 +277,7 @@ const ListingDetail = () => {
               </div>
             </div>
 
-            {/* Content Sections (from lead memo) */}
-            {listing.custom_sections &&
-              Array.isArray(listing.custom_sections) &&
-              listing.custom_sections.length > 0 && (
-                <div className="document-section py-8 border-t border-slate-100">
-                  <div className="space-y-6">
-                    {listing.custom_sections.map(
-                      (section: { title: string; description: string }) => (
-                        <CustomSection key={section.title} section={section} />
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
+            {/* Custom sections removed - content merged into body description */}
 
             {/* Similar Listings Carousel */}
             {listing && <SimilarListingsCarousel currentListing={listing} />}
