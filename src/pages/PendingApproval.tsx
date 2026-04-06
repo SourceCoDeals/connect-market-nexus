@@ -31,6 +31,10 @@ import { sendAgreementEmail } from '@/lib/agreement-email';
 const PendingApproval = () => {
   const navigate = useNavigate();
   const { user, isLoading, refreshUserProfile } = useAuth();
+  const [isResending, setIsResending] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [checkCooldown, setCheckCooldown] = useState(false);
   const [isRequestingDocs, setIsRequestingDocs] = useState(false);
 
   const { data: agreementStatus } = useMyAgreementStatus(!!user);
