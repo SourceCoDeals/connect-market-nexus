@@ -365,7 +365,6 @@ export function useNuclearAuth() {
         });
 
       await Promise.allSettled([
-        welcomeEmailPromise,
         adminNotificationPromise,
         firmCreationPromise,
         scoringPromise,
