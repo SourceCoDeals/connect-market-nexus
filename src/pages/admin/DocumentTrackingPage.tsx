@@ -286,6 +286,7 @@ interface PendingRequest {
   email_correlation_id: string | null;
   email_provider_message_id: string | null;
   last_email_error: string | null;
+  approval_status: string | null;
 }
 
 interface DeliveryEvent {
