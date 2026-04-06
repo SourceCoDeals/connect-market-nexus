@@ -1,45 +1,34 @@
 
 
-# Persist Message Notification Until Admin Replies
+# Update Email Dashboard: Complete Catalog + View by Recipient
 
-## Problem
+## What changes
 
-Currently the Messages badge only counts unread admin messages (`sender_role='admin'` + `is_read_by_buyer=false`). When a buyer sends a question and no admin has replied yet, the badge shows 0 — there's no visual indicator that they have an unanswered thread.
+### 1. Add "View by Recipient" toggle
+Add a tab/toggle at the top of the "All Platform Emails" card: **By Category** (current default) | **By Recipient**. The "By Recipient" view groups all emails by their recipient address/type, so you can see at a glance every email a given address receives.
 
-The user wants: the red notification badge on Messages should stay visible until an admin actually replies to the buyer's message.
+Recipient groups:
+- `support@sourcecodeals.com` — all admin notifications, support inbox copies
+- `Individual buyer` — all buyer-facing emails (lifecycle, messaging, agreements, deal flow)
+- `Individual user` — password reset, user notification, contact response, data recovery
+- `Invited buyer` — marketplace invitation
+- `Referred buyer` — deal referral
+- `Assigned admin` — task assigned
+- `Previous deal owner` — deal owner change
+- `Listing primary owner` — owner intro notification
 
-## Approach
+Each group shows the email types, edge functions, and sender info in a table — same columns as the current view, just regrouped.
 
-Add an "awaiting reply" count to the buyer message badge. A thread is "awaiting reply" when:
-- The last message in the thread was sent by the buyer (`last_message_sender_role = 'buyer'`)
-- No admin reply exists after the buyer's last message
+### 2. Verify all emails are listed
+Cross-referencing edge functions against the catalog, everything is already present. No missing emails to add.
 
-The `connection_requests` table already tracks `last_message_sender_role` (set by the DB trigger on `connection_messages` insert). We can use this directly.
+## Technical detail
 
-## Changes
+### File: `src/components/admin/emails/AdminEmailRouting.tsx`
+- Add `useState<'category' | 'recipient'>('category')` for the view toggle
+- Add two tab buttons above the table in the "All Platform Emails" card header
+- When `view === 'category'`: render existing category-grouped tables (no change)
+- When `view === 'recipient'`: derive a `Record<string, EmailEntry[]>` by grouping `ALL_EMAILS` entries by their `recipient` field, sorted alphabetically by recipient. Render the same table structure but grouped by recipient instead of category, with a count badge per group
 
-### `src/hooks/use-connection-messages.ts` — `useUnreadBuyerMessageCounts`
-
-Extend the query to also count threads where `last_message_sender_role = 'buyer'` (meaning the buyer sent the last message and is awaiting a reply). Add this as `awaitingReplyTotal` to the return value, and include it in the `messagesTotal` count used by the navbar badge.
-
-Specifically:
-1. After fetching `connection_requests`, also check which ones have `last_message_sender_role = 'buyer'`
-2. Count those as "awaiting reply" — but only if there's at least one message (not empty threads)
-3. Add `awaitingReplyCount` to the totals so the badge reflects pending conversations
-
-### `src/components/navbar/DesktopNavItems.tsx`
-
-The Messages badge already uses `unreadMessages?.messagesTotal`. Since we'll include awaiting-reply threads in that count, no navbar changes needed — it will automatically show the combined count.
-
-### `src/components/navbar/MobileNavItems.tsx`
-
-Same — already uses `unreadMessages?.messagesTotal`, no changes needed.
-
-### Result
-- Buyer sends a question → badge shows "1" on Messages
-- Admin replies → badge clears (unless there are other unread messages)
-- Buyer reads the reply and responds again → badge shows "1" again until admin replies
-
-### Files changed
-- `src/hooks/use-connection-messages.ts` — extend `useUnreadBuyerMessageCounts` to include awaiting-reply threads
+No new files, no new dependencies. Single file edit.
 
