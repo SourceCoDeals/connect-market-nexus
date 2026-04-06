@@ -296,6 +296,8 @@ const ListingDetail = () => {
                 listingId={id!}
                 listingStatusValue={listing.status}
                 isAdmin={isAdmin}
+                profileComplete={user ? isProfileComplete(user) : true}
+                profileCompletionPct={user ? getProfileCompletionPercentage(user) : 0}
               />
             </div>
 
