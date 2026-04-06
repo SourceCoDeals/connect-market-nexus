@@ -402,7 +402,7 @@ export default function CreateListingFromDeal() {
         queryClient.invalidateQueries({ queryKey: ['admin-listings'] });
       }
 
-      toast.success('Marketplace listing created — opening editor for review.');
+      toast.success('Marketplace listing created. Opening editor for review.');
       // Navigate to edit the newly created listing instead of back to queue
       if (newListing?.id) {
         navigate(`/admin/marketplace/listings`);
