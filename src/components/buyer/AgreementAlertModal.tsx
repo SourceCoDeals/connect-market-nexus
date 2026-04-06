@@ -49,7 +49,7 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
           </div>
 
           {/* Title */}
-          <h2 className="text-2xl font-bold text-foreground">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">
             {isNda ? 'NDA Ready to Sign' : 'Fee Agreement Ready to Sign'}
           </h2>
 
