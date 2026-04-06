@@ -158,7 +158,7 @@ const PendingApproval = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-6 px-4">
         {/* Brand Header */}
         <div className="flex flex-col items-center space-y-3">
           <div className="flex items-center">
@@ -177,7 +177,7 @@ const PendingApproval = () => {
                 {uiState === 'rejected' ? <XCircle className="h-8 w-8 text-destructive" /> : uiState === 'approved_pending' ? <CheckCircle className="h-8 w-8 text-green-600" /> : <Mail className="h-8 w-8 text-primary" />}
               </div>
             </div>
-            <CardTitle className="text-2xl font-bold text-center">
+            <CardTitle className="text-lg sm:text-2xl font-bold text-center">
               {uiState === 'rejected' ? 'Application Not Approved' : uiState === 'approved_pending' ? "You're in the queue — sign an agreement for immediate access" : 'Almost there — verify your email to continue'}
             </CardTitle>
             <CardDescription className="text-center">

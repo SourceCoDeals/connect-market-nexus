@@ -38,7 +38,7 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
         {/* Header accent bar */}
         <div className="h-1.5 w-full bg-sourceco rounded-t-lg" />
 
-        <div className="p-8 text-center space-y-6">
+        <div className="p-5 sm:p-8 text-center space-y-6">
           {/* Icon */}
           <div className="inline-flex p-4 rounded-full bg-sourceco/15 mx-auto">
             {isNda ? (
@@ -49,12 +49,12 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
           </div>
 
           {/* Title */}
-          <h2 className="text-2xl font-bold text-foreground">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">
             {isNda ? 'NDA Ready to Sign' : 'Fee Agreement Ready to Sign'}
           </h2>
 
           {/* Description */}
-          <p className="text-muted-foreground text-base leading-relaxed max-w-sm mx-auto">
+          <p className="text-muted-foreground text-sm sm:text-base leading-relaxed max-w-sm mx-auto">
             {isNda
               ? 'This is our standard NDA so we can freely exchange information about the companies on our platform. Sign it to unlock full deal access.'
               : 'Here is our fee agreement — you only pay a fee if you close a deal you meet on our platform. No upfront cost, ever.'}
