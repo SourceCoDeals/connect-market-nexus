@@ -26,7 +26,7 @@ const ListingCardFinancials = memo(function ListingCardFinancials({
     <div className={
       viewType === "grid" 
         ? "bg-slate-50/50 border border-slate-200/40 rounded-lg px-4 py-4 grid grid-cols-2 gap-y-4 gap-x-6"
-        : "grid grid-cols-4 gap-x-4 px-4 py-2.5 border-y border-slate-200/30"
+        : "grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 px-4 py-2.5 border-y border-slate-200/30"
     }>
       {/* Revenue */}
       <div className="flex flex-col justify-between">
