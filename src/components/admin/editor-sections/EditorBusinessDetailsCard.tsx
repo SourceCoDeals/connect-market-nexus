@@ -55,8 +55,9 @@ export function EditorBusinessDetailsCard({ form }: EditorBusinessDetailsCardPro
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input
+                    <Textarea
                       placeholder="e.g. HVAC, Plumbing, Electrical (comma-separated)"
+                      rows={3}
                       value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -66,7 +67,7 @@ export function EditorBusinessDetailsCard({ form }: EditorBusinessDetailsCardPro
                           field.onChange(val ? [val] : []);
                         }
                       }}
-                      className={cn(EDITOR_DESIGN.miniHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
+                      className={cn('text-sm min-h-[60px]', EDITOR_DESIGN.inputBg)}
                     />
                   </FormControl>
                 </FormItem>
