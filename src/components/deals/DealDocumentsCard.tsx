@@ -358,7 +358,7 @@ export function DealDocumentsCard({
               </p>
             </div>
           ) : (
-            <div className="pl-[30px] space-y-0.5">
+            <div className="pl-4 sm:pl-[30px] space-y-0.5">
               {visibleDocs.map((doc) => {
                 const Icon = getFileIcon(doc.file_type);
                 const isLoading = loadingDoc === doc.id;

@@ -413,8 +413,8 @@ const SavedListings = () => {
                         onClick={() => handlePageChange(pagination.currentPage + 1)}
                         disabled={pagination.currentPage === pagination.totalPages}
                       >
-                        Next
-                        <ChevronRight className="h-4 w-4 ml-1" />
+                        <span className="hidden sm:inline">Next</span>
+                        <ChevronRight className="h-4 w-4 sm:ml-1" />
                       </Button>
                     </div>
                   </div>
