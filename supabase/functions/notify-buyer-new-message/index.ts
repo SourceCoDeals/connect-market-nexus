@@ -8,6 +8,7 @@ import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
 interface NewMessageNotificationRequest {
   connection_request_id: string;
   message_preview: string;
+  admin_name?: string;
 }
 
 function buildMessageNotificationHtml(buyerName: string, dealTitle: string, messagePreview: string, loginUrl: string, buyerEmail: string, adminName?: string): string {
