@@ -168,7 +168,7 @@ const ListingDetail = () => {
   return (
     <div className="document-content min-h-screen bg-background">
       {/* Navigation */}
-      <div className="max-w-7xl mx-auto px-8 py-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-3">
         <Link
           to="/marketplace"
           className="inline-flex items-center text-xs text-slate-600 hover:text-slate-900 transition-colors font-medium"
@@ -180,8 +180,8 @@ const ListingDetail = () => {
 
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-10">
           {/* Main Content - 70% */}
           <div className="lg:col-span-7 space-y-8">
             {/* Horizontal Header */}
@@ -305,7 +305,7 @@ const ListingDetail = () => {
             {/* Data Room Modal */}
             {!isAdmin && user && (
               <Dialog open={dataRoomOpen} onOpenChange={setDataRoomOpen}>
-                <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden border-border/30 bg-background [&>button]:hidden">
+                <DialogContent className="max-w-[calc(100vw-16px)] sm:max-w-3xl max-h-[calc(100vh-32px)] sm:max-h-[85vh] p-0 gap-0 overflow-hidden border-border/30 bg-background [&>button]:hidden">
                   <MFAGate loadingText="Verifying identity for data room access...">
                     <BuyerDataRoom dealId={id!} connectionApproved={connectionStatusValue === 'approved'} onClose={() => setDataRoomOpen(false)} />
                   </MFAGate>
