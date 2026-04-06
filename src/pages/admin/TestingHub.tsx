@@ -839,7 +839,7 @@ export default function TestingHub() {
       </div>
 
       {showTracker && (
-        <div ref={trackerRef} className="px-8 pt-6">
+        <div ref={trackerRef} className="px-4 md:px-8 pt-6">
           <Suspense fallback={<Loading />}>
             <TestRunTracker
               runs={tracking.runs}
