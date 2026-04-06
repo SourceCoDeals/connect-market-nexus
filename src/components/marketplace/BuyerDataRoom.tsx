@@ -168,7 +168,7 @@ export function BuyerDataRoom({ dealId, connectionApproved, onClose }: BuyerData
         .select('document_id, action, created_at')
         .eq('deal_id', dealId)
         .eq('user_id', user?.id ?? '')
-        .in('action', ['view', 'download'])
+        .in('action', ['view_document', 'download_document'])
         .order('created_at', { ascending: false });
 
       if (error) return [];
