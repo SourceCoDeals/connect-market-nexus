@@ -182,7 +182,7 @@ export function AdminEmailRouting() {
             <div>
               <p className="text-sm font-semibold">Sender Identity</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                All outbound emails send FROM <code className="bg-muted px-1 rounded font-semibold">{SUPPORT_EMAIL}</code> with sender name "SourceCo". No individual admin receives any notification emails from the platform. All admin notifications go exclusively to the shared support inbox.
+                Default outbound emails send FROM <code className="bg-muted px-1 rounded font-semibold">{SUPPORT_EMAIL}</code> with sender name "SourceCo". Admin-bound notifications (to the support inbox) send FROM <code className="bg-muted px-1 rounded font-semibold">noreply@sourcecodeals.com</code> with sender name "SourceCo Notifications" to avoid Outlook spam filtering.
               </p>
             </div>
           </div>
