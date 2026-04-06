@@ -32,6 +32,7 @@ interface ListingSidebarActionsProps {
   ndaStatus: string;
   feeStatus: string;
   connectionApproved: boolean;
+  connectionStatus?: string | null;
   onExploreDataRoom?: () => void;
 }
 
