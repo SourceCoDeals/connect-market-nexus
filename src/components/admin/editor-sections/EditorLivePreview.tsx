@@ -345,7 +345,19 @@ function FullListingPreview({ formValues, imagePreview }: EditorLivePreviewProps
               )}
             </div>
           ))}
+          </div>
         </div>
+
+        {/* Business Details Grid */}
+        <BusinessDetailsGrid
+          geographic_states={formValues.geographic_states}
+          services={formValues.services}
+          number_of_locations={formValues.number_of_locations}
+          customer_types={formValues.customer_types}
+          revenue_model={formValues.revenue_model}
+          business_model={formValues.business_model}
+          growth_trajectory={formValues.growth_trajectory}
+        />
 
         {/* Business Overview */}
         <div className="py-6 border-b border-slate-100">
