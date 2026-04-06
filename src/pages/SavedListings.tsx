@@ -230,7 +230,7 @@ const SavedListings = () => {
           key={`skeleton-${index}`}
           className="bg-white rounded-lg border border-border overflow-hidden h-full flex flex-col"
         >
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="flex space-x-2 mb-2">
               <div className="h-6 w-16 bg-muted rounded skeleton"></div>
               <div className="h-6 w-20 bg-muted rounded skeleton"></div>
