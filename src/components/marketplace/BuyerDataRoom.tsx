@@ -141,7 +141,24 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
     !access ||
     (!access.can_view_teaser && !access.can_view_full_memo && !access.can_view_data_room)
   ) {
-    return null; // No access — don't show anything
+    // Show a helpful message if connection is approved but access hasn't been provisioned
+    if (connectionApproved) {
+      return (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Data Room
+          </h3>
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              <FolderOpen className="mx-auto h-8 w-8 mb-2" />
+              <p className="text-sm">Your access is being set up. Please check back shortly.</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+    return null;
   }
 
   const handleViewDocument = async (docId: string) => {
