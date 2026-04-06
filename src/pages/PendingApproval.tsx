@@ -158,7 +158,7 @@ const PendingApproval = () => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-muted/30">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-md space-y-6 px-4">
         {/* Brand Header */}
         <div className="flex flex-col items-center space-y-3">
           <div className="flex items-center">
