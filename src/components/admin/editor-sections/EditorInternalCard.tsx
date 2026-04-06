@@ -132,6 +132,14 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
 
       {isOpen && (
         <div className="space-y-3">
+          {/* ── INTERNAL (ADMIN ONLY) ── */}
+          <div className="flex items-center gap-1.5 mb-1">
+            <Lock className="h-3 w-3 text-muted-foreground/60" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              Internal (Admin Only)
+            </span>
+          </div>
+
           {/* Deal ID */}
           <div className="flex items-baseline justify-between">
             <span className={EDITOR_DESIGN.microLabel}>Deal</span>
