@@ -158,6 +158,14 @@ type ListingFormInput = {
   main_contact_linkedin?: string;
   // Content sections (populated by lead memo generator)
   custom_sections?: unknown;
+  // Buyer-facing business details
+  services?: string[] | null;
+  geographic_states?: string[] | null;
+  number_of_locations?: number | null;
+  customer_types?: string | null;
+  revenue_model?: string | null;
+  business_model?: string | null;
+  growth_trajectory?: string | null;
 };
 
 type ListingFormValues = z.infer<typeof listingFormSchema>;
