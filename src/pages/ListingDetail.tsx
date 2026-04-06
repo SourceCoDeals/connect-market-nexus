@@ -327,7 +327,7 @@ const ListingDetail = () => {
           <div className="lg:col-span-3">
             <div className="space-y-8">
               {/* Interested in This Deal? - Premium CTA */}
-              <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+              <div className="bg-white/50 border border-slate-200/60 rounded-lg p-4 sm:p-6 shadow-sm">
                 <div className="text-center mb-6">
                   <h3 className="text-base font-medium text-foreground mb-2">
                     Request Access to This Deal
