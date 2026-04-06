@@ -42,7 +42,7 @@ interface BuyerDocument {
   created_at: string;
 }
 
-export function BuyerDataRoom({ dealId }: BuyerDataRoomProps) {
+export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps) {
   const { user } = useAuth();
   const [loadingDoc, setLoadingDoc] = useState<string | null>(null);
 
