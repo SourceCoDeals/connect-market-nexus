@@ -66,7 +66,7 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
 
   // Phase 102: Build allowed categories from access toggles
   const allowedCategories = new Set<string>();
-  if (access?.can_view_teaser) allowedCategories.add('teaser');
+  if (access?.can_view_teaser) allowedCategories.add('anonymous_teaser');
   if (access?.can_view_full_memo) allowedCategories.add('full_memo');
   if (access?.can_view_data_room) allowedCategories.add('data_room');
 
