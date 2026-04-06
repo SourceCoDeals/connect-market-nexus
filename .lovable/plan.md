@@ -1,57 +1,36 @@
 
 
-# Fix Metrics: Smart Defaults, AI Generation, and Editor Visibility
+# Fix Listing Detail UX: Profile Banner, Data Room CTA, Geography
 
-## Problems
+## 3 Issues
 
-1. **"Team Size: 0"** — The default metric 3 shows `Team Size` with value `0` and subtitle `0 FT, 0 PT` when no employee data exists. This looks terrible.
-2. **"Profitability metric"** — The default metric 4 subtitle is a hardcoded placeholder string `'Profitability metric'`. Useless.
-3. **Metrics 3 and 4 are not editable in the editor** — `EditorFinancialCard.tsx` only has Revenue and EBITDA fields. There is no UI to configure metric 3 (Team Size or custom) or metric 4 (EBITDA Margin or custom), their labels, values, or subtitles.
-4. **AI generation does not populate metrics** — The `generate-listing-content` edge function only generates title, hero, and body description. It does not set `metric_3_*`, `metric_4_*`, `revenue_metric_subtitle`, or `ebitda_metric_subtitle`.
+### 1. Profile Completion Banner (sidebar) - ugly amber box
+Currently in `ConnectionButton.tsx` (lines 131-172): a chunky amber box with bullet-point list of missing fields, progress bar, and separate "Complete My Profile" link button. Needs to match the premium minimal design language.
 
-## Solution
+**Fix**: Replace with a clean, minimal card using the dark (#0E101A) progress bar style consistent with the platform. Remove the amber background. Use subtle border, clean typography, and integrate the CTA button inline. Show missing fields as dot-separated text (not bullet list).
 
-### 1. Add Metrics 3 and 4 to Editor (`EditorFinancialCard.tsx`)
+### 2. "Unlock the Data Room" (BlurredFinancialTeaser.tsx) - text cut off, poor design
+The component has `min-h-[360px]` and the text paragraph is long. The ConnectionButton inside it renders the profile completion banner, which pushes content and causes overflow/cutoff.
 
-Below Revenue and EBITDA, add two configurable metric slots:
+**Fix**: 
+- Remove `min-h-[360px]` constraint, let it size naturally
+- Reduce padding, make the CTA more compact
+- Shorten the description text
+- Ensure the inner ConnectionButton (which shows profile completion) doesn't create a nested banner - instead, show a simple inline message with a link
 
-**Metric 3**: Toggle between "Team Size" (auto-calculated from `full_time_employees` + `part_time_employees` fields) and "Custom" (free-text label/value/subtitle). Include FT/PT employee inputs when in Team Size mode.
+### 3. Geography "FL" shown separately from "SOUTHEAST" in header
+The header shows `SOUTHEAST` (from `stateToRegion(listing.location)`), then separately `BusinessDetailsGrid` renders a full "GEOGRAPHY" section with just "FL". Redundant and poorly placed.
 
-**Metric 4**: Toggle between "EBITDA Margin" (auto-calculated) and "Custom" (free-text). When in EBITDA Margin mode, show the auto-calculated value with an editable subtitle field (replacing the hardcoded "Profitability metric").
-
-Each metric slot: a small toggle (Team Size / Custom or EBITDA Margin / Custom), then the relevant inputs.
-
-### 2. Fix Default Display When Data is Missing (`ListingDetail.tsx` + `ListingPreview.tsx`)
-
-**Metric 3 (Team Size default)**: If `full_time_employees + part_time_employees === 0`, hide this metric entirely or show em-dash instead of "0". Change subtitle from "0 FT, 0 PT" to nothing.
-
-**Metric 4 (EBITDA Margin default)**: Change subtitle from `'Profitability metric'` to something computed like the category name, or just remove the subtitle entirely.
-
-### 3. AI Generate Populates Metric Subtitles (`generate-listing-content`)
-
-When generating content, also return and save:
-- `revenue_metric_subtitle`: Use the primary category/industry (e.g., "Restoration", "HVAC")
-- `ebitda_metric_subtitle`: Use a computed string like `~33.3% margin profile` (already used as fallback, just save it explicitly)
-- `metric_3_type`: If deal has employee data, keep as `employees`. Otherwise set to `custom` with a relevant metric from the deal (e.g., "Locations" if `number_of_locations` exists, or "Years in Business" if `founded_year` exists)
-- `metric_4_custom_subtitle`: Remove hardcoded "Profitability metric", use category or empty
-
-The AI function will intelligently pick the best metric 3 and 4 based on available deal data:
-- Has employees? -> Team Size with FT/PT breakdown
-- Has locations? -> Custom "Locations" metric
-- Has years? -> Custom "Years Established"
-- Otherwise -> hide metric 3 (set to custom with empty values)
-
-### 4. Update Live Preview (`EditorLivePreview.tsx`)
-
-Update the preview's financial grid (lines 320-348) to match the same logic: use form values for metric 3/4, show smart defaults, hide empty metrics.
+**Fix**: 
+- In `ListingHeader.tsx`, append the raw state code next to the region: "SOUTHEAST | FL"
+- In `BusinessDetailsGrid`, remove the Geography section entirely (it's redundant with the header) OR only show it when there are multiple states
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/admin/editor-sections/EditorFinancialCard.tsx` | Add metric 3 and 4 configuration UI with toggles, employee inputs, custom fields |
-| `src/pages/ListingDetail.tsx` | Fix Team Size 0 display, remove "Profitability metric" hardcode |
-| `src/pages/ListingPreview.tsx` | Same fixes as ListingDetail |
-| `src/components/admin/editor-sections/EditorLivePreview.tsx` | Update preview financial grid to use form metric values |
-| `supabase/functions/generate-listing-content/index.ts` | Generate and save metric subtitles and smart metric 3/4 values |
+| `src/components/listing-detail/ConnectionButton.tsx` | Redesign profile completion block (lines 131-172) to premium minimal style |
+| `src/components/listing-detail/BlurredFinancialTeaser.tsx` | Remove min-height, tighten layout, shorten copy |
+| `src/components/listing-detail/ListingHeader.tsx` | Show state code next to region (e.g., "SOUTHEAST | FL") |
+| `src/components/listing-detail/BusinessDetailsGrid.tsx` | Skip Geography section when only 1 state (already shown in header) |
 
