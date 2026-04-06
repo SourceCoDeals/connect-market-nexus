@@ -402,7 +402,7 @@ export function BuyerDataRoom({ dealId, connectionApproved, onClose }: BuyerData
                           {lastEvent && (
                             <>
                               {doc.file_size_bytes ? ' · ' : ''}
-                              {lastEvent.action === 'download' ? 'Downloaded' : 'Viewed'}{' '}
+                              {lastEvent.action === 'download_document' ? 'Downloaded' : 'Viewed'}{' '}
                               {formatDistanceToNow(new Date(lastEvent.created_at), { addSuffix: true })}
                             </>
                           )}
