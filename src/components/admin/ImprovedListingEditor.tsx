@@ -228,6 +228,14 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     main_contact_linkedin: listing?.main_contact_linkedin || '',
     // Content sections (populated by lead memo generator)
     custom_sections: listing?.custom_sections || null,
+    // Buyer-facing business details
+    services: listing?.services || null,
+    geographic_states: listing?.geographic_states || null,
+    number_of_locations: listing?.number_of_locations ?? null,
+    customer_types: listing?.customer_types || null,
+    revenue_model: listing?.revenue_model || null,
+    business_model: listing?.business_model || null,
+    growth_trajectory: (listing as any)?.growth_trajectory || null,
   };
 };
 
