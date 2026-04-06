@@ -172,7 +172,7 @@ export function useSendMessage() {
             const { data: buyerProfile } = await supabase
               .from('profiles')
               .select('first_name, last_name, email')
-              .eq('id', connReq.user_id)
+              .eq('id', connReq.user_id as string)
               .single();
             if (buyerProfile) {
               const bName = `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim();
