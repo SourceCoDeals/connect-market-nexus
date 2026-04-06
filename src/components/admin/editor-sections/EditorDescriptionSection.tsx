@@ -75,7 +75,7 @@ export function EditorDescriptionSection({
     if (!dealId) return;
     setIsRegenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-marketplace-listing', {
+      const { data, error } = await supabase.functions.invoke('generate-listing-content', {
         body: { deal_id: dealId, listing_id: listingId || undefined },
       });
 

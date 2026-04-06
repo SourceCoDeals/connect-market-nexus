@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { parseCurrency } from '@/lib/currency-utils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Save, Target, ExternalLink, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Loader2, Save, Target, ExternalLink, Globe, ShieldCheck, ShieldAlert, Sparkles } from 'lucide-react';
+import { toast as sonnerToast } from 'sonner';
 import { usePublishListing } from '@/hooks/admin/listings/use-publish-listing';
 import { Badge } from '@/components/ui/badge';
 
@@ -285,6 +286,49 @@ export function ImprovedListingEditor({
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+
+  const handleAiGenerateAll = async () => {
+    if (!effectiveDealId) {
+      toast({
+        title: 'No source deal',
+        description: 'AI generation requires a linked deal.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsGeneratingAll(true);
+    setIsGenerating(true);
+    setGeneratingField('all');
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-listing-content', {
+        body: { deal_id: effectiveDealId, listing_id: listing?.id || undefined },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Generation failed');
+
+      if (data.title) form.setValue('title', data.title, { shouldDirty: true });
+      if (data.hero_description) form.setValue('hero_description', data.hero_description, { shouldDirty: true });
+      if (data.description_html) {
+        form.setValue('description_html', data.description_html, { shouldDirty: true });
+        form.setValue('description', data.description_markdown || '', { shouldDirty: true });
+      }
+      if (data.location) form.setValue('location', [data.location], { shouldDirty: true });
+
+      sonnerToast.success('All listing content generated. Review and edit before publishing.');
+    } catch (err) {
+      console.error('[ImprovedListingEditor] AI generate all error:', err);
+      toast({
+        title: 'Generation Failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingAll(false);
+      setIsGenerating(false);
+      setGeneratingField(null);
+    }
+  };
 
   const handleAiGenerate = async (field: string) => {
     if (!effectiveDealId) {
@@ -298,22 +342,19 @@ export function ImprovedListingEditor({
     setIsGenerating(true);
     setGeneratingField(field);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-lead-memo', {
-        body: { listingId: effectiveDealId, memo_type: 'anonymous_teaser', targetField: field },
+      const { data, error } = await supabase.functions.invoke('generate-listing-content', {
+        body: { deal_id: effectiveDealId, listing_id: listing?.id || undefined },
       });
       if (error) throw error;
-      if (field === 'hero_description' && data?.hero_description) {
+      if (!data?.success) throw new Error(data?.error || 'Generation failed');
+
+      if (field === 'hero_description' && data.hero_description) {
         form.setValue('hero_description', data.hero_description, { shouldDirty: true });
-        toast({ title: 'AI Content Generated', description: 'Hero description updated.' });
-      } else if (field === 'description' && data?.description) {
-        form.setValue('description', data.description, { shouldDirty: true });
-        if (data.description_html) {
-          (form.setValue as Function)('description_html', data.description_html, { shouldDirty: true });
-        }
-        toast({ title: 'AI Content Generated', description: 'Description updated.' });
-      } else if (data?.custom_sections) {
-        (form.setValue as Function)('custom_sections', data.custom_sections, { shouldDirty: true });
-        toast({ title: 'AI Content Generated', description: 'Content sections updated.' });
+        sonnerToast.success('Hero description generated.');
+      } else if (field === 'description' && data.description_html) {
+        form.setValue('description_html', data.description_html, { shouldDirty: true });
+        form.setValue('description', data.description_markdown || '', { shouldDirty: true });
+        sonnerToast.success('Description generated.');
       }
     } catch (err) {
       toast({
@@ -531,8 +572,30 @@ export function ImprovedListingEditor({
                   Preview Landing Page
                 </a>
               </div>
-            )}
+             )}
 
+            {/* AI Generate All Content */}
+            {effectiveDealId && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAiGenerateAll}
+                disabled={isGeneratingAll || isGenerating}
+                className="w-full gap-2 h-11 text-sm font-medium border-primary/20 hover:bg-primary/5"
+              >
+                {isGeneratingAll ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating title, hero, and description from deal data...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    AI Generate All Content
+                  </>
+                )}
+              </Button>
+            )}
             {/* 1. Featured Image */}
             <EditorVisualsSection
               imagePreview={imagePreview}
