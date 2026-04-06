@@ -74,7 +74,7 @@ export function EditorDescriptionSection({
 
       const validation = data?.validation;
       if (validation && !validation.pass) {
-        toast.warning('AI listing regenerated with validation warnings — review carefully.');
+        toast.warning('AI listing regenerated with validation warnings. Review carefully.');
       } else {
         toast.success('Listing description regenerated — review and edit before saving.');
       }
