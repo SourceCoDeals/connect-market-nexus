@@ -76,6 +76,8 @@ const ALL_EMAILS: Record<Category, EmailEntry[]> = {
     { emailType: 'Deal Memo', edgeFunction: 'send-memo-email', recipient: 'Individual buyer', senderName: 'Calling admin profile', replyTo: 'Calling admin email' },
     { emailType: 'Deal Referral', edgeFunction: 'send-deal-referral', recipient: 'Referred buyer', senderName: 'SourceCo Marketplace', replyTo: SUPPORT_EMAIL },
     { emailType: 'Data Room Access Granted', edgeFunction: 'grant-data-room-access', recipient: 'Individual buyer', senderName: 'SourceCo', replyTo: SUPPORT_EMAIL },
+    { emailType: 'Deal Reassignment', edgeFunction: 'notify-deal-reassignment', recipient: 'Previous deal owner', senderName: 'SourceCo', replyTo: SUPPORT_EMAIL },
+    { emailType: 'New Deal Owner Assigned', edgeFunction: 'notify-new-deal-owner', recipient: 'Newly assigned owner', senderName: 'SourceCo', replyTo: SUPPORT_EMAIL },
   ],
   'Owner-Facing': [
     { emailType: 'Owner Intro Notification', edgeFunction: 'send-owner-intro-notification', recipient: 'Listing primary owner', senderName: 'SourceCo', replyTo: SUPPORT_EMAIL },
