@@ -656,6 +656,11 @@ serve(async (req) => {
       if (!deal.executive_summary && websiteContent.length > 200) {
         updates.executive_summary = websiteContent.substring(0, 500).trim() + '...';
       }
+      // Also populate description from executive_summary so GP partner leads show content
+      const summary = (updates.executive_summary as string) ?? deal.executive_summary;
+      if (summary && !deal.description) {
+        updates.description = summary;
+      }
 
       const { error: updateError } = await supabase
         .from('listings')
@@ -935,6 +940,14 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
         `[${aiExtractionSource}] ${rejected.length} fields blocked by higher-priority sources:`,
         rejected,
       );
+    }
+
+    // If enrichment produced an executive_summary but the deal has no description,
+    // copy executive_summary into description so GP partner leads (and other views
+    // that display description) always have content after scraping.
+    const resolvedSummary = (updates as Record<string, unknown>).executive_summary ?? deal.executive_summary;
+    if (resolvedSummary && !deal.description && !(updates as Record<string, unknown>).description) {
+      (updates as Record<string, unknown>).description = resolvedSummary;
     }
 
     const finalUpdates: Record<string, unknown> = {

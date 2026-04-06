@@ -376,13 +376,13 @@ export function OverviewTab({
         }}
       />
 
-      {deal.description && (
+      {(deal.description || deal.executive_summary) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Description</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground whitespace-pre-wrap">{deal.description}</p>
+            <p className="text-muted-foreground whitespace-pre-wrap">{deal.description || deal.executive_summary}</p>
           </CardContent>
         </Card>
       )}
