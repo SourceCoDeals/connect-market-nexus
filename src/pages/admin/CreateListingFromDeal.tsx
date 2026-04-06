@@ -279,15 +279,15 @@ export default function CreateListingFromDeal() {
         const validation = data?.validation;
         if (validation && !validation.pass) {
           toast.warning(
-            'AI listing generated with validation warnings — review carefully before saving.',
+            'AI listing generated with validation warnings. Review carefully before saving.',
           );
         } else {
-          toast.success('AI content generated — review and edit before saving.');
+          toast.success('AI content generated. Review and edit before saving.');
         }
       } catch (err) {
         console.error('[CreateListingFromDeal] AI content generation error:', err);
         setDescriptionSource('anonymizer');
-        toast.warning('AI listing generation failed — using placeholder description.');
+        toast.warning('AI listing generation failed. Using placeholder description.');
       } finally {
         setIsGeneratingContent(false);
       }
