@@ -38,7 +38,7 @@ export function AgreementAlertModal({ open, documentType, onDismiss }: Agreement
         {/* Header accent bar */}
         <div className="h-1.5 w-full bg-sourceco rounded-t-lg" />
 
-        <div className="p-8 text-center space-y-6">
+        <div className="p-5 sm:p-8 text-center space-y-6">
           {/* Icon */}
           <div className="inline-flex p-4 rounded-full bg-sourceco/15 mx-auto">
             {isNda ? (
