@@ -111,7 +111,7 @@ const ListingCard = memo(function ListingCard({
             hover:border-slate-300 hover:shadow-[0_8px_16px_0_rgba(0,0,0,0.1)]
             hover:-translate-y-1
             ${
-              viewType === 'list' ? 'flex flex-row items-stretch' : 'flex flex-col'
+              viewType === 'list' ? 'flex flex-col sm:flex-row items-stretch' : 'flex flex-col'
             } h-full overflow-hidden`}
         >
           <div className={`relative ${viewType === 'list' ? 'shrink-0' : ''}`}>
