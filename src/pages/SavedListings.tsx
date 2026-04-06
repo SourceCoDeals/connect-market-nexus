@@ -270,7 +270,7 @@ const SavedListings = () => {
 
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm">Results per page:</span>
+                  <span className="text-sm hidden sm:inline">Results per page:</span>
                   <Select value={String(filters.perPage || 20)} onValueChange={handlePerPageChange}>
                     <SelectTrigger className="w-[80px]">
                       <SelectValue placeholder="20" />
