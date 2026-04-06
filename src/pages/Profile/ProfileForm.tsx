@@ -38,9 +38,17 @@ export function ProfileForm({
 }: ProfileFormProps) {
   // Merge formData with user for live completeness tracking
   const mergedUser = { ...user, ...formData };
-  const missingLabels = getMissingFieldLabels(mergedUser);
+  const missingKeys = getMissingRequiredFields(mergedUser);
   const completionPct = getProfileCompletionPercentage(mergedUser);
   const profileComplete = isProfileComplete(mergedUser);
+
+  const scrollToField = (fieldKey: string) => {
+    const el = document.getElementById(fieldKey);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => el.focus(), 400);
+    }
+  };
 
   return (
     <Card>
