@@ -330,8 +330,10 @@ export default function CreateListingFromDeal() {
         source_deal_id: dealId,
         // Ensure it's created as an internal draft
         is_internal_deal: true,
-        // website is NOT NULL in DB — empty for anonymous marketplace listings
-        website: '',
+        // website is NOT NULL in DB with non-empty CHECK constraint
+        website: (deal as Record<string, unknown>)?.website
+          ? String((deal as Record<string, unknown>).website)
+          : `listing-${crypto.randomUUID().slice(0, 8)}.placeholder`,
       };
 
       const newListing = await createListing({ listing: listingData as never, image });

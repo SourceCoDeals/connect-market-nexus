@@ -238,10 +238,10 @@ export function useRobustListingCreation() {
           // Content sections (populated by lead memo generator)
           custom_sections: listing.custom_sections || null,
 
-          // REQUIRED by DB (NOT NULL, no default) — empty for anonymous listings
+          // REQUIRED by DB (NOT NULL + non-empty CHECK constraint)
           website: (listing as Record<string, unknown>).website
             ? sanitizeStringField((listing as Record<string, unknown>).website)
-            : '',
+            : `listing-${crypto.randomUUID().slice(0, 8)}.placeholder`,
 
           // Computed financial metric
           ebitda_margin:
