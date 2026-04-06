@@ -1,59 +1,77 @@
 
 
-# Direct Buyers to Reply in-Platform, Not via Email
+# Phase 1 Audit: Mobile Optimization Fixes
 
-## Problem
+## Testing Summary
 
-Several messaging-related emails set `replyTo: 'support@sourcecodeals.com'`, which invites buyers to reply directly via email. Those replies land in Outlook and are invisible to all admins on the platform. Conversations fragment across email and the messaging system.
+Tested at 375px viewport: Login, Signup, Welcome, Forgot Password pages. Code-audited all user-facing pages for mobile responsiveness.
 
-## Emails That Need Changes
+## Issues Found
 
-| # | Edge Function | Email Purpose | Current Issue |
-|---|--------------|---------------|---------------|
-| 1 | `notify-buyer-new-message` | "Admin replied to your message" | Says "Log in to your dashboard to view the full message and reply" — decent, but `replyTo` is `support@` so email reply is easy. Needs stronger nudge + set `replyTo` to `noreply@` |
-| 2 | `notify-buyer-inquiry-received` | "We received your inquiry" | Already says "reply directly on the platform" — good copy. But `replyTo` is `support@` which contradicts the message. Change to `noreply@` |
-| 3 | `send-connection-notification` (approval_notification) | "Your introduction is approved" | Says "Reply to any email or message us in the platform for support" — actively encourages email reply. Fix copy + `replyTo` |
-| 4 | `send-feedback-email` | Admin reply to feedback | Says "Please do not reply to this email" but `replyTo` is `support@`. Change to `noreply@` |
-| 5 | `grant-data-room-access` | "Data room access granted" | Says "reply to this email. It goes directly to our deal team" — actively encourages email reply. Fix copy + `replyTo` |
-| 6 | `notify-support-inbox` | Internal admin copy of messages | Admin-facing, no buyer impact — leave as-is |
+### Issue 1: Data Room Modal — Not Full-Screen on Mobile
+**File:** `src/pages/ListingDetail.tsx` line 308
+The `DialogContent` has `max-w-3xl` but no mobile override. On 375px, the dialog renders with default padding/margins from DialogContent (`left-[50%] translate-x-[-50%]` with `w-full max-w-lg` base), making it too narrow. The `max-h-[80vh]` in BuyerDataRoom is fine, but the dialog needs full-width + full-height on mobile.
 
-## Changes Per File
+**Fix:** Add responsive classes: `sm:max-w-3xl max-w-[calc(100vw-16px)] sm:max-h-[80vh] max-h-[calc(100vh-32px)]` to DialogContent.
 
-### 1. `supabase/functions/notify-buyer-new-message/index.ts`
-- Change `replyTo` from `support@sourcecodeals.com` to `noreply@sourcecodeals.com`
-- Change `senderName` to `SourceCo Notifications` and `senderEmail` to `noreply@sourcecodeals.com`
-- Update body copy: replace "Log in to your dashboard to view the full message and reply" with "Please reply directly on the platform so all admins can see your response and assist you faster."
-- CTA button already links to `/messages` — correct
+### Issue 2: Data Room — View/Download Buttons Hidden on Touch (opacity-0 hover)
+**File:** `src/components/marketplace/BuyerDataRoom.tsx` line 411
+Document action buttons use `opacity-0 group-hover:opacity-100` — on mobile touch devices, hover doesn't exist. Buttons are invisible and untappable.
 
-### 2. `supabase/functions/notify-buyer-inquiry-received/index.ts`
-- Change `replyTo` from `support@sourcecodeals.com` to `noreply@sourcecodeals.com`
-- Add a line: "Please do not reply to this email. All conversations are managed securely on the platform."
-- CTA already links to `/messages` — correct
+**Fix:** Change to `opacity-0 group-hover:opacity-100 md:opacity-0 max-md:opacity-100` so buttons are always visible on mobile.
 
-### 3. `supabase/functions/send-connection-notification/index.ts` (approval type)
-- Change `replyTo` from `support@sourcecodeals.com` to `noreply@sourcecodeals.com`
-- Replace "Reply to any email or message us in the platform for support" with "Message us directly on the platform for support. All conversations are tracked there for your records."
-- CTA button already links to `/my-deals` — correct (messages tab is within My Deals)
+### Issue 3: Messages — ConversationList Fixed Width 300px on Mobile
+**File:** `src/pages/BuyerMessages/ConversationList.tsx` line 44
+The conversation list has `w-[300px]` which fills most of a 375px screen but leaves an awkward 75px gap on the right. On mobile (when no thread selected), it should be full-width.
 
-### 4. `supabase/functions/send-feedback-email/index.ts`
-- Change `replyTo` from `support@sourcecodeals.com` to `noreply@sourcecodeals.com`
-- Keep "Please do not reply to this email" — already correct copy
+**Fix:** Change to `w-full md:w-[300px]`.
 
-### 5. `supabase/functions/grant-data-room-access/index.ts`
-- Change `replyTo` from `support@sourcecodeals.com` to `noreply@sourcecodeals.com`
-- Replace "reply to this email. It goes directly to our deal team" with "If you have questions about the materials, message us directly on the platform. Your deal team monitors all conversations there."
-- Add a secondary CTA or note linking to `/messages`
+### Issue 4: Marketplace — "Results per page" Label Wraps Awkwardly on Mobile
+**File:** `src/pages/Marketplace.tsx` lines 256-302
+The toolbar row with "View:", "Results per page:", and sorting Select boxes wraps awkwardly on small screens. The "Results per page:" label is too wide.
 
-## What Does NOT Change
-- `notify-support-inbox` — internal admin email, no buyer interaction
-- `send-connection-notification` (user_confirmation / admin_notification types) — these are confirmations/admin alerts, not conversation emails
-- Onboarding emails (day2, day7) — these say "reply to this email" for general questions, not messaging threads. Leave as-is since those aren't tied to deal conversations.
-- `request-agreement-email` — says "reply with signed copy attached" which is a legitimate email-reply workflow for document signing
+**Fix:** Hide "Results per page:" text on mobile, keep just the Select. Use `hidden sm:inline` on the label span.
 
-## Summary
-Five edge functions updated. Two types of changes per file:
-1. `replyTo` changed from `support@` to `noreply@` so email clients don't offer an easy reply path
-2. Body copy updated to explicitly direct buyers to the platform for all deal conversations
+### Issue 5: Listing Detail — Padding Too Large on Mobile
+**File:** `src/pages/ListingDetail.tsx` line 171, 183
+- `px-8` on the back navigation is excessive on 375px (32px each side = 64px lost)
+- `px-6 py-8` on main content is also large
 
-All CTA buttons already link to the correct platform pages (`/messages`, `/my-deals`). No link changes needed.
+**Fix:** Change to `px-4 sm:px-8` and `px-4 sm:px-6` respectively.
+
+### Issue 6: Listing Detail — Sidebar CTA Card on Mobile Needs Spacing
+**File:** `src/pages/ListingDetail.tsx` line 330
+The sidebar renders below the main content on mobile (`grid-cols-1 lg:grid-cols-10`). The `p-6` padding is fine but the `gap-10` between grid items creates excessive vertical space.
+
+**Fix:** Change to `gap-6 lg:gap-10`.
+
+### Issue 7: Data Room in DealDocumentsCard — View/Download Also Hidden on Touch
+**File:** `src/components/deals/DealDocumentsCard.tsx`
+Same hover-only visibility pattern likely exists here.
+
+**Fix:** Apply same `max-md:opacity-100` fix.
+
+### Issue 8: Marketplace Listing Grid — Single Column but Sort Controls Overflow
+**File:** `src/pages/Marketplace.tsx` line 261
+The `flex flex-wrap items-center gap-4` toolbar works but items like "Sort by:" selector may cause horizontal scroll on very small screens.
+
+**Fix:** Add `overflow-hidden` to parent and use `text-xs` on mobile for the sort labels.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/pages/ListingDetail.tsx` | Mobile padding (px-4), dialog full-width on mobile, gap-6 on grid |
+| `src/components/marketplace/BuyerDataRoom.tsx` | Always-visible action buttons on mobile |
+| `src/pages/BuyerMessages/ConversationList.tsx` | Full-width conversation list on mobile |
+| `src/pages/Marketplace.tsx` | Hide verbose labels on mobile, prevent toolbar overflow |
+| `src/components/deals/DealDocumentsCard.tsx` | Always-visible action buttons on mobile |
+
+## Implementation Order
+
+1. ListingDetail padding + dialog mobile sizing
+2. BuyerDataRoom touch-friendly buttons
+3. ConversationList full-width mobile
+4. Marketplace toolbar mobile cleanup
+5. DealDocumentsCard touch-friendly buttons
 
