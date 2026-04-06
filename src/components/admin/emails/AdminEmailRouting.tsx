@@ -1,7 +1,9 @@
 // Admin email routing data is maintained inline below (derived from ADMIN_PROFILES + edge function audit)
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Inbox, Users, Mail, Settings, Send, AlertTriangle, CheckCircle } from 'lucide-react';
 
 interface EmailEntry {
