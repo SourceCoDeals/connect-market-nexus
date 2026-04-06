@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { MultiCategorySelect } from '@/components/ui/category-select';
 import { MultiLocationSelect } from '@/components/ui/location-select';
@@ -21,8 +21,8 @@ import { ChipInput } from '@/components/ui/chip-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DEAL_INTENT_OPTIONS } from '@/lib/signup-field-options';
 import { ProfileSettings } from './ProfileSettings';
-import { Progress } from '@/components/ui/progress';
-import { getMissingFieldLabels, getProfileCompletionPercentage, isProfileComplete } from '@/lib/profile-completeness';
+import { getMissingRequiredFields, getProfileCompletionPercentage, isProfileComplete } from '@/lib/profile-completeness';
+import { FIELD_LABELS } from '@/lib/buyer-type-fields';
 import type { ProfileFormProps } from './types';
 
 export function ProfileForm({
@@ -37,9 +37,17 @@ export function ProfileForm({
 }: ProfileFormProps) {
   // Merge formData with user for live completeness tracking
   const mergedUser = { ...user, ...formData };
-  const missingLabels = getMissingFieldLabels(mergedUser);
+  const missingKeys = getMissingRequiredFields(mergedUser);
   const completionPct = getProfileCompletionPercentage(mergedUser);
   const profileComplete = isProfileComplete(mergedUser);
+
+  const scrollToField = (fieldKey: string) => {
+    const el = document.getElementById(fieldKey);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => el.focus(), 400);
+    }
+  };
 
   return (
     <Card>
@@ -50,27 +58,39 @@ export function ProfileForm({
 
       <CardContent>
         {!profileComplete && (
-          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="space-y-1">
-                <p className="font-medium text-sm text-amber-900">
-                  Complete these fields to unlock deal access
-                </p>
-                <p className="text-xs text-amber-700">
-                  {completionPct}% complete — fill in the remaining fields below to request introductions.
-                </p>
-              </div>
+          <div className="mb-6 rounded-lg border border-[#E5E5E5] p-4 space-y-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-[#0E101A]">
+                {completionPct}% complete
+              </p>
+              <p className="text-xs text-[#6B6B6B]">
+                Fill in the remaining fields to request introductions.
+              </p>
             </div>
-            <Progress value={completionPct} className="h-2" />
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-amber-800 pl-1">
-              {missingLabels.map((label) => (
-                <li key={label} className="flex items-center gap-1.5">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0" />
-                  {label}
-                </li>
-              ))}
-            </ul>
+            <div className="h-1 rounded-full bg-[#E5E5E5] overflow-hidden">
+              <div
+                className="h-full bg-[#0E101A] transition-all duration-500"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+            {missingKeys.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                {missingKeys.map((key, i) => (
+                  <span key={key} className="inline-flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => scrollToField(key)}
+                      className="text-xs font-medium text-[#0E101A] underline-offset-2 hover:underline cursor-pointer"
+                    >
+                      {(FIELD_LABELS as Record<string, string>)[key] ?? key}
+                    </button>
+                    {i < missingKeys.length - 1 && (
+                      <span className="text-[#C0C0C0] ml-1.5">·</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
