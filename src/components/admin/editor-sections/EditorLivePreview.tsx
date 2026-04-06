@@ -8,6 +8,7 @@ import ListingCardBadges from '@/components/listing/ListingCardBadges';
 import ListingCardTitle from '@/components/listing/ListingCardTitle';
 import ListingCardFinancials from '@/components/listing/ListingCardFinancials';
 import { RichTextDisplay } from '@/components/ui/rich-text-display';
+import { BusinessDetailsGrid } from '@/components/listing-detail/BusinessDetailsGrid';
 import { formatCurrency } from '@/lib/currency-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { useRelatedDeals } from '@/hooks/useDealLandingPage';
@@ -313,8 +314,10 @@ function FullListingPreview({ formValues, imagePreview }: EditorLivePreviewProps
           </p>
         </div>
 
-        {/* Financial Grid */}
-        <div className="grid grid-cols-3 gap-8 border-b border-border/30 pb-4 mb-6">
+        {/* Financial Grid — gated: buyers see this only after connection approval */}
+        <div className="relative">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Visible after connection approval only</p>
+          <div className="grid grid-cols-3 gap-8 border-b border-border/30 pb-4 mb-6 opacity-80">
           {[
             {
               label: `${new Date().getFullYear() - 1} Revenue`,
@@ -342,7 +345,19 @@ function FullListingPreview({ formValues, imagePreview }: EditorLivePreviewProps
               )}
             </div>
           ))}
+          </div>
         </div>
+
+        {/* Business Details Grid */}
+        <BusinessDetailsGrid
+          geographic_states={formValues.geographic_states}
+          services={formValues.services}
+          number_of_locations={formValues.number_of_locations}
+          customer_types={formValues.customer_types}
+          revenue_model={formValues.revenue_model}
+          business_model={formValues.business_model}
+          growth_trajectory={formValues.growth_trajectory}
+        />
 
         {/* Business Overview */}
         <div className="py-6 border-b border-slate-100">
@@ -589,7 +604,7 @@ export function EditorLivePreview({ formValues, imagePreview, listingId }: Edito
           <TabsContent value="card" className="mt-0">
             <div className="p-4">
               <p className="text-xs text-muted-foreground mb-3">
-                Marketplace browse view — the tile buyers see when browsing deals.
+                Marketplace browse view. The tile buyers see when browsing deals.
               </p>
               <MarketplaceCardPreview formValues={formValues} imagePreview={imagePreview} />
             </div>
@@ -598,7 +613,7 @@ export function EditorLivePreview({ formValues, imagePreview, listingId }: Edito
           <TabsContent value="full" className="mt-0">
             <div className="p-4">
               <p className="text-xs text-muted-foreground mb-3">
-                Full listing page — what a buyer sees after clicking into the deal from the
+                Full listing page. What a buyer sees after clicking into the deal from the
                 marketplace.
               </p>
               <FullListingPreview formValues={formValues} imagePreview={imagePreview} />
@@ -610,7 +625,7 @@ export function EditorLivePreview({ formValues, imagePreview, listingId }: Edito
               <p className="text-xs text-muted-foreground mb-3 flex items-center gap-2">
                 <Shield className="h-3.5 w-3.5" />
                 <span>
-                  Full landing page preview — exactly how anonymous visitors see this deal at
+                  Full landing page preview. Exactly how anonymous visitors see this deal at
                   /deals/:id, including sidebar, request form, and related deals funnel.
                 </span>
               </p>

@@ -49,7 +49,7 @@ export function EditorHeroDescriptionSection({
 
       if (data.hero_description) {
         form.setValue('hero_description', data.hero_description);
-        toast.success('Hero description regenerated — review and edit before saving.');
+        toast.success('Hero description regenerated. Review and edit before saving.');
       } else {
         toast.warning('AI did not return a hero description. Try regenerating again.');
       }

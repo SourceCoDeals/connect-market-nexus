@@ -23,7 +23,7 @@ interface EditorFeaturedDealsSectionProps {
 const SELECT_FIELDS = 'id, title, internal_company_name, revenue, ebitda, created_at';
 
 function formatCurrency(val: number | null) {
-  if (!val) return '—';
+  if (!val) return '-';
   if (val >= 1_000_000) return `$${(val / 1_000_000).toFixed(1)}M`;
   if (val >= 1_000) return `$${Math.round(val / 1_000)}K`;
   return `$${val}`;

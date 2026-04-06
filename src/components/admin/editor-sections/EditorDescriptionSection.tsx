@@ -74,9 +74,9 @@ export function EditorDescriptionSection({
 
       const validation = data?.validation;
       if (validation && !validation.pass) {
-        toast.warning('AI listing regenerated with validation warnings — review carefully.');
+        toast.warning('AI listing regenerated with validation warnings. Review carefully.');
       } else {
-        toast.success('Listing description regenerated — review and edit before saving.');
+        toast.success('Listing description regenerated. Review and edit before saving.');
       }
     } catch (err) {
       console.error('[EditorDescriptionSection] Regeneration error:', err);
@@ -134,7 +134,7 @@ export function EditorDescriptionSection({
       </div>
       <p className="text-xs text-muted-foreground mb-4">
         The full listing description shown to buyers. Use section headings, concise sentences, and
-        bullet points for key data — present information in the cleanest, most digestible way
+        bullet points for key data. Present information in the cleanest, most digestible way
         possible.
       </p>
 
