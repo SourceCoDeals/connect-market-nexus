@@ -432,7 +432,7 @@ function generateAnonymousTitle(deal: DealData): string {
     return TITLE_GENERATORS[2](industry, region, deal);
   }
   // Default fallback
-  if (region) return `Established ${industry} Business — ${region}`;
+  if (region) return `Established ${industry} Business | ${region}`;
   return `${industry} Business Opportunity`;
 }
 

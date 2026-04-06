@@ -509,11 +509,7 @@ export default function CreateListingFromDeal() {
           <div className="flex items-start gap-2 text-sm text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4">
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              <strong>Placeholder description — not buyer-grade.</strong> The body below was
-              auto-generated from deal fields and is not suitable for publication. To get a
-              professional AI teaser: generate a <strong>Full Lead Memo</strong> from the Data Room
-              first, then re-create this listing. The teaser will be written from the memo
-              automatically.
+              <strong>Placeholder description.</strong> Auto-generated from deal fields. Not suitable for publication. Create a <strong>Full Lead Memo</strong> in the Data Room first, then re-create this listing.
             </div>
           </div>
         </div>
