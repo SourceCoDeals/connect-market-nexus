@@ -250,7 +250,7 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
   const totalCount = documents.length + memos.length;
 
   return (
-    <div className="space-y-0 py-2">
+    <div className="flex flex-col max-h-[80vh]">
       {/* Vault Header */}
       <VaultHeader />
 
