@@ -428,8 +428,8 @@ function VaultHeader() {
           Secure Data Room
         </h3>
       </div>
-      <span className="text-[10px] text-white/30 tracking-wide">
-        256-bit encrypted
+      <span className="text-[10px] text-white/30 tracking-widest uppercase">
+        Confidential
       </span>
     </div>
   );
