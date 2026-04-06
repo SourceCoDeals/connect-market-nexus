@@ -1,38 +1,39 @@
 
 
-# Phase 1-8 Verification: Complete Audit Results
+# Fix: "column reference 'target_user_id' is ambiguous" on User Deletion
 
-## Verification Status
+## Root Cause
 
-All 8 phases have been verified by reading the actual source code. Every planned fix was confirmed as applied.
+The `delete_user_completely` function has a parameter named `target_user_id`. The `permission_audit_log` table also has a column named `target_user_id`. This line in the function:
 
-| Phase | Scope | Status | Notes |
-|-------|-------|--------|-------|
-| 1 | ListingDetail, BuyerDataRoom, ConversationList, Marketplace, DealDocumentsCard | PASS | All responsive padding, dialog sizing, full-width lists, hidden labels confirmed |
-| 2 | ListingCardImage, ListingCardFinancials, ListingCardTitle, Pagination | PASS | List-view stacking, 2-col grid, flex-wrap badges, hidden prev/next text confirmed |
-| 3 | EnhancedFinancialGrid, ListingHeader, BlurredFinancialTeaser, SimilarListingsCarousel | PASS | Responsive grid cols, responsive title/image, overlay padding, skeleton widths confirmed |
-| 4 | MyRequests, DealActionCard, DealDetailHeader, DealMessagesTab, BuyerMessages, Profile tabs, BuyerDataRoom vault | PASS | All responsive padding, stacking layouts, wrapped tabs confirmed |
-| 5 | DealDetailHeader, DealDocumentsCard, SavedListings, MessageThread | PASS | Responsive padding, smaller title, hidden pagination text confirmed |
-| 6 | NavbarLogo, MobileNavItems, BuyerNotificationBell, AgreementAlertModal, PendingApproval | PASS | Hidden "Marketplace" text, NavIcons, viewport-safe popovers, responsive padding/text confirmed |
-| 7 | 10 admin pages, AdminNotificationBell, MessageCenter, ListingsManagementTabs | PASS | Global `px-4 md:px-8`, viewport-safe popover, full-width thread list, short tab labels confirmed |
-| 8 | DealAlertCard, DealAlertsTab, ProfileTeamMembers, ProfileDocuments | PASS | Header/footer stacking, toolbar stacking, invite form stacking, hidden timestamps confirmed |
+```sql
+DELETE FROM public.permission_audit_log WHERE target_user_id = target_user_id;
+```
 
-## One Remaining Issue Found
+...is ambiguous — Postgres doesn't know if `target_user_id` on the right side refers to the function parameter or the table column. It resolves to `column = column` (always true), which would delete all rows, so Postgres raises the ambiguity error instead.
 
-### BuyerContactsPage — Bare `px-8` (Missed in Phase 7)
-**File:** `src/pages/admin/BuyerContactsPage.tsx` lines 200, 226
-This admin page was not included in the Phase 7 batch. It still uses bare `px-8` which overflows on 375px inside AdminLayout.
+## Fix
 
-**Fix:** Change both instances from `px-8` to `px-4 md:px-8`.
+Create a migration that recreates the function, renaming the parameter to `_target_user_id` (prefixed with underscore) to eliminate the naming conflict. Every reference to the parameter inside the function body gets the underscore prefix.
 
-### Other `px-8` Occurrences (No Fix Needed)
-- `ListingPreview.tsx` — admin-only preview page, low priority
-- `DealLandingPage` — already uses `px-4 sm:px-8` (correct)
-- `ListingDetail.tsx` nav — uses `px-4 sm:px-8` (correct)
+The critical line becomes:
+```sql
+DELETE FROM public.permission_audit_log WHERE target_user_id = _target_user_id;
+```
 
-## Files Changed
+Additionally, the `permission_audit_log` table also has a `changed_by` column that could reference the deleted user — we should also clean those rows or nullify that reference.
+
+## File
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/BuyerContactsPage.tsx` | `px-8` → `px-4 md:px-8` on lines 200 and 226 |
+| New migration SQL | `CREATE OR REPLACE FUNCTION public.delete_user_completely(_target_user_id uuid)` — rename parameter, update all internal references |
+
+## Frontend
+
+The RPC call in the frontend passes `target_user_id` as the parameter name. This must be updated to `_target_user_id` to match the renamed parameter.
+
+| File | Change |
+|------|--------|
+| Frontend file calling `supabase.rpc('delete_user_completely', ...)` | Change `{ target_user_id: ... }` to `{ _target_user_id: ... }` |
 
