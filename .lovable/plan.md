@@ -1,60 +1,34 @@
 
-# Fix: Data Room Modal Layout, Tracking, and View/Download Buttons
 
-## Issues Found
+# Audit: Plan Implementation Status
 
-### 1. Close button overlaps dark vault header
-The `DialogContent` component renders a default `X` close button at `absolute right-4 top-4` with dark text. On the dark `#0E101A` vault header, this button is invisible or overlaps the "CONFIDENTIAL" text. Need to hide the default close button and add a custom one inside the vault header that's white.
+## All 5 Plan Items — Verified
 
-### 2. Document dates shown to buyers
-Lines 353-357 in `BuyerDataRoom.tsx` display `created_at` dates. Remove these — buyers should only see file name and size.
+| # | Plan Item | Status | Evidence |
+|---|-----------|--------|----------|
+| 1 | Close button: hide default, custom white X in VaultHeader | DONE | `[&>button]:hidden` on DialogContent (line 308 ListingDetail.tsx). Custom `<button>` with white X in VaultHeader (lines 488-496 BuyerDataRoom.tsx). |
+| 2 | Remove document dates from buyer view | DONE | No `created_at` rendering in document rows. Only `file_size_bytes` and audit timestamps shown (lines 400-408). |
+| 3 | View/Download uses `SUPABASE_URL` from client + error toasts | DONE | Import on line 23: `import { supabase, SUPABASE_URL } from '@/integrations/supabase/client'`. Error toasts on lines 228, 235, 258, 265. |
+| 4 | Buyer-side audit timestamps on documents | DONE (but **broken**) | Query exists (lines 163-178), lookup built (lines 181-186), rendered in UI (lines 402-408). **However, the action filter is wrong.** |
+| 5 | Sidebar "Viewed" indicator after opening data room | DONE | `useDataRoomLastAccess` hook queried on line 71 of ListingSidebarActions, rendered as "Viewed [date]" on lines 360-364. |
 
-### 3. View/Download buttons likely fail silently
-The `handleViewDocument` and `handleDownloadDocument` functions (lines 181-221) use `import.meta.env.VITE_SUPABASE_URL` directly. If the env var is missing, it falls back via the client module but these direct `fetch` calls would break. Also, there's no error feedback — if the response is not OK, nothing happens. Need to: use `SUPABASE_URL` from the client module instead of raw env var, and add error toasts.
+## Bug Found: Audit Timestamp Query Uses Wrong Action Names
 
-### 4. Track data room open + document view/download timestamps for buyer side
-The edge function already logs to `data_room_audit_log` — this covers admin-side tracking. For buyer-side, show "Last viewed" timestamps on documents by querying the audit log for the current user's events.
+**The edge function** (`data-room-download/index.ts` line 126) logs actions as:
+- `'view_document'`
+- `'download_document'`
 
-### 5. "Explore Data Room" button state after viewing
-Once the data room modal has been opened, update the sidebar button to indicate it was viewed (e.g., checkmark or "Viewed" label).
+**The buyer query** (`BuyerDataRoom.tsx` line 171) filters for:
+- `'view'`
+- `'download'`
 
-## Implementation Plan
+These never match. The "Viewed 2 hours ago" / "Downloaded 3 hours ago" labels will **never appear** on any document.
 
-### File 1: `src/components/marketplace/BuyerDataRoom.tsx`
+### Fix
 
-**Close button fix:**
-- In `ListingDetail.tsx`, add `[&>button]:hidden` class to `DialogContent` to hide default close button
-- Add a custom close button inside `VaultHeader` — white X icon on dark background, passed via `onClose` prop
+**File: `src/components/marketplace/BuyerDataRoom.tsx`**
+- Line 171: Change `.in('action', ['view', 'download'])` to `.in('action', ['view_document', 'download_document'])`
+- Lines 405: Change `lastEvent.action === 'download'` to `lastEvent.action === 'download_document'`
 
-**Remove dates:**
-- Lines 353-357: Remove the `{new Date(doc.created_at).toLocaleDateString()}` and the pipe separator
+Two-line fix. Everything else is correctly implemented.
 
-**Fix View/Download:**
-- Import `SUPABASE_URL` from `@/integrations/supabase/client` instead of using `import.meta.env.VITE_SUPABASE_URL`
-- Add error handling with toast on non-OK responses
-- Add user-facing "Last viewed" timestamp by querying `data_room_audit_log` for current user's view events on these documents
-
-**Add document access timestamps (buyer side):**
-- New query: fetch `data_room_audit_log` entries for current user + current deal's documents
-- Show "Viewed [time ago]" or "Downloaded [time ago]" as subtle metadata under each document
-
-### File 2: `src/pages/ListingDetail.tsx`
-
-- Add `[&>button]:hidden` to DialogContent className to suppress default close button
-- Track `dataRoomViewed` state — set to true when modal opens
-- Pass `onClose={() => setDataRoomOpen(false)}` to `BuyerDataRoom`
-
-### File 3: `src/components/listing-detail/ListingSidebarActions.tsx`
-
-- Accept `dataRoomViewed` prop
-- Show subtle checkmark or "Viewed" indicator on the "Explore data room" button after it's been opened
-
-## Files to Change
-
-| File | Change |
-|------|--------|
-| `src/components/marketplace/BuyerDataRoom.tsx` | Custom close button in header, remove dates, fix fetch URL, add error toasts, add "last viewed" timestamps |
-| `src/pages/ListingDetail.tsx` | Hide default close button, pass onClose prop, track viewed state |
-| `src/components/listing-detail/ListingSidebarActions.tsx` | Show "Viewed" indicator on data room button |
-
-No database or edge function changes needed — `data-room-download` already logs to `data_room_audit_log`.
