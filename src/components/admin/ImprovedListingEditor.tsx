@@ -641,6 +641,13 @@ export function ImprovedListingEditor({
               featuredDealIds={featuredDealIds}
               onChange={setFeaturedDealIds}
               currentListingId={listing?.id}
+              currentListing={{
+                category: listing?.category ?? form.watch('categories')?.[0],
+                categories: listing?.categories ?? form.watch('categories'),
+                revenue: listing?.revenue ?? Number(form.watch('revenue') || 0),
+                ebitda: listing?.ebitda ?? Number(form.watch('ebitda') || 0),
+                location: listing?.location ?? form.watch('location') as string,
+              }}
             />
 
             {/* 8. Live Preview */}

@@ -277,11 +277,32 @@ export function EditorFeaturedDealsSection({
 
   return (
     <div className={cn(EDITOR_DESIGN.cardBg, EDITOR_DESIGN.cardBorder, 'rounded-xl p-5')}>
-      <div className="mb-4">
-        <div className={EDITOR_DESIGN.microHeader}>Featured Deals</div>
-        <div className={cn(EDITOR_DESIGN.helperText, 'mt-0.5')}>
-          Select up to 2 deals to show on the landing page. Leave empty for automatic selection.
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <div className={EDITOR_DESIGN.microHeader}>Featured Deals</div>
+          <div className={cn(EDITOR_DESIGN.helperText, 'mt-0.5')}>
+            Leave empty to auto-match similar deals, or pick manually.
+          </div>
         </div>
+        {currentListing && allDeals.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const eligible = allDeals.filter((d) => d.id !== currentListingId);
+              const scored = eligible.map((d) => ({ deal: d, score: scoreSimilarity(d, currentListing) }));
+              scored.sort((a, b) => b.score - a.score);
+              const top = scored.slice(0, 2);
+              if (top.length > 0) {
+                setSelectedDeal1(top[0].deal);
+                setSelectedDeal2(top[1]?.deal ?? null);
+                onChange(top.map((t) => t.deal.id));
+              }
+            }}
+            className="shrink-0 text-xs font-medium text-primary hover:text-primary/80 px-3 py-1.5 rounded-lg border border-primary/20 hover:bg-primary/5 transition-colors"
+          >
+            Auto-select similar
+          </button>
+        )}
       </div>
 
       {loading ? (
