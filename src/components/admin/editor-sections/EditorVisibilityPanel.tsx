@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Lock, Shield } from 'lucide-react';
+import { Eye, Lock, Shield } from 'lucide-react';
 import { EDITOR_DESIGN } from '@/lib/editor-design-system';
 import { cn } from '@/lib/utils';
 

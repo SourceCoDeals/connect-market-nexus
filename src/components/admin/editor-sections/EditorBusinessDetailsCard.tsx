@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { UseFormReturn } from 'react-hook-form';
 import { EDITOR_DESIGN } from '@/lib/editor-design-system';
 import { cn } from '@/lib/utils';
-import { ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, Eye } from 'lucide-react';
 
 interface EditorBusinessDetailsCardProps {
   form: UseFormReturn<any>;
