@@ -386,8 +386,8 @@ const ListingDetail = () => {
               </div>
 
               {/* Exclusive Deal Flow */}
-              <div className="bg-white/50 border border-slate-200/60 rounded-lg p-6 shadow-sm">
-                <div className="mt-6 pt-4 border-t border-slate-200/50">
+              <div className="bg-white/50 border border-slate-200/60 rounded-lg p-4 sm:p-6 shadow-sm">
+                <div className="mt-4 sm:mt-6 pt-3 sm:pt-4 border-t border-slate-200/50">
                   <div className="text-center space-y-3">
                     <div className="space-y-1">
                       <p className="text-xs font-medium text-foreground">
