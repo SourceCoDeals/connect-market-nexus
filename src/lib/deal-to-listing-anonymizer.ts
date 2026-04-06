@@ -653,18 +653,24 @@ function generateAnonymousDescription(deal: DealData): string {
  * Filter service entries to only include clean, short service names.
  * Rejects raw text/notes that were incorrectly stored as service_mix values.
  */
+const SERVICE_BLOCKLIST = new Set([
+  'fire', 'water', 'mold', 'storm', 'wind', 'ice', 'snow', 'rain',
+  'heat', 'cold', 'dust', 'dirt', 'smoke', 'gas', 'oil', 'wood',
+]);
+
 function filterCleanServices(services: string[]): string[] {
   return services.filter((s) => {
     const trimmed = s.trim();
-    // Skip empty entries
     if (trimmed.length === 0) return false;
-    // A legitimate service name is short (under 60 chars) and doesn't contain
-    // sentence-like patterns (multiple spaces + verbs, periods, etc.)
+    // Reject very short entries (single common words like "fire", "water")
+    if (trimmed.length < 5) return false;
+    // Reject blocklisted words
+    if (SERVICE_BLOCKLIST.has(trimmed.toLowerCase())) return false;
+    // Reject entries with semicolons (concatenated service lists)
+    if (trimmed.includes(';')) return false;
     if (trimmed.length > 60) return false;
-    // Reject entries that look like sentences (contain verbs/articles typical of prose).
-    // Require whitespace after the match word to avoid false positives in compound service
-    // names like "Therapeutic", "Anesthesia", etc.
-    if (/\b(is|are|was|were|that|which|also|primarily|including)\s/i.test(trimmed)) return false;
+    // Reject entries that look like sentences
+    if (/\b(is|are|was|were|that|which|also|primarily|including|influenced|heavily)\s/i.test(trimmed)) return false;
     return true;
   });
 }
