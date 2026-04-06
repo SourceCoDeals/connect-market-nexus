@@ -1,68 +1,53 @@
 
 
-# Investigation: Data Room Access on Pending Connection
+# Fix: Connection Accept Fails Due to Missing `contact_role` Column
 
-## Current State
+## Root Cause
 
-The restoration listing (`d543b05b`) has:
-- **Connection request status: `pending`** — the admin has never accepted it
-- **0 `data_room_access` records** — these are only created when the admin clicks "Accept"
-- **2 documents on the source deal** (`d136656a`): Anonymous Teaser PDF + Lead Memo PDF
-- **0 documents on the listing itself**
-- **Fee Agreement: Signed**, NDA: Signed (both shown green in sidebar)
+When you click "Accept" on a connection request, the status update succeeds on the `connection_requests` table, but a **database trigger** fires and fails:
 
-## Why You Can't Access the Data Room
+**Trigger**: `trg_auto_create_deal_from_connection` calls `auto_create_deal_from_approved_connection()`
 
-The "Explore data room" button is visible in the sidebar but it does nothing useful because `connectionApproved` is `false` (the connection is `pending`, not `approved`). The `BuyerDataRoom` component at the bottom of the page checks `connectionApproved` — since it's false and no `data_room_access` record exists, it renders nothing.
+This function tries to INSERT into `deal_pipeline` with a `contact_role` column that **does not exist** on the table. The INSERT fails, the trigger rolls back, and the entire UPDATE is aborted — resulting in "Action failed."
 
-**This is working as designed.** The flow is:
+There is also a **second trigger** (`trg_create_deal_on_request_approval` calling `create_deal_on_request_approval()`) that fires on the same event (status changed to approved). This second trigger is clean and does NOT use `contact_role`. But having two competing triggers that both try to insert into `deal_pipeline` on approval creates a race/duplicate problem.
 
-```text
-1. Buyer requests connection  →  status = "pending"
-2. Admin accepts connection   →  status = "approved"
-                              →  data_room_access row auto-created
-                              →  BuyerDataRoom becomes visible
-                              →  Documents from source deal visible via dual-ID
+## Fix (Single Migration)
+
+### 1. Drop the broken trigger and function
+
+`auto_create_deal_from_approved_connection` is the older, less sophisticated version. It:
+- Uses `contact_role` (doesn't exist)
+- Matches duplicates by `listing_id + contact_email` (fragile)
+- Inserts into the first stage (not "Qualified")
+- Doesn't set `connection_request_id` (loses linkage)
+- Doesn't create activity log entries
+
+The second trigger (`create_deal_on_request_approval`) does all of this correctly. So we drop the broken one entirely:
+
+```sql
+DROP TRIGGER IF EXISTS trg_auto_create_deal_from_connection ON public.connection_requests;
+DROP FUNCTION IF EXISTS auto_create_deal_from_approved_connection();
 ```
 
-You are stuck at step 1. The admin needs to accept the connection request.
+### 2. No other changes needed
 
-## What Should Happen — The Intended Flow
+The surviving trigger `create_deal_on_request_approval` handles:
+- Duplicate check via `connection_request_id`
+- Skips placeholder-website listings
+- Inserts into "Qualified" stage
+- Sets NDA/fee agreement status from lead data
+- Creates an activity log entry
+- Links `connection_request_id` for traceability
 
-1. **Buyer visits listing, has signed Fee Agreement + NDA** → sidebar shows documents as "Signed", connection button enabled
-2. **Buyer clicks "Request Access"** → connection_request created with status `pending`
-3. **Admin sees request in queue, clicks "Accept"** → status changes to `approved`, `data_room_access` record auto-created with full permissions (since fee agreement is signed)
-4. **Buyer returns to listing** → "Explore data room" scrolls to the data room section, which now shows the Anonymous Teaser and Lead Memo PDFs from the source deal
+## Secondary Issue (Not Blocking Accept)
 
-## Action Required
+The `listings.real_company_name does not exist` errors in the DB logs are from a **separate query** — the universal search hook (`use-universal-search.ts` line 103) selects `real_company_name` from `listings`, but the column is actually called `internal_company_name`. This should be fixed too but is unrelated to the accept failure.
 
-**Go to the admin connection requests queue and accept the pending connection request for this listing.** That will trigger the auto-provisioning of `data_room_access` and unlock the data room.
+## Files to Change
 
-## Potential UX Improvements (Optional)
-
-There are no bugs here — the system is gated correctly. However, two UX improvements could be considered:
-
-1. **Clearer "Explore data room" state when pending**: Currently the button appears clickable but has a tooltip saying "Request a connection to access the data room." Since the user already HAS a pending request, the tooltip is misleading. It should say "Your connection request is pending approval" instead.
-
-2. **Sidebar should differentiate "no connection" vs "pending connection"**: The data room tooltip doesn't distinguish between "you haven't requested access yet" and "you've requested but it hasn't been approved." The messaging should reflect the actual state.
-
-## Implementation (2 small changes)
-
-### File: `src/components/listing-detail/ListingSidebarActions.tsx`
-
-Update `getDataRoomTooltip()` (line 174-178) to check whether a connection request exists but is pending:
-
-```typescript
-const getDataRoomTooltip = () => {
-  if (!feeCovered) return 'Sign your Fee Agreement to unlock the data room.';
-  if (!connectionApproved) return 'Your connection request is pending admin approval.';
-  return '';
-};
-```
-
-This requires passing `connectionExists` as a prop (or a `connectionPending` boolean) to distinguish "no request" from "pending request". If no connection exists at all, the tooltip should say "Request a connection to access the data room." If pending, it should say "Your connection request is pending approval."
-
-### File: `src/components/listing-detail/ListingSidebarActions.tsx`
-
-Disable the "Explore data room" button visually when connection is not approved (it already doesn't scroll to anything useful, but it looks clickable in the screenshot).
+| File | Change |
+|------|--------|
+| New migration SQL | Drop broken trigger + function |
+| `src/hooks/admin/use-universal-search.ts` | Replace `real_company_name` with `internal_company_name` (line 103) |
 
