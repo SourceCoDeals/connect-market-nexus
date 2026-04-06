@@ -1,53 +1,44 @@
 
 
-# Fix: Admin Name in Email Notifications
-
-## Problem
-
-When an admin replies to a buyer, two emails are sent with wrong names:
-
-1. **Support inbox email** (screenshot): Shows `ahaile14 replied to Buyer about General` — uses `user.email.split('@')[0]` instead of the admin's real name, and hardcodes `buyerName: 'Buyer'`.
-
-2. **Buyer-facing email**: Says "new message from the SourceCo team" generically — doesn't mention which admin replied.
+# Fix: User Deletion Fails Due to Missing FK Cleanup
 
 ## Root Cause
 
-In `src/hooks/use-connection-messages.ts` lines 158-168, the `notify-support-inbox` call uses:
-- `adminName: user?.email?.split('@')[0]` — produces "ahaile14" instead of "Adam Haile"
-- `buyerName: 'Buyer'` — hardcoded instead of looking up the buyer's name
-- No `dealTitle` passed — defaults to "General"
+The `delete_user_completely` RPC only handles ~12 tables, but **40+ foreign keys** reference `auth.users(id)` without CASCADE or SET NULL. The specific error is `data_room_access_marketplace_user_id_fkey` (ON DELETE RESTRICT), but many others would fail too.
 
-The `notify-buyer-new-message` edge function (line 17) says "from the SourceCo team" — it doesn't accept or display the admin's name.
+## Strategy
 
-## Fix
+Two-pronged approach via a single migration:
 
-### File 1: `src/hooks/use-connection-messages.ts`
+**1. Alter FK constraints** — For admin/audit reference columns (approved_by, granted_by, created_by, etc.), change to `ON DELETE SET NULL`. These are historical records that should survive user deletion but lose the reference. This covers ~35 constraints.
 
-**Resolve admin's full name before sending notifications:**
-- After getting the authenticated user, query `profiles` for the admin's `first_name` and `last_name`
-- Fall back to `ADMIN_PROFILES` map from `@/lib/admin-profiles.ts` if profile query returns no name
-- Final fallback: email prefix
+**2. Update the RPC** — For user-owned data tables (data_room_access where marketplace_user_id = target, data_room_audit_log, deal_pipeline where buyer_contact_id links to the user, connection_messages, user_roles, permission_audit_log, etc.), add explicit DELETE statements before the profile/auth delete. This ensures the user's own records are fully purged.
 
-**Fix the support inbox call (lines 159-168):**
-- Pass the resolved full admin name as `adminName`
-- The `buyerName` and `dealTitle` aren't available in `useSendMessage` — accept them as optional params so the calling component can pass them
+## Tables Requiring DELETE in RPC (user-owned data)
 
-**Update `useSendMessage` params interface** to accept optional `buyerName`, `dealTitle`, and `adminName` for email context.
+| Table | Column | Reason |
+|-------|--------|--------|
+| `data_room_access` | `marketplace_user_id` | User's access records — delete |
+| `data_room_audit_log` | `user_id` | User's audit trail — delete |
+| `connection_messages` | (via connection_requests) | Messages on user's connections — delete |
+| `user_roles` | `user_id` | Role assignments — delete |
+| `permission_audit_log` | `user_id` | Permission history — delete |
+| `ai_command_center_usage` | `user_id` | Usage logs — delete |
+| `document_requests` | `user_id` | User's doc requests — delete |
+| `contacts` | `marketplace_user_id` | Contact records — archive/delete |
+| `deal_pipeline` | `buyer_contact_id` | Pipeline entries — delete |
+| `firm_agreements` | (via firm_members) | User's firm membership — delete |
+| `firm_members` | `user_id` | Firm membership — delete |
 
-### File 2: `supabase/functions/notify-buyer-new-message/index.ts`
+## FK Constraints to Alter to SET NULL (admin references)
 
-**Personalize the buyer email with the admin's name:**
-- Accept optional `admin_name` in the request body
-- Change line 17 from "from the SourceCo team" to "from [Admin Name] at SourceCo" when available, falling back to "from the SourceCo team"
-
-### File 3: Calling components that invoke `useSendMessage`
-
-Search for all places that call `sendMessage` with `sender_role: 'admin'` and ensure they pass `buyerName` and `dealTitle` context.
+All `*_by` columns on connection_requests, data_room_access, firm_agreements, deal_pipeline, document_requests, buyer_introductions, buyer_learning_history, enrichment_jobs, deal_scoring_adjustments, deal_transcripts, deal_outreach_profiles, data_room_documents, buyer_universes, buyer_search_jobs, buyer_transcripts, buyers, contact_lists, contact_discovery_log, etc.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/hooks/use-connection-messages.ts` | Add profile lookup for admin name; accept buyerName/dealTitle params; pass to both notification calls |
-| `supabase/functions/notify-buyer-new-message/index.ts` | Accept `admin_name` param; personalize "from [Name] at SourceCo" in email body |
+| New migration SQL | 1) ALTER ~35 FK constraints to ON DELETE SET NULL. 2) DROP and recreate `delete_user_completely` with comprehensive table coverage |
+
+No frontend changes needed — the RPC name and interface stay the same.
 
