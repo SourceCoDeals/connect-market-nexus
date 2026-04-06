@@ -145,19 +145,58 @@ export function useRelatedDeals(
         return featured;
       }
 
-      // Default: most recent active marketplace listings
+      // Default: similarity-scored active marketplace listings
+      const { data: currentDeal } = await supabase
+        .from('listings')
+        .select('category, categories, revenue, ebitda, location')
+        .eq('id', currentDealId!)
+        .single();
+
       const { data, error } = await supabase
         .from('listings')
-        .select(selectFields)
+        .select(selectFields + ', category, categories')
         .eq('status', 'active')
         .eq('is_internal_deal', false)
         .is('deleted_at', null)
         .neq('id', currentDealId ?? '')
-        .order('created_at', { ascending: false })
-        .limit(3);
+        .limit(50);
 
       if (error) throw error;
-      return (data ?? []) as RelatedDeal[];
+      if (!data || data.length === 0) return [] as RelatedDeal[];
+
+      // Score by similarity
+      const currentCategories: string[] = Array.isArray(currentDeal?.categories)
+        ? (currentDeal.categories as (string | null)[]).filter((c): c is string => !!c)
+        : [currentDeal?.category].filter((c): c is string => !!c);
+      const currentRev = Number(currentDeal?.revenue ?? 0);
+      const currentEbitda = Number(currentDeal?.ebitda ?? 0);
+      const currentLoc = currentDeal?.location ?? '';
+
+      const scored = data.map((listing: any) => {
+        let score = 0;
+        const cats: string[] = Array.isArray(listing.categories) ? listing.categories.filter((c: any) => !!c) : [listing.category].filter(Boolean);
+        if (currentCategories.some((c) => cats.includes(c))) score += 60;
+
+        const rev = Number(listing.revenue ?? 0);
+        const revAvg = (rev + currentRev) / 2;
+        if (revAvg > 0 && Math.abs(rev - currentRev) / revAvg < 0.3) score += 35;
+
+        if (listing.location === currentLoc) score += 25;
+        else if (listing.location?.toLowerCase().includes('united states') && currentLoc.toLowerCase().includes('united states')) score += 10;
+
+        if (currentRev > 0 && rev > 0) {
+          const margin1 = currentEbitda / currentRev;
+          const margin2 = Number(listing.ebitda ?? 0) / rev;
+          if (Math.abs(margin1 - margin2) < 0.05) score += 20;
+        }
+
+        return { listing, score };
+      });
+
+      return scored
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map(({ listing }) => listing as RelatedDeal);
     },
     enabled: !!currentDealId,
     staleTime: 5 * 60 * 1000,
