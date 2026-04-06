@@ -94,8 +94,9 @@ export function useConnectionRequestFirm(requestId: string | null) {
         firm_id: firmAny.id,
         firm_name: firmAny.primary_company_name,
         member_count: firmAny.member_count,
-        fee_agreement_signed: firmAny.fee_agreement_signed,
-        nda_signed: firmAny.nda_signed,
+        // Derive from both boolean and status to handle stale boolean columns
+        fee_agreement_signed: firmAny.fee_agreement_signed === true || firmAny.fee_agreement_status === 'signed',
+        nda_signed: firmAny.nda_signed === true || firmAny.nda_status === 'signed',
         nda_status: firmAny.nda_status,
         fee_agreement_status: firmAny.fee_agreement_status,
         firmAgreement: firmAny as unknown as FirmAgreement,

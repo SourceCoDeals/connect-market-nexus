@@ -1,14 +1,12 @@
 /**
- * BuyerDataRoom: Buyer-facing view of documents shared with them
+ * BuyerDataRoom: Premium buyer-facing view of documents shared with them
  *
  * Shown on a deal's listing detail page when the buyer has data room access.
  * Only shows documents matching their enabled categories.
  */
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   FileText,
   File,
@@ -17,14 +15,12 @@ import {
   Download,
   Eye,
   Loader2,
-  FolderOpen,
   Lock,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { sanitizeHtml } from '@/lib/sanitize';
-import { DataRoomOrientation } from './DataRoomOrientation';
 
 interface BuyerDataRoomProps {
   dealId: string;
@@ -86,21 +82,19 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
     enabled: !!dealId && !!user?.id,
   });
 
-  // Phase 102: Build allowed categories from access toggles
+  // Build allowed categories from access toggles
   const allowedCategories = new Set<string>();
   if (access?.can_view_teaser) allowedCategories.add('anonymous_teaser');
   if (access?.can_view_full_memo) allowedCategories.add('full_memo');
   if (access?.can_view_data_room) allowedCategories.add('data_room');
 
   // Fetch documents filtered by status, then client-filter by category
-  // Falls back to source_deal_id documents for listings pushed from marketplace queue
-  const { data: documents = [], isLoading: _isLoading } = useQuery({
+  const { data: documents = [] } = useQuery({
     queryKey: ['buyer-data-room-documents', dealId, Array.from(allowedCategories).sort().join(',')],
     queryFn: async () => {
       const selectCols =
         'id, folder_name, file_name, file_type, file_size_bytes, document_category, allow_download, created_at';
 
-      // Primary: documents directly on this deal/listing
       const { data: primaryDocs, error } = await supabase
         .from('data_room_documents')
         .select(selectCols)
@@ -113,7 +107,7 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
 
       let allDocs = (primaryDocs || []) as BuyerDocument[];
 
-      // Fallback: if no documents found, check if the listing has a source_deal_id
+      // Fallback: check source_deal_id documents
       if (allDocs.length === 0) {
         const { data: listingRow } = await supabase
           .from('listings')
@@ -136,7 +130,6 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
         }
       }
 
-      // Filter by allowed categories based on buyer's access toggles
       return allDocs.filter((doc) => allowedCategories.has(doc.document_category));
     },
     enabled: !!dealId && !!access && allowedCategories.size > 0,
@@ -163,20 +156,16 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
     !access ||
     (!access.can_view_teaser && !access.can_view_full_memo && !access.can_view_data_room)
   ) {
-    // Show a helpful message if connection is approved but access hasn't been provisioned
     if (connectionApproved) {
       return (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Lock className="h-5 w-5" />
-            Data Room
-          </h3>
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              <FolderOpen className="mx-auto h-8 w-8 mb-2" />
-              <p className="text-sm">Your access is being set up. Please check back shortly.</p>
-            </CardContent>
-          </Card>
+        <div className="space-y-6 py-2">
+          <div className="flex items-center gap-2.5">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Data Room</h3>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Your access is being set up. Please check back shortly.
+          </p>
         </div>
       );
     }
@@ -186,10 +175,7 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
   const handleViewDocument = async (docId: string) => {
     setLoadingDoc(docId);
     try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) return;
 
@@ -210,10 +196,7 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
   const handleDownloadDocument = async (docId: string) => {
     setLoadingDoc(docId);
     try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
       if (!session) return;
 
@@ -232,12 +215,13 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
   };
 
   const getFileIcon = (fileType: string | null) => {
-    if (!fileType) return <File className="h-5 w-5 text-gray-400" />;
-    if (fileType.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
+    const baseClass = 'h-4 w-4';
+    if (!fileType) return <File className={`${baseClass} text-muted-foreground/60`} />;
+    if (fileType.includes('pdf')) return <FileText className={`${baseClass} text-red-500/80`} />;
     if (fileType.includes('spreadsheet') || fileType.includes('csv'))
-      return <FileSpreadsheet className="h-5 w-5 text-green-500" />;
-    if (fileType.includes('image')) return <FileImage className="h-5 w-5 text-blue-500" />;
-    return <File className="h-5 w-5 text-gray-400" />;
+      return <FileSpreadsheet className={`${baseClass} text-emerald-600/80`} />;
+    if (fileType.includes('image')) return <FileImage className={`${baseClass} text-blue-500/80`} />;
+    return <File className={`${baseClass} text-muted-foreground/60`} />;
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -257,64 +241,69 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
     {} as Record<string, BuyerDocument[]>,
   );
 
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-semibold flex items-center gap-2">
-        <Lock className="h-5 w-5" />
-        Data Room
-      </h3>
+  const totalCount = documents.length + memos.length;
 
-      {/* Data Room Orientation */}
-      {(documents.length > 0 || memos.length > 0) && (
-        <DataRoomOrientation documents={documents} memoCount={memos.length} />
-      )}
+  return (
+    <div className="space-y-6 py-2">
+      {/* Section header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <Lock className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
+            Data Room
+          </h3>
+        </div>
+        {totalCount > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {totalCount} document{totalCount !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
 
       {/* Published Memos */}
       {memos.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Lead Memos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {memos.map((memo) => (
-                <div key={memo.id} className="p-4 rounded-lg border bg-card">
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant="secondary">
-                      {memo.memo_type === 'anonymous_teaser' ? 'Teaser' : 'Full Memo'}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {memo.published_at && new Date(memo.published_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  {memo.html_content ? (
-                    <div
-                      className="prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(memo.html_content) }}
-                    />
-                  ) : (
-                    <div className="space-y-3">
-                      {(
-                        (
-                          memo.content as {
-                            sections?: Array<{ title: string; content: string }>;
-                          } | null
-                        )?.sections || []
-                      ).map((section: { title: string; content: string }) => (
-                        <div key={section.title}>
-                          <h4 className="font-medium text-sm mb-1">{section.title}</h4>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {section.content}
-                          </p>
-                        </div>
-                      ))}
+        <div className="space-y-3">
+          <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground/70">
+            Lead Memos
+          </p>
+          <div className="border-t border-border/40" />
+          {memos.map((memo) => (
+            <div key={memo.id} className="py-3">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-foreground">
+                  {memo.memo_type === 'anonymous_teaser' ? 'Teaser' : 'Full Memo'}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {memo.published_at && new Date(memo.published_at).toLocaleDateString()}
+                </span>
+              </div>
+              {memo.html_content ? (
+                <div
+                  className="prose prose-sm max-w-none text-muted-foreground"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(memo.html_content) }}
+                />
+              ) : (
+                <div className="space-y-3">
+                  {(
+                    (
+                      memo.content as {
+                        sections?: Array<{ title: string; content: string }>;
+                      } | null
+                    )?.sections || []
+                  ).map((section: { title: string; content: string }) => (
+                    <div key={section.title}>
+                      <h4 className="text-sm font-medium mb-1">{section.title}</h4>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {section.content}
+                      </p>
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              )}
+              <div className="border-b border-border/40 mt-3" />
             </div>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
       )}
 
       {/* Documents by Folder */}
@@ -322,77 +311,61 @@ export function BuyerDataRoom({ dealId, connectionApproved }: BuyerDataRoomProps
         Object.entries(documentsByFolder)
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([folder, docs]) => (
-            <Card key={folder}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4" />
-                  {folder}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="divide-y">
-                  {docs.map((doc) => (
-                    <div key={doc.id} className="flex items-center gap-3 py-2">
-                      {getFileIcon(doc.file_type)}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-medium truncate">{doc.file_name}</p>
-                          {Date.now() - new Date(doc.created_at).getTime() <
-                            7 * 24 * 60 * 60 * 1000 && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[9px] bg-green-50 text-green-700 border-green-200 shrink-0"
-                            >
-                              New
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {formatFileSize(doc.file_size_bytes)}
-                          {' · '}
-                          {new Date(doc.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDocument(doc.id)}
-                          disabled={loadingDoc === doc.id}
-                        >
-                          {loadingDoc === doc.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Eye className="h-3.5 w-3.5 mr-1" />
-                          )}
-                          View
-                        </Button>
-                        {doc.allow_download && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadDocument(doc.id)}
-                            disabled={loadingDoc === doc.id}
-                          >
-                            <Download className="h-3.5 w-3.5 mr-1" />
-                            Download
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+            <div key={folder} className="space-y-1">
+              <p className="text-[11px] font-semibold tracking-widest uppercase text-muted-foreground/70 mb-2">
+                {folder}
+              </p>
+              <div className="border-t border-border/40" />
+              {docs.map((doc, i) => (
+                <div
+                  key={doc.id}
+                  className={`flex items-center gap-3 py-3 ${i < docs.length - 1 ? 'border-b border-border/20' : ''}`}
+                >
+                  {getFileIcon(doc.file_type)}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{doc.file_name}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {formatFileSize(doc.file_size_bytes)}
+                      {doc.file_size_bytes ? ' · ' : ''}
+                      {new Date(doc.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewDocument(doc.id)}
+                      disabled={loadingDoc === doc.id}
+                      className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {loadingDoc === doc.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                    {doc.allow_download && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadDocument(doc.id)}
+                        disabled={loadingDoc === doc.id}
+                        className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
           ))}
 
+      {/* Empty state */}
       {documents.length === 0 && memos.length === 0 && (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            <FolderOpen className="mx-auto h-8 w-8 mb-2" />
-            No documents available yet
-          </CardContent>
-        </Card>
+        <p className="text-sm text-muted-foreground py-6 text-center">
+          No documents available yet.
+        </p>
       )}
     </div>
   );
