@@ -247,7 +247,7 @@ const AdminDashboard = () => {
           {/* Marketplace sub-tabs (only when marketplace is active) */}
           {activeDashboard === 'marketplace' && (
             <Tabs defaultValue="analytics" className="w-full">
-              <div className="px-8">
+              <div className="px-4 md:px-8 overflow-x-auto">
                 <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
                   {[
                     { value: 'analytics', label: 'Analytics' },
