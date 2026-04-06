@@ -18,7 +18,6 @@ import {
   Info,
   RefreshCw,
   Shield,
-  FileSignature,
   XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +26,7 @@ import { toast } from '@/hooks/use-toast';
 import { cleanupAuthState } from '@/lib/auth-helpers';
 import { APP_CONFIG } from '@/config/app';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
-import { AgreementSigningModal } from '@/components/pandadoc/AgreementSigningModal';
+import { sendAgreementEmail } from '@/lib/agreement-email';
 
 const PendingApproval = () => {
   const navigate = useNavigate();
