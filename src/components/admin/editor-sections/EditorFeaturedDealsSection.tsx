@@ -18,6 +18,13 @@ interface EditorFeaturedDealsSectionProps {
   featuredDealIds: string[] | null;
   onChange: (ids: string[] | null) => void;
   currentListingId?: string;
+  currentListing?: {
+    category?: string;
+    categories?: string[];
+    revenue?: number;
+    ebitda?: number;
+    location?: string;
+  };
 }
 
 const SELECT_FIELDS = 'id, title, internal_company_name, revenue, ebitda, created_at';
