@@ -146,7 +146,21 @@ export function useConnectionRequestActions({
           .maybeSingle();
 
         if (!existingAccess) {
-          const feeAgreementSigned = hasFeeAgreement;
+          // Query firm agreement status directly from DB to avoid stale frontend state
+          let feeAgreementSigned = hasFeeAgreement;
+          if (!feeAgreementSigned && user.id) {
+            const { data: freshFirmId } = await supabase.rpc('resolve_user_firm_id', { p_user_id: user.id });
+            if (freshFirmId) {
+              const { data: freshFirm } = await supabase
+                .from('firm_agreements')
+                .select('fee_agreement_status, fee_agreement_signed')
+                .eq('id', freshFirmId)
+                .maybeSingle();
+              if (freshFirm) {
+                feeAgreementSigned = freshFirm.fee_agreement_signed === true || freshFirm.fee_agreement_status === 'signed';
+              }
+            }
+          }
 
           const { error: accessErr } = await supabase
             .from('data_room_access')
