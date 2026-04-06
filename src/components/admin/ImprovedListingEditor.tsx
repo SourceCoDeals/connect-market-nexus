@@ -651,7 +651,15 @@ export function ImprovedListingEditor({
               dealIdentifier={listing?.deal_identifier}
             />
 
-            {/* 7. Featured Deals */}
+            {/* 7. Documents Overview */}
+            {listing?.id && (
+              <EditorDocumentsSection
+                listingId={listing.id}
+                sourceDealId={effectiveDealId !== listing.id ? effectiveDealId : null}
+              />
+            )}
+
+            {/* 8. Featured Deals */}
             <EditorFeaturedDealsSection
               featuredDealIds={featuredDealIds}
               onChange={setFeaturedDealIds}
