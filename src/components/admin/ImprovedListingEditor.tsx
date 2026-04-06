@@ -19,6 +19,8 @@ import { EditorHeroDescriptionSection } from './editor-sections/EditorHeroDescri
 import { EditorVisualsSection } from './editor-sections/EditorVisualsSection';
 import { EditorInternalCard } from './editor-sections/EditorInternalCard';
 import { EditorLivePreview } from './editor-sections/EditorLivePreview';
+import { EditorBusinessDetailsCard } from './editor-sections/EditorBusinessDetailsCard';
+import { EditorVisibilityPanel } from './editor-sections/EditorVisibilityPanel';
 import { EditorFeaturedDealsSection } from './editor-sections/EditorFeaturedDealsSection';
 
 // Form schema - location accepts array from select component and transforms to string
