@@ -1,53 +1,76 @@
 
 
-# Fix: Connection Accept Fails Due to Missing `contact_role` Column
+# Fix: Approval System Message Content
+
+## Problem
+
+When an admin accepts a connection request, two emails fire:
+
+1. **Approval email** (`send-connection-notification`, type `approval_notification`) — This is good. It says "Your introduction has been approved, here's what to expect."
+
+2. **Message notification email** (`notify-buyer-new-message`) — This is the screenshot. It wraps the hardcoded system message: *"We have sent you a brief overview of the deal. Please let us know if you are still interested."*
+
+The second email is bad because:
+- The buyer already expressed interest (they requested the connection)
+- "Please let us know if you are still interested" is backwards — they should be getting welcomed, not re-qualified
+- It duplicates the approval email but with worse content
+- It reads like a cold outreach follow-up, not a deal confirmation
 
 ## Root Cause
 
-When you click "Accept" on a connection request, the status update succeeds on the `connection_requests` table, but a **database trigger** fires and fails:
-
-**Trigger**: `trg_auto_create_deal_from_connection` calls `auto_create_deal_from_approved_connection()`
-
-This function tries to INSERT into `deal_pipeline` with a `contact_role` column that **does not exist** on the table. The INSERT fails, the trigger rolls back, and the entire UPDATE is aborted — resulting in "Action failed."
-
-There is also a **second trigger** (`trg_create_deal_on_request_approval` calling `create_deal_on_request_approval()`) that fires on the same event (status changed to approved). This second trigger is clean and does NOT use `contact_role`. But having two competing triggers that both try to insert into `deal_pipeline` on approval creates a race/duplicate problem.
-
-## Fix (Single Migration)
-
-### 1. Drop the broken trigger and function
-
-`auto_create_deal_from_approved_connection` is the older, less sophisticated version. It:
-- Uses `contact_role` (doesn't exist)
-- Matches duplicates by `listing_id + contact_email` (fragile)
-- Inserts into the first stage (not "Qualified")
-- Doesn't set `connection_request_id` (loses linkage)
-- Doesn't create activity log entries
-
-The second trigger (`create_deal_on_request_approval`) does all of this correctly. So we drop the broken one entirely:
-
-```sql
-DROP TRIGGER IF EXISTS trg_auto_create_deal_from_connection ON public.connection_requests;
-DROP FUNCTION IF EXISTS auto_create_deal_from_approved_connection();
+Line 91 in `useConnectionRequestActions.ts`:
+```typescript
+body: 'We have sent you a brief overview of the deal. Please let us know if you are still interested.',
 ```
 
-### 2. No other changes needed
+This hardcoded message is sent as a `decision` type system message. Since it's an admin message, the `use-connection-messages.ts` hook (line 141) fires `notify-buyer-new-message`, which wraps it in an email.
 
-The surviving trigger `create_deal_on_request_approval` handles:
-- Duplicate check via `connection_request_id`
-- Skips placeholder-website listings
-- Inserts into "Qualified" stage
-- Sets NDA/fee agreement status from lead data
-- Creates an activity log entry
-- Links `connection_request_id` for traceability
+## Strategy: What Should This Message Say?
 
-## Secondary Issue (Not Blocking Accept)
+At this point in the flow, the buyer:
+- Has been browsing the marketplace
+- Found a deal they liked
+- Submitted a connection request
+- Just got approved
 
-The `listings.real_company_name does not exist` errors in the DB logs are from a **separate query** — the universal search hook (`use-universal-search.ts` line 103) selects `real_company_name` from `listings`, but the column is actually called `internal_company_name`. This should be fixed too but is unrelated to the accept failure.
+The system message in the thread should serve as the **kickoff** of the deal conversation. It should:
+1. Confirm their access is live
+2. Tell them what they now have access to (data room, documents)
+3. Set expectations for next steps (SourceCo facilitates intro to owner)
+4. Feel like a personal welcome to the deal, not a robot notification
 
-## Files to Change
+## Fix
+
+### File: `src/components/admin/connection-request-actions/useConnectionRequestActions.ts`
+
+**Line 91**: Replace the hardcoded message with something contextually appropriate:
+
+```typescript
+body: `Your introduction to ${listing?.title || 'this deal'} has been approved. You now have access to the deal overview and supporting documents in the data room. Our team will facilitate the introduction to the business owner - expect to hear from us within one business day. If you have any questions in the meantime, reply here.`,
+```
+
+This message:
+- Confirms what just happened (approved)
+- Tells them what's unlocked (data room access)
+- Sets the next step expectation (intro to owner, 1 business day)
+- Invites engagement (reply here)
+- Matches the tone of the approval email without duplicating it
+
+### Consider: Should the message notification email even fire for decision messages?
+
+The approval email (`send-connection-notification`) already covers the notification. The system message email (`notify-buyer-new-message`) is a duplicate notification. Two options:
+
+**Option A**: Fix the message content (above) and accept both emails. The approval email is "here's the process," the message notification is "here's your thread kickoff." They complement each other.
+
+**Option B**: Skip the `notify-buyer-new-message` email for `decision` type messages, since the approval email already covers it.
+
+I recommend **Option A** for now — fix the content so both emails are useful. The message email reinforces that there's an active thread they should check. If the user later reports "too many emails on approval," we can suppress `decision` type messages from triggering the notification.
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| New migration SQL | Drop broken trigger + function |
-| `src/hooks/admin/use-universal-search.ts` | Replace `real_company_name` with `internal_company_name` (line 103) |
+| `src/components/admin/connection-request-actions/useConnectionRequestActions.ts` | Replace hardcoded approval message on line 91 with contextual deal kickoff message |
+
+One-line change. No edge function changes needed.
 
