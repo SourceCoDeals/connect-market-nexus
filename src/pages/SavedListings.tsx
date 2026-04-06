@@ -386,8 +386,8 @@ const SavedListings = () => {
                         onClick={() => handlePageChange(pagination.currentPage - 1)}
                         disabled={pagination.currentPage === 1}
                       >
-                        <ChevronLeft className="h-4 w-4 mr-1" />
-                        Previous
+                        <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Previous</span>
                       </Button>
 
                       {getPageNumbers().map((pageNum, idx) =>
