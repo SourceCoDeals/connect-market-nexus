@@ -127,6 +127,7 @@ FORMATTING RULES:
 
 OUTPUT FORMAT - return valid markdown with these section headers (## prefix), in order. Only include sections where you have real data:
 
+## HERO_DESCRIPTION
 ## BUSINESS OVERVIEW
 ## DEAL SNAPSHOT
 ## KEY FACTS
@@ -134,7 +135,8 @@ OUTPUT FORMAT - return valid markdown with these section headers (## prefix), in
 ## OWNER OBJECTIVES
 
 SECTION SPECS:
-- BUSINESS OVERVIEW: 2-3 sentences. What the company does, revenue model, scale, region.
+- HERO_DESCRIPTION: EXACTLY 1-2 sentences, MAXIMUM 280 characters total. This is the card preview buyers see before clicking. Summarize what the business does and its financial scale (revenue range, margin, region). Must NOT repeat the BUSINESS OVERVIEW text verbatim. Think of it as a headline elevator pitch.
+- BUSINESS OVERVIEW: 2-3 sentences. What the company does, revenue model, scale, region. This is a DIFFERENT, more detailed narrative than the hero. Do not copy the hero here.
 - DEAL SNAPSHOT: Bullet points with bolded labels/values for Revenue, EBITDA, Margin, Locations, Region, Years, Employees.
 - KEY FACTS: 4-8 bullets covering service mix, customer profile, competitive dynamics.
 - GROWTH CONTEXT: Only include if specific growth opportunities are stated. Bullet points.
@@ -278,7 +280,7 @@ ${metricsLines}
 === LEAD MEMO (your primary content source) ===
 ${leadMemoText}
 
-Apply all anonymization rules strictly. Return markdown only - no preamble, no explanation, no code fences. Start directly with ## BUSINESS OVERVIEW.`;
+Apply all anonymization rules strictly. Return markdown only - no preamble, no explanation, no code fences. Start directly with ## HERO_DESCRIPTION.`;
 
   return await callAIAndRespond(deal, userPrompt, dealId, listingId, anthropicApiKey, supabaseAdmin, corsHeaders);
 }
@@ -368,7 +370,7 @@ IMPORTANT: Only include sections where you have real data. If the data is thin, 
 === DEAL DATA ===
 ${dataPoints.join('\n\n')}
 
-Apply all anonymization rules strictly. Return markdown only - no preamble, no explanation, no code fences. Start directly with ## BUSINESS OVERVIEW.`;
+Apply all anonymization rules strictly. Return markdown only - no preamble, no explanation, no code fences. Start directly with ## HERO_DESCRIPTION.`;
 
   return await callAIAndRespond(deal, userPrompt, dealId, listingId, anthropicApiKey, supabaseAdmin, corsHeaders);
 }
@@ -429,21 +431,38 @@ async function callAIAndRespond(
   markdownText = stripDashes(markdownText);
   markdownText = sanitizeAnonymityBreaches(markdownText);
 
-  // Extract hero description from BUSINESS OVERVIEW
+  // Extract HERO_DESCRIPTION as a separate block (not from BUSINESS OVERVIEW)
   let heroDescription = '';
-  const overviewMatch = markdownText.match(/## BUSINESS OVERVIEW\n([\s\S]*?)(?=\n## |$)/);
-  if (overviewMatch) {
-    heroDescription = overviewMatch[1]
+  const heroMatch = markdownText.match(/## HERO_DESCRIPTION\n([\s\S]*?)(?=\n## |$)/);
+  if (heroMatch) {
+    heroDescription = heroMatch[1]
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .replace(/\*(.*?)\*/g, '$1')
       .replace(/^[-*]\s*/gm, '')
       .replace(/\n+/g, ' ')
       .trim();
-    if (heroDescription.length > 500) {
-      const trimmed = heroDescription.substring(0, 500);
-      const lastPeriod = trimmed.lastIndexOf('.');
-      heroDescription = lastPeriod > 100 ? trimmed.substring(0, lastPeriod + 1).trim() : trimmed.trim();
-    }
+    // Remove HERO_DESCRIPTION section from the body markdown
+    markdownText = markdownText.replace(/## HERO_DESCRIPTION\n[\s\S]*?(?=\n## |$)/, '').trim();
+  }
+
+  // Enforce 280 char limit
+  if (heroDescription.length > 280) {
+    const trimmed = heroDescription.substring(0, 280);
+    const lastPeriod = trimmed.lastIndexOf('.');
+    heroDescription = lastPeriod > 80 ? trimmed.substring(0, lastPeriod + 1).trim() : trimmed.trim();
+  }
+
+  // Fallback: build from metrics if AI didn't produce a hero
+  if (!heroDescription) {
+    const industry = (deal.industry || deal.category || 'services') as string;
+    const rev = deal.revenue ? formatRevenue(deal.revenue as number) : null;
+    const ebitdaVal = deal.ebitda ? formatRevenue(deal.ebitda as number) : null;
+    const regionDesc = resolveRegion((deal.address_state || deal.location || '') as string);
+    const parts: string[] = [];
+    parts.push(`${industry} business${regionDesc ? ` in the ${regionDesc}` : ''}`);
+    if (rev) parts.push(`generating ~${rev} in revenue`);
+    if (ebitdaVal) parts.push(`with ~${ebitdaVal} EBITDA`);
+    heroDescription = parts.join(' ') + '.';
   }
 
   // Generate title
