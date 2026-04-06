@@ -1,77 +1,68 @@
 
 
-# Phase 1 Audit: Mobile Optimization Fixes
-
-## Testing Summary
-
-Tested at 375px viewport: Login, Signup, Welcome, Forgot Password pages. Code-audited all user-facing pages for mobile responsiveness.
+# Phase 2: Marketplace Browse — Mobile Optimization
 
 ## Issues Found
 
-### Issue 1: Data Room Modal — Not Full-Screen on Mobile
-**File:** `src/pages/ListingDetail.tsx` line 308
-The `DialogContent` has `max-w-3xl` but no mobile override. On 375px, the dialog renders with default padding/margins from DialogContent (`left-[50%] translate-x-[-50%]` with `w-full max-w-lg` base), making it too narrow. The `max-h-[80vh]` in BuyerDataRoom is fine, but the dialog needs full-width + full-height on mobile.
+### Issue 1: List View Card Layout Breaks on Mobile
+**File:** `src/components/listing/ListingCardImage.tsx` line 37
+The list view image uses `w-1/4 min-w-[200px]`. On a 375px screen, the image takes 200px leaving only 175px for all content — title, financials, description, and actions get crushed.
 
-**Fix:** Add responsive classes: `sm:max-w-3xl max-w-[calc(100vw-16px)] sm:max-h-[80vh] max-h-[calc(100vh-32px)]` to DialogContent.
+**Fix:** On mobile, force list view cards to stack vertically like grid cards. In `ListingCard.tsx` line 114, change the list layout from `flex flex-row` to `flex flex-col sm:flex-row`. In `ListingCardImage.tsx` line 37, change `w-1/4 min-w-[200px]` to `w-full sm:w-1/4 sm:min-w-[200px]`.
 
-### Issue 2: Data Room — View/Download Buttons Hidden on Touch (opacity-0 hover)
-**File:** `src/components/marketplace/BuyerDataRoom.tsx` line 411
-Document action buttons use `opacity-0 group-hover:opacity-100` — on mobile touch devices, hover doesn't exist. Buttons are invisible and untappable.
+### Issue 2: Financials Grid — 4 Columns Overflow on Mobile List View
+**File:** `src/components/listing/ListingCardFinancials.tsx` line 29
+In list view, financials use `grid-cols-4`. On mobile this creates 4 tiny columns with text wrapping. In grid view, `grid-cols-2` works fine.
 
-**Fix:** Change to `opacity-0 group-hover:opacity-100 md:opacity-0 max-md:opacity-100` so buttons are always visible on mobile.
+**Fix:** Change list view grid to `grid-cols-2 sm:grid-cols-4` so financials stack 2x2 on mobile.
 
-### Issue 3: Messages — ConversationList Fixed Width 300px on Mobile
-**File:** `src/pages/BuyerMessages/ConversationList.tsx` line 44
-The conversation list has `w-[300px]` which fills most of a 375px screen but leaves an awkward 75px gap on the right. On mobile (when no thread selected), it should be full-width.
+### Issue 3: Pagination "Previous" / "Next" Labels Cause Overflow
+**File:** `src/components/ui/pagination.tsx` lines 72-73, 88-89
+`PaginationPrevious` renders "Previous" and `PaginationNext` renders "Next" text. Combined with page numbers, this overflows on 375px.
 
-**Fix:** Change to `w-full md:w-[300px]`.
+**Fix:** Hide text labels on mobile: wrap `<span>` in `<span className="hidden sm:inline">`. Keep chevron icons always visible.
 
-### Issue 4: Marketplace — "Results per page" Label Wraps Awkwardly on Mobile
-**File:** `src/pages/Marketplace.tsx` lines 256-302
-The toolbar row with "View:", "Results per page:", and sorting Select boxes wraps awkwardly on small screens. The "Results per page:" label is too wide.
+### Issue 4: Title "Off-Market, Founder-Led Deals" Too Long on Mobile
+**File:** `src/pages/Marketplace.tsx` line 179
+The `text-3xl` heading wraps to 3 lines on 375px.
 
-**Fix:** Hide "Results per page:" text on mobile, keep just the Select. Use `hidden sm:inline` on the label span.
+**Fix:** Change to `text-2xl sm:text-3xl`.
 
-### Issue 5: Listing Detail — Padding Too Large on Mobile
-**File:** `src/pages/ListingDetail.tsx` line 171, 183
-- `px-8` on the back navigation is excessive on 375px (32px each side = 64px lost)
-- `px-6 py-8` on main content is also large
+### Issue 5: Listing Card Padding `p-6` Excessive on Mobile Grid
+**File:** `src/components/ListingCard.tsx` line 151
+Grid cards use `p-6` (24px), which eats 48px of horizontal space on a 375px screen.
 
-**Fix:** Change to `px-4 sm:px-8` and `px-4 sm:px-6` respectively.
+**Fix:** Change to `p-4 sm:p-6` for grid view.
 
-### Issue 6: Listing Detail — Sidebar CTA Card on Mobile Needs Spacing
-**File:** `src/pages/ListingDetail.tsx` line 330
-The sidebar renders below the main content on mobile (`grid-cols-1 lg:grid-cols-10`). The `p-6` padding is fine but the `gap-10` between grid items creates excessive vertical space.
+### Issue 6: Listing Card Status Badges Wrap Poorly on Mobile
+**File:** `src/components/listing/ListingCardTitle.tsx` lines 26-83
+The "Request Pending" badge + "View Status" link render side-by-side (`flex items-center gap-2`). On mobile they overflow the card.
 
-**Fix:** Change to `gap-6 lg:gap-10`.
+**Fix:** Change to `flex flex-wrap items-center gap-2` so they stack naturally.
 
-### Issue 7: Data Room in DealDocumentsCard — View/Download Also Hidden on Touch
-**File:** `src/components/deals/DealDocumentsCard.tsx`
-Same hover-only visibility pattern likely exists here.
+### Issue 7: Financial Numbers Too Large on Mobile
+**File:** `src/components/listing/ListingCardFinancials.tsx` line 36
+Grid view financial numbers are `text-[21px]`. On 375px with 2 columns this works but is tight for longer currency strings.
 
-**Fix:** Apply same `max-md:opacity-100` fix.
-
-### Issue 8: Marketplace Listing Grid — Single Column but Sort Controls Overflow
-**File:** `src/pages/Marketplace.tsx` line 261
-The `flex flex-wrap items-center gap-4` toolbar works but items like "Sort by:" selector may cause horizontal scroll on very small screens.
-
-**Fix:** Add `overflow-hidden` to parent and use `text-xs` on mobile for the sort labels.
+**Fix:** Change to `text-[18px] sm:text-[21px]` for breathing room.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/pages/ListingDetail.tsx` | Mobile padding (px-4), dialog full-width on mobile, gap-6 on grid |
-| `src/components/marketplace/BuyerDataRoom.tsx` | Always-visible action buttons on mobile |
-| `src/pages/BuyerMessages/ConversationList.tsx` | Full-width conversation list on mobile |
-| `src/pages/Marketplace.tsx` | Hide verbose labels on mobile, prevent toolbar overflow |
-| `src/components/deals/DealDocumentsCard.tsx` | Always-visible action buttons on mobile |
+| `src/pages/Marketplace.tsx` | Smaller heading on mobile |
+| `src/components/ListingCard.tsx` | Responsive padding, list view stacks vertically on mobile |
+| `src/components/listing/ListingCardImage.tsx` | Full-width image on mobile list view |
+| `src/components/listing/ListingCardFinancials.tsx` | 2-col grid on mobile list view, smaller numbers |
+| `src/components/listing/ListingCardTitle.tsx` | flex-wrap on status badges |
+| `src/components/ui/pagination.tsx` | Hide "Previous"/"Next" text on mobile |
 
 ## Implementation Order
 
-1. ListingDetail padding + dialog mobile sizing
-2. BuyerDataRoom touch-friendly buttons
-3. ConversationList full-width mobile
-4. Marketplace toolbar mobile cleanup
-5. DealDocumentsCard touch-friendly buttons
+1. Marketplace heading size
+2. ListingCard padding + list-view stacking
+3. ListingCardImage full-width mobile
+4. ListingCardFinancials responsive grid + font
+5. ListingCardTitle flex-wrap
+6. Pagination text hidden on mobile
 
