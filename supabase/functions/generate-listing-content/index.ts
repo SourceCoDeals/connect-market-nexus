@@ -127,6 +127,7 @@ FORMATTING RULES:
 
 OUTPUT FORMAT - return valid markdown with these section headers (## prefix), in order. Only include sections where you have real data:
 
+## HERO_DESCRIPTION
 ## BUSINESS OVERVIEW
 ## DEAL SNAPSHOT
 ## KEY FACTS
@@ -134,7 +135,8 @@ OUTPUT FORMAT - return valid markdown with these section headers (## prefix), in
 ## OWNER OBJECTIVES
 
 SECTION SPECS:
-- BUSINESS OVERVIEW: 2-3 sentences. What the company does, revenue model, scale, region.
+- HERO_DESCRIPTION: EXACTLY 1-2 sentences, MAXIMUM 280 characters total. This is the card preview buyers see before clicking. Summarize what the business does and its financial scale (revenue range, margin, region). Must NOT repeat the BUSINESS OVERVIEW text verbatim. Think of it as a headline elevator pitch.
+- BUSINESS OVERVIEW: 2-3 sentences. What the company does, revenue model, scale, region. This is a DIFFERENT, more detailed narrative than the hero. Do not copy the hero here.
 - DEAL SNAPSHOT: Bullet points with bolded labels/values for Revenue, EBITDA, Margin, Locations, Region, Years, Employees.
 - KEY FACTS: 4-8 bullets covering service mix, customer profile, competitive dynamics.
 - GROWTH CONTEXT: Only include if specific growth opportunities are stated. Bullet points.
