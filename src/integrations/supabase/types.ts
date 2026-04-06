@@ -13082,7 +13082,7 @@ export type Database = {
         Returns: undefined
       }
       delete_user_completely: {
-        Args: { target_user_id: string }
+        Args: { _target_user_id: string }
         Returns: boolean
       }
       demote_admin_user: { Args: { target_user_id: string }; Returns: boolean }
