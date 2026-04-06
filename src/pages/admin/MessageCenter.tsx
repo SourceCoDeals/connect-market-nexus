@@ -371,7 +371,7 @@ export default function MessageCenter() {
       style={{ fontFamily: 'Montserrat, Inter, sans-serif' }}
     >
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 flex-shrink-0">
+      <div className="px-3 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold tracking-tight" style={{ color: '#0E101A' }}>
             Inbox{counts.unread > 0 ? ` (${counts.unread})` : ''}
