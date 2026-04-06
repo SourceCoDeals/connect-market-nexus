@@ -131,6 +131,18 @@ const PendingApproval = () => {
         toast({ variant: 'destructive', title: 'Failed to send documents', description: firstError });
       } else {
         toast({ title: 'Documents sent', description: 'Check your email for the NDA and Fee Agreement.' });
+        setDocCooldown(true);
+        setCooldownSeconds(120);
+        const interval = setInterval(() => {
+          setCooldownSeconds(prev => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              setDocCooldown(false);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
       }
     } catch {
       toast({ variant: 'destructive', title: 'Something went wrong', description: 'Please try again.' });
