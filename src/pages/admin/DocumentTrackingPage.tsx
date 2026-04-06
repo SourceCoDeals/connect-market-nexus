@@ -286,6 +286,7 @@ interface PendingRequest {
   email_correlation_id: string | null;
   email_provider_message_id: string | null;
   last_email_error: string | null;
+  approval_status: string | null;
 }
 
 interface DeliveryEvent {
@@ -308,7 +309,25 @@ function usePendingRequestQueue() {
         .limit(50);
 
       if (error) throw error;
-      return (data || []) as PendingRequest[];
+      const requests = (data || []) as Omit<PendingRequest, 'approval_status'>[];
+
+      // Fetch approval status for all unique user_ids
+      const userIds = [...new Set(requests.map(r => r.user_id).filter((id): id is string => !!id))];
+      let approvalMap: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, approval_status')
+          .in('id', userIds);
+        if (profiles) {
+          approvalMap = Object.fromEntries(profiles.map(p => [p.id, p.approval_status]));
+        }
+      }
+
+      return requests.map(r => ({
+        ...r,
+        approval_status: r.user_id ? (approvalMap[r.user_id] || null) : null,
+      }));
     },
   });
 }
@@ -1205,6 +1224,11 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
               <span className="ml-2 text-xs text-muted-foreground">
                 {req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'}
               </span>
+              {req.approval_status && req.approval_status !== 'approved' && (
+                <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                  ⏳ Pending Approval
+                </span>
+              )}
             </p>
             {req.recipient_email && req.recipient_name && (
               <p className="text-xs text-muted-foreground">{req.recipient_email}</p>
