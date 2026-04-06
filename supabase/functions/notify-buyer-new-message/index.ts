@@ -10,11 +10,14 @@ interface NewMessageNotificationRequest {
   message_preview: string;
 }
 
-function buildMessageNotificationHtml(buyerName: string, dealTitle: string, messagePreview: string, loginUrl: string, buyerEmail: string): string {
+function buildMessageNotificationHtml(buyerName: string, dealTitle: string, messagePreview: string, loginUrl: string, buyerEmail: string, adminName?: string): string {
+  const fromLine = adminName
+    ? `from <strong>${escapeHtml(adminName)}</strong> at SourceCo`
+    : 'from the SourceCo team';
   return wrapEmailHtml({
     bodyHtml: `
     <p>Hi ${escapeHtml(buyerName)},</p>
-    <p>You have a new message from the SourceCo team regarding ${escapeHtml(dealTitle)}.</p>
+    <p>You have a new message ${fromLine} regarding ${escapeHtml(dealTitle)}.</p>
     <div style="background: #F7F6F3; padding: 20px; margin: 24px 0;">
       <p style="margin: 0; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(messagePreview)}"</p>
     </div>
@@ -22,7 +25,7 @@ function buildMessageNotificationHtml(buyerName: string, dealTitle: string, mess
     <div style="text-align: center; margin: 28px 0;">
       <a href="${loginUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">View Message</a>
     </div>`,
-    preheader: `New message from SourceCo regarding ${escapeHtml(dealTitle)}`,
+    preheader: `New message from ${adminName || 'SourceCo'} regarding ${escapeHtml(dealTitle)}`,
     recipientEmail: buyerEmail,
   });
 }
