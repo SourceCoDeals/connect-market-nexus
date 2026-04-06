@@ -1,39 +1,39 @@
 
 
-# Fix: "column reference 'target_user_id' is ambiguous" on User Deletion
+# Delay Welcome Email + Add Post-Verification Copy
 
-## Root Cause
+## What Changes
 
-The `delete_user_completely` function has a parameter named `target_user_id`. The `permission_audit_log` table also has a column named `target_user_id`. This line in the function:
+### 1. Delay the welcome email by 60 seconds
+**File:** `src/hooks/use-nuclear-auth.ts` (line 316)
+Currently the `user-journey-notifications` edge function with `event_type: 'user_created'` fires immediately on signup -- same moment Supabase sends the verification email. The user receives both emails at once, which is confusing.
 
-```sql
-DELETE FROM public.permission_audit_log WHERE target_user_id = target_user_id;
-```
+**Fix:** Wrap the welcome email call in a `setTimeout` of 60,000ms (1 minute). The call is already fire-and-forget (`.catch()`), so delaying it has no impact on the signup flow. Use `setTimeout` on the client side -- the user remains on the pending-approval page for much longer than 1 minute, so the timer will fire reliably.
 
-...is ambiguous — Postgres doesn't know if `target_user_id` on the right side refers to the function parameter or the table column. It resolves to `column = column` (always true), which would delete all rows, so Postgres raises the ambiguity error instead.
+### 2. Update the welcome email body copy
+**File:** `supabase/functions/user-journey-notifications/index.ts` (lines 27-28 in `buildWelcomeHtml`)
 
-## Fix
+After the existing line:
+> "While you wait, verify your email address using the link we just sent you."
 
-Create a migration that recreates the function, renaming the parameter to `_target_user_id` (prefixed with underscore) to eliminate the naming conflict. Every reference to the parameter inside the function body gets the underscore prefix.
+Add a new paragraph:
+> "If you have already verified your email, a team member will manually review your profile and approve your access shortly, typically within a few hours."
 
-The critical line becomes:
-```sql
-DELETE FROM public.permission_audit_log WHERE target_user_id = _target_user_id;
-```
+This sets the right expectation so users know what is happening while they wait.
 
-Additionally, the `permission_audit_log` table also has a `changed_by` column that could reference the deleted user — we should also clean those rows or nullify that reference.
+### 3. Update EmailTestCentre preview to match
+**File:** `src/pages/admin/EmailTestCentre.tsx` (line 76)
+Update the preview HTML for the welcome email to include the same new paragraph so the admin email catalogue stays accurate.
 
-## File
-
-| File | Change |
-|------|--------|
-| New migration SQL | `CREATE OR REPLACE FUNCTION public.delete_user_completely(_target_user_id uuid)` — rename parameter, update all internal references |
-
-## Frontend
-
-The RPC call in the frontend passes `target_user_id` as the parameter name. This must be updated to `_target_user_id` to match the renamed parameter.
+## Files Changed
 
 | File | Change |
 |------|--------|
-| Frontend file calling `supabase.rpc('delete_user_completely', ...)` | Change `{ target_user_id: ... }` to `{ _target_user_id: ... }` |
+| `src/hooks/use-nuclear-auth.ts` | Wrap welcome email invoke in 60-second `setTimeout` |
+| `supabase/functions/user-journey-notifications/index.ts` | Add post-verification guidance paragraph to `buildWelcomeHtml` |
+| `src/pages/admin/EmailTestCentre.tsx` | Update welcome email preview HTML to match |
+
+## Notes
+- The edge function must be redeployed after the copy change.
+- The admin notification email (to support@sourcecodeals.com) still fires immediately -- only the buyer-facing welcome email is delayed.
 
