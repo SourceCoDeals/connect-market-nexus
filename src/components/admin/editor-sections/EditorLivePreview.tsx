@@ -314,8 +314,10 @@ function FullListingPreview({ formValues, imagePreview }: EditorLivePreviewProps
           </p>
         </div>
 
-        {/* Financial Grid */}
-        <div className="grid grid-cols-3 gap-8 border-b border-border/30 pb-4 mb-6">
+        {/* Financial Grid — gated: buyers see this only after connection approval */}
+        <div className="relative">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Visible after connection approval only</p>
+          <div className="grid grid-cols-3 gap-8 border-b border-border/30 pb-4 mb-6 opacity-80">
           {[
             {
               label: `${new Date().getFullYear() - 1} Revenue`,
