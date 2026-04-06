@@ -596,15 +596,17 @@ export function ImprovedListingEditor({
                 dealIdentifier={listing?.deal_identifier}
               />
 
-              {/* Right: Financial + Image stacked */}
+              {/* Right: Financial + Image + Business Details + Visibility */}
               <div className="space-y-6">
-                <EditorFinancialCard form={formForSections} isReadOnly={isDealSourced} />
+                <EditorFinancialCard form={formForSections} isReadOnly={isDealSourced} sourceDealId={effectiveDealId} />
                 <EditorVisualsSection
                   imagePreview={imagePreview}
                   imageError={imageError}
                   onImageSelect={handleImageSelect}
                   onRemoveImage={handleRemoveImage}
                 />
+                <EditorBusinessDetailsCard form={formForSections} />
+                <EditorVisibilityPanel />
               </div>
             </div>
 
