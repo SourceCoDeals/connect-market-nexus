@@ -625,7 +625,7 @@ export function EditorLivePreview({ formValues, imagePreview, listingId }: Edito
               <p className="text-xs text-muted-foreground mb-3 flex items-center gap-2">
                 <Shield className="h-3.5 w-3.5" />
                 <span>
-                  Full landing page preview — exactly how anonymous visitors see this deal at
+                  Full landing page preview. Exactly how anonymous visitors see this deal at
                   /deals/:id, including sidebar, request form, and related deals funnel.
                 </span>
               </p>
