@@ -148,7 +148,7 @@ const ListingCard = memo(function ListingCard({
 
           <div className="flex flex-col flex-1">
             <CardContent
-              className={`${viewType === 'grid' ? 'p-6' : 'px-4 pt-3.5 pb-3'} flex-1 flex flex-col ${viewType === 'grid' ? 'gap-4' : 'gap-2'}`}
+              className={`${viewType === 'grid' ? 'p-4 sm:p-6' : 'px-4 pt-3.5 pb-3'} flex-1 flex flex-col ${viewType === 'grid' ? 'gap-4' : 'gap-2'}`}
             >
               {/* Header Section */}
               <div className="flex items-center gap-1.5 flex-wrap">
