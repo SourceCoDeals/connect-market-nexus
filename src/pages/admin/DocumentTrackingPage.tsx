@@ -1224,6 +1224,11 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
               <span className="ml-2 text-xs text-muted-foreground">
                 {req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'}
               </span>
+              {req.approval_status && req.approval_status !== 'approved' && (
+                <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                  ⏳ Pending Approval
+                </span>
+              )}
             </p>
             {req.recipient_email && req.recipient_name && (
               <p className="text-xs text-muted-foreground">{req.recipient_email}</p>
