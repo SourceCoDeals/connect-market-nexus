@@ -1,13 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Mail,
@@ -19,6 +11,7 @@ import {
   RefreshCw,
   Shield,
   XCircle,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,7 +33,6 @@ const PendingApproval = () => {
   const { data: agreementStatus } = useMyAgreementStatus(!!user);
   const hasAnyAgreement = agreementStatus?.fee_covered;
 
-  // Auto-poll approval status every 30s
   useEffect(() => {
     if (user?.approval_status === 'approved' || user?.approval_status === 'rejected') return;
     const interval = setInterval(() => {
@@ -49,22 +41,19 @@ const PendingApproval = () => {
     return () => clearInterval(interval);
   }, [user?.approval_status, refreshUserProfile]);
 
-  // Handle navigation for approved users
   useEffect(() => {
     if (user?.approval_status === 'approved') {
-      if (!hasAnyAgreement) {
-        return; // Stay on page for agreement signing
-      }
+      if (!hasAnyAgreement) return;
       navigate('/', { replace: true });
     }
   }, [user?.approval_status, hasAnyAgreement, navigate]);
 
   if (isLoading || !user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-muted/30">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-16 w-16 text-primary animate-spin" />
-          <p className="text-muted-foreground">Loading your account...</p>
+          <Loader2 className="h-12 w-12 text-muted-foreground animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading your account...</p>
         </div>
       </div>
     );
@@ -156,237 +145,258 @@ const PendingApproval = () => {
 
   const uiState = getUIState();
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/30">
-      <div className="w-full max-w-md space-y-6 px-4">
-        {/* Brand Header */}
-        <div className="flex flex-col items-center space-y-3">
-          <div className="flex items-center">
-            <img src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" alt="SourceCo Logo" className="h-10 w-10 mr-3" />
-            <div className="text-center">
-              <h1 className="text-2xl font-bold">SourceCo</h1>
-              <p className="text-lg text-muted-foreground font-light">Marketplace</p>
+  // ---------- REJECTED ----------
+  if (uiState === 'rejected') {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <Logo />
+          <div className="space-y-3">
+            <div className="inline-flex p-3 rounded-full bg-destructive/10">
+              <XCircle className="h-8 w-8 text-destructive" />
             </div>
+            <h1 className="text-2xl font-semibold text-foreground">Application not approved</h1>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              Your application did not meet our current criteria. Contact our team for more details or to discuss next steps.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <Button asChild className="w-full">
+              <a href={`mailto:${APP_CONFIG.adminEmail}`}>Contact our team</a>
+            </Button>
+            <Button variant="ghost" onClick={handleLogout} disabled={isLoggingOut} className="w-full text-muted-foreground">
+              {isLoggingOut ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Signing out...</> : <><LogOut className="h-4 w-4 mr-2" />Sign out</>}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- EMAIL NOT VERIFIED ----------
+  if (uiState === 'email_not_verified') {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="w-full max-w-md space-y-8 text-center">
+          <Logo />
+          <div className="space-y-3">
+            <div className="inline-flex p-3 rounded-full bg-primary/10">
+              <Mail className="h-8 w-8 text-primary" />
+            </div>
+            <h1 className="text-2xl font-semibold text-foreground">Verify your email</h1>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              We sent a verification link to <strong>{user.email}</strong>. Click it to continue. Check your spam folder if you don't see it within a few minutes.
+            </p>
+          </div>
+
+          {/* What happens next */}
+          <div className="border border-border rounded-xl p-5 text-left space-y-3">
+            <p className="text-sm font-medium text-foreground">After you verify</p>
+            <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+              <li>Our team reviews your application, usually same day</li>
+              <li>Sign a quick NDA and Fee Agreement via email</li>
+              <li>Full access to off-market deals</li>
+            </ol>
+          </div>
+
+          <div className="space-y-3">
+            <Button onClick={handleResendVerification} disabled={isResending} className="w-full">
+              {isResending ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sending...</> : 'Resend verification email'}
+            </Button>
+            <Button variant="ghost" onClick={handleLogout} disabled={isLoggingOut} className="w-full text-muted-foreground">
+              {isLoggingOut ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Signing out...</> : <><LogOut className="h-4 w-4 mr-2" />Sign out</>}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------- APPROVED PENDING (two-column) ----------
+  return (
+    <div className="flex items-center justify-center min-h-screen px-4 py-12">
+      <div className="w-full max-w-3xl space-y-10">
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <Logo />
+          <h1 className="text-2xl sm:text-3xl font-semibold text-foreground mt-6">Application received</h1>
+          <p className="text-base text-muted-foreground max-w-lg mx-auto">
+            A team member will review your profile and approve access, usually within a few hours.
+          </p>
+        </div>
+
+        {/* Two-column grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* LEFT: Status */}
+          <div className="space-y-6">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your status</h2>
+
+            {/* Progress steps */}
+            <div className="space-y-0">
+              <StatusStep icon={<CheckCircle className="h-4 w-4 text-white" />} bg="bg-emerald-500" label="Account created" done />
+              <StatusStep icon={<CheckCircle className="h-4 w-4 text-white" />} bg="bg-emerald-500" label="Email verified" done />
+              <StatusStep icon={<Clock className="h-3.5 w-3.5 text-white" />} bg="bg-amber-500" label="Admin review" sublabel="Usually a few hours" />
+              <StatusStep icon={<CheckCircle className="h-3.5 w-3.5 text-muted-foreground/40" />} bg="bg-muted" label="Full access" sublabel="After approval" last />
+            </div>
+
+            {/* User details */}
+            <div className="border-t border-border pt-5">
+              <dl className="space-y-2 text-sm">
+                <DetailRow label="Name" value={`${user.first_name} ${user.last_name}`} />
+                <DetailRow label="Email" value={user.email} />
+                {user.company && <DetailRow label="Company" value={user.company} />}
+                <DetailRow label="Type" value={user.buyer_type?.replace(/([A-Z])/g, ' $1').trim() || 'N/A'} />
+              </dl>
+            </div>
+          </div>
+
+          {/* RIGHT: Action panel */}
+          <div className="rounded-xl border border-border bg-muted/30 p-6 space-y-5">
+            {hasAnyAgreement ? (
+              /* Signed state */
+              <div className="flex flex-col items-center justify-center text-center h-full space-y-4 py-4">
+                <div className="inline-flex p-3 rounded-full bg-emerald-100">
+                  <CheckCircle className="h-8 w-8 text-emerald-600" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-base font-semibold text-foreground">Documents signed</p>
+                  <p className="text-sm text-muted-foreground">
+                    The moment your account is approved, you'll have full access to the deal pipeline.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* Unsigned state */
+              <>
+                <div className="space-y-1">
+                  <h2 className="text-base font-semibold text-foreground">Get ahead while you wait</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Sign your documents now so you have instant access the moment you're approved.
+                  </p>
+                </div>
+
+                {/* Document items */}
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">NDA</p>
+                      <p className="text-xs text-muted-foreground">Protects the confidential information we share with you</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Fee Agreement</p>
+                      <p className="text-xs text-muted-foreground">Only applies if you close a deal sourced through SourceCo. No upfront cost.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full bg-[#0E101A] hover:bg-[#0E101A]/90 text-white"
+                  onClick={handleRequestBothDocuments}
+                  disabled={isRequestingDocs}
+                >
+                  {isRequestingDocs ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+                  ) : (
+                    <><Mail className="h-4 w-4 mr-2" />Request Documents via Email</>
+                  )}
+                </Button>
+
+                <p className="text-[11px] text-muted-foreground text-center">
+                  One signature covers every deal, now and in the future.
+                </p>
+              </>
+            )}
           </div>
         </div>
 
-        <Card>
-          <CardHeader className="space-y-1">
-            <div className="flex justify-center mb-4">
-              <div className={`p-3 rounded-full ${uiState === 'rejected' ? 'bg-destructive/10' : uiState === 'approved_pending' ? 'bg-green-100' : 'bg-primary/10'}`}>
-                {uiState === 'rejected' ? <XCircle className="h-8 w-8 text-destructive" /> : uiState === 'approved_pending' ? <CheckCircle className="h-8 w-8 text-green-600" /> : <Mail className="h-8 w-8 text-primary" />}
-              </div>
-            </div>
-            <CardTitle className="text-lg sm:text-2xl font-bold text-center">
-              {uiState === 'rejected' ? 'Application Not Approved' : uiState === 'approved_pending' ? "You're in the queue — sign an agreement for immediate access" : 'Almost there — verify your email to continue'}
-            </CardTitle>
-            <CardDescription className="text-center">
-              {uiState === 'rejected' ? 'Unfortunately, your application was not approved at this time' : uiState === 'approved_pending' ? "Our team reviews applications same day. Sign an NDA or Fee Agreement now so you have immediate access the moment you're cleared." : `We've sent a verification link to ${user.email}. Click it to continue — check your spam folder if you don't see it within a few minutes.`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {uiState === 'rejected' ? (
-              <>
-                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4">
-                  <div className="flex gap-3 items-center">
-                    <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />
-                    <p className="text-sm text-destructive">Your application did not meet our current criteria.</p>
-                  </div>
-                </div>
-                <div className="bg-muted/50 border border-border rounded-md p-4">
-                  <div className="flex gap-3 items-start">
-                    <Info className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">What can you do?</p>
-                      <ul className="text-xs text-muted-foreground mt-2 space-y-1 list-disc list-inside">
-                        <li>Contact our team for more details</li>
-                        <li>Update your profile and reapply</li>
-                        <li>Reach out if your circumstances have changed</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : uiState === 'approved_pending' ? (
-              <>
-                <div className="bg-amber-50 border border-amber-200 rounded-md p-4">
-                  <div className="flex gap-3 items-start">
-                    <Clock className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-amber-800 text-sm font-medium">Sign an agreement to unlock the full deal pipeline</p>
-                      <p className="text-amber-700 text-xs mt-1">One signature covers every deal on SourceCo — now and in the future.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Submitted Info */}
-                <div className="bg-muted/40 border border-border rounded-md p-4 space-y-2">
-                  <h4 className="text-sm font-medium">Submitted Information</h4>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <span className="text-muted-foreground">Name</span>
-                    <span className="font-medium">{user.first_name} {user.last_name}</span>
-                    <span className="text-muted-foreground">Email</span>
-                    <span className="font-medium truncate">{user.email}</span>
-                    {user.company && (<><span className="text-muted-foreground">Company</span><span className="font-medium">{user.company}</span></>)}
-                    <span className="text-muted-foreground">Buyer Type</span>
-                    <span className="font-medium capitalize">{user.buyer_type?.replace(/([A-Z])/g, ' $1').trim() || 'N/A'}</span>
-                  </div>
-                </div>
-
-                {/* Review Timeline */}
-                <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                  <div className="flex gap-3 items-start">
-                    <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900">Estimated Review Time</p>
-                      <p className="text-xs text-blue-700 mt-1">Most applications are reviewed within <strong>1 business day</strong>.</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Progress */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-center">Application Progress</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center"><CheckCircle className="w-4 h-4 text-white" /></div>
-                      <div className="flex-1"><p className="text-sm font-medium">Account Created</p><p className="text-xs text-muted-foreground">Your account has been successfully created</p></div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center"><CheckCircle className="w-4 h-4 text-white" /></div>
-                      <div className="flex-1"><p className="text-sm font-medium">Email Verified</p><p className="text-xs text-muted-foreground">Your email address has been confirmed</p></div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center"><Clock className="w-4 h-4 text-white" /></div>
-                      <div className="flex-1"><p className="text-sm font-medium">Admin Review</p><p className="text-xs text-muted-foreground">Pending approval from our team</p></div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Agreement Signing Section — email-based */}
-                {!hasAnyAgreement && (
-                  <div className="space-y-4 pt-2">
-                    <div className="text-center">
-                      <div className="flex items-center gap-2 justify-center">
-                        <Shield className="h-4 w-4 text-primary" />
-                        <h4 className="text-sm font-semibold">Sign Your Agreements</h4>
-                      </div>
-                    </div>
-
-                    <div className="bg-muted/40 border border-border rounded-md p-4">
-                      <h5 className="text-xs font-semibold mb-1">Your agreements unlock full deal access</h5>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Every deal on SourceCo is live, real, and confidential. You'll sign two standard documents: an NDA to protect deal details, and a Fee Agreement that applies only if you close a deal sourced through our platform. One set of signatures covers every deal, now and in the future.
-                      </p>
-                    </div>
-
-                    <Button
-                      className="w-full"
-                      onClick={handleRequestBothDocuments}
-                      disabled={isRequestingDocs}
-                    >
-                      {isRequestingDocs ? (
-                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
-                      ) : (
-                        <><Mail className="h-4 w-4 mr-2" />Request Documents via Email</>
-                      )}
-                    </Button>
-
-                    <p className="text-[11px] text-muted-foreground text-center">
-                      Questions? Email{' '}
-                      <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary hover:underline">{APP_CONFIG.adminEmail}</a>
-                    </p>
-                  </div>
-                )}
-                {hasAnyAgreement && (
-                  <div className="bg-green-50 border border-green-200 rounded-md p-4 text-center space-y-1">
-                    <div className="flex items-center justify-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <p className="text-sm font-semibold text-green-800">Agreement signed. You're ready.</p>
-                    </div>
-                    <p className="text-xs text-green-700">The moment your account is approved, you'll have full access.</p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-center">Account Setup Progress</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center"><CheckCircle className="w-4 h-4 text-white" /></div>
-                      <div className="flex-1"><p className="text-sm font-medium">Account Created</p><p className="text-xs text-muted-foreground">Your account has been created</p></div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center"><Mail className="w-4 h-4 text-white" /></div>
-                      <div className="flex-1"><p className="text-sm font-medium">Email Verification</p><p className="text-xs text-muted-foreground">Check your inbox and click the verification link</p></div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center"><Clock className="w-4 h-4 text-muted-foreground" /></div>
-                      <div className="flex-1"><p className="text-sm font-medium text-muted-foreground">Admin Approval</p><p className="text-xs text-muted-foreground">Final review by our team</p></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-primary/5 border border-primary/20 rounded-md p-4">
-                  <div className="flex gap-3 items-start">
-                    <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">After you verify:</p>
-                      <ol className="text-xs text-muted-foreground mt-2 space-y-1 list-decimal list-inside">
-                        <li>Our team reviews your application — usually same day</li>
-                        <li>You'll sign an agreement (NDA or Fee Agreement) that covers every deal</li>
-                        <li>Full access to off-market deals the moment you're cleared</li>
-                      </ol>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-muted/40 border border-border rounded-md p-4">
-                  <h4 className="text-sm font-medium mb-2">What you're getting access to</h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    SourceCo works exclusively with off-market, founder-led businesses. Every deal has been sourced, qualified, and reviewed by our team before it reaches you.
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed mt-2">
-                    Want deals sourced directly for your specific thesis?{' '}
-                    <a href="https://www.sourcecodeals.com/private-equity" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Learn about our retained search →</a>
-                  </p>
-                </div>
-              </>
-            )}
-
-            <div className="text-sm text-center text-muted-foreground">
-              {uiState === 'rejected' ? 'You can create a new account or contact our team.' : uiState === 'approved_pending' ? "We aim to review all applications within one business day." : 'After verification, our team will review your application.'}
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            {uiState === 'approved_pending' && (
-              <Button onClick={handleCheckStatus} disabled={isCheckingStatus || checkCooldown} className="w-full">
-                {isCheckingStatus ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Checking...</>) : (<><RefreshCw className="mr-2 h-4 w-4" />Check Approval Status</>)}
-              </Button>
-            )}
-            {uiState !== 'approved_pending' && (
-              <Button onClick={handleResendVerification} disabled={isResending} className="w-full">
-                {isResending ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>) : 'Resend Verification Email'}
-              </Button>
-            )}
-            <Button variant="outline" className="w-full flex items-center gap-2" onClick={handleLogout} disabled={isLoggingOut}>
-              {isLoggingOut ? (<><Loader2 className="h-4 w-4 animate-spin" />Signing out...</>) : (<><LogOut className="h-4 w-4" />Sign out</>)}
+        {/* Footer actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCheckStatus}
+              disabled={isCheckingStatus || checkCooldown}
+              className="text-muted-foreground"
+            >
+              {isCheckingStatus ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <RefreshCw className="h-4 w-4 mr-1.5" />}
+              Check status
             </Button>
-            <div className="bg-muted/30 border border-border rounded-md p-3 text-center">
-              <p className="text-xs text-muted-foreground">
-                Questions? Reach out at{' '}
-                <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary font-medium hover:underline">{APP_CONFIG.adminEmail}</a>
-              </p>
-            </div>
-          </CardFooter>
-        </Card>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="text-muted-foreground"
+            >
+              {isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <LogOut className="h-4 w-4 mr-1.5" />}
+              Sign out
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Questions?{' '}
+            <a href={`mailto:${APP_CONFIG.adminEmail}`} className="text-primary hover:underline">{APP_CONFIG.adminEmail}</a>
+          </p>
+        </div>
       </div>
-
-
-
     </div>
   );
 };
+
+// ---------- Sub-components ----------
+
+function Logo() {
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <img src="/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png" alt="SourceCo" className="h-9 w-9" />
+      <div className="text-left">
+        <p className="text-lg font-semibold text-foreground leading-tight">SourceCo</p>
+        <p className="text-sm text-muted-foreground leading-tight">Marketplace</p>
+      </div>
+    </div>
+  );
+}
+
+function StatusStep({ icon, bg, label, sublabel, done, last }: {
+  icon: React.ReactNode;
+  bg: string;
+  label: string;
+  sublabel?: string;
+  done?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      {/* Dot + connector line */}
+      <div className="flex flex-col items-center">
+        <div className={`w-6 h-6 rounded-full ${bg} flex items-center justify-center shrink-0`}>
+          {icon}
+        </div>
+        {!last && (
+          <div className={`w-px h-6 ${done ? 'bg-emerald-300' : 'bg-border'}`} />
+        )}
+      </div>
+      {/* Text */}
+      <div className={`pb-4 ${last ? '' : ''}`}>
+        <p className={`text-sm font-medium ${done ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</p>
+        {sublabel && <p className="text-xs text-muted-foreground">{sublabel}</p>}
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className="text-muted-foreground shrink-0">{label}</dt>
+      <dd className="font-medium text-foreground text-right truncate">{value}</dd>
+    </div>
+  );
+}
 
 export default PendingApproval;
