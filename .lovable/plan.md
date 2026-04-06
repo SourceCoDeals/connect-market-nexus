@@ -1,32 +1,62 @@
 
 
-# Fix: Profile Completion Display Inside Data Room Teaser
+# Fix: Data Room Access Not Granted on Connection Approval
 
-## Problem
+## Root Cause (Two Gaps)
 
-When a user has an incomplete profile, the `BlurredFinancialTeaser` renders `ConnectionButton` inside its overlay. `ConnectionButton` returns a full profile completion card (border, progress bar, "Complete Profile" button) which renders poorly inside the compact overlay — text overlaps the blurred background, the card-within-card nesting looks broken.
+### Gap 1: Approving a connection request never creates a `data_room_access` record
+The `handleAccept` function in `useConnectionRequestActions.ts` (line 85-145) updates the connection status to `approved`, sends emails and notifications, but **never inserts a row into `data_room_access`**. The `BuyerDataRoom` component queries `data_room_access` for the buyer's `marketplace_user_id` -- with no row, the buyer sees nothing.
 
-## Fix
+### Gap 2: No automatic access provisioning flow exists
+Currently, the only way a `data_room_access` row gets created is:
+- Manually via the admin Access Matrix panel (admin clicks "Add Buyer" and toggles permissions)
+- Via the AI command center (`grant_data_room_access` tool)
 
-**File: `src/components/listing-detail/BlurredFinancialTeaser.tsx`**
+There is no automation connecting "connection approved" to "data room access granted."
 
-Instead of passing through to `ConnectionButton` (which renders its own profile completion UI), detect the incomplete profile state directly in this component and render a clean, integrated message. The teaser already has its own lock icon, title, and description — just swap the CTA text and button when the profile is incomplete.
+## What the Buyer Experiences Today
 
-Changes:
-1. Accept `profileComplete` and `profileCompletionPct` as props (passed from the parent that already has this data)
-2. When profile is incomplete: change the subtitle to "Complete your profile to unlock deal access" and swap the `ConnectionButton` for a direct "Complete Profile" link styled as the dark primary button
-3. Show a slim progress bar (matching the `#0E101A` style) inline below the subtitle
-4. When profile IS complete: render `ConnectionButton` as before (for the actual request flow)
+1. Signs Fee Agreement and NDA
+2. Requests connection on a listing
+3. Admin approves the connection
+4. Buyer sees "Explore data room" enabled in sidebar (because `feeCovered && connectionApproved` is true)
+5. Clicks it, scrolls to `BuyerDataRoom` section
+6. `BuyerDataRoom` queries `data_room_access` -- gets `null` -- renders nothing
+7. Empty state: "No documents available yet"
 
-This keeps the teaser layout consistent regardless of profile state — one lock icon, one title, one CTA — no nested cards.
+## Solution
 
-**File: `src/components/listing-detail/ConnectionButton.tsx`**
+### File 1: `src/components/admin/connection-request-actions/useConnectionRequestActions.ts`
 
-No changes needed — the profile completion block (lines 129-165) still works correctly when `ConnectionButton` is used in the sidebar. The fix is about preventing it from rendering inside the teaser overlay.
+In `handleAccept` (after line 135, after notifications), add automatic `data_room_access` provisioning:
 
-**Parent file that renders BlurredFinancialTeaser** — pass `profileComplete` boolean. This is likely in `ListingDetail.tsx` or a sidebar component.
+1. Check if a `data_room_access` record already exists for this buyer + listing
+2. If not, insert one with:
+   - `deal_id`: listing ID
+   - `marketplace_user_id`: buyer's user ID
+   - `can_view_teaser`: `true` (always granted on approval)
+   - `can_view_full_memo`: `true` if fee agreement is signed, else `false`
+   - `can_view_data_room`: `true` if fee agreement is signed, else `false`
+   - `buyer_name`: from user object
+   - `buyer_company`: from firm info if available
+
+This uses the existing `data_room_access` table structure. The admin can still override via the Access Matrix.
+
+### File 2: `src/components/marketplace/BuyerDataRoom.tsx`
+
+Add a fallback for listings pushed from the queue: if `data_room_access` exists but no documents are found on the listing ID, also check the `source_deal_id` for documents. This handles the case where documents were uploaded to the source deal before the listing was created.
+
+Lines 72-93: After the primary query returns empty, query for the listing's `source_deal_id` and fetch documents from there too.
+
+### File 3: `src/pages/ListingDetail.tsx`
+
+No changes needed -- the `BuyerDataRoom` already receives the listing ID and the sidebar already correctly gates on `feeCovered && connectionApproved`.
 
 ## Result
 
-The Data Room teaser always looks clean: lock icon, clear message, single action button. No nested cards or broken layouts.
+- Admin clicks "Accept" on a connection request
+- `data_room_access` row is auto-created with teaser + full_memo + data_room access (if fee agreement signed)
+- Buyer immediately sees documents in the data room section
+- Documents from the source deal are also surfaced if the listing itself has none
+- Admin can still fine-tune access via the Access Matrix
 
