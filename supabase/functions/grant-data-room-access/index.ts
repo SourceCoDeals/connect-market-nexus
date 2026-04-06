@@ -142,8 +142,9 @@ Deno.serve(async (req: Request) => {
       toName: buyer_name,
       subject: `Data room access granted: Project ${deal.project_name || deal.title || 'Confidential'}`,
       htmlContent: buildDataRoomEmailHtml(projectName, escapedBuyerName, dataRoomUrl, emailTrimmed),
-      senderName: 'SourceCo',
-      replyTo: 'support@sourcecodeals.com',
+      senderName: 'SourceCo Notifications',
+      senderEmail: 'noreply@sourcecodeals.com',
+      replyTo: 'noreply@sourcecodeals.com',
       isTransactional: true,
       metadata: { dealId: deal_id },
     });
@@ -174,7 +175,7 @@ function buildDataRoomEmailHtml(projectName: string, buyerName: string, dataRoom
     <div style="text-align: center; margin: 28px 0;">
       <a href="${dataRoomUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">Open Data Room</a>
     </div>
-    <p>If you have questions about the materials or want to discuss the opportunity, reply to this email. It goes directly to our deal team.</p>
+    <p>If you have questions about the materials, <a href="https://marketplace.sourcecodeals.com/messages" style="color: #000000; font-weight: 600;">message us directly on the platform</a>. Your deal team monitors all conversations there. Please do not reply to this email.</p>
     <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>
     <p style="font-size: 12px; color: #9B9B9B; margin-top: 16px;">This communication is confidential and intended solely for the named recipient.</p>`,
     preheader: `Data room access granted for Project ${projectName}`,

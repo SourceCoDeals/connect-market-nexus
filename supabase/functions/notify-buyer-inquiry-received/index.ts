@@ -19,7 +19,7 @@ function buildConfirmationHtml(buyerName: string, dealTitle: string, messagePrev
     <div style="background: #F7F6F3; padding: 20px; margin: 24px 0;">
       <p style="margin: 0; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(messagePreview)}"</p>
     </div>
-    <p>When we respond, you will receive an email notification. Please reply directly on the platform to keep all communication in one place.</p>
+    <p>When we respond, you will receive an email notification. Please reply directly on the platform to keep all communication in one place. Do not reply to this email.</p>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${messagesUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">Go to Messages</a>
     </div>`,
@@ -54,8 +54,9 @@ const handler = async (req: Request): Promise<Response> => {
       toName: name,
       subject,
       htmlContent,
-      senderName: 'SourceCo',
-      replyTo: 'support@sourcecodeals.com',
+      senderName: 'SourceCo Notifications',
+      senderEmail: 'noreply@sourcecodeals.com',
+      replyTo: 'noreply@sourcecodeals.com',
       isTransactional: true,
     });
 

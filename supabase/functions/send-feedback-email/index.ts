@@ -59,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
       textContent: content,
       senderName: 'SourceCo Notifications',
       senderEmail: 'noreply@sourcecodeals.com',
-      replyTo: 'support@sourcecodeals.com',
+      replyTo: 'noreply@sourcecodeals.com',
       isTransactional: true,
       metadata: { feedbackId },
     });

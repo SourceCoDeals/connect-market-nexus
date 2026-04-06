@@ -22,7 +22,7 @@ function buildMessageNotificationHtml(buyerName: string, dealTitle: string, mess
     <div style="background: #F7F6F3; padding: 20px; margin: 24px 0;">
       <p style="margin: 0; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(messagePreview)}"</p>
     </div>
-    <p>Log in to your dashboard to view the full message and reply.</p>
+    <p>Please reply directly on the platform so all admins can see your response and assist you faster. Do not reply to this email.</p>
     <div style="text-align: center; margin: 28px 0;">
       <a href="${loginUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">View Message</a>
     </div>`,
@@ -83,8 +83,9 @@ const handler = async (req: Request): Promise<Response> => {
       toName: buyerName,
       subject,
       htmlContent,
-      senderName: 'SourceCo',
-      replyTo: 'support@sourcecodeals.com',
+      senderName: 'SourceCo Notifications',
+      senderEmail: 'noreply@sourcecodeals.com',
+      replyTo: 'noreply@sourcecodeals.com',
       isTransactional: true,
     });
 
