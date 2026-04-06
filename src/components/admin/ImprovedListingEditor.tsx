@@ -18,12 +18,11 @@ import { EditorDescriptionSection } from './editor-sections/EditorDescriptionSec
 import { EditorHeroDescriptionSection } from './editor-sections/EditorHeroDescriptionSection';
 import { EditorVisualsSection } from './editor-sections/EditorVisualsSection';
 import { EditorInternalCard } from './editor-sections/EditorInternalCard';
+import { EditorMarketplaceFields } from './editor-sections/EditorMarketplaceFields';
 import { EditorLivePreview } from './editor-sections/EditorLivePreview';
-import { EditorBusinessDetailsCard } from './editor-sections/EditorBusinessDetailsCard';
-import { EditorVisibilityPanel } from './editor-sections/EditorVisibilityPanel';
 import { EditorFeaturedDealsSection } from './editor-sections/EditorFeaturedDealsSection';
 
-// Form schema - location accepts array from select component and transforms to string
+// Form schema
 const listingFormSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(100),
   categories: z.array(z.string()).min(1, 'Please select at least one category'),
@@ -63,7 +62,7 @@ const listingFormSchema = z.object({
   internal_contact_info: z.string().nullable().optional(),
   internal_notes: z.string().nullable().optional(),
 
-  // Structured contact fields (tied to deal contact)
+  // Structured contact fields
   main_contact_first_name: z.string().nullable().optional(),
   main_contact_last_name: z.string().nullable().optional(),
   main_contact_email: z.string().nullable().optional(),
@@ -102,22 +101,13 @@ const listingFormSchema = z.object({
 
   // Content sections (populated by lead memo generator)
   custom_sections: z.unknown().nullable().optional(),
-
-  // Buyer-facing business details
-  services: z.array(z.string()).nullable().optional(),
-  geographic_states: z.array(z.string()).nullable().optional(),
-  number_of_locations: z.number().int().min(0).nullable().optional(),
-  customer_types: z.string().nullable().optional(),
-  revenue_model: z.string().nullable().optional(),
-  business_model: z.string().nullable().optional(),
-  growth_trajectory: z.string().nullable().optional(),
 });
 
 type ListingFormInput = {
   title: string;
   categories: string[];
   acquisition_type?: 'add_on' | 'platform' | string | null;
-  location: string[]; // Array for form input, transformed to string by Zod
+  location: string[];
   revenue: string;
   ebitda: string;
   full_time_employees?: number;
@@ -150,22 +140,12 @@ type ListingFormInput = {
   internal_deal_memo_link?: string;
   internal_contact_info?: string;
   internal_notes?: string;
-  // Structured contact fields (tied to deal contact)
   main_contact_first_name?: string;
   main_contact_last_name?: string;
   main_contact_email?: string;
   main_contact_phone?: string;
   main_contact_linkedin?: string;
-  // Content sections (populated by lead memo generator)
   custom_sections?: unknown;
-  // Buyer-facing business details
-  services?: string[] | null;
-  geographic_states?: string[] | null;
-  number_of_locations?: number | null;
-  customer_types?: string | null;
-  revenue_model?: string | null;
-  business_model?: string | null;
-  growth_trajectory?: string | null;
 };
 
 type ListingFormValues = z.infer<typeof listingFormSchema>;
@@ -178,7 +158,6 @@ interface ImprovedListingEditorProps {
   listing?: AdminListing;
   isLoading?: boolean;
   targetType?: 'marketplace' | 'research';
-  /** When set, financial fields are locked — they're inherited from the source deal. */
   sourceDealId?: string | null;
 }
 
@@ -187,7 +166,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     title: listing?.title || '',
     categories: listing?.categories || (listing?.category ? [listing.category] : []),
     acquisition_type: listing?.acquisition_type || 'add_on',
-    location: listing?.location ? [listing.location] : [], // Convert string to array for select component
+    location: listing?.location ? [listing.location] : [],
     revenue: listing?.revenue ? listing.revenue.toString() : '',
     ebitda: listing?.ebitda ? listing.ebitda.toString() : '',
     full_time_employees: listing?.full_time_employees || 0,
@@ -220,22 +199,12 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     internal_deal_memo_link: listing?.internal_deal_memo_link || '',
     internal_contact_info: listing?.internal_contact_info || '',
     internal_notes: listing?.internal_notes || '',
-    // Structured contact fields (tied to deal contact)
     main_contact_first_name: listing?.main_contact_first_name || '',
     main_contact_last_name: listing?.main_contact_last_name || '',
     main_contact_email: listing?.main_contact_email || '',
     main_contact_phone: listing?.main_contact_phone || '',
     main_contact_linkedin: listing?.main_contact_linkedin || '',
-    // Content sections (populated by lead memo generator)
     custom_sections: listing?.custom_sections || null,
-    // Buyer-facing business details
-    services: listing?.services || null,
-    geographic_states: listing?.geographic_states || null,
-    number_of_locations: (listing as any)?.number_of_locations ?? null,
-    customer_types: listing?.customer_types || null,
-    revenue_model: listing?.revenue_model || null,
-    business_model: listing?.business_model || null,
-    growth_trajectory: (listing as any)?.growth_trajectory || null,
   };
 };
 
@@ -314,7 +283,6 @@ export function ImprovedListingEditor({
     listing?.featured_deal_ids ?? null,
   );
 
-  // H-2 FIX: Wire up AI generation for hero description and body content.
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingField, setGeneratingField] = useState<string | null>(null);
 
@@ -364,10 +332,6 @@ export function ImprovedListingEditor({
     defaultValues: convertListingToFormInput(listing),
   });
 
-  // Reset form when the listing prop changes (e.g., after AI content generation
-  // updates prefilled data in CreateListingFromDeal). React Hook Form's
-  // defaultValues are only read on first render, so we must call reset() to
-  // pick up new values like custom_sections and description.
   const prevListingRef = useRef(listing);
   useEffect(() => {
     if (listing && listing !== prevListingRef.current) {
@@ -376,7 +340,6 @@ export function ImprovedListingEditor({
     }
   }, [listing, form]);
 
-  // Cast for child components that accept UseFormReturn<any>
   const formForSections = form as unknown as import('react-hook-form').UseFormReturn<
     Record<string, unknown>
   >;
@@ -411,7 +374,6 @@ export function ImprovedListingEditor({
     setImageError(null);
   };
 
-  // Manual submit handler that validates first and shows errors
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -435,10 +397,8 @@ export function ImprovedListingEditor({
         return;
       }
 
-      // Get form values and call the submit handler
       const formData = form.getValues();
 
-      // Manual transformation since we're bypassing zodResolver's transform
       const transformedLocation = Array.isArray(formData.location)
         ? formData.location[0] || ''
         : formData.location || '';
@@ -515,22 +475,12 @@ export function ImprovedListingEditor({
         internal_deal_memo_link: formData.internal_deal_memo_link || null,
         internal_contact_info: formData.internal_contact_info || null,
         internal_notes: formData.internal_notes || null,
-        // Structured contact fields (tied to deal contact)
         main_contact_first_name: formData.main_contact_first_name || null,
         main_contact_last_name: formData.main_contact_last_name || null,
         main_contact_email: formData.main_contact_email || null,
         main_contact_phone: formData.main_contact_phone || null,
         main_contact_linkedin: formData.main_contact_linkedin || null,
-        // Content sections (populated by lead memo generator)
         custom_sections: formData.custom_sections || null,
-        // Buyer-facing business details
-        services: (formData as any).services || null,
-        geographic_states: (formData as any).geographic_states || null,
-        number_of_locations: (formData as any).number_of_locations ?? null,
-        customer_types: (formData as any).customer_types || null,
-        revenue_model: (formData as any).revenue_model || null,
-        business_model: (formData as any).business_model || null,
-        growth_trajectory: (formData as any).growth_trajectory || null,
         // Featured deals for landing page
         ...(featuredDealIds ? { featured_deal_ids: featuredDealIds } : {}),
       };
@@ -554,28 +504,23 @@ export function ImprovedListingEditor({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100/50">
-      <div className="max-w-[1920px] mx-auto px-12 py-8">
+      <div className="max-w-4xl mx-auto px-8 py-8">
         <Form {...form}>
-          <form onSubmit={handleFormSubmit}>
-            {/* Target type banner */}
+          <form onSubmit={handleFormSubmit} className="space-y-6">
+            {/* Draft banner */}
             {!listing && (
-              <div className="mb-6 flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm font-medium text-foreground/70">
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm font-medium text-foreground/70">
                 <Target className="h-4 w-4 shrink-0" />
-                This listing will be created as a draft. Use the Publish button on the card to make
-                it live on the marketplace.
+                This listing will be created as a draft. Use the Publish button to make it live on the marketplace.
               </div>
             )}
 
             {/* Publish Status Banner */}
-            {listing?.id && (
-              <div className="mb-6">
-                <PublishStatusBanner listing={listing} />
-              </div>
-            )}
+            {listing?.id && <PublishStatusBanner listing={listing} />}
 
             {/* Landing Page Preview button */}
             {listing?.id && (
-              <div className="mb-6 flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <a
                   href={`/deals/${listing.id}`}
                   target="_blank"
@@ -588,73 +533,63 @@ export function ImprovedListingEditor({
               </div>
             )}
 
-            {/* MAIN CONTENT - Card grid */}
-            <div className="grid grid-cols-[540px_1fr] gap-8 mb-6">
-              {/* Left: Company Overview (includes marketplace title, geography, type, industry) */}
-              <EditorInternalCard
-                form={formForSections}
-                dealIdentifier={listing?.deal_identifier}
-              />
+            {/* 1. Featured Image */}
+            <EditorVisualsSection
+              imagePreview={imagePreview}
+              imageError={imageError}
+              onImageSelect={handleImageSelect}
+              onRemoveImage={handleRemoveImage}
+            />
 
-              {/* Right: Financial + Image + Business Details + Visibility */}
-              <div className="space-y-6">
-                <EditorFinancialCard form={formForSections} isReadOnly={isDealSourced} sourceDealId={effectiveDealId} />
-                <EditorVisualsSection
-                  imagePreview={imagePreview}
-                  imageError={imageError}
-                  onImageSelect={handleImageSelect}
-                  onRemoveImage={handleRemoveImage}
-                />
-                <EditorBusinessDetailsCard form={formForSections} />
-                <EditorVisibilityPanel />
-              </div>
-            </div>
+            {/* 2. Title + Geography + Industry + Type */}
+            <EditorMarketplaceFields form={formForSections} />
 
-            {/* FULL WIDTH - Hero Description (above Body Description) */}
-            <div className="mb-6">
-              <EditorHeroDescriptionSection
-                form={formForSections}
-                isGenerating={isGenerating}
-                generatingField={generatingField}
-                onAiGenerate={effectiveDealId ? handleAiGenerate : undefined}
-                dealId={effectiveDealId}
-                listingId={listing?.id || null}
-              />
-            </div>
+            {/* 3. Hero Description */}
+            <EditorHeroDescriptionSection
+              form={formForSections}
+              isGenerating={isGenerating}
+              generatingField={generatingField}
+              onAiGenerate={effectiveDealId ? handleAiGenerate : undefined}
+              dealId={effectiveDealId}
+              listingId={listing?.id || null}
+            />
 
-            {/* FULL WIDTH - Body Description (rich text editor) */}
-            <div className="mb-6">
-              <EditorDescriptionSection
-                form={formForSections}
-                isGenerating={isGenerating}
-                generatingField={generatingField}
-                onAiGenerate={effectiveDealId ? handleAiGenerate : undefined}
-                dealId={effectiveDealId}
-                listingId={listing?.id || null}
-              />
-            </div>
+            {/* 4. Financial Metrics */}
+            <EditorFinancialCard form={formForSections} isReadOnly={isDealSourced} sourceDealId={effectiveDealId} />
 
-            {/* Featured Deals (for landing page related-deals section) */}
-            <div className="mb-6">
-              <EditorFeaturedDealsSection
-                featuredDealIds={featuredDealIds}
-                onChange={setFeaturedDealIds}
-                currentListingId={listing?.id}
-              />
-            </div>
+            {/* 5. Body Description (rich text - THE main content area) */}
+            <EditorDescriptionSection
+              form={formForSections}
+              isGenerating={isGenerating}
+              generatingField={generatingField}
+              onAiGenerate={effectiveDealId ? handleAiGenerate : undefined}
+              dealId={effectiveDealId}
+              listingId={listing?.id || null}
+            />
 
-            {/* Live Preview */}
-            <div className="mb-6">
-              <EditorLivePreview
-                formValues={
-                  form.watch() as unknown as React.ComponentProps<
-                    typeof EditorLivePreview
-                  >['formValues']
-                }
-                imagePreview={imagePreview}
-                listingId={listing?.id}
-              />
-            </div>
+            {/* 6. Internal Admin Fields (collapsed) */}
+            <EditorInternalCard
+              form={formForSections}
+              dealIdentifier={listing?.deal_identifier}
+            />
+
+            {/* 7. Featured Deals */}
+            <EditorFeaturedDealsSection
+              featuredDealIds={featuredDealIds}
+              onChange={setFeaturedDealIds}
+              currentListingId={listing?.id}
+            />
+
+            {/* 8. Live Preview */}
+            <EditorLivePreview
+              formValues={
+                form.watch() as unknown as React.ComponentProps<
+                  typeof EditorLivePreview
+                >['formValues']
+              }
+              imagePreview={imagePreview}
+              listingId={listing?.id}
+            />
 
             {/* FOOTER - Actions */}
             <div className="flex items-center justify-between pt-6 border-t border-border">
