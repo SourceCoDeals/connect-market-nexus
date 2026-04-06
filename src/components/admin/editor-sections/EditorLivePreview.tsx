@@ -49,6 +49,10 @@ export interface EditorPreviewFormValues {
   geographic_states?: string[];
   services?: string[];
   number_of_locations?: number;
+  customer_types?: string | null;
+  revenue_model?: string | null;
+  business_model?: string | null;
+  growth_trajectory?: string | null;
   presented_by_admin_id?: string | null;
   deal_identifier?: string | null;
 }

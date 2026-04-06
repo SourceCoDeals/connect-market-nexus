@@ -255,7 +255,7 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
                 <FormItem>
                   <FormControl>
                     <Input
-                      placeholder="e.g. Profitable HVAC Platform — South Central"
+                      placeholder="e.g. Profitable HVAC Platform | South Central"
                       {...field}
                       value={field.value || ''}
                       className={cn(
