@@ -71,13 +71,13 @@ function buildEmailVerifiedHtml(userName: string): string {
   <p>Hi ${escapeHtml(userName)},</p>
   <p>Your email is confirmed. Your application is now with our team.</p>
   <p>We review applications same day during business hours. You will get an email the moment you are approved, typically within a few hours, never more than one business day.</p>
-  <p style="font-weight: 600; margin: 24px 0 8px 0;">What happens when you are approved</p>
-  <ul style="padding-left: 20px; line-height: 1.8;">
-    <li>You sign a single NDA. Covers your use of the platform. Takes about 60 seconds.</li>
-    <li>Full access to browse every deal in the pipeline immediately after.</li>
-    <li>When you find a fit, request an introduction. We handle it from there.</li>
-  </ul>
-  <p style="margin: 24px 0;"><a href="${LOGIN_URL}" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600;">Log In</a></p>
+  <p style="font-weight: 600; margin: 24px 0 8px 0;">What happens next</p>
+  <ol style="padding-left: 20px; line-height: 1.8;">
+    <li>Our team reviews and approves your profile.</li>
+    <li>You sign two documents: an NDA and a Fee Agreement. Both are standard, sent to your email, 60 seconds each.</li>
+    <li>Full access to the deal pipeline: confidential details, financials, and direct introductions to founders.</li>
+  </ol>
+  <p>Nothing for you to do right now. We will email you the moment you are cleared.</p>
   <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,
     preheader: 'Our team reviews applications same day. We will email you the moment you are cleared.',
   });
