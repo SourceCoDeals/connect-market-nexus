@@ -280,7 +280,7 @@ ${metricsLines}
 === LEAD MEMO (your primary content source) ===
 ${leadMemoText}
 
-Apply all anonymization rules strictly. Return markdown only - no preamble, no explanation, no code fences. Start directly with ## BUSINESS OVERVIEW.`;
+Apply all anonymization rules strictly. Return markdown only - no preamble, no explanation, no code fences. Start directly with ## HERO_DESCRIPTION.`;
 
   return await callAIAndRespond(deal, userPrompt, dealId, listingId, anthropicApiKey, supabaseAdmin, corsHeaders);
 }
