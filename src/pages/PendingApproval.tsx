@@ -265,42 +265,28 @@ const PendingApproval = () => {
                     <div className="text-center">
                       <div className="flex items-center gap-2 justify-center">
                         <Shield className="h-4 w-4 text-primary" />
-                        <h4 className="text-sm font-semibold">Sign an Agreement</h4>
+                        <h4 className="text-sm font-semibold">Sign Your Agreements</h4>
                       </div>
                     </div>
 
                     <div className="bg-muted/40 border border-border rounded-md p-4">
-                      <h5 className="text-xs font-semibold mb-1">What your agreement unlocks</h5>
+                      <h5 className="text-xs font-semibold mb-1">Your agreements unlock full deal access</h5>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        Every deal on SourceCo is live, real, and confidential — actual financials, real business names, real owner details. Your agreement opens the door to all of it.
+                        Every deal on SourceCo is live, real, and confidential. You'll sign two standard documents: an NDA to protect deal details, and a Fee Agreement that applies only if you close a deal sourced through our platform. One set of signatures covers every deal, now and in the future.
                       </p>
                     </div>
 
-                    <div className="bg-muted/40 border border-border rounded-md p-4">
-                      <h5 className="text-xs font-semibold mb-1">What you're agreeing to</h5>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        You agree to keep deal details confidential and only use them to evaluate a potential acquisition. One signature covers every deal on SourceCo.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Button
-                        className="w-full"
-                        onClick={() => openSigning('nda')}
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        Request NDA via Email
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => openSigning('fee_agreement')}
-                      >
-                        <FileSignature className="h-4 w-4 mr-2" />
-                        Request Fee Agreement via Email
-                      </Button>
-                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={handleRequestBothDocuments}
+                      disabled={isRequestingDocs}
+                    >
+                      {isRequestingDocs ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+                      ) : (
+                        <><Mail className="h-4 w-4 mr-2" />Request Documents via Email</>
+                      )}
+                    </Button>
 
                     <p className="text-[11px] text-muted-foreground text-center">
                       Questions? Email{' '}
