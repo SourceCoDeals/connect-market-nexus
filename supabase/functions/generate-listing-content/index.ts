@@ -486,12 +486,63 @@ async function callAIAndRespond(
 
   console.log(`[generate-listing-content] Generated ${descriptionHtml.length} chars HTML, title="${title}"`);
 
+  // --- Smart metric generation ---
+  const primaryCategory = (deal.industry || deal.category || '') as string;
+  const revenueVal = (deal.revenue || 0) as number;
+  const ebitdaVal = (deal.ebitda || 0) as number;
+  const marginStr = revenueVal > 0 ? `~${((ebitdaVal / revenueVal) * 100).toFixed(1)}% margin` : '';
+  const revSubtitle = primaryCategory || undefined;
+  const ebitdaSubtitle = marginStr || undefined;
+
+  // Metric 3: pick best available data
+  let metric3: Record<string, unknown> = {};
+  const ftEmployees = (deal.full_time_employees || 0) as number;
+  const ptEmployees = (deal.part_time_employees || 0) as number;
+  const numLocations = (deal.number_of_locations || 0) as number;
+  const foundedYear = (deal.founded_year || 0) as number;
+
+  if (ftEmployees + ptEmployees > 0) {
+    metric3 = { metric_3_type: 'employees' };
+  } else if (numLocations > 0) {
+    metric3 = {
+      metric_3_type: 'custom',
+      metric_3_custom_label: 'Locations',
+      metric_3_custom_value: String(numLocations),
+      metric_3_custom_subtitle: 'Across service area',
+    };
+  } else if (foundedYear > 0) {
+    const years = new Date().getFullYear() - foundedYear;
+    metric3 = {
+      metric_3_type: 'custom',
+      metric_3_custom_label: 'Years Established',
+      metric_3_custom_value: String(years),
+      metric_3_custom_subtitle: `Founded ${foundedYear}`,
+    };
+  } else {
+    metric3 = {
+      metric_3_type: 'custom',
+      metric_3_custom_label: 'Transaction Type',
+      metric_3_custom_value: '100% Sale',
+      metric_3_custom_subtitle: 'Full equity exit',
+    };
+  }
+
+  // Metric 4: default to auto EBITDA Margin with category subtitle
+  const metric4: Record<string, unknown> = {
+    metric_4_type: 'ebitda_margin',
+    metric_4_custom_subtitle: primaryCategory || undefined,
+  };
+
   // Update listing if ID provided
   if (listingId) {
     const update: Record<string, unknown> = {
       title,
       description_html: descriptionHtml,
       description: markdownText,
+      revenue_metric_subtitle: revSubtitle,
+      ebitda_metric_subtitle: ebitdaSubtitle,
+      ...metric3,
+      ...metric4,
     };
     if (heroDescription) update.hero_description = heroDescription;
     if (location) update.location = location;
@@ -514,6 +565,10 @@ async function callAIAndRespond(
       description_html: descriptionHtml,
       description_markdown: markdownText,
       location,
+      revenue_metric_subtitle: revSubtitle,
+      ebitda_metric_subtitle: ebitdaSubtitle,
+      ...metric3,
+      ...metric4,
     }),
     { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
   );
