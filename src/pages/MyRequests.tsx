@@ -231,7 +231,7 @@ const MyRequests = () => {
         <h1 className="text-xl font-semibold text-[#0E101A] tracking-tight">My Deals</h1>
       </div>
 
-      <div className="max-w-[1280px] mx-auto px-6 pb-8">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 pb-8">
         {/* Main container */}
         <div className="rounded-xl border border-[#F0EDE6] overflow-hidden">
           {/* Two-column layout */}
