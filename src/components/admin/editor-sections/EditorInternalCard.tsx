@@ -231,10 +231,13 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
             />
           </div>
 
-          {/* ── Marketplace Listing Section ── */}
-          <div className={cn('pt-4', EDITOR_DESIGN.subtleDivider)}>
-            <div className={cn(EDITOR_DESIGN.microLabel, 'mb-2 text-primary/80')}>
-              Marketplace Listing
+          {/* ── MARKETPLACE LISTING (VISIBLE TO BUYERS) ── */}
+          <div className={cn('pt-5 mt-2', EDITOR_DESIGN.subtleDivider)}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Eye className="h-3 w-3 text-muted-foreground/60" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Marketplace Listing (Visible to Buyers)
+              </span>
             </div>
           </div>
 
