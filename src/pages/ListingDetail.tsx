@@ -416,7 +416,7 @@ const ListingDetail = () => {
               <DealAdvisorCard presentedByAdminId={listing.presented_by_admin_id} listingId={id!} />
 
               {/* Download Executive Summary */}
-              <div className="bg-white/40 border border-slate-200/60 rounded-lg p-6 shadow-sm">
+              <div className="bg-white/40 border border-slate-200/60 rounded-lg p-4 sm:p-6 shadow-sm">
                 <h4 className="text-xs font-medium text-foreground mb-4 uppercase tracking-wider">
                   Executive Summary
                 </h4>

@@ -89,7 +89,7 @@ export function ListingHeader({
         </div>
 
         {/* Location, Industry, and Listed Date - All in one row */}
-        <div className="flex items-center gap-3 flex-wrap text-foreground/80 mb-4">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap text-foreground/80 mb-4">
           <div className="flex items-center">
             <MapPin size={12} className="mr-1" />
             <span className="text-xs font-semibold tracking-wide uppercase">
