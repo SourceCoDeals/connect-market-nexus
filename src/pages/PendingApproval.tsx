@@ -124,9 +124,24 @@ const PendingApproval = () => {
     }
   };
 
-  const openSigning = (type: 'nda' | 'fee_agreement') => {
-    setSigningType(type);
-    setSigningOpen(true);
+  const handleRequestBothDocuments = async () => {
+    setIsRequestingDocs(true);
+    try {
+      const [ndaResult, feeResult] = await Promise.all([
+        sendAgreementEmail({ documentType: 'nda' }),
+        sendAgreementEmail({ documentType: 'fee_agreement' }),
+      ]);
+      const firstError = ndaResult.error || feeResult.error;
+      if (firstError) {
+        toast({ variant: 'destructive', title: 'Failed to send documents', description: firstError });
+      } else {
+        toast({ title: 'Documents sent', description: 'Check your email for the NDA and Fee Agreement.' });
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Something went wrong', description: 'Please try again.' });
+    } finally {
+      setIsRequestingDocs(false);
+    }
   };
 
   const getUIState = () => {
