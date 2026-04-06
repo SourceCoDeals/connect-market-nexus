@@ -301,14 +301,15 @@ const ListingDetail = () => {
               />
             </div>
 
-            {/* Buyer Data Room - shows memos and documents if buyer has access */}
-            {/* MFA verification required when user has MFA enrolled */}
+            {/* Data Room Modal */}
             {!isAdmin && user && (
-              <div ref={dataRoomRef}>
-                <MFAGate loadingText="Verifying identity for data room access...">
-                  <BuyerDataRoom dealId={id!} connectionApproved={connectionStatusValue === 'approved'} />
-                </MFAGate>
-              </div>
+              <Dialog open={dataRoomOpen} onOpenChange={setDataRoomOpen}>
+                <DialogContent className="max-w-3xl p-0 gap-0 overflow-hidden border-border/30 bg-background">
+                  <MFAGate loadingText="Verifying identity for data room access...">
+                    <BuyerDataRoom dealId={id!} connectionApproved={connectionStatusValue === 'approved'} />
+                  </MFAGate>
+                </DialogContent>
+              </Dialog>
             )}
 
             {isAdmin && listing.owner_notes && (
