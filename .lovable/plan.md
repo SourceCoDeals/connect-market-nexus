@@ -1,48 +1,53 @@
 
 
-# Fix: False Message Notifications on Empty Threads
+# Fix: Admin Name in Email Notifications
 
 ## Problem
 
-Three places count `decision` and `system` type messages (auto-generated approval messages) as "unread," causing badges and dots to appear even when the user sees "No messages yet":
+When an admin replies to a buyer, two emails are sent with wrong names:
 
-1. **My Deals detail panel** — "Messages" tab shows a gold dot (line 375 in MyRequests.tsx) driven by unread count that includes decision messages, but the message view filters them out (line 24-26 in DealMessagesTab.tsx), so user sees "No messages yet" with an unread indicator.
+1. **Support inbox email** (screenshot): Shows `ahaile14 replied to Buyer about General` — uses `user.email.split('@')[0]` instead of the admin's real name, and hardcodes `buyerName: 'Buyer'`.
 
-2. **Navbar "My Deals" badge** — `useUnreadBuyerMessageCounts` counts decision messages AND has a secondary loop that counts any thread where `last_message_sender_role === 'buyer'` as needing a notification, even if no real conversation has started.
-
-3. **Buyer Messages thread list** — `useBuyerThreads` query counts all admin-sent unread messages including decision/system types.
+2. **Buyer-facing email**: Says "new message from the SourceCo team" generically — doesn't mention which admin replied.
 
 ## Root Cause
 
-The unread count queries don't exclude `message_type IN ('decision', 'system')` messages, but every display component filters them out. The user sees "no messages" with a badge saying there are unread messages.
+In `src/hooks/use-connection-messages.ts` lines 158-168, the `notify-support-inbox` call uses:
+- `adminName: user?.email?.split('@')[0]` — produces "ahaile14" instead of "Adam Haile"
+- `buyerName: 'Buyer'` — hardcoded instead of looking up the buyer's name
+- No `dealTitle` passed — defaults to "General"
+
+The `notify-buyer-new-message` edge function (line 17) says "from the SourceCo team" — it doesn't accept or display the admin's name.
 
 ## Fix
 
 ### File 1: `src/hooks/use-connection-messages.ts`
 
-**`useUnreadBuyerMessageCounts` (line 300-305):**
-- Add `.not('message_type', 'in', '("decision","system")')` to the unread messages query so decision/system messages don't count toward badges.
+**Resolve admin's full name before sending notifications:**
+- After getting the authenticated user, query `profiles` for the admin's `first_name` and `last_name`
+- Fall back to `ADMIN_PROFILES` map from `@/lib/admin-profiles.ts` if profile query returns no name
+- Final fallback: email prefix
 
-**Secondary "awaiting reply" loop (lines 326-337):**
-- Remove this entire block. It inflates badges for threads where the buyer sent the initial connection request message but no real conversation has started. The buyer doesn't need a notification for their own message.
+**Fix the support inbox call (lines 159-168):**
+- Pass the resolved full admin name as `adminName`
+- The `buyerName` and `dealTitle` aren't available in `useSendMessage` — accept them as optional params so the calling component can pass them
 
-### File 2: `src/pages/BuyerMessages/useMessagesData.ts`
+**Update `useSendMessage` params interface** to accept optional `buyerName`, `dealTitle`, and `adminName` for email context.
 
-**`useBuyerThreads` unread query (lines 84-90):**
-- Add `.not('message_type', 'in', '("decision","system")')` to exclude auto-generated messages from unread counts.
+### File 2: `supabase/functions/notify-buyer-new-message/index.ts`
 
-## Result
+**Personalize the buyer email with the admin's name:**
+- Accept optional `admin_name` in the request body
+- Change line 17 from "from the SourceCo team" to "from [Admin Name] at SourceCo" when available, falling back to "from the SourceCo team"
 
-- Navbar badges only count real human-sent admin messages
-- "Messages" tab dot in My Deals only appears when there are actual visible unread messages
-- No more "No messages yet" with a notification dot
+### File 3: Calling components that invoke `useSendMessage`
+
+Search for all places that call `sendMessage` with `sender_role: 'admin'` and ensure they pass `buyerName` and `dealTitle` context.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/hooks/use-connection-messages.ts` | Exclude decision/system from unread count query; remove "awaiting reply" inflation loop |
-| `src/pages/BuyerMessages/useMessagesData.ts` | Exclude decision/system from thread unread count query |
-
-Two files, surgical query changes. No UI or database changes needed.
+| `src/hooks/use-connection-messages.ts` | Add profile lookup for admin name; accept buyerName/dealTitle params; pass to both notification calls |
+| `supabase/functions/notify-buyer-new-message/index.ts` | Accept `admin_name` param; personalize "from [Name] at SourceCo" in email body |
 
