@@ -113,6 +113,8 @@ interface DatabaseListingInsert {
   customer_types?: string | null;
   revenue_model?: string | null;
   end_market_description?: string | null;
+  number_of_locations?: number | null;
+  growth_trajectory?: string | null;
 
   // Deal enrichment detail fields
   service_mix?: string | null;
