@@ -54,8 +54,9 @@ const handler = async (req: Request): Promise<Response> => {
       toName: name,
       subject,
       htmlContent,
-      senderName: 'SourceCo',
-      replyTo: 'support@sourcecodeals.com',
+      senderName: 'SourceCo Notifications',
+      senderEmail: 'noreply@sourcecodeals.com',
+      replyTo: 'noreply@sourcecodeals.com',
       isTransactional: true,
     });
 
