@@ -76,7 +76,7 @@ export function EditorDescriptionSection({
       if (validation && !validation.pass) {
         toast.warning('AI listing regenerated with validation warnings. Review carefully.');
       } else {
-        toast.success('Listing description regenerated — review and edit before saving.');
+        toast.success('Listing description regenerated. Review and edit before saving.');
       }
     } catch (err) {
       console.error('[EditorDescriptionSection] Regeneration error:', err);
