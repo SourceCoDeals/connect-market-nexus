@@ -1,68 +1,70 @@
 
 
-# Fix: Data Room Access + Premium Buyer Experience
+# Audit: Plan Implementation Status + Bank-Grade Data Room Enhancements
 
-## Three Issues Found
+## Implementation Status
 
-### Issue 1: Access toggles not auto-enabled despite signed Fee Agreement
+| Plan Item | Status | Notes |
+|-----------|--------|-------|
+| Issue 1: `handleAccept` queries DB directly | DONE | Lines 149-163 use `resolve_user_firm_id` RPC + fresh `firm_agreements` query |
+| Issue 2: `AccessMatrixSection` uses fresh firm data | DONE | `hasFeeAgreement` (line 78) derives from `useConnectionRequestFirm` which queries `firm_agreements` and checks both boolean + status columns |
+| Issue 3: Premium Data Room redesign | PARTIALLY DONE | Purple gradients removed, clean rows implemented, but it's "clean minimal" not "bank-grade vault" |
+| Migration: fix existing access record | DONE | Migration applied |
+| `DataRoomOrientation` removed from BuyerDataRoom | DONE | Component still exists but is no longer imported |
 
-**Root cause**: When the admin accepted this connection, the `handleAccept` code (line 149) evaluated `hasFeeAgreement` from local frontend state, which was `false` even though Sony's firm agreement is `signed`. The access record was created with `can_view_teaser: true, can_view_full_memo: false, can_view_data_room: false`.
+## What's Missing: Bank-Grade Vault Experience
 
-The auto-upgrade trigger (`trg_auto_upgrade_data_room_on_fee_sign`) only fires on UPDATE to `firm_agreements`, but Sony's fee agreement was already signed before the connection was approved. So the trigger never ran for this record.
+The current redesign is clean and minimal but reads like a generic file list. For PE/M&A buyers who handle $5M-$50M deals, the data room needs to communicate **security, exclusivity, and institutional trust**. Think: what a Goldman Sachs or J.P. Morgan virtual data room feels like.
 
-**Fix**: Change `handleAccept` to query `firm_agreements` directly from the database instead of relying on the frontend `hasFeeAgreement` prop, which is derived from the connection request card's local state and can be stale.
+### Design Enhancements
 
-```typescript
-// In handleAccept, before inserting data_room_access:
-const { data: firmAgreement } = await supabase
-  .from('firm_agreements')
-  .select('fee_agreement_status')
-  .eq('primary_company_name', user.company)  // or however firm is resolved
-  .maybeSingle();
+**1. Vault Header with Security Signal**
+Replace the plain "Data Room" label with a contained header block:
+- Dark background (`#0E101A`) with subtle border
+- Shield icon (not just Lock) with "Secure Data Room" title
+- Subtle "End-to-end encrypted" or "256-bit encrypted" badge in muted text
+- Session indicator: "Access granted [date]" in small muted text
 
-const feeAgreementSigned = firmAgreement?.fee_agreement_status === 'signed';
-```
+**2. Document Rows: Elevated Treatment**
+- Each document row gets a subtle left border accent on hover (emerald for accessible, muted for restricted)
+- File type icons with monochrome treatment (no colored icons; use opacity for hierarchy)
+- "View" and "Download" buttons become subtle outlined pill buttons with icons, not bare ghost buttons
+- Add a micro-animation on hover (slight translate-x on the row)
 
-**Also**: Write a one-time migration to fix the existing access record for this buyer:
-```sql
-UPDATE data_room_access
-SET can_view_full_memo = true, can_view_data_room = true
-WHERE deal_id = 'd543b05b-2649-4327-a1dd-2a2589e73427'
-  AND marketplace_user_id = '06b29c2a-3220-466c-b161-b92082808f39';
-```
+**3. Access Level Indicator**
+- At the top, show the buyer's current access tier: "Full Access" (emerald dot) or "Teaser Access" (amber dot)
+- If they have Teaser but not Full Memo/Data Room, show a subtle upgrade prompt: "Sign Fee Agreement to unlock all documents"
 
-### Issue 2: Admin can't toggle Full Memo / Data Room when fee agreement IS signed
+**4. Security Footer**
+- After the document list, a hairline divider followed by small muted text: "Documents are shared under NDA. Unauthorized distribution is prohibited."
+- This reinforces the gravity of the materials
 
-In the screenshot, the toggles show lock icons and are disabled because `hasFeeAgreement` is false in the connection request card. Same root cause as Issue 1: the prop is stale. The `AccessMatrixSection` needs the same server-side fee agreement check so the admin can always toggle access when the firm has signed.
+**5. Empty State**
+- Instead of plain text, show a shield icon with "Your data room is being prepared" and a subtle progress indicator
 
-**Fix**: The `hasFeeAgreement` boolean passed to `AccessMatrixSection` should be derived from `firm_agreements` table, not just the connection request's local state. Update the data-fetching in the parent component that renders this section to query firm agreement status.
+### Functionality Enhancements
 
-### Issue 3: Premium Data Room Redesign
+**6. Document Preview Inline**
+- For PDFs, show a small thumbnail/preview icon so buyers can identify documents visually before clicking
 
-The current `BuyerDataRoom` uses standard Card/CardHeader components with purple gradients and badges. It needs a premium, minimal design matching the platform's "Quiet Luxury" aesthetic.
-
-**Design direction**:
-- Remove the purple `DataRoomOrientation` card entirely (it adds noise, not value)
-- Clean section header: just "Data Room" with a subtle lock icon, no cards
-- Documents listed as clean rows with generous whitespace: file icon, name, size/date in muted text, and ghost View/Download buttons on the right
-- Folder grouping via subtle uppercase labels with hairline dividers, not card borders
-- No badges, no colored backgrounds, no gradients
-- Empty state: minimal centered text, no oversized icons
+**7. Last Accessed Timestamp**
+- Show "Last viewed: 2 hours ago" on documents the buyer has previously opened (requires tracking, deferred)
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
-| `src/components/admin/connection-request-actions/useConnectionRequestActions.ts` | Query `firm_agreements` directly in `handleAccept` instead of relying on `hasFeeAgreement` prop |
-| `src/components/admin/connection-request-actions/ConnectionRequestDetail.tsx` (or parent) | Fetch firm agreement status from DB for `AccessMatrixSection` props |
-| `src/components/marketplace/BuyerDataRoom.tsx` | Redesign to premium minimal layout |
-| `src/components/marketplace/DataRoomOrientation.tsx` | Remove or replace with subtle inline text |
-| Migration SQL | Fix existing access record for the restoration buyer |
+| `src/components/marketplace/BuyerDataRoom.tsx` | Vault header, security badge, access tier indicator, elevated document rows, security footer, improved empty state |
 
-## Implementation Order
+Single file change. No database or backend changes needed.
 
-1. Migration: fix existing access record (immediate unblock)
-2. Fix `handleAccept` to query firm agreements from DB (prevent recurrence)
-3. Fix `AccessMatrixSection` hasFeeAgreement resolution (admin can toggle)
-4. Redesign `BuyerDataRoom` to premium layout
+## Design Tokens
+
+- Header background: `#0E101A` (dark vault header)
+- Security text: `text-muted-foreground/50` at `text-[10px]`
+- Shield icon: `lucide-react` `ShieldCheck`
+- Access tier dot: emerald for full, amber for partial
+- Document row hover: `hover:bg-muted/20` with `transition-all duration-150`
+- Action buttons: `border border-border/40 rounded-full px-3 h-7` ghost pills
+- Footer divider: `border-border/20`
 
