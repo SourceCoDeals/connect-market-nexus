@@ -122,20 +122,22 @@ const EMAILS: EmailDef[] = [
     triggerDetail:
       'Fires when an admin clicks Approve on a buyer application and the buyer has not yet signed their NDA. Sent by send-templated-approval-email with ndaSigned=false. This is the most common approval path — most buyers have not signed the NDA before approval.',
     file: 'supabase/functions/send-templated-approval-email/index.ts',
-    subject: "You're approved — one step to full access.",
-    preheader: 'Sign your NDA in 60 seconds and the full deal pipeline is yours.',
+    subject: 'Welcome to SourceCo — Your account is approved',
+    preheader: 'Your account is approved. Browse off-market acquisition opportunities now.',
     bodyHtml: `<div style="font-family:sans-serif;max-width:520px;color:#333;line-height:1.6;padding:20px">
 <p>Hi [First Name],</p>
-<p>You're approved.</p>
-<p>Before you can browse deal details and request introductions, you'll need to sign your NDA. It covers your use of the platform — one signature, and you're in for good. Takes about 60 seconds.</p>
-<p style="margin:20px 0"><a href="#" style="background:#1e293b;color:white;padding:11px 22px;border-radius:6px;text-decoration:none;font-weight:500">Sign Your NDA</a></p>
-<h3 style="color:#0e101a;font-size:15px;margin:20px 0 6px">A few things to know before you start</h3>
+<p>Your account has been approved. You now have access to our curated pipeline of off-market acquisition opportunities.</p>
+<p style="margin:20px 0"><a href="#" style="background:#1e293b;color:white;padding:11px 22px;border-radius:6px;text-decoration:none;font-weight:500">Browse the Marketplace</a></p>
+<p style="font-weight:600;margin:20px 0 6px">Unlock full access</p>
+<p>To view full deal details, access data rooms, and request introductions, you will need to sign two standard documents: an NDA and a Fee Agreement. You can request these from your profile or any listing page. It takes about 60 seconds.</p>
+<p style="font-weight:600;margin:20px 0 6px">A few things to know</p>
 <ul style="padding-left:20px;color:#374151">
-<li>Every deal on SourceCo is off-market — you won't find these anywhere else</li>
-<li>We introduce a small number of buyers per deal — tell us specifically why you're a strong fit</li>
-<li>Before your first introduction request, you'll sign a fee agreement — success-only, nothing owed unless a deal closes</li>
+<li>Every deal on SourceCo is off-market. You will not find these anywhere else.</li>
+<li>We introduce a small number of buyers per deal. When you request an introduction, tell us specifically why you are a strong fit. Generic messages rarely get selected.</li>
+<li>The Fee Agreement is success-only. Nothing is owed unless a deal closes. It covers every introduction we make on your behalf.</li>
 </ul>
-<p style="color:#6b7280;margin-top:28px">— The SourceCo Team</p></div>`,
+<p>Questions? Reply to this email.</p>
+<p style="color:#6b7280;margin-top:28px">The SourceCo Team</p></div>`,
     invokeFunction: 'send-templated-approval-email',
     testPayload: { email: 'test+audit@sourcecodeals.com', firstName: 'Test', ndaSigned: false },
     status: 'live',
