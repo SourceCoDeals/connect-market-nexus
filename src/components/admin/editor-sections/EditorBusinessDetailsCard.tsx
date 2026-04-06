@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FormField, FormItem, FormControl } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { UseFormReturn } from 'react-hook-form';
 import { EDITOR_DESIGN } from '@/lib/editor-design-system';
 import { cn } from '@/lib/utils';
@@ -54,8 +55,9 @@ export function EditorBusinessDetailsCard({ form }: EditorBusinessDetailsCardPro
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input
+                    <Textarea
                       placeholder="e.g. HVAC, Plumbing, Electrical (comma-separated)"
+                      rows={3}
                       value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -65,7 +67,7 @@ export function EditorBusinessDetailsCard({ form }: EditorBusinessDetailsCardPro
                           field.onChange(val ? [val] : []);
                         }
                       }}
-                      className={cn(EDITOR_DESIGN.miniHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
+                      className={cn('text-sm min-h-[60px]', EDITOR_DESIGN.inputBg)}
                     />
                   </FormControl>
                 </FormItem>
@@ -135,11 +137,12 @@ export function EditorBusinessDetailsCard({ form }: EditorBusinessDetailsCardPro
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input
+                    <Textarea
                       placeholder="e.g. Residential, Commercial, Government"
+                      rows={2}
                       {...field}
                       value={field.value || ''}
-                      className={cn(EDITOR_DESIGN.miniHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
+                      className={cn('text-sm min-h-[48px]', EDITOR_DESIGN.inputBg)}
                     />
                   </FormControl>
                 </FormItem>
@@ -177,11 +180,12 @@ export function EditorBusinessDetailsCard({ form }: EditorBusinessDetailsCardPro
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input
+                    <Textarea
                       placeholder="e.g. Owner-operated, Management in place"
+                      rows={2}
                       {...field}
                       value={field.value || ''}
-                      className={cn(EDITOR_DESIGN.miniHeight, 'text-sm', EDITOR_DESIGN.inputBg)}
+                      className={cn('text-sm min-h-[48px]', EDITOR_DESIGN.inputBg)}
                     />
                   </FormControl>
                 </FormItem>
@@ -210,13 +214,16 @@ export function EditorBusinessDetailsCard({ form }: EditorBusinessDetailsCardPro
             />
           </div>
 
-          {/* Visibility note */}
-          <div className="pt-3 border-t border-border/40">
+          {/* Guidance + visibility note */}
+          <div className="pt-3 border-t border-border/40 space-y-1.5">
+            <p className="text-[11px] text-muted-foreground">
+              Keep entries concise. Long descriptions belong in the listing body above.
+            </p>
             <div className="flex items-start gap-2 text-[11px] text-muted-foreground">
               <Eye className="h-3 w-3 mt-0.5 shrink-0" />
               <span>
                 These fields are visible to all marketplace users browsing this listing.
-                Financial details (revenue, EBITDA, margins) are only visible after connection approval.
+                Financials are only visible after connection approval.
               </span>
             </div>
           </div>

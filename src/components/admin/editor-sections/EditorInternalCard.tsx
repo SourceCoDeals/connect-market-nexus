@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { EDITOR_DESIGN } from '@/lib/editor-design-system';
 import { cn } from '@/lib/utils';
 import { STATUS_TAGS } from '@/constants/statusTags';
-import { ChevronDown, Sparkles, Loader2 } from 'lucide-react';
+import { ChevronDown, Sparkles, Loader2, Lock, Eye } from 'lucide-react';
 import { EnhancedMultiCategorySelect } from '@/components/ui/enhanced-category-select';
 import { EnhancedMultiLocationSelect } from '@/components/ui/enhanced-location-select';
 import { stateToRegion } from '@/lib/deal-to-listing-anonymizer';
@@ -124,7 +124,7 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between mb-4"
       >
-        <span className={EDITOR_DESIGN.microHeader}>Company Overview</span>
+        <span className={EDITOR_DESIGN.microHeader}>Listing Setup</span>
         <ChevronDown
           className={cn('h-4 w-4 text-foreground/60 transition-transform', !isOpen && '-rotate-90')}
         />
@@ -132,6 +132,14 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
 
       {isOpen && (
         <div className="space-y-3">
+          {/* ── INTERNAL (ADMIN ONLY) ── */}
+          <div className="flex items-center gap-1.5 mb-1">
+            <Lock className="h-3 w-3 text-muted-foreground/60" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              Internal (Admin Only)
+            </span>
+          </div>
+
           {/* Deal ID */}
           <div className="flex items-baseline justify-between">
             <span className={EDITOR_DESIGN.microLabel}>Deal</span>
@@ -223,10 +231,13 @@ export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardP
             />
           </div>
 
-          {/* ── Marketplace Listing Section ── */}
-          <div className={cn('pt-4', EDITOR_DESIGN.subtleDivider)}>
-            <div className={cn(EDITOR_DESIGN.microLabel, 'mb-2 text-primary/80')}>
-              Marketplace Listing
+          {/* ── MARKETPLACE LISTING (VISIBLE TO BUYERS) ── */}
+          <div className={cn('pt-5 mt-2', EDITOR_DESIGN.subtleDivider)}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Eye className="h-3 w-3 text-muted-foreground/60" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                Marketplace Listing (Visible to Buyers)
+              </span>
             </div>
           </div>
 
