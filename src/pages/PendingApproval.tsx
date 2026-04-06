@@ -18,7 +18,6 @@ import {
   Info,
   RefreshCw,
   Shield,
-  FileSignature,
   XCircle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,7 +26,7 @@ import { toast } from '@/hooks/use-toast';
 import { cleanupAuthState } from '@/lib/auth-helpers';
 import { APP_CONFIG } from '@/config/app';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
-import { AgreementSigningModal } from '@/components/pandadoc/AgreementSigningModal';
+import { sendAgreementEmail } from '@/lib/agreement-email';
 
 const PendingApproval = () => {
   const navigate = useNavigate();
@@ -36,8 +35,7 @@ const PendingApproval = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [checkCooldown, setCheckCooldown] = useState(false);
-  const [signingOpen, setSigningOpen] = useState(false);
-  const [signingType, setSigningType] = useState<'nda' | 'fee_agreement'>('nda');
+  const [isRequestingDocs, setIsRequestingDocs] = useState(false);
 
   const { data: agreementStatus } = useMyAgreementStatus(!!user);
   const hasAnyAgreement = agreementStatus?.fee_covered;
@@ -130,9 +128,24 @@ const PendingApproval = () => {
     }
   };
 
-  const openSigning = (type: 'nda' | 'fee_agreement') => {
-    setSigningType(type);
-    setSigningOpen(true);
+  const handleRequestBothDocuments = async () => {
+    setIsRequestingDocs(true);
+    try {
+      const [ndaResult, feeResult] = await Promise.all([
+        sendAgreementEmail({ documentType: 'nda' }),
+        sendAgreementEmail({ documentType: 'fee_agreement' }),
+      ]);
+      const firstError = ndaResult.error || feeResult.error;
+      if (firstError) {
+        toast({ variant: 'destructive', title: 'Failed to send documents', description: firstError });
+      } else {
+        toast({ title: 'Documents sent', description: 'Check your email for the NDA and Fee Agreement.' });
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Something went wrong', description: 'Please try again.' });
+    } finally {
+      setIsRequestingDocs(false);
+    }
   };
 
   const getUIState = () => {
@@ -256,42 +269,28 @@ const PendingApproval = () => {
                     <div className="text-center">
                       <div className="flex items-center gap-2 justify-center">
                         <Shield className="h-4 w-4 text-primary" />
-                        <h4 className="text-sm font-semibold">Sign an Agreement</h4>
+                        <h4 className="text-sm font-semibold">Sign Your Agreements</h4>
                       </div>
                     </div>
 
                     <div className="bg-muted/40 border border-border rounded-md p-4">
-                      <h5 className="text-xs font-semibold mb-1">What your agreement unlocks</h5>
+                      <h5 className="text-xs font-semibold mb-1">Your agreements unlock full deal access</h5>
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        Every deal on SourceCo is live, real, and confidential — actual financials, real business names, real owner details. Your agreement opens the door to all of it.
+                        Every deal on SourceCo is live, real, and confidential. You'll sign two standard documents: an NDA to protect deal details, and a Fee Agreement that applies only if you close a deal sourced through our platform. One set of signatures covers every deal, now and in the future.
                       </p>
                     </div>
 
-                    <div className="bg-muted/40 border border-border rounded-md p-4">
-                      <h5 className="text-xs font-semibold mb-1">What you're agreeing to</h5>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        You agree to keep deal details confidential and only use them to evaluate a potential acquisition. One signature covers every deal on SourceCo.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Button
-                        className="w-full"
-                        onClick={() => openSigning('nda')}
-                      >
-                        <Mail className="h-4 w-4 mr-2" />
-                        Request NDA via Email
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => openSigning('fee_agreement')}
-                      >
-                        <FileSignature className="h-4 w-4 mr-2" />
-                        Request Fee Agreement via Email
-                      </Button>
-                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={handleRequestBothDocuments}
+                      disabled={isRequestingDocs}
+                    >
+                      {isRequestingDocs ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+                      ) : (
+                        <><Mail className="h-4 w-4 mr-2" />Request Documents via Email</>
+                      )}
+                    </Button>
 
                     <p className="text-[11px] text-muted-foreground text-center">
                       Questions? Email{' '}
@@ -384,11 +383,8 @@ const PendingApproval = () => {
         </Card>
       </div>
 
-      <AgreementSigningModal
-        open={signingOpen}
-        onOpenChange={setSigningOpen}
-        documentType={signingType}
-      />
+
+
     </div>
   );
 };
