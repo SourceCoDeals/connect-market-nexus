@@ -188,8 +188,8 @@ export function ProfileDocuments() {
                       </span>
                       {timestamp && (
                         <>
-                          <span className="text-muted-foreground/30 text-xs">·</span>
-                          <span className="text-xs text-muted-foreground">{timestamp}</span>
+                          <span className="text-muted-foreground/30 text-xs hidden sm:inline">·</span>
+                          <span className="text-xs text-muted-foreground hidden sm:inline">{timestamp}</span>
                         </>
                       )}
                     </div>

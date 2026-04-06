@@ -94,7 +94,7 @@ export function DealAlertCard({ alert, selected, onSelect, onEdit, onDelete, onT
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">{formatCriteria()}</p>
           
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="text-xs text-muted-foreground">
               Created {new Date(alert.created_at).toLocaleDateString()}
               {alert.last_sent_at && (
