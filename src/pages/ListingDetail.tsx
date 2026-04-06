@@ -277,20 +277,7 @@ const ListingDetail = () => {
               </div>
             </div>
 
-            {/* Content Sections (from lead memo) */}
-            {listing.custom_sections &&
-              Array.isArray(listing.custom_sections) &&
-              listing.custom_sections.length > 0 && (
-                <div className="document-section py-8 border-t border-slate-100">
-                  <div className="space-y-6">
-                    {listing.custom_sections.map(
-                      (section: { title: string; description: string }) => (
-                        <CustomSection key={section.title} section={section} />
-                      ),
-                    )}
-                  </div>
-                </div>
-              )}
+            {/* Custom sections removed - content merged into body description */}
 
             {/* Similar Listings Carousel */}
             {listing && <SimilarListingsCarousel currentListing={listing} />}
