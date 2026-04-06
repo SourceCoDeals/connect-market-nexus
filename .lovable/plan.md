@@ -1,74 +1,91 @@
 
-# Phase 6: Navbar, Auth Pages, Modals & Cross-Cutting — Mobile Optimization
+
+# Phase 7: Admin Panel — Mobile Optimization
 
 ## Audit Summary
 
-Tested Navbar, auth pages (Login, Welcome, Signup, ForgotPassword, PendingApproval), notification popovers, AgreementAlertModal, and DealSourcingCriteriaDialog at 375px viewport.
+Tested AdminLayout, AdminNavbar, AdminDashboard, AdminUsers, AdminRequests, MessageCenter, ListingsManagementTabs, AdminNotificationBell, CreateDealModal, and UniversalSearchDialog at 375px viewport. The AdminNavbar (mobile hamburger with Sheet drawer) is already well-built with touch-friendly 44px tap targets and responsive widths.
 
 ## Issues Found
 
-### Issue 1: NavbarLogo — "Marketplace" Text Crowds on Mobile
-**File:** `src/components/navbar/NavbarLogo.tsx` line 17-19
-Logo text "SourceCo Marketplace" takes ~200px. Combined with avatar + bell icon on 375px, the middle gap disappears or elements wrap.
+### Issue 1: Global `px-8` Padding on All Admin Pages
+**Files:** AdminDashboard.tsx (lines 130, 250, 273), AdminUsers.tsx (lines 347, 399), InternalTeamPage.tsx (105, 123), OwnerLeadsPage.tsx (127, 138), ContactListsPage.tsx (100, 121), ContactListDetailPage.tsx (193, 251), MarketplaceUsersPage.tsx (167, 189), TestingHub.tsx (782, 842, 855), StandupTracker.tsx (416), DailyTaskDashboard.tsx (151)
 
-**Fix:** Hide "Marketplace" text on mobile: `<span className="text-xl text-muted-foreground ml-1 font-light hidden sm:inline">Marketplace</span>`
+`px-8` = 64px total horizontal padding. On 375px inside AdminLayout (which adds `p-4` = 16px each side), content width shrinks to ~279px. Every admin page uses this pattern.
 
-### Issue 2: MobileNavItems — Uses Old Lucide Icons Instead of Custom NavIcons
-**File:** `src/components/navbar/MobileNavItems.tsx` lines 3, 29, 38, 45, 56
-Desktop nav uses custom `NavIcons` (`MarketplaceIcon`, `SavedIcon`, etc.) but mobile menu uses generic Lucide icons (`Store`, `Heart`, `Briefcase`, `MessageSquare`). Visual inconsistency.
+**Fix:** Change all `px-8` to `px-4 md:px-8` across these files. This is the single highest-impact fix.
 
-**Fix:** Import and use the same `NavIcons` from `@/components/icons/NavIcons` to match desktop nav. Not a layout break, but a polish item.
+### Issue 2: AdminDashboard — Dashboard Switcher Overflows on Mobile
+**File:** `src/pages/admin/AdminDashboard.tsx` lines 209-243
+The three-button switcher (Daily Tasks / Remarketing / Marketplace) uses `px-4` per button. On 375px with reduced padding, the row still fits ~300px of buttons. But the marketplace sub-tabs row (line 251) has 8 tabs that will overflow.
 
-### Issue 3: BuyerNotificationBell Popover Width
-**File:** `src/components/buyer/BuyerNotificationBell.tsx` line 183
-`w-80 sm:w-96` — on 375px, `w-80` (320px) leaves only 55px for margins. The popover uses `align="end"` so it can overflow left.
+**Fix:** Add `overflow-x-auto` to the marketplace sub-tabs container (line 251). Dashboard switcher is fine as-is.
 
-**Fix:** Change to `w-[calc(100vw-2rem)] sm:w-96` to ensure it never overflows the viewport.
+### Issue 3: AdminNotificationBell Popover Width
+**File:** `src/components/admin/AdminNotificationBell.tsx` line 115
+`w-96` (384px) overflows 375px viewport.
 
-### Issue 4: AgreementAlertModal — `p-8` Padding Excessive on Mobile
-**File:** `src/components/buyer/AgreementAlertModal.tsx` line 41
-`p-8` (32px) on a forced-open modal leaves only ~311px of content width on 375px.
+**Fix:** Change to `w-[calc(100vw-2rem)] sm:w-96`.
 
-**Fix:** Change to `p-5 sm:p-8`.
+### Issue 4: MessageCenter Thread List Fixed 320px Width
+**File:** `src/pages/admin/MessageCenter.tsx` line 484
+`w-[320px]` is hardcoded. On mobile, this takes the full 375px viewport leaving no room for content. The show/hide logic (`hidden md:flex` / `flex`) already works correctly for mobile — when a thread is selected the list hides and thread view shows. But when no thread is selected, the 320px list doesn't fill the screen.
 
-### Issue 5: AgreementAlertModal — Title `text-2xl` + Description `text-base` Large on Mobile
-**File:** `src/components/buyer/AgreementAlertModal.tsx` lines 52, 57
-Title and description are fine for desktop but push the CTA button below the fold on 375px.
+**Fix:** Change `w-[320px]` to `w-full md:w-[320px]` so the list fills mobile width.
 
-**Fix:** Change title to `text-xl sm:text-2xl`, description to `text-sm sm:text-base`.
+### Issue 5: MessageCenter View Mode Toggle Overflows on Mobile
+**File:** `src/pages/admin/MessageCenter.tsx` lines 382-430
+Three buttons (All / By Deal / By Buyer) in a row next to the "Inbox" title. On narrow screens, the buttons compress.
 
-### Issue 6: PendingApproval — CardTitle `text-2xl` Long Text Overflows
-**File:** `src/pages/PendingApproval.tsx` line 180
-Title "You're in the queue — sign an agreement for immediate access" at `text-2xl` wraps to 4+ lines on mobile.
+**Fix:** Hide labels on mobile, show only icons: wrap text in `<span className="hidden sm:inline">`. The icons alone are sufficient with their distinct shapes.
 
-**Fix:** Change to `text-lg sm:text-2xl`.
+### Issue 6: ListingsManagementTabs — Tab Labels Too Long for Mobile
+**File:** `src/components/admin/ListingsManagementTabs.tsx` lines 88-113
+Three tabs: "Ready to Publish", "Live on Marketplace", "All Internal" — with badges. On 375px these overflow the TabsList.
 
-### Issue 7: PendingApproval — No Horizontal Padding on Mobile
-**File:** `src/pages/PendingApproval.tsx` line 161
-The `max-w-md` container has no `px` padding, so on 375px it touches screen edges.
+**Fix:** Use shorter labels on mobile: "Ready" / "Live" / "Internal" using `<span className="sm:hidden">` / `<span className="hidden sm:inline">` pattern.
 
-**Fix:** Add `px-4` to the container: `<div className="w-full max-w-md space-y-6 px-4">`
+### Issue 7: ListingsManagementTabs — `px-6 lg:px-10` Container Padding
+**File:** `src/components/admin/ListingsManagementTabs.tsx` line 73
+`px-6` = 48px total, stacked on AdminLayout's `p-4`. Leaves ~263px on 375px.
 
-### Issue 8: Welcome Page — Right Content `pr-8` Unnecessary on Mobile
-The right panel is `hidden lg:flex` so this doesn't affect mobile. No fix needed.
+**Fix:** Change to `px-2 sm:px-6 lg:px-10`.
 
-### Issue 9: AuthLayout, Login, ForgotPassword, DealSourcingCriteriaDialog
-All already responsive. No fixes needed.
+### Issue 8: MessageCenter Header `px-6` Excessive
+**File:** `src/pages/admin/MessageCenter.tsx` line 374
+Same stacking issue with AdminLayout's `p-4`.
+
+**Fix:** Change `px-6 pt-6 pb-4` to `px-3 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4`.
+
+### Issue 9: CreateDealModal Already Responsive
+`max-w-2xl max-h-[90vh] md:max-h-[85vh] overflow-y-auto` — this is fine on mobile. No fix needed.
+
+### Issue 10: UniversalSearchDialog Uses CommandDialog
+CommandDialog renders as a centered overlay. No mobile issues. No fix needed.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/navbar/NavbarLogo.tsx` | Hide "Marketplace" text on mobile |
-| `src/components/navbar/MobileNavItems.tsx` | Use custom NavIcons for consistency |
-| `src/components/buyer/BuyerNotificationBell.tsx` | Viewport-safe popover width |
-| `src/components/buyer/AgreementAlertModal.tsx` | Responsive padding and text sizes |
-| `src/pages/PendingApproval.tsx` | Smaller title, add container padding |
+| `src/pages/admin/AdminDashboard.tsx` | `px-4 md:px-8` on 3 containers; `overflow-x-auto` on marketplace sub-tabs |
+| `src/pages/admin/AdminUsers.tsx` | `px-4 md:px-8` on header + content |
+| `src/pages/admin/InternalTeamPage.tsx` | `px-4 md:px-8` |
+| `src/pages/admin/OwnerLeadsPage.tsx` | `px-4 md:px-8` |
+| `src/pages/admin/ContactListsPage.tsx` | `px-4 md:px-8` |
+| `src/pages/admin/ContactListDetailPage.tsx` | `px-4 md:px-8` |
+| `src/pages/admin/MarketplaceUsersPage.tsx` | `px-4 md:px-8` |
+| `src/pages/admin/TestingHub.tsx` | `px-4 md:px-8` |
+| `src/pages/admin/remarketing/StandupTracker.tsx` | `px-4 md:px-8` |
+| `src/pages/admin/remarketing/DailyTaskDashboard.tsx` | `px-4 md:px-8` |
+| `src/components/admin/AdminNotificationBell.tsx` | Viewport-safe popover width |
+| `src/pages/admin/MessageCenter.tsx` | Full-width thread list on mobile; responsive padding; compact view toggle |
+| `src/components/admin/ListingsManagementTabs.tsx` | Shorter tab labels on mobile; reduced container padding |
 
 ## Implementation Order
 
-1. NavbarLogo hide "Marketplace" on mobile
-2. MobileNavItems use NavIcons
-3. BuyerNotificationBell popover width
-4. AgreementAlertModal responsive padding + text
-5. PendingApproval title size + container padding
+1. Global `px-8` → `px-4 md:px-8` across all 10 admin page files
+2. AdminNotificationBell popover width
+3. MessageCenter thread list width + padding + view toggle
+4. ListingsManagementTabs tabs + padding
+5. AdminDashboard marketplace sub-tabs overflow
+
