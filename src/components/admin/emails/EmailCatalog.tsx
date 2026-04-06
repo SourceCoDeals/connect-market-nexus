@@ -122,13 +122,22 @@ const EMAIL_CATALOG: CatalogCategory[] = [
     name: 'Buyer Lifecycle',
     emails: [
       {
-        name: 'Marketplace Approval',
+        name: 'Marketplace Signup Approved',
+        subject: 'Welcome to the SourceCo Marketplace',
+        recipient: 'Buyer',
+        trigger: 'Admin approves buyer marketplace profile/signup',
+        edgeFunction: 'user-journey-notifications',
+        variant: 'profile_approved',
+        designNotes: 'Branded wrapper, welcome message, marketplace explanation, CTA to browse deals',
+        previewHtml: `${wrapperStart}<p>Dear Jane,</p><p>Welcome to the SourceCo Marketplace. Your profile has been approved and you now have full access to our curated platform for off-market deal flow.</p><p>The SourceCo Marketplace is a private, invitation-only platform where vetted buyers can discover and evaluate acquisition opportunities in their target sectors. Here is how it works:</p><ul style="margin: 16px 0; padding-left: 20px; color: #3D3D3D; font-size: 14px; line-height: 1.8;"><li>Browse active listings across industries and geographies</li><li>Request introductions to deals that match your criteria</li><li>Receive Anonymous Teasers for approved opportunities</li><li>Communicate directly with the SourceCo deal team</li></ul>${ctaBtn('Browse Deals')}<p>If you have any questions, reply to this email and a member of our team will be happy to assist.</p>${signoff}${wrapperEnd}`,
+      },
+      {
+        name: 'Anonymous Teaser Release',
         subject: 'Project [Name]: Investment Opportunity',
         recipient: 'Buyer',
-        trigger: 'Admin approves buyer from marketplace approval queue',
+        trigger: 'Admin approves buyer deal access request from marketplace approval queue',
         edgeFunction: 'approve-marketplace-buyer',
-        
-        designNotes: 'Branded wrapper, anonymous teaser link, confidentiality notice, CTA to view teaser',
+        designNotes: 'Branded wrapper, anonymous teaser tracked link, confidentiality notice, CTA to view teaser. Sent from adam.haile@sourcecodeals.com',
         previewHtml: `${wrapperStart}<p>Dear Jane,</p><p>Thank you for your interest in this investment opportunity. We are pleased to share the Anonymous Teaser for Project Atlas with you.</p><p>Click below to review the investment summary.</p>${ctaBtn('View Investment Teaser')}${detailBox('This is a private, tracked link generated exclusively for you. Do not share or forward this link.')}<p>If this opportunity aligns with your investment criteria, reply to this email to express your interest.</p>${signoff}<p style="font-size: 12px; color: #9B9B9B; margin-top: 16px;">This communication is confidential and intended solely for the named recipient.</p>${wrapperEnd}`,
       },
       {
