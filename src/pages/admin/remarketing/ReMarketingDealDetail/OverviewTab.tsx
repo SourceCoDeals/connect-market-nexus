@@ -1,3 +1,4 @@
+import { supabase } from '@/integrations/supabase/client';
 import { PipelineSummaryCard } from '@/components/remarketing';
 import { DealTranscriptSection } from '@/components/remarketing/DealTranscriptSection';
 import {
@@ -278,6 +279,13 @@ export function OverviewTab({
         summary={deal.executive_summary}
         onSave={async (summary) => {
           await updateDealMutation.mutateAsync({ executive_summary: summary });
+        }}
+        onGenerate={async () => {
+          const { data, error } = await supabase.functions.invoke('generate-executive-summary', {
+            body: { deal_id: dealId },
+          });
+          if (error) throw error;
+          return data?.summary ?? null;
         }}
       />
 
