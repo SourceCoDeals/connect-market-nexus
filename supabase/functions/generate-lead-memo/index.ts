@@ -825,8 +825,7 @@ function stripOmissionLanguage(sections: MemoSection[]): MemoSection[] {
     const lines = s.content.split('\n');
     const filtered = lines.filter(line => {
       const trimmed = line.trim();
-      // Only filter bullet lines (starting with -, *, or •)
-      if (!/^[-*•]\s/.test(trimmed)) return true;
+      if (!trimmed) return true; // keep blank lines
       // Keep lines that contain a dollar amount or percentage (factual data)
       const hasFactualData = /\$[\d,]+|\d+(\.\d+)?%/.test(trimmed);
       // Remove lines whose primary content is an omission apology
@@ -835,16 +834,18 @@ function stripOmissionLanguage(sections: MemoSection[]): MemoSection[] {
       if (isSourceContrast(trimmed)) return false;
       return true;
     });
-    // Second pass: clean semicolon-joined fragments within surviving bullets
+    // Second pass: clean semicolon-joined fragments within surviving lines
     const cleaned = filtered.map(line => {
       const trimmed = line.trim();
-      if (!/^[-*•]\s/.test(trimmed)) return line;
-      if (!trimmed.includes(';')) return line;
-      const bullet = trimmed.match(/^([-*•]\s*)/)?.[1] || '- ';
-      const fragments = trimmed.slice(bullet.length).split(';').map(f => f.trim());
+      if (!trimmed || !trimmed.includes(';')) return line;
+      // Detect bullet prefix if any
+      const bulletMatch = trimmed.match(/^([-*•]\s*)/);
+      const prefix = bulletMatch ? bulletMatch[1] : '';
+      const body = prefix ? trimmed.slice(prefix.length) : trimmed;
+      const fragments = body.split(';').map(f => f.trim());
       const kept = fragments.filter(f => !isOmission(f) && !isSourceContrast(f));
-      if (kept.length === 0) return null; // entire bullet was omission
-      return bullet + kept.join('; ');
+      if (kept.length === 0) return null; // entire line was omission
+      return (prefix || '') + kept.join('; ');
     }).filter((l): l is string => l !== null);
     return { ...s, content: cleaned.join('\n') };
   });
