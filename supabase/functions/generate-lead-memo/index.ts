@@ -1269,8 +1269,17 @@ Then output a bulleted list of any data discrepancies, unverified figures, sourc
       throw new Error('No content returned from AI');
     }
 
+    // Split off analyst notes before parsing sections
+    let memoMarkdown = rawContent;
+    let analystNotesRaw = '';
+    const delimiterIndex = rawContent.indexOf('---ANALYST-NOTES---');
+    if (delimiterIndex !== -1) {
+      memoMarkdown = rawContent.substring(0, delimiterIndex).trim();
+      analystNotesRaw = rawContent.substring(delimiterIndex + '---ANALYST-NOTES---'.length).trim();
+    }
+
     // Parse markdown output into sections
-    let sections = parseMarkdownToSections(rawContent);
+    let sections = parseMarkdownToSections(memoMarkdown);
 
     // Post-process: enforce banned words removal (preserves quoted text)
     sections = enforceBannedWords(sections);
@@ -1279,6 +1288,8 @@ Then output a bulleted list of any data discrepancies, unverified figures, sourc
     sections = stripDataNeededTags(sections);
 
     bestSections = sections;
+    // Store analyst notes for the final return
+    (bestSections as any).__analystNotes = analystNotesRaw;
 
     // Run blocking validation checks (Checks 2, 3, 4)
     const validation = validateFullMemoSections(sections);
