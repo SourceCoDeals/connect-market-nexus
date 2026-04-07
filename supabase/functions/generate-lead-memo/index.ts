@@ -1189,7 +1189,7 @@ FORMAT
 Use only these section headers, in this order. COMPANY OVERVIEW is always included. Omit any section that has no data. Never create an "INFORMATION NOT YET PROVIDED" section.
 
 COMPANY OVERVIEW
-One paragraph, 3–5 sentences. What the company does, where it operates, how it is structured. Legal name, DBA, founded year, HQ, locations, headcount, ownership, core industry. Plain terms.
+One paragraph, 3–5 sentences. What the company does, where it operates, how it is structured. Legal name, DBA, founded year, HQ, locations, headcount, ownership, core industry. When available, weave in customer geography (service territory, regional footprint), competitive positioning (partnerships, market standing), and end market context. Plain terms.
 
 FINANCIAL SNAPSHOT
 Simple labeled lines, one per data point. Only include what is explicitly stated or confirmed. Format: [Year] [Metric]: $[Amount]
@@ -1199,24 +1199,27 @@ Example:
 * 2025 EBITDA: $1,100,000
 * Owner Compensation: $350,000
 
-If adjusted EBITDA is mentioned, list each add-back individually. If the owner gives a range, state the range exactly. Do not pick midpoint or either bound. If figures don't reconcile (e.g., monthly × 12 ≠ stated annual), use the figure from the highest-priority source. Do NOT flag reconciliation issues in the memo body.
+If adjusted EBITDA is mentioned, list each add-back individually. If the owner gives a range, state the range exactly. Do not pick midpoint or either bound. If figures don't reconcile (e.g., monthly × 12 ≠ stated annual), use the figure from the highest-priority source. Do NOT flag reconciliation issues in the memo body. When revenue_source_quote or ebitda_source_quote data is available, use those figures as the authoritative values. If financial_notes context is provided, incorporate relevant confirmed financial details (not projections unless labeled as such).
 
 SERVICES AND OPERATIONS
-Bullet points. What services are performed, how revenue is generated, and relevant operational details. Include industry-specific KPIs only when explicitly stated in the source data — do not use any template checklist to fill in metrics that were not mentioned.
+Bullet points. What services are performed, how revenue is generated, and relevant operational details. Include service mix breakdown, customer types (residential, commercial, government), and technology systems when available. Include industry-specific KPIs only when explicitly stated in the source data — do not use any template checklist to fill in metrics that were not mentioned. When end_market_description or competitive_position data is available, include relevant operational context.
 
 OWNERSHIP AND TRANSACTION
-Bullet points. Owner name(s), roles, and involvement. Transaction type, reason for sale, valuation expectation (exact figures as stated — do not comment on reasonableness), management continuity, real estate, prior transaction history.
+Bullet points. Owner name(s), roles, and involvement. Transaction type, reason for sale, valuation expectation (exact figures as stated — do not comment on reasonableness), management continuity, real estate, prior transaction history. When transition_preferences or special_requirements data is available, include the transition plan details (named successors, training timeline). When real_estate_info is available, include property details. When timeline_preference is available, include expected timeline.
 
 MANAGEMENT AND STAFFING
-Bullet points. Who runs daily operations, owner's specific daily role, key personnel, location-level management, headcount, compensation/benefits if available.
+Bullet points. Who runs daily operations, owner's specific daily role, key personnel, location-level management, headcount, compensation/benefits if available. When transition plans name specific personnel being trained or promoted, include them here.
 
 KEY STRUCTURAL NOTES
-Include only if structural complexity exists. Separate entities, personally owned real estate, related businesses, government designations, non-compete/earn-out/seller financing details.
+Include only if structural complexity exists. Separate entities, personally owned real estate, related businesses, government designations, non-compete/earn-out/seller financing details. Include technology platform context when available.
+
+DATA DENSITY INSTRUCTION
+Match memo length to the richness of available data. If the data includes competitive positioning, customer geography, financial notes, key quotes, transition plans, real estate, and technology systems, the memo should be comprehensive (900–1200 words). A deal with only basic enrichment data and no transcripts should be short (300–500 words). Never pad thin data, but never produce a skeleton when rich data exists.
 
 WRITING RULES
 * Bullet points for all sections except Company Overview (which is prose).
 * Bold labels for: Transaction type, Reason for sale, Valuation context, Real estate, EBITDA, Revenue, Headcount. Do not bold every bullet.
-* When the owner's exact words matter (transaction preferences, business description), use a direct quote attributed to the owner. One sentence max per quote.
+* When the owner's exact words matter (transaction preferences, business description), use a direct quote attributed to the owner. One sentence max per quote. KEY QUOTES data provides verified owner statements you can attribute.
 * Neutral, factual, controlled. No promotional phrasing or narrative storytelling.
 
 BANNED LANGUAGE
