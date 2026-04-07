@@ -1,32 +1,89 @@
 
 
-# Differentiate Unapproved Users in Document Tracking Pending Queue
+# Investment-Grade Memo Export Redesign
 
 ## Problem
 
-When a user requests documents from the Pending Approval screen (before being approved), the request appears in the admin Document Tracking "Pending Requests" queue identically to requests from approved users. Admins have no way to tell whether the requester is still pending approval or already approved.
+The PDF and DOCX exports look amateur:
+- Browser print header/footer shows date, URL ("about:blank"), and page numbers (visible in the uploaded PDF)
+- "Prepared by SourceCo Advisors - April 7, 2026" date line is unnecessary
+- "CONFIDENTIAL - FOR INTENDED RECIPIENT ONLY" red disclaimer looks junior
+- Center-aligned memo type label ("CONFIDENTIAL LEAD MEMO") is filler
+- Section dividers (border-bottom on h2) feel like a Word template from 2005
+- Logo rendered as a small circle — should be clean, professional placement
 
-## Solution
+## Design Direction
 
-Add a small "Pending Approval" badge next to the user's name in the Pending Request queue rows when the requesting user's `approval_status` is not `approved`.
-
-## Changes
-
-### File: `src/pages/admin/DocumentTrackingPage.tsx`
-
-1. **Extend `usePendingRequestQueue` query**: After fetching pending requests, do a secondary lookup on `profiles` for all unique `user_id` values to get their `approval_status`. Return this as a map alongside the requests.
-
-2. **Extend `PendingRequest` interface or pass approval map**: Add an `approval_status` field resolved from the profiles lookup.
-
-3. **Update `PendingRequestRow` component**: When `approval_status !== 'approved'`, render a small orange/amber badge: `⏳ Pending Approval` next to the user's name. This gives admins immediate context — the user hasn't been approved yet, so documents shouldn't necessarily be sent until approval happens.
-
-### Implementation Detail
-
-In `usePendingRequestQueue`, after fetching document_requests, extract unique `user_id` values, query `profiles` for `id, approval_status`, and merge the status back into each request object. The badge renders inline next to the name/email, styled consistently with existing badges (small, amber).
+Investment-grade memo style (think Lazard, Evercore CIMs):
+- Clean SourceCo logo top-left, no circular crop
+- Company name as the hero title, large and commanding
+- Subtitle: just "Lead Memo" or "Anonymous Teaser" — no date, no "prepared by"
+- Sections: clean uppercase section headers with generous spacing, no underlines
+- Footer: single line "Confidential" in small muted text — not red, not screaming
+- `@page` CSS hides browser print headers/footers
+- No "about:blank" or timestamps anywhere
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `src/pages/admin/DocumentTrackingPage.tsx` | Fetch user approval status in pending queue query; show "Pending Approval" badge on unapproved user rows |
+### 1. `src/components/admin/data-room/MemosTab.tsx` — PDF export (`handleDownloadDraftPdf`)
+Lines 461-497. Complete rewrite of the HTML template:
+- Add `@page { margin: 1in; }` with margin boxes set to empty strings to suppress browser headers/footers
+- Remove date line, remove "Prepared by" line
+- Logo top-left as clean image (not circular)
+- Company name as large title
+- "Lead Memo" or "Anonymous Teaser" as small subtitle
+- Clean section headers: uppercase, letterspaced, no border-bottom
+- Footer: small gray "Confidential" text, no red, no all-caps screaming
+
+### 2. `src/components/admin/data-room/MemosPanel.tsx` — PDF export (`handleExportPdf`)
+Lines 118-211. Same template rewrite as above — this is the older MemosPanel export used on a different view. Same design treatment.
+
+### 3. `src/lib/generate-memo-docx.ts` — DOCX export
+Full rewrite of the document structure:
+- Remove date paragraph entirely
+- Remove "CONFIDENTIAL LEAD MEMO" centered label
+- Remove red confidential disclaimer banner
+- Logo + "SOURCECO" letterhead stays but cleaner (thinner bottom border)
+- Company name as document title
+- "Lead Memo" or "Anonymous Teaser" as small subtitle
+- Section headings: clean, no bottom borders
+- End of document: single small gray "Confidential" line
+
+### 4. Build error fixes (unrelated but blocking)
+- `src/pages/admin/remarketing/GPPartnerDeals/types.ts` — remove duplicate `executive_summary`
+- `src/pages/admin/remarketing/SourceCoDeals/types.ts` — remove duplicate `executive_summary`
+- `src/components/remarketing/BulkEmailDialog.tsx` — fix property access
+- `src/components/remarketing/EmailPreviewDialog.tsx` — fix property access
+- `src/pages/admin/remarketing/ReMarketingDealDetail/OverviewTab.tsx` — remove unused import
+
+## PDF Template (shared by both MemosTab and MemosPanel)
+
+```text
++------------------------------------------+
+|  [Logo]  SOURCECO                        |
+|                                          |
+|  Company Name                            |
+|  Lead Memo                               |
+|                                          |
+|  COMPANY OVERVIEW                        |
+|  Body text...                            |
+|                                          |
+|  FINANCIAL SNAPSHOT                       |
+|  - Revenue: $12M                         |
+|  - EBITDA: $2.3M                         |
+|                                          |
+|  ...more sections...                     |
+|                                          |
+|  Confidential                            |
++------------------------------------------+
+```
+
+Key CSS: `@page { margin: 1in; @top-left { content: ''; } @top-right { content: ''; } @bottom-left { content: ''; } @bottom-right { content: ''; } }` — this suppresses Chrome's default print header/footer (date, URL, page number).
+
+## Implementation Order
+
+1. Fix build errors (5 files)
+2. Rewrite MemosTab PDF template
+3. Rewrite MemosPanel PDF template
+4. Rewrite generate-memo-docx
 
