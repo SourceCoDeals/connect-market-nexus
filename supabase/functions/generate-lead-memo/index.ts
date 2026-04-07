@@ -786,7 +786,47 @@ function stripDataNeededTags(sections: MemoSection[]): MemoSection[] {
   });
 }
 
-// Post-process: enforce anonymization by stripping any leaked identifying information
+// Post-process: strip bullet lines that only state missing data or contrast sources
+function stripOmissionLanguage(sections: MemoSection[]): MemoSection[] {
+  const OMISSION_PATTERNS = [
+    /\bnot\s*on\s*file\b/i,
+    /\bnot\s*available\b/i,
+    /\bnot\s*discussed\b/i,
+    /\bnot\s*provided\b/i,
+    /\bnot\s*confirmed\b/i,
+    /\bnot\s*stated\b/i,
+    /\bis\s*unclear\b/i,
+    /\bis\s*unknown\b/i,
+    /\bare\s*unknown\b/i,
+    /\bhas\s*not\s*been\s*(stated|provided|confirmed|discussed)\b/i,
+    /\bno\s*(detail|information|data)\s*(is|was|has been)?\s*(available|provided|stated|on file)\b/i,
+  ];
+  const SOURCE_CONTRAST_PATTERNS = [
+    /\bLinkedIn[\s-]*report/i,
+    /\bper\s*(internal|enrichment|manual)\s*data\b/i,
+    /\binternal\s*data\b/i,
+    /\benrichment\s*data\b/i,
+  ];
+
+  return sections.map(s => {
+    const lines = s.content.split('\n');
+    const filtered = lines.filter(line => {
+      const trimmed = line.trim();
+      // Only filter bullet lines (starting with -, *, or •)
+      if (!/^[-*•]\s/.test(trimmed)) return true;
+      // Keep lines that contain a dollar amount or percentage (factual data)
+      if (/\$[\d,]+|\d+(\.\d+)?%/.test(trimmed)) return true;
+      // Remove lines whose primary content is an omission apology
+      if (OMISSION_PATTERNS.some(p => p.test(trimmed))) return false;
+      // Remove lines that contrast data sources
+      if (SOURCE_CONTRAST_PATTERNS.some(p => p.test(trimmed))) return false;
+      return true;
+    });
+    return { ...s, content: filtered.join('\n') };
+  });
+}
+
+
 function enforceAnonymization(
   sections: MemoSection[],
   deal: Record<string, unknown>,
