@@ -1,33 +1,30 @@
 
 
-# Operations Hub -- Issues Found
+# Operations Hub Fixes + Remove Test Data
 
-## Bugs Identified
+## Remaining Bugs Found
 
-### 1. Document Signing Card: Wrong column name (WILL CRASH)
-**Line 61**: Queries `document_type` but the actual column is `agreement_type`. Also queries `created_at` for time display but `requested_at` is the more meaningful timestamp. The join `firm_agreements!inner(firm_name)` should work since `document_requests.firm_id` has a FK to `firm_agreements(id)`.
+### 1. Wrong FK hint in two cards (WILL CRASH)
+Both **UnreadMessagesCard** (line 128) and **ConnectionRequestsCard** (line 220) use `connection_requests_user_id_fkey` but the actual FK name is `connection_requests_user_id_profiles_fkey`. This will cause PostgREST to return an error.
 
-### 2. Unread Messages Card: RPC does not exist (WILL CRASH)
-**Line 125**: Calls `supabase.rpc('get_message_center_threads')` but no such RPC exists in the database. The existing `useMessageCenterThreads` hook fetches from `connection_messages` directly with client-side grouping. This card should reuse the existing hook or replicate its query.
+### 2. Test data to delete
+The user `adambhaile00@gmail.com` created test firm agreements and document requests that should be cleaned up. The test firms visible in the screenshot are: **AdamCo**, **Acme Inc**, **test**, **Great company**. Their document_requests and firm_agreements (plus firm_members) need to be deleted.
 
-### 3. Connection Requests Card: Ambiguous FK hint (MAY CRASH)
-**Line 193**: Uses `profiles!inner(first_name, last_name)` but `connection_requests` has TWO FKs pointing at `profiles` (`connection_requests_user_id_profiles_fkey` and `connection_requests_converted_by_fkey`). PostgREST requires disambiguating with the FK name: `profiles!connection_requests_user_id_profiles_fkey(...)`.
+Everything else in the Operations Hub is correctly implemented -- column names, queries, grouping logic, and display are all valid.
 
-### 4. Data Room Access Card: Missing column `buyer_company` (WILL CRASH)
-**Line 324**: Queries `buyer_company` but the column is actually `buyer_firm`. Also queries `can_view_teaser, can_view_full_memo, can_view_data_room` but none of these columns exist on `deal_data_room_access`. The actual columns are `granted_document_ids`, `is_active`, etc.
+## Changes
 
-### 5. Data Room Activity Card: Truncated user_id not useful
-**Line 423**: Shows `log.user_id?.slice(0, 8)...` which is meaningless to admins. Would be better to show the action description from metadata or join to profiles.
+| # | What | Detail |
+|---|------|--------|
+| 1 | Fix FK hint in `OperationsHub.tsx` line 128 | Change `connection_requests_user_id_fkey` → `connection_requests_user_id_profiles_fkey` |
+| 2 | Fix FK hint in `OperationsHub.tsx` line 220 | Change `connection_requests_user_id_fkey` → `connection_requests_user_id_profiles_fkey` |
+| 3 | Database migration: delete test data | Delete `document_requests` for test firms, then `firm_members` for test firms, then the 4 `firm_agreements` rows (AdamCo, Acme Inc, test, Great company) by their known IDs |
 
-## Fix Plan
+### Test firm IDs to delete
+- `f3fe049d-143a-4fd5-837b-8e839cf58094` (AdamCo)
+- `5eccb4d6-f52a-440f-bf3c-02a1426da85a` (Acme Inc)
+- `285ad5e8-7447-4681-977d-4727e1de14a4` (test)
+- `ab961d3a-5a90-462c-9063-8b4b6c462e39` (Great company)
 
-| File | Change |
-|------|--------|
-| `src/components/admin/dashboard/OperationsHub.tsx` | **DocumentSigningCard**: Change `document_type` to `agreement_type` in both SELECT and display logic. Change `created_at` to `requested_at` in the ORDER BY and timeAgo call. |
-| Same file | **UnreadMessagesCard**: Remove the broken RPC call. Instead, query `connection_messages` directly for recent unread messages (`is_read_by_admin = false, sender_role = 'buyer'`), join to `connection_requests` + `profiles` for buyer name, and count/group by `connection_request_id`. |
-| Same file | **ConnectionRequestsCard**: Disambiguate the profiles FK: `profiles!connection_requests_user_id_profiles_fkey(first_name, last_name)`. |
-| Same file | **DataRoomAccessCard**: Replace `buyer_company` with `buyer_firm`. Remove `can_view_teaser/can_view_full_memo/can_view_data_room` columns. Show access level based on `granted_document_ids` array length or just show buyer + firm + granted time. |
-| Same file | **DataRoomActivityCard**: Join to profiles to show a name instead of truncated UUID. Fallback to UUID if join fails. |
-
-All 5 fixes are in the same file. No new files, no migrations.
+No other issues remain. The OperationsHub will work correctly after these two FK fixes.
 
