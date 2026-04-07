@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, Send, Users, Activity, Settings, Plus, ArrowRight } from 'lucide-react';
+import { ChevronLeft, Send, Users, Activity, Settings, Plus, ArrowRight, Building2, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -77,6 +77,28 @@ export default function ClientPortalDetail() {
             <h1 className="text-2xl font-bold">{org.name}</h1>
             <OrgStatusBadge status={org.status} />
           </div>
+          {org.buyer && (
+            <div className="flex items-center gap-2 mt-1">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{org.buyer.company_name}</span>
+              {org.buyer.buyer_type && (
+                <Badge variant="outline" className="text-xs">
+                  {org.buyer.buyer_type.replace(/_/g, ' ')}
+                </Badge>
+              )}
+              {org.buyer.company_website && (
+                <a
+                  href={org.buyer.company_website.startsWith('http') ? org.buyer.company_website : `https://${org.buyer.company_website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                >
+                  <Globe className="h-3 w-3" />
+                  Website
+                </a>
+              )}
+            </div>
+          )}
           {org.relationship_owner && (
             <p className="text-sm text-muted-foreground mt-1">
               Relationship Owner: {org.relationship_owner.first_name} {org.relationship_owner.last_name}
@@ -387,6 +409,8 @@ export default function ClientPortalDetail() {
         open={inviteOpen}
         onOpenChange={setInviteOpen}
         portalOrgId={org.id}
+        portalSlug={org.portal_slug}
+        buyerId={org.buyer_id || undefined}
       />
     </div>
   );

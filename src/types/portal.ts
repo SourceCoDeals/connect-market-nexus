@@ -162,6 +162,7 @@ export interface PortalActivityLog {
 
 export interface PortalOrganizationWithDetails extends PortalOrganization {
   relationship_owner?: { id: string; first_name: string; last_name: string; email: string } | null;
+  buyer?: { id: string; company_name: string; company_website: string | null; buyer_type: string | null } | null;
   user_count?: number;
   active_push_count?: number;
   last_activity_at?: string | null;
