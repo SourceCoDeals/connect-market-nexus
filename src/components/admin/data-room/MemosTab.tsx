@@ -382,6 +382,7 @@ function MemoSlotCard({
   };
 
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
 
   const handlePreviewPdf = () => {
     if (!document) return;
@@ -389,9 +390,17 @@ function MemoSlotCard({
     documentUrl.mutate(
       { documentId: document.id, action: 'view' },
       {
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
           if (data?.url) {
-            window.open(data.url, '_blank');
+            try {
+              const response = await fetch(data.url);
+              const blob = await response.blob();
+              const localUrl = URL.createObjectURL(blob);
+              setPdfPreviewUrl(localUrl);
+            } catch {
+              // Fallback to direct open if fetch fails
+              window.open(data.url, '_blank');
+            }
           }
           setIsPreviewing(false);
         },
