@@ -60,7 +60,7 @@ const SignupSuccess = () => {
 
       toast({
         title: 'Email sent!',
-        description: "We've sent another verification email to your inbox.",
+        description: "We've sent another verification email. If you don't receive it, your email may already be verified - try logging in.",
       });
     } catch (error: unknown) {
       console.error('Resend verification error:', error);
