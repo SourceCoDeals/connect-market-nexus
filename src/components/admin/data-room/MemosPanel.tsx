@@ -45,7 +45,7 @@ import {
 } from '@/hooks/admin/data-room/use-data-room';
 import { SendMemoDialog } from './SendMemoDialog';
 import { ManualLogDialog } from './ManualLogDialog';
-import { extractCompanyInfo } from '@/lib/memo-utils';
+import { buildMemoPdfHtml, openPrintWindow } from '@/lib/memo-pdf-template';
 import { buildMemoPdfHtml, openPrintWindow } from '@/lib/memo-pdf-template';
 
 interface MemosPanelProps {

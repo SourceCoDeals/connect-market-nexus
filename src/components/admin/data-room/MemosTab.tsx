@@ -462,7 +462,6 @@ function MemoSlotCard({
   const handleDownloadDraftPdf = () => {
     const sections = getMemoSections();
     if (!sections) return;
-    const company = extractCompanyInfo(draft!.content as Record<string, unknown>);
     const displayTitle = slotType === 'anonymous_teaser'
       ? (projectName || 'Deal')
       : (dealTitle || 'Deal');
