@@ -1157,10 +1157,11 @@ SOURCE PRIORITY (highest to lowest)
 5. Enrichment data (website, LinkedIn)
 
 Conflict rules:
-* When two sources give different values for the same data point, USE the highest-priority source figure without comment. Do not cite the source. Do not qualify the figure. Do not add notes about data provenance.
+* When two sources give different values for the same data point, USE the highest-priority source figure without comment. Do not cite the source. Do not qualify the figure. Do not add notes about data provenance in the memo body.
 * Vague or approximate enrichment data does not constitute a conflict.
 * If multiple transcripts exist, the most recent takes priority.
 * If no call transcript exists, simply write with the data you have. Do not note the absence of transcripts in the memo body.
+* NEVER mention "transcript", "Call 1/2/3", "enrichment data", "manual entry", "discrepancy", "conflict", "reconcile", "unverified", or "verified" in the memo body. The memo is investor-facing — it states facts only, with no analyst commentary about sources.
 
 FORMAT
 Use only these section headers, in this order. COMPANY OVERVIEW is always included. Omit any section that has no data. Never create an "INFORMATION NOT YET PROVIDED" section.
