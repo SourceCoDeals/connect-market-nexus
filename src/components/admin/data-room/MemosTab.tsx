@@ -974,25 +974,6 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
           );
         })}
 
-      {/* Internal Analyst Notes — separate from memo, admin-only */}
-      {(() => {
-        const analystNotes = (draft.content as { analyst_notes?: string })?.analyst_notes;
-        if (!analystNotes || analystNotes === 'None.' || analystNotes.trim() === '') return null;
-        return (
-          <div className="mt-6 border border-amber-200 rounded-lg bg-amber-50/50">
-            <div className="px-4 py-3 border-b border-amber-200">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <h4 className="text-sm font-semibold text-amber-800">Internal Analyst Notes</h4>
-              </div>
-              <p className="text-[11px] text-amber-600 mt-0.5">For internal review only — not included in PDF or DOCX exports.</p>
-            </div>
-            <div className="px-4 py-3">
-              <p className="text-xs text-amber-800 whitespace-pre-wrap leading-relaxed">{analystNotes}</p>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
