@@ -1,59 +1,55 @@
 
 
-# Assessment: Plan Was Implemented — But 4 Additional Locations Were Missed
+# Deep Audit: Remaining Copy and Logic Issues
 
-## What Was Implemented (Confirmed)
+## Already Fixed (Confirmed)
+- `ListingDetail.tsx` CTA copy — correct ("receive deal materials")
+- `AgreementStatusBanner.tsx` locked banner — correct ("unlock full deal materials")
+- `BlurredFinancialTeaser.tsx` body copy — correct ("receive deal materials from the advisor")
+- `ConnectionButton.tsx` — correct ("deal materials")
+- `ListingSidebarActions.tsx` gate — correct (`connectionApproved` only)
+- `BuyerDataRoom.tsx` memo filtering by access level — correct
+- `grant-data-room-access` email — correct ("deal materials")
+- `notify-agreement-confirmed` full-access email — correct ("receive deal materials")
 
-All 5 items from the plan are done:
+## Still Wrong — 6 Remaining Issues
 
-| Plan Item | Status |
-|-----------|--------|
-| Memo filtering in BuyerDataRoom by access level | Done (lines 158-163) |
-| Sidebar gate changed to `connectionApproved` only | Done (line 68) |
-| BlurredFinancialTeaser copy softened to "deal materials" | Done |
-| Approval message toned down in useConnectionRequestActions | Done (line 92) |
-| ConnectionButton copy changed to "deal materials" | Done (line 190) |
+### 1. `BlurredFinancialTeaser.tsx` — heading still says "Unlock the Data Room" (line 66)
+The body copy was updated but the **heading** still reads "Unlock the Data Room." Should say "Unlock Deal Materials" or "Request Deal Access."
 
-## What Was Missed — 4 Additional Locations Still Over-Promise
+### 2. `notify-agreement-confirmed/index.ts` — NDA-only email still says "unlock full access to deals and the data room" (line 107)
+The full-access branch was fixed but the NDA-only branch still over-promises data room access. Should say "To unlock full deal materials and request introductions, your Fee Agreement also needs to be signed."
 
-### 1. `src/pages/ListingDetail.tsx` (line 336)
-> "Request a connection to unlock the data room. Once approved, you get immediate access to the CIM, real company name, and full business details."
+### 3. `useConnectionRequestsFilters.ts` — duplicate approval message not updated (line 96)
+There are TWO places that send the approval system message: `useConnectionRequestActions.ts` (fixed) and `useConnectionRequestsFilters.ts` (NOT fixed). The latter still says "You now have access to the deal overview and supporting documents in the data room." Must match the updated copy.
 
-This is the CTA paragraph above the sidebar actions on the listing page. Still promises CIM, real company name, full details.
+### 4. `EmailCatalog.tsx` — preview HTML says "Sign the NDA to unlock full access to the data room and financials" (line 227)
+This is the email preview catalog for the templated approval email (NDA unsigned variant). Over-promises data room + financials.
 
-**Fix:** Change to "Request a connection to receive deal materials from the advisor."
+### 5. `NdaGateModal.tsx` — says "unlock full access" (line 62)
+"Sign either an NDA or Fee Agreement to unlock full access." This over-promises — signing only unlocks teaser-level access initially. Should say "Sign a Fee Agreement to access deal materials and request introductions."
 
-### 2. `src/components/marketplace/AgreementStatusBanner.tsx` (line 64)
-> "A signed Fee Agreement is required to request deal access and unlock the data room."
+### 6. `BuyerDataRoom.tsx` — upgrade prompt says "Sign Fee Agreement to unlock all documents" (line 333)
+This is fine directionally but slightly misleading — signing the fee agreement doesn't guarantee all documents; admin toggles still control visibility. Should say "Sign Fee Agreement to unlock additional deal materials."
 
-This banner appears when a buyer hasn't signed the fee agreement. Since we now allow teaser access without fee agreement, this copy is misleading — they CAN request access and see the teaser without a fee agreement.
+## Borderline / Acceptable (No Change Needed)
 
-**Fix:** Change to "A signed Fee Agreement is required to unlock full deal materials and request introductions."
-
-### 3. `supabase/functions/notify-agreement-confirmed/index.ts` (line 97)
-> "You now have full access to browse deals, request introductions, and access the data room on approved deals."
-
-This email is sent when an agreement is confirmed. It promises "access the data room" which over-promises — admin toggles still control what they see.
-
-**Fix:** Change to "You now have full access to browse deals, request introductions, and receive deal materials on approved deals."
-
-### 4. `supabase/functions/grant-data-room-access/index.ts` (lines 173-174)
-> "The data room contains deal details, supporting documentation, and diligence materials."
-
-This email is sent when data room access is explicitly granted. The language is acceptable since it's sent after admin grants access, but "deal details, supporting documentation, and diligence materials" may over-promise if the buyer only got teaser access.
-
-**Fix:** Change to "Deal materials have been made available for your review. Your access link is personal — do not share or forward it. All access is tracked."
+- **`send-templated-approval-email/index.ts`** (line 102-103): Says "Unlock full access" and "To view full deal details, access data rooms..." — This is the approval email sent to buyers. The language is accurate IN CONTEXT because it's explaining the full signing flow, not promising immediate access. The heading "Unlock full access" is describing what signing achieves. Acceptable.
+- **`EmailTestCentre.tsx`**: Preview-only HTML for admin testing. Not buyer-facing. No change needed.
+- **`ListingCardActions.tsx`** (line 196, 199): "Sign Fee Agreement to Unlock Access" / "unlock deal materials" — Already updated, accurate.
+- **`DealDocumentsCard.tsx`** (line 348): "Sign an agreement to begin unlocking these materials" — Accurate; "begin unlocking" sets correct expectations.
 
 ## Files to Change
 
-| File | Change |
-|------|--------|
-| `src/pages/ListingDetail.tsx` | Update CTA copy (line 336) |
-| `src/components/marketplace/AgreementStatusBanner.tsx` | Update banner copy (line 64) |
-| `supabase/functions/notify-agreement-confirmed/index.ts` | Update email copy (line 97) |
-| `supabase/functions/grant-data-room-access/index.ts` | Update email copy (lines 173-174) |
+| File | Line | Change |
+|------|------|--------|
+| `src/components/listing-detail/BlurredFinancialTeaser.tsx` | 66 | "Unlock the Data Room" → "Request Deal Access" |
+| `supabase/functions/notify-agreement-confirmed/index.ts` | 107 | "To unlock full access to deals and the data room" → "To unlock full deal materials and request introductions" |
+| `src/components/admin/useConnectionRequestsFilters.ts` | 96 | Match updated approval message from `useConnectionRequestActions.ts` |
+| `src/components/admin/emails/EmailCatalog.tsx` | 227 | "unlock full access to the data room and financials" → "unlock deal materials and request introductions" |
+| `src/components/pandadoc/NdaGateModal.tsx` | 62 | "unlock full access" → "access deal materials and request introductions" |
+| `src/components/marketplace/BuyerDataRoom.tsx` | 333 | "unlock all documents" → "unlock additional deal materials" |
 
-## No Other Gaps Found
-
-The core access logic (toggles, auto-provisioning, fee-agreement trigger, download checks, memo filtering, sidebar gate) is all correctly implemented.
+## Post-Change
+Redeploy `notify-agreement-confirmed` edge function. No other edge functions need redeployment (EmailCatalog is preview-only UI).
 
