@@ -208,8 +208,8 @@ const PendingApproval = () => {
             <p className="text-sm font-medium text-foreground">After you verify</p>
             <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
               <li>Our team reviews your application, usually same day</li>
-              <li>Sign a quick NDA and Fee Agreement via email</li>
-              <li>Full access to off-market deals</li>
+              <li>Sign a Fee Agreement via email</li>
+              <li>Browse deals and request introductions</li>
             </ol>
           </div>
 
