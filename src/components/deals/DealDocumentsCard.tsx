@@ -14,7 +14,7 @@ import {
   ArrowRight,
   FileText,
   BarChart3,
-  Building2,
+  
   Eye,
   Download,
   Loader2,
