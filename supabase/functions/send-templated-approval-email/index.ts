@@ -112,7 +112,7 @@ const handler = async (req: Request): Promise<Response> => {
         preheader: 'Your account is approved. Browse off-market acquisition opportunities now.',
         recipientEmail: email,
       });
-      textContent = `Hi ${firstName},\n\nYour account has been approved. You now have access to our curated pipeline of off-market acquisition opportunities.\n\nBrowse the Marketplace: ${siteUrl}/marketplace\n\nTo unlock full access, sign your NDA and Fee Agreement from your profile or any listing page.\n\nQuestions? Reply to this email.\n\nThe SourceCo Team`;
+      textContent = `Hi ${firstName},\n\nYour account has been approved. You now have access to our curated pipeline of off-market acquisition opportunities.\n\nBrowse the Marketplace: ${siteUrl}/marketplace\n\nTo receive deal materials and request introductions, sign a Fee Agreement from your profile or any listing page.\n\nQuestions? Reply to this email.\n\nThe SourceCo Team`;
     }
 
     const result = await sendEmail({
