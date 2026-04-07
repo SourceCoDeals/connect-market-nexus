@@ -14,7 +14,7 @@ import { useEmailConnection } from '@/hooks/email';
 const OutlookCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { handleCallback, isProcessingCallback } = useEmailConnection();
+  const { handleCallback } = useEmailConnection();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -49,11 +49,9 @@ const OutlookCallback = () => {
 
     // Refresh session before callback — user's session may have expired
     // during the OAuth flow with Microsoft
-    try {
-      await supabase.auth.refreshSession();
-    } catch {
+    supabase.auth.refreshSession().catch(() => {
       // Best-effort — if refresh fails, callback will fail with auth error
-    }
+    });
 
     handleCallback(
       { code, state },

@@ -162,10 +162,6 @@ const FirefliesIntegrationPage = lazyWithRetry(
   () => import('@/pages/admin/FirefliesIntegrationPage'),
 );
 
-// Training Center / Objection Tracker
-const ObjectionTrackerPage = lazyWithRetry(
-  () => import('@/features/objection-tracker/ObjectionTrackerPage'),
-);
 
 // Client Portal pages
 const ClientPortalsList = lazyWithRetry(
@@ -177,8 +173,6 @@ const ClientPortalDetail = lazyWithRetry(
 const PortalDashboard = lazyWithRetry(() => import('@/pages/portal/PortalDashboard'));
 const PortalDealTracker = lazyWithRetry(() => import('@/pages/portal/PortalDealTracker'));
 const PortalDealDetail = lazyWithRetry(() => import('@/pages/portal/PortalDealDetail'));
-const PortalTeam = lazyWithRetry(() => import('@/pages/portal/PortalTeam'));
-
 // Outlook Email Integration
 const OutlookSettingsPage = lazyWithRetry(
   () => import('@/pages/admin/settings/OutlookSettingsPage'),
@@ -579,8 +573,6 @@ function App() {
                 }
               />
 
-              {/* TRAINING CENTER */}
-              <Route path="training-center" element={<ObjectionTrackerPage />} />
 
               {/* CLIENT PORTALS (admin) */}
               <Route path="client-portals" element={<ClientPortalsList />} />

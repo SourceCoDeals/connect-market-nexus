@@ -484,11 +484,11 @@ export function useConvertToPipelineDeal() {
         connectionRequestId = newCr.id;
       }
 
-      // Always call the RPC to ensure pipeline deal exists
-      const { error: rpcError } = await supabase.rpc(
-        'create_pipeline_deal',
-        { p_connection_request_id: connectionRequestId },
-      );
+        // Call the RPC to create the pipeline deal from the connection request
+        const { data: _dealId, error: rpcError } = await supabase.rpc(
+          'create_pipeline_deal',
+          { p_connection_request_id: connectionRequestId },
+        );
 
       if (rpcError) {
         // RPC may error if deal already exists — that's okay, log and continue

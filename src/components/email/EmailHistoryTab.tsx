@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mail, AlertTriangle } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { useEmailConnection } from '@/hooks/email';
 import { EmailThreadList } from './EmailThreadList';
 import { ComposeEmail } from './ComposeEmail';
@@ -28,7 +28,7 @@ export function EmailHistoryTab({ contactId, additionalContactIds, contactName, 
     quote: string;
     toAddress: string;
   } | null>(null);
-  const { isConnected, hasError, isExpired } = useEmailConnection();
+  const { isConnected } = useEmailConnection();
 
   return (
     <div className="space-y-4">
