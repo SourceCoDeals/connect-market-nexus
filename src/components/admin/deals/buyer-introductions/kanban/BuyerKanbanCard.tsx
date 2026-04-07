@@ -28,6 +28,7 @@ import {
   Clock,
   GripVertical,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import type { BuyerIntroduction, ScoreSnapshot } from '@/types/buyer-introductions';
@@ -54,6 +55,8 @@ interface BuyerKanbanCardProps {
   onReactivate?: (buyer: BuyerIntroduction) => void;
   onRemove?: (buyer: BuyerIntroduction) => void;
   onLogFollowUp?: (buyer: BuyerIntroduction) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 export function BuyerKanbanCard({
@@ -68,6 +71,8 @@ export function BuyerKanbanCard({
   onReactivate,
   onRemove,
   onLogFollowUp,
+  isSelected,
+  onToggleSelect,
 }: BuyerKanbanCardProps) {
   const isInPipeline = buyer.introduction_status === 'fit_and_interested';
   const snap = buyer.score_snapshot as ScoreSnapshot | null;
@@ -190,8 +195,21 @@ export function BuyerKanbanCard({
       )}
       onClick={handleCardClick}
     >
-      {/* Drag handle + Header */}
+      {/* Checkbox + Drag handle + Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
+        {/* Selection checkbox */}
+        {onToggleSelect && (
+          <div
+            className="shrink-0 mt-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              checked={!!isSelected}
+              onCheckedChange={() => onToggleSelect(buyer.id)}
+              className="h-3.5 w-3.5"
+            />
+          </div>
+        )}
         {/* Drag handle */}
         {!isInPipeline && (
           <div

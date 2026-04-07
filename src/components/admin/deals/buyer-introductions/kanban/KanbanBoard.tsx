@@ -10,6 +10,8 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Send, ThumbsDown, Archive, X } from 'lucide-react';
 import type { BuyerIntroduction } from '@/types/buyer-introductions';
 import {
   useIntroductionPipeline,
@@ -61,6 +63,58 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
   const [approveTarget, setApproveTarget] = useState<BuyerIntroduction | null>(null);
   const [addBuyerOpen, setAddBuyerOpen] = useState(false);
   const [followUpTarget, setFollowUpTarget] = useState<BuyerIntroduction | null>(null);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const GUARDED_STATUSES = new Set(['fit_and_interested', 'deal_created']);
+
+  const getSelectedBuyers = useCallback(() => {
+    return introductions.filter((intro) => selectedIds.has(intro.id));
+  }, [introductions, selectedIds]);
+
+  const handleBulkMoveToIntroduced = useCallback(() => {
+    const buyers = getSelectedBuyers();
+    for (const buyer of buyers) {
+      if (GUARDED_STATUSES.has(buyer.introduction_status)) continue;
+      moveToColumn(buyer.id, 'introduced');
+    }
+    clearSelection();
+  }, [getSelectedBuyers, moveToColumn, clearSelection]);
+
+  const handleBulkMoveToPassed = useCallback(() => {
+    const buyers = getSelectedBuyers();
+    for (const buyer of buyers) {
+      if (GUARDED_STATUSES.has(buyer.introduction_status)) continue;
+      moveToColumn(buyer.id, 'passed');
+    }
+    clearSelection();
+  }, [getSelectedBuyers, moveToColumn, clearSelection]);
+
+  const handleBulkArchive = useCallback(() => {
+    const buyers = getSelectedBuyers();
+    for (const buyer of buyers) {
+      if (GUARDED_STATUSES.has(buyer.introduction_status)) continue;
+      archiveIntroduction(buyer.id);
+    }
+    clearSelection();
+  }, [getSelectedBuyers, archiveIntroduction, clearSelection]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -247,6 +301,8 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
             onAddBuyer={() => setAddBuyerOpen(true)}
             onIntroduce={handleIntroduceFromButton}
             onRemove={handleRemove}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
           />
           <KanbanColumn
             column="introduced"
@@ -257,6 +313,8 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
             onMarkPassed={handleMarkPassed}
             onLogFollowUp={(buyer) => setFollowUpTarget(buyer)}
             onRemove={handleRemove}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
           />
           <KanbanColumn
             column="interested"
@@ -267,6 +325,8 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
             onMarkPassed={handleMarkPassed}
             onLogFollowUp={(buyer) => setFollowUpTarget(buyer)}
             onRemove={handleRemove}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
           />
           <KanbanColumn
             column="passed"
@@ -275,6 +335,8 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
             resolvedPeFirmNames={resolvedPeFirmNames}
             onReactivate={handleReactivate}
             onRemove={handleRemove}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
           />
         </div>
 
@@ -286,6 +348,53 @@ export function KanbanBoard({ listingId, listingTitle }: KanbanBoardProps) {
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-white border rounded-lg shadow-lg px-4 py-2.5">
+          <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+            {selectedIds.size} selected
+          </span>
+          <div className="h-5 w-px bg-border" />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5"
+            onClick={handleBulkMoveToIntroduced}
+          >
+            <Send className="h-3.5 w-3.5" />
+            Move to Introduced
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5"
+            onClick={handleBulkMoveToPassed}
+          >
+            <ThumbsDown className="h-3.5 w-3.5" />
+            Move to Passed
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+            onClick={handleBulkArchive}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            Archive Selected
+          </Button>
+          <div className="h-5 w-px bg-border" />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs gap-1"
+            onClick={clearSelection}
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear
+          </Button>
+        </div>
+      )}
 
       {/* Modals */}
       <IntroduceModal
