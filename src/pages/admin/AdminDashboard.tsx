@@ -13,6 +13,7 @@ import {
   Store,
   Target,
   ListChecks,
+  Inbox,
 } from 'lucide-react';
 import {
   DropdownMenu,
