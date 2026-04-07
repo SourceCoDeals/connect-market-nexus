@@ -7,14 +7,18 @@ import { useVerificationSuccessEmail } from '@/hooks/auth/use-verification-succe
 import { selfHealProfile } from '@/lib/profile-self-heal';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
+// CRITICAL: Capture URL fragments at MODULE LOAD TIME, before the Supabase
+// client's async _initialize() can consume and clear them via history.replaceState().
+const CAPTURED_HASH = window.location.hash.substring(1);
+const CAPTURED_SEARCH = window.location.search;
+
 /**
- * Parse auth tokens from the URL hash fragment.
- * Returns null if no access_token is found.
+ * Parse auth tokens from the captured URL hash fragment.
+ * Uses CAPTURED_HASH (frozen at module load) instead of live window.location.hash.
  */
 function parseHashTokens(): { access_token: string; refresh_token: string } | null {
-  const hash = window.location.hash.substring(1); // remove leading #
-  if (!hash) return null;
-  const params = new URLSearchParams(hash);
+  if (!CAPTURED_HASH) return null;
+  const params = new URLSearchParams(CAPTURED_HASH);
   const access_token = params.get('access_token');
   const refresh_token = params.get('refresh_token');
   if (!access_token || !refresh_token) return null;
@@ -22,10 +26,10 @@ function parseHashTokens(): { access_token: string; refresh_token: string } | nu
 }
 
 /**
- * Get PKCE code from query string.
+ * Get PKCE code from captured query string.
  */
 function getPKCECode(): string | null {
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(CAPTURED_SEARCH);
   return params.get('code');
 }
 
