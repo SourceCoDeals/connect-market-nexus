@@ -1258,11 +1258,11 @@ FORMAT
 Use only these section headers, in this order. COMPANY OVERVIEW is always included. Omit any section that has no data. Never create an "INFORMATION NOT YET PROVIDED" section.
 
 COMPANY OVERVIEW
-One paragraph, 3–5 sentences. What the company does, where it operates, how it is structured. Legal name, DBA, founded year, HQ, locations, headcount, ownership, core industry. When available, weave in customer geography (service territory, regional footprint), competitive positioning (partnerships, market standing), and end market context. If google_rating and google_review_count are available, include as a reputation indicator (e.g., "4.7-star Google rating across 46 reviews"). Plain terms.
+One paragraph, 3–5 sentences. What the company does, where it operates, how it is structured. Legal name, DBA, founded year, HQ, locations, headcount, ownership, core industry. When available, weave in customer geography (service territory, regional footprint), competitive positioning (partnerships, market standing), and end market context. You MUST include google_rating and google_review_count if they appear in the data context — e.g., "The company holds a 4.7-star Google rating across 46 reviews." This is mandatory, not optional.
 
 FINANCIAL SNAPSHOT
 Simple labeled lines, one per data point. Only include what is explicitly stated or confirmed. Format: [Year] [Metric]: $[Amount]
-Include EBITDA margin alongside the EBITDA figure when ebitda_margin data is available (e.g., "EBITDA Margin: 10.8%").
+You MUST include EBITDA Margin as a line item when both EBITDA and Revenue figures are present. Calculate it: (EBITDA / Revenue) × 100, rounded to one decimal. Example: if Revenue is $6,250,000 and EBITDA is $650,000, write "EBITDA Margin: 10.4%". This is mandatory.
 
 Example:
 * 2025 Revenue: $5,200,000
