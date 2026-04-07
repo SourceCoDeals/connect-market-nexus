@@ -279,6 +279,13 @@ export function OverviewTab({
         onSave={async (summary) => {
           await updateDealMutation.mutateAsync({ executive_summary: summary });
         }}
+        onGenerate={async () => {
+          const { data, error } = await supabase.functions.invoke('generate-executive-summary', {
+            body: { deal_id: dealId },
+          });
+          if (error) throw error;
+          return data?.summary ?? null;
+        }}
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
