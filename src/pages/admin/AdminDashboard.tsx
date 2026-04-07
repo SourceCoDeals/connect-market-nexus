@@ -149,11 +149,7 @@ const AdminDashboard = () => {
                 <div>
                   <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
                   <p className="text-sm text-muted-foreground/70 mt-0.5">
-                    {activeDashboard === 'daily-tasks'
-                      ? 'Tasks from daily standup meetings'
-                      : activeDashboard === 'remarketing'
-                        ? 'Deal pipeline overview'
-                        : 'Manage and monitor your marketplace'}
+                    {subtitleMap[activeDashboard] ?? ''}
                   </p>
                 </div>
 
