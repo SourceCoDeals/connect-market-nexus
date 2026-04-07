@@ -39,7 +39,7 @@ function buildApprovalHtml(userName: string): string {
   return wrapEmailHtml({
     bodyHtml: `
     <p>Hi ${escapeHtml(userName)},</p>
-    <p>Your SourceCo account has been approved. You now have full access to the marketplace.</p>
+    <p>Your SourceCo account has been approved. You can now browse deals and request connections.</p>
     <p>Log in now to browse deals, submit connection requests, and start exploring opportunities.</p>
     <div style="text-align: center; margin: 32px 0;">
       <a href="${LOGIN_URL}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">Browse Deals</a>
