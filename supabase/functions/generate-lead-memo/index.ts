@@ -1177,7 +1177,7 @@ Example:
 * 2025 EBITDA: $1,100,000
 * Owner Compensation: $350,000
 
-If adjusted EBITDA is mentioned, list each add-back individually. If the owner gives a range, state the range exactly. Do not pick midpoint or either bound. If figures don't reconcile (e.g., monthly × 12 ≠ stated annual), include both and flag it.
+If adjusted EBITDA is mentioned, list each add-back individually. If the owner gives a range, state the range exactly. Do not pick midpoint or either bound. If figures don't reconcile (e.g., monthly × 12 ≠ stated annual), use the figure from the highest-priority source. Do NOT flag reconciliation issues in the memo body.
 
 SERVICES AND OPERATIONS
 Bullet points. What services are performed, how revenue is generated, and relevant operational details. Include industry-specific KPIs only when explicitly stated in the source data — do not use any template checklist to fill in metrics that were not mentioned.
