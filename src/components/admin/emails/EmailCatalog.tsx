@@ -258,7 +258,7 @@ const EMAIL_CATALOG: CatalogCategory[] = [
         trigger: 'Admin grants data room access',
         edgeFunction: 'grant-data-room-access',
         designNotes: 'Branded wrapper, access confirmation, CTA to enter data room',
-        previewHtml: `${wrapperStart}<p>You now have access to the data room for Project Acme. It contains financial documents, operational data, and other confidential materials for your review.</p>${ctaBtn('Enter Data Room')}${signoff}${wrapperEnd}`,
+        previewHtml: `${wrapperStart}<p>You now have access to the data room for Project Acme. Review the available deal materials at your convenience.</p>${ctaBtn('Enter Data Room')}${signoff}${wrapperEnd}`,
       },
       {
         name: 'Agreement Confirmed',
