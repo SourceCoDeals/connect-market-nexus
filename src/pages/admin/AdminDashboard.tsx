@@ -241,6 +241,17 @@ const AdminDashboard = () => {
                   Remarketing
                 </button>
                 <button
+                  onClick={() => setView('operations')}
+                  className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    activeDashboard === 'operations'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Inbox className="h-3.5 w-3.5" />
+                  Operations
+                </button>
+                <button
                   onClick={() => setView('marketplace')}
                   className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                     activeDashboard === 'marketplace'
