@@ -155,7 +155,8 @@ CREATE TABLE IF NOT EXISTS portal_activity_log (
     'deal_pushed', 'deal_viewed', 'response_submitted',
     'document_downloaded', 'message_sent', 'login',
     'settings_changed', 'reminder_sent', 'user_invited',
-    'user_deactivated', 'portal_created', 'portal_archived'
+    'user_deactivated', 'portal_created', 'portal_archived',
+    'converted_to_pipeline'
   )),
   push_id uuid REFERENCES portal_deal_pushes(id) ON DELETE SET NULL,
   metadata jsonb DEFAULT '{}'::jsonb,
@@ -276,10 +277,22 @@ CREATE POLICY "Portal users can update own notifications"
   );
 
 -- ── portal_activity_log ──────────────────────────────────────────────
--- Admin-only: portal users have no direct access
+-- Admin-only for SELECT/UPDATE/DELETE. Both admins and portal users can INSERT
+-- (portal users log their own actions like response_submitted, deal_viewed).
 CREATE POLICY "Admins can manage all portal activity"
   ON portal_activity_log FOR ALL TO authenticated
   USING (is_admin(auth.uid()));
+
+CREATE POLICY "Portal users can insert own org activity"
+  ON portal_activity_log FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM portal_users pu
+      WHERE pu.profile_id = auth.uid()
+        AND pu.portal_org_id = portal_org_id
+        AND pu.is_active = true
+    )
+  );
 
 CREATE POLICY "Service role can insert portal activity"
   ON portal_activity_log FOR INSERT TO service_role

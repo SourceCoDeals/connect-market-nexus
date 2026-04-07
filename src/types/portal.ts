@@ -49,7 +49,8 @@ export type PortalActivityAction =
   | 'user_invited'
   | 'user_deactivated'
   | 'portal_created'
-  | 'portal_archived';
+  | 'portal_archived'
+  | 'converted_to_pipeline';
 
 // ── Database row types ───────────────────────────────────────────────
 

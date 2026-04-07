@@ -101,7 +101,7 @@ export function useDeactivatePortalUser() {
   });
 }
 
-/** For the client portal: get the current user's portal membership */
+/** For the client portal: get the current user's portal membership for a specific portal slug */
 export function useMyPortalUser(slug: string | undefined) {
   return useQuery({
     queryKey: ['my-portal-user', slug],
@@ -109,6 +109,16 @@ export function useMyPortalUser(slug: string | undefined) {
       if (!slug) return null;
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
+
+      // First resolve the org by slug
+      const { data: org } = await supabase
+        .from('portal_organizations')
+        .select('id')
+        .eq('portal_slug', slug)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (!org) return null;
 
       const { data, error } = await supabase
         .from('portal_users')
@@ -119,6 +129,7 @@ export function useMyPortalUser(slug: string | undefined) {
           )
         `)
         .eq('profile_id', user.id)
+        .eq('portal_org_id', org.id)
         .eq('is_active', true)
         .maybeSingle();
 

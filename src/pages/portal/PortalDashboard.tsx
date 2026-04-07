@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useMyPortalUser } from '@/hooks/portal/use-portal-users';
 import { useMyPortalDeals } from '@/hooks/portal/use-portal-deals';
-import type { PortalDealPushStatus } from '@/types/portal';
 
 export default function PortalDashboard() {
   const { slug } = useParams<{ slug: string }>();

@@ -187,10 +187,9 @@ export default function PortalDealDetail() {
                   <CardTitle className="text-lg">Business Overview</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div
-                    className="prose prose-sm max-w-none text-muted-foreground"
-                    dangerouslySetInnerHTML={{ __html: snapshot.business_description }}
-                  />
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {snapshot.business_description.replace(/<[^>]*>/g, '')}
+                  </p>
                 </CardContent>
               </Card>
             )}

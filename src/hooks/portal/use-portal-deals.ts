@@ -33,7 +33,7 @@ export function usePortalDealPushes(portalOrgId: string | undefined) {
 
       // Fetch latest response for each push
       const pushIds = (data || []).map((p: PortalDealPush) => p.id);
-      if (pushIds.length === 0) return [];
+      if (pushIds.length === 0) return data || [];
 
       const { data: responses } = await supabase
         .from('portal_deal_responses')
@@ -427,10 +427,9 @@ export function useConvertToPipelineDeal() {
         portal_org_id: portalOrgId,
         actor_id: user.id,
         actor_type: 'admin',
-        action: 'deal_pushed',
+        action: 'converted_to_pipeline',
         push_id: pushId,
         metadata: {
-          action_detail: 'converted_to_pipeline',
           connection_request_id: connectionRequestId,
           listing_id: listingId,
         },
