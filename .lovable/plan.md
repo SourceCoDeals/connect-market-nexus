@@ -1,55 +1,33 @@
 
 
-# Operations Hub Tab for Admin Dashboard
+# Operations Hub -- Issues Found
 
-## Summary
-Add a new top-level dashboard view called **"Operations"** (alongside Daily Tasks, Remarketing, Marketplace) that consolidates all actionable items an admin needs to monitor: pending document signing requests, unread buyer messages, pending connection requests, data room access changes, and marketplace approvals -- all in one glance.
+## Bugs Identified
 
-## Design
+### 1. Document Signing Card: Wrong column name (WILL CRASH)
+**Line 61**: Queries `document_type` but the actual column is `agreement_type`. Also queries `created_at` for time display but `requested_at` is the more meaningful timestamp. The join `firm_agreements!inner(firm_name)` should work since `document_requests.firm_id` has a FK to `firm_agreements(id)`.
 
-The tab will be a single-page "command center" with card-based sections, each showing a count badge and a compact list of the most recent actionable items. Clicking any item deep-links to the relevant detail page.
+### 2. Unread Messages Card: RPC does not exist (WILL CRASH)
+**Line 125**: Calls `supabase.rpc('get_message_center_threads')` but no such RPC exists in the database. The existing `useMessageCenterThreads` hook fetches from `connection_messages` directly with client-side grouping. This card should reuse the existing hook or replicate its query.
 
-```text
-┌─────────────────────────────────────────────────────┐
-│  [Daily Tasks] [Remarketing] [Operations] [Marketplace]  │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌─ Document Signing ──┐  ┌─ Unread Messages ─────┐│
-│  │ 3 pending requests  │  │ 5 threads need reply  ││
-│  │ • NDA - Firm A (2d) │  │ • John @ PE Fund (1h) ││
-│  │ • Fee - Firm B (5h) │  │ • Sarah @ Cap (3h)    ││
-│  │ [View All →]        │  │ [View All →]          ││
-│  └─────────────────────┘  └───────────────────────┘│
-│                                                     │
-│  ┌─ Connection Requests ┐  ┌─ Marketplace Approvals┐│
-│  │ 2 pending review     │  │ 1 pending approval   ││
-│  │ • Adam → Deal X (1d) │  │ • Buyer C → Deal Y   ││
-│  │ [View All →]         │  │ [View All →]          ││
-│  └──────────────────────┘  └──────────────────────┘│
-│                                                     │
-│  ┌─ User Approvals ────┐  ┌─ Data Room Activity ──┐│
-│  │ 1 pending user      │  │ Recent access grants  ││
-│  │ • newuser@... (3h)  │  │ • Firm A → Deal X     ││
-│  │ [View All →]        │  │ [View All →]           ││
-│  └─────────────────────┘  └───────────────────────┘│
-└─────────────────────────────────────────────────────┘
-```
+### 3. Connection Requests Card: Ambiguous FK hint (MAY CRASH)
+**Line 193**: Uses `profiles!inner(first_name, last_name)` but `connection_requests` has TWO FKs pointing at `profiles` (`connection_requests_user_id_profiles_fkey` and `connection_requests_converted_by_fkey`). PostgREST requires disambiguating with the FK name: `profiles!connection_requests_user_id_profiles_fkey(...)`.
 
-## Changes
+### 4. Data Room Access Card: Missing column `buyer_company` (WILL CRASH)
+**Line 324**: Queries `buyer_company` but the column is actually `buyer_firm`. Also queries `can_view_teaser, can_view_full_memo, can_view_data_room` but none of these columns exist on `deal_data_room_access`. The actual columns are `granted_document_ids`, `is_active`, etc.
+
+### 5. Data Room Activity Card: Truncated user_id not useful
+**Line 423**: Shows `log.user_id?.slice(0, 8)...` which is meaningless to admins. Would be better to show the action description from metadata or join to profiles.
+
+## Fix Plan
 
 | File | Change |
 |------|--------|
-| `src/components/admin/dashboard/OperationsHub.tsx` | **New file.** Single component with 6 cards: (1) Pending Document Signing Requests -- queries `document_requests` where status in ('requested','email_sent'), shows firm name, type, age. (2) Unread Messages -- uses `useMessageCenterThreads` to show threads with unread_count > 0. (3) Pending Connection Requests -- queries `connection_requests` where status='pending', joins listing title + profile name. (4) Marketplace Approvals -- queries `deal_data_room_access` pending approvals or reuses `usePendingApprovalCount`. (5) Pending User Approvals -- queries `profiles` where approval_status='pending'. (6) Recent Data Room Activity -- queries `data_room_audit_log` last 10 entries. Each card shows count badge, compact list (max 5 items), and a "View All" link to the full page. |
-| `src/pages/admin/AdminDashboard.tsx` | Add "Operations" as a 4th top-level dashboard option (between Remarketing and Marketplace). Lazy-load `OperationsHub`. Add `Inbox` icon import. Wire `?view=operations` param. |
+| `src/components/admin/dashboard/OperationsHub.tsx` | **DocumentSigningCard**: Change `document_type` to `agreement_type` in both SELECT and display logic. Change `created_at` to `requested_at` in the ORDER BY and timeAgo call. |
+| Same file | **UnreadMessagesCard**: Remove the broken RPC call. Instead, query `connection_messages` directly for recent unread messages (`is_read_by_admin = false, sender_role = 'buyer'`), join to `connection_requests` + `profiles` for buyer name, and count/group by `connection_request_id`. |
+| Same file | **ConnectionRequestsCard**: Disambiguate the profiles FK: `profiles!connection_requests_user_id_profiles_fkey(first_name, last_name)`. |
+| Same file | **DataRoomAccessCard**: Replace `buyer_company` with `buyer_firm`. Remove `can_view_teaser/can_view_full_memo/can_view_data_room` columns. Show access level based on `granted_document_ids` array length or just show buyer + firm + granted time. |
+| Same file | **DataRoomActivityCard**: Join to profiles to show a name instead of truncated UUID. Fallback to UUID if join fails. |
 
-### Implementation Details
-
-- Each card is independent with its own `useQuery` -- no shared loading state
-- Cards use existing Supabase tables directly (no new tables/RPCs needed)
-- Count badges use destructive variant when > 0, secondary when 0
-- Items show relative time ("2h ago", "1d ago") using `formatDistanceToNow`
-- "View All" links: Documents → `/admin/documents`, Messages → `/admin/marketplace/messages`, Connections → `/admin/marketplace/requests`, Users → `/admin/marketplace/users`, Approvals → `/admin/approvals`
-- Empty state per card: subtle "All caught up" message
-- Responsive: 2-column grid on desktop, single column on mobile
-- No database migrations needed
+All 5 fixes are in the same file. No new files, no migrations.
 
