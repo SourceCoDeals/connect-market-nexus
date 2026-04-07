@@ -342,6 +342,8 @@ function MemoSlotCard({
   const [isDownloadingDocx, setIsDownloadingDocx] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const prevDraftId = useRef<string | null>(null);
   const hasDocument = !!document;
   const hasDraft = !!draft;
 
