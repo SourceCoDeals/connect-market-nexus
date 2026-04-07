@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 import { useEmailConnection } from '@/hooks/email';
 
 const OutlookCallback = () => {
@@ -35,15 +36,24 @@ const OutlookCallback = () => {
       return;
     }
 
-    // Verify state matches what we stored
-    const storedState = sessionStorage.getItem('outlook_oauth_state');
+    // Verify state matches what we stored (using localStorage for cross-tab persistence)
+    const storedState = localStorage.getItem('outlook_oauth_state');
+    // Remove state FIRST to prevent replay attacks
+    localStorage.removeItem('outlook_oauth_state');
+
     if (storedState && storedState !== state) {
       setStatus('error');
       setErrorMessage('Security validation failed. Please try connecting again.');
       return;
     }
 
-    sessionStorage.removeItem('outlook_oauth_state');
+    // Refresh session before callback — user's session may have expired
+    // during the OAuth flow with Microsoft
+    try {
+      await supabase.auth.refreshSession();
+    } catch {
+      // Best-effort — if refresh fails, callback will fail with auth error
+    }
 
     handleCallback(
       { code, state },

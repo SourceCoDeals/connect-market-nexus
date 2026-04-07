@@ -5,9 +5,26 @@
  * Microsoft sends:
  *   1. Validation request (GET with validationToken) on subscription creation
  *   2. Change notifications (POST) when new mail events occur
+ *
+ * Notifications are persisted to a queue table BEFORE returning 202,
+ * ensuring no events are lost if background processing fails.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+/**
+ * Constant-time string comparison to prevent timing attacks on clientState.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const aBytes = new TextEncoder().encode(a);
+  const bBytes = new TextEncoder().encode(b);
+  let result = 0;
+  for (let i = 0; i < aBytes.length; i++) {
+    result |= aBytes[i] ^ bBytes[i];
+  }
+  return result === 0;
+}
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
@@ -24,7 +41,6 @@ Deno.serve(async (req) => {
     return new Response('Missing validationToken', { status: 400 });
   }
 
-  // Also handle validation in POST body (Microsoft sometimes does this)
   if (req.method === 'POST') {
     // Check for validation token in query string of POST
     const postValidation = url.searchParams.get('validationToken');
@@ -35,7 +51,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    let body: { value?: Array<{ clientState?: string; resourceData?: { id: string }; resource?: string; subscriptionId?: string }>; validationTokens?: string[] };
+    let body: {
+      value?: Array<{
+        clientState?: string;
+        resourceData?: { id: string };
+        resource?: string;
+        subscriptionId?: string;
+        changeType?: string;
+      }>;
+      validationTokens?: string[];
+    };
     try {
       body = await req.json();
     } catch {
@@ -51,7 +76,6 @@ Deno.serve(async (req) => {
     }
 
     const webhookSecret = Deno.env.get('MICROSOFT_WEBHOOK_SECRET') || 'sourceco-outlook-integration';
-
     const notifications = body.value || [];
     if (notifications.length === 0) {
       return new Response('OK', { status: 202 });
@@ -62,59 +86,70 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
 
-    // Process notifications in the background — respond quickly to Microsoft
-    // Microsoft requires a 202 response within 3 seconds
-    const processNotifications = async () => {
-      for (const notification of notifications) {
-        try {
-          // Verify client state
-          if (notification.clientState !== webhookSecret) {
-            console.warn('Invalid clientState, skipping notification');
-            continue;
-          }
+    // Persist valid notifications to queue table BEFORE returning 202.
+    // This ensures no events are lost even if background processing fails.
+    const queueRecords = [];
+    for (const notification of notifications) {
+      // Verify client state with constant-time comparison
+      if (!notification.clientState || !timingSafeEqual(notification.clientState, webhookSecret)) {
+        console.warn('Invalid clientState, skipping notification');
+        continue;
+      }
 
-          const subscriptionId = notification.subscriptionId;
-          if (!subscriptionId) continue;
+      if (!notification.subscriptionId) continue;
 
-          // Look up which user this subscription belongs to
-          const { data: connection } = await supabase
-            .from('email_connections')
-            .select('sourceco_user_id, email_address, encrypted_refresh_token')
-            .eq('webhook_subscription_id', subscriptionId)
-            .eq('status', 'active')
-            .single();
+      queueRecords.push({
+        subscription_id: notification.subscriptionId,
+        resource: notification.resource || null,
+        change_type: notification.changeType || 'created',
+        client_state: notification.clientState,
+      });
+    }
 
-          if (!connection) {
-            console.warn(`No active connection for subscription ${subscriptionId}`);
-            continue;
-          }
+    if (queueRecords.length > 0) {
+      const { error } = await supabase
+        .from('outlook_webhook_events')
+        .insert(queueRecords);
 
-          // Trigger a sync for this user (the sync function handles dedup)
-          try {
-            await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/outlook-sync-emails`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-              },
-              body: JSON.stringify({
-                userId: connection.sourceco_user_id,
-                isInitialSync: false,
-              }),
-            });
-          } catch (err) {
-            console.error('Failed to trigger sync from webhook:', err);
-          }
-        } catch (err) {
-          console.error('Notification processing error:', err);
+      if (error) {
+        console.error('Failed to queue webhook events:', error);
+        // Still return 202 — Microsoft will retry on 5xx
+        return new Response('', { status: 500 });
+      }
+    }
+
+    // Trigger async processing (best-effort; queue ensures nothing is lost)
+    try {
+      // Deduplicate: only trigger sync for unique subscription IDs
+      const uniqueSubscriptionIds = [...new Set(queueRecords.map((r) => r.subscription_id))];
+
+      for (const subscriptionId of uniqueSubscriptionIds) {
+        const { data: connection } = await supabase
+          .from('email_connections')
+          .select('sourceco_user_id')
+          .eq('webhook_subscription_id', subscriptionId)
+          .eq('status', 'active')
+          .single();
+
+        if (connection) {
+          await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/outlook-sync-emails`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({
+              userId: connection.sourceco_user_id,
+              isInitialSync: false,
+            }),
+          });
         }
       }
-    };
+    } catch (err) {
+      // Non-fatal — queue-based scheduler will pick up unprocessed events
+      console.error('Background sync trigger failed (queued events will be processed):', err);
+    }
 
-    // Fire and forget — don't block the response
-    processNotifications().catch((err) => console.error('Background processing error:', err));
-
-    // Respond immediately with 202 Accepted
     return new Response('', { status: 202 });
   }
 

@@ -127,7 +127,20 @@ Deno.serve(async (req) => {
     return errorResponse('Failed to disconnect', 500, corsHeaders);
   }
 
-  // Log the disconnection in audit trail (no email_message_id for account-level actions)
+  // OFFBOARDING: Deactivate all contact/deal assignments for this user
+  // This immediately revokes their email visibility via RLS policies.
+  // Email history is preserved — tied to contact records, not the user.
+  const { data: deactivatedAssignments } = await supabase
+    .from('contact_assignments')
+    .update({
+      is_active: false,
+      unassigned_at: new Date().toISOString(),
+    })
+    .eq('sourceco_user_id', targetUserId)
+    .eq('is_active', true)
+    .select('id');
+
+  // Log the disconnection in audit trail
   await supabase.from('email_access_log').insert({
     sourceco_user_id: auth.userId,
     email_message_id: null,
@@ -136,9 +149,13 @@ Deno.serve(async (req) => {
       event: 'account_disconnected',
       targetUserId,
       disconnectedBy: auth.userId,
+      assignmentsRevoked: deactivatedAssignments?.length || 0,
       timestamp: new Date().toISOString(),
     },
   });
 
-  return successResponse({ disconnected: true }, corsHeaders);
+  return successResponse({
+    disconnected: true,
+    assignmentsRevoked: deactivatedAssignments?.length || 0,
+  }, corsHeaders);
 });

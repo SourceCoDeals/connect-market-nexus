@@ -445,11 +445,18 @@ const ReMarketingBuyerDetail = () => {
         </TabsContent>
 
         <TabsContent value="email" className="space-y-4">
-          <EmailHistoryTab
-            contactId={contacts?.[0]?.id || ''}
-            contactName={buyer?.company_name}
-            contactEmail={contacts?.find((c: Contact) => c.email)?.email || undefined}
-          />
+          {contacts && contacts.length > 0 ? (
+            <EmailHistoryTab
+              contactId={contacts[0].id}
+              additionalContactIds={contacts.slice(1).map((c: Contact) => c.id)}
+              contactName={buyer?.company_name}
+              contactEmail={contacts.find((c: Contact) => c.email)?.email || undefined}
+            />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No contacts linked to this buyer. Add a contact to view email history.</p>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="materials">

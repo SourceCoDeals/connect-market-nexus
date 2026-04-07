@@ -71,10 +71,11 @@ Deno.serve(async (req) => {
     return errorResponse('No active Outlook connection. Please connect your account in Settings.', 400, corsHeaders);
   }
 
-  // Verify user has access to this contact
+  // Verify user has access to this contact (checks both contact and deal assignments)
   const { data: hasAccess } = await supabase.rpc('user_has_email_access', {
     _user_id: auth.userId,
     _contact_id: body.contactId,
+    _deal_id: body.dealId || null,
   });
 
   if (!hasAccess) {

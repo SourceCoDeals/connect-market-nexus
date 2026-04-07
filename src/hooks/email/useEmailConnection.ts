@@ -48,8 +48,8 @@ export function useEmailConnection() {
     onSuccess: (data) => {
       // Redirect to Microsoft OAuth consent screen
       if (data?.authUrl) {
-        // Store state in sessionStorage for callback verification
-        sessionStorage.setItem('outlook_oauth_state', data.state);
+        // Store state in localStorage (persists across tabs, unlike sessionStorage)
+        localStorage.setItem('outlook_oauth_state', data.state);
         window.location.href = data.authUrl;
       }
     },

@@ -13,12 +13,14 @@ import { ConnectionBanner } from './ConnectionBanner';
 
 interface EmailHistoryTabProps {
   contactId: string;
+  /** Additional contact IDs to show emails for (multi-contact buyers) */
+  additionalContactIds?: string[];
   contactName?: string;
   contactEmail?: string;
   dealId?: string;
 }
 
-export function EmailHistoryTab({ contactId, contactName, contactEmail, dealId }: EmailHistoryTabProps) {
+export function EmailHistoryTab({ contactId, additionalContactIds, contactName, contactEmail, dealId }: EmailHistoryTabProps) {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [replyTo, setReplyTo] = useState<{
     messageId: string;
@@ -49,6 +51,7 @@ export function EmailHistoryTab({ contactId, contactName, contactEmail, dealId }
       {/* Thread list */}
       <EmailThreadList
         contactId={contactId}
+        additionalContactIds={additionalContactIds}
         contactName={contactName}
         onCompose={isConnected && contactEmail ? () => setIsComposeOpen(true) : undefined}
         onReply={isConnected ? (messageId, subject, quote, toAddress) => {

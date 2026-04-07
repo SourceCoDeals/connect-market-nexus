@@ -15,6 +15,7 @@ import { EmailThreadView } from './EmailThreadView';
 
 interface EmailThreadListProps {
   contactId: string;
+  additionalContactIds?: string[];
   contactName?: string;
   onCompose?: () => void;
   onReply?: (messageId: string, subject: string, quote: string, fromAddress: string) => void;
@@ -38,8 +39,8 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export function EmailThreadList({ contactId, contactName, onCompose, onReply }: EmailThreadListProps) {
-  const { data: threads, isLoading, error } = useEmailThreads(contactId);
+export function EmailThreadList({ contactId, additionalContactIds, contactName, onCompose, onReply }: EmailThreadListProps) {
+  const { data: threads, isLoading, error } = useEmailThreads(contactId, additionalContactIds);
   const [expandedThread, setExpandedThread] = useState<string | null>(null);
   const logAccess = useLogEmailAccess();
 

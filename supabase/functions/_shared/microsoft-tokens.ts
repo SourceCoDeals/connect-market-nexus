@@ -5,12 +5,20 @@
  * In production, replace XOR encryption with Supabase Vault or a proper KMS.
  */
 
+function getEncryptionKey(): string {
+  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET');
+  if (!key) {
+    throw new Error('MICROSOFT_CLIENT_SECRET is required for token encryption — refusing to use fallback key');
+  }
+  return key;
+}
+
 /**
  * Encrypt a token using XOR with the Microsoft client secret as key.
  * This is a baseline implementation — use Supabase Vault or AES-256 in production.
  */
 export function encryptToken(token: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
+  const key = getEncryptionKey();
   const encoded = new TextEncoder().encode(token);
   const keyBytes = new TextEncoder().encode(key);
   const encrypted = new Uint8Array(encoded.length);
@@ -24,7 +32,7 @@ export function encryptToken(token: string): string {
  * Decrypt a token encrypted with encryptToken().
  */
 export function decryptToken(encrypted: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
+  const key = getEncryptionKey();
   const decoded = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
   const keyBytes = new TextEncoder().encode(key);
   const decrypted = new Uint8Array(decoded.length);

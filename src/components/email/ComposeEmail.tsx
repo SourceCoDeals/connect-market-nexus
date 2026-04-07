@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Send, Paperclip, X, Bold, Italic, Link, List, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { useSendEmail } from '@/hooks/email';
 import type { SendEmailRequest } from '@/types/email';
 
@@ -60,6 +61,7 @@ export function ComposeEmail({
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendEmail = useSendEmail();
+  const { toast } = useToast();
 
   // Sync `to` field when defaultTo prop changes (e.g., switching contacts)
   useEffect(() => {
@@ -82,6 +84,11 @@ export function ComposeEmail({
     for (const file of Array.from(files)) {
       // 25MB limit per attachment
       if (file.size > 25 * 1024 * 1024) {
+        toast({
+          title: 'File Too Large',
+          description: `"${file.name}" exceeds the 25MB attachment limit.`,
+          variant: 'destructive',
+        });
         continue;
       }
 
@@ -118,7 +125,15 @@ export function ComposeEmail({
     const bodyHtml = editorRef.current?.innerHTML || '';
     const bodyText = editorRef.current?.innerText || '';
 
-    if (!to.trim() || !bodyHtml.trim()) return;
+    if (!to.trim()) return;
+    if (!bodyText.trim()) {
+      toast({
+        title: 'Empty Message',
+        description: 'Please write a message before sending.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const toAddresses = to.split(',').map((e) => e.trim()).filter(Boolean);
     const ccAddresses = cc ? cc.split(',').map((e) => e.trim()).filter(Boolean) : [];
@@ -248,7 +263,11 @@ export function ComposeEmail({
           <div
             ref={editorRef}
             contentEditable
-            className="min-h-[200px] max-h-[300px] overflow-y-auto border rounded-md p-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary prose prose-sm max-w-none dark:prose-invert"
+            role="textbox"
+            aria-label="Email message body"
+            aria-multiline="true"
+            tabIndex={0}
+            className="min-h-[200px] max-h-[300px] overflow-y-auto border rounded-md p-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary prose prose-sm max-w-none dark:prose-invert"
             dangerouslySetInnerHTML={
               replyQuote
                 ? { __html: `<br/><br/><blockquote style="border-left: 2px solid #ccc; padding-left: 8px; color: #666;">${DOMPurify.sanitize(replyQuote)}</blockquote>` }

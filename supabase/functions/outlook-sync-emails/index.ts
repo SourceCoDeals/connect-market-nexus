@@ -203,10 +203,12 @@ Deno.serve(async (req) => {
 
   // If called from polling (no accessToken provided), process all active connections
   if (!body.userId && !body.accessToken) {
+    // Only poll connections that have completed initial sync
     const { data: connections } = await supabase
       .from('email_connections')
       .select('*')
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .eq('initial_sync_complete', true);
 
     if (!connections || connections.length === 0) {
       return successResponse({ message: 'No active connections to sync' }, corsHeaders);
@@ -331,14 +333,19 @@ Deno.serve(async (req) => {
     body.isInitialSync || false,
   );
 
-  // Update last sync timestamp
+  // Update last sync timestamp (and mark initial sync complete if applicable)
+  const syncUpdate: Record<string, unknown> = {
+    last_sync_at: new Date().toISOString(),
+    last_sync_error_count: 0,
+    error_message: null,
+  };
+  if (body.isInitialSync) {
+    syncUpdate.initial_sync_complete = true;
+  }
+
   await supabase
     .from('email_connections')
-    .update({
-      last_sync_at: new Date().toISOString(),
-      last_sync_error_count: 0,
-      error_message: null,
-    })
+    .update(syncUpdate)
     .eq('sourceco_user_id', userId);
 
   return successResponse(result, corsHeaders);
@@ -367,18 +374,6 @@ async function syncEmails(
 
       for (const msg of result.messages) {
         try {
-          // Check for duplicates by Graph message ID
-          const { data: existing } = await supabase
-            .from('email_messages')
-            .select('id')
-            .eq('microsoft_message_id', msg.id)
-            .maybeSingle();
-
-          if (existing) {
-            skipped++;
-            continue;
-          }
-
           // Check if this was sent via the platform (has a placeholder ID).
           // Match by sender + contact + approximate timestamp to upgrade the record.
           const fromAddr = msg.from?.emailAddress?.address?.toLowerCase() || '';
@@ -425,10 +420,10 @@ async function syncEmails(
             attachmentMeta = await fetchAttachmentMetadata(accessToken, msg.id);
           }
 
-          // Create a record for each matched contact
+          // Create a record for each matched contact (uses ON CONFLICT to avoid race conditions)
           for (const contact of match.contacts) {
-            const { error: insertError } = await supabase.from('email_messages').insert({
-              microsoft_message_id: match.contacts.length === 1 ? msg.id : `${msg.id}_${contact.id}`,
+            const { error: insertError } = await supabase.from('email_messages').upsert({
+              microsoft_message_id: msg.id,
               microsoft_conversation_id: msg.conversationId,
               contact_id: contact.id,
               deal_id: contact.deal_id || null,
@@ -443,12 +438,17 @@ async function syncEmails(
               sent_at: msg.sentDateTime || msg.receivedDateTime,
               has_attachments: msg.hasAttachments || false,
               attachment_metadata: attachmentMeta,
+              bcc_addresses: [],
+            }, {
+              onConflict: 'microsoft_message_id,contact_id',
+              ignoreDuplicates: true,
             });
 
             if (insertError) {
-              // Skip duplicate key errors silently
-              if (!insertError.message?.includes('duplicate key')) {
+              if (!insertError.message?.includes('duplicate') && !insertError.message?.includes('conflict')) {
                 errors.push(`Insert failed for ${msg.id}: ${insertError.message}`);
+              } else {
+                skipped++;
               }
             } else {
               synced++;

@@ -37,19 +37,30 @@ export function useEmailMessages(contactId: string | undefined) {
   });
 }
 
-export function useEmailThreads(contactId: string | undefined) {
+export function useEmailThreads(contactId: string | undefined, additionalContactIds?: string[]) {
   const { user } = useAuth();
+  const allContactIds = contactId
+    ? [contactId, ...(additionalContactIds || [])]
+    : [];
 
   return useQuery({
-    queryKey: ['email', 'threads', contactId],
+    queryKey: ['email', 'threads', ...allContactIds],
     queryFn: async (): Promise<EmailThread[]> => {
-      if (!contactId) return [];
+      if (allContactIds.length === 0) return [];
 
-      const { data, error } = await (supabase as any)
+      // Use .in() for multiple contacts, .eq() for single
+      let query = (supabase as any)
         .from('email_messages')
         .select('*')
-        .eq('contact_id', contactId)
         .order('sent_at', { ascending: false });
+
+      if (allContactIds.length === 1) {
+        query = query.eq('contact_id', allContactIds[0]);
+      } else {
+        query = query.in('contact_id', allContactIds);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       if (!data || data.length === 0) return [];
