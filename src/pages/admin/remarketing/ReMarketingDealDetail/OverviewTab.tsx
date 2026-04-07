@@ -1,3 +1,4 @@
+import { supabase } from '@/integrations/supabase/client';
 import { PipelineSummaryCard } from '@/components/remarketing';
 import { DealTranscriptSection } from '@/components/remarketing/DealTranscriptSection';
 import {
