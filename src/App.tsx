@@ -167,11 +167,24 @@ const ObjectionTrackerPage = lazyWithRetry(
   () => import('@/features/objection-tracker/ObjectionTrackerPage'),
 );
 
+<<<<<<< claude/build-client-portal-P2QuA
+// Client Portal pages
+const ClientPortalsList = lazyWithRetry(
+  () => import('@/pages/admin/client-portals/ClientPortalsList'),
+);
+const ClientPortalDetail = lazyWithRetry(
+  () => import('@/pages/admin/client-portals/ClientPortalDetail'),
+);
+const PortalDashboard = lazyWithRetry(() => import('@/pages/portal/PortalDashboard'));
+const PortalDealTracker = lazyWithRetry(() => import('@/pages/portal/PortalDealTracker'));
+const PortalDealDetail = lazyWithRetry(() => import('@/pages/portal/PortalDealDetail'));
+=======
 // Outlook Email Integration
 const OutlookSettingsPage = lazyWithRetry(
   () => import('@/pages/admin/settings/OutlookSettingsPage'),
 );
 const OutlookCallback = lazyWithRetry(() => import('@/pages/auth/OutlookCallback'));
+>>>>>>> main
 
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() =>
@@ -319,6 +332,38 @@ function App() {
               <Route path="saved-listings" element={<SavedListings />} />
             </Route>
             <Route path="/marketplace" element={<Navigate to="/" replace />} />
+
+            {/* ─── CLIENT PORTAL (buyer-facing) ─── */}
+            <Route
+              path="/portal/:slug"
+              element={
+                <ProtectedRoute requireApproved={false}>
+                  <RouteErrorBoundary name="PortalRoutes">
+                    <PortalDashboard />
+                  </RouteErrorBoundary>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/:slug/deals"
+              element={
+                <ProtectedRoute requireApproved={false}>
+                  <RouteErrorBoundary name="PortalRoutes">
+                    <PortalDealTracker />
+                  </RouteErrorBoundary>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/portal/:slug/deals/:pushId"
+              element={
+                <ProtectedRoute requireApproved={false}>
+                  <RouteErrorBoundary name="PortalRoutes">
+                    <PortalDealDetail />
+                  </RouteErrorBoundary>
+                </ProtectedRoute>
+              }
+            />
 
             {/* ─── UNIFIED ADMIN LAYOUT ─── */}
             {/* All admin + remarketing routes share one layout with the unified sidebar */}
@@ -527,6 +572,10 @@ function App() {
 
               {/* TRAINING CENTER */}
               <Route path="training-center" element={<ObjectionTrackerPage />} />
+
+              {/* CLIENT PORTALS (admin) */}
+              <Route path="client-portals" element={<ClientPortalsList />} />
+              <Route path="client-portals/:slug" element={<ClientPortalDetail />} />
 
               {/* APPROVALS */}
               <Route
