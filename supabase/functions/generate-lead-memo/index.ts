@@ -468,6 +468,10 @@ function buildDataContext(
     'technology_systems',
     'revenue_source_quote',
     'ebitda_source_quote',
+    // --- Additional high-value fields ---
+    'general_notes',
+    'google_rating',
+    'google_review_count',
   ];
   const enrichmentData = enrichmentFields
     .filter((f) => deal[f] != null && deal[f] !== '')
