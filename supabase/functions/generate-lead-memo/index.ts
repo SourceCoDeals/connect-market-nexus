@@ -1166,7 +1166,7 @@ This is NOT a marketing document. It is an institutional record. It informs, it 
 
 CORE RULES
 1. ONLY STATED FACTS: Every sentence must trace to the provided source data. If you cannot point to the exact source sentence, do not include it. No inference, no extrapolation.
-2. OMIT, DON'T APOLOGIZE: When data is missing, leave it out. Never write "not provided", "not stated", "not confirmed", "not discussed", or any variation. The reader knows what is absent by what is not in the memo.
+2. OMIT, DON'T APOLOGIZE: When data is missing, leave it out entirely. Never write "not provided", "not stated", "not confirmed", "not discussed", "not on file", "not available", "is unknown", "is unclear", or any variation. If a bullet point would only say that something is missing, do not include that bullet point. Do not contrast data sources (e.g., "LinkedIn reports X; internal data shows Y") — pick the highest-priority figure and state it alone. The reader knows what is absent by what is not in the memo.
 3. NO CHARACTERIZATION: Do not describe any metric with evaluative adjectives. Do not call revenue "consistent," margins "healthy," or growth "notable." State the number.
 4. NO COMPARISONS: Do not compare to industry benchmarks, competitors, or averages unless the source data contains a specific stated comparison.
 5. MATCH DATA DENSITY: Thin data = short memo (300–500 words). Normal data = 600–900 words. Complex multi-location deals with extensive financials may reach 1,200 words. Never pad.
