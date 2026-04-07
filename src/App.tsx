@@ -167,7 +167,6 @@ const ObjectionTrackerPage = lazyWithRetry(
   () => import('@/features/objection-tracker/ObjectionTrackerPage'),
 );
 
-<<<<<<< claude/build-client-portal-P2QuA
 // Client Portal pages
 const ClientPortalsList = lazyWithRetry(
   () => import('@/pages/admin/client-portals/ClientPortalsList'),
@@ -178,13 +177,11 @@ const ClientPortalDetail = lazyWithRetry(
 const PortalDashboard = lazyWithRetry(() => import('@/pages/portal/PortalDashboard'));
 const PortalDealTracker = lazyWithRetry(() => import('@/pages/portal/PortalDealTracker'));
 const PortalDealDetail = lazyWithRetry(() => import('@/pages/portal/PortalDealDetail'));
-=======
 // Outlook Email Integration
 const OutlookSettingsPage = lazyWithRetry(
   () => import('@/pages/admin/settings/OutlookSettingsPage'),
 );
 const OutlookCallback = lazyWithRetry(() => import('@/pages/auth/OutlookCallback'));
->>>>>>> main
 
 // ReMarketing pages (now rendered inside AdminLayout via shared sidebar)
 const ReMarketingLayout = lazyWithRetry(() =>
