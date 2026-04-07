@@ -29,7 +29,7 @@ import { usePortalDealPushes, useConvertToPipelineDeal } from '@/hooks/portal/us
 import { usePortalActivity, usePortalAnalytics } from '@/hooks/portal/use-portal-activity';
 import { OrgStatusBadge, PushStatusBadge, PriorityBadge } from '@/components/portal/PortalStatusBadge';
 import { InvitePortalUserDialog } from '@/components/portal/InvitePortalUserDialog';
-import type { PortalOrgStatus, PortalNotificationFrequency, PortalDealPushStatus } from '@/types/portal';
+import type { PortalOrgStatus, PortalNotificationFrequency } from '@/types/portal';
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-';

@@ -49,11 +49,9 @@ const OutlookCallback = () => {
 
     // Refresh session before callback — user's session may have expired
     // during the OAuth flow with Microsoft
-    try {
-      await supabase.auth.refreshSession();
-    } catch {
+    supabase.auth.refreshSession().catch(() => {
       // Best-effort — if refresh fails, callback will fail with auth error
-    }
+    });
 
     handleCallback(
       { code, state },

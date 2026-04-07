@@ -189,7 +189,7 @@ function MyConnection() {
             variant="outline"
             onClick={() => {
               if (window.confirm('Are you sure you want to disconnect your Outlook account? Email history will be preserved.')) {
-                disconnect();
+                disconnect(undefined);
               }
             }}
             disabled={isDisconnecting}

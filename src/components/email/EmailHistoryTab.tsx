@@ -28,7 +28,7 @@ export function EmailHistoryTab({ contactId, additionalContactIds, contactName, 
     quote: string;
     toAddress: string;
   } | null>(null);
-  const { isConnected, hasError, isExpired } = useEmailConnection();
+  const { isConnected } = useEmailConnection();
 
   return (
     <div className="space-y-4">

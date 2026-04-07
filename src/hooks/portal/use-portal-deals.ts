@@ -383,7 +383,7 @@ export function useConvertToPipelineDeal() {
         connectionRequestId = newCr.id;
 
         // Call the RPC to create the pipeline deal from the connection request
-        const { data: dealId, error: rpcError } = await supabase.rpc(
+        const { data: _dealId, error: rpcError } = await supabase.rpc(
           'create_pipeline_deal',
           { p_connection_request_id: connectionRequestId },
         );
