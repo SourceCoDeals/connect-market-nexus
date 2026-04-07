@@ -1336,6 +1336,9 @@ Wrap analyst notes between the markers ANALYST_NOTES_START and ANALYST_NOTES_END
     // Post-process: strip [DATA NEEDED: ...] and [VERIFY: ...] tags
     sections = stripDataNeededTags(sections);
 
+    // Post-process: strip bullet lines that only apologize for missing data or contrast sources
+    sections = stripOmissionLanguage(sections);
+
     // Safety: remove any analyst-notes sections that leaked into parsed sections
     sections = sections.filter(s => !/analyst\s*notes?/i.test(s.title));
 
