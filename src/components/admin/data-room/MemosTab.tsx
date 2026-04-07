@@ -862,6 +862,31 @@ function MemoSlotCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* PDF Preview Dialog */}
+      <Dialog
+        open={!!pdfPreviewUrl}
+        onOpenChange={(open) => {
+          if (!open && pdfPreviewUrl) {
+            URL.revokeObjectURL(pdfPreviewUrl);
+            setPdfPreviewUrl(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] p-0 gap-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <h3 className="text-sm font-medium">{title} — PDF Preview</h3>
+          </div>
+          {pdfPreviewUrl && (
+            <iframe
+              src={pdfPreviewUrl}
+              className="w-full flex-1"
+              style={{ height: 'calc(85vh - 52px)' }}
+              title="PDF Preview"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
