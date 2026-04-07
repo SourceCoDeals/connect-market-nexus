@@ -45,6 +45,7 @@ import {
 import { generateMemoDocx } from '@/lib/generate-memo-docx';
 import { format } from 'date-fns';
 import { extractCompanyInfo } from '@/lib/memo-utils';
+import { buildMemoPdfHtml, openPrintWindow } from '@/lib/memo-pdf-template';
 import {
   AlertDialog,
   AlertDialogAction,
