@@ -1,59 +1,60 @@
 
 
-# Audit Complete: 7 Remaining Issues
+# Fix Auth Callback Session Conflict + Resend Verification
 
-## Confirmed Fixed (no changes needed)
-All items from prior rounds are correct: BlurredFinancialTeaser, ConnectionButton, ListingSidebarActions, BuyerDataRoom, ListingDetail CTA, AgreementStatusBanner, useConnectionRequestsFilters, grant-data-room-access, notify-agreement-confirmed (both branches), send-templated-approval-email (both branches), DealSidebar, ListingPreview, NdaGateModal, EmailCatalog, EmailTestCentre, user-journey-notifications, email-templates.ts.
+## Root Cause Analysis
 
-## Still Wrong - 7 Locations
+### Issue 1: "Auth session missing" on verification callback
+When user clicks the verification link while logged in as a different user in the same browser:
+1. Supabase `/verify` endpoint processes the token server-side (confirmed: `user_signedup` for `adambhaile00@gmail.com` returned 303)
+2. Browser redirects to `/auth/callback` with token fragments in the URL
+3. The callback page calls `supabase.auth.getUser()` which uses the **existing session** (the other logged-in user)
+4. The token exchange from the URL hash never happens because there's no explicit call to handle it
 
-### 1. `src/components/buyer/AgreementAlertModal.tsx` (line 59)
-**Current:** "Sign it to unlock full deal access."
-**Fix:** "Sign it so we can freely exchange deal information." (remove "full deal access" promise)
+**Fix:** Before calling `getUser()`, the callback must explicitly exchange the URL hash/query tokens. Supabase's `onAuthStateChange` listener or a manual check for hash params should handle this. The correct approach is to wait for the auth state change event triggered by the URL tokens, or call `supabase.auth.exchangeCodeForSession()` if using PKCE.
 
-### 2. `src/components/buyer/AgreementAlertModal.tsx` (line 60)
-**Current:** Uses em-dash in Fee Agreement description
-**Fix:** Replace em-dash with hyphen: "Here is our fee agreement - you only pay..."
+### Issue 2: PendingApproval resend redirects to wrong URL
+Line 74 in `PendingApproval.tsx` sets `emailRedirectTo: '/pending-approval'` instead of `/auth/callback`. This bypasses the token exchange entirely, meaning the verification link from a resend on PendingApproval would never actually establish a session.
 
-### 3. `src/pages/Profile/ProfileDocuments.tsx` (line 155)
-**Current:** "Sign and return to support@sourcecodeals.com to unlock full deal access."
-**Fix:** "Sign and return to support@sourcecodeals.com to receive deal materials and request introductions."
+### Issue 3: SignupSuccess resend button
+The resend itself works (auth logs show `/resend` returned 200). The issue is the same session conflict when the user clicks the new link.
 
-### 4. `src/pages/PendingApproval.tsx` (line 211-212)
-**Current:** "Sign a quick NDA and Fee Agreement via email" + "Full access to off-market deals"
-**Fix:** "Sign a Fee Agreement via email" + "Browse deals and request introductions"
+## Changes
 
-### 5. `src/pages/PendingApproval.tsx` (line 254)
-**Current:** Status step label "Full access" with sublabel "After approval"
-**Fix:** "Access granted" with sublabel "After approval"
+### 1. `src/pages/auth/callback.tsx` - Handle session conflict on verification
+Before processing, the callback should:
+- Check for auth tokens in the URL hash/query params
+- If tokens are present, sign out the current session first (to clear the conflicting session)
+- Then let Supabase process the URL tokens via `onAuthStateChange` or explicit exchange
+- Only after the new session is established, proceed with profile lookup and routing
 
-### 6. `src/pages/PendingApproval.tsx` (line 279)
-**Current:** "The moment your account is approved, you'll have full access to the deal pipeline."
-**Fix:** "Once approved, you can browse deals and request introductions."
+```text
+Flow:
+1. Page loads at /auth/callback#access_token=...
+2. Detect URL has auth tokens (hash contains access_token or query has code)
+3. If a different user is currently logged in, sign out first
+4. Wait for onAuthStateChange to fire with the new session
+5. Proceed with existing profile lookup + routing logic
+```
 
-### 7. `src/components/admin/editor-sections/EditorLivePreview.tsx` (line 405)
-**Current:** "Get full access to detailed financials and business metrics"
-**Fix:** "Get access to deal materials and business details"
+### 2. `src/pages/PendingApproval.tsx` - Fix resend redirect URL
+Change line 74 from `emailRedirectTo: '/pending-approval'` to `emailRedirectTo: '/auth/callback'` so the verification link properly goes through the token exchange flow.
 
-### Borderline / Acceptable (No Change)
-- `send-marketplace-invitation` (line 62): "Secure data room access for diligence" - This is a marketing email to prospective users who haven't signed up yet. It describes the platform's capabilities, not a promise of immediate access. Acceptable.
-- `DealStatusSection.tsx` (line 46): "Sign an agreement (NDA or Fee Agreement)" - This is accurate; either document can advance the status. The system does accept both. Acceptable.
-- `DealStatusSection.tsx` (lines 44, 48): Em-dashes in buyer-facing status text - These are functional explanations in the deal tracker, not email copy. Borderline but low priority; include in this round for consistency.
-- `ConnectionButton.tsx` admin badge "full access" - Admin-only, not buyer-facing. No change.
-- `InviteTeamMemberDialog.tsx` "Full access to all pages" - Admin role description. No change.
-- `data-room-download` code comment "Full access" - Code comment, not user-facing. No change.
-- `notify-agreement-confirmed` code comment "full access granted" - Code comment, not user-facing. No change.
+## Files Changed
 
-## Files to Change
+| File | Change |
+|------|--------|
+| `src/pages/auth/callback.tsx` | Add URL token detection + session cleanup before `getUser()`; listen for `onAuthStateChange` to get the correct new session |
+| `src/pages/PendingApproval.tsx` | Fix `emailRedirectTo` on line 74 to use `/auth/callback` |
 
-| File | Lines | Change |
-|------|-------|--------|
-| `src/components/buyer/AgreementAlertModal.tsx` | 59-60 | Remove "full deal access"; fix em-dash |
-| `src/pages/Profile/ProfileDocuments.tsx` | 155 | "unlock full deal access" to "receive deal materials and request introductions" |
-| `src/pages/PendingApproval.tsx` | 211-212, 254, 279 | Remove NDA mention; replace "full access" with "browse deals and request introductions" |
-| `src/components/admin/editor-sections/EditorLivePreview.tsx` | 405 | "full access to detailed financials" to "access to deal materials and business details" |
-| `src/components/deals/DealStatusSection.tsx` | 44, 48 | Replace em-dashes with hyphens |
+## Technical Detail
 
-## No Edge Function Redeployments Needed
-All changes are frontend-only.
+The callback will:
+1. Parse `window.location.hash` for `access_token` or `window.location.search` for `code` (PKCE)
+2. If tokens found, call `supabase.auth.signOut({ scope: 'local' })` to clear any existing session without invalidating refresh tokens for the other user
+3. Set up a one-time `onAuthStateChange` listener waiting for `SIGNED_IN` event
+4. When the new session arrives, proceed with the existing profile lookup logic using the new `event.session.user`
+5. If no auth state change fires within 10 seconds, show an error
+
+This ensures that even if the user has another account logged in, the verification link correctly establishes the new user's session.
 
