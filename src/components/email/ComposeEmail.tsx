@@ -3,7 +3,8 @@
  * Supports rich text formatting and file attachments.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,20 @@ export function ComposeEmail({
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendEmail = useSendEmail();
+
+  // Sync `to` field when defaultTo prop changes (e.g., switching contacts)
+  useEffect(() => {
+    setTo(defaultTo.join(', '));
+  }, [defaultTo.join(',')]);
+
+  // Reset subject when switching between compose/reply modes
+  useEffect(() => {
+    if (replyToMessageId && replySubject) {
+      setSubject(replySubject.startsWith('Re: ') ? replySubject : `Re: ${replySubject}`);
+    } else if (!replyToMessageId) {
+      setSubject('');
+    }
+  }, [replyToMessageId, replySubject]);
 
   const handleFileAttach = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -236,7 +251,7 @@ export function ComposeEmail({
             className="min-h-[200px] max-h-[300px] overflow-y-auto border rounded-md p-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary prose prose-sm max-w-none dark:prose-invert"
             dangerouslySetInnerHTML={
               replyQuote
-                ? { __html: `<br/><br/><blockquote style="border-left: 2px solid #ccc; padding-left: 8px; color: #666;">${replyQuote}</blockquote>` }
+                ? { __html: `<br/><br/><blockquote style="border-left: 2px solid #ccc; padding-left: 8px; color: #666;">${DOMPurify.sanitize(replyQuote)}</blockquote>` }
                 : undefined
             }
           />

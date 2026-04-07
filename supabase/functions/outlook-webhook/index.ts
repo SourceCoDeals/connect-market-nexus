@@ -26,8 +26,6 @@ Deno.serve(async (req) => {
 
   // Also handle validation in POST body (Microsoft sometimes does this)
   if (req.method === 'POST') {
-    const contentType = req.headers.get('Content-Type') || '';
-
     // Check for validation token in query string of POST
     const postValidation = url.searchParams.get('validationToken');
     if (postValidation) {

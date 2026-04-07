@@ -24,9 +24,16 @@ CREATE TABLE IF NOT EXISTS public.contact_assignments (
 CREATE INDEX idx_contact_assignments_user ON public.contact_assignments(sourceco_user_id) WHERE is_active = true;
 CREATE INDEX idx_contact_assignments_contact ON public.contact_assignments(contact_id) WHERE is_active = true;
 CREATE INDEX idx_contact_assignments_deal ON public.contact_assignments(deal_id) WHERE is_active = true;
-CREATE UNIQUE INDEX idx_contact_assignments_unique_active
-  ON public.contact_assignments(sourceco_user_id, contact_id, deal_id)
-  WHERE is_active = true;
+-- Separate unique indexes for contact-only and deal-only assignments
+-- (PostgreSQL treats NULLs as distinct in unique indexes, so a composite
+-- index on nullable columns would allow unwanted duplicates)
+CREATE UNIQUE INDEX idx_contact_assignments_unique_contact
+  ON public.contact_assignments(sourceco_user_id, contact_id)
+  WHERE is_active = true AND contact_id IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_contact_assignments_unique_deal
+  ON public.contact_assignments(sourceco_user_id, deal_id)
+  WHERE is_active = true AND deal_id IS NOT NULL;
 
 ALTER TABLE public.contact_assignments ENABLE ROW LEVEL SECURITY;
 
@@ -137,10 +144,10 @@ CREATE POLICY "Users can view emails for assigned contacts"
     )
   );
 
--- Service role insert (for sync engine edge functions)
-CREATE POLICY "Service role can insert email messages"
+-- Users can insert emails they sent (sourceco_user_id must match)
+CREATE POLICY "Users can insert their own sent emails"
   ON public.email_messages FOR INSERT
-  WITH CHECK (true);
+  WITH CHECK (auth.uid() = sourceco_user_id);
 
 -- ---------------------------------------------------------------------------
 -- 4. Email Access Log (Audit Trail)

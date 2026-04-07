@@ -102,20 +102,7 @@ async function createWebhookSubscription(
   return { id: data.id, expirationDateTime: data.expirationDateTime };
 }
 
-/**
- * Simple XOR-based encryption with the app secret as key.
- * In production, use Supabase Vault or a proper KMS.
- */
-function encryptToken(token: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
-  const encoded = new TextEncoder().encode(token);
-  const keyBytes = new TextEncoder().encode(key);
-  const encrypted = new Uint8Array(encoded.length);
-  for (let i = 0; i < encoded.length; i++) {
-    encrypted[i] = encoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return btoa(String.fromCharCode(...encrypted));
-}
+import { encryptToken } from '../_shared/microsoft-tokens.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);

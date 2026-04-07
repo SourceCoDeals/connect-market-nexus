@@ -10,16 +10,7 @@ import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/auth.ts';
 import { successResponse, errorResponse } from '../_shared/response-helpers.ts';
 
-function decryptToken(encrypted: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
-  const decoded = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
-  const keyBytes = new TextEncoder().encode(key);
-  const decrypted = new Uint8Array(decoded.length);
-  for (let i = 0; i < decoded.length; i++) {
-    decrypted[i] = decoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return new TextDecoder().decode(decrypted);
-}
+import { decryptToken } from '../_shared/microsoft-tokens.ts';
 
 async function revokeWebhookSubscription(accessToken: string, subscriptionId: string) {
   try {
@@ -136,14 +127,16 @@ Deno.serve(async (req) => {
     return errorResponse('Failed to disconnect', 500, corsHeaders);
   }
 
-  // Log the disconnection in audit trail
+  // Log the disconnection in audit trail (no email_message_id for account-level actions)
   await supabase.from('email_access_log').insert({
     sourceco_user_id: auth.userId,
+    email_message_id: null,
     action: 'viewed',
     metadata: {
-      type: 'disconnection',
+      event: 'account_disconnected',
       targetUserId,
       disconnectedBy: auth.userId,
+      timestamp: new Date().toISOString(),
     },
   });
 

@@ -23,40 +23,11 @@ interface SendEmailRequest {
   attachments?: { name: string; contentBytes: string; contentType: string }[];
 }
 
-function decryptToken(encrypted: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
-  const decoded = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
-  const keyBytes = new TextEncoder().encode(key);
-  const decrypted = new Uint8Array(decoded.length);
-  for (let i = 0; i < decoded.length; i++) {
-    decrypted[i] = decoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return new TextDecoder().decode(decrypted);
-}
+import { decryptToken, refreshAccessToken as refreshTokenFull } from '../_shared/microsoft-tokens.ts';
 
 async function refreshAccessToken(refreshToken: string): Promise<string | null> {
-  const clientId = Deno.env.get('MICROSOFT_CLIENT_ID')!;
-  const clientSecret = Deno.env.get('MICROSOFT_CLIENT_SECRET')!;
-  const tenantId = Deno.env.get('MICROSOFT_TENANT_ID') || 'common';
-
-  const resp = await fetch(
-    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token',
-        scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read offline_access',
-      }).toString(),
-    },
-  );
-
-  if (!resp.ok) return null;
-  const data = await resp.json();
-  return data.access_token;
+  const result = await refreshTokenFull(refreshToken);
+  return result?.accessToken || null;
 }
 
 Deno.serve(async (req) => {
@@ -188,13 +159,18 @@ Deno.serve(async (req) => {
       return errorResponse(`Failed to send email: ${graphResp.status}`, 500, corsHeaders);
     }
 
-    // Store the sent email in our system
+    // Store the sent email in our system.
+    // Use a placeholder microsoft_message_id — the next sync cycle will pick up
+    // the real Graph message from the Sent folder and skip it via dedup on the
+    // contact_id + sent_at + from_address combination (or replace this record
+    // if the real Graph ID arrives).
     const sentAt = new Date().toISOString();
+    const placeholderMsgId = `platform_sent_${crypto.randomUUID()}`;
     const { data: emailRecord, error: insertError } = await supabase
       .from('email_messages')
       .insert({
-        microsoft_message_id: `sent_${crypto.randomUUID()}`,
-        microsoft_conversation_id: body.replyToMessageId ? `reply_${body.replyToMessageId}` : null,
+        microsoft_message_id: placeholderMsgId,
+        microsoft_conversation_id: null,
         contact_id: body.contactId,
         deal_id: body.dealId || null,
         sourceco_user_id: auth.userId,

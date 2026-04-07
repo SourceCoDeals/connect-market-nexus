@@ -33,66 +33,15 @@ interface ContactMatch {
   deal_id?: string | null;
 }
 
-function decryptToken(encrypted: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
-  const decoded = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
-  const keyBytes = new TextEncoder().encode(key);
-  const decrypted = new Uint8Array(decoded.length);
-  for (let i = 0; i < decoded.length; i++) {
-    decrypted[i] = decoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return new TextDecoder().decode(decrypted);
-}
-
-async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; newRefreshToken: string; expiresIn: number } | null> {
-  const clientId = Deno.env.get('MICROSOFT_CLIENT_ID')!;
-  const clientSecret = Deno.env.get('MICROSOFT_CLIENT_SECRET')!;
-  const tenantId = Deno.env.get('MICROSOFT_TENANT_ID') || 'common';
-
-  const resp = await fetch(
-    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token',
-        scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read offline_access',
-      }).toString(),
-    },
-  );
-
-  if (!resp.ok) {
-    console.error('Token refresh failed:', await resp.text());
-    return null;
-  }
-
-  const data = await resp.json();
-  return {
-    accessToken: data.access_token,
-    newRefreshToken: data.refresh_token || refreshToken,
-    expiresIn: data.expires_in,
-  };
-}
-
-function encryptToken(token: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
-  const encoded = new TextEncoder().encode(token);
-  const keyBytes = new TextEncoder().encode(key);
-  const encrypted = new Uint8Array(encoded.length);
-  for (let i = 0; i < encoded.length; i++) {
-    encrypted[i] = encoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return btoa(String.fromCharCode(...encrypted));
-}
+import { decryptToken, encryptToken, refreshAccessToken } from '../_shared/microsoft-tokens.ts';
 
 async function fetchMessages(
   accessToken: string,
   since?: string,
   nextLink?: string,
+  retryCount = 0,
 ): Promise<{ messages: GraphMessage[]; nextLink?: string }> {
+  const MAX_RETRIES = 3;
   let url = nextLink;
 
   if (!url) {
@@ -114,10 +63,14 @@ async function fetchMessages(
   });
 
   if (resp.status === 429) {
-    // Rate limited — wait and retry
+    if (retryCount >= MAX_RETRIES) {
+      throw new Error(`Graph API rate limited after ${MAX_RETRIES} retries`);
+    }
+    // Exponential backoff with jitter
     const retryAfter = parseInt(resp.headers.get('Retry-After') || '5', 10);
-    await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
-    return fetchMessages(accessToken, since, nextLink);
+    const jitter = Math.random() * 1000;
+    await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000 + jitter));
+    return fetchMessages(accessToken, since, nextLink, retryCount + 1);
   }
 
   if (!resp.ok) {
@@ -170,24 +123,30 @@ async function loadKnownContactEmails(supabase: SupabaseClient): Promise<Map<str
     }
   }
 
-  // Also load from remarketing_buyer_contacts
+  // Also load from remarketing_buyer_contacts — batch lookup instead of N+1
   const { data: buyerContacts } = await supabase
     .from('remarketing_buyer_contacts')
     .select('id, email, buyer_id')
     .not('email', 'is', null);
 
-  if (buyerContacts) {
-    for (const bc of buyerContacts) {
-      if (bc.email && !emailMap.has(bc.email.toLowerCase())) {
-        // Look up if there's a corresponding entry in contacts table
-        const { data: unified } = await supabase
-          .from('contacts')
-          .select('id')
-          .eq('email', bc.email)
-          .maybeSingle();
+  if (buyerContacts && buyerContacts.length > 0) {
+    // Collect emails not already in our map
+    const missingEmails = buyerContacts
+      .filter((bc) => bc.email && !emailMap.has(bc.email.toLowerCase()))
+      .map((bc) => bc.email!);
 
-        if (unified) {
-          emailMap.set(bc.email.toLowerCase(), { id: unified.id, email: bc.email });
+    if (missingEmails.length > 0) {
+      // Batch lookup in contacts table
+      const { data: unifiedMatches } = await supabase
+        .from('contacts')
+        .select('id, email')
+        .in('email', missingEmails);
+
+      if (unifiedMatches) {
+        for (const match of unifiedMatches) {
+          if (match.email && !emailMap.has(match.email.toLowerCase())) {
+            emailMap.set(match.email.toLowerCase(), { id: match.id, email: match.email });
+          }
         }
       }
     }
@@ -408,7 +367,7 @@ async function syncEmails(
 
       for (const msg of result.messages) {
         try {
-          // Check for duplicates
+          // Check for duplicates by Graph message ID
           const { data: existing } = await supabase
             .from('email_messages')
             .select('id')
@@ -418,6 +377,39 @@ async function syncEmails(
           if (existing) {
             skipped++;
             continue;
+          }
+
+          // Check if this was sent via the platform (has a placeholder ID).
+          // Match by sender + contact + approximate timestamp to upgrade the record.
+          const fromAddr = msg.from?.emailAddress?.address?.toLowerCase() || '';
+          if (fromAddr === userEmail.toLowerCase()) {
+            const msgSentAt = msg.sentDateTime || msg.receivedDateTime;
+            const sentWindow = new Date(new Date(msgSentAt).getTime() - 60_000).toISOString();
+            const sentWindowEnd = new Date(new Date(msgSentAt).getTime() + 60_000).toISOString();
+
+            const { data: platformSent } = await supabase
+              .from('email_messages')
+              .select('id, microsoft_message_id')
+              .like('microsoft_message_id', 'platform_sent_%')
+              .eq('sourceco_user_id', userId)
+              .eq('from_address', fromAddr)
+              .gte('sent_at', sentWindow)
+              .lte('sent_at', sentWindowEnd)
+              .limit(1)
+              .maybeSingle();
+
+            if (platformSent) {
+              // Upgrade the placeholder record with real Graph IDs
+              await supabase
+                .from('email_messages')
+                .update({
+                  microsoft_message_id: msg.id,
+                  microsoft_conversation_id: msg.conversationId,
+                })
+                .eq('id', platformSent.id);
+              skipped++;
+              continue;
+            }
           }
 
           // Match to known contacts

@@ -9,27 +9,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { successResponse, errorResponse } from '../_shared/response-helpers.ts';
 
-function decryptToken(encrypted: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
-  const decoded = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
-  const keyBytes = new TextEncoder().encode(key);
-  const decrypted = new Uint8Array(decoded.length);
-  for (let i = 0; i < decoded.length; i++) {
-    decrypted[i] = decoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return new TextDecoder().decode(decrypted);
-}
-
-function encryptToken(token: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
-  const encoded = new TextEncoder().encode(token);
-  const keyBytes = new TextEncoder().encode(key);
-  const encrypted = new Uint8Array(encoded.length);
-  for (let i = 0; i < encoded.length; i++) {
-    encrypted[i] = encoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return btoa(String.fromCharCode(...encrypted));
-}
+import { decryptToken, encryptToken } from '../_shared/microsoft-tokens.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);

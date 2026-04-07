@@ -4,6 +4,7 @@
  */
 
 import { useState } from 'react';
+import DOMPurify from 'dompurify';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowUpRight, ArrowDownLeft, Paperclip, ChevronDown, ChevronUp, Reply } from 'lucide-react';
@@ -78,7 +79,7 @@ function MessageBubble({ message, onReply }: { message: EmailMessage; onReply?: 
             {message.body_html ? (
               <div
                 className="prose prose-sm max-w-none dark:prose-invert text-xs [&_*]:text-xs"
-                dangerouslySetInnerHTML={{ __html: message.body_html }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(message.body_html, { ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'span', 'div', 'table', 'thead', 'tbody', 'tr', 'td', 'th', 'img'], ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'style', 'class'], ADD_ATTR: ['target'], FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'] }) }}
               />
             ) : (
               <p className="text-xs whitespace-pre-wrap">{message.body_text}</p>

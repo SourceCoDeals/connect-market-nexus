@@ -51,6 +51,9 @@ export function EmailHistoryTab({ contactId, contactName, contactEmail, dealId }
         contactId={contactId}
         contactName={contactName}
         onCompose={isConnected && contactEmail ? () => setIsComposeOpen(true) : undefined}
+        onReply={isConnected ? (messageId, subject, quote, toAddress) => {
+          setReplyTo({ messageId, subject, quote, toAddress });
+        } : undefined}
       />
 
       {/* Compose dialog */}

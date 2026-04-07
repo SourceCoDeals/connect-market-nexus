@@ -9,40 +9,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { successResponse, errorResponse } from '../_shared/response-helpers.ts';
 
-function decryptToken(encrypted: string): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET') || 'default-encryption-key';
-  const decoded = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
-  const keyBytes = new TextEncoder().encode(key);
-  const decrypted = new Uint8Array(decoded.length);
-  for (let i = 0; i < decoded.length; i++) {
-    decrypted[i] = decoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return new TextDecoder().decode(decrypted);
-}
+import { decryptToken, refreshAccessToken as refreshTokenFull } from '../_shared/microsoft-tokens.ts';
 
 async function refreshAccessToken(refreshToken: string): Promise<string | null> {
-  const clientId = Deno.env.get('MICROSOFT_CLIENT_ID')!;
-  const clientSecret = Deno.env.get('MICROSOFT_CLIENT_SECRET')!;
-  const tenantId = Deno.env.get('MICROSOFT_TENANT_ID') || 'common';
-
-  const resp = await fetch(
-    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token',
-        scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read offline_access',
-      }).toString(),
-    },
-  );
-
-  if (!resp.ok) return null;
-  const data = await resp.json();
-  return data.access_token;
+  const result = await refreshTokenFull(refreshToken);
+  return result?.accessToken || null;
 }
 
 Deno.serve(async (req) => {
