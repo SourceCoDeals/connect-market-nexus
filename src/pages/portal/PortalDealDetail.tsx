@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -21,7 +21,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useMyPortalUser } from '@/hooks/portal/use-portal-users';
-import { usePortalDealPush, usePortalDealResponses, useSubmitDealResponse } from '@/hooks/portal/use-portal-deals';
+import { usePortalDealPush, usePortalDealResponses, useSubmitDealResponse, useMarkDealViewed } from '@/hooks/portal/use-portal-deals';
 import { PushStatusBadge, PriorityBadge } from '@/components/portal/PortalStatusBadge';
 import type { PortalResponseType } from '@/types/portal';
 
@@ -32,13 +32,14 @@ function formatCurrency(value: number | null | undefined): string {
   return `$${value.toLocaleString()}`;
 }
 
-const responseConfig: Record<PortalResponseType, { label: string; icon: React.ReactNode; variant: 'default' | 'outline' | 'destructive' }> = {
+const responseConfig: Record<string, { label: string; icon: React.ReactNode; variant: 'default' | 'outline' | 'destructive' }> = {
   interested: { label: 'Interested', icon: <CheckCircle className="h-4 w-4" />, variant: 'default' },
   pass: { label: 'Pass', icon: <XCircle className="h-4 w-4" />, variant: 'destructive' },
   need_more_info: { label: 'Need More Info', icon: <HelpCircle className="h-4 w-4" />, variant: 'outline' },
   reviewing: { label: 'Reviewing Internally', icon: <Clock className="h-4 w-4" />, variant: 'outline' },
-  internal_review: { label: 'Internal Review', icon: <Clock className="h-4 w-4" />, variant: 'outline' },
 };
+
+const RESPONSE_TYPES: PortalResponseType[] = ['interested', 'pass', 'need_more_info', 'reviewing'];
 
 export default function PortalDealDetail() {
   const { slug, pushId } = useParams<{ slug: string; pushId: string }>();
@@ -46,12 +47,25 @@ export default function PortalDealDetail() {
   const { data: push, isLoading } = usePortalDealPush(pushId);
   const { data: responses } = usePortalDealResponses(pushId);
   const submitResponse = useSubmitDealResponse();
+  const markViewed = useMarkDealViewed();
 
   const [responseDialogOpen, setResponseDialogOpen] = useState(false);
   const [selectedResponseType, setSelectedResponseType] = useState<PortalResponseType | null>(null);
   const [responseNotes, setResponseNotes] = useState('');
 
   const canRespond = portalUser?.role !== 'viewer';
+
+  // Track deal view when portal user opens the detail page
+  useEffect(() => {
+    if (push && portalUser && !push.first_viewed_at) {
+      markViewed.mutate({
+        pushId: push.id,
+        portalOrgId: portalUser.portal_org.id,
+        viewerName: portalUser.name,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [push?.id, portalUser?.id]);
 
   const handleOpenResponse = (type: PortalResponseType) => {
     setSelectedResponseType(type);
@@ -67,6 +81,7 @@ export default function PortalDealDetail() {
       notes: responseNotes.trim() || undefined,
       portal_user_id: portalUser.id,
       portal_org_id: portalUser.portal_org.id,
+      responder_name: portalUser.name,
     });
     setResponseDialogOpen(false);
   };
@@ -187,7 +202,7 @@ export default function PortalDealDetail() {
                   <CardTitle className="text-base">Your Response</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {(['interested', 'pass', 'need_more_info', 'reviewing'] as PortalResponseType[]).map((type) => {
+                  {RESPONSE_TYPES.map((type) => {
                     const config = responseConfig[type];
                     return (
                       <Button

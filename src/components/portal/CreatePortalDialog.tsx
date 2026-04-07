@@ -48,6 +48,8 @@ const BUYER_TYPES = [
   { value: 'individual_buyer', label: 'Individual' },
 ];
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -260,6 +262,10 @@ export function CreatePortalDialog({ open, onOpenChange }: CreatePortalDialogPro
     }
     if (!resolvedContact.email) {
       toast.error('Contact email is required');
+      return;
+    }
+    if (!EMAIL_REGEX.test(resolvedContact.email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Users, Send, Building2 } from 'lucide-react';
+import { Plus, Users, Send, Building2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePortalOrganizations } from '@/hooks/portal/use-portal-organizations';
 import { CreatePortalDialog } from '@/components/portal/CreatePortalDialog';
@@ -9,7 +10,21 @@ import { OrgStatusBadge } from '@/components/portal/PortalStatusBadge';
 
 export default function ClientPortalsList() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { data: orgs, isLoading } = usePortalOrganizations();
+
+  const filteredOrgs = useMemo(() => {
+    if (!orgs) return [];
+    if (!searchQuery.trim()) return orgs;
+    const q = searchQuery.toLowerCase();
+    return orgs.filter((o) =>
+      o.name.toLowerCase().includes(q) ||
+      o.buyer?.company_name?.toLowerCase().includes(q) ||
+      o.buyer?.buyer_type?.replace(/_/g, ' ').toLowerCase().includes(q) ||
+      o.relationship_owner?.first_name?.toLowerCase().includes(q) ||
+      o.relationship_owner?.last_name?.toLowerCase().includes(q)
+    );
+  }, [orgs, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -24,6 +39,17 @@ export default function ClientPortalsList() {
           <Plus className="h-4 w-4 mr-2" />
           Create Portal
         </Button>
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by name, buyer, owner..."
+          className="pl-9"
+        />
       </div>
 
       {/* Summary cards */}
@@ -73,9 +99,15 @@ export default function ClientPortalsList() {
             </Button>
           </CardContent>
         </Card>
+      ) : filteredOrgs.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            No portals match "{searchQuery}".
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(orgs || []).map((org) => (
+          {filteredOrgs.map((org) => (
             <Link key={org.id} to={`/admin/client-portals/${org.portal_slug}`}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                 <CardHeader className="pb-3">

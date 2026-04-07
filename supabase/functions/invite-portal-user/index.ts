@@ -102,16 +102,18 @@ const handler = async (req: Request): Promise<Response> => {
     const fullName = [first_name, last_name].filter(Boolean).join(" ");
 
     // ── Step 1: Find or create Supabase auth user ──
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingUser = existingUsers?.users?.find(
-      (u: { email?: string }) => u.email?.toLowerCase() === normalizedEmail
-    );
+    // First check if a profile exists with this email (more efficient than listUsers)
+    const { data: existingProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
 
     let userId: string;
     let isNewUser = false;
 
-    if (existingUser) {
-      userId = existingUser.id;
+    if (existingProfile) {
+      userId = existingProfile.id;
       console.log(`[invite-portal-user] User already exists (${userId})`);
     } else {
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -138,13 +140,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // ── Step 2: Ensure profile exists with approved status ──
-    const { data: existingProfile } = await supabaseAdmin
+    const { data: profileCheck } = await supabaseAdmin
       .from("profiles")
       .select("id")
       .eq("id", userId)
       .maybeSingle();
 
-    if (existingProfile) {
+    if (profileCheck) {
       await supabaseAdmin
         .from("profiles")
         .update({
@@ -200,7 +202,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // ── Step 4: Check for existing portal_user ──
+    // ── Step 4: Check for existing portal_user (handles re-invites) ──
     const { data: existingPortalUser } = await supabaseAdmin
       .from("portal_users")
       .select("id")

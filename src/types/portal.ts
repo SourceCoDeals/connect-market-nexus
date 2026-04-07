@@ -22,8 +22,7 @@ export type PortalResponseType =
   | 'interested'
   | 'pass'
   | 'need_more_info'
-  | 'reviewing'
-  | 'internal_review';
+  | 'reviewing';
 
 export type PortalNotificationType =
   | 'new_deal'

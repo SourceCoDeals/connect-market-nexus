@@ -17,8 +17,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useInvitePortalUser } from '@/hooks/portal/use-portal-users';
 import type { PortalUserRole } from '@/types/portal';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface InvitePortalUserDialogProps {
   open: boolean;
@@ -52,6 +55,10 @@ export function InvitePortalUserDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName.trim() || !email.trim()) return;
+    if (!EMAIL_REGEX.test(email.trim())) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
 
     await invite.mutateAsync({
       portal_org_id: portalOrgId,
