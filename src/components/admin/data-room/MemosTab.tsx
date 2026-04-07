@@ -347,6 +347,13 @@ function MemoSlotCard({
   const hasDocument = !!document;
   const hasDraft = !!draft;
 
+  // Auto-open analyst notes once when a new draft is generated
+  useEffect(() => {
+    if (draft?.id && draft.id !== prevDraftId.current) {
+      setNotesOpen(true);
+      prevDraftId.current = draft.id;
+    }
+  }, [draft?.id]);
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
