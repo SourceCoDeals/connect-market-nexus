@@ -1157,10 +1157,11 @@ SOURCE PRIORITY (highest to lowest)
 5. Enrichment data (website, LinkedIn)
 
 Conflict rules:
-* When two sources give different values for the same data point, USE the highest-priority source figure without comment. Do not cite the source. Do not qualify the figure. Do not add notes about data provenance.
+* When two sources give different values for the same data point, USE the highest-priority source figure without comment. Do not cite the source. Do not qualify the figure. Do not add notes about data provenance in the memo body.
 * Vague or approximate enrichment data does not constitute a conflict.
 * If multiple transcripts exist, the most recent takes priority.
 * If no call transcript exists, simply write with the data you have. Do not note the absence of transcripts in the memo body.
+* NEVER mention "transcript", "Call 1/2/3", "enrichment data", "manual entry", "discrepancy", "conflict", "reconcile", "unverified", or "verified" in the memo body. The memo is investor-facing — it states facts only, with no analyst commentary about sources.
 
 FORMAT
 Use only these section headers, in this order. COMPANY OVERVIEW is always included. Omit any section that has no data. Never create an "INFORMATION NOT YET PROVIDED" section.
@@ -1176,7 +1177,7 @@ Example:
 * 2025 EBITDA: $1,100,000
 * Owner Compensation: $350,000
 
-If adjusted EBITDA is mentioned, list each add-back individually. If the owner gives a range, state the range exactly. Do not pick midpoint or either bound. If figures don't reconcile (e.g., monthly × 12 ≠ stated annual), include both and flag it.
+If adjusted EBITDA is mentioned, list each add-back individually. If the owner gives a range, state the range exactly. Do not pick midpoint or either bound. If figures don't reconcile (e.g., monthly × 12 ≠ stated annual), use the figure from the highest-priority source. Do NOT flag reconciliation issues in the memo body.
 
 SERVICES AND OPERATIONS
 Bullet points. What services are performed, how revenue is generated, and relevant operational details. Include industry-specific KPIs only when explicitly stated in the source data — do not use any template checklist to fill in metrics that were not mentioned.
@@ -1213,11 +1214,13 @@ IMPORTANT: Transcripts may include SourceCo associates and the business owner. E
 
 === DATA ROOM DOCUMENTS (authoritative due diligence material) === ${context.dataRoomContent || 'No data room documents available.'}
 
-Return the memo as markdown with ## headers. Headers must exactly match: COMPANY OVERVIEW, FINANCIAL SNAPSHOT, SERVICES AND OPERATIONS, OWNERSHIP AND TRANSACTION, MANAGEMENT AND STAFFING, KEY STRUCTURAL NOTES. Omit sections with no data (except COMPANY OVERVIEW). Present financial data as simple labeled lines. Do not use tables. Include all identifying information. Do NOT cite sources or flag conflicts in the memo body.
+Return your output in TWO clearly separated blocks:
 
-After the memo, output exactly this delimiter on its own line:
----ANALYST-NOTES---
-Then output a bulleted list of any data discrepancies, unverified figures, source conflicts, or missing data that would strengthen the memo. Reference the specific sources (e.g., "Call 2 states $5.2M revenue; enrichment shows $4.8M"). If there are no discrepancies, output "None." after the delimiter.`;
+BLOCK 1 — THE MEMO (investor-facing, shareable):
+Wrap the memo in <memo> and </memo> tags. Inside, use markdown with ## headers. Headers must exactly match: COMPANY OVERVIEW, FINANCIAL SNAPSHOT, SERVICES AND OPERATIONS, OWNERSHIP AND TRANSACTION, MANAGEMENT AND STAFFING, KEY STRUCTURAL NOTES. Omit sections with no data (except COMPANY OVERVIEW). Present financial data as simple labeled lines. Do not use tables. Include all identifying information. Do NOT cite sources, flag conflicts, mention transcripts, or include any analyst commentary in the memo body. This block must be ready to share with an investor as-is.
+
+BLOCK 2 — INTERNAL ANALYST NOTES (never shared with investors):
+Wrap analyst notes in <analyst_notes> and </analyst_notes> tags. Include a bulleted list of any data discrepancies, unverified figures, source conflicts, or missing data that would strengthen the memo. Reference the specific sources (e.g., "Call 2 states $5.2M revenue; enrichment shows $4.8M"). If there are no discrepancies, write "None."`;
 
   // Regeneration loop: up to 3 retries for blocking validation failures
   let bestSections: MemoSection[] = [];
@@ -1269,13 +1272,30 @@ Then output a bulleted list of any data discrepancies, unverified figures, sourc
       throw new Error('No content returned from AI');
     }
 
-    // Split off analyst notes before parsing sections
+    // Extract memo and analyst notes from tagged blocks (with fallbacks)
     let memoMarkdown = rawContent;
     let analystNotesRaw = '';
-    const delimiterIndex = rawContent.indexOf('---ANALYST-NOTES---');
-    if (delimiterIndex !== -1) {
-      memoMarkdown = rawContent.substring(0, delimiterIndex).trim();
-      analystNotesRaw = rawContent.substring(delimiterIndex + '---ANALYST-NOTES---'.length).trim();
+
+    // Method 1: XML-style tags (preferred)
+    const memoTagMatch = rawContent.match(/<memo>([\s\S]*?)<\/memo>/);
+    const notesTagMatch = rawContent.match(/<analyst_notes>([\s\S]*?)<\/analyst_notes>/);
+    if (memoTagMatch) {
+      memoMarkdown = memoTagMatch[1].trim();
+      analystNotesRaw = notesTagMatch ? notesTagMatch[1].trim() : '';
+    } else {
+      // Method 2: Legacy delimiter fallback
+      const delimiterIndex = rawContent.indexOf('---ANALYST-NOTES---');
+      if (delimiterIndex !== -1) {
+        memoMarkdown = rawContent.substring(0, delimiterIndex).trim();
+        analystNotesRaw = rawContent.substring(delimiterIndex + '---ANALYST-NOTES---'.length).trim();
+      } else {
+        // Method 3: Heading fallback — look for ## ANALYST NOTES or similar
+        const headingMatch = rawContent.match(/\n##\s*ANALYST\s*NOTES?\b/i);
+        if (headingMatch && headingMatch.index !== undefined) {
+          memoMarkdown = rawContent.substring(0, headingMatch.index).trim();
+          analystNotesRaw = rawContent.substring(headingMatch.index).replace(/^##\s*ANALYST\s*NOTES?\s*/i, '').trim();
+        }
+      }
     }
 
     // Parse markdown output into sections
@@ -1287,14 +1307,36 @@ Then output a bulleted list of any data discrepancies, unverified figures, sourc
     // Post-process: strip [DATA NEEDED: ...] and [VERIFY: ...] tags
     sections = stripDataNeededTags(sections);
 
+    // Safety: remove any analyst-notes sections that leaked into parsed sections
+    sections = sections.filter(s => !/analyst\s*notes?/i.test(s.title));
+
+    // Investor-safety validation: reject if memo body contains analyst language
+    const ANALYST_LANGUAGE_PATTERNS = [
+      /\btranscript\b/i, /\bcall\s*[1-9]\b/i, /\benrichment\s*data\b/i,
+      /\bmanual\s*entr/i, /\bdiscrepanc/i, /\bconflict\b/i, /\breconcile\b/i,
+      /\bunverified\b/i, /\bverified\b/i, /\bsource\s*data\b/i,
+      /\bdata\s*room\s*document/i, /\bnot\s*confirm/i, /\bnot\s*stated\b/i,
+    ];
+    const memoText = sections.map(s => s.content).join(' ');
+    const hasAnalystLanguage = ANALYST_LANGUAGE_PATTERNS.some(p => p.test(memoText));
+
     bestSections = sections;
     // Store analyst notes for the final return
     (bestSections as any).__analystNotes = analystNotesRaw;
 
-    // Run blocking validation checks (Checks 2, 3, 4)
+    // Run blocking validation checks (Checks 2, 3, 4) + investor-safety
     const validation = validateFullMemoSections(sections);
-    if (validation.passed) {
-      break; // All blocking checks passed
+    if (validation.passed && !hasAnalystLanguage) {
+      break; // All blocking checks passed and memo is investor-safe
+    }
+
+    // If only analyst language leaked, add specific retry instruction
+    if (validation.passed && hasAnalystLanguage) {
+      if (attempt < 3) {
+        retryAppendix = `Your previous output contained analyst language in the memo body (e.g., references to "transcript", "enrichment data", "not confirmed", etc.). The memo must be investor-facing with NO source references or analyst commentary. Remove all such language and regenerate.`;
+        console.warn(`Investor-safety check failed (attempt ${attempt + 1}): analyst language detected in memo body`);
+        continue;
+      }
     }
 
     // Failed validation — retry if attempts remain
