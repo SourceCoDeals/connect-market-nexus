@@ -1272,13 +1272,30 @@ Wrap analyst notes in <analyst_notes> and </analyst_notes> tags. Include a bulle
       throw new Error('No content returned from AI');
     }
 
-    // Split off analyst notes before parsing sections
+    // Extract memo and analyst notes from tagged blocks (with fallbacks)
     let memoMarkdown = rawContent;
     let analystNotesRaw = '';
-    const delimiterIndex = rawContent.indexOf('---ANALYST-NOTES---');
-    if (delimiterIndex !== -1) {
-      memoMarkdown = rawContent.substring(0, delimiterIndex).trim();
-      analystNotesRaw = rawContent.substring(delimiterIndex + '---ANALYST-NOTES---'.length).trim();
+
+    // Method 1: XML-style tags (preferred)
+    const memoTagMatch = rawContent.match(/<memo>([\s\S]*?)<\/memo>/);
+    const notesTagMatch = rawContent.match(/<analyst_notes>([\s\S]*?)<\/analyst_notes>/);
+    if (memoTagMatch) {
+      memoMarkdown = memoTagMatch[1].trim();
+      analystNotesRaw = notesTagMatch ? notesTagMatch[1].trim() : '';
+    } else {
+      // Method 2: Legacy delimiter fallback
+      const delimiterIndex = rawContent.indexOf('---ANALYST-NOTES---');
+      if (delimiterIndex !== -1) {
+        memoMarkdown = rawContent.substring(0, delimiterIndex).trim();
+        analystNotesRaw = rawContent.substring(delimiterIndex + '---ANALYST-NOTES---'.length).trim();
+      } else {
+        // Method 3: Heading fallback — look for ## ANALYST NOTES or similar
+        const headingMatch = rawContent.match(/\n##\s*ANALYST\s*NOTES?\b/i);
+        if (headingMatch && headingMatch.index !== undefined) {
+          memoMarkdown = rawContent.substring(0, headingMatch.index).trim();
+          analystNotesRaw = rawContent.substring(headingMatch.index).replace(/^##\s*ANALYST\s*NOTES?\s*/i, '').trim();
+        }
+      }
     }
 
     // Parse markdown output into sections
@@ -1289,6 +1306,19 @@ Wrap analyst notes in <analyst_notes> and </analyst_notes> tags. Include a bulle
 
     // Post-process: strip [DATA NEEDED: ...] and [VERIFY: ...] tags
     sections = stripDataNeededTags(sections);
+
+    // Safety: remove any analyst-notes sections that leaked into parsed sections
+    sections = sections.filter(s => !/analyst\s*notes?/i.test(s.title));
+
+    // Investor-safety validation: reject if memo body contains analyst language
+    const ANALYST_LANGUAGE_PATTERNS = [
+      /\btranscript\b/i, /\bcall\s*[1-9]\b/i, /\benrichment\s*data\b/i,
+      /\bmanual\s*entr/i, /\bdiscrepanc/i, /\bconflict\b/i, /\breconcile\b/i,
+      /\bunverified\b/i, /\bverified\b/i, /\bsource\s*data\b/i,
+      /\bdata\s*room\s*document/i, /\bnot\s*confirm/i, /\bnot\s*stated\b/i,
+    ];
+    const memoText = sections.map(s => s.content).join(' ');
+    const hasAnalystLanguage = ANALYST_LANGUAGE_PATTERNS.some(p => p.test(memoText));
 
     bestSections = sections;
     // Store analyst notes for the final return
