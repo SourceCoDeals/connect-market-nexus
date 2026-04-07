@@ -1719,15 +1719,9 @@ function sectionsToHtml(memo: MemoContent, memoType: string, branding: string): 
     html += `</div>`;
   }
 
-  // Memo type and date
+  // Memo type subtitle (no date, no red disclaimer)
   html += `<div style="text-align: center; margin-bottom: 24px;">`;
-  html += `<p style="font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 2px; margin: 0 0 4px 0;">${isAnonymous ? 'Anonymous Teaser' : 'Confidential Lead Memo'}</p>`;
-  html += `<p style="font-size: 13px; color: #888; margin: 0;">${dateStr}</p>`;
-  html += `</div>`;
-
-  // Confidential disclaimer
-  html += `<div style="text-align: center; padding: 8px; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; margin-bottom: 24px;">`;
-  html += `<p style="font-size: 11px; color: #cc0000; font-style: italic; margin: 0;">CONFIDENTIAL — FOR INTENDED RECIPIENT ONLY</p>`;
+  html += `<p style="font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 2px; margin: 0;">${isAnonymous ? 'Anonymous Teaser' : 'Lead Memo'}</p>`;
   html += `</div>`;
 
   // Sections as continuous document
