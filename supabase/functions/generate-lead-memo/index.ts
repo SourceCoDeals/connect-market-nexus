@@ -1324,10 +1324,19 @@ Wrap analyst notes in <analyst_notes> and </analyst_notes> tags. Include a bulle
     // Store analyst notes for the final return
     (bestSections as any).__analystNotes = analystNotesRaw;
 
-    // Run blocking validation checks (Checks 2, 3, 4)
+    // Run blocking validation checks (Checks 2, 3, 4) + investor-safety
     const validation = validateFullMemoSections(sections);
-    if (validation.passed) {
-      break; // All blocking checks passed
+    if (validation.passed && !hasAnalystLanguage) {
+      break; // All blocking checks passed and memo is investor-safe
+    }
+
+    // If only analyst language leaked, add specific retry instruction
+    if (validation.passed && hasAnalystLanguage) {
+      if (attempt < 3) {
+        retryAppendix = `Your previous output contained analyst language in the memo body (e.g., references to "transcript", "enrichment data", "not confirmed", etc.). The memo must be investor-facing with NO source references or analyst commentary. Remove all such language and regenerate.`;
+        console.warn(`Investor-safety check failed (attempt ${attempt + 1}): analyst language detected in memo body`);
+        continue;
+      }
     }
 
     // Failed validation — retry if attempts remain
