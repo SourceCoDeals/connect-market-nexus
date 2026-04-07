@@ -1,29 +1,62 @@
 
+Root cause is now clear.
 
-# Verification: All Plan Items Are Implemented Correctly
+What is actually happening:
+1. The verification link does work.
+2. Supabase verifies the email and creates a valid session for the new user.
+3. The profile sync updates `profiles.email_verified`, which is why the admin dashboard shows the user as verified.
+4. Your app then destroys that freshly-created session inside `/auth/callback`, so the callback page errors even though verification already succeeded.
+5. Manual login works afterward because it creates a brand-new session.
 
-## What the plan required vs current state
+Why I’m confident:
+- In the callback code, `src/pages/auth/callback.tsx` explicitly does `supabase.auth.signOut({ scope: 'local' })` before `setSession()` / `exchangeCodeForSession()`.
+- The auth logs show the exact sequence:
+  - `/verify` succeeds
+  - implicit login happens for `adambhaile00@gmail.com`
+  - `/user` succeeds
+  - `/logout` happens immediately after
+  - then `/user` fails with session-not-found / auth-missing
+- That means the app is logging the user out right after Supabase signs them in from the email link.
 
-| Plan Item | Status | Evidence |
-|-----------|--------|----------|
-| **Fix 1: Duplicate signup detection** | Done | `use-nuclear-auth.ts` line 312-315: checks `identities.length === 0` and throws "account already exists" error |
-| **Fix 2: Resend button handles already-verified** | Done | `SignupSuccess.tsx` line 63: toast says "try logging in"; line 73-75: detects "already verified" error; line 234-243: shows "try logging in" tip after 2+ attempts |
-| **Fix 3: Module-level token capture** | Done | `callback.tsx` lines 12-13: `CAPTURED_HASH` and `CAPTURED_SEARCH` captured at module load |
+Why previous fixes failed:
+- We focused on token-capture timing.
+- But the deeper issue is not “missing tokens first”; it is “session created, then immediately revoked by our own callback logic.”
+- So even a perfect hash capture cannot survive if the callback logs out the active session first.
 
-## Additional verification
+Plan to fix:
+1. Rewrite `src/pages/auth/callback.tsx` to be non-destructive.
+   - Remove both pre-emptive `signOut({ scope: 'local' })` calls.
+   - Never sign out inside the callback.
+2. Change callback resolution order:
+   - If hash tokens exist: call `setSession()` directly.
+   - Else if PKCE code exists: call `exchangeCodeForSession()` directly.
+   - Else: use `getSession()` instead of `getUser()` as the fallback source of truth.
+3. Add a “session already exists” success path.
+   - If token processing fails but `getSession()` already has a user, continue instead of throwing.
+   - This handles the case where Supabase already restored the session automatically before our callback code runs.
+4. Make the callback fast.
+   - Redirect to `/pending-approval` or the final destination immediately after session/profile resolution.
+   - Move verification-success emails / journey notifications to fire-and-forget after navigation so the user does not sit on a loading screen.
+5. Reduce auth noise that can interfere during first load.
+   - Update `src/hooks/use-initial-session-tracking.ts` to avoid calling `getUser()` on cold anonymous loads; use `getSession()` or a softer check first.
+   - This won’t be the main fix, but it will reduce “Auth session missing” churn during startup.
+6. Improve the fallback UX.
+   - If the verification link has already been consumed, show a friendly “Email already verified — try logging in” state instead of a raw authentication error.
 
-- **Static import confirmed**: `App.tsx` line 60 imports `AuthCallback` statically (not `React.lazy`), so `CAPTURED_HASH` captures at bundle evaluation — before Supabase can clear the hash. This is correct.
-- **Redirect URLs aligned**: `config.toml` has `https://marketplace.sourcecodeals.com/auth/callback` in `additional_redirect_urls`, and all three `emailRedirectTo` usages (signup, resend, pending-approval) use `${window.location.origin}/auth/callback`.
-- **User deleted**: `auth.users` returns no record for `adambhaile00@gmail.com` — your manual deletion worked. A fresh signup will be a genuinely new user.
-- **Auth logs stale**: The only log for this email is the old `user_repeated_signup` from before deletion. No new signup attempt has been logged since.
+Files to change:
+- `src/pages/auth/callback.tsx` — main fix
+- `src/hooks/use-initial-session-tracking.ts` — reduce startup auth races/noise
+- optionally `src/pages/SignupSuccess.tsx` — better “already verified / link already used” guidance
 
-## What to do now
+Expected result after this fix:
+- Clicking the email link verifies the user
+- The callback keeps the new session alive instead of revoking it
+- The user is redirected straight to the pending-approval screen
+- Admin still shows verified
+- Logging in later also continues to work
+- Callback becomes much faster because it no longer waits on extra work before redirecting
 
-**Everything from the plan is implemented.** Since you deleted the user, the next signup for `adambhaile00@gmail.com` will be a fresh account — Supabase will send the confirmation email, and the duplicate detection won't trigger.
+Technical note:
+The admin “verified” badge is not the bug. It is correct. The real bug is frontend callback session handling after verification, not verification itself.
 
-**To test**: Sign up with `adambhaile00@gmail.com` from the published app (`marketplace.sourcecodeals.com`), check for the confirmation email, click the link, and verify the callback redirects correctly to `/pending-approval`.
-
-## One non-blocking observation
-
-The callback (lines 97-122) sends a "verification success" email and a "user-journey-notifications" email on **every** callback visit where `email_confirmed_at` is set — not just on the first verification. This means password resets or repeat visits to `/auth/callback` could trigger duplicate emails. This is cosmetic and non-blocking, but could be improved later by tracking whether the verification email was already sent (e.g., via a profile flag or checking `email_send_log`).
-
+No database migration is needed for this fix.
