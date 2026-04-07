@@ -117,6 +117,7 @@ export interface PortalDealPush {
   response_due_by: string | null;
   reminder_count: number;
   last_reminder_at: string | null;
+  data_room_access_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -212,6 +213,7 @@ export interface PushDealToPortalInput {
   push_note?: string;
   priority?: PortalDealPriority;
   response_due_by?: string | null;
+  data_room_access_token?: string;
 }
 
 export interface SubmitDealResponseInput {

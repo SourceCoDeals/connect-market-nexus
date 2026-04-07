@@ -23,6 +23,7 @@ import {
 import { useMyPortalUser } from '@/hooks/portal/use-portal-users';
 import { usePortalDealPush, usePortalDealResponses, useSubmitDealResponse, useMarkDealViewed } from '@/hooks/portal/use-portal-deals';
 import { PushStatusBadge, PriorityBadge } from '@/components/portal/PortalStatusBadge';
+import { PortalDealChat } from '@/components/portal/PortalDealChat';
 import type { PortalResponseType } from '@/types/portal';
 
 function formatCurrency(value: number | null | undefined): string {
@@ -180,6 +181,29 @@ export default function PortalDealDetail() {
               </Card>
             )}
 
+            {/* Data room link */}
+            {push.data_room_access_token && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Documents</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <a
+                    href={`/dataroom/${push.data_room_access_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline font-medium"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    View Data Room
+                  </a>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Access deal documents, CIM, and financials.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Push note */}
             {push.push_note && (
               <Card>
@@ -219,6 +243,16 @@ export default function PortalDealDetail() {
                   })}
                 </CardContent>
               </Card>
+            )}
+
+            {/* Deal messaging */}
+            {portalUser && (
+              <PortalDealChat
+                pushId={push.id}
+                portalOrgId={portalUser.portal_org.id}
+                senderType="portal_user"
+                senderName={portalUser.name}
+              />
             )}
 
             {/* Response history */}

@@ -195,6 +195,7 @@ export function usePushDealToPortal() {
           push_note: input.push_note || null,
           priority: input.priority || 'standard',
           response_due_by: input.response_due_by || null,
+          data_room_access_token: input.data_room_access_token || null,
           deal_snapshot: snapshot,
         })
         .select()
@@ -211,6 +212,17 @@ export function usePushDealToPortal() {
         push_id: data.id,
         metadata: { listing_id: input.listing_id, headline: snapshot.headline, priority: input.priority, actor_name: user.email },
       });
+
+      // Send notifications to portal users (fire-and-forget)
+      supabase.functions.invoke('send-portal-notification', {
+        body: {
+          portal_org_id: input.portal_org_id,
+          push_id: data.id,
+          deal_headline: snapshot.headline,
+          priority: input.priority || 'standard',
+          push_note: input.push_note,
+        },
+      }).catch((err) => console.warn('Portal notification error:', err));
 
       return data;
     },
