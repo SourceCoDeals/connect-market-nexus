@@ -351,6 +351,13 @@ const AdminDashboard = () => {
             <ReMarketingDashboardContent />
           </Suspense>
         )}
+
+        {/* Operations hub content */}
+        {activeDashboard === 'operations' && (
+          <Suspense fallback={<TabFallback />}>
+            <OperationsHub />
+          </Suspense>
+        )}
       </div>
 
       <PermissionsModal open={isPermissionsModalOpen} onOpenChange={setIsPermissionsModalOpen} />
