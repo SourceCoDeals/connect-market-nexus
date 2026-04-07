@@ -1,65 +1,70 @@
 
 
-# Fix Remaining Memo Quality Issues
+# Fix Remaining Memo Quality Issues (Round 4)
 
-## Problems Found
+## Problems Found (verified against all data sources)
 
-### 1. Omission language still leaking
-The bullet "Offices are located in Sebring and South Daytona, FL; **owned vs. leased status has not been established**" survived post-processing because `has not been established` isn't in the OMISSION_PATTERNS list (line 801 only covers stated/provided/confirmed/discussed).
+### Still broken from previous rounds
 
-### 2. Third-party context presented as company initiative
-The bullet "The company has been in discussions regarding integration into a broader roofing platform with centralized back-office support while maintaining operational independence" describes the Latite Roofing / Sun Capital conversation — not a SourceCo deal or the company's own strategy. This is misleading for investors who would assume it's the seller's stated plan.
+**1. Post-processing only filters bullet lines** — Root cause of two persistent issues:
+- "owned vs. leased status has not been established" survives because it's a plain line, not a bullet (`- ` prefix)
+- "integration into a broader roofing platform with centralized back-office support" survives for the same reason
+- Line 829: `if (!/^[-*•]\s/.test(trimmed)) return true;` skips ALL non-bullet content
 
-### 3. Missing high-value data points
-The database has information that would make the memo stronger but isn't surfacing:
-- **Google Reviews**: 4.7 rating, 46 reviews — strong social proof for a local services business
-- **Certified business valuation**: `general_notes` says "Owner Austin Hedrick already has business valuation done by certified appraiser, Documents ready to go" — material for investors
-- **Growth drivers**: Geographic expansion within FL, increase commercial contracts, Directorii partnership
-- **Google Maps listing**: Confirmed and active
+**2. Claude ignoring prompt instructions** despite correct data in context:
+- Google rating (4.7, 46 reviews) — in enrichment context but not in memo
+- EBITDA margin (10.4%) — prompt says to include, not shown
+- Certified business valuation — `general_notes` says "business valuation done by certified appraiser, Documents ready to go" — prompt says to include, not shown
+- Growth drivers (geographic expansion, commercial contracts, Directorii) — in context, not in memo
 
-### 4. EBITDA margin not shown
-The EBITDA margin (10.8%) is in the database but not in the Financial Snapshot. For an investor, showing the margin alongside the absolute figure is standard.
+### Analyst notes quality: GOOD
+The analyst notes are comprehensive, accurate, and properly separated. No changes needed there.
+
+### What's correct in the memo
+- Revenue $6.25M — correct, matches enrichment + Call 3
+- EBITDA $650K — correctly sourced from enrichment (analyst notes properly flag as unverified)
+- Employee count 25 — correct per priority rules
+- Customer geography — correct
+- Directorii partnership — correct
+- Transition plan (Tim and Tracy, 6 months) — correct
+- Two locations (Sebring, South Daytona) — correct
+- Founded 1999 — correct per enrichment
 
 ## Changes
 
 ### File: `supabase/functions/generate-lead-memo/index.ts`
 
-**1. Expand OMISSION_PATTERNS** (line 801)
-Add `established` to the `has not been` pattern:
-```
-/\bhas\s*not\s*been\s*(stated|provided|confirmed|discussed|established|specified|disclosed|determined)\b/i
-```
+**1. Expand `stripOmissionLanguage` to process ALL lines, not just bullets** (~line 826-836)
 
-**2. Strip omission fragments from non-bullet lines too**
-Currently only bullet lines are filtered (line 816). But omission language also appears in semicolon-joined phrases within bullets. Add logic: if a bullet contains a semicolon and one half matches an omission pattern, keep only the factual half.
+Change the filter logic: instead of skipping non-bullet lines, apply omission and source-contrast checks to ALL lines. The "has factual data" exception (dollar amounts, percentages) still applies to prevent stripping lines like "Revenue: $6,250,000".
 
-**3. Add `general_notes` and `google_rating`/`google_review_count` to `buildDataContext`**
-These fields are already fetched (select *) but not included in the enrichment fields list that gets formatted into the prompt context. Add:
-- `general_notes` (contains valuation info, deal readiness)
-- `google_rating` + `google_review_count` (social proof)
-- `growth_drivers` (array)
+For non-bullet lines: if the entire line matches an omission or source-contrast pattern and contains no factual data, strip it. For semicolon-joined content (bullet or not), strip only the offending fragment.
 
-**4. Update prompt to use new fields**
-- **Company Overview**: "If Google reviews are available (rating, count), include as a reputation indicator."
-- **Financial Snapshot**: "Include EBITDA margin if available."
-- **Ownership & Transaction**: "If general notes mention a completed business valuation, state it as a fact (e.g., 'A certified business valuation has been completed')."
-- **Third-party context rule** (new): "Do not describe third-party acquisition platforms, competing buyers, or external deal discussions. The memo should only reflect the seller's business and their willingness to transact — not the strategies of other acquirers."
+**2. Strengthen prompt with more forceful language for underused fields**
 
-**5. Add third-party context patterns to strip logic**
-Add to SOURCE_CONTRAST_PATTERNS:
-```
-/\bbroader.*platform\b/i
-/\bintegrat(e|ion|ing)\s*into\b/i
-/\bback-office\s*(support|integration)\b/i
-```
-These phrases originate from the Latite Roofing meeting context and should not appear in the investor memo.
+Claude is ignoring soft instructions like "When available, include..." — change to mandatory-style:
+- "You MUST include google_rating and google_review_count in the Company Overview if they appear in the data context."
+- "You MUST include EBITDA Margin as a line in the Financial Snapshot when EBITDA and Revenue are both present. Calculate it: (EBITDA / Revenue) * 100."
+- "You MUST check general_notes for mentions of a completed business valuation or appraisal and include it in Ownership and Transaction."
+- "You MUST include growth_drivers as bullet points in a relevant section (Company Overview or Services and Operations) when present."
+
+**3. Add explicit EBITDA margin calculation instruction**
+
+Don't rely on a separate `ebitda_margin` field — tell Claude to calculate it from EBITDA/Revenue when both are present. This guarantees it appears.
+
+**4. Expand third-party context patterns**
+
+Add patterns for phrases that appear without bullet markers:
+- `/\bdiscussions?\s*regarding\s*integration\b/i`
+- `/\bcompeting\s*buyers?\b/i`
+- `/\bacquisition\s*platform\b/i`
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `supabase/functions/generate-lead-memo/index.ts` | Expand omission patterns; handle semicolon-split bullets; add general_notes/google/growth_drivers to context; add third-party platform stripping; update prompt for EBITDA margin and valuation |
+| `supabase/functions/generate-lead-memo/index.ts` | Remove bullet-only restriction in `stripOmissionLanguage`; strengthen prompt to MUST-include for google rating, EBITDA margin, valuation, growth drivers; add EBITDA margin calculation instruction; expand third-party patterns |
 
 ## Post-Change
-Redeploy edge function. Regenerate Quality Roofing memo to verify all five issues are resolved.
+Redeploy edge function. Regenerate Quality Roofing memo to verify: (1) no omission language on any line, (2) no third-party platform language, (3) Google 4.7-star rating present, (4) EBITDA margin shown, (5) certified valuation mentioned, (6) growth drivers included.
 
