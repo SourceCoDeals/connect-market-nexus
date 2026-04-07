@@ -1,107 +1,92 @@
 
 
-# Improve Lead Memo Generation: More Data Sources + Better Copy Quality
+# Memo Quality Issues + Teaser Gap
 
-## Problem
+## Assessment of the Generated Memo
 
-The memo for Quality Roofing & Sheet Metal is thin (2 pages, sparse bullet points) despite the database containing significantly more information that isn't being fed to the AI. Specifically:
+The data expansion worked — the memo now includes customer geography, Directorii partnership, real estate, transition plan, and Tim/Tracy details. The analyst notes are comprehensive and properly separated. However, several quality issues remain in the memo body:
 
-1. **Missing data sources in `buildDataContext`**: 13+ populated fields on this deal are never passed to Claude:
-   - `financial_notes` — contains revenue/projection context and EBITDA absence note
-   - `financial_followup_questions` — 5 specific questions that inform what's unverified
-   - `key_quotes` — owner quotes for direct attribution
-   - `scoring_notes` — scoring context
-   - `competitive_position` — competitive intel about the business
-   - `end_market_description` — market dynamics
-   - `growth_trajectory` — growth data with revenue projections
-   - `customer_types` — customer segments
-   - `customer_geography` — geographic reach (Central Florida, Highlands to Volusia County)
-   - `real_estate_info` — office locations (Sebring and South Daytona)
-   - `technology_systems` — centralized system details
-   - `revenue_source_quote` / `ebitda_source_quote` — direct quotes supporting financials
-   - `special_requirements` — transition plan details (Tim and Tracy training)
-   - `transition_preferences` — structured handover info
+### Issues Found in the Memo Body
 
-2. **Analyst notes reveal the memo quality issue**: The analyst notes correctly flag that the generated memo is thin — no customer info, no geographic detail, no management depth, no financial follow-up context. All of this data EXISTS in the database but was never passed to the AI.
+1. **"not on file" language leaked into the memo** — violates the prompt's Rule 2 ("OMIT, DON'T APOLOGIZE"):
+   - "owned vs. leased status and lease terms are not on file" (OWNERSHIP AND TRANSACTION)
+   - "entity structure across locations is not on file" (KEY STRUCTURAL NOTES)
+   - "Real estate ownership structure (owned vs. leased) for both offices is not on file" (KEY STRUCTURAL NOTES)
+   - "No valuation expectation or asking price has been stated" (KEY STRUCTURAL NOTES)
+   - "Day-to-day operational role of the owner and depth of management below Tim and Tracy are not on file" (MANAGEMENT AND STAFFING)
 
-3. **The prompt doesn't instruct Claude to use these richer fields for depth**: Even fields already passed (like `competitive_position`, `growth_trajectory`) aren't being leveraged because the prompt's section structure is too rigid for thin deals.
+2. **Source conflict commentary leaked into memo body** — violates the conflict rules:
+   - "LinkedIn-reported employee count: 15; full-time headcount per internal data: 25" (SERVICES AND OPERATIONS) — This is analyst-level commentary. The memo should just state "25" and move on.
+
+3. **Seller motivation accuracy concern**: The memo states "Austin Hedrick is ready to sell immediately" — this comes from `seller_motivation` (source: `notes`, priority 80). But Call 1 transcript shows Austin denied prior contact with SourceCo and was non-committal. Call 3 was a third-party meeting with Latite Roofing, not a SourceCo engagement. The "ready to sell immediately" characterization is analyst inference, not a confirmed owner statement.
+
+4. **"considered for partnership to resolve conflicts and enhance growth"** — This is language from the Call 3 summary (Latite Roofing meeting), attributed to Austin in the memo as if he said it to SourceCo. Context is missing.
+
+### Root Cause
+
+The prompt says "OMIT, DON'T APOLOGIZE" but Claude still generates "not on file" language. The post-processing validation catches `/\bnot\s*stated\b/i` and `/\bnot\s*confirm/i` but does NOT catch:
+- "not on file"
+- "not available"  
+- "unknown"
+- "not discussed"
+- "not provided" (partially caught)
+- Source conflict descriptions like "LinkedIn reports X; internal data shows Y"
+
+### Teaser Coverage
+
+The anonymous teaser already benefits from the expanded `buildDataContext` (same function feeds both memo types). The teaser prompt itself is solid — it has the same OMIT/DON'T APOLOGIZE rule and similar quality standards. No changes needed for the teaser prompt specifically.
 
 ## Changes
 
 ### File: `supabase/functions/generate-lead-memo/index.ts`
 
-**1. Expand `buildDataContext` enrichment and manual fields** (~lines 436-488)
+**1. Expand the post-processing validation patterns** (~line 1343-1348)
 
-Add these to `enrichmentFields` (already queried via `select('*')`):
-- `financial_notes`
-- `financial_followup_questions`
-- `key_quotes`
-- `scoring_notes`
-- `competitive_position` (already there)
-- `end_market_description`
-- `growth_trajectory`
-- `customer_types`
-- `customer_geography`
-- `real_estate_info`
-- `technology_systems`
-- `revenue_source_quote`
-- `ebitda_source_quote`
+Add these patterns to `ANALYST_LANGUAGE_PATTERNS`:
+- `/\bnot\s*on\s*file\b/i`
+- `/\bnot\s*available\b/i`
+- `/\bnot\s*discussed\b/i`
+- `/\bnot\s*provided\b/i`
+- `/\bis\s*unclear\b/i`
+- `/\bis\s*unknown\b/i`
+- `/\bLinkedIn[\s-]*reported\b/i` (catches source attribution)
+- `/\bper\s*(internal|enrichment|manual)\s*data\b/i`
+- `/\binternal\s*data\b/i`
 
-Add these to `manualFields`:
-- `special_requirements`
-- `transition_preferences`
-- `timeline_preference`
+**2. Add a post-processing strip step for "not on file" bullets**
 
-**2. Improve the full memo system prompt** (~lines 1141-1201)
+After `enforceBannedWords` and `stripDataNeededTags`, add a new post-processing function `stripOmissionLanguage` that:
+- Removes entire bullet lines where the primary content is an apology for missing data (e.g., lines matching "not on file", "not available", "is unknown", "is unclear", "are unknown")
+- Removes source-conflict commentary lines (e.g., "LinkedIn-reported... internal data...")
+- Does NOT remove lines where "not" appears in a factual context (e.g., "Owner has not pursued commercial contracts")
 
-Enhance the section definitions to instruct Claude to use available data more thoroughly:
+Heuristic: if a bullet line contains a "not on file/available/discussed/provided" phrase AND does not contain a dollar amount or percentage, strip it.
 
-- **COMPANY OVERVIEW**: Instruct to include customer geography, competitive positioning, and end market context when available
-- **FINANCIAL SNAPSHOT**: Instruct to include revenue source quotes, financial notes context, and any projection figures (labeled as projections)
-- **SERVICES AND OPERATIONS**: Instruct to include service mix breakdown, customer types, technology systems, and end market dynamics when available
-- **OWNERSHIP AND TRANSACTION**: Instruct to include transition preferences, special requirements, timeline, and real estate when available
-- **MANAGEMENT AND STAFFING**: Instruct to include named key personnel from transition plans
-- **KEY STRUCTURAL NOTES**: Instruct to include real estate details, technology platform context
+**3. Strengthen the prompt's OMIT rule** (~line 1169)
 
-Also add a data density instruction: "When rich data is available across multiple sources, use it. A deal with competitive positioning, customer geography, financial notes, key quotes, and transition plans should produce a 900-1200 word memo — not a 300 word skeleton."
-
-**3. Feed `key_quotes` and `financial_followup_questions` as structured context**
-
-These are arrays. Format them as labeled blocks in the data context:
+Change Rule 2 from:
 ```
---- KEY QUOTES (owner statements) ---
-"Austin's roofing and metal supply businesses, generating $6.25 million..."
-
---- FINANCIAL FOLLOW-UP QUESTIONS (known gaps) ---
-- What is the current EBITDA and historical EBITDA trend?
-- What are the key assumptions behind the projected $11.5M revenue?
+OMIT, DON'T APOLOGIZE: When data is missing, leave it out. Never write "not provided", "not stated", "not confirmed", "not discussed", or any variation.
+```
+To:
+```
+OMIT, DON'T APOLOGIZE: When data is missing, leave it out entirely. Never write "not provided", "not stated", "not confirmed", "not discussed", "not on file", "not available", "is unknown", "is unclear", or any variation. If a bullet point would only say that something is missing, do not include that bullet point. Do not contrast data sources (e.g., "LinkedIn reports X; internal data shows Y") — pick the highest-priority figure and state it alone.
 ```
 
-The financial follow-up questions feed the analyst notes (gaps to flag), while key quotes feed the memo body (attributable facts).
+**4. Add source-contrast rule to conflict instructions** (~line 1182)
 
-**4. Improve analyst notes prompt to use `financial_followup_questions`**
-
-The analyst notes block instruction should explicitly tell Claude to incorporate the financial follow-up questions as known data gaps, since they represent what's already been identified as missing.
-
-## What This Fixes for Quality Roofing
-
-With these changes, the regenerated memo would include:
-- Customer geography (Central Florida, Highlands to Volusia County)
-- Competitive positioning (Directorii partnership, trusted local choice)
-- Real estate (offices in Sebring and South Daytona)
-- End market context (roofing consolidation market)
-- Transition plan details (6-month training for Tim and Tracy)
-- Financial context (revenue source quote, projection context)
-- Owner quotes from `key_quotes` array
-- Analyst notes would flag all 5 financial follow-up questions as known gaps
+Add after "Do not qualify the figure":
+```
+Do not mention the names of data sources (LinkedIn, enrichment, internal data, manual entry) in the memo body. Present the chosen figure as a simple fact.
+```
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `supabase/functions/generate-lead-memo/index.ts` | Expand `buildDataContext` fields; enhance prompt section instructions; format arrays as structured context blocks |
+| `supabase/functions/generate-lead-memo/index.ts` | Strengthen OMIT rule in prompt; expand validation patterns; add `stripOmissionLanguage` post-processing; add source-name ban to conflict rules |
 
 ## Post-Change
 
-Edge function `generate-lead-memo` must be redeployed. Then regenerate the Quality Roofing memo to verify improvement.
+Redeploy `generate-lead-memo` edge function, then regenerate the Quality Roofing memo to verify improvement.
 
