@@ -46,7 +46,6 @@ import {
 import { SendMemoDialog } from './SendMemoDialog';
 import { ManualLogDialog } from './ManualLogDialog';
 import { buildMemoPdfHtml, openPrintWindow } from '@/lib/memo-pdf-template';
-import { buildMemoPdfHtml, openPrintWindow } from '@/lib/memo-pdf-template';
 
 interface MemosPanelProps {
   dealId: string;
