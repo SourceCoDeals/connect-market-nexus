@@ -60,7 +60,7 @@ export function usePortalDealPushes(portalOrgId: string | undefined) {
 export function useMyPortalDeals(portalOrgId: string | undefined) {
   return useQuery({
     queryKey: ['my-portal-deals', portalOrgId],
-    queryFn: async (): Promise<PortalDealPushWithDetails[]> => {
+    queryFn: async (): Promise<PortalDealPush[]> => {
       if (!portalOrgId) return [];
       const { data, error } = await untypedFrom('portal_deal_pushes')
         .select('*')
@@ -69,7 +69,7 @@ export function useMyPortalDeals(portalOrgId: string | undefined) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as PortalDealPushWithDetails[];
+      return (data || []) as PortalDealPush[];
     },
     enabled: !!portalOrgId,
   });
@@ -470,16 +470,17 @@ export function useConvertToPipelineDeal() {
 
         if (crError) throw crError;
         connectionRequestId = newCr.id;
+      }
 
-        // Call the RPC to create the pipeline deal from the connection request
-        const { data: dealId, error: rpcError } = await supabase.rpc(
-          'create_pipeline_deal',
-          { p_connection_request_id: connectionRequestId },
-        );
+      // Always call the RPC to ensure pipeline deal exists
+      const { error: rpcError } = await supabase.rpc(
+        'create_pipeline_deal',
+        { p_connection_request_id: connectionRequestId },
+      );
 
-        if (rpcError) {
-          console.warn('create_pipeline_deal RPC error (trigger may handle it):', rpcError.message);
-        }
+      if (rpcError) {
+        // RPC may error if deal already exists — that's okay, log and continue
+        console.warn('create_pipeline_deal RPC:', rpcError.message);
       }
 
       // Update portal push status to under_nda
