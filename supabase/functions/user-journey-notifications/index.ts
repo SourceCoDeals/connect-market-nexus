@@ -71,8 +71,7 @@ function buildEmailVerifiedHtml(userName: string): string {
   <p style="font-weight: 600; margin: 24px 0 8px 0;">What happens next</p>
   <ol style="padding-left: 20px; line-height: 1.8;">
     <li>Our team reviews and approves your profile.</li>
-    <li>You sign two documents: an NDA and a Fee Agreement. Both are standard, sent to your email, 60 seconds each.</li>
-    <li>Full access to the deal pipeline: confidential details, financials, and direct introductions to founders.</li>
+    <li>To receive deal materials and request introductions, you sign a Fee Agreement. It is success-only and takes about 60 seconds.</li>
   </ol>
   <p>Nothing for you to do right now. We will email you the moment you are cleared.</p>
   <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,

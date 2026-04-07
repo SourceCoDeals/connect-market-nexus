@@ -423,7 +423,7 @@ const EMAIL_CATALOG: CatalogCategory[] = [
         edgeFunction: 'user-journey-notifications',
         variant: 'event_type: profile_approved',
         designNotes: 'Branded wrapper, approval confirmation, CTA to browse marketplace',
-        previewHtml: `${wrapperStart}<p>Your account has been approved. You now have full access to the SourceCo marketplace.</p>${ctaBtn('Browse Marketplace')}${signoff}${wrapperEnd}`,
+        previewHtml: `${wrapperStart}<p>Your account has been approved. You can now browse deals and request connections on the SourceCo marketplace.</p>${ctaBtn('Browse Marketplace')}${signoff}${wrapperEnd}`,
       },
       {
         name: 'Journey: Admin New User',

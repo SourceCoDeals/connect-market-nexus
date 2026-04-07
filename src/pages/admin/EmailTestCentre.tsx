@@ -118,7 +118,7 @@ const EMAILS: EmailDef[] = [
     triggerDetail:
       'Fires when an admin clicks Approve on a buyer application and the buyer has not yet signed their NDA. Sent by send-templated-approval-email with ndaSigned=false. This is the most common approval path — most buyers have not signed the NDA before approval.',
     file: 'supabase/functions/send-templated-approval-email/index.ts',
-    subject: 'Welcome to SourceCo — Your account is approved',
+    subject: 'Welcome to SourceCo - Your account is approved',
     preheader: 'Your account is approved. Browse off-market acquisition opportunities now.',
     bodyHtml: `<div style="font-family:sans-serif;max-width:520px;color:#333;line-height:1.6;padding:20px">
 <p>Hi [First Name],</p>
