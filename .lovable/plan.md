@@ -1,47 +1,43 @@
 
-Fix analyst notes leak + broken preview
 
-What I found
-- In `supabase/functions/generate-lead-memo/index.ts`, the prompt still contradicts the goal. It says to keep conflict notes out of the memo, but it also says “If figures don't reconcile... include both and flag it,” which invites discrepancy language into the investor-facing memo.
-- The memo is still framed as an internal analyst memo, not a clean investor-shareable document, so the model is being pushed in the wrong direction.
-- Parsing is brittle: only the exact `---ANALYST-NOTES---` delimiter is extracted. If Claude outputs a variant like `## Analyst Notes`, those notes stay in the memo body.
-- The code can still save a “best attempt” after failed validation, so analyst-style content can slip through.
-- In `MemosTab.tsx`, the notes are rendered inside the same memo flow at the bottom of the scroll area, so they feel like part of the memo. The current collapsible UX is weak, and the chevron/open-state behavior is not implemented correctly.
+# Move Analyst Notes Outside Preview Modal into Collapsible Dropdown
 
-Implementation
-1. Harden the generation contract in `supabase/functions/generate-lead-memo/index.ts`
-   - Rewrite the full memo prompt so it is explicitly investor-shareable.
-   - Remove every instruction that tells the model to “flag” or explain conflicts inside the memo.
-   - Require two explicit output blocks, e.g. `<memo>...</memo>` and `<analyst_notes>...</analyst_notes>`, instead of relying on one delimiter only.
+## Problem
 
-2. Make extraction robust
-   - Add a helper that extracts analyst notes from:
-     - the new tagged blocks,
-     - the current `---ANALYST-NOTES---` delimiter,
-     - fallback headings like `## ANALYST NOTES`.
-   - If an analyst-notes block or heading appears in parsed sections, move it out before saving.
+Analyst notes are currently rendered inside the `DraftPreview` component (lines 950-968), which appears inside the preview modal. This makes them feel like part of the investor-facing memo. The user wants them placed outside the modal, directly in the main memo card UI as a collapsible dropdown that auto-opens once after generation.
 
-3. Add investor-safety validation
-   - Reject and retry outputs when the memo body contains analyst-language patterns such as source comparisons, “Call 1,” “transcript,” “enrichment,” “manual entry,” “conflict,” “discrepancy,” “verified,” “unverified,” or “reconcile.”
-   - Reject any leftover analyst-notes headers inside memo sections.
-   - If retries still fail, return an error instead of saving an investor-unsafe memo.
+## Changes
 
-4. Fix the preview layout in `src/components/admin/data-room/MemosTab.tsx`
-   - Stop rendering analyst notes inside the memo document.
-   - Keep the memo preview as one clean document block.
-   - Render a separate admin-only panel below it: “Internal Analyst Notes — Not included in PDF/DOCX.”
-   - Remove the collapsible for this panel so it is always visible, clearly separate, and impossible to confuse with investor copy.
+### File: `src/components/admin/data-room/MemosTab.tsx`
 
-5. QA
-   - Regenerate a memo using a deal with conflicting figures.
-   - Confirm the memo body uses only the chosen final figures with no discrepancy language.
-   - Confirm analyst notes appear only in the separate internal panel.
-   - Confirm PDF and DOCX contain no analyst notes, source citations, or conflict wording.
+**1. Remove analyst notes from `DraftPreview`** (lines 950-968)
+Delete the entire `{(() => { ... })()}` block that renders the amber analyst notes panel inside the preview.
 
-Files
-- `supabase/functions/generate-lead-memo/index.ts`
-- `src/components/admin/data-room/MemosTab.tsx`
+**2. Add collapsible analyst notes dropdown in `MemoSlot`** (after line 642, right after the draft action buttons div closes)
+- Import `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` from `@/components/ui/collapsible`
+- Import `ChevronDown` from lucide
+- Add state: `const [notesOpen, setNotesOpen] = useState(false)` and a ref `const prevDraftId = useRef<string | null>(null)` to track when a new draft arrives
+- Add a `useEffect` that detects when `draft?.id` changes (new generation), auto-opens the collapsible once, then records the id so it doesn't re-open on subsequent renders
+- Render a `<Collapsible>` block between the draft buttons (line 642) and the `<Separator />` (line 667):
 
-Technical note
-- No schema migration is needed; `analyst_notes` can remain in the existing JSON content field.
-- The real fix must happen before `sections` are saved. If analyst notes remain inside `sections`, they will still appear in preview and exports.
+```text
++------------------------------------------+
+| [▼ Analyst Notes]     (collapsible trigger)
+|   For internal review only               |
+|   - Headcount conflict: ...              |
+|   - Revenue figure: ...                  |
++------------------------------------------+
+```
+
+- Trigger: small button-like row with `ChevronDown` (rotates on open), amber icon, "Analyst Notes" label, and a subtle "internal only" badge
+- Content: the same amber-bordered panel content that was previously in `DraftPreview`, but now outside the modal
+- Only renders when `draft?.content?.analyst_notes` exists and is non-empty
+
+**3. Auto-open behavior**
+- `useEffect` watches `draft?.id`: when it changes to a new value (memo just generated), set `notesOpen = true`
+- On subsequent visits or re-renders with the same draft, it stays in whatever state the admin left it
+
+## No other files change
+
+The preview modal stays clean (investor-ready document only). PDF and DOCX exports are unaffected since they only use the `sections` array.
+
