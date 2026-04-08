@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { FileText, CheckCircle, XCircle, HelpCircle, Clock, Users, Eye } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, HelpCircle, Clock, Users } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useMyPortalUser } from '@/hooks/portal/use-portal-users';
@@ -27,7 +27,7 @@ export default function PortalDashboard() {
     statusCounts[d.status] = (statusCounts[d.status] || 0) + 1;
   });
 
-  const reviewing = statusCounts['reviewing'] || 0;
+  
   const pending = statusCounts['pending_review'] || 0;
   const interested = statusCounts['interested'] || 0;
   const passed = statusCounts['passed'] || 0;

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
+
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -23,7 +23,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, Send, FileText } from 'lucide-react';
 import { usePortalOrganizations } from '@/hooks/portal/use-portal-organizations';
 import { usePushDealToPortal, useCheckDuplicatePush } from '@/hooks/portal/use-portal-deals';
-import { OrgStatusBadge } from '@/components/portal/PortalStatusBadge';
+
 import type { PortalDealPriority } from '@/types/portal';
 
 interface PushToPortalDialogProps {
