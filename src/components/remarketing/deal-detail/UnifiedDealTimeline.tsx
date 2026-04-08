@@ -278,7 +278,7 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
   const { data: emailHistory = [], isLoading: loadingEmails } = useQuery({
     queryKey: ['unified-timeline-emails', listingId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('contact_email_history')
         .select('*')
         .eq('listing_id', listingId)
