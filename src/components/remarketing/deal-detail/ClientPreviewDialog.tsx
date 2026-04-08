@@ -24,7 +24,7 @@ import { stateToRegion } from '@/lib/deal-to-listing-anonymizer';
 import { getListingImage } from '@/lib/listing-image-utils';
 import { CategoryLocationBadges } from '@/components/shared/CategoryLocationBadges';
 import ListingStatusTag from '@/components/listing/ListingStatusTag';
-import { untypedFrom } from '@/integrations/supabase/untyped-from';
+import { untypedFrom } from '@/integrations/supabase/client';
 
 interface ClientPreviewDialogProps {
   listingId: string;
@@ -145,7 +145,7 @@ export function ClientPreviewDialog({ listingId, open, onOpenChange }: ClientPre
             <Skeleton className="h-32 w-full" />
           </div>
         ) : tab === 'portal' ? (
-          <PortalPreview push={portalPush} />
+          <PortalPreview push={portalPush ?? null} />
         ) : (
           <MarketplacePreview listing={listing} />
         )}
@@ -193,14 +193,14 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
             <Badge variant="outline" className="text-xs">
               {String(push.status || 'sent')}
             </Badge>
-            {push.priority && (
+            {push.priority ? (
               <Badge
                 variant={push.priority === 'high' ? 'destructive' : 'secondary'}
                 className="text-xs"
               >
                 {String(push.priority)} priority
               </Badge>
-            )}
+            ) : null}
             <span className="text-sm text-muted-foreground">
               Shared {new Date(String(push.created_at)).toLocaleDateString()}
             </span>
@@ -217,7 +217,7 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  {snapshot.industry && (
+                  {snapshot.industry ? (
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -225,8 +225,8 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                         <p className="font-medium text-sm">{String(snapshot.industry)}</p>
                       </div>
                     </div>
-                  )}
-                  {snapshot.geography && (
+                  ) : null}
+                  {snapshot.geography ? (
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -234,8 +234,8 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                         <p className="font-medium text-sm">{String(snapshot.geography)}</p>
                       </div>
                     </div>
-                  )}
-                  {snapshot.ebitda != null && (
+                  ) : null}
+                  {snapshot.ebitda != null ? (
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -243,8 +243,8 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                         <p className="font-medium text-sm">{fmtCurrency(snapshot.ebitda)}</p>
                       </div>
                     </div>
-                  )}
-                  {snapshot.revenue != null && (
+                  ) : null}
+                  {snapshot.revenue != null ? (
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -252,13 +252,13 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                         <p className="font-medium text-sm">{fmtCurrency(snapshot.revenue)}</p>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
 
             {/* Business description */}
-            {snapshot.business_description && (
+            {Boolean(snapshot.business_description) ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Business Overview</CardTitle>
@@ -269,10 +269,10 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                   </p>
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
             {/* Push note */}
-            {push.push_note && (
+            {push.push_note ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Note from SourceCo</CardTitle>
@@ -283,10 +283,10 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                   </p>
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
             {/* Data room */}
-            {push.data_room_access_token && (
+            {push.data_room_access_token ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Documents</CardTitle>
@@ -301,7 +301,7 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                   </p>
                 </CardContent>
               </Card>
-            )}
+            ) : null}
           </div>
 
           {/* Sidebar — response buttons (preview only) */}
