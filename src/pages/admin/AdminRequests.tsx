@@ -9,7 +9,6 @@ import { AdminConnectionRequest } from '@/types/admin';
 import ConnectionRequestsTable from '@/components/admin/ConnectionRequestsTable';
 import { ConnectionRequestDialog } from '@/components/admin/ConnectionRequestDialog';
 import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
-import { PipelineMetricsCard } from '@/components/admin/PipelineMetricsCard';
 import { PipelineFilters } from '@/components/admin/PipelineFilters';
 import {
   usePipelineFilters,
@@ -413,12 +412,10 @@ const AdminRequests = () => {
           </TabsList>
 
           <TabsContent value="connection-requests" className="space-y-6">
-            {/* Pipeline Metrics */}
-            <PipelineMetricsCard requests={requests} />
-
-            {/* Pipeline Filters (includes search and sort) */}
+            {/* Consolidated Filter Bar */}
             <PipelineFilters
               requests={requests}
+              filteredCount={filteredRequests.length}
               statusFilter={statusFilter}
               buyerTypeFilter={buyerTypeFilter}
               ndaFilter={ndaFilter}
@@ -433,89 +430,21 @@ const AdminRequests = () => {
               onDateRangeFilterChange={setDateRangeFilter}
               onSortChange={(sort) => setSortOption(sort)}
               onSearchChange={setSearchQuery}
+              listingFilter={
+                <ListingFilterSelect
+                  requests={requests}
+                  selectedListingId={selectedListingId}
+                  onListingChange={setSelectedListingId}
+                />
+              }
+              viewSwitcher={
+                selectedListingId ? (
+                  <ViewSwitcher viewMode={viewMode} onViewChange={setViewMode} />
+                ) : undefined
+              }
             />
 
-            {/* Listing Filter and View Switcher */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <ListingFilterSelect
-                requests={requests}
-                selectedListingId={selectedListingId}
-                onListingChange={setSelectedListingId}
-              />
-              {selectedListingId && <ViewSwitcher viewMode={viewMode} onViewChange={setViewMode} />}
-            </div>
-
-            {/* Result Summary */}
-            <div className="flex gap-3 flex-wrap">
-              <Badge variant="secondary" className="text-xs font-medium px-3 py-1.5">
-                Showing: <span className="font-semibold ml-1">{filteredRequests.length}</span>
-              </Badge>
-              {(statusFilter !== 'all' ||
-                buyerTypeFilter !== 'all' ||
-                ndaFilter !== 'all' ||
-                feeAgreementFilter !== 'all' ||
-                dateRangeFilter !== 'all' ||
-                searchQuery ||
-                selectedListingId) && (
-                <Badge variant="outline" className="text-xs font-medium px-3 py-1.5">
-                  of {requests.length} total
-                </Badge>
-              )}
-              {statusFilter !== 'all' && (
-                <Badge
-                  variant="outline"
-                  className="text-xs font-medium px-3 py-1.5 bg-primary/10 text-primary border-primary/20"
-                >
-                  Status: {statusFilter}
-                </Badge>
-              )}
-              {buyerTypeFilter !== 'all' && (
-                <Badge
-                  variant="outline"
-                  className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20"
-                >
-                  Type: {buyerTypeFilter === 'private_equity' ? 'PE' : buyerTypeFilter.replace(/_/g, ' ')}
-                </Badge>
-              )}
-              {ndaFilter !== 'all' && (
-                <Badge
-                  variant="outline"
-                  className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20"
-                >
-                  NDA: {ndaFilter.replace('_', ' ')}
-                </Badge>
-              )}
-              {feeAgreementFilter !== 'all' && (
-                <Badge
-                  variant="outline"
-                  className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20"
-                >
-                  Fee: {feeAgreementFilter.replace('_', ' ')}
-                </Badge>
-              )}
-              {dateRangeFilter !== 'all' && (
-                <Badge
-                  variant="outline"
-                  className="text-xs font-medium px-3 py-1.5 bg-secondary/10 text-secondary-foreground border-secondary/20"
-                >
-                  Date: {
-                    { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', '6m': 'Last 6 months', '1y': 'Last year' }[dateRangeFilter]
-                  }
-                </Badge>
-              )}
-            </div>
-
-            {(searchQuery || selectedListingId) && (
-              <div className="text-sm text-muted-foreground">
-                {selectedListingId && selectedListing && (
-                  <>Showing buyers for "{selectedListing.title}" - </>
-                )}
-                Found {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}
-                {searchQuery && ` matching "${searchQuery}"`}
-              </div>
-            )}
-
-            {/* Conditional Rendering based on listing filter and view mode */}
+            {/* Content area */}
             {selectedListingId && viewMode === 'grid' ? (
               <RequestsGridView
                 requests={filteredRequests}
