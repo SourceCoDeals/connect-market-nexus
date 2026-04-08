@@ -312,9 +312,9 @@ export const RequestDetails = ({ request }: { request: AdminConnectionRequest })
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge variant="outline" className="text-xs gap-1 cursor-help">
+                      <Badge className="text-xs gap-1 cursor-help bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30">
                         Lead-Only Request
-                        <Info className="h-3 w-3 text-muted-foreground" />
+                        <Info className="h-3 w-3" />
                       </Badge>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -522,9 +522,9 @@ export function ConnectionRequestRow({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Badge variant="outline" className="text-xs gap-1 cursor-help">
+                            <Badge className="text-xs gap-1 cursor-help bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30">
                               Lead-Only
-                              <Info className="h-3 w-3 text-muted-foreground" />
+                              <Info className="h-3 w-3" />
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -641,7 +641,10 @@ export function ConnectionRequestRow({
                   />
                 </>
               ) : request.source === 'webflow' ? (
-                <WebflowLeadDetail request={request} />
+                <>
+                  <WebflowLeadDetail request={request} />
+                  <LeadRequestActions request={request} />
+                </>
               ) : request.user ? (
                 <ConnectionRequestActions
                   user={request.user}
