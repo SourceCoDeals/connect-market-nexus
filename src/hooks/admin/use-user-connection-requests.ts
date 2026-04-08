@@ -31,7 +31,7 @@ export function useUserConnectionRequests(userId: string) {
         if (req.user_id) allProfileIds.add(req.user_id);
         if (req.followed_up_by) allProfileIds.add(req.followed_up_by);
         if (req.negative_followed_up_by) allProfileIds.add(req.negative_followed_up_by);
-        allListingIds.add(req.listing_id);
+        if (req.listing_id) allListingIds.add(req.listing_id);
       }
 
       const [{ data: allProfiles }, { data: allListings }] = await Promise.all([
@@ -44,7 +44,7 @@ export function useUserConnectionRequests(userId: string) {
 
       const enhancedRequests = requests.map(request => {
         const userData = request.user_id ? profileMap.get(request.user_id) : undefined;
-        const listingData = listingMap.get(request.listing_id);
+        const listingData = request.listing_id ? listingMap.get(request.listing_id) : undefined;
 
         const followedUpByAdmin = request.followed_up_by
           ? (profileMap.get(request.followed_up_by) ? createUserObject(profileMap.get(request.followed_up_by)!) : null)

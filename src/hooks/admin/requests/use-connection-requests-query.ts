@@ -129,7 +129,7 @@ export function useConnectionRequestsQuery() {
           fetchInChunks(
             'listings',
             'id, title, category, status, revenue, ebitda, image_url, location, internal_company_name, deal_identifier',
-            listingIds,
+            listingIds.filter((id): id is string => id !== null),
           ),
         ]);
 
@@ -144,7 +144,7 @@ export function useConnectionRequestsQuery() {
 
         const enhancedRequests: AdminConnectionRequest[] = requests.map((request) => {
           const userData = request.user_id ? profilesById.get(request.user_id) : undefined;
-          const listingData = listingsById.get(request.listing_id);
+          const listingData = request.listing_id ? listingsById.get(request.listing_id) : undefined;
 
           const followedAdminProfile = request.followed_up_by
             ? profilesById.get(request.followed_up_by)

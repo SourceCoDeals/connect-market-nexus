@@ -2,20 +2,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const WEBHOOK_SECRET = Deno.env.get("WEBFLOW_WEBHOOK_SECRET");
 
 Deno.serve(async (req: Request) => {
   // Only accept POST
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405 });
-  }
-
-  // Authenticate via query param
-  const url = new URL(req.url);
-  const secret = url.searchParams.get("secret");
-  if (!WEBHOOK_SECRET || secret !== WEBHOOK_SECRET) {
-    console.error("Webhook auth failed");
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -24,11 +15,23 @@ Deno.serve(async (req: Request) => {
     const payload = await req.json();
     console.log("Webflow webhook received:", JSON.stringify(payload).slice(0, 500));
 
+    // --- Validate this looks like a Webflow V2 form submission ---
+    if (!payload || (!payload.triggerType && !payload.payload && !payload.formFields)) {
+      console.warn("Invalid payload structure - not a Webflow form submission");
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: "invalid_payload" }), { status: 200 });
+    }
+
     // --- Parse Webflow V2 form submission payload ---
-    // V2 payload structure: { triggerType, payload: { formId, siteId, formName, formFields, pageUrl, ... } }
     const formPayload = payload.payload || payload;
     const formFields = formPayload.formFields || formPayload.data || {};
     const pageUrl: string = formPayload.pageUrl || formPayload.pageName || "";
+
+    // --- Filter: only process deal memo forms ---
+    if (!pageUrl.includes("/off-market-deal-memos/")) {
+      console.log("Skipping non-deal-memo form submission. pageUrl:", pageUrl);
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: "not_deal_memo_form" }), { status: 200 });
+    }
+    console.log("Processing deal memo form from:", pageUrl);
 
     // Extract form fields - Webflow V2 formFields is an array of { displayName, value, ... }
     let name = "";
@@ -169,7 +172,7 @@ Deno.serve(async (req: Request) => {
     };
 
     const insertData: Record<string, unknown> = {
-      source: "webflow_deal_memo",
+      source: "webflow",
       status: "pending",
       source_metadata: sourceMetadata,
       lead_name: name || null,
@@ -177,7 +180,7 @@ Deno.serve(async (req: Request) => {
       lead_phone: phone || null,
       lead_company: company || null,
       lead_role: role || null,
-      interest_message: message || null,
+      user_message: message || null,
     };
 
     if (listingId) insertData.listing_id = listingId;
