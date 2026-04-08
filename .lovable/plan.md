@@ -1,27 +1,53 @@
 
 
-## Problem
+## Investigation: Profile Data Integrity and Admin Display
 
-The build is failing because `ClientPreviewDialog.tsx` imports `untypedFrom` from a non-existent module `@/integrations/supabase/untyped-from`. The function actually lives in `@/integrations/supabase/client`.
+### Findings
 
-This also causes cascading type errors (lines 148, 196, 214, 220, 229, 260, 261) because the file can't compile.
+**1. Double-dollar formatting bug in admin user profile (CONFIRMED)**
 
-## Fix
+In `UserDetails.tsx` lines 177-190, `revenue_range_min` and `revenue_range_max` are rendered as:
+```ts
+const numValue = fieldValue as number;
+return <div>...: {numValue ? `$${numValue.toLocaleString()}` : '—'}</div>
+```
 
-**File: `src/components/remarketing/deal-detail/ClientPreviewDialog.tsx`**
+But these fields are stored in the DB as **text strings** like `"$10M - $25M"` (from the `REVENUE_RANGES` select options). The `as number` cast doesn't convert anything — the string is truthy, so it renders `$` + `"$10M - $25M"` = `"$$10M - $25M"`.
 
-1. Change line 27 from:
-   ```ts
-   import { untypedFrom } from '@/integrations/supabase/untyped-from';
-   ```
-   to:
-   ```ts
-   import { untypedFrom } from '@/integrations/supabase/client';
-   ```
+**Fix:** Remove the `$` prefix for these fields since the stored values already contain `$`. Use the `formatFieldValue` default path instead, or render the string value directly.
 
-2. Fix the type error on line 148: the `portalPush` variable (from a query) can be `undefined`, but the `PortalPreview` component expects `Record<string, unknown> | null`. Add `?? null` to coerce `undefined` to `null`.
+**2. Profile data pipeline is intact (NO ISSUE)**
 
-3. Fix `unknown` → `ReactNode` errors on lines 196, 214, 220, 229, 260, 261: these are values from the `push` object (typed as `Record<string, unknown>`) being rendered as JSX children. They're already wrapped in `String()` or conditional checks — the fix is to ensure all rendered values go through `String()` casts, which the code mostly already does. The root cause is that the file couldn't compile at all due to the bad import, so these are secondary. Once the import is fixed and `push` prop type is correct, the remaining `unknown` issues just need explicit `String()` wrapping where missing.
+- Signup stores data correctly to `profiles` table via `updateUser` metadata then `selfHealProfile`.
+- Profile form (`ProfileForm.tsx` + `ProfileSettings.tsx`) covers ALL buyer-type-specific fields for every persona.
+- `updateUserProfile` in `use-nuclear-auth.ts` does a generic `.update(dbPayload)` and strips only privileged fields — all other fields pass through correctly.
+- Admin query uses `select('*')` and `createUserObject` maps every relevant field.
+- All profiles use camelCase buyer types, matching the conditional rendering in the profile form.
 
-This is a single-file, single-line import fix that will unblock the build.
+**3. No missing fields in the admin display (NO ISSUE)**
+
+The `getFieldCategories` function in `buyer-type-fields.ts` defines complete field sets for each buyer type across 4 categories: Contact Information, Business Profile, Financial Information, Sourcing & Discovery. All fields from the profile form are represented.
+
+### Plan
+
+**Single file change: `src/components/admin/users-table/UserDetails.tsx`**
+
+Fix lines 177-190: Instead of treating `revenue_range_min`/`revenue_range_max` as numeric values and prepending `$`, render the stored string value directly (it already contains currency formatting like `"$10M - $25M"`). For actual numeric values (e.g., from old data), keep the `$` prefix logic. For `target_deal_size_min`/`target_deal_size_max` (which ARE numeric in the DB schema), keep the existing numeric formatting.
+
+```
+// Before:
+const numValue = fieldValue as number;
+return <div>...: {numValue ? `$${numValue.toLocaleString()}` : '—'}</div>
+
+// After: Split handling — revenue ranges are text, deal sizes are numeric
+if (fieldKey === 'revenue_range_min' || fieldKey === 'revenue_range_max') {
+  return <div>...: {fieldValue ? String(fieldValue) : '—'}</div>
+}
+if (fieldKey === 'target_deal_size_min' || fieldKey === 'target_deal_size_max') {
+  const numValue = Number(fieldValue);
+  return <div>...: {numValue ? `$${numValue.toLocaleString()}` : '—'}</div>
+}
+```
+
+This is a single, small fix. Everything else in the save/load pipeline is working correctly.
 
