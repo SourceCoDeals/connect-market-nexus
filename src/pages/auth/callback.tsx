@@ -41,6 +41,23 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
+      const profileColumns = 'email_verified, approval_status, is_admin, first_name, last_name, email';
+
+      const fetchProfile = async (authUser: SupabaseUser): Promise<Record<string, unknown> | null> => {
+        const { data: fetchedProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select(profileColumns)
+          .eq('id', authUser.id)
+          .single();
+
+        if (!fetchedProfile && (profileError?.code === 'PGRST116' || !profileError)) {
+          return selfHealProfile(authUser, profileColumns);
+        }
+
+        if (profileError) throw profileError;
+        return fetchedProfile as Record<string, unknown>;
+      };
+
       try {
         let authUser: SupabaseUser | null = null;
 
@@ -70,32 +87,17 @@ export default function AuthCallback() {
         }
 
         if (authUser) {
-          // Get latest profile data
-          const { data: fetchedProfile, error: profileError } = await supabase
-            .from('profiles')
-            .select('email_verified, approval_status, is_admin, first_name, last_name, email')
-            .eq('id', authUser.id)
-            .single();
-
-          // Self-healing: if profile missing, create one from auth metadata
-          const profile =
-            !fetchedProfile && (profileError?.code === 'PGRST116' || !profileError)
-              ? await selfHealProfile(
-                  authUser,
-                  'email_verified, approval_status, is_admin, first_name, last_name, email',
-                )
-              : fetchedProfile;
-
-          // Navigate FIRST, then fire emails in the background
           const emailConfirmed = !!authUser.email_confirmed_at;
+          let profile = await fetchProfile(authUser);
 
-          // Sync profiles.email_verified with auth.users.email_confirmed_at
-          if (emailConfirmed) {
-            await supabase
-              .from('profiles')
-              .update({ email_verified: true })
-              .eq('id', authUser.id)
-              .eq('email_verified', false);
+          // Verification is now sourced from auth.users -> profiles trigger.
+          // Give the sync a brief moment to settle before routing or rendering follow-up UI.
+          if (emailConfirmed && !profile?.email_verified) {
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+              await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+              profile = await fetchProfile(authUser);
+              if (profile?.email_verified) break;
+            }
           }
 
           if (emailConfirmed && profile?.approval_status === 'approved') {
@@ -154,7 +156,7 @@ export default function AuthCallback() {
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, sendVerificationSuccessEmail]);
 
   if (isConsumedLink) {
     return (

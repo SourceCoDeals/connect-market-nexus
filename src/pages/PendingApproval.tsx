@@ -31,6 +31,7 @@ const PendingApproval = () => {
   const [isRequestingDocs, setIsRequestingDocs] = useState(false);
   const [docCooldown, setDocCooldown] = useState(false);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [isFinalizingVerification, setIsFinalizingVerification] = useState(false);
 
   const { data: agreementStatus } = useMyAgreementStatus(!!user);
   const hasAnyAgreement = agreementStatus?.fee_covered;
@@ -49,12 +50,81 @@ const PendingApproval = () => {
     }
   }, [user?.approval_status, navigate]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const reconcileVerificationState = async () => {
+      if (!user || user.email_verified || user.approval_status === 'rejected') {
+        setIsFinalizingVerification(false);
+        return;
+      }
+
+      const {
+        data: { user: authUser },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (cancelled || error || !authUser?.email_confirmed_at) {
+        setIsFinalizingVerification(false);
+        return;
+      }
+
+      setIsFinalizingVerification(true);
+
+      try {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          await refreshUserProfile();
+          if (cancelled) return;
+
+          const {
+            data: { user: latestAuthUser },
+          } = await supabase.auth.getUser();
+
+          if (!latestAuthUser?.email_confirmed_at) break;
+
+          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+        }
+      } catch (reconcileError) {
+        console.error('Failed to reconcile verification state:', reconcileError);
+      } finally {
+        if (!cancelled) {
+          setIsFinalizingVerification(false);
+        }
+      }
+    };
+
+    void reconcileVerificationState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, refreshUserProfile]);
+
   if (isLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 text-muted-foreground animate-spin" />
           <p className="text-sm text-muted-foreground">Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isFinalizingVerification) {
+    return (
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="w-full max-w-md space-y-6 text-center">
+          <Logo />
+          <div className="space-y-3">
+            <div className="inline-flex p-3 rounded-full bg-primary/10">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            </div>
+            <h1 className="text-2xl font-semibold text-foreground">Finalizing your verification</h1>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              Your email is confirmed. We’re syncing your account status now.
+            </p>
+          </div>
         </div>
       </div>
     );
