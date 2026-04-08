@@ -49,21 +49,6 @@ const AdminRequests = () => {
 
   // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') ?? 'connection-requests';
-  const setActiveTab = useCallback(
-    (v: string) => {
-      setSearchParams(
-        (p) => {
-          const n = new URLSearchParams(p);
-          if (v !== 'connection-requests') n.set('tab', v);
-          else n.delete('tab');
-          return n;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
   const searchQuery = searchParams.get('q') ?? '';
   const setSearchQuery = useCallback(
     (v: string) => {
