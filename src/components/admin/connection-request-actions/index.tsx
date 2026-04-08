@@ -226,6 +226,7 @@ export function ConnectionRequestActions({
             createdAt={createdAt}
             activeTab={actions.activeTab}
             setActiveTab={actions.setActiveTab}
+            isWebflowSubmission={isWebflowSubmission}
           />
         </div>
 
