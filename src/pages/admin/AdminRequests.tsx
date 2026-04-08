@@ -203,24 +203,8 @@ const AdminRequests = () => {
       )
       .subscribe();
 
-    const leadsChannel = supabase
-      .channel('inbound-leads-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'inbound_leads',
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['inbound-leads'] });
-        },
-      )
-      .subscribe();
-
     return () => {
       supabase.removeChannel(requestsChannel);
-      supabase.removeChannel(leadsChannel);
     };
   }, [queryClient]);
 
