@@ -226,7 +226,7 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                       </div>
                     </div>
                   )}
-                  {snapshot.geography && (
+                  {snapshot.geography ? (
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
                       <div>
