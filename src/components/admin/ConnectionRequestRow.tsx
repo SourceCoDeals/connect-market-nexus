@@ -309,9 +309,19 @@ export const RequestDetails = ({ request }: { request: AdminConnectionRequest })
                 <span className="text-xs font-semibold text-card-foreground">
                   Lead Information
                 </span>
-                <Badge variant="outline" className="text-xs">
-                  Lead-Only Request
-                </Badge>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="text-xs gap-1 cursor-help">
+                        Lead-Only Request
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-[220px] text-xs">This request came from a website form submission. The lead is not a registered marketplace user.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
               <div className="space-y-2 pl-1">
                 <div className="flex items-center justify-between">
