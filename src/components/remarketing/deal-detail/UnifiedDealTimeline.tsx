@@ -325,6 +325,23 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
     staleTime: 60_000,
   });
 
+  // 6. Smartlead reply inbox linked to the deal
+  const { data: smartleadReplies = [], isLoading: loadingSmartlead } = useQuery({
+    queryKey: ['unified-timeline-smartlead', dealId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('smartlead_reply_inbox')
+        .select('id, from_email, to_email, subject, reply_body, sent_message_body, time_replied, event_timestamp, ai_category, ai_sentiment, campaign_name, lead_first_name, lead_last_name, lead_company_name, created_at')
+        .eq('linked_deal_id', dealId)
+        .order('time_replied', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!dealId,
+    staleTime: 60_000,
+  });
+
   const isLoading =
     loadingDealActivities || loadingCalls || loadingEmails || loadingLinkedin || loadingTranscripts;
 

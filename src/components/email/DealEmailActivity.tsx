@@ -6,7 +6,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Mail, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Mail, ArrowDownLeft } from 'lucide-react';
 import { useDealEmailActivity } from '@/hooks/email';
 import type { SmartleadReplyRecord } from '@/hooks/email/useEmailMessages';
 
