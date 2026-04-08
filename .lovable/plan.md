@@ -1,36 +1,29 @@
 
 
-# Show User Approval Status on Connection Requests
+# Clarify Approval Status vs Request Status Labels
 
 ## Problem
 
-When a connection request is linked to an existing marketplace profile, there's no indication whether that user is approved, pending, or rejected. Screenshots show "Matched to Marketplace Profile" but no approval status — admins need this at a glance.
+Two "Pending" labels appear on the same row: **"Pending"** (the connection request status) and **"Pending Approval"** (the user's marketplace approval status). They look similar and it's unclear what each refers to. Same issue with "Approved" — could mean the request was approved or the user is approved on the marketplace.
+
+## Fix
+
+Rename the marketplace approval badge labels to explicitly reference "Marketplace":
+
+| Current Label | New Label |
+|---|---|
+| `✓ Approved` | `Mkt. Approved` |
+| `Pending Approval` | `Mkt. Not Approved` |
+| `Rejected` | `Mkt. Rejected` |
+
+Add a small `User` icon prefix to visually differentiate these from the request status badges (which use a clock icon).
+
+For "Pending Approval" specifically, change variant from `sent` (amber) to something more attention-grabbing — keep amber but use bolder text: **"Mkt. Not Approved"** makes it unambiguous this is about the user's marketplace account, not the request.
 
 ## Changes
 
-### 1. Collapsed row header (ConnectionRequestRow.tsx, ~line 542-544)
-
-After the existing `BuyerTierBadge`, add an approval status badge when `request.user` exists:
-
-- **Approved**: small emerald dot/badge — subtle since this is the expected state
-- **Pending**: amber badge "Pending" — stands out as a warning
-- **Rejected**: red badge "Rejected" — clear alert
-
-### 2. WebflowLeadDetail "Matched to Marketplace Profile" card (~line 228-239)
-
-Add an approval status badge inline with the user info row. Same color coding:
-- Approved: emerald "Approved" badge
-- Pending: amber "Pending Approval" badge  
-- Rejected: red "Rejected" badge
-
-### 3. Expanded marketplace view (ConnectionRequestRow.tsx)
-
-For standard marketplace requests in the expanded detail, add the same approval indicator near where the user profile info is displayed.
-
-## Files
-
 | File | Change |
-|------|--------|
-| `src/components/admin/ConnectionRequestRow.tsx` | Add approval status badge in collapsed header (~line 542) and expanded detail |
-| `src/components/admin/WebflowLeadDetail.tsx` | Add approval status badge inside "Matched to Marketplace Profile" card (~line 228) |
+|---|---|
+| `src/components/admin/ConnectionRequestRow.tsx` | ~Line 545-553: Update badge labels to `Mkt. Approved` / `Mkt. Not Approved` / `Mkt. Rejected`, add `User` icon inside badge |
+| `src/components/admin/WebflowLeadDetail.tsx` | Same label updates for the matched profile card's approval badge |
 
