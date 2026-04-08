@@ -40,6 +40,8 @@ export type EmailTemplate =
   | 'memo'
   | 'owner_intro'
   | 'owner_inquiry'
+  // Portal
+  | 'portal_invite'
   // Admin & System
   | 'task_notification'
   | 'feedback'
