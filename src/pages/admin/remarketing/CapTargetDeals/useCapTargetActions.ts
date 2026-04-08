@@ -130,9 +130,20 @@ export function useCapTargetActions(
   // ─── Bulk Enrich ────────────────────────────────────────────────────
   const handleBulkEnrich = useCallback(
     async (mode: 'unenriched' | 'all') => {
-      if (!deals?.length) return;
-      const targets = mode === 'unenriched' ? deals.filter((d) => !d.enriched_at) : deals;
-      if (!targets.length) {
+      // Query DB directly for target IDs (don't rely on client-side page data)
+      let query = supabase
+        .from('listings')
+        .select('id')
+        .eq('deal_source', 'captarget');
+      if (mode === 'unenriched') {
+        query = query.is('enriched_at', null);
+      }
+      const { data: targets, error: fetchError } = await query;
+      if (fetchError) {
+        sonnerToast.error('Failed to fetch deals');
+        return;
+      }
+      if (!targets?.length) {
         sonnerToast.info('No deals to enrich');
         return;
       }
@@ -210,15 +221,26 @@ export function useCapTargetActions(
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
     },
-    [deals, user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient],
+    [user, startOrQueueMajorOp, completeOperation, updateProgress, queryClient],
   );
 
   // ─── Bulk Score ─────────────────────────────────────────────────────
   const handleBulkScore = useCallback(
     async (mode: 'unscored' | 'all') => {
-      if (!deals?.length) return;
-      const totalCount =
-        mode === 'unscored' ? deals.filter((d) => d.deal_total_score == null).length : deals.length;
+      // Query DB directly for count (don't rely on client-side page data)
+      let countQuery = supabase
+        .from('listings')
+        .select('id', { count: 'exact', head: true })
+        .eq('deal_source', 'captarget');
+      if (mode === 'unscored') {
+        countQuery = countQuery.is('deal_total_score', null);
+      }
+      const { count, error: countError } = await countQuery;
+      if (countError) {
+        sonnerToast.error('Failed to count deals');
+        return;
+      }
+      const totalCount = count || 0;
       if (!totalCount) {
         sonnerToast.info('No deals to score');
         return;
@@ -269,7 +291,7 @@ export function useCapTargetActions(
       );
       setIsScoring(false);
     },
-    [deals, user, startOrQueueMajorOp, completeOperation, queryClient],
+    [user, startOrQueueMajorOp, completeOperation, queryClient],
   );
 
   // ─── Enrich selected deals ──────────────────────────────────────────
@@ -379,12 +401,17 @@ export function useCapTargetActions(
     setIsEnriching(true);
     let activityItem: { id: string } | null = null;
     try {
-      const missingCount =
-        deals?.filter((d) => d.enriched_at && !d.linkedin_employee_count && !d.google_review_count)
-          .length || 0;
+      // Query DB for count of deals missing external data
+      const { count } = await supabase
+        .from('listings')
+        .select('id', { count: 'exact', head: true })
+        .eq('deal_source', 'captarget')
+        .not('enriched_at', 'is', null)
+        .is('linkedin_employee_count', null)
+        .is('google_review_count', null);
       const result = await startOrQueueMajorOp({
         operationType: 'deal_enrichment',
-        totalItems: missingCount || 1,
+        totalItems: count || 1,
         description: `LinkedIn + Google enrichment for CapTarget deals`,
         userId: user?.id || '',
         contextJson: { source: 'captarget_external_only' },
@@ -403,7 +430,7 @@ export function useCapTargetActions(
 
     setIsEnriching(false);
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
-  }, [deals, user, startOrQueueMajorOp, completeOperation, queryClient]);
+  }, [user, startOrQueueMajorOp, completeOperation, queryClient]);
 
   // ─── Archive selected deals ─────────────────────────────────────────
   const handleBulkArchive = useCallback(async () => {
