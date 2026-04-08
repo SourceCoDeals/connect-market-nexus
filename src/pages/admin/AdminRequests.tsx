@@ -362,29 +362,7 @@ const AdminRequests = () => {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="connection-requests" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Connection Requests
-              {requests.length > 0 && (
-                <Badge variant="secondary" className="ml-1 text-xs">
-                  {requests.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="inbound-leads" className="flex items-center gap-2">
-              <Inbox className="h-4 w-4" />
-              Inbound Leads
-              {inboundLeads.length > 0 && (
-                <Badge variant="secondary" className="ml-1 text-xs">
-                  {inboundLeads.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="connection-requests" className="space-y-6">
+        <div className="space-y-6">
             {/* Consolidated Filter Bar */}
             <PipelineFilters
               requests={requests}
