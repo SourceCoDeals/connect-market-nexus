@@ -1,68 +1,91 @@
 
 
-# Fix GP Partner Email Activity + Add Response Categorization Settings
+# Webflow Deal Memo Leads → Connection Request Management
 
-## Problem 1: Email Activity Tab Shows Error
+## Overview
 
-**Root cause**: The `DealEmailActivity` component queries an `email_messages` table that does not exist. The actual Smartlead reply data lives in `smartlead_reply_inbox`. When the component runs `.from('email_messages').select('*').eq('deal_id', dealId)`, it fails because the table is missing entirely.
+Webflow form submissions from deal memo pages (e.g. `/off-market-deal-memos/infrastructure-services-contractor`) need to flow into your connection request management system. Since forms currently live in Webflow's native inbox, we need a webhook endpoint that Webflow can POST to.
 
-GP Partner deals already have Smartlead replies linked via `smartlead_reply_inbox.linked_deal_id`, but the Email Activity tab never reads from that table.
+## Architecture
 
-**Fix**: Create a new `SmartleadEmailActivity` component (or modify `DealEmailActivity`) that queries `smartlead_reply_inbox` where `linked_deal_id = dealId` OR where the lead email matches the deal's `main_contact_email`. This surfaces sent messages, replies, and their AI classifications directly in the Email Activity tab.
+```text
+Webflow Form Submit
+  → Webflow Webhook (native or via form action override)
+  → Edge Function: ingest-webflow-deal-lead
+  → Screen lead email against profiles table
+  → Match to listing (by deal memo slug/title mapping)
+  → Insert into connection_requests
+  → Trigger admin notification
+  → Shows up in /admin/marketplace/requests
+```
 
-### Files to change
-- **`src/hooks/email/useEmailMessages.ts`** — Update `useDealEmailActivity` to query `smartlead_reply_inbox` (by `linked_deal_id`) as a fallback/additional source when `email_messages` returns nothing or errors. Since `email_messages` doesn't exist, rewrite the hook to query `smartlead_reply_inbox` directly.
-- **`src/components/email/DealEmailActivity.tsx`** — Adapt the display to handle `smartlead_reply_inbox` fields (`from_email`, `reply_body`, `sent_message_body`, `ai_category`, `campaign_name`, `time_replied`, etc.) instead of the non-existent `EmailMessage` type.
+## How the Matching Works
 
-## Problem 2: Activity Tab Not Updating
+### 1. Deal Matching (Form → Listing)
+Each Webflow deal memo page has a unique slug (e.g. `infrastructure-services-contractor`). The webhook payload will include the page URL or a hidden field with the deal identifier. We'll create a simple lookup table `webflow_deal_mappings` that maps Webflow page slugs to listing IDs. Alternatively, we can store a `webflow_slug` column on the `listings` table directly.
 
-The `UnifiedDealTimeline` merges `deal_activities` + `contact_activities`. Smartlead email replies are stored in `smartlead_reply_inbox`, not in either of those tables. When a GP deal is created from a Smartlead reply, no corresponding `deal_activity` or `contact_activity` record is written for the email exchange itself.
+### 2. Lead Screening (Email → Existing User)
+When a form comes in, the edge function:
+- Queries `profiles` by email
+- If a match is found: sets `user_id` on the connection request (associates with existing buyer)
+- If no match: creates a lead-only connection request using `lead_name`, `lead_email`, `lead_phone`, `lead_company`, `lead_role` fields (same pattern as your existing landing page / inbound lead flow)
 
-**Fix**: In the `UnifiedDealTimeline`, add a third data source — fetch `smartlead_reply_inbox` records where `linked_deal_id = dealId` and merge them into the timeline as email-type entries.
+## What Needs to Be Built
 
-### Files to change
-- **`src/components/remarketing/deal-detail/UnifiedDealTimeline.tsx`** — Add a query for `smartlead_reply_inbox` by `linked_deal_id`, map results to `UnifiedTimelineEntry` with source `'email'` and category `'emails'`, merge into the combined timeline.
+### A. New Edge Function: `ingest-webflow-deal-lead`
+- Accepts POST with fields: `name`, `email`, `phone`, `company`, `role`, `interest_message`, `page_url` (or `deal_slug`)
+- Validates with a shared secret header to prevent spam
+- Looks up listing by slug mapping
+- Checks `profiles` table for existing user by email
+- Inserts into `connection_requests` with:
+  - `source = 'webflow_deal_memo'`
+  - `source_metadata = { page_url, form_data, ... }`
+  - `user_id` if profile exists, otherwise null + lead fields
+  - `listing_id` from the slug mapping
+  - `status = 'pending'`
+- Calls `send-connection-notification` for admin alert
+- Deduplication: if same email + same listing already has a connection request, merge/update instead of creating a duplicate
 
-## Problem 3: Response Categorization Settings Page
+### B. Database: Add `webflow_slug` to `listings`
+Add a nullable `webflow_slug` text column to `listings` so each deal can be linked to its Webflow page. For example, listing "Asphalt Paving Contractor" (ID `922230bc-...`) gets slug `infrastructure-services-contractor`.
 
-Build a new section on the existing Smartlead Settings page (`SmartleadSettingsPage.tsx`) with two parts:
+Alternatively, create a small mapping table. The column approach is simpler since it's 1:1.
 
-### A. Classification Prompt Editor
-- Show the current AI classification prompt (the system prompt from `smartlead-inbox-webhook`)
-- Store it in `app_settings` with key `smartlead_classification_prompt`
-- Allow editing and saving, with a "Reset to Default" option
-- Update the edge function to read the prompt from `app_settings` if present, falling back to the hardcoded default
+### C. Webflow Configuration
+You'll need to configure Webflow to send form submissions to the edge function URL. Two options:
+- **Webflow Webhooks** (site settings → integrations → webhooks → "Form submission" trigger) — sends all form data as JSON POST
+- **Custom form action** — override the form's action URL to point to the edge function
 
-### B. Response Categorization Matrix
-- Query `smartlead_reply_inbox` to build an aggregated matrix showing:
-  - Category breakdown (meeting_request, interested, question, referral, not_now, not_interested, unsubscribe, out_of_office, negative_hostile, neutral) with counts, percentages
-  - Sentiment distribution per category
-  - Confidence distribution (avg confidence per category)
-  - Recent examples for each category (expandable)
-  - Manual override stats (how many were recategorized)
-- This mirrors the call disposition tracking pattern but for email responses
+The Webflow webhook approach is cleanest since it doesn't require modifying the form HTML.
 
-### Files to create/change
-- **`src/pages/admin/settings/SmartleadSettingsPage.tsx`** — Add two new card sections: "Response Classification Prompt" and "Response Categorization Matrix"
-- **`src/hooks/smartlead/use-smartlead-categorization.ts`** (new) — Hook to fetch categorization stats from `smartlead_reply_inbox` grouped by `ai_category`, `ai_sentiment`, with counts and examples
-- **`supabase/functions/smartlead-inbox-webhook/index.ts`** — Read classification prompt from `app_settings` table instead of hardcoding it, falling back to the current default
+### D. Admin Dashboard — Already Works
+Connection requests with `source = 'webflow_deal_memo'` will automatically appear in `/admin/marketplace/requests` because the query fetches all connection requests. The `source` badge will show "Webflow" and all lead fields (name, email, phone, company, role) will display in the existing UI.
 
-## Implementation order
+## Files to Create/Change
 
-1. Fix `useDealEmailActivity` to query `smartlead_reply_inbox`
-2. Update `DealEmailActivity` component to render Smartlead reply data
-3. Add Smartlead replies as a data source in `UnifiedDealTimeline`
-4. Create categorization stats hook
-5. Build prompt editor + matrix UI on SmartleadSettingsPage
-6. Update edge function to use configurable prompt
+| File | Change |
+|------|--------|
+| `supabase/functions/ingest-webflow-deal-lead/index.ts` | New edge function: validate, match deal, screen email, insert connection request |
+| DB migration | Add `webflow_slug` column to `listings` + populate for existing deal memo pages |
+| `src/types/admin.ts` | Add `'webflow_deal_memo'` to the source type union (if not already flexible) |
 
-## Technical details
+## Webflow Setup Steps (for you)
+1. After the edge function is deployed, go to your Webflow project → Site Settings → Integrations → Webhooks
+2. Add a webhook with trigger "Form submission" pointing to: `https://vhzipqarkmmfuqadefep.supabase.co/functions/v1/ingest-webflow-deal-lead`
+3. Set a shared secret header for authentication (we'll configure this as an edge function secret)
+4. Map each listing's `webflow_slug` to the corresponding deal memo page slug
 
-Current live data in `smartlead_reply_inbox`:
-- 269 total replies across 10 categories
-- 63 not_interested, 37 out_of_office, 34 meeting_request, 34 neutral, 30 unsubscribe, 25 question, 16 interested, 15 not_now, 9 referral, 6 negative_hostile
-- Many have `linked_deal_id` set (GP deals created from automation)
-- Fields available: `from_email`, `to_email`, `subject`, `reply_body`, `sent_message_body`, `ai_category`, `ai_sentiment`, `ai_confidence`, `ai_reasoning`, `campaign_name`, `time_replied`, `manual_category`, `recategorized_by`
+## Security
+- Webhook authenticated via `x-webhook-secret` header (stored as edge function secret)
+- Input validation on all fields
+- Deduplication prevents duplicate connection requests
+- No RLS bypass needed — uses service role for insertion
 
-The `app_settings` table already exists with `key`/`value` text columns — same pattern used by the outreach template editor.
+## What Happens When a Lead Comes In
+1. Lead fills out form on Webflow deal memo page
+2. Webflow fires webhook to edge function
+3. Edge function matches the deal, screens the email
+4. Connection request appears in admin dashboard with full context
+5. If the lead already has a marketplace profile, the request is linked to their account
+6. Admin can approve/reject/follow up using existing workflow
 
