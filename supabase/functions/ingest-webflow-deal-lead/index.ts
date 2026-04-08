@@ -15,11 +15,23 @@ Deno.serve(async (req: Request) => {
     const payload = await req.json();
     console.log("Webflow webhook received:", JSON.stringify(payload).slice(0, 500));
 
+    // --- Validate this looks like a Webflow V2 form submission ---
+    if (!payload || (!payload.triggerType && !payload.payload && !payload.formFields)) {
+      console.warn("Invalid payload structure - not a Webflow form submission");
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: "invalid_payload" }), { status: 200 });
+    }
+
     // --- Parse Webflow V2 form submission payload ---
-    // V2 payload structure: { triggerType, payload: { formId, siteId, formName, formFields, pageUrl, ... } }
     const formPayload = payload.payload || payload;
     const formFields = formPayload.formFields || formPayload.data || {};
     const pageUrl: string = formPayload.pageUrl || formPayload.pageName || "";
+
+    // --- Filter: only process deal memo forms ---
+    if (!pageUrl.includes("/off-market-deal-memos/")) {
+      console.log("Skipping non-deal-memo form submission. pageUrl:", pageUrl);
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: "not_deal_memo_form" }), { status: 200 });
+    }
+    console.log("Processing deal memo form from:", pageUrl);
 
     // Extract form fields - Webflow V2 formFields is an array of { displayName, value, ... }
     let name = "";
