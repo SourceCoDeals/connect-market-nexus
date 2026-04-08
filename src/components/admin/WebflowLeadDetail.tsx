@@ -9,7 +9,8 @@
  */
 import { useState } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Globe, User, Building2, Mail, Phone, Briefcase, ExternalLink, FileText, Clock, CheckCircle } from 'lucide-react';
+import { Globe, User, Building2, Mail, Phone, Briefcase, ExternalLink, FileText, Clock, CheckCircle, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -241,14 +242,22 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Badge variant={
-                          request.user.approval_status === 'approved' ? 'success' :
-                          request.user.approval_status === 'rejected' ? 'destructive' : 'sent'
-                        } className="text-[10px] px-1.5 py-0 inline-flex items-center gap-0.5 cursor-help">
-                          <User className="h-2.5 w-2.5" />
-                          {request.user.approval_status === 'approved' ? 'Mkt. Approved' :
-                           request.user.approval_status === 'rejected' ? 'Mkt. Rejected' : 'Mkt. Not Approved'}
-                        </Badge>
+                        <span className="inline-flex items-center gap-1.5 text-xs cursor-help border-b border-dotted border-muted-foreground/40 pb-0.5">
+                          <span className={cn(
+                            "h-2 w-2 rounded-full shrink-0",
+                            request.user.approval_status === 'approved' ? 'bg-emerald-500' :
+                            request.user.approval_status === 'rejected' ? 'bg-destructive' : 'bg-amber-500'
+                          )} />
+                          <span className={cn(
+                            "font-medium",
+                            request.user.approval_status === 'approved' ? 'text-emerald-700 dark:text-emerald-400' :
+                            request.user.approval_status === 'rejected' ? 'text-destructive' : 'text-amber-700 dark:text-amber-400'
+                          )}>
+                            {request.user.approval_status === 'approved' ? 'Marketplace Approved' :
+                             request.user.approval_status === 'rejected' ? 'Marketplace Rejected' : 'Marketplace Pending'}
+                          </span>
+                          <Info className="h-3 w-3 text-muted-foreground/60" />
+                        </span>
                       </TooltipTrigger>
                       <TooltipContent>
                         {request.user.approval_status === 'approved'
