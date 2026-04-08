@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { UseFormReturn } from 'react-hook-form';
 import { useSourceCoAdmins } from '@/hooks/admin/use-source-co-admins';
-import { useAuthState } from '@/hooks/auth/use-auth-state';
+import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -36,7 +36,7 @@ const BUYER_TYPES = [
 export function EditorInternalCard({ form, dealIdentifier }: EditorInternalCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { data: sourceCoAdmins, isLoading: loadingAdmins } = useSourceCoAdmins();
-  const { user } = useAuthState();
+  const { user } = useAuth();
   const visibleToBuyerTypes = form.watch('visible_to_buyer_types') || [];
   
 

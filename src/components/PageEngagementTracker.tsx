@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePageEngagement } from '@/hooks/use-page-engagement';
-import { useAuthState } from '@/hooks/auth/use-auth-state';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PageEngagementTrackerProps {
   children: React.ReactNode;
@@ -22,7 +22,7 @@ interface PageEngagementTrackerProps {
  */
 const PageEngagementTrackerInner: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
-  const { user } = useAuthState();
+  const { user } = useAuth();
   const { handlePageChange } = usePageEngagement(user?.id);
   const previousPathRef = useRef<string>(location.pathname);
 

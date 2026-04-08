@@ -54,11 +54,13 @@ const PendingApproval = () => {
     let cancelled = false;
 
     const reconcileVerificationState = async () => {
+      // If profile already says verified or user is rejected, nothing to do
       if (!user || user.email_verified || user.approval_status === 'rejected') {
         setIsFinalizingVerification(false);
         return;
       }
 
+      // Check the actual auth state — is the email really confirmed?
       const {
         data: { user: authUser },
         error,
@@ -69,20 +71,19 @@ const PendingApproval = () => {
         return;
       }
 
+      // Auth says verified but profile is stale — show finalizing state
+      console.info('[PendingApproval] Auth confirmed but profile stale — reconciling...');
       setIsFinalizingVerification(true);
 
       try {
-        for (let attempt = 0; attempt < 3; attempt += 1) {
+        for (let attempt = 1; attempt <= 5; attempt += 1) {
           await refreshUserProfile();
           if (cancelled) return;
 
-          const {
-            data: { user: latestAuthUser },
-          } = await supabase.auth.getUser();
-
-          if (!latestAuthUser?.email_confirmed_at) break;
-
-          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+          // Check if refresh picked up the new value
+          // (user object will re-render and trigger this effect again if changed)
+          await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+          console.info(`[PendingApproval] Reconcile attempt ${attempt}/5`);
         }
       } catch (reconcileError) {
         console.error('Failed to reconcile verification state:', reconcileError);
@@ -98,7 +99,7 @@ const PendingApproval = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, refreshUserProfile]);
+  }, [user?.email_verified, user?.approval_status, refreshUserProfile]);
 
   if (isLoading || !user) {
     return (
@@ -222,8 +223,11 @@ const PendingApproval = () => {
 
   const getUIState = () => {
     if (user?.approval_status === 'rejected') return 'rejected';
-    else if (user?.email_verified) return 'approved_pending';
-    else return 'email_not_verified';
+    // Use profile email_verified as primary, but never show "verify email"
+    // if we already know from Auth that the email IS confirmed (avoids
+    // stale-profile-state showing the wrong screen).
+    if (user?.email_verified) return 'approved_pending';
+    return 'email_not_verified';
   };
 
   const uiState = getUIState();
