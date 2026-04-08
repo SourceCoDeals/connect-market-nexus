@@ -193,14 +193,14 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
             <Badge variant="outline" className="text-xs">
               {String(push.status || 'sent')}
             </Badge>
-            {push.priority && (
+            {push.priority ? (
               <Badge
                 variant={push.priority === 'high' ? 'destructive' : 'secondary'}
                 className="text-xs"
               >
                 {String(push.priority)} priority
               </Badge>
-            )}
+            ) : null}
             <span className="text-sm text-muted-foreground">
               Shared {new Date(String(push.created_at)).toLocaleDateString()}
             </span>
