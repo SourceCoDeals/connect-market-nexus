@@ -28,13 +28,6 @@ import { EmailTestButton } from '@/components/admin/EmailTestButton';
 import { ListingFilterSelect } from '@/components/admin/ListingFilterSelect';
 import { RequestsGridView } from '@/components/admin/RequestsGridView';
 import { ViewSwitcher } from '@/components/admin/ViewSwitcher';
-import { InboundLeadsTable } from '@/components/admin/InboundLeadsTable';
-import {
-  useInboundLeadsQuery,
-  useMapLeadToListing,
-  useConvertLeadToRequest,
-  useArchiveInboundLead,
-} from '@/hooks/admin/use-inbound-leads';
 import { supabase } from '@/integrations/supabase/client';
 import { useMarkConnectionRequestsViewed } from '@/hooks/admin/use-mark-connection-requests-viewed';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
