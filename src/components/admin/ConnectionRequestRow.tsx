@@ -519,9 +519,19 @@ export function ConnectionRequestRow({
                           )?.lead_name ||
                           "Lead Contact"}
                       </h3>
-                      <Badge variant="outline" className="text-xs">
-                        Lead-Only
-                      </Badge>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="text-xs gap-1 cursor-help">
+                              Lead-Only
+                              <Info className="h-3 w-3 text-muted-foreground" />
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-[220px] text-xs">This request came from a website form submission. The lead is not a registered marketplace user.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   )}
                   <CleanTierDisplay user={request.user} leadRole={request.lead_role} />
