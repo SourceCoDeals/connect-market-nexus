@@ -35,8 +35,8 @@ CREATE POLICY "Admins can read task_auto_completion_rules"
 -- Seed rules for common task types
 INSERT INTO task_auto_completion_rules (task_type, watch_table, watch_column, trigger_value, match_via, description)
 VALUES
-  ('nda_execution', 'deals', 'nda_status', 'signed', 'deal_id', 'Auto-complete when NDA is signed on the deal'),
-  ('send_materials', 'deals', 'nda_status', 'sent', 'deal_id', 'Auto-complete when NDA/materials are sent'),
+  ('nda_execution', 'deal_pipeline', 'nda_status', 'signed', 'deal_id', 'Auto-complete when NDA is signed on the deal'),
+  ('send_materials', 'deal_pipeline', 'nda_status', 'sent', 'deal_id', 'Auto-complete when NDA/materials are sent'),
   ('schedule_call', 'deal_activities', 'activity_type', 'call_completed', 'deal_id', 'Auto-complete when a call is logged on the deal'),
   ('build_buyer_universe', 'remarketing_buyer_universes', 'id', 'EXISTS', 'deal_id', 'Auto-complete when a buyer universe is created for this deal')
 ON CONFLICT DO NOTHING;
@@ -125,7 +125,7 @@ END $$;
 -- ============================================================================
 -- 2. PER-DEAL FOLLOW-UP CADENCE (Gap #3)
 -- ============================================================================
-ALTER TABLE deals ADD COLUMN IF NOT EXISTS follow_up_cadence_days int DEFAULT 7;
+ALTER TABLE deal_pipeline ADD COLUMN IF NOT EXISTS follow_up_cadence_days int DEFAULT 7;
 
 -- Update detect-stale-deals to use per-deal cadence (the edge function reads this column)
 
