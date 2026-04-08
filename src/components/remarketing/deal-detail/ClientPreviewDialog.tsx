@@ -145,7 +145,7 @@ export function ClientPreviewDialog({ listingId, open, onOpenChange }: ClientPre
             <Skeleton className="h-32 w-full" />
           </div>
         ) : tab === 'portal' ? (
-          <PortalPreview push={portalPush} />
+          <PortalPreview push={portalPush ?? null} />
         ) : (
           <MarketplacePreview listing={listing} />
         )}
