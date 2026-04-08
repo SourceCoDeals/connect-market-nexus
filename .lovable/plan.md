@@ -1,35 +1,20 @@
 
 
-# Clean Up Marketplace Approval Badges + Tooltips
+# Remove Inbound Leads Tab from Request Management
 
-## Problem
+## What
 
-The current "Mkt. Approved" / "Mkt. Not Approved" badges are too small (`text-[10px]`), use `cursor-help` which is subtle, and have no visual hint that a tooltip exists. The tooltip itself just appears on hover with no affordance.
-
-## Design
-
-Replace the current tiny badge with a cleaner, more prominent inline pill that includes a subtle dotted underline and an `Info` icon to signal "more info on hover." Keep it minimal and premium per design standards.
-
-**Approved state:**
-- Emerald dot + "Marketplace Approved" text + small `Info` icon (h-3 w-3, muted)
-- Dotted bottom border as tooltip affordance
-- Tooltip: "This user has been approved to use the SourceCo Marketplace."
-
-**Not Approved state:**
-- Amber dot + "Marketplace Pending" text + small `Info` icon
-- Same dotted underline treatment
-- Tooltip: "This user has a marketplace account but has not yet been approved."
-
-**Rejected state:**
-- Red dot + "Marketplace Rejected" text + small `Info` icon
-- Tooltip: "This user's marketplace account application was rejected."
-
-Use a status dot (colored circle) instead of the `User` icon for a cleaner, more intuitive look. Increase text to `text-xs`. Add `border-b border-dotted` to signal interactivity.
+Remove the "Inbound Leads" tab from the AdminRequests page. The DB table, AI Command Center tools, and backend references stay intact for historical querying.
 
 ## Changes
 
-| File | Change |
-|------|--------|
-| `src/components/admin/ConnectionRequestRow.tsx` (~line 545-566) | Replace badge with clean pill: status dot + full label + Info icon + dotted underline, wrapped in tooltip |
-| `src/components/admin/WebflowLeadDetail.tsx` (~line 240-261) | Same treatment |
+**`src/pages/admin/AdminRequests.tsx`**:
+- Remove the `InboundLeadsTable` import (line 31)
+- Remove `useInboundLeadsQuery`, `useMapLeadToListing`, `useConvertLeadToRequest`, `useArchiveInboundLead` imports and usages (lines 33-37, 55, 59-61)
+- Remove the inbound leads realtime subscription channel (lines 217-230)
+- Remove the `Inbox` icon import
+- Convert `Tabs` from 2-column grid to a single tab (or remove `Tabs` wrapper entirely since there's only one tab left)
+- Remove the `TabsTrigger` for "Inbound Leads" (lines 403-411)
+- Remove the `TabsContent` for "inbound-leads" (lines 472-484)
+- Update subtitle text from "Manage buyer connection requests and inbound leads" to "Manage buyer connection requests"
 
