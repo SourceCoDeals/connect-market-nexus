@@ -1,20 +1,32 @@
 
+# Import Missing Webflow Leads from CSVs
 
-# Add Tooltip to "Lead-Only" Badge
+## Current State
 
-## What
+| Deal | CSV Leads | In DB | Missing |
+|------|-----------|-------|---------|
+| Saks Metering (`a6e20eba`) | 10 rows (9 unique) | 4 | **6 leads** (Joshua Klieger, Jack Harvey ×2, Kyle Tamboli, Jen Fair, Thomas Woldemariam) |
+| Protegrity (`d136656a`) | 4 | 3 | **1 lead** (Brendan Doney) |
+| ClearChoice (`85a0bef2`) | 1 | 1 | 0 |
 
-Add an info icon (ℹ) with a tooltip to every "Lead-Only" badge explaining that this lead submitted via the website and does not have a marketplace account.
+Data quality for existing leads is good — names, emails, phones, roles, companies, and full messages are all stored correctly.
 
-## Changes
+## What to do
 
-**`src/components/admin/ConnectionRequestRow.tsx`** — 3 locations:
+Insert the 7 missing connection request rows directly into the database using the Supabase insert tool. Each row will:
 
-1. **Line 510-512** (collapsed row header badge): Wrap the `<Badge>` in a `<Tooltip>` with an `Info` icon appended inside. Tooltip text: *"This request came from a website form submission. The lead is not a registered marketplace user."*
+- Set `source = 'webflow'` and `status = 'pending'`
+- Map to the correct `listing_id`
+- Populate `lead_name`, `lead_email`, `lead_phone`, `lead_company`, `lead_role`, `user_message`
+- Store the full submission metadata in `source_metadata` (IP, date, page URL)
+- Check each email against `profiles` table — if a match exists, set `user_id` to link the lead to their marketplace account
 
-2. **Line 310-312** (expanded detail "Lead-Only Request" badge): Same treatment.
+**Note**: Jack Harvey submitted twice to the Saks deal (2:48 PM and 3:34 PM) with slightly different messages and company names (`Duration Group` vs `durationgroup.com`). Both will be imported since they represent separate form submissions.
 
-3. Any other "Lead-Only" badge instance in the file gets the same wrapper.
+## Approach
 
-Uses existing `Tooltip`, `TooltipTrigger`, `TooltipContent`, `TooltipProvider` from `@/components/ui/tooltip` and `Info` icon from `lucide-react` (both already imported/available in the project).
+1. Check if any of the 7 missing lead emails match existing marketplace profiles
+2. Insert all 7 rows via the insert tool with complete data
+3. Verify final counts match CSVs
 
+No code changes needed — this is purely a data import.
