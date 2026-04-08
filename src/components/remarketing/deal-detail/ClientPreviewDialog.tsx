@@ -244,7 +244,7 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                       </div>
                     </div>
                   ) : null}
-                  {snapshot.revenue != null && (
+                  {snapshot.revenue != null ? (
                     <div className="flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -252,7 +252,7 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                         <p className="font-medium text-sm">{fmtCurrency(snapshot.revenue)}</p>
                       </div>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
