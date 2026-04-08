@@ -1,39 +1,28 @@
 
 
-# Auto-Associate Webflow Leads with Deals Going Forward
+# Fix Webflow Lead Detail: Status Overflow + Marketplace User Indicator
 
-## Current State
+## Problem 1: Status column overflows
 
-The edge function extracts the URL slug from Webflow (e.g. `municipal-meter-installation-services`) and matches it against `listings.webflow_slug`. This works — but only if someone manually sets `webflow_slug` on each listing via SQL.
+The `LeadRequestActions` Status card uses `flex items-center justify-between` on each row, cramming the status indicator, labels ("Sent", "Signed"), and switches all on one line. At narrow widths (the right 1/3 column in the grid), content clips. The `min-w-[100px]` on the label group plus the status indicator plus two switch groups is too wide.
 
-## Solution: Add `webflow_slug` field to the listing editor UI
+**Fix**: Stack each status row vertically — status indicator on top, toggles below. Or wrap the toggle groups to prevent overflow by using `flex-wrap` and reducing `min-w`.
 
-When you create a new Webflow deal memo page, the URL slug (the last part of `/off-market-deal-memos/your-slug-here`) needs to match. The simplest fix is exposing `webflow_slug` in the admin listing editor so you can paste the slug when creating or editing a deal.
+Simpler approach: change the row layout from single-line `justify-between` to a stacked layout where the label+status is on top and the toggles wrap below. Also reduce the `min-w-[100px]` to `min-w-[80px]` and add `flex-wrap` to the outer flex container.
 
-## What to build
+## Problem 2: No clear "Marketplace User: Yes/No" indicator
 
-### 1. Add Webflow Slug field to the listing editor form
+The "Lead-Only" badge on the row header is not clear enough. For Webflow leads specifically, add a clear indicator inside `WebflowLeadDetail`:
 
-In the existing listing editor (the form used in the Marketplace Queue / deal editing UI), add a text input labeled **"Webflow Page Slug"** with helper text: *"The URL slug from your Webflow deal memo page (e.g. `municipal-meter-installation-services`)"*
+- **If matched user exists**: Already shows green "Matched to Marketplace Profile" card (good)
+- **If NO matched user**: Add a small gray info card: "Not a Marketplace User — This lead does not have an existing marketplace account"
 
-This goes in the listing detail/edit form alongside other metadata fields.
+This makes it immediately obvious for guest Webflow leads.
 
-### 2. Save `webflow_slug` on listing create/update
-
-Wire the field into the existing save mutation so it persists to `listings.webflow_slug`. No migration needed — the column already exists.
-
-## Files to change
+## Changes
 
 | File | Change |
 |------|--------|
-| Listing editor component (the form that edits listing metadata) | Add "Webflow Page Slug" text input bound to `webflow_slug` |
-| Listing save hook/mutation | Include `webflow_slug` in the upsert payload |
-
-## Workflow going forward
-
-1. Create a new deal memo page in Webflow (e.g. `/off-market-deal-memos/new-deal-slug`)
-2. In your admin listing editor, paste `new-deal-slug` into the Webflow Page Slug field and save
-3. All form submissions from that Webflow page automatically match to the correct listing
-
-No database changes needed. No edge function changes needed.
+| `src/components/admin/LeadRequestActions.tsx` | Fix overflow: add `flex-wrap` to each status row's outer container, reduce `min-w`, allow toggles to wrap gracefully |
+| `src/components/admin/WebflowLeadDetail.tsx` | Add "Not a Marketplace User" indicator card for guest leads (below the source banner, mirroring the green matched-user card position) |
 
