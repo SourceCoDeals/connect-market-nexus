@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTimeframe } from '@/hooks/use-timeframe';
 import { useFilterEngine } from '@/hooks/use-filter-engine';
@@ -11,10 +11,88 @@ import { useAICommandCenterContext } from '@/components/ai-command-center/AIComm
 
 import type { CapTargetDeal, SortColumn, SortDirection } from './types';
 import { PAGE_SIZE, DEFAULT_COLUMN_WIDTHS } from './types';
-import { sortDeals, preFilterDeals } from './helpers';
+import { sortDeals } from './helpers';
 import type { DealForList } from '@/components/remarketing';
 
+// Full columns for display rows
+const DEAL_SELECT = [
+  'id', 'title', 'internal_company_name', 'captarget_client_name',
+  'captarget_contact_date', 'captarget_outreach_channel', 'captarget_interest_type',
+  'main_contact_name', 'main_contact_email', 'main_contact_title', 'main_contact_phone',
+  'captarget_sheet_tab', 'website', 'description', 'owner_response',
+  'pushed_to_all_deals', 'pushed_to_all_deals_at', 'deal_source', 'status', 'created_at',
+  'enriched_at', 'deal_total_score', 'linkedin_employee_count', 'linkedin_employee_range',
+  'google_rating', 'google_review_count', 'captarget_status', 'is_priority_target',
+  'needs_buyer_search', 'needs_owner_contact',
+  'category', 'executive_summary', 'industry', 'remarketing_status',
+].join(', ');
+
+// Lightweight columns for stats and dynamic filter options (no heavy text columns)
+const STATS_SELECT = [
+  'id', 'pushed_to_all_deals', 'captarget_interest_type', 'enriched_at', 'deal_total_score',
+  'is_priority_target', 'captarget_status', 'captarget_contact_date', 'created_at',
+  'remarketing_status', 'captarget_sheet_tab', 'captarget_outreach_channel',
+  'category', 'industry', 'linkedin_employee_range',
+].join(', ');
+
+// Map UI sort columns to DB column names
+const SORT_COLUMN_MAP: Record<SortColumn, string> = {
+  company_name: 'internal_company_name',
+  client_name: 'category',
+  contact_name: 'main_contact_name',
+  interest_type: 'captarget_interest_type',
+  outreach_channel: 'captarget_outreach_channel',
+  contact_date: 'captarget_contact_date',
+  pushed: 'pushed_to_all_deals',
+  score: 'deal_total_score',
+  linkedin_employee_count: 'linkedin_employee_count',
+  linkedin_employee_range: 'linkedin_employee_range',
+  google_review_count: 'google_review_count',
+  google_rating: 'google_rating',
+  priority: 'is_priority_target',
+};
+
+/**
+ * Apply base server-side filters to a Supabase query.
+ */
+function applyBaseFilters(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  opts: {
+    hideNotFit: boolean;
+    hidePushed: boolean;
+    statusTab: 'all' | 'active' | 'inactive';
+    kpiFilter: 'priority' | 'needs_scoring' | null;
+    dateRange: { from?: Date | null; to?: Date | null };
+  },
+) {
+  let q = query;
+  if (opts.hideNotFit) {
+    q = q.or('remarketing_status.is.null,remarketing_status.neq.not_a_fit');
+  }
+  if (opts.hidePushed) {
+    q = q.or('pushed_to_all_deals.is.null,pushed_to_all_deals.eq.false');
+  }
+  if (opts.statusTab !== 'all') {
+    q = q.eq('captarget_status', opts.statusTab);
+  }
+  if (opts.kpiFilter === 'priority') {
+    q = q.eq('is_priority_target', true);
+  }
+  if (opts.kpiFilter === 'needs_scoring') {
+    q = q.is('deal_total_score', null);
+  }
+  if (opts.dateRange.from) {
+    q = q.gte('captarget_contact_date', opts.dateRange.from.toISOString().split('T')[0]);
+  }
+  if (opts.dateRange.to) {
+    q = q.lte('captarget_contact_date', opts.dateRange.to.toISOString().split('T')[0]);
+  }
+  return q;
+}
+
 export function useCapTargetData() {
+  const queryClient = useQueryClient();
   const { setPageContext } = useAICommandCenterContext();
 
   // Register page context for AI
@@ -27,11 +105,6 @@ export function useCapTargetData() {
 
   // Enrichment progress
   const { progress: enrichmentProgress, cancelEnrichment } = useEnrichmentProgress();
-
-  // Filters (local state — not URL-persisted)
-  const [search] = useState('');
-  const [pushedFilter] = useState<string>('all');
-  const [sourceTabFilter] = useState<string>('all');
 
   // Sorting & filters – persisted in URL so navigating back restores them
   const [searchParams, setSearchParams] = useSearchParams();
@@ -182,54 +255,136 @@ export function useCapTargetData() {
     [setSearchParams],
   );
 
+  // Detect if advanced filter rules are active (read from URL before useFilterEngine)
+  const rawFilterParam = searchParams.get('f');
+  const hasAdvancedFilters = useMemo(() => {
+    if (!rawFilterParam) return false;
+    try {
+      const state = JSON.parse(atob(rawFilterParam)) as { rules?: unknown[]; search?: string };
+      return (state.rules?.length ?? 0) > 0 || (state.search?.length ?? 0) > 0;
+    } catch {
+      return false;
+    }
+  }, [rawFilterParam]);
+
   // ─── Data fetching ───────────────────────────────────────────────────
 
-  const {
-    data: deals,
-    isLoading,
-    refetch,
-  } = useQuery({
-    queryKey: ['remarketing', 'captarget-deals'],
-    refetchOnMount: 'always',
-    staleTime: 30_000,
+  // Lightweight stats query — for counts, KPIs, tab badges, and filter dropdown options.
+  // Fetches all captarget deals but only small columns (no description/executive_summary).
+  const { data: statsData } = useQuery({
+    queryKey: ['remarketing', 'captarget-deals', 'stats'],
+    staleTime: 60_000,
     queryFn: async () => {
-      const allData: CapTargetDeal[] = [];
-      const batchSize = 1000;
-      let offset = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('listings')
-          .select(
-            `
-            id, title, internal_company_name, captarget_client_name,
-            captarget_contact_date, captarget_outreach_channel, captarget_interest_type,
-            main_contact_name, main_contact_email, main_contact_title, main_contact_phone,
-            captarget_sheet_tab, website, description, owner_response,
-            pushed_to_all_deals, pushed_to_all_deals_at, deal_source, status, created_at,
-            enriched_at, deal_total_score, linkedin_employee_count, linkedin_employee_range,
-            google_rating, google_review_count, captarget_status, is_priority_target,
-            needs_buyer_search, needs_owner_contact,
-            category, executive_summary, industry, remarketing_status
-          `,
-          )
-          .eq('deal_source', 'captarget')
-          .order('captarget_contact_date', { ascending: false, nullsFirst: false })
-          .range(offset, offset + batchSize - 1);
-
-        if (error) throw error;
-        if (data && data.length > 0) {
-          allData.push(...(data as CapTargetDeal[]));
-          offset += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
-        }
-      }
-      return allData;
+      const { data, error } = await supabase
+        .from('listings')
+        .select(STATS_SELECT)
+        .eq('deal_source', 'captarget');
+      if (error) throw error;
+      return data || [];
     },
   });
+
+  // Base filter options (memoized for query key stability)
+  const baseFilterOpts = useMemo(
+    () => ({ hideNotFit, hidePushed, statusTab, kpiFilter, dateRange }),
+    [hideNotFit, hidePushed, statusTab, kpiFilter, dateRange],
+  );
+
+  // Main page data query — two modes:
+  //  • Server mode (no advanced filters): fetches only one page + count from DB
+  //  • Client mode (advanced filters active): fetches all base-filtered rows,
+  //    then runs the filter engine client-side
+  const {
+    data: queryResult,
+    isLoading,
+  } = useQuery({
+    queryKey: [
+      'remarketing',
+      'captarget-deals',
+      'page',
+      hideNotFit,
+      hidePushed,
+      statusTab,
+      kpiFilter,
+      sortColumn,
+      sortDirection,
+      currentPage,
+      dateRange?.from?.getTime() ?? null,
+      dateRange?.to?.getTime() ?? null,
+      hasAdvancedFilters ? rawFilterParam : null,
+    ],
+    refetchOnMount: 'always',
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      if (!hasAdvancedFilters) {
+        // SERVER MODE: fetch only the current page with server-side filtering & sorting
+        let query = supabase
+          .from('listings')
+          .select(DEAL_SELECT, { count: 'exact' })
+          .eq('deal_source', 'captarget');
+
+        query = applyBaseFilters(query, baseFilterOpts);
+
+        const dbColumn = SORT_COLUMN_MAP[sortColumn] || 'captarget_contact_date';
+        query = query.order(dbColumn, {
+          ascending: sortDirection === 'asc',
+          nullsFirst: false,
+        });
+
+        const start = (currentPage - 1) * PAGE_SIZE;
+        query = query.range(start, start + PAGE_SIZE - 1);
+
+        const { data, error, count } = await query;
+        if (error) throw error;
+
+        return {
+          deals: (data || []) as CapTargetDeal[],
+          totalFilteredCount: count || 0,
+          mode: 'server' as const,
+        };
+      } else {
+        // CLIENT MODE: fetch all base-filtered rows for client-side filter engine
+        const allData: CapTargetDeal[] = [];
+        const batchSize = 1000;
+        let offset = 0;
+        let hasMore = true;
+
+        while (hasMore) {
+          let query = supabase
+            .from('listings')
+            .select(DEAL_SELECT)
+            .eq('deal_source', 'captarget');
+
+          query = applyBaseFilters(query, baseFilterOpts);
+          query = query
+            .order('captarget_contact_date', { ascending: false, nullsFirst: false })
+            .range(offset, offset + batchSize - 1);
+
+          const { data, error } = await query;
+          if (error) throw error;
+          if (data && data.length > 0) {
+            allData.push(...(data as CapTargetDeal[]));
+            offset += batchSize;
+            hasMore = data.length === batchSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        return {
+          deals: allData,
+          totalFilteredCount: allData.length,
+          mode: 'client' as const,
+        };
+      }
+    },
+  });
+
+  // Refetch invalidates all captarget queries (stats + page)
+  const refetch = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['remarketing', 'captarget-deals'] });
+  }, [queryClient]);
 
   // Exclusion log query
   const { data: exclusionLog } = useQuery({
@@ -246,50 +401,65 @@ export function useCapTargetData() {
     staleTime: 60_000,
   });
 
-  // ─── Computed / memoized values ──────────────────────────────────────
+  // ─── Filter engine (for state management + client mode filtering) ───
 
-  // Filter deals by everything EXCEPT status tab (for accurate tab counts)
-  const preTabFiltered = useMemo(() => {
-    if (!deals) return [];
-    return preFilterDeals(deals, {
-      search,
-      pushedFilter,
-      hidePushed,
-      hideNotFit,
-      sourceTabFilter,
-      dateRange,
-    });
-  }, [deals, search, pushedFilter, sourceTabFilter, dateRange, hidePushed, hideNotFit]);
-
-  const tabItems = useMemo(() => {
-    if (statusTab === 'all') return preTabFiltered;
-    return preTabFiltered.filter((deal) => deal.captarget_status === statusTab);
-  }, [preTabFiltered, statusTab]);
+  const engineInput = useMemo(
+    () => (queryResult?.deals ?? []) as CapTargetDeal[],
+    [queryResult],
+  );
 
   const {
     filteredItems: engineFiltered,
     filterState,
     setFilterState,
-    dynamicOptions,
+    dynamicOptions: _engineDynamicOptions,
     filteredCount,
     totalCount: engineTotal,
-  } = useFilterEngine(tabItems, CAPTARGET_FIELDS);
+  } = useFilterEngine(engineInput, CAPTARGET_FIELDS);
 
-  // Apply KPI filter, then sort the engine-filtered results
+  // Compute dynamic options from stats data (full dataset, not just current page)
+  const dynamicOptions = useMemo(() => {
+    if (!statsData?.length) return _engineDynamicOptions;
+    const result: Record<string, { label: string; value: string }[]> = {};
+    for (const field of CAPTARGET_FIELDS) {
+      if (!field.dynamicOptions) continue;
+      const unique = new Set<string>();
+      for (const item of statsData) {
+        const rec = item as Record<string, unknown>;
+        const val = field.accessor ? field.accessor(rec) : rec[field.key];
+        if (val != null && val !== '') unique.add(String(val));
+      }
+      result[field.key] = Array.from(unique)
+        .sort()
+        .map((v) => ({ label: v, value: v }));
+    }
+    return result;
+  }, [statsData, _engineDynamicOptions]);
+
+  // ─── Computed / memoized values ──────────────────────────────────────
+
+  // Final filtered deals
   const filteredDeals = useMemo(() => {
-    let items = engineFiltered;
-    if (kpiFilter === 'priority') items = items.filter((d) => d.is_priority_target === true);
-    if (kpiFilter === 'needs_scoring') items = items.filter((d) => d.deal_total_score == null);
-    return sortDeals(items, sortColumn, sortDirection);
-  }, [engineFiltered, sortColumn, sortDirection, kpiFilter]);
+    if (!queryResult) return [];
+    if (queryResult.mode === 'server') {
+      // Already filtered, sorted, and paginated by DB
+      return queryResult.deals;
+    }
+    // Client mode: apply filter engine rules + sort
+    return sortDeals(engineFiltered, sortColumn, sortDirection);
+  }, [queryResult, engineFiltered, sortColumn, sortDirection]);
 
   // Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredDeals.length / PAGE_SIZE));
+  const totalFilteredCount =
+    queryResult?.mode === 'server' ? queryResult.totalFilteredCount : filteredDeals.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredCount / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const paginatedDeals = useMemo(() => {
+    if (!queryResult) return [];
+    if (queryResult.mode === 'server') return queryResult.deals; // already paginated
     const start = (safePage - 1) * PAGE_SIZE;
     return filteredDeals.slice(start, start + PAGE_SIZE);
-  }, [filteredDeals, safePage]);
+  }, [queryResult, filteredDeals, safePage]);
 
   // Selection helpers
   const allSelected =
@@ -302,33 +472,32 @@ export function useCapTargetData() {
   const orderedIds = useMemo(() => paginatedDeals.map((d) => d.id), [paginatedDeals]);
   const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
 
-  // KPI stats
-  const dateFilteredDeals = useMemo(() => {
-    if (!deals) return [];
-    return deals.filter((d) => isInRange(d.captarget_contact_date || d.created_at));
-  }, [deals, isInRange]);
+  // ─── Stats from lightweight query ────────────────────────────────────
 
   const kpiStats = useMemo(() => {
-    const totalDeals = dateFilteredDeals.length;
+    if (!statsData) return { totalDeals: 0, priorityDeals: 0, avgScore: 0, needsScoring: 0 };
+    const dateFilteredDeals = statsData.filter((d) =>
+      isInRange(d.captarget_contact_date || d.created_at),
+    );
+    const total = dateFilteredDeals.length;
     const priorityDeals = dateFilteredDeals.filter((d) => d.is_priority_target === true).length;
     let totalScore = 0;
-    let scoredDeals = 0;
+    let scored = 0;
     dateFilteredDeals.forEach((d) => {
-      const score = d.deal_total_score;
-      if (score != null) {
-        totalScore += score;
-        scoredDeals++;
+      if (d.deal_total_score != null) {
+        totalScore += d.deal_total_score;
+        scored++;
       }
     });
-    const avgScore = scoredDeals > 0 ? Math.round(totalScore / scoredDeals) : 0;
+    const avgScore = scored > 0 ? Math.round(totalScore / scored) : 0;
     const needsScoring = dateFilteredDeals.filter((d) => d.deal_total_score == null).length;
-    return { totalDeals, priorityDeals, avgScore, needsScoring };
-  }, [dateFilteredDeals]);
+    return { totalDeals: total, priorityDeals, avgScore, needsScoring };
+  }, [statsData, isInRange]);
 
   // Memoize selected deals for AddToList dialog
   const selectedDealsForList = useMemo((): DealForList[] => {
-    if (!deals || selectedIds.size === 0) return [];
-    return deals
+    if (selectedIds.size === 0) return [];
+    return paginatedDeals
       .filter((d) => selectedIds.has(d.id))
       .map((d) => ({
         dealId: d.id,
@@ -337,28 +506,52 @@ export function useCapTargetData() {
         contactEmail: d.main_contact_email,
         contactPhone: d.main_contact_phone,
       }));
-  }, [deals, selectedIds]);
+  }, [paginatedDeals, selectedIds]);
 
-  // Summary stats
-  const totalDeals = deals?.length || 0;
-  const unpushedCount = deals?.filter((d) => !d.pushed_to_all_deals).length || 0;
-  const interestCount = deals?.filter((d) => d.captarget_interest_type === 'interest').length || 0;
-  const enrichedCount = deals?.filter((d) => d.enriched_at).length || 0;
-  const scoredCount = deals?.filter((d) => d.deal_total_score != null).length || 0;
+  // Summary stats (from lightweight stats query)
+  const totalDeals = statsData?.length || 0;
+  const unpushedCount = useMemo(
+    () => statsData?.filter((d) => !d.pushed_to_all_deals).length || 0,
+    [statsData],
+  );
+  const interestCount = useMemo(
+    () => statsData?.filter((d) => d.captarget_interest_type === 'interest').length || 0,
+    [statsData],
+  );
+  const enrichedCount = useMemo(
+    () => statsData?.filter((d) => d.enriched_at).length || 0,
+    [statsData],
+  );
+  const scoredCount = useMemo(
+    () => statsData?.filter((d) => d.deal_total_score != null).length || 0,
+    [statsData],
+  );
 
-  const filteredTotal = preTabFiltered.length;
-  const activeCount = useMemo(
-    () => preTabFiltered.filter((d) => d.captarget_status === 'active').length,
-    [preTabFiltered],
-  );
-  const inactiveCount = useMemo(
-    () => preTabFiltered.filter((d) => d.captarget_status === 'inactive').length,
-    [preTabFiltered],
-  );
+  // Tab counts (computed from stats data with base filters EXCEPT statusTab)
+  const { filteredTotal, activeCount, inactiveCount } = useMemo(() => {
+    if (!statsData) return { filteredTotal: 0, activeCount: 0, inactiveCount: 0 };
+    const filtered = statsData.filter((d) => {
+      if (hidePushed && d.pushed_to_all_deals) return false;
+      if (hideNotFit && d.remarketing_status === 'not_a_fit') return false;
+      if (dateRange.from || dateRange.to) {
+        const dateStr = d.captarget_contact_date || d.created_at;
+        const dealDate = dateStr ? new Date(dateStr) : null;
+        if (!dealDate) return false;
+        if (dateRange.from && dealDate < dateRange.from) return false;
+        if (dateRange.to && dealDate > dateRange.to) return false;
+      }
+      return true;
+    });
+    return {
+      filteredTotal: filtered.length,
+      activeCount: filtered.filter((d) => d.captarget_status === 'active').length,
+      inactiveCount: filtered.filter((d) => d.captarget_status === 'inactive').length,
+    };
+  }, [statsData, hidePushed, hideNotFit, dateRange]);
 
   return {
-    // Raw data
-    deals,
+    // Raw data (current page for selected-deal operations)
+    deals: paginatedDeals,
     isLoading,
     refetch,
     exclusionLog,
@@ -375,8 +568,8 @@ export function useCapTargetData() {
     filterState,
     setFilterState,
     dynamicOptions,
-    filteredCount,
-    engineTotal,
+    filteredCount: queryResult?.mode === 'server' ? queryResult.totalFilteredCount : filteredCount,
+    engineTotal: queryResult?.mode === 'server' ? queryResult.totalFilteredCount : engineTotal,
     hidePushed,
     setHidePushed,
     hideNotFit,
@@ -408,6 +601,7 @@ export function useCapTargetData() {
     setCurrentPage,
     safePage,
     totalPages,
+    totalFilteredCount,
     paginatedDeals,
     filteredDeals,
 

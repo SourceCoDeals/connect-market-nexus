@@ -521,9 +521,9 @@ export default function CapTargetDeals() {
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
               Showing {(data.safePage - 1) * PAGE_SIZE + 1}–
-              {Math.min(data.safePage * PAGE_SIZE, data.filteredDeals.length)} of{' '}
-              {data.filteredDeals.length} deals
-              {data.filteredDeals.length !== data.totalDeals &&
+              {Math.min(data.safePage * PAGE_SIZE, data.totalFilteredCount)} of{' '}
+              {data.totalFilteredCount} deals
+              {data.totalFilteredCount !== data.totalDeals &&
                 ` (filtered from ${data.totalDeals})`}
             </p>
             <div className="flex items-center gap-1">
