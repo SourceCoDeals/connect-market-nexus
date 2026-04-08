@@ -1,30 +1,27 @@
 
 
-# Operations Hub Fixes + Remove Test Data
+## Problem
 
-## Remaining Bugs Found
+The build is failing because `ClientPreviewDialog.tsx` imports `untypedFrom` from a non-existent module `@/integrations/supabase/untyped-from`. The function actually lives in `@/integrations/supabase/client`.
 
-### 1. Wrong FK hint in two cards (WILL CRASH)
-Both **UnreadMessagesCard** (line 128) and **ConnectionRequestsCard** (line 220) use `connection_requests_user_id_fkey` but the actual FK name is `connection_requests_user_id_profiles_fkey`. This will cause PostgREST to return an error.
+This also causes cascading type errors (lines 148, 196, 214, 220, 229, 260, 261) because the file can't compile.
 
-### 2. Test data to delete
-The user `adambhaile00@gmail.com` created test firm agreements and document requests that should be cleaned up. The test firms visible in the screenshot are: **AdamCo**, **Acme Inc**, **test**, **Great company**. Their document_requests and firm_agreements (plus firm_members) need to be deleted.
+## Fix
 
-Everything else in the Operations Hub is correctly implemented -- column names, queries, grouping logic, and display are all valid.
+**File: `src/components/remarketing/deal-detail/ClientPreviewDialog.tsx`**
 
-## Changes
+1. Change line 27 from:
+   ```ts
+   import { untypedFrom } from '@/integrations/supabase/untyped-from';
+   ```
+   to:
+   ```ts
+   import { untypedFrom } from '@/integrations/supabase/client';
+   ```
 
-| # | What | Detail |
-|---|------|--------|
-| 1 | Fix FK hint in `OperationsHub.tsx` line 128 | Change `connection_requests_user_id_fkey` → `connection_requests_user_id_profiles_fkey` |
-| 2 | Fix FK hint in `OperationsHub.tsx` line 220 | Change `connection_requests_user_id_fkey` → `connection_requests_user_id_profiles_fkey` |
-| 3 | Database migration: delete test data | Delete `document_requests` for test firms, then `firm_members` for test firms, then the 4 `firm_agreements` rows (AdamCo, Acme Inc, test, Great company) by their known IDs |
+2. Fix the type error on line 148: the `portalPush` variable (from a query) can be `undefined`, but the `PortalPreview` component expects `Record<string, unknown> | null`. Add `?? null` to coerce `undefined` to `null`.
 
-### Test firm IDs to delete
-- `f3fe049d-143a-4fd5-837b-8e839cf58094` (AdamCo)
-- `5eccb4d6-f52a-440f-bf3c-02a1426da85a` (Acme Inc)
-- `285ad5e8-7447-4681-977d-4727e1de14a4` (test)
-- `ab961d3a-5a90-462c-9063-8b4b6c462e39` (Great company)
+3. Fix `unknown` → `ReactNode` errors on lines 196, 214, 220, 229, 260, 261: these are values from the `push` object (typed as `Record<string, unknown>`) being rendered as JSX children. They're already wrapped in `String()` or conditional checks — the fix is to ensure all rendered values go through `String()` casts, which the code mostly already does. The root cause is that the file couldn't compile at all due to the bad import, so these are secondary. Once the import is fixed and `push` prop type is correct, the remaining `unknown` issues just need explicit `String()` wrapping where missing.
 
-No other issues remain. The OperationsHub will work correctly after these two FK fixes.
+This is a single-file, single-line import fix that will unblock the build.
 
