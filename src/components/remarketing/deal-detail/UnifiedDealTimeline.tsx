@@ -312,7 +312,7 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
   const { data: transcripts = [], isLoading: loadingTranscripts } = useQuery({
     queryKey: ['unified-timeline-transcripts', listingId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('deal_transcripts')
         .select('id, title, created_at, transcript_type, summary')
         .eq('listing_id', listingId)
