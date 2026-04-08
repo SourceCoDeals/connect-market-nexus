@@ -82,7 +82,8 @@ Categories:
 - neutral: cannot determine intent
 
 Sentiment: positive, negative, neutral
-is_positive should be true ONLY for meeting_request and interested categories.`;
+is_positive should be true for: meeting_request, interested, question, and referral categories.
+When in doubt between "neutral" and "interested", prefer "interested" if the reply shows any engagement, curiosity, or willingness to learn more.`;
 
   try {
     const response = await fetch(
