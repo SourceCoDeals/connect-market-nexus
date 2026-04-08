@@ -208,8 +208,8 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
         </CardContent>
       </Card>
 
-      {/* Marketplace User Badge (if matched) */}
-      {hasUser && (
+      {/* Marketplace User Indicator */}
+      {hasUser ? (
         <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/30">
           <CardContent className="py-3 px-4">
             <div className="flex items-center gap-2.5">
