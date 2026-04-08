@@ -6,7 +6,7 @@
  * Shows form submission as read-only content (NOT a conversation thread).
  */
 import { format, formatDistanceToNow } from 'date-fns';
-import { Globe, User, Building2, Mail, Phone, Briefcase, ExternalLink, FileText, Shield, MessageSquare, Clock, CheckCircle } from 'lucide-react';
+import { Globe, User, Building2, Mail, Phone, Briefcase, ExternalLink, FileText, Clock, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
