@@ -90,7 +90,6 @@ function SortableDealCard({
   existingListing?: { id: string; title: string };
   getListingGaps: (deal: MarketplaceQueueDeal) => string[];
   onRemove: (dealId: string, dealName: string) => void;
-  memoStatusByDeal: Record<string, { hasLeadMemo: boolean; hasTeaser: boolean }>;
 }) {
   const navigate = useNavigate();
   const hasExistingListing = !!existingListing;
