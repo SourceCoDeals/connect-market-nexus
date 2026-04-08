@@ -31,6 +31,7 @@ import type { User as UserType } from "@/types";
 import { User as AdminUsersUser } from "@/types/admin-users";
 import { ConnectionRequestActions } from "./ConnectionRequestActions";
 import { LeadRequestActions } from "./LeadRequestActions";
+import { WebflowLeadDetail } from "./WebflowLeadDetail";
 import { SourceBadge } from "./SourceBadge";
 import { SourceLeadContext } from "./SourceLeadContext";
 import { BuyerProfileHoverCard } from "./BuyerProfileHoverCard";
