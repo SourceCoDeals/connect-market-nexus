@@ -241,6 +241,7 @@ interface MessagesSectionProps {
   createdAt?: string;
   activeTab: 'thread' | 'notes';
   setActiveTab: (tab: 'thread' | 'notes') => void;
+  isWebflowSubmission?: boolean;
 }
 
 export function MessagesSection({
@@ -252,6 +253,7 @@ export function MessagesSection({
   createdAt,
   activeTab,
   setActiveTab,
+  isWebflowSubmission,
 }: MessagesSectionProps) {
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
