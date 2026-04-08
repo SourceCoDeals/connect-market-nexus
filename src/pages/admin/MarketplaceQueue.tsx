@@ -289,7 +289,7 @@ function SortableDealCard({
 // ─── Main Page ───
 
 const MarketplaceQueue = () => {
-  const navigate = useNavigate();
+  // navigate available via child components
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'rank' | 'pushed_at' | 'name' | 'score'>('rank');
