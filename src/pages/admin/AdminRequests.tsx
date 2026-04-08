@@ -45,7 +45,7 @@ const AdminRequests = () => {
   const { markAsViewed } = useMarkConnectionRequestsViewed();
 
   const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
-  const { data: inboundLeads = [], isLoading: isLeadsLoading } = useInboundLeadsQuery();
+  
   const { mutateAsync: updateRequest, isPending: isUpdating } = useConnectionRequestsMutation();
 
   // Inbound leads mutations
