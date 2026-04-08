@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Send, Lock, Link2 } from 'lucide-react';
+import { Send, Lock, Link2, Globe } from 'lucide-react';
 import { UserNotesSection } from '../UserNotesSection';
 import {
   useConnectionMessages,
