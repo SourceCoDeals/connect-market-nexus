@@ -142,7 +142,8 @@ export function EnhancedUserManagement({
         user.company?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === 'all' || user.approval_status === statusFilter;
-      const matchesBuyerType = buyerTypeFilter === 'all' || user.buyer_type === buyerTypeFilter;
+      const matchesBuyerType = buyerTypeFilter === 'all' ||
+        user.buyer_type?.toLowerCase().replace(/[\s_]/g, '') === buyerTypeFilter.toLowerCase().replace(/[\s_]/g, '');
 
       const profileCompletion = calculateProfileCompletion(user);
       const matchesCompletion =
