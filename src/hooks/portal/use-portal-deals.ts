@@ -123,37 +123,22 @@ export function usePortalDealResponses(pushId: string | undefined) {
   });
 }
 
-/** Build a deal snapshot from a listing + its anonymous teaser.
- *  Throws if no published teaser exists — deals must have a teaser before being pushed to portal. */
+/** Build a deal snapshot from a listing + its full memo.
+ *  Portal clients are under NDA/fee agreement so we include full company info. */
 async function buildDealSnapshot(listingId: string): Promise<DealSnapshot> {
-  // 1. Fetch listing basics
+  // 1. Fetch listing basics (including internal company name)
   const { data: listing, error: listError } = await supabase
     .from('listings')
-    .select('id, title, category, categories, location, revenue, ebitda, description, project_name')
+    .select('id, title, internal_company_name, category, categories, location, revenue, ebitda, description, description_html, project_name')
     .eq('id', listingId)
     .maybeSingle();
 
   if (listError || !listing) throw new Error('Listing not found');
 
-  // 2. Fetch the published anonymous teaser
-  const { data: teaser } = await supabase
-    .from('lead_memos')
-    .select('content, html_content, branding, status')
-    .eq('deal_id', listingId)
-    .eq('memo_type', 'anonymous_teaser')
-    .in('status', ['published', 'completed', 'draft'])
-    .order('version', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!teaser) {
-    throw new Error('This deal has no teaser generated. Generate a teaser before pushing to a portal.');
-  }
-
-  // 3. Fetch the full memo HTML (for the detailed view)
+  // 2. Fetch the full memo HTML (preferred view for NDA clients)
   const { data: fullMemo } = await supabase
     .from('lead_memos')
-    .select('html_content, status')
+    .select('content, html_content, branding, status')
     .eq('deal_id', listingId)
     .eq('memo_type', 'full_memo')
     .in('status', ['published', 'completed', 'draft'])
@@ -161,11 +146,11 @@ async function buildDealSnapshot(listingId: string): Promise<DealSnapshot> {
     .limit(1)
     .maybeSingle();
 
-  // Extract teaser sections from content JSONB
-  const teaserContent = teaser.content as Record<string, unknown> | null;
+  // Extract memo sections from content JSONB if available
+  const memoContent = fullMemo?.content as Record<string, unknown> | null;
   const sections: TeaserSection[] = [];
-  if (teaserContent && Array.isArray(teaserContent.sections)) {
-    for (const s of teaserContent.sections) {
+  if (memoContent && Array.isArray(memoContent.sections)) {
+    for (const s of memoContent.sections) {
       if (s && typeof s === 'object' && 'key' in s && 'title' in s && 'content' in s) {
         sections.push({
           key: String(s.key),
@@ -177,7 +162,7 @@ async function buildDealSnapshot(listingId: string): Promise<DealSnapshot> {
   }
 
   return {
-    headline: (teaserContent?.company_name as string) || listing.project_name || listing.title || 'Untitled Deal',
+    headline: listing.internal_company_name || listing.title || 'Untitled Deal',
     industry: listing.category || '',
     geography: listing.location || '',
     ebitda: listing.ebitda,
@@ -185,9 +170,9 @@ async function buildDealSnapshot(listingId: string): Promise<DealSnapshot> {
     business_description: listing.description || undefined,
     category: listing.category || undefined,
     teaser_sections: sections.length > 0 ? sections : undefined,
-    memo_html: fullMemo?.html_content || teaser.html_content || undefined,
-    project_name: (teaserContent?.company_name as string) || listing.project_name || undefined,
-    branding: teaser.branding || undefined,
+    memo_html: fullMemo?.html_content || listing.description_html || undefined,
+    project_name: listing.internal_company_name || listing.title || undefined,
+    branding: fullMemo?.branding || undefined,
   };
 }
 

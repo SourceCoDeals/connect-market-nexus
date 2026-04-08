@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import type { PortalUser } from '@/types/portal';
 
 export function usePortalUsers(portalOrgId: string | undefined) {
@@ -98,24 +99,32 @@ export function useDeactivatePortalUser() {
   });
 }
 
-/** For the client portal: get the current user's portal membership for a specific portal slug */
+export type PortalUserWithOrg = PortalUser & {
+  portal_org: { id: string; name: string; portal_slug: string; welcome_message: string | null };
+};
+
+/** For the client portal: get the current user's portal membership for a specific portal slug.
+ *  Admins who are not portal members get a synthetic admin context so they can preview the portal. */
 export function useMyPortalUser(slug: string | undefined) {
+  const { isAdmin } = useAuth();
+
   return useQuery({
-    queryKey: ['my-portal-user', slug],
-    queryFn: async (): Promise<(PortalUser & { portal_org: { id: string; name: string; portal_slug: string; welcome_message: string | null } }) | null> => {
+    queryKey: ['my-portal-user', slug, isAdmin],
+    queryFn: async (): Promise<PortalUserWithOrg | null> => {
       if (!slug) return null;
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      // First resolve the org by slug
+      // Resolve the org by slug
       const { data: org } = await untypedFrom('portal_organizations')
-        .select('id')
+        .select('id, name, portal_slug, welcome_message')
         .eq('portal_slug', slug)
         .is('deleted_at', null)
         .maybeSingle();
 
       if (!org) return null;
 
+      // Check if user is an actual portal member
       const { data, error } = await untypedFrom('portal_users')
         .select(`
           *,
@@ -129,7 +138,34 @@ export function useMyPortalUser(slug: string | undefined) {
         .maybeSingle();
 
       if (error) throw error;
-      return data as (PortalUser & { portal_org: { id: string; name: string; portal_slug: string; welcome_message: string | null } }) | null;
+      if (data) return data as PortalUserWithOrg;
+
+      // Admin preview: synthesize an admin portal user so they can view the portal
+      if (isAdmin) {
+        return {
+          id: `admin-preview-${user.id}`,
+          portal_org_id: org.id,
+          profile_id: user.id,
+          contact_id: null,
+          role: 'admin',
+          email: user.email || '',
+          name: 'Admin Preview',
+          is_active: true,
+          last_login_at: null,
+          invite_sent_at: null,
+          invite_accepted_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          portal_org: {
+            id: org.id,
+            name: org.name,
+            portal_slug: org.portal_slug,
+            welcome_message: org.welcome_message,
+          },
+        } as PortalUserWithOrg;
+      }
+
+      return null;
     },
     enabled: !!slug,
   });

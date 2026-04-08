@@ -109,7 +109,7 @@ export default function PortalDealDetail() {
         {/* Deal header */}
         <div>
           <h1 className="text-2xl font-bold">
-            {snapshot?.project_name || snapshot?.headline || 'Untitled Deal'}
+            {snapshot?.headline || 'Untitled Deal'}
           </h1>
           <div className="flex items-center gap-2 mt-2">
             <PushStatusBadge status={push.status} />
