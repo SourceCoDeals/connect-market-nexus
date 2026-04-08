@@ -418,22 +418,7 @@ const AdminRequests = () => {
                 />
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="inbound-leads" className="space-y-6">
-            <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
-              <InboundLeadsTable
-                leads={inboundLeads}
-                isLoading={isLeadsLoading}
-                onMapToListing={(_lead) => {
-                  // This will open the LeadMappingDialog - the actual mapping happens in the dialog
-                }}
-                onConvertToRequest={(leadId) => convertLeadToRequest(leadId)}
-                onArchive={(leadId) => archiveLead(leadId)}
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
+        </div>
 
         <ConnectionRequestDialog
           isOpen={isDialogOpen}
