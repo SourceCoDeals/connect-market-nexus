@@ -87,7 +87,7 @@ When in doubt between "neutral" and "interested", prefer "interested" if the rep
 
   try {
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      GEMINI_API_URL,
       {
         method: 'POST',
         headers: {
