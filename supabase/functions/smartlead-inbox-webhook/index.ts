@@ -13,7 +13,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { timingSafeEqual } from '../_shared/security.ts';
 import { smartleadRequest } from '../_shared/smartlead-client.ts';
-import { DEFAULT_GEMINI_MODEL, getGeminiApiKey } from '../_shared/ai-providers.ts';
+import { DEFAULT_GEMINI_MODEL, getGeminiApiKey, GEMINI_API_URL } from '../_shared/ai-providers.ts';
 
 /** Strip HTML tags and collapse whitespace */
 function stripHtml(html: string): string {
@@ -82,11 +82,12 @@ Categories:
 - neutral: cannot determine intent
 
 Sentiment: positive, negative, neutral
-is_positive should be true ONLY for meeting_request and interested categories.`;
+is_positive should be true for: meeting_request, interested, question, and referral categories.
+When in doubt between "neutral" and "interested", prefer "interested" if the reply shows any engagement, curiosity, or willingness to learn more.`;
 
   try {
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      GEMINI_API_URL,
       {
         method: 'POST',
         headers: {
