@@ -15,6 +15,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { requireAdmin } from '../_shared/auth.ts';
+import { timingSafeEqual } from '../_shared/security.ts';
 import { DEFAULT_GEMINI_MODEL, getGeminiApiKey, GEMINI_API_URL } from '../_shared/ai-providers.ts';
 
 /** Strip HTML tags and collapse whitespace */
@@ -146,12 +147,21 @@ Deno.serve(async (req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  const auth = await requireAdmin(req, supabase);
-  if (!auth.isAdmin) {
-    return new Response(JSON.stringify({ error: auth.error }), {
-      status: auth.authenticated ? 403 : 401,
-      headers: jsonHeaders,
-    });
+  // Allow admin auth OR webhook secret OR internal service call
+  const internalSecret = req.headers.get('x-internal-secret');
+  const isInternalCall = internalSecret && internalSecret === serviceRoleKey;
+  const webhookSecret = Deno.env.get('SMARTLEAD_WEBHOOK_SECRET');
+  const providedWebhookSecret = req.headers.get('x-webhook-secret');
+  const isWebhookAuth = webhookSecret && providedWebhookSecret && timingSafeEqual(providedWebhookSecret, webhookSecret);
+
+  if (!isInternalCall && !isWebhookAuth) {
+    const auth = await requireAdmin(req, supabase);
+    if (!auth.isAdmin) {
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: auth.authenticated ? 403 : 401,
+        headers: jsonHeaders,
+      });
+    }
   }
 
   try {
