@@ -522,9 +522,9 @@ export function ConnectionRequestRow({
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Badge variant="outline" className="text-xs gap-1 cursor-help">
+                            <Badge className="text-xs gap-1 cursor-help bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30">
                               Lead-Only
-                              <Info className="h-3 w-3 text-muted-foreground" />
+                              <Info className="h-3 w-3" />
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
