@@ -538,6 +538,7 @@ export function ImprovedListingEditor({
         main_contact_phone: formData.main_contact_phone || null,
         main_contact_linkedin: formData.main_contact_linkedin || null,
         custom_sections: formData.custom_sections || null,
+        webflow_slug: formData.webflow_slug?.trim() || null,
         // Featured deals for landing page
         ...(featuredDealIds ? { featured_deal_ids: featuredDealIds } : {}),
       };
