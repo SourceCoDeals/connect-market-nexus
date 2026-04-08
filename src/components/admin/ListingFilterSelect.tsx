@@ -1,6 +1,9 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useMemo } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
-import { Building2 } from "lucide-react";
+import { Building2, Check, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { AdminConnectionRequest } from "@/types/admin";
 
 interface ListingFilterSelectProps {
@@ -18,10 +21,12 @@ const formatListingForDropdown = (title: string, companyName?: string | null): s
 };
 
 export function ListingFilterSelect({ requests, selectedListingId, onListingChange }: ListingFilterSelectProps) {
+  const [open, setOpen] = useState(false);
+
   // Extract unique listings from requests with counts (show all listings regardless of company name)
-  const getUniqueListings = () => {
+  const uniqueListings = useMemo(() => {
     const listingMap = new Map();
-    
+
     requests.forEach(request => {
       if (request.listing?.id && request.listing?.title) {
         const existing = listingMap.get(request.listing.id);
@@ -39,40 +44,74 @@ export function ListingFilterSelect({ requests, selectedListingId, onListingChan
         }
       }
     });
-    
-    return Array.from(listingMap.values()).sort((a, b) => b.count - a.count);
-  };
 
-  const uniqueListings = getUniqueListings();
+    return Array.from(listingMap.values()).sort((a, b) => b.count - a.count);
+  }, [requests]);
+
+  const selectedListing = uniqueListings.find(l => l.id === selectedListingId);
 
   return (
     <div className="flex items-center gap-2">
       <Building2 className="h-4 w-4 text-muted-foreground" />
-      <Select value={selectedListingId || "all"} onValueChange={(value) => onListingChange(value === "all" ? null : value)}>
-        <SelectTrigger className="w-[280px]">
-          <SelectValue placeholder="Filter by Deal" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">
-            <div className="flex items-center justify-between w-full">
-              <span>Active Deals</span>
-              <Badge variant="secondary" className="ml-2">
-                {requests.length}
-              </Badge>
-            </div>
-          </SelectItem>
-          {uniqueListings.map((listing) => (
-            <SelectItem key={listing.id} value={listing.id}>
-              <div className="flex items-center justify-between w-full">
-                <span className="truncate max-w-[200px]">{listing.displayName}</span>
-                <Badge variant="outline" className="ml-2">
-                  {listing.count}
-                </Badge>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            role="combobox"
+            aria-expanded={open}
+            className="flex h-10 w-[280px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <span className="flex items-center gap-2 truncate">
+              {selectedListing ? (
+                <>
+                  <span className="truncate">{selectedListing.displayName}</span>
+                  <Badge variant="outline" className="shrink-0">{selectedListing.count}</Badge>
+                </>
+              ) : (
+                <>
+                  <span>Active Deals</span>
+                  <Badge variant="secondary" className="shrink-0">{requests.length}</Badge>
+                </>
+              )}
+            </span>
+            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Search deals..." />
+            <CommandList>
+              <CommandEmpty>No deals found.</CommandEmpty>
+              <CommandGroup>
+                <CommandItem
+                  value="Active Deals"
+                  onSelect={() => {
+                    onListingChange(null);
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", !selectedListingId ? "opacity-100" : "opacity-0")} />
+                  <span>Active Deals</span>
+                  <Badge variant="secondary" className="ml-auto">{requests.length}</Badge>
+                </CommandItem>
+                {uniqueListings.map((listing) => (
+                  <CommandItem
+                    key={listing.id}
+                    value={listing.displayName}
+                    onSelect={() => {
+                      onListingChange(listing.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("mr-2 h-4 w-4", selectedListingId === listing.id ? "opacity-100" : "opacity-0")} />
+                    <span className="truncate">{listing.displayName}</span>
+                    <Badge variant="outline" className="ml-auto shrink-0">{listing.count}</Badge>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
