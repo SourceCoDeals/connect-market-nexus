@@ -1,3 +1,4 @@
+import React from "react";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,7 @@ import {
   Search,
   ArrowDownAZ,
   Building2,
+  X,
 } from "lucide-react";
 import { AdminConnectionRequest } from "@/types/admin";
 
@@ -36,6 +38,7 @@ export type SortOption = 'newest' | 'oldest' | 'buyer_priority' | 'deal_size' | 
 
 interface PipelineFiltersProps {
   requests: AdminConnectionRequest[];
+  filteredCount: number;
   statusFilter: StatusFilter;
   buyerTypeFilter: BuyerTypeFilter;
   ndaFilter: NdaFilter;
@@ -50,6 +53,10 @@ interface PipelineFiltersProps {
   onDateRangeFilterChange: (filter: DateRangeFilter) => void;
   onSortChange: (sort: SortOption) => void;
   onSearchChange: (query: string) => void;
+  /** Slot for the deals dropdown (ListingFilterSelect) */
+  listingFilter?: React.ReactNode;
+  /** Slot for the view switcher */
+  viewSwitcher?: React.ReactNode;
 }
 
 function FilterDropdown({ 
@@ -129,6 +136,7 @@ function FilterDropdown({
 
 export function PipelineFilters({
   requests,
+  filteredCount,
   statusFilter,
   buyerTypeFilter,
   ndaFilter,
@@ -143,8 +151,10 @@ export function PipelineFilters({
   onDateRangeFilterChange,
   onSortChange,
   onSearchChange,
+  listingFilter,
+  viewSwitcher,
 }: PipelineFiltersProps) {
-  
+
   const statusCounts = {
     all: requests.length,
     pending: requests.filter(r => r.status === 'pending').length,
@@ -175,14 +185,6 @@ export function PipelineFilters({
     { value: 'signed', label: 'Fee Agreement Signed', count: requests.filter(r => r.lead_fee_agreement_signed).length },
     { value: 'sent', label: 'Fee Sent (Not Signed)', count: requests.filter(r => r.lead_fee_agreement_email_sent && !r.lead_fee_agreement_signed).length },
     { value: 'not_signed', label: 'Fee Not Signed', count: requests.filter(r => !r.lead_fee_agreement_signed).length },
-  ];
-
-  const statusDropdownOptions = [
-    { value: 'all', label: 'All Statuses', count: statusCounts.all },
-    { value: 'pending', label: 'Pending', count: statusCounts.pending },
-    { value: 'approved', label: 'Approved', count: statusCounts.approved },
-    { value: 'rejected', label: 'Rejected', count: statusCounts.rejected },
-    { value: 'on_hold', label: 'On Hold', count: statusCounts.on_hold },
   ];
 
   const statusOptions = [
@@ -216,12 +218,29 @@ export function PipelineFilters({
     { value: '1y', label: 'Last Year' },
   ];
 
+  const hasActiveFilters =
+    statusFilter !== 'all' ||
+    buyerTypeFilter !== 'all' ||
+    ndaFilter !== 'all' ||
+    feeAgreementFilter !== 'all' ||
+    dateRangeFilter !== 'all' ||
+    searchQuery;
+
+  const clearAllFilters = () => {
+    onStatusFilterChange('all');
+    onBuyerTypeFilterChange('all');
+    onNdaFilterChange('all');
+    onFeeAgreementFilterChange('all');
+    onDateRangeFilterChange('all');
+    onSearchChange('');
+  };
+
   return (
     <div className="bg-card border border-border rounded-lg">
-      <div className="px-6 py-4">
-        {/* Top row: Search + Sort */}
-        <div className="flex items-center gap-3 mb-3">
-          <div className="relative flex-1">
+      <div className="px-6 py-4 space-y-3">
+        {/* Row 1: Search + Deals Dropdown + Sort + View Switcher */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search requests..."
@@ -230,8 +249,9 @@ export function PipelineFilters({
               onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
+          {listingFilter}
           <Select value={sortOption} onValueChange={(value) => onSortChange(value as SortOption)}>
-            <SelectTrigger className="w-40 h-9">
+            <SelectTrigger className="w-40 h-9 shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border border-border rounded-lg shadow-lg">
@@ -242,8 +262,8 @@ export function PipelineFilters({
               </div>
               <div className="p-2">
                 {sortOptions.map((option) => (
-                  <SelectItem 
-                    key={option.value} 
+                  <SelectItem
+                    key={option.value}
                     value={option.value}
                     className="px-3 py-2 hover:bg-muted rounded-md cursor-pointer"
                   >
@@ -253,22 +273,23 @@ export function PipelineFilters({
               </div>
             </SelectContent>
           </Select>
+          {viewSwitcher}
         </div>
 
-        {/* Status Filter Pills */}
+        {/* Row 2: Status Filter Pills + Result Count */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-1">
             {statusOptions.map((option) => {
               const isActive = statusFilter === option.value;
-              
+
               return (
                 <button
                   key={option.value}
                   onClick={() => onStatusFilterChange(option.value as StatusFilter)}
                   className={`
                     px-4 py-2 text-sm font-medium rounded-full transition-all duration-200
-                    ${isActive 
-                      ? "bg-primary text-primary-foreground" 
+                    ${isActive
+                      ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     }
                   `}
@@ -277,8 +298,8 @@ export function PipelineFilters({
                   {option.count > 0 && (
                     <span className={`
                       ml-2 text-xs font-medium
-                      ${isActive 
-                        ? "text-primary-foreground/70" 
+                      ${isActive
+                        ? "text-primary-foreground/70"
                         : "text-muted-foreground"
                       }
                     `}>
@@ -289,10 +310,24 @@ export function PipelineFilters({
               );
             })}
           </div>
+          {hasActiveFilters && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>
+                Showing <span className="font-semibold text-foreground">{filteredCount}</span> of {requests.length}
+              </span>
+              <button
+                onClick={clearAllFilters}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted"
+              >
+                <X className="h-3 w-3" />
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Secondary Filters Row */}
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border flex-wrap">
+        {/* Row 3: Secondary Filters (no duplicate Status) */}
+        <div className="flex items-center gap-2 pt-3 border-t border-border flex-wrap">
           <FilterDropdown
             label="Buyer Type"
             icon={Users}
@@ -320,13 +355,6 @@ export function PipelineFilters({
             value={dateRangeFilter}
             options={dateRangeOptions}
             onChange={(v) => onDateRangeFilterChange(v as DateRangeFilter)}
-          />
-          <FilterDropdown
-            label="Status"
-            icon={CheckCircle2}
-            value={statusFilter}
-            options={statusDropdownOptions}
-            onChange={(v) => onStatusFilterChange(v as StatusFilter)}
           />
         </div>
       </div>
