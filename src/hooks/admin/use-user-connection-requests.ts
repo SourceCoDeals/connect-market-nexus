@@ -31,7 +31,7 @@ export function useUserConnectionRequests(userId: string) {
         if (req.user_id) allProfileIds.add(req.user_id);
         if (req.followed_up_by) allProfileIds.add(req.followed_up_by);
         if (req.negative_followed_up_by) allProfileIds.add(req.negative_followed_up_by);
-        allListingIds.add(req.listing_id);
+        if (req.listing_id) allListingIds.add(req.listing_id);
       }
 
       const [{ data: allProfiles }, { data: allListings }] = await Promise.all([
