@@ -35,7 +35,7 @@ function scoreColor(score: number | null): string {
   return 'text-red-600';
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// @ts-ignore - kept for future use
 function _scoreBg(score: number | null): string {
   if (score == null) return 'bg-muted';
   if (score > 70) return 'bg-emerald-500';
