@@ -16,6 +16,8 @@ export interface ConnectionRequestActionsProps {
   flaggedForReview?: boolean;
   flaggedByAdmin?: UserType | null;
   flaggedAssignedToAdmin?: UserType | null;
+  // Webflow source indicator
+  isWebflowSubmission?: boolean;
   // Legacy props — kept for call-site compatibility
   followedUp?: boolean;
   negativeFollowedUp?: boolean;

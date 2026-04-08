@@ -41,6 +41,7 @@ export function ConnectionRequestActions({
   flaggedForReview,
   flaggedByAdmin,
   flaggedAssignedToAdmin,
+  isWebflowSubmission,
 }: ConnectionRequestActionsProps) {
   const actions = useConnectionRequestActions({ user, listing, requestId });
 
@@ -225,6 +226,7 @@ export function ConnectionRequestActions({
             createdAt={createdAt}
             activeTab={actions.activeTab}
             setActiveTab={actions.setActiveTab}
+            isWebflowSubmission={isWebflowSubmission}
           />
         </div>
 

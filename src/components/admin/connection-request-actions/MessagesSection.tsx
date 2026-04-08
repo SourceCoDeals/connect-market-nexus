@@ -7,7 +7,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Send, Lock, Link2 } from 'lucide-react';
+import { Send, Lock, Link2, Globe } from 'lucide-react';
 import { UserNotesSection } from '../UserNotesSection';
 import {
   useConnectionMessages,
@@ -241,6 +241,7 @@ interface MessagesSectionProps {
   createdAt?: string;
   activeTab: 'thread' | 'notes';
   setActiveTab: (tab: 'thread' | 'notes') => void;
+  isWebflowSubmission?: boolean;
 }
 
 export function MessagesSection({
@@ -252,7 +253,10 @@ export function MessagesSection({
   createdAt,
   activeTab,
   setActiveTab,
+  isWebflowSubmission,
 }: MessagesSectionProps) {
+  const threadLabel = isWebflowSubmission ? 'Form Submission' : 'Conversation Thread';
+
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
       {/* Tab bar */}
@@ -265,7 +269,7 @@ export function MessagesSection({
           }`}
           onClick={() => setActiveTab('thread')}
         >
-          Conversation Thread
+          {threadLabel}
         </button>
         <button
           className={`py-3 px-1 text-[13.5px] font-medium border-b-2 transition-colors ${
@@ -279,7 +283,30 @@ export function MessagesSection({
         </button>
       </div>
 
-      {activeTab === 'thread' && requestId && (
+      {activeTab === 'thread' && isWebflowSubmission && (
+        <div className="p-6 bg-muted/20">
+          <div className="flex items-center gap-2 mb-3">
+            <Globe className="h-4 w-4 text-blue-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Website Form Submission
+            </span>
+            {createdAt && (
+              <span className="text-xs text-muted-foreground ml-auto">
+                {format(new Date(createdAt), 'MMM d, yyyy h:mm a')}
+              </span>
+            )}
+          </div>
+          {userMessage ? (
+            <div className="bg-background border border-border rounded-lg p-5 text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+              {userMessage}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No message submitted with this form.</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'thread' && !isWebflowSubmission && requestId && (
         <ConversationThread
           connectionRequestId={requestId}
           buyerName={buyerName}

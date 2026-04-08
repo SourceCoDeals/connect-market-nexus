@@ -602,7 +602,23 @@ export function ConnectionRequestRow({
               onClick={(e) => e.stopPropagation()}
             >
               {/* Connection Request Actions */}
-              {request.source === 'webflow' ? (
+              {request.source === 'webflow' && request.user ? (
+                <>
+                  <WebflowLeadDetail request={request} />
+                  <ConnectionRequestActions
+                    user={request.user}
+                    listing={request.listing ?? undefined}
+                    requestId={request.id}
+                    requestStatus={request.status === 'converted' ? 'approved' : request.status === 'notified' || request.status === 'reviewed' ? 'pending' : request.status}
+                    userMessage={request.user_message}
+                    createdAt={request.created_at}
+                    flaggedForReview={request.flagged_for_review}
+                    flaggedByAdmin={request.flaggedByAdmin}
+                    flaggedAssignedToAdmin={request.flaggedAssignedToAdmin}
+                    isWebflowSubmission
+                  />
+                </>
+              ) : request.source === 'webflow' ? (
                 <WebflowLeadDetail request={request} />
               ) : request.user ? (
                 <ConnectionRequestActions
