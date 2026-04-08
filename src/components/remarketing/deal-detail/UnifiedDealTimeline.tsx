@@ -26,6 +26,10 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import { useDealActivities } from '@/hooks/admin/use-deal-activities';
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 // ── Types ──
 
 interface UnifiedTimelineEntry {
@@ -325,8 +329,25 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
     staleTime: 60_000,
   });
 
+  // 6. Smartlead reply inbox linked to the deal
+  const { data: smartleadReplies = [], isLoading: loadingSmartlead } = useQuery({
+    queryKey: ['unified-timeline-smartlead', dealId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('smartlead_reply_inbox')
+        .select('id, from_email, to_email, subject, reply_body, sent_message_body, time_replied, event_timestamp, ai_category, ai_sentiment, campaign_name, lead_first_name, lead_last_name, lead_company_name, created_at')
+        .eq('linked_deal_id', dealId)
+        .order('time_replied', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!dealId,
+    staleTime: 60_000,
+  });
+
   const isLoading =
-    loadingDealActivities || loadingCalls || loadingEmails || loadingLinkedin || loadingTranscripts;
+    loadingDealActivities || loadingCalls || loadingEmails || loadingLinkedin || loadingTranscripts || loadingSmartlead;
 
   // ── Merge all sources into unified entries ──
 
@@ -435,11 +456,35 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
       });
     }
 
+    // Smartlead replies
+    for (const s of smartleadReplies) {
+      const replyText = s.reply_body ? stripHtml(s.reply_body) : '';
+      const leadName = [s.lead_first_name, s.lead_last_name].filter(Boolean).join(' ');
+      const category = s.ai_category || 'neutral';
+      const catLabel = category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      entries.push({
+        id: `sl-${s.id}`,
+        timestamp: s.time_replied || s.event_timestamp || s.created_at,
+        source: 'email',
+        category: 'emails',
+        icon: <Mail className="h-3.5 w-3.5" />,
+        iconColor: 'bg-green-50 text-green-700 border-green-200',
+        title: `${leadName || s.from_email || 'Lead'} — ${catLabel}`,
+        description: replyText ? replyText.slice(0, 200) : (s.subject || 'Smartlead reply'),
+        metadata: {
+          ai_category: category,
+          ai_sentiment: s.ai_sentiment,
+          campaign: s.campaign_name,
+          from: s.from_email,
+        },
+      });
+    }
+
     // Sort descending by timestamp
     entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     return entries;
-  }, [dealActivities, callActivities, emailHistory, linkedinHistory, transcripts]);
+  }, [dealActivities, callActivities, emailHistory, linkedinHistory, transcripts, smartleadReplies]);
 
   // ── Filter ──
 
