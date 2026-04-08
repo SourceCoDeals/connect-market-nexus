@@ -2,73 +2,38 @@
 
 ## Problem
 
-**58 out of 83 "neutral" inbox items are actually AI classification failures, not real neutrals.** The `classifyReply()` function is broken because:
+Phone numbers show in the contact drawer but not in the list view table. 
 
-1. It calls the **native Gemini API** (`generativelanguage.googleapis.com`) directly
-2. But sends model name `google/gemini-2.0-flash-001` (OpenRouter format) — the native API expects `gemini-2.0-flash-001`
-3. It also uses `getGeminiApiKey()` which now resolves to `OPENROUTER_API_KEY` — an OpenRouter key sent to the native Gemini endpoint returns 400
+**Root cause**: Two different lookup strategies are used:
+- **List view** (table): Uses `contact_id` FK join → `member.contact?.phone`. But `contact_id` is often `null` (especially for deal-sourced members), so the join returns nothing.
+- **Drawer**: Queries `contacts` table **by email** → always finds the phone.
 
-Every failed classification defaults to `neutral`, which means:
-- **46 GP campaign replies** were misclassified as neutral and **never triggered the GP automation** (no auto-creation of GP Partner Deals, no calling list addition, no phone enrichment)
-- Interested leads appear as neutral in the inbox
+For example, Russell Bradway has `contact_id = null` and `contact_phone = null` in `contact_list_members`, but the `contacts` table has his phone `(508) 842-0060` linked by email.
 
 ## Fix
 
-### 1. Route classification through OpenRouter (like all other AI calls)
+### 1. Backfill `contact_id` on existing list members
 
-**File: `supabase/functions/smartlead-inbox-webhook/index.ts`**
+**File: `src/hooks/admin/use-contact-lists.ts`** — in the `useContactList` query function
 
-In `classifyReply()` (line 88), change the fetch URL from the native Gemini endpoint to `GEMINI_API_URL` (OpenRouter). Import and use the shared constant that already points to `https://openrouter.ai/api/v1/chat/completions`. This aligns with every other AI call in the codebase.
+After fetching members, for any member where `contact_id` is null, do a batch lookup against the `contacts` table by email to get the phone (and populate the missing join data). This is a read-side enrichment that fills the gap without requiring a migration.
 
-```
-// Before (line 88-89):
-const response = await fetch(
-  'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+Add a post-fetch step:
+1. Collect members where `contact_id` is null (no FK join data)
+2. Batch-query `contacts` table by those emails
+3. Merge the `phone` (and other fields) into each member's `contact` object so the existing render logic picks it up
 
-// After:
-const response = await fetch(
-  GEMINI_API_URL,
-```
+### 2. Update the list view render to use the enriched data
 
-`GEMINI_API_URL` is already imported on line 16. No other changes needed — the request body format (OpenAI-compatible with tools) works with OpenRouter.
+**File: `src/pages/admin/ContactListDetailPage.tsx`** — line 474
 
-### 2. Create a backfill edge function to re-classify the 58 failed records
+The current render: `member.contact?.phone || member.contact_phone || '--'` will automatically work once step 1 populates `member.contact` for members without `contact_id`. No render change needed.
 
-**New file: `supabase/functions/smartlead-reclassify-failed/index.ts`**
-
-Admin-only endpoint that:
-1. Selects all `smartlead_reply_inbox` records where `ai_category = 'neutral'` AND `ai_reasoning LIKE '%failed%'`
-2. Re-runs `classifyReply()` on each (using the reply body text)
-3. Updates `ai_category`, `ai_sentiment`, `ai_is_positive`, `ai_confidence`, `ai_reasoning`, `categorized_at`
-4. For GP campaign records that are now classified as positive (`meeting_request`, `interested`, `question`, `referral`): re-trigger the GP automation — create/update GP Partner Deals, add to calling list, enrich phone
-
-This function processes records in batches of 5 with 500ms delays to avoid rate limits.
-
-### 3. Improve the system prompt for better classification accuracy
-
-The current prompt on line 85 says `is_positive should be true ONLY for meeting_request and interested categories` — but the GP automation also activates on `question` and `referral`. The prompt should be updated so that `is_positive = true` for all four activated categories. Additionally, add guidance to bias toward `interested` when the reply shows any engagement or curiosity (to reduce false neutrals from ambiguous replies).
-
-**Updated system prompt addition:**
-```
-is_positive should be true for: meeting_request, interested, question, and referral categories.
-When in doubt between "neutral" and "interested", prefer "interested" if the reply shows any engagement, curiosity, or willingness to learn more.
-```
-
-## What Happens After the Fix
-
-**For new webhooks:**
-- AI classification routes through OpenRouter (working endpoint) instead of broken native Gemini
-- Positive GP replies auto-create GP Partner Deals, populate calling lists, trigger phone enrichment, create follow-up tasks, and send notifications — all already coded but blocked by the classification failure
-
-**For the 58 failed records:**
-- Admin calls the backfill endpoint once
-- Each record gets properly classified
-- GP automation runs retroactively for newly-positive GP records
-
-## Summary of Changes
+### Summary
 
 | File | Change |
 |------|--------|
-| `supabase/functions/smartlead-inbox-webhook/index.ts` | Fix API URL to `GEMINI_API_URL` (OpenRouter); update system prompt for `is_positive` accuracy |
-| `supabase/functions/smartlead-reclassify-failed/index.ts` | New backfill function to re-classify 58 failed neutrals and re-trigger GP automation |
+| `src/hooks/admin/use-contact-lists.ts` | After fetching members, enrich those with null `contact_id` by looking up `contacts` by email and attaching phone/name data to the `contact` field |
+
+This is a single-file fix. The enrichment runs at query time so it works for all existing and future lists without requiring a data migration.
 
