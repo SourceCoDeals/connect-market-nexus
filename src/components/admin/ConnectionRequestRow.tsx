@@ -546,9 +546,10 @@ export function ConnectionRequestRow({
                     <Badge variant={
                       request.user.approval_status === 'approved' ? 'success' :
                       request.user.approval_status === 'rejected' ? 'destructive' : 'sent'
-                    } className="text-[10px] px-1.5 py-0">
-                      {request.user.approval_status === 'approved' ? '✓ Approved' :
-                       request.user.approval_status === 'rejected' ? 'Rejected' : 'Pending Approval'}
+                    } className="text-[10px] px-1.5 py-0 inline-flex items-center gap-0.5">
+                      <User className="h-2.5 w-2.5" />
+                      {request.user.approval_status === 'approved' ? 'Mkt. Approved' :
+                       request.user.approval_status === 'rejected' ? 'Mkt. Rejected' : 'Mkt. Not Approved'}
                     </Badge>
                   )}
                 </div>
