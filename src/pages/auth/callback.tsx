@@ -12,9 +12,6 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 const CAPTURED_HASH = window.location.hash.substring(1);
 const CAPTURED_SEARCH = window.location.search;
 
-/**
- * Parse auth tokens from the captured URL hash fragment.
- */
 function parseHashTokens(): { access_token: string; refresh_token: string } | null {
   if (!CAPTURED_HASH) return null;
   const params = new URLSearchParams(CAPTURED_HASH);
@@ -24,9 +21,6 @@ function parseHashTokens(): { access_token: string; refresh_token: string } | nu
   return { access_token, refresh_token };
 }
 
-/**
- * Get PKCE code from captured query string.
- */
 function getPKCECode(): string | null {
   const params = new URLSearchParams(CAPTURED_SEARCH);
   return params.get('code');
@@ -65,8 +59,6 @@ export default function AuthCallback() {
         const pkceCode = getPKCECode();
 
         if (hashTokens) {
-          // Directly set the session using tokens from the URL hash.
-          // DO NOT call signOut first — that destroys the session Supabase just created.
           const { data, error: setSessionError } = await supabase.auth.setSession({
             access_token: hashTokens.access_token,
             refresh_token: hashTokens.refresh_token,
@@ -74,13 +66,10 @@ export default function AuthCallback() {
           if (setSessionError) throw setSessionError;
           authUser = data.user;
         } else if (pkceCode) {
-          // Exchange the PKCE code for a session — no signOut first.
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(pkceCode);
           if (exchangeError) throw exchangeError;
           authUser = data.user;
         } else {
-          // No tokens in URL — Supabase may have already consumed them and
-          // established a session automatically. Check the existing session.
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           if (sessionError) throw sessionError;
           authUser = session?.user ?? null;
@@ -90,24 +79,37 @@ export default function AuthCallback() {
           const emailConfirmed = !!authUser.email_confirmed_at;
           let profile = await fetchProfile(authUser);
 
-          // Verification is now sourced from auth.users -> profiles trigger.
-          // Give the sync a brief moment to settle before routing or rendering follow-up UI.
+          console.info('[auth/callback] Session resolved', {
+            userId: authUser.id,
+            emailConfirmed,
+            profileEmailVerified: profile?.email_verified,
+            approvalStatus: profile?.approval_status,
+          });
+
+          // Wait for DB trigger sync if auth says verified but profile hasn't caught up
           if (emailConfirmed && !profile?.email_verified) {
-            for (let attempt = 0; attempt < 3; attempt += 1) {
-              await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+            console.info('[auth/callback] Profile not yet synced, retrying...');
+            for (let attempt = 1; attempt <= 5; attempt += 1) {
+              await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
               profile = await fetchProfile(authUser);
+              console.info(`[auth/callback] Retry ${attempt}/5: profile.email_verified=${profile?.email_verified}`);
               if (profile?.email_verified) break;
+            }
+
+            if (!profile?.email_verified) {
+              console.warn('[auth/callback] Profile still not synced after 5 retries. Auth says verified, profile says false.');
             }
           }
 
+          // Route decision
           if (emailConfirmed && profile?.approval_status === 'approved') {
             navigate(profile.is_admin ? '/admin' : '/');
           } else {
             navigate('/pending-approval');
           }
 
-          // Fire-and-forget: send verification success email + journey notification
-          if (emailConfirmed && profile) {
+          // Fire-and-forget: send verification success email ONLY if profile is confirmed synced
+          if (emailConfirmed && profile?.email_verified && profile) {
             sendVerificationSuccessEmail({
               email: profile.email as string,
               firstName: (profile.first_name || '') as string,
@@ -132,14 +134,12 @@ export default function AuthCallback() {
               });
           }
         } else {
-          // No user found at all — the link may have already been consumed
           setIsConsumedLink(true);
           setIsLoading(false);
           return;
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Authentication failed';
-        // If the error indicates an expired/consumed token, show friendly UI
         if (
           message.includes('expired') ||
           message.includes('invalid') ||
