@@ -452,11 +452,35 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
       });
     }
 
+    // Smartlead replies
+    for (const s of smartleadReplies) {
+      const replyText = s.reply_body ? stripHtml(s.reply_body) : '';
+      const leadName = [s.lead_first_name, s.lead_last_name].filter(Boolean).join(' ');
+      const category = s.ai_category || 'neutral';
+      const catLabel = category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      entries.push({
+        id: `sl-${s.id}`,
+        timestamp: s.time_replied || s.event_timestamp || s.created_at,
+        source: 'email',
+        category: 'emails',
+        icon: <Mail className="h-3.5 w-3.5" />,
+        iconColor: 'bg-green-50 text-green-700 border-green-200',
+        title: `${leadName || s.from_email || 'Lead'} — ${catLabel}`,
+        description: replyText ? replyText.slice(0, 200) : (s.subject || 'Smartlead reply'),
+        metadata: {
+          ai_category: category,
+          ai_sentiment: s.ai_sentiment,
+          campaign: s.campaign_name,
+          from: s.from_email,
+        },
+      });
+    }
+
     // Sort descending by timestamp
     entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     return entries;
-  }, [dealActivities, callActivities, emailHistory, linkedinHistory, transcripts]);
+  }, [dealActivities, callActivities, emailHistory, linkedinHistory, transcripts, smartleadReplies]);
 
   // ── Filter ──
 
