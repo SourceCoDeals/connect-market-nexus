@@ -103,6 +103,7 @@ const listingFormSchema = z.object({
 
   // Content sections (populated by lead memo generator)
   custom_sections: z.unknown().nullable().optional(),
+  webflow_slug: z.string().optional(),
 });
 
 type ListingFormInput = {
