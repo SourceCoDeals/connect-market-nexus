@@ -1,32 +1,37 @@
 
-# Import Missing Webflow Leads from CSVs
 
-## Current State
+# Fix Webflow Lead Workflow + Badge Improvements
 
-| Deal | CSV Leads | In DB | Missing |
-|------|-----------|-------|---------|
-| Saks Metering (`a6e20eba`) | 10 rows (9 unique) | 4 | **6 leads** (Joshua Klieger, Jack Harvey ×2, Kyle Tamboli, Jen Fair, Thomas Woldemariam) |
-| Protegrity (`d136656a`) | 4 | 3 | **1 lead** (Brendan Doney) |
-| ClearChoice (`85a0bef2`) | 1 | 1 | 0 |
+## Bug Found: Guest Webflow Leads Have No Action Buttons
 
-Data quality for existing leads is good — names, emails, phones, roles, companies, and full messages are all stored correctly.
+In `ConnectionRequestRow.tsx` lines 643-644, when a Webflow lead has no matched user, only `<WebflowLeadDetail>` renders — **no accept/decline/on hold/flag buttons**. The `LeadRequestActions` component (which has those buttons) is never shown.
 
-## What to do
+**Fix**: Add `<LeadRequestActions request={request} />` below `<WebflowLeadDetail>` for guest Webflow leads (line 643-644 branch).
 
-Insert the 7 missing connection request rows directly into the database using the Supabase insert tool. Each row will:
+## Webflow Leads Are Flowing Correctly
 
-- Set `source = 'webflow'` and `status = 'pending'`
-- Map to the correct `listing_id`
-- Populate `lead_name`, `lead_email`, `lead_phone`, `lead_company`, `lead_role`, `user_message`
-- Store the full submission metadata in `source_metadata` (IP, date, page URL)
-- Check each email against `profiles` table — if a match exists, set `user_id` to link the lead to their marketplace account
+The edge function is processing new submissions successfully. Latest lead (Brian Underkofler) was ingested at 17:10 UTC with correct slug matching, listing association, and admin notification. All 15 Webflow leads are in the database.
 
-**Note**: Jack Harvey submitted twice to the Saks deal (2:48 PM and 3:34 PM) with slightly different messages and company names (`Duration Group` vs `durationgroup.com`). Both will be imported since they represent separate form submissions.
+## Accept/Decline Code Path Verification
 
-## Approach
+Both `useUpdateConnectionRequestStatus` and `useConnectionRequestsMutation` operate on `connection_requests` by `id` — they don't filter by `source` or require a `user_id`. So accepting/declining a Webflow lead works identically to a marketplace request at the database level. The only gap was the missing UI buttons for guest leads (fixed above).
 
-1. Check if any of the 7 missing lead emails match existing marketplace profiles
-2. Insert all 7 rows via the insert tool with complete data
-3. Verify final counts match CSVs
+## UI: Add Tooltip to "Marketplace" Badge + Make Both Badges More Prominent
 
-No code changes needed — this is purely a data import.
+**SourceBadge.tsx** currently renders plain `<Badge>` components without tooltips. Changes:
+
+1. Wrap the `SourceBadge` in a `Tooltip` for both `marketplace` and `webflow` (and optionally all sources)
+2. Marketplace tooltip: *"This request was submitted through the SourceCo Marketplace by a registered user."*
+3. Make both the "Lead-Only" and "Marketplace" badges more visually prominent:
+   - **Marketplace**: Use a stronger green tint (`bg-emerald-500/15 text-emerald-700 border-emerald-500/30`) with a `ShoppingBag` or `Store` icon instead of the current muted gray
+   - **Lead-Only**: Use a stronger amber/orange tint (`bg-amber-500/15 text-amber-700 border-amber-500/30`) to clearly signal external origin
+   - **Webflow**: Keep the existing blue styling
+
+## Changes
+
+| File | Change |
+|------|--------|
+| `src/components/admin/ConnectionRequestRow.tsx` | Line 643-644: Add `<LeadRequestActions>` below `<WebflowLeadDetail>` for guest Webflow leads |
+| `src/components/admin/SourceBadge.tsx` | Wrap badge in Tooltip; update marketplace styling to emerald green; add descriptive tooltip text per source |
+| `src/components/admin/ConnectionRequestRow.tsx` | Update "Lead-Only" badge styling from neutral `outline` to amber tint for prominence |
+
