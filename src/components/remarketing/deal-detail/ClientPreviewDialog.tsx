@@ -24,7 +24,7 @@ import { stateToRegion } from '@/lib/deal-to-listing-anonymizer';
 import { getListingImage } from '@/lib/listing-image-utils';
 import { CategoryLocationBadges } from '@/components/shared/CategoryLocationBadges';
 import ListingStatusTag from '@/components/listing/ListingStatusTag';
-import { untypedFrom } from '@/integrations/supabase/untyped-from';
+import { untypedFrom } from '@/integrations/supabase/client';
 
 interface ClientPreviewDialogProps {
   listingId: string;
