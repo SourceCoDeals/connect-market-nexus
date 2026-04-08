@@ -180,7 +180,7 @@ Deno.serve(async (req: Request) => {
       lead_phone: phone || null,
       lead_company: company || null,
       lead_role: role || null,
-      interest_message: message || null,
+      user_message: message || null,
     };
 
     if (listingId) insertData.listing_id = listingId;
