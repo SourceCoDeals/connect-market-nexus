@@ -272,7 +272,7 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
             ) : null}
 
             {/* Push note */}
-            {push.push_note && (
+            {push.push_note ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Note from SourceCo</CardTitle>
@@ -283,7 +283,7 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
                   </p>
                 </CardContent>
               </Card>
-            )}
+            ) : null}
 
             {/* Data room */}
             {push.data_room_access_token && (
