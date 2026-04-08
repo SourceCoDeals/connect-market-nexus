@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft, Send, Users, Activity, Settings, Plus, ArrowRight, Building2, Globe, RefreshCw, Pause, Archive, Download, MessageSquare, Eye, ExternalLink, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import { usePortalOrganization, useUpdatePortalOrg } from '@/hooks/portal/use-portal-organizations';
 import { usePortalUsers, useDeactivatePortalUser } from '@/hooks/portal/use-portal-users';
-import { usePortalDealPushes, useConvertToPipelineDeal, useResendPortalInvite, useUpdateDealPush } from '@/hooks/portal/use-portal-deals';
+import { usePortalDealPushes, useConvertToPipelineDeal, useResendPortalInvite, useUpdateDealPush, useRefreshDealSnapshot } from '@/hooks/portal/use-portal-deals';
 
 import { PortalDealChat } from '@/components/portal/PortalDealChat';
 import { usePortalActivity, usePortalAnalytics, exportPortalActivityCSV } from '@/hooks/portal/use-portal-activity';
@@ -66,11 +66,26 @@ export default function ClientPortalDetail() {
   const convertToPipeline = useConvertToPipelineDeal();
   const resendInvite = useResendPortalInvite();
   const updatePush = useUpdateDealPush();
+  const refreshSnapshot = useRefreshDealSnapshot();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedPushId, setExpandedPushId] = useState<string | null>(null);
   const [memoExpandedPushId, setMemoExpandedPushId] = useState<string | null>(null);
+
+  // Auto-refresh snapshots that are missing memo data
+  const refreshedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!pushes) return;
+    for (const push of pushes) {
+      const snap = push.deal_snapshot;
+      const hasMemoData = !!(snap?.memo_html || snap?.teaser_sections?.length || snap?.business_description);
+      if (!hasMemoData && !refreshedRef.current.has(push.id)) {
+        refreshedRef.current.add(push.id);
+        refreshSnapshot.mutate({ pushId: push.id, listingId: push.listing_id });
+      }
+    }
+  }, [pushes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (isLoading) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
   if (!org) return <div className="py-12 text-center text-muted-foreground">Portal not found.</div>;
@@ -382,17 +397,25 @@ export default function ClientPortalDetail() {
                           {push.status === 'under_nda' && (
                             <span className="text-xs text-emerald-600 font-medium">In Pipeline</span>
                           )}
-                          {hasMemo && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs h-7 w-7 p-0"
-                              title="View Lead Memo"
-                              onClick={() => setMemoExpandedPushId(memoExpandedPushId === push.id ? null : push.id)}
-                            >
-                              <FileText className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-7 w-7 p-0"
+                            title="View Lead Memo"
+                            onClick={() => setMemoExpandedPushId(memoExpandedPushId === push.id ? null : push.id)}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-7 w-7 p-0"
+                            title="Refresh deal data"
+                            disabled={refreshSnapshot.isPending}
+                            onClick={() => refreshSnapshot.mutate({ pushId: push.id, listingId: push.listing_id })}
+                          >
+                            <RefreshCw className={`h-3.5 w-3.5 ${refreshSnapshot.isPending ? 'animate-spin' : ''}`} />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"

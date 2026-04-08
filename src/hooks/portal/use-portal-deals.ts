@@ -403,6 +403,34 @@ export function useResendPortalInvite() {
   });
 }
 
+/** Admin: refresh a deal snapshot with latest listing/memo data */
+export function useRefreshDealSnapshot() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ pushId, listingId }: { pushId: string; listingId: string }) => {
+      const snapshot = await buildDealSnapshot(listingId);
+
+      const { error } = await untypedFrom('portal_deal_pushes')
+        .update({ deal_snapshot: snapshot, updated_at: new Date().toISOString() })
+        .eq('id', pushId);
+
+      if (error) throw error;
+      return snapshot;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PORTAL_PUSHES_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['portal-deal-push'] });
+      queryClient.invalidateQueries({ queryKey: ['my-portal-deals'] });
+      toast({ title: 'Snapshot refreshed', description: 'Deal data updated with latest memo and listing info.' });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Error refreshing snapshot', description: err.message, variant: 'destructive' });
+    },
+  });
+}
+
 /** Check if a deal has already been pushed to a portal */
 export function useCheckDuplicatePush(portalOrgId: string | undefined, listingId: string | undefined) {
   return useQuery({
