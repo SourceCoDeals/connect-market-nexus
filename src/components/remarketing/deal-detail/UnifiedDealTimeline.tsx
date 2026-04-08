@@ -295,7 +295,7 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
   const { data: linkedinHistory = [], isLoading: loadingLinkedin } = useQuery({
     queryKey: ['unified-timeline-linkedin', listingId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('contact_linkedin_history')
         .select('*')
         .eq('listing_id', listingId)

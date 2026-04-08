@@ -35,7 +35,7 @@ function scoreColor(score: number | null): string {
   return 'text-red-600';
 }
 
-function _scoreBg(score: number | null): string {
+function _scoreBg(_score: number | null): string {
   if (score == null) return 'bg-muted';
   if (score > 70) return 'bg-emerald-500';
   if (score >= 50) return 'bg-amber-500';
