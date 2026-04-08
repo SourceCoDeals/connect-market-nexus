@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAdmin } from '@/hooks/use-admin';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Inbox } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { AdminConnectionRequest } from '@/types/admin';
 import ConnectionRequestsTable from '@/components/admin/ConnectionRequestsTable';
 import { ConnectionRequestDialog } from '@/components/admin/ConnectionRequestDialog';
