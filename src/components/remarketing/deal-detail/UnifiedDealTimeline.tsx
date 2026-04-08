@@ -343,7 +343,7 @@ export function UnifiedDealTimeline({ dealId, listingId }: UnifiedDealTimelinePr
   });
 
   const isLoading =
-    loadingDealActivities || loadingCalls || loadingEmails || loadingLinkedin || loadingTranscripts;
+    loadingDealActivities || loadingCalls || loadingEmails || loadingLinkedin || loadingTranscripts || loadingSmartlead;
 
   // ── Merge all sources into unified entries ──
 
