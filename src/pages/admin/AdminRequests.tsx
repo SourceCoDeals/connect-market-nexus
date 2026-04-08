@@ -357,7 +357,7 @@ const AdminRequests = () => {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">Request Management</h1>
             <p className="text-sm md:text-base text-muted-foreground">
-              Manage buyer connection requests and inbound leads
+              Manage buyer connection requests
             </p>
           </div>
         </div>
