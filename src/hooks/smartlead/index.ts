@@ -34,6 +34,13 @@ export type {
 export { useDraftReply } from './use-draft-reply';
 
 export {
+  useSmartleadCategorizationStats,
+  useSmartleadClassificationPrompt,
+  saveClassificationPrompt,
+} from './use-smartlead-categorization';
+export type { CategoryStat, CategorizationStats } from './use-smartlead-categorization';
+
+export {
   useSmartleadInbox,
   useSmartleadInboxItem,
   useUpdateInboxStatus,
