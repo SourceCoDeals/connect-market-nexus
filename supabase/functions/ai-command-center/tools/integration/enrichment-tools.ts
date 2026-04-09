@@ -949,6 +949,7 @@ export async function findAndEnrichPerson(
   if (!personName) return { error: 'person_name is required' };
 
   const providedCompany = (args.company_name as string)?.trim() || '';
+  const providedDomain = (args.company_domain as string)?.trim() || '';
   const contactType = (args.contact_type as string) || 'all';
   const steps: string[] = [];
 
