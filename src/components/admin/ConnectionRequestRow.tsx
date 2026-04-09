@@ -4,11 +4,12 @@
  * Individual row card for a connection request, plus helper sub-components
  * (CleanTierDisplay, StatusBadge, RequestDetails, FlagForReviewButton, etc.).
  */
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
