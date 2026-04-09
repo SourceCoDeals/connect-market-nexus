@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   useDailyTasks,
@@ -20,6 +23,7 @@ import {
   TaskFiltersBar,
   TaskListContent,
   PendingApprovalSection,
+  StandupsTabContent,
   DeleteTaskDialog,
   useSyncMeetings,
   useTeamMembers,
@@ -27,10 +31,12 @@ import {
 } from './daily-task-dashboard';
 
 const DailyTaskDashboard = () => {
+  const navigate = useNavigate();
   const { teamRole } = useAuth();
   const { toast } = useToast();
   const isLeadership = teamRole === 'owner' || teamRole === 'admin';
 
+  const [pageMode, setPageMode] = useState<'tasks' | 'standups'>('tasks');
   const [view, setView] = useState<'my' | 'all'>('my');
   const [showCompleted, setShowCompleted] = useState(false);
   const [calendarView, setCalendarView] = useState(false);
@@ -140,6 +146,21 @@ const DailyTaskDashboard = () => {
     onDelete: setDeleteTask,
   };
 
+  if (pageMode === 'standups') {
+    return (
+      <div className="px-4 md:px-8 py-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setPageMode('tasks')}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to Tasks
+          </Button>
+          <h2 className="text-lg font-semibold tracking-tight">Standup Meetings</h2>
+        </div>
+        <StandupsTabContent />
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 md:px-8 py-6 space-y-4 max-w-4xl">
       {/* Header with progress bar */}
@@ -147,6 +168,8 @@ const DailyTaskDashboard = () => {
         onSyncMeetings={() => syncMeetings.mutate()}
         isSyncing={syncMeetings.isPending}
         onAddTask={() => setAddDialogOpen(true)}
+        onViewStandups={() => setPageMode('standups')}
+        onViewAnalytics={() => navigate('/admin/daily-tasks/analytics')}
         stats={stats}
       />
 

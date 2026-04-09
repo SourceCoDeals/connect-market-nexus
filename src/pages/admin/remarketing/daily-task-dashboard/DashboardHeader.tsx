@@ -1,12 +1,13 @@
 import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, RefreshCcw, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Plus, BarChart3, RefreshCcw, Loader2, Mic } from 'lucide-react';
 import type { TaskStats } from './types';
 
 interface DashboardHeaderProps {
   onSyncMeetings: () => void;
   isSyncing: boolean;
   onAddTask: () => void;
+  onViewStandups: () => void;
+  onViewAnalytics: () => void;
   stats: TaskStats;
 }
 
@@ -14,6 +15,8 @@ export function DashboardHeader({
   onSyncMeetings,
   isSyncing,
   onAddTask,
+  onViewStandups,
+  onViewAnalytics,
   stats,
 }: DashboardHeaderProps) {
   const openCount = stats.pending + stats.overdue + stats.in_progress;
@@ -45,12 +48,14 @@ export function DashboardHeader({
             )}
             {isSyncing ? 'Syncing...' : 'Sync Meetings'}
           </Button>
-          <Link to="/admin/daily-tasks/analytics">
-            <Button variant="outline" size="sm">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
-            </Button>
-          </Link>
+          <Button variant="outline" size="sm" onClick={onViewStandups}>
+            <Mic className="h-4 w-4 mr-2" />
+            Standups
+          </Button>
+          <Button variant="outline" size="sm" onClick={onViewAnalytics}>
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Analytics
+          </Button>
           <Button size="sm" onClick={onAddTask}>
             <Plus className="h-4 w-4 mr-2" />
             Add Task

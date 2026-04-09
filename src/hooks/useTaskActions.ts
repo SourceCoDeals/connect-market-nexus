@@ -26,6 +26,7 @@ export function useSnoozeTask() {
 
   return useMutation({
     mutationFn: async ({ taskId, days }: { taskId: string; days: number }) => {
+      if (days < 1) throw new Error('Snooze duration must be at least 1 day');
       const snoozedUntil = format(addDays(new Date(), days), 'yyyy-MM-dd');
 
       const { error } = await supabase
@@ -33,6 +34,9 @@ export function useSnoozeTask() {
         .update({
           status: 'snoozed',
           snoozed_until: snoozedUntil,
+          // Reset escalation when snoozed — the task is no longer overdue
+          escalation_level: 0,
+          escalated_at: null,
         } as never)
         .eq('id', taskId);
 
