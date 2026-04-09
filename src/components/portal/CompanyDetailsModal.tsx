@@ -6,6 +6,8 @@ import {
   ExternalLink,
   FileText,
   ArrowRight,
+  Users,
+  Star,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -66,6 +68,16 @@ export function CompanyDetailsModal({
       label: 'EBITDA',
       value: formatCurrency(snapshot.ebitda),
     },
+    snapshot.linkedin_employee_count != null && {
+      icon: Users,
+      label: 'Employees',
+      value: snapshot.linkedin_employee_count.toLocaleString(),
+    },
+    snapshot.google_rating != null && snapshot.google_review_count != null && {
+      icon: Star,
+      label: 'Google Reviews',
+      value: `${snapshot.google_rating.toFixed(1)} (${snapshot.google_review_count.toLocaleString()})`,
+    },
   ].filter(Boolean) as { icon: typeof Building2; label: string; value: string }[];
 
   return (
@@ -114,6 +126,18 @@ export function CompanyDetailsModal({
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* Executive Summary */}
+        {snapshot.executive_summary && (
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Executive Summary
+            </h3>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {snapshot.executive_summary}
+            </p>
+          </div>
         )}
 
         {/* Lead Memo */}
