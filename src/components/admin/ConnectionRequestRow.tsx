@@ -71,7 +71,8 @@ export const formatEnhancedCompanyName = (
   companyName?: string | null,
   listingId?: string,
   ownerName?: string | null,
-  ownerSource?: 'direct' | 'inherited',
+  ownerSource?: 'direct' | 'inherited' | 'none',
+  onAssignOwner?: () => void,
 ) => {
   const content =
     companyName && companyName.trim() ? (
@@ -83,23 +84,41 @@ export const formatEnhancedCompanyName = (
       <span>{title}</span>
     );
 
-  const ownerBadge = ownerName ? (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="text-muted-foreground text-sm font-medium ml-1.5 inline-flex items-center gap-1 cursor-help border-b border-dotted border-muted-foreground/40">
-            · {ownerName}
-            <Info className="h-3 w-3 opacity-60" />
-          </span>
-        </TooltipTrigger>
-        <TooltipContent side="top" className="text-xs">
-          {ownerSource === 'inherited'
-            ? 'Deal Owner — inherited from linked Active Deal'
-            : 'Deal Owner — assigned in Active Deals'}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  ) : null;
+  let ownerBadge: React.ReactNode = null;
+
+  if (ownerName) {
+    ownerBadge = (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-muted-foreground text-sm font-medium ml-1.5 inline-flex items-center gap-1 cursor-help border-b border-dotted border-muted-foreground/40">
+              · {ownerName}
+              <Info className="h-3 w-3 opacity-60" />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {ownerSource === 'inherited'
+              ? 'Deal Owner — inherited from linked Active Deal'
+              : 'Deal Owner — assigned in Active Deals'}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  } else if (ownerSource === 'none') {
+    ownerBadge = (
+      <span className="ml-1.5 inline-flex items-center gap-1.5 text-sm">
+        <span className="text-amber-600 dark:text-amber-400 font-medium">· No owner</span>
+        {onAssignOwner && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAssignOwner(); }}
+            className="text-xs text-primary hover:text-primary/80 font-medium underline underline-offset-2 transition-colors"
+          >
+            Assign
+          </button>
+        )}
+      </span>
+    );
+  }
 
   if (listingId) {
     return (
