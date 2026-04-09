@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { safeQuery, type DatabaseResult } from '@/lib/database';
 import type { AdminViewState } from './types';
 
-type ViewType = 'connection_requests' | 'deal_sourcing' | 'owner_leads' | 'users';
+type ViewType = 'connection_requests' | 'deal_sourcing' | 'match_tool_leads' | 'owner_leads' | 'users';
 
 /**
  * Get the last viewed timestamp for a specific admin view.
