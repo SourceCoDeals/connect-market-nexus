@@ -321,7 +321,7 @@ export default function SmartleadSettingsPage() {
                 rows={14}
                 className="font-mono text-xs"
               />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button onClick={handleSavePrompt} disabled={savingPrompt} size="sm">
                   <Save className="h-4 w-4 mr-1.5" />
                   {savingPrompt ? 'Saving...' : 'Save Prompt'}
@@ -330,6 +330,17 @@ export default function SmartleadSettingsPage() {
                   <RotateCcw className="h-4 w-4 mr-1.5" />
                   Reset to Default
                 </Button>
+                <div className="ml-auto">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleReclassifyAll}
+                    disabled={reclassifyingAll}
+                  >
+                    <RotateCw className={`h-4 w-4 mr-1.5 ${reclassifyingAll ? 'animate-spin' : ''}`} />
+                    {reclassifyingAll ? 'Reclassifying...' : 'Reclassify All Responses'}
+                  </Button>
+                </div>
               </div>
             </>
           )}
