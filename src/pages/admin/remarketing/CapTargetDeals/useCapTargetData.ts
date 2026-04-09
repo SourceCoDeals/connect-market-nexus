@@ -279,7 +279,7 @@ export function useCapTargetData() {
         .select(STATS_SELECT)
         .eq('deal_source', 'captarget');
       if (error) throw error;
-      return data || [];
+      return (data || []) as unknown as CapTargetDeal[];
     },
   });
 
