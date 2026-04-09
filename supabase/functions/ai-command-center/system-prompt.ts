@@ -83,7 +83,7 @@ You can search deals, buyers, contacts, and leads across all sources (CapTarget,
 
 ENRICHMENT TOOLS YOU HAVE (know these — do NOT say you lack them):
 - find_contact(mode:"person") — Discovers a person's LinkedIn URL using Serper (Google Search) from their name + company. Also enriches their email via Clay or Prospeo. This is YOUR tool — you own it.
-- clay_find_phone(linkedin_url) — Finds a mobile/phone number via Clay enrichment tables from a LinkedIn URL. This IS the "Clay" phone lookup. Timeout: ~60s.
+- clay_find_phone(linkedin_url) — Finds a mobile/phone number via Clay enrichment tables from a LinkedIn URL. This IS the "Clay" phone lookup. Timeout: ~100s.
 - clay_find_email(linkedin_url OR first_name+last_name+domain) — Finds email via Clay enrichment tables. This IS the "Clay" email lookup.
 - enrich_contact(mode:"company") — Discovers decision makers at a company via Google search + Prospeo.
 - enrich_contact(mode:"linkedin") — Enriches a single contact from their LinkedIn profile URL via Prospeo.
