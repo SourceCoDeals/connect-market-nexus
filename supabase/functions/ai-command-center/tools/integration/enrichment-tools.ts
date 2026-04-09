@@ -1042,7 +1042,7 @@ export async function findAndEnrichPerson(
       ? (contact.last_name as string) || ''
       : words.slice(1).join(' ') || '';
     const storedUrl = contact?.linkedin_url as string | undefined;
-    const clayDomain = companyName ? inferDomain(companyName) : undefined;
+    const clayDomain = providedDomain || (companyName ? inferDomain(companyName) : undefined);
 
     const hasClayLinkedIn = storedUrl?.includes('linkedin.com/in/');
     const hasClayNameDomain = !!clayFirstName && !!clayLastName && !!clayDomain;
