@@ -1,19 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, Ban, Trash2, Globe } from 'lucide-react';
+import { Search, Globe } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+  DealBulkActionBar,
+  AddDealsToListDialog,
+  PushToHeyreachModal,
+} from '@/components/remarketing';
+import type { DealForList } from '@/components/remarketing';
+import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
+import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { useMatchToolLeadsData } from './useMatchToolLeadsData';
 import { MatchToolLeadPanel } from './MatchToolLeadPanel';
 import type { MatchToolLead } from './types';
@@ -68,24 +65,35 @@ function formatFinancials(revenue: string | null, profit: string | null): string
 }
 
 export default function MatchToolLeads() {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [dialerOpen, setDialerOpen] = useState(false);
+  const [smartleadOpen, setSmartleadOpen] = useState(false);
+  const [heyreachOpen, setHeyreachOpen] = useState(false);
+  const [addToListOpen, setAddToListOpen] = useState(false);
   const {
     leads,
     isLoading,
+    refetch,
     activeTab,
     setActiveTab,
     searchQuery,
     setSearchQuery,
     selectedIds,
     setSelectedIds,
-    markNotAFit,
-    deleteLeads,
     enrichLead,
+    handlePushToAllDeals,
+    handleEnrichSelected,
+    handleMarkNotFit,
+    handleArchive,
+    handleDelete,
+    handleRowClick,
+    isPushing,
+    isEnriching,
+    isMarkingNotFit,
+    isDeleting,
+    selectedLead,
+    drawerOpen,
+    setDrawerOpen,
   } = useMatchToolLeadsData();
-
-  const selectedLead = leads.find((l) => l.id === selectedLeadId) ?? null;
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -104,10 +112,20 @@ export default function MatchToolLeads() {
     }
   };
 
-  const handleRowClick = (lead: MatchToolLead) => {
-    setSelectedLeadId(lead.id);
-    setPanelOpen(true);
-  };
+  const selectedDealsForList = useMemo((): DealForList[] => {
+    if (!leads || selectedIds.size === 0) return [];
+    return leads
+      .filter((l) => selectedIds.has(l.id))
+      .map((l) => ({
+        dealId: l.id,
+        dealName: l.business_name || (l.enrichment_data as any)?.company_name || cleanDomain(l.website),
+        contactName: l.full_name,
+        contactEmail: l.email,
+        contactPhone: l.phone,
+      }));
+  }, [leads, selectedIds]);
+
+  const pushedCount = leads.filter((l) => l.pushed_to_all_deals).length;
 
   return (
     <div className="space-y-5">
@@ -118,31 +136,9 @@ export default function MatchToolLeads() {
           </h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">
             {leads.length} lead{leads.length !== 1 ? 's' : ''} from the buyer/seller match tool
+            {pushedCount > 0 && ` · ${pushedCount} in Active Deals`}
           </p>
         </div>
-
-        {selectedIds.size > 0 && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => markNotAFit.mutate(Array.from(selectedIds))}
-              className="h-7 text-xs"
-            >
-              <Ban className="h-3 w-3 mr-1" />
-              Not a Fit ({selectedIds.size})
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDeleteDialog(true)}
-              className="h-7 text-xs text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-3 w-3 mr-1" />
-              Delete ({selectedIds.size})
-            </Button>
-          </div>
-        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
@@ -184,7 +180,7 @@ export default function MatchToolLeads() {
                     onCheckedChange={toggleSelectAll}
                   />
                 </div>
-                <div>Website</div>
+                <div>Company</div>
                 <div>Contact</div>
                 <div>Financials</div>
                 <div>Location</div>
@@ -206,33 +202,59 @@ export default function MatchToolLeads() {
         </TabsContent>
       </Tabs>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. The selected leads will be permanently removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                deleteLeads.mutate(Array.from(selectedIds));
-                setShowDeleteDialog(false);
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Bulk Actions */}
+      <DealBulkActionBar
+        selectedIds={selectedIds}
+        deals={leads as Array<{ id: string; is_priority_target?: boolean | null }>}
+        onClearSelection={() => setSelectedIds(new Set())}
+        onRefetch={refetch}
+        onApproveToActiveDeals={(ids) => handlePushToAllDeals(ids)}
+        isPushing={isPushing}
+        onEnrichSelected={(dealIds) => handleEnrichSelected(dealIds)}
+        isEnriching={isEnriching}
+        onMarkNotFit={() => handleMarkNotFit(Array.from(selectedIds))}
+        isMarkingNotFit={isMarkingNotFit}
+        onArchive={() => handleArchive(Array.from(selectedIds))}
+        onDelete={() => handleDelete(Array.from(selectedIds))}
+        isDeleting={isDeleting}
+        onPushToDialer={() => setDialerOpen(true)}
+        onPushToSmartlead={() => setSmartleadOpen(true)}
+        onPushToHeyreach={() => setHeyreachOpen(true)}
+        onAddToList={() => setAddToListOpen(true)}
+      />
+
+      <PushToDialerModal
+        open={dialerOpen}
+        onOpenChange={setDialerOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
+      />
+      <PushToSmartleadModal
+        open={smartleadOpen}
+        onOpenChange={setSmartleadOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
+      />
+      <PushToHeyreachModal
+        open={heyreachOpen}
+        onOpenChange={setHeyreachOpen}
+        contactIds={Array.from(selectedIds)}
+        contactCount={selectedIds.size}
+        entityType="listings"
+      />
+      <AddDealsToListDialog
+        open={addToListOpen}
+        onOpenChange={setAddToListOpen}
+        selectedDeals={selectedDealsForList}
+        entityType="lead"
+      />
 
       <MatchToolLeadPanel
         lead={selectedLead}
-        open={panelOpen}
-        onOpenChange={setPanelOpen}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
         onEnrich={(lead_id, website) => enrichLead.mutate({ lead_id, website })}
         isEnriching={enrichLead.isPending}
       />
@@ -255,14 +277,16 @@ function LeadRow({
   const isFinancials = lead.submission_stage === 'financials';
   const financials = formatFinancials(lead.revenue, lead.profit);
   const domain = getDomain(lead.website);
+  const enrichment = lead.enrichment_data as Record<string, any> | null;
+  const companyName = enrichment?.company_name || lead.business_name;
 
   const raw = lead.raw_inputs as Record<string, any> | null;
   const city = raw?.city || null;
   const region = raw?.region || null;
   const country = raw?.country || null;
-  const locationDisplay = city && region
+  const locationDisplay = enrichment?.geography || (city && region
     ? `${city}, ${region}`
-    : city || region || country || null;
+    : city || region || country || null);
 
   return (
     <div
@@ -271,9 +295,11 @@ function LeadRow({
         border-b border-border/30 transition-colors cursor-pointer
         ${isFullForm
           ? 'border-l-[3px] border-l-emerald-500'
-          : selected
-            ? 'bg-muted/30'
-            : 'hover:bg-muted/15'
+          : lead.pushed_to_all_deals
+            ? 'border-l-[3px] border-l-blue-400'
+            : selected
+              ? 'bg-muted/30'
+              : 'hover:bg-muted/15'
         }
       `}
       onClick={onClick}
@@ -283,7 +309,7 @@ function LeadRow({
         <Checkbox checked={selected} onCheckedChange={onToggle} />
       </div>
 
-      {/* Website */}
+      {/* Company / Website */}
       <div className="min-w-0 flex items-center gap-2">
         <img
           src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
@@ -297,12 +323,23 @@ function LeadRow({
         />
         <Globe className="h-5 w-5 text-muted-foreground/40 flex-shrink-0 hidden" />
         <div className="min-w-0">
-          <span className="text-[13px] font-medium text-foreground truncate block">
-            {cleanDomain(lead.website)}
-          </span>
-          {lead.business_name && (
-            <p className="text-[11px] text-muted-foreground/60 truncate mt-0.5">
-              {lead.business_name}
+          {companyName ? (
+            <>
+              <span className="text-[13px] font-medium text-foreground truncate block">
+                {companyName}
+              </span>
+              <p className="text-[11px] text-muted-foreground/60 truncate mt-0.5">
+                {cleanDomain(lead.website)}
+              </p>
+            </>
+          ) : (
+            <span className="text-[13px] font-medium text-foreground truncate block">
+              {cleanDomain(lead.website)}
+            </span>
+          )}
+          {enrichment?.one_liner && (
+            <p className="text-[10px] text-muted-foreground/50 truncate mt-0.5 max-w-[240px]">
+              {enrichment.one_liner}
             </p>
           )}
         </div>
@@ -348,7 +385,11 @@ function LeadRow({
 
       {/* Stage */}
       <div>
-        {isFullForm ? (
+        {lead.pushed_to_all_deals ? (
+          <span className="inline-flex items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400">
+            Active Deal
+          </span>
+        ) : isFullForm ? (
           <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
             Wants Buyers
           </span>

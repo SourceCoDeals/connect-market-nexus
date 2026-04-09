@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { requireAdmin } from '../_shared/auth.ts';
+import { findCompanyLinkedIn } from '../_shared/serper-client.ts';
 
 const COMPANY_SCHEMA = {
   name: "extract_company",
@@ -55,7 +56,7 @@ serve(async (req) => {
     // Check cache first
     const { data: existing } = await supabaseAdmin
       .from('match_tool_leads')
-      .select('enrichment_data')
+      .select('enrichment_data, business_name')
       .eq('id', lead_id)
       .single();
 
@@ -183,10 +184,33 @@ ${truncatedMarkdown || '(No content available - infer from URL only)'}`;
 
     enrichmentData.enriched_at = new Date().toISOString();
 
+    // Find LinkedIn company page
+    let linkedinUrl: string | null = null;
+    const companyName = enrichmentData.company_name;
+    if (companyName) {
+      try {
+        linkedinUrl = await findCompanyLinkedIn(companyName);
+        if (linkedinUrl) {
+          enrichmentData.linkedin_url = linkedinUrl;
+          console.log(`[enrich-match-tool-lead] Found LinkedIn for "${companyName}": ${linkedinUrl}`);
+        }
+      } catch (err) {
+        console.warn(`[enrich-match-tool-lead] LinkedIn search failed for "${companyName}":`, err);
+      }
+    }
+
     // Cache to DB
+    const updatePayload: Record<string, unknown> = { enrichment_data: enrichmentData };
+    if (linkedinUrl) {
+      updatePayload.linkedin_url = linkedinUrl;
+    }
+    if (companyName && !existing?.business_name) {
+      updatePayload.business_name = companyName;
+    }
+
     await supabaseAdmin
       .from('match_tool_leads')
-      .update({ enrichment_data: enrichmentData })
+      .update(updatePayload)
       .eq('id', lead_id);
 
     return new Response(

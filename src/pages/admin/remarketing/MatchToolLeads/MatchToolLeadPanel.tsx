@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ExternalLink, Mail, User, Calendar, MapPin, Building2, Briefcase, Users, Sparkles, Target, TrendingUp, Globe, ArrowRight, Clock } from 'lucide-react';
+import { ExternalLink, Mail, User, Calendar, MapPin, Building2, Briefcase, Users, Sparkles, Target, TrendingUp, Globe, ArrowRight, Clock, Linkedin } from 'lucide-react';
 import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -112,15 +112,28 @@ export function MatchToolLeadPanel({ lead, open, onOpenChange, onEnrich, isEnric
                 <SheetTitle className="text-base font-semibold tracking-tight truncate">
                   {enrichment?.company_name || selfReportedName || lead.business_name || cleanDomain(lead.website)}
                 </SheetTitle>
-                <a
-                  href={websiteUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[12px] text-muted-foreground hover:text-primary flex items-center gap-1 mt-0.5"
-                >
-                  {cleanDomain(lead.website)}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <a
+                    href={websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[12px] text-muted-foreground hover:text-primary flex items-center gap-1"
+                  >
+                    {cleanDomain(lead.website)}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  {(lead.linkedin_url || enrichment?.linkedin_url) && (
+                    <a
+                      href={lead.linkedin_url || enrichment?.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[12px] text-muted-foreground hover:text-[#0A66C2] flex items-center gap-1"
+                    >
+                      <Linkedin className="h-3.5 w-3.5" />
+                      LinkedIn
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -318,6 +331,21 @@ export function MatchToolLeadPanel({ lead, open, onOpenChange, onEnrich, isEnric
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {enrichment.linkedin_url && (
+                  <div className="pt-1">
+                    <a
+                      href={enrichment.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-[12px] text-[#0A66C2] hover:underline"
+                    >
+                      <Linkedin className="h-3.5 w-3.5 flex-shrink-0" />
+                      View on LinkedIn
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
                   </div>
                 )}
               </div>

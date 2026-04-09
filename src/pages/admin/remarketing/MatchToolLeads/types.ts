@@ -11,6 +11,7 @@ export interface MatchToolLead {
   submission_stage: string;
   industry: string | null;
   location: string | null;
+  linkedin_url: string | null;
   raw_inputs: Record<string, unknown> | null;
   status: string;
   excluded: boolean | null;
