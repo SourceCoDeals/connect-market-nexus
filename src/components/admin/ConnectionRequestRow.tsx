@@ -656,12 +656,13 @@ export function ConnectionRequestRow({
                   </div>
                   <div className="flex items-center gap-2">
                     <Building2 className="h-3.5 w-3.5" />
-                    {formatEnhancedCompanyName(
+                   {formatEnhancedCompanyName(
                       request.listing?.title || "",
                       request.listing?.internal_company_name,
                       request.listing?.id,
                       request.listing?.owner_name,
                       request.listing?.owner_source,
+                      () => setAssignDialogOpen(true),
                     )}
                   </div>
                 </div>
@@ -771,6 +772,13 @@ export function ConnectionRequestRow({
         </div>
       </CardContent>
     </Card>
+    <AssignOwnerDialog
+      open={assignDialogOpen}
+      onOpenChange={setAssignDialogOpen}
+      dealTitle={request.listing?.title || 'this deal'}
+      onConfirm={handleAssignOwner}
+    />
+    </>
   );
 }
 
