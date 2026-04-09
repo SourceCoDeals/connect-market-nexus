@@ -141,7 +141,7 @@ When in doubt between "neutral" and "interested", prefer "interested" if the rep
 
 const BATCH_SIZE = 5;
 const BATCH_DELAY_MS = 500;
-const ACTIVATED_CATEGORIES = ['meeting_request', 'interested', 'question', 'referral'];
+const ACTIVATED_CATEGORIES = ['meeting_request', 'interested', 'question', 'referral', 'not_now'];
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
