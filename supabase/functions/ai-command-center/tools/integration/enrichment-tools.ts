@@ -1138,7 +1138,7 @@ export async function findAndEnrichPerson(
     let linkedinVerified = false;
 
     try {
-      const verifyDomain = companyName ? inferDomain(companyName) : undefined;
+      const verifyDomain = providedDomain || (companyName ? inferDomain(companyName) : undefined);
       const googleResult = await discoverLinkedInUrl(
         firstName,
         lastName,
@@ -1193,7 +1193,7 @@ export async function findAndEnrichPerson(
 
     // Now enrich with the verified (or best available) LinkedIn URL
     try {
-      const domain = companyName ? inferDomain(companyName) : undefined;
+      const domain = providedDomain || (companyName ? inferDomain(companyName) : undefined);
       const result = await enrichContact({
         firstName,
         lastName,
@@ -1335,7 +1335,7 @@ export async function findAndEnrichPerson(
 
   let discoveredLinkedIn: string | null = null;
   try {
-    const discoverDomain = companyName ? inferDomain(companyName) : undefined;
+    const discoverDomain = providedDomain || (companyName ? inferDomain(companyName) : undefined);
     const googleResult = await discoverLinkedInUrl(
       firstName,
       lastName,
@@ -1369,7 +1369,7 @@ export async function findAndEnrichPerson(
   // --- Step 5: Enrich email from discovered LinkedIn ---
   if (discoveredLinkedIn) {
     try {
-      const domain = companyName ? inferDomain(companyName) : undefined;
+      const domain = providedDomain || (companyName ? inferDomain(companyName) : undefined);
       const result = await enrichContact({
         firstName,
         lastName,
