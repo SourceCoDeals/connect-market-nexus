@@ -263,6 +263,7 @@ export interface Listing {
   internal_company_name?: string | null;
   internal_primary_owner?: string | null; // Deprecated - use primary_owner_id
   primary_owner_id?: string | null; // UUID reference to profiles table
+  owner_name?: string; // Resolved display name of the deal owner
   internal_salesforce_link?: string | null;
   internal_deal_memo_link?: string | null;
   internal_contact_info?: string | null;
