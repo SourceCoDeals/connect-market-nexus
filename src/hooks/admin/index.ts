@@ -25,3 +25,5 @@ export * from './use-mark-users-viewed';
 export * from './use-unviewed-owner-leads';
 export * from './use-mark-owner-leads-viewed';
 export * from './use-update-owner-lead-notes';
+export * from './use-unviewed-match-tool-leads';
+export * from './use-mark-match-tool-leads-viewed';

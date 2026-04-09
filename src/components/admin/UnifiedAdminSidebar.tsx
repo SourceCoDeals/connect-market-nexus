@@ -78,6 +78,7 @@ import { useUnviewedDealSourcingCount } from '@/hooks/admin/use-unviewed-deal-so
 import { useUnviewedConnectionRequests } from '@/hooks/admin/use-unviewed-connection-requests';
 import { useUnviewedUsers } from '@/hooks/admin/use-unviewed-users';
 import { useUnviewedOwnerLeads } from '@/hooks/admin/use-unviewed-owner-leads';
+import { useUnviewedMatchToolLeads } from '@/hooks/admin/use-unviewed-match-tool-leads';
 import { useUnreadMessageCounts } from '@/hooks/use-connection-messages';
 import { usePendingDocumentRequests } from '@/hooks/admin/use-pending-document-requests';
 interface NavItem {
@@ -116,6 +117,7 @@ export function UnifiedAdminSidebar({
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
   const { unviewedCount: unviewedOwnerLeadsCount } = useUnviewedOwnerLeads();
+  const { unviewedCount: unviewedMatchToolLeadsCount } = useUnviewedMatchToolLeads();
   const { data: unreadMessages } = useUnreadMessageCounts();
   const { data: pendingDocRequestCount = 0 } = usePendingDocumentRequests();
 
@@ -282,6 +284,7 @@ export function UnifiedAdminSidebar({
             label: 'Match Tool Leads',
             href: '/admin/remarketing/leads/match-tool',
             icon: <Globe2 className="h-4 w-4" />,
+            badge: unviewedMatchToolLeadsCount,
           },
           {
             label: 'Referral Partners',
@@ -425,6 +428,7 @@ export function UnifiedAdminSidebar({
       unviewedConnectionRequestsCount,
       unviewedUsersCount,
       unviewedOwnerLeadsCount,
+      unviewedMatchToolLeadsCount,
       pendingDocRequestCount,
       canAccessSettings,
     ],

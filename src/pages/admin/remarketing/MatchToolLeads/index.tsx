@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useMarkMatchToolLeadsViewed } from '@/hooks/admin/use-mark-match-tool-leads-viewed';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,8 @@ function formatFinancials(revenue: string | null, profit: string | null): string
 }
 
 export default function MatchToolLeads() {
+  const { markAsViewed } = useMarkMatchToolLeadsViewed();
+  useEffect(() => { markAsViewed(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
