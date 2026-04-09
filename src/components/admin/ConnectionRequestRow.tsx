@@ -528,7 +528,19 @@ export function ConnectionRequestRow({
   isSelected?: boolean;
   onSelectionChange?: (checked: boolean) => void;
 }) {
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleAssignOwner = async (ownerId: string) => {
+    const listingId = request.listing?.owner_listing_id || request.listing?.id;
+    if (!listingId) return;
+    await supabase.from('listings').update({ deal_owner_id: ownerId }).eq('id', listingId);
+    invalidateConnectionRequests(queryClient);
+    setAssignDialogOpen(false);
+  };
+
   return (
+    <>
     <Card
       className={`border ${isSelected ? "border-primary/40 bg-primary/[0.02]" : "border-border/50 hover:border-border"} transition-colors`}
       data-request-id={request.id}
