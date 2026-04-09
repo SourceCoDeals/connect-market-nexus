@@ -4,7 +4,7 @@
  * Individual row card for a connection request, plus helper sub-components
  * (CleanTierDisplay, StatusBadge, RequestDetails, FlagForReviewButton, etc.).
  */
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
