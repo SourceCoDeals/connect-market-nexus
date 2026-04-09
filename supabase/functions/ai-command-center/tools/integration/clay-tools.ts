@@ -21,7 +21,8 @@ import {
 } from '../../../_shared/clay-client.ts';
 
 const POLL_INTERVAL_MS = 3_000;
-const MAX_POLL_MS = 60_000;
+const CLAY_EMAIL_MAX_POLL_MS = 60_000;
+const CLAY_PHONE_MAX_POLL_MS = 100_000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -135,7 +136,7 @@ export async function clayLookupEmail(
   console.log(`[clayLookupEmail] Sent to Clay (${requestType}): ${lookupDesc} — polling...`);
 
   // 3. Poll for result
-  const deadline = Date.now() + MAX_POLL_MS;
+  const deadline = Date.now() + CLAY_EMAIL_MAX_POLL_MS;
 
   while (Date.now() < deadline) {
     await sleep(POLL_INTERVAL_MS);
@@ -238,7 +239,7 @@ export async function clayBatchSend(
 export async function clayBatchPoll(
   supabase: SupabaseClient,
   requestIds: string[],
-  maxWaitMs = MAX_POLL_MS,
+  maxWaitMs = CLAY_EMAIL_MAX_POLL_MS,
 ): Promise<Map<string, string>> {
   const results = new Map<string, string>();
   if (requestIds.length === 0) return results;
@@ -327,7 +328,7 @@ export async function clayLookupPhone(
 
   console.log(`[clayLookupPhone] Sent to Clay (phone): ${linkedinUrl} — polling...`);
 
-  const deadline = Date.now() + MAX_POLL_MS;
+  const deadline = Date.now() + CLAY_PHONE_MAX_POLL_MS;
 
   while (Date.now() < deadline) {
     await sleep(POLL_INTERVAL_MS);
@@ -413,7 +414,7 @@ export const clayToolDefinitions: ClaudeTool[] = [
   {
     name: 'clay_find_phone',
     description:
-      'Find a person\'s phone number using Clay enrichment tables. Requires a LinkedIn URL. Sends lookup to Clay and waits for the result (up to ~60s). Returns the phone number if found, or "no phone found".',
+      'Find a person\'s phone number using Clay enrichment tables. Requires a LinkedIn URL. Sends lookup to Clay and waits for the result (up to ~100s). Returns the phone number if found, or "no phone found".',
     input_schema: {
       type: 'object',
       properties: {
