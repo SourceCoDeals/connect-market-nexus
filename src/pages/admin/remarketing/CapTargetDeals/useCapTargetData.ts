@@ -361,7 +361,7 @@ export function useCapTargetData() {
           const { data, error } = await query;
           if (error) throw error;
           if (data && data.length > 0) {
-            allData.push(...(data as CapTargetDeal[]));
+            allData.push(...(data as unknown as CapTargetDeal[]));
             offset += batchSize;
             hasMore = data.length === batchSize;
           } else {
