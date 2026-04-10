@@ -1,10 +1,16 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
@@ -43,8 +49,9 @@ import { cn } from '@/lib/utils';
 import { usePipelineCore, ViewMode } from '@/hooks/admin/use-pipeline-core';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { DISABLED_FEATURE_MESSAGE } from '@/config/pipeline-features';
-
+import { PIPELINE_FEATURES, DISABLED_FEATURE_MESSAGE } from '@/config/pipeline-features';
+import { downloadPipelineCsv } from '@/lib/pipeline-export';
+import { toast } from 'sonner';
 
 interface PipelineHeaderProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -53,7 +60,12 @@ interface PipelineHeaderProps {
   onOpenUndoImport?: () => void;
 }
 
-export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, onOpenUndoImport }: PipelineHeaderProps) {
+export function PipelineHeader({
+  pipeline,
+  onOpenCreateDeal,
+  onOpenBulkImport,
+  onOpenUndoImport,
+}: PipelineHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { data: adminProfiles } = useAdminProfiles();
 
@@ -61,6 +73,48 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
     kanban: Kanban,
     list: List,
     table: Table,
+  };
+
+  const openStageManagement = () => window.dispatchEvent(new CustomEvent('open-stage-management'));
+
+  const renderStageManagementItem = ({
+    enabled,
+    icon: Icon,
+    label,
+  }: {
+    enabled: boolean;
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+  }) => {
+    if (enabled) {
+      return (
+        <DropdownMenuItem onClick={openStageManagement}>
+          <Icon className="h-4 w-4 mr-2" />
+          {label}
+        </DropdownMenuItem>
+      );
+    }
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>
+              <DropdownMenuItem
+                onSelect={(e) => e.preventDefault()}
+                className="opacity-60 cursor-not-allowed"
+                title={DISABLED_FEATURE_MESSAGE}
+              >
+                <Icon className="h-4 w-4 mr-2" />
+                {label}
+              </DropdownMenuItem>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="max-w-xs">
+            {DISABLED_FEATURE_MESSAGE}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
   };
 
   // Count active filters for badge
@@ -105,7 +159,10 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-3">
           {/* View Mode Selector */}
-          <Select value={pipeline.viewMode} onValueChange={(value) => pipeline.setViewMode(value as ViewMode)}>
+          <Select
+            value={pipeline.viewMode}
+            onValueChange={(value) => pipeline.setViewMode(value as ViewMode)}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -143,101 +200,74 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="z-[100] bg-background">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <DropdownMenuItem
-                        onSelect={(e) => e.preventDefault()}
-                        className="opacity-60 cursor-not-allowed"
-                        title={DISABLED_FEATURE_MESSAGE}
-                      >
-                        <Settings2 className="h-4 w-4 mr-2" />
-                        Stage Library
-                      </DropdownMenuItem>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-xs">
-                    {DISABLED_FEATURE_MESSAGE}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {renderStageManagementItem({
+                enabled: PIPELINE_FEATURES.stageLibrary,
+                icon: Settings2,
+                label: 'Stage Library',
+              })}
+              {renderStageManagementItem({
+                enabled: PIPELINE_FEATURES.stageCustomization,
+                icon: LayoutGrid,
+                label: 'Add/Remove Stages',
+              })}
+              {renderStageManagementItem({
+                enabled: PIPELINE_FEATURES.stageReordering,
+                icon: ArrowUpDown,
+                label: 'Reorder Stages',
+              })}
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <DropdownMenuItem
-                        onSelect={(e) => e.preventDefault()}
-                        className="opacity-60 cursor-not-allowed"
-                        title={DISABLED_FEATURE_MESSAGE}
-                      >
-                        <LayoutGrid className="h-4 w-4 mr-2" />
-                        Add/Remove Stages
-                      </DropdownMenuItem>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-xs">
-                    {DISABLED_FEATURE_MESSAGE}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {PIPELINE_FEATURES.customViews ? (
+                <DropdownMenuItem
+                  onClick={() => window.dispatchEvent(new CustomEvent('open-create-pipeline-view'))}
+                >
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  New Custom View
+                </DropdownMenuItem>
+              ) : (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <DropdownMenuItem
+                          onSelect={(e) => e.preventDefault()}
+                          className="opacity-60 cursor-not-allowed"
+                          title={DISABLED_FEATURE_MESSAGE}
+                        >
+                          <EyeOff className="h-4 w-4 mr-2" />
+                          New Custom View
+                        </DropdownMenuItem>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="left" className="max-w-xs">
+                      {DISABLED_FEATURE_MESSAGE}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <DropdownMenuItem
-                        onSelect={(e) => e.preventDefault()}
-                        className="opacity-60 cursor-not-allowed"
-                        title={DISABLED_FEATURE_MESSAGE}
-                      >
-                        <ArrowUpDown className="h-4 w-4 mr-2" />
-                        Reorder Stages
-                      </DropdownMenuItem>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-xs">
-                    {DISABLED_FEATURE_MESSAGE}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <DropdownMenuItem
-                        onSelect={(e) => e.preventDefault()}
-                        className="opacity-60 cursor-not-allowed"
-                        title={DISABLED_FEATURE_MESSAGE}
-                      >
-                        <EyeOff className="h-4 w-4 mr-2" />
-                        New Custom View
-                      </DropdownMenuItem>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-xs">
-                    {DISABLED_FEATURE_MESSAGE}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <DropdownMenuItem>Export Pipeline</DropdownMenuItem>
-              <DropdownMenuItem onClick={onOpenBulkImport}>Bulk Import Spreadsheet</DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (!pipeline.deals.length) {
+                    toast.info('No deals to export with current filters');
+                    return;
+                  }
+                  downloadPipelineCsv(pipeline.deals);
+                  toast.success(`Exported ${pipeline.deals.length} deals`);
+                }}
+              >
+                Export Pipeline
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onOpenBulkImport}>
+                Bulk Import Spreadsheet
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onOpenUndoImport}>Undo Import</DropdownMenuItem>
-              <DropdownMenuItem>Pipeline Settings</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
         {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
             {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         </div>
@@ -248,16 +278,12 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
         {/* Deal/Listing Filter with Search - NOW FIRST */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              role="combobox"
-              className="w-[180px] h-9 justify-between"
-            >
+            <Button variant="outline" role="combobox" className="w-[180px] h-9 justify-between">
               <span className="truncate text-sm">
-                {pipeline.listingFilter === 'all' 
+                {pipeline.listingFilter === 'all'
                   ? 'All Listings'
-                  : pipeline.uniqueListings?.find(l => l.id === pipeline.listingFilter)?.title || 'All Listings'
-                }
+                  : pipeline.uniqueListings?.find((l) => l.id === pipeline.listingFilter)?.title ||
+                    'All Listings'}
               </span>
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
@@ -268,14 +294,11 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
               <CommandList>
                 <CommandEmpty>No listing found.</CommandEmpty>
                 <CommandGroup>
-                  <CommandItem
-                    value="all"
-                    onSelect={() => pipeline.setListingFilter('all')}
-                  >
+                  <CommandItem value="all" onSelect={() => pipeline.setListingFilter('all')}>
                     <Check
                       className={cn(
-                        "mr-2 h-4 w-4",
-                        pipeline.listingFilter === 'all' ? "opacity-100" : "opacity-0"
+                        'mr-2 h-4 w-4',
+                        pipeline.listingFilter === 'all' ? 'opacity-100' : 'opacity-0',
                       )}
                     />
                     All Listings
@@ -288,8 +311,8 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
                     >
                       <Check
                         className={cn(
-                          "mr-2 h-4 w-4",
-                          pipeline.listingFilter === listing.id ? "opacity-100" : "opacity-0"
+                          'mr-2 h-4 w-4',
+                          pipeline.listingFilter === listing.id ? 'opacity-100' : 'opacity-0',
                         )}
                       />
                       {listing.title}
@@ -304,7 +327,11 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
         {/* Stage Filter - Dynamic from database */}
         <Select
           value={pipeline.statusFilter}
-          onValueChange={(value) => pipeline.setStatusFilter(value as 'all' | 'active_only' | 'closed_won' | 'closed_lost' | 'closed')}
+          onValueChange={(value) =>
+            pipeline.setStatusFilter(
+              value as 'all' | 'active_only' | 'closed_won' | 'closed_lost' | 'closed',
+            )
+          }
         >
           <SelectTrigger className="w-[140px] h-9">
             <SelectValue placeholder="All Stages" />
@@ -312,16 +339,18 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
           <SelectContent className="bg-background z-[100]">
             <SelectItem value="all">All Stages</SelectItem>
             <SelectItem value="active_only">Active Only</SelectItem>
-            
+
             {/* Dynamic stages from database */}
             {pipeline.stages
-              .filter(stage => stage.is_active && (stage.stage_type === 'active' || !stage.stage_type))
+              .filter(
+                (stage) => stage.is_active && (stage.stage_type === 'active' || !stage.stage_type),
+              )
               .map((stage) => (
                 <SelectItem key={stage.id} value={stage.id}>
                   {stage.name}
                 </SelectItem>
               ))}
-            
+
             {/* Closed stages */}
             <SelectItem value="closed_won">Closed Won</SelectItem>
             <SelectItem value="closed_lost">Closed Lost</SelectItem>
@@ -350,11 +379,12 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
             <SelectItem value="all">All Deals</SelectItem>
             <SelectItem value="assigned_to_me">Assigned to Me</SelectItem>
             <SelectItem value="unassigned">Unassigned</SelectItem>
-            {adminProfiles && Object.values(adminProfiles).map((admin) => (
-              <SelectItem key={admin.id} value={admin.id}>
-                {admin.first_name} {admin.last_name}
-              </SelectItem>
-            ))}
+            {adminProfiles &&
+              Object.values(adminProfiles).map((admin) => (
+                <SelectItem key={admin.id} value={admin.id}>
+                  {admin.first_name} {admin.last_name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
 
@@ -366,13 +396,16 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
               size="sm"
               className={cn(
                 'h-9 gap-2',
-                (pipeline.createdDateRange.start || pipeline.createdDateRange.end) && 'bg-primary/10'
+                (pipeline.createdDateRange.start || pipeline.createdDateRange.end) &&
+                  'bg-primary/10',
               )}
             >
               <CalendarIcon className="h-4 w-4" />
               Create date
               {(pipeline.createdDateRange.start || pipeline.createdDateRange.end) && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">1</Badge>
+                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">
+                  1
+                </Badge>
               )}
               <ChevronDown className="h-3 w-3 ml-auto" />
             </Button>
@@ -415,13 +448,16 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
               size="sm"
               className={cn(
                 'h-9 gap-2',
-                (pipeline.lastActivityRange.start || pipeline.lastActivityRange.end) && 'bg-primary/10'
+                (pipeline.lastActivityRange.start || pipeline.lastActivityRange.end) &&
+                  'bg-primary/10',
               )}
             >
               <CalendarIcon className="h-4 w-4" />
               Last activity
               {(pipeline.lastActivityRange.start || pipeline.lastActivityRange.end) && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">1</Badge>
+                <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">
+                  1
+                </Badge>
               )}
               <ChevronDown className="h-3 w-3 ml-auto" />
             </Button>
@@ -459,7 +495,18 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
         {/* Sort Order Filter */}
         <Select
           value={pipeline.sortOption}
-          onValueChange={(value) => pipeline.setSortOption(value as 'newest' | 'oldest' | 'priority' | 'value' | 'probability' | 'stage_entered' | 'last_activity')}
+          onValueChange={(value) =>
+            pipeline.setSortOption(
+              value as
+                | 'newest'
+                | 'oldest'
+                | 'priority'
+                | 'value'
+                | 'probability'
+                | 'stage_entered'
+                | 'last_activity',
+            )
+          }
         >
           <SelectTrigger className="w-[160px] h-9">
             <SelectValue placeholder="Sort by" />
@@ -511,7 +558,7 @@ export function PipelineHeader({ pipeline, onOpenCreateDeal, onOpenBulkImport, o
             {Object.entries(viewIcons).map(([mode, Icon]) => (
               <Button
                 key={mode}
-                variant={pipeline.viewMode === mode ? "default" : "outline"}
+                variant={pipeline.viewMode === mode ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => pipeline.setViewMode(mode as ViewMode)}
                 className="flex-1"

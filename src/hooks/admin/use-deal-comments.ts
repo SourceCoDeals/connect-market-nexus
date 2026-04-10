@@ -20,26 +20,33 @@ export function useDealComments(dealId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('deal_comments')
-        .select(`
+        .select(
+          `
           *,
           profiles:admin_id (
             first_name,
             last_name,
             email
           )
-        `)
+        `,
+        )
         .eq('deal_id', dealId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       return (data || []).map((comment) => {
-        const profiles = comment.profiles as { first_name?: string; last_name?: string; email?: string } | null;
+        const profiles = comment.profiles as {
+          first_name?: string;
+          last_name?: string;
+          email?: string;
+        } | null;
         return {
           ...comment,
-          admin_name: profiles?.first_name || profiles?.last_name
-            ? `${profiles?.first_name ?? ''} ${profiles?.last_name ?? ''}`.trim()
-            : (profiles?.email || 'Unknown'),
+          admin_name:
+            profiles?.first_name || profiles?.last_name
+              ? `${profiles?.first_name ?? ''} ${profiles?.last_name ?? ''}`.trim()
+              : profiles?.email || 'Unknown',
           admin_email: profiles?.email || '',
         };
       }) as DealComment[];
@@ -52,16 +59,19 @@ export function useCreateDealComment() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ 
-      dealId, 
-      commentText, 
-      mentionedAdmins = [] 
-    }: { 
-      dealId: string; 
+    mutationFn: async ({
+      dealId,
+      commentText,
+      mentionedAdmins = [],
+    }: {
+      dealId: string;
       commentText: string;
       mentionedAdmins?: string[];
     }) => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!user) throw new Error('Not authenticated');
 
@@ -77,6 +87,38 @@ export function useCreateDealComment() {
         .single();
 
       if (error) throw error;
+
+      // Fan out @mention notifications so mentioned admins see them in their
+      // notifications feed. Non-blocking: failures should not fail the comment.
+      if (mentionedAdmins.length > 0) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email')
+            .eq('id', user.id)
+            .single();
+
+          const authorName =
+            profile && (profile.first_name || profile.last_name)
+              ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim()
+              : (profile?.email ?? 'A team member');
+
+          const snippet = commentText.length > 140 ? `${commentText.slice(0, 140)}…` : commentText;
+
+          await supabase.from('user_notifications').insert(
+            mentionedAdmins.map((adminId) => ({
+              user_id: adminId,
+              notification_type: 'mention',
+              title: 'You were mentioned in a deal note',
+              message: `${authorName}: "${snippet}"`,
+              metadata: { deal_id: dealId, author_id: user.id },
+            })),
+          );
+        } catch (notifyError) {
+          console.error('[useCreateDealComment] Failed to fan out mentions', notifyError);
+        }
+      }
+
       return data;
     },
     onSuccess: (_, variables) => {
@@ -87,7 +129,12 @@ export function useCreateDealComment() {
       });
     },
     onError: (error) => {
-      const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
+      const msg =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : JSON.stringify(error);
       toast({
         title: 'Error',
         description: `Failed to add comment: ${msg}`,
@@ -102,14 +149,14 @@ export function useUpdateDealComment() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ 
-      commentId, 
+    mutationFn: async ({
+      commentId,
       commentText,
       mentionedAdmins,
-      dealId: _dealId
-    }: { 
-      commentId: string; 
-      commentText: string; 
+      dealId: _dealId,
+    }: {
+      commentId: string;
+      commentText: string;
       mentionedAdmins: string[];
       dealId: string;
     }) => {
@@ -149,10 +196,7 @@ export function useDeleteDealComment() {
 
   return useMutation({
     mutationFn: async ({ commentId, dealId: _dealId }: { commentId: string; dealId: string }) => {
-      const { error } = await supabase
-        .from('deal_comments')
-        .delete()
-        .eq('id', commentId);
+      const { error } = await supabase.from('deal_comments').delete().eq('id', commentId);
 
       if (error) throw error;
     },
