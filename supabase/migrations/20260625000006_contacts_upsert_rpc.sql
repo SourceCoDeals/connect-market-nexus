@@ -255,6 +255,7 @@ BEGIN
       remarketing_buyer_id = COALESCE(NULLIF(p_fields->>'remarketing_buyer_id', '')::UUID, remarketing_buyer_id),
       profile_id   = COALESCE(NULLIF(p_fields->>'profile_id', '')::UUID, profile_id),
       listing_id   = COALESCE(NULLIF(p_fields->>'listing_id', '')::UUID, listing_id),
+      contact_type = COALESCE(NULLIF(p_fields->>'contact_type', ''), contact_type),
       role_category   = COALESCE(NULLIF(p_fields->>'role_category', ''), role_category),
       priority_level  = COALESCE(NULLIF((p_fields->>'priority_level')::SMALLINT, 0), priority_level),
       notes        = COALESCE(NULLIF(p_fields->>'notes', ''), notes),
