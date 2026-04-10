@@ -127,6 +127,7 @@ const CreateListingFromDeal = lazyWithRetry(() => import('@/pages/admin/CreateLi
 const AdminListings = lazyWithRetry(() => import('@/pages/admin/AdminListings'));
 const ListingPreview = lazyWithRetry(() => import('@/pages/ListingPreview'));
 const DataRecoveryPage = lazyWithRetry(() => import('@/pages/admin/DataRecoveryPage'));
+const UnmatchedActivitiesPage = lazyWithRetry(() => import('@/pages/admin/UnmatchedActivitiesPage'));
 const FormMonitoringPage = lazyWithRetry(() => import('@/pages/admin/FormMonitoringPage'));
 const SecuritySettings = lazyWithRetry(() => import('@/pages/admin/settings/SecuritySettings'));
 const OutreachSettingsPage = lazyWithRetry(
@@ -666,6 +667,14 @@ function App() {
                 element={
                   <RoleGate min="owner">
                     <DataRecoveryPage />
+                  </RoleGate>
+                }
+              />
+              <Route
+                path="settings/unmatched-activities"
+                element={
+                  <RoleGate min="admin">
+                    <UnmatchedActivitiesPage />
                   </RoleGate>
                 }
               />

@@ -62,7 +62,8 @@ export function LogManualCallDialog({
 
   const logCallMutation = useMutation({
     mutationFn: async () => {
-      const durationSeconds = durationMinutes ? parseInt(durationMinutes, 10) * 60 : 0;
+      const parsedMinutes = durationMinutes ? parseInt(durationMinutes, 10) : 0;
+      const durationSeconds = isNaN(parsedMinutes) ? 0 : Math.max(0, parsedMinutes) * 60;
       const connected = outcome === 'connected' || outcome === 'callback';
       const now = new Date().toISOString();
 

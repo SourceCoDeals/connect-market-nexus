@@ -60,8 +60,14 @@ CREATE TRIGGER trg_last_contact_email
 
 -- 5. Trigger: deal_transcripts → update deal_pipeline + contacts
 CREATE OR REPLACE FUNCTION update_last_contact_from_meeting() RETURNS trigger AS $$
-DECLARE v_ts timestamptz := COALESCE(NEW.call_date::timestamptz, NEW.created_at);
+DECLARE v_ts timestamptz;
 BEGIN
+  -- Safe cast: fall back to created_at if call_date is NULL or invalid
+  BEGIN
+    v_ts := COALESCE(NEW.call_date::timestamptz, NEW.created_at);
+  EXCEPTION WHEN OTHERS THEN
+    v_ts := NEW.created_at;
+  END;
   IF NEW.listing_id IS NOT NULL THEN
     UPDATE deal_pipeline SET last_activity_at = v_ts
     WHERE listing_id = NEW.listing_id AND (last_activity_at IS NULL OR last_activity_at < v_ts);

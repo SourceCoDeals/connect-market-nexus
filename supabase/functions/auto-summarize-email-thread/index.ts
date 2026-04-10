@@ -160,19 +160,23 @@ Deno.serve(async (req) => {
       .single();
 
     // Log as deal_activity so we don't re-summarize
-    await supabase.rpc('log_deal_activity', {
-      p_deal_id: deal_id,
-      p_activity_type: 'email_thread_summary',
-      p_title: `AI summarized email thread: ${emails[0]?.subject || 'Thread'}`,
-      p_description: `${emails.length} emails summarized`,
-      p_admin_id: null,
-      p_metadata: {
-        conversation_id,
-        email_count: emails.length,
-        note_id: savedNote?.id || null,
-        model: GEMINI_25_FLASH_MODEL,
-      },
-    });
+    try {
+      await supabase.rpc('log_deal_activity', {
+        p_deal_id: deal_id,
+        p_activity_type: 'email_thread_summary',
+        p_title: `AI summarized email thread: ${emails[0]?.subject || 'Thread'}`,
+        p_description: `${emails.length} emails summarized`,
+        p_admin_id: null,
+        p_metadata: {
+          conversation_id,
+          email_count: emails.length,
+          note_id: savedNote?.id || null,
+          model: GEMINI_25_FLASH_MODEL,
+        },
+      });
+    } catch (e) {
+      console.error('[auto-summarize-email-thread] Failed to log deal activity:', e);
+    }
 
     console.log(`[auto-summarize-email-thread] Summarized thread ${conversation_id}, note=${savedNote?.id}`);
 

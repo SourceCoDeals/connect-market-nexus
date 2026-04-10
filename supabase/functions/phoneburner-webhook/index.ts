@@ -1191,64 +1191,60 @@ async function processEvent(
       if (resolvedListingId) {
         try {
           // Use listing_id as deal_id (the remarketing UI queries deal_activities by listing_id)
-          try {
-              await supabase.rpc('log_deal_activity', {
-                p_deal_id: resolvedListingId,
-                p_activity_type: 'call_completed',
-                p_title: `${connected ? 'Connected call' : 'Call attempt'}: ${contactName || resolvedContactEmail || 'Unknown'}${userName ? ` (by ${userName})` : ''}`,
-                p_description: [
-                  dispositionLabel ? `Disposition: ${dispositionLabel}` : null,
-                  duration ? `Duration: ${Math.floor(duration / 60)}m ${duration % 60}s` : null,
-                  talkTime ? `Talk time: ${Math.floor(talkTime / 60)}m ${talkTime % 60}s` : null,
-                  notes ? `Notes: ${notes.substring(0, 200)}` : null,
-                  (recordingUrl || recordingUrlPublic) ? 'Recording available' : null,
-                  topLevelTranscript ? `Transcript (${topLevelTranscript.length} chars)` : null,
-                ].filter(Boolean).join(' | ') || null,
-                p_admin_id: null,
-                p_metadata: {
-                  // Identification
-                  phoneburner_call_id: pbCallId,
-                  contact_activity_id: data?.id || null,
-                  match_source: matchSource,
+          await supabase.rpc('log_deal_activity', {
+            p_deal_id: resolvedListingId,
+            p_activity_type: 'call_completed',
+            p_title: `${connected ? 'Connected call' : 'Call attempt'}: ${contactName || resolvedContactEmail || 'Unknown'}${userName ? ` (by ${userName})` : ''}`,
+            p_description: [
+              dispositionLabel ? `Disposition: ${dispositionLabel}` : null,
+              duration ? `Duration: ${Math.floor(duration / 60)}m ${duration % 60}s` : null,
+              talkTime ? `Talk time: ${Math.floor(talkTime / 60)}m ${talkTime % 60}s` : null,
+              notes ? `Notes: ${notes.substring(0, 200)}` : null,
+              (recordingUrl || recordingUrlPublic) ? 'Recording available' : null,
+              topLevelTranscript ? `Transcript (${topLevelTranscript.length} chars)` : null,
+            ].filter(Boolean).join(' | ') || null,
+            p_admin_id: null,
+            p_metadata: {
+              // Identification
+              phoneburner_call_id: pbCallId,
+              contact_activity_id: data?.id || null,
+              match_source: matchSource,
 
-                  // People
-                  contact_name: contactName,
-                  contact_email: resolvedContactEmail,
-                  contact_phone: contactPhone,
-                  caller_name: userName,
-                  caller_email: userEmail,
+              // People
+              contact_name: contactName,
+              contact_email: resolvedContactEmail,
+              contact_phone: contactPhone,
+              caller_name: userName,
+              caller_email: userEmail,
 
-                  // Call details
-                  connected,
-                  call_direction: (payload.direction || 'outbound') as string,
-                  duration_seconds: duration,
-                  talk_time_seconds: talkTime,
-                  call_started_at: callStartedAt,
-                  call_ended_at: callEndedAt,
+              // Call details
+              connected,
+              call_direction: (payload.direction || 'outbound') as string,
+              duration_seconds: duration,
+              talk_time_seconds: talkTime,
+              call_started_at: callStartedAt,
+              call_ended_at: callEndedAt,
 
-                  // Disposition
-                  disposition_code: dispositionCode || null,
-                  disposition_label: dispositionLabel || null,
-                  disposition_notes: notes || null,
-                  phoneburner_status: topLevelStatus || null,
+              // Disposition
+              disposition_code: dispositionCode || null,
+              disposition_label: dispositionLabel || null,
+              disposition_notes: notes || null,
+              phoneburner_status: topLevelStatus || null,
 
-                  // Media
-                  recording_url: recordingUrl || null,
-                  recording_url_public: recordingUrlPublic || null,
-                  recording_duration_seconds: recordingDuration,
-                  has_transcript: !!(topLevelTranscript && topLevelTranscript.trim().length > 0),
-                  transcript_preview: topLevelTranscript ? topLevelTranscript.substring(0, 500) : null,
+              // Media
+              recording_url: recordingUrl || null,
+              recording_url_public: recordingUrlPublic || null,
+              recording_duration_seconds: recordingDuration,
+              has_transcript: !!(topLevelTranscript && topLevelTranscript.trim().length > 0),
+              transcript_preview: topLevelTranscript ? topLevelTranscript.substring(0, 500) : null,
 
-                  // Context
-                  contact_notes: contactNotes || null,
-                },
-              });
-            } catch (e) {
-              console.error('[phoneburner-webhook] Failed to log deal activity:', e);
-            }
+              // Context
+              contact_notes: contactNotes || null,
+            },
+          });
 
-            // ── Auto-create follow-up task based on disposition ──
-            if (dispositionLabel) {
+          // ── Auto-create follow-up task based on disposition ──
+          if (dispositionLabel) {
               const dispositionLower = dispositionLabel.toLowerCase();
               let taskTitle: string | null = null;
               let taskType = 'follow_up_with_buyer';
