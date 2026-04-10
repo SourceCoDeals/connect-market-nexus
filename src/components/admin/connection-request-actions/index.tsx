@@ -98,8 +98,8 @@ export function ConnectionRequestActions({
         buyerName={buyerName}
         firmName={firmName}
         listingTitle={listing?.title}
-        handleAccept={actions.handleAccept}
-        handleReject={actions.handleReject}
+        handleAccept={() => openEmailDialog('approve')}
+        handleReject={() => openEmailDialog('reject')}
         handleResetToPending={actions.handleResetToPending}
         handleOnHold={actions.handleOnHold}
         isStatusPending={actions.updateStatus.isPending}
