@@ -1,56 +1,65 @@
 
 
-# Elevate Connection Request Email Dialog - Final Design Pass
+# Investigation Results + Fix Plan
 
-## Issues Found
+## Root Cause Analysis
 
-1. **Third-person voice when sending as an admin**: Copy says "Bill Martin will be in touch shortly" even when Bill is the one sending. Should say "I will be in touch shortly" when a named admin is selected, and use third-person only for the generic support@ sender.
+### Bug 1: Email never sent (CRITICAL)
+In `useConnectionRequestActions.ts` line 123:
+```typescript
+if (buyerEmail && listingId) {
+```
+The request you tested is a **General Inquiry** (listing_id = sentinel UUID `00000000-0000-0000-0000-000000000001`). The `listing` prop passed to this component is `null` for General Inquiries, so `listing?.id` is `undefined`, making `listingId` falsy. The entire email-sending block is **skipped silently**.
 
-2. **Adam Haile missing from DEAL_OWNER_SENDERS**: He's in ADMIN_PROFILES but not in the sender dropdown.
+**Fix**: Change the guard to `if (buyerEmail)` and handle missing `listingId` gracefully. The edge function already works fine without a real listing ID -- it just needs `listingTitle`.
 
-3. **Edge function has same third-person issue**: Default body says "[senderName] will be in touch" -- needs "I" when a named sender.
+### Bug 2: Status didn't change (CRITICAL)
+The status update (`updateStatus.mutateAsync`) on line 88 runs before the email block. If it succeeds, the status should change. However, looking at the RLS on `connection_requests`, the update uses the **anon key** client, and the admin's ability to update depends on RLS policies. If the update silently fails or the optimistic update rolls back without a visible error, the UI would appear unchanged.
 
-4. **Modal could be wider and more refined**: Push to `sm:max-w-4xl` for a true full-width email preview feel. The email card should feel like a real rendered email with the SourceCo logo header.
+More likely: the `updateStatus.mutateAsync` call throws (possibly RLS), the catch block shows a destructive toast ("Action failed"), and both status update and email are skipped. Need to check if you saw an error toast.
 
-5. **Email preview doesn't show the full email wrapper**: The buyer will receive an email wrapped in the `wrapEmailHtml` template (with SourceCo logo, background, card layout). The preview only shows the body content. Showing a mini version of the full email would be more accurate and impressive.
+However, if the `listing` being null also causes issues earlier in the flow (e.g., the `sendMessage.mutateAsync` on line 111 might fail if the connection request's thread resolution fails for a General Inquiry), that error would be caught and the whole operation would abort after the status update but the toast would still say "Request approved."
 
-6. **EmailTestCentre still has stale "exclusive introduction" copy**: Minor, but should be cleaned.
+Actually wait -- line 88 runs first and succeeds (status updates), then line 111 sends a message, then line 123 sends email. If the message send fails, the catch block runs and shows an error toast, but the status was already updated. Let me re-read... Actually `mutateAsync` on line 88 would commit the status. So if line 111 throws, status IS updated but the error toast shows.
+
+But the user says status didn't change. So either:
+1. The `updateStatus.mutateAsync` itself failed (RLS issue)
+2. Or the optimistic update showed "approved" briefly then rolled back
+
+Let me check if there's an RLS issue by checking the mutation code -- it uses `supabase.from('connection_requests').update()` with the client-side anon key. This would require an RLS policy allowing admin updates.
+
+### Bug 3: Admin comment never saved
+In `handleEmailDialogConfirm` (line 74), the `_comment` parameter (admin's note from the dialog) is prefixed with underscore and **never passed** to `handleAccept` or `handleReject`. The note is discarded.
+
+**Fix**: Pass the comment to `handleAccept`/`handleReject` and include it in `updateStatus.mutateAsync({ requestId, status, notes: comment })`.
+
+### Bug 4: Rejection copy still says "introductions"
+Line 88 of the dialog: `"We limit introductions to a small number of buyers"` -- should be "We limit access to a small number of buyers" per user's instructions.
 
 ## Changes
 
-### 1. `src/lib/admin-profiles.ts`
-- Add Adam Haile to `DEAL_OWNER_SENDERS` array
+### 1. `useConnectionRequestActions.ts`
+- Remove `listingId` guard from email sending -- send email even when listing is null/General Inquiry
+- Accept `adminComment` parameter in `handleAccept` and `handleReject`, pass to `updateStatus.mutateAsync` as `notes`
+- Use `listingTitle` fallback ("General Inquiry" or "this deal") when listing is missing
 
-### 2. `src/components/admin/ConnectionRequestEmailDialog.tsx`
-- Widen to `sm:max-w-4xl`
-- Switch to first-person voice when a named admin (non-support@) is selected:
-  - "I will be in touch shortly with next steps" instead of "[Name] will be in touch"
-  - "I will reach out to coordinate next steps" instead of "[Name] from our team will reach out"
-- Add a mini SourceCo logo at the top of the email preview card to simulate the real email wrapper
-- Add the footer "SourceCo 2026" at the bottom of the preview card
-- Improve the email card styling: subtle warm background (`#FAFAF8`) behind the card to simulate the email wrapper background
-- Increase overall polish: slightly more padding, cleaner spacing
-- `defaultBody` text must also use first-person for named senders
+### 2. `connection-request-actions/index.tsx`
+- Pass the admin comment from `handleEmailDialogConfirm` to `handleAccept`/`handleReject` instead of discarding it
 
-### 3. `supabase/functions/send-connection-notification/index.ts`
-- Accept a `useFirstPerson` flag (or derive from senderEmail != support@)
-- Default body uses "I" when sender is a named admin, "[Name]" when support@
-- This ensures the actually-sent email matches the preview
+### 3. `ConnectionRequestEmailDialog.tsx`
+- Fix rejection copy: "introductions" → "access"
 
-### 4. `src/pages/admin/AdminRequests.tsx`
-- Pass `useFirstPerson` or let the edge function derive it from senderEmail
-
-### 5. `src/pages/admin/EmailTestCentre.tsx`
-- Update stale "exclusive introduction" copy to "exclusive opportunity"
+### 4. `send-connection-notification/index.ts`
+- Make `listingId` optional in the interface (it already handles missing listing gracefully in the URL, just need the type to allow it)
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/lib/admin-profiles.ts` | Add Adam Haile to DEAL_OWNER_SENDERS |
-| `src/components/admin/ConnectionRequestEmailDialog.tsx` | Widen to 4xl, first-person voice for named senders, SourceCo logo in preview, refined design |
-| `supabase/functions/send-connection-notification/index.ts` | First-person body when sender is a named admin |
-| `src/pages/admin/EmailTestCentre.tsx` | Fix stale "exclusive introduction" copy |
+| `src/components/admin/connection-request-actions/useConnectionRequestActions.ts` | Remove listingId guard, accept+pass adminComment |
+| `src/components/admin/connection-request-actions/index.tsx` | Forward admin comment to handlers |
+| `src/components/admin/ConnectionRequestEmailDialog.tsx` | Fix "introductions" → "access" in rejection copy |
+| `supabase/functions/send-connection-notification/index.ts` | Make listingId optional |
 
-Edge function must be redeployed after changes.
+Edge function redeploy required.
 
