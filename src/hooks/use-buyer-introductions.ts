@@ -60,7 +60,10 @@ export function useBuyerIntroductions(listingId: string | undefined) {
         resolvedPeFirmByCompany = Object.fromEntries(
           (buyers || [])
             .filter((buyer) => !!buyer.company_name && !!buyer.pe_firm_name)
-            .map((buyer) => [buyer.company_name.trim().toLowerCase(), buyer.pe_firm_name as string]),
+            .map((buyer) => [
+              buyer.company_name.trim().toLowerCase(),
+              buyer.pe_firm_name as string,
+            ]),
         );
       }
 
@@ -204,7 +207,9 @@ export function useBuyerIntroductions(listingId: string | undefined) {
         if (result.pipelineCreated) {
           toast.success('Buyer marked as Fit & Interested — opportunity created in deal pipeline');
         } else {
-          toast.warning('Buyer marked as Fit & Interested, but pipeline opportunity could not be created. Please create it manually.');
+          toast.warning(
+            'Buyer marked as Fit & Interested, but pipeline opportunity could not be created. Please create it manually.',
+          );
         }
       } else {
         toast.success('Introduction status updated');
@@ -222,7 +227,37 @@ export function useBuyerIntroductions(listingId: string | undefined) {
    */
   async function createDealFromIntroduction(buyer: BuyerIntroduction): Promise<boolean> {
     try {
-      // Get the first (default) deal stage
+      // Phase 5 (F-B1): Use the server-side RPC which wraps contact upsert +
+      // deal_pipeline insert + introduction status advance in one transaction.
+      const { data: newDealId, error: rpcError } = await supabase.rpc(
+        'create_deal_from_introduction',
+        { p_introduction_id: buyer.id },
+      );
+
+      if (rpcError) throw rpcError;
+
+      if (!newDealId) {
+        console.error('create_deal_from_introduction returned null');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to create deal from introduction:', error);
+      return false;
+    }
+  }
+
+  // ── LEGACY CLIENT-SIDE PATH (kept for reference, no longer called) ──────
+  // The 3-step client write has been replaced by the create_deal_from_introduction
+  // RPC above. Keeping the old function body commented out as documentation of
+  // what the RPC consolidates.
+  //
+   
+  async function _legacyCreateDealFromIntroduction_DEAD(
+    buyer: BuyerIntroduction,
+  ): Promise<boolean> {
+    try {
       const { data: stages, error: stageError } = await supabase
         .from('deal_stages')
         .select('id, name')
@@ -238,7 +273,6 @@ export function useBuyerIntroductions(listingId: string | undefined) {
         return false;
       }
 
-      // Look up listing title for the deal title
       let listingTitle = '';
       if (buyer.listing_id) {
         const { data: listing } = await supabase
@@ -249,23 +283,14 @@ export function useBuyerIntroductions(listingId: string | undefined) {
         listingTitle = listing?.title || '';
       }
 
-      // Create the deal in the pipeline
       const dealTitle = `${buyer.buyer_firm_name} — ${listingTitle || buyer.company_name}`;
 
-      // Resolve or create buyer contact
-      // NOTE: contacts table uses partial unique indexes (not simple unique constraints),
-      // so Supabase's .upsert({ onConflict: 'email' }) does NOT work. We must do
-      // an explicit SELECT-then-INSERT pattern.
       let buyerContactId: string | null = null;
       if (buyer.buyer_email) {
-        const sanitizedEmail = buyer.buyer_email
-          .toLowerCase()
-          .trim()
-          .replace(/\/+$/, ''); // Remove trailing slashes
+        const sanitizedEmail = buyer.buyer_email.toLowerCase().trim().replace(/\/+$/, '');
 
         const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedEmail);
         if (isValidEmail) {
-          // Check if contact already exists
           const { data: existing } = await supabase
             .from('contacts')
             .select('id')
@@ -277,7 +302,6 @@ export function useBuyerIntroductions(listingId: string | undefined) {
           if (existing) {
             buyerContactId = existing.id;
           } else {
-            // Create new contact
             const { data: newContact } = await supabase
               .from('contacts')
               .insert({
@@ -297,7 +321,9 @@ export function useBuyerIntroductions(listingId: string | undefined) {
             }
           }
         } else {
-          console.warn(`[createDealFromIntroduction] Invalid email skipped: "${buyer.buyer_email}"`);
+          console.warn(
+            `[createDealFromIntroduction] Invalid email skipped: "${buyer.buyer_email}"`,
+          );
         }
       }
 
@@ -315,7 +341,7 @@ export function useBuyerIntroductions(listingId: string | undefined) {
           remarketing_buyer_id: buyer.remarketing_buyer_id || null,
           buyer_introduction_id: buyer.id,
           value: buyer.expected_deal_size_low || 0,
-          probability: 25,
+          probability: 10, // Aligned with DB default (see 20260626000000 migration)
           priority: 'medium',
         } as never)
         .select()
