@@ -91,6 +91,7 @@ export function createUserObject(profile: Record<string, unknown>): UserWithData
     company: (profile.company as string) || (profile.company_name as string) || '',
     website: (profile.website as string) || '',
     phone_number: (profile.phone_number as string) || '',
+    additional_phone_numbers: safeArray(profile.additional_phone_numbers),
     role: 'buyer' as const,
     email_verified: Boolean(profile.email_verified === true),
     approval_status: (profile.approval_status || 'pending') as ApprovalStatus,
