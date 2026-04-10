@@ -249,6 +249,7 @@ function createMinimalUser(id: string, email: string, issues: string[]): UserWit
     company: '',
     website: '',
     phone_number: '',
+    additional_phone_numbers: [],
     role: 'buyer' as const,
     email_verified: false,
     approval_status: 'pending' as ApprovalStatus,
@@ -334,11 +335,20 @@ export function validateUserData(user: User): { isValid: boolean; errors: string
 
   const validBuyerTypes: string[] = [
     // Canonical snake_case (DB)
-    'private_equity', 'corporate', 'family_office',
-    'independent_sponsor', 'search_fund', 'individual_buyer',
+    'private_equity',
+    'corporate',
+    'family_office',
+    'independent_sponsor',
+    'search_fund',
+    'individual_buyer',
     // Legacy camelCase (signup form + pre-migration profiles)
-    'privateEquity', 'familyOffice', 'searchFund',
-    'individual', 'independentSponsor', 'advisor', 'businessOwner',
+    'privateEquity',
+    'familyOffice',
+    'searchFund',
+    'individual',
+    'independentSponsor',
+    'advisor',
+    'businessOwner',
   ];
   if (!validBuyerTypes.includes(user.buyer_type)) {
     errors.push('Invalid buyer type');
