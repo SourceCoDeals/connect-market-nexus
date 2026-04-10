@@ -136,8 +136,8 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
         buyerName={leadName}
         firmName={leadCompany}
         listingTitle={request.listing?.title}
-        handleAccept={handleAccept}
-        handleReject={handleReject}
+        handleAccept={() => openEmailDialog('approve')}
+        handleReject={() => openEmailDialog('reject')}
         handleResetToPending={handleResetToPending}
         handleOnHold={handleOnHold}
         isStatusPending={updateStatus.isPending}
@@ -424,6 +424,16 @@ export function WebflowLeadDetail({ request }: WebflowLeadDetailProps) {
           <LeadRequestActions request={request} />
         </div>
       </div>
+
+      {/* ── EMAIL PREVIEW DIALOG ── */}
+      <ConnectionRequestEmailDialog
+        isOpen={emailDialogOpen}
+        onClose={() => { setEmailDialogOpen(false); setEmailActionType(null); }}
+        onConfirm={handleEmailDialogConfirm}
+        selectedRequest={request}
+        actionType={emailActionType}
+        isLoading={updateStatus.isPending}
+      />
     </div>
   );
 }
