@@ -19,6 +19,7 @@ interface ConnectionNotificationRequest {
   senderEmail?: string;
   senderName?: string;
   replyTo?: string;
+  customBodyText?: string;
 }
 
 function buildUserConfirmationHtml(
@@ -91,7 +92,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    const { type, recipientEmail, recipientName, requesterName, requesterEmail, listingTitle, listingId, message, requestId, senderEmail: customSenderEmail, senderName: customSenderName, replyTo: customReplyTo } = requestData;
+    const { type, recipientEmail, recipientName, requesterName, requesterEmail, listingTitle, listingId, message, requestId, senderEmail: customSenderEmail, senderName: customSenderName, replyTo: customReplyTo, customBodyText } = requestData;
     console.log('Processing connection notification:', { type, requesterName, listingTitle, requestId });
 
     const loginUrl = 'https://marketplace.sourcecodeals.com/login';
@@ -125,8 +126,20 @@ const handler = async (req: Request): Promise<Response> => {
 
       const buyerMessagesUrl = 'https://marketplace.sourcecodeals.com/my-deals';
       const subject = `Introduction approved: ${escapeHtml(listingTitle)}`;
-      const htmlContent = wrapEmailHtml({
-        bodyHtml: `
+
+      let htmlContent: string;
+      if (customBodyText) {
+        // Admin edited the email body — wrap plain text in the standard template
+        const escapedBody = escapeHtmlWithBreaks(customBodyText);
+        htmlContent = wrapEmailHtml({
+          bodyHtml: `<p>${escapedBody}</p>`,
+          preheader: 'Your introduction is confirmed. Here is what happens next.',
+          recipientEmail,
+        });
+      } else {
+        const buyerMessagesUrl = 'https://marketplace.sourcecodeals.com/my-deals';
+        htmlContent = wrapEmailHtml({
+          bodyHtml: `
     <p>Your introduction to ${escapeHtml(listingTitle)} has been approved.</p>
     <p>We are making a direct introduction to the business owner. You will receive a message from our team with next steps, typically within one business day.</p>
     <p>What to expect</p>
@@ -139,9 +152,10 @@ const handler = async (req: Request): Promise<Response> => {
     <div style="text-align: center; margin: 32px 0;">
       <a href="${buyerMessagesUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">View Messages</a>
     </div>`,
-        preheader: 'Your introduction is confirmed. Here is what happens next.',
-        recipientEmail,
-      });
+          preheader: 'Your introduction is confirmed. Here is what happens next.',
+          recipientEmail,
+        });
+      }
 
       const result = await sendEmail({
         templateName: 'connection_approval_notification',

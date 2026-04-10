@@ -12,6 +12,7 @@ interface BuyerRejectionRequest {
   senderEmail?: string;
   senderName?: string;
   replyTo?: string;
+  customBodyText?: string;
 }
 
 function buildRejectionHtml(buyerName: string, companyName: string, buyerEmail: string): string {
@@ -32,7 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
 
   try {
-    const { connectionRequestId, buyerEmail, buyerName, companyName, senderEmail: customSenderEmail, senderName: customSenderName, replyTo: customReplyTo }: BuyerRejectionRequest = await req.json();
+    const { connectionRequestId, buyerEmail, buyerName, companyName, senderEmail: customSenderEmail, senderName: customSenderName, replyTo: customReplyTo, customBodyText }: BuyerRejectionRequest = await req.json();
 
     if (!buyerEmail || !companyName) {
       return new Response(JSON.stringify({ success: false, error: 'buyerEmail and companyName are required' }),
@@ -42,8 +43,20 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('[notify-buyer-rejection] Sending rejection email to:', buyerEmail, 'for:', companyName);
 
     const subject = `Regarding Your Interest in ${companyName}`;
-    const htmlContent = buildRejectionHtml(buyerName, companyName, buyerEmail);
-    const textContent = `Thank you for your interest in ${companyName}. After careful review, this opportunity is no longer available for your profile at this time. Sincerely, The SourceCo Team`;
+
+    let htmlContent: string;
+    if (customBodyText) {
+      // Admin edited the email body — convert newlines to <br> and wrap
+      const escapedBody = customBodyText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+      htmlContent = wrapEmailHtml({
+        bodyHtml: `<p>${escapedBody}</p>`,
+        preheader: `Update on your interest in ${companyName}`,
+        recipientEmail: buyerEmail,
+      });
+    } else {
+      htmlContent = buildRejectionHtml(buyerName, companyName, buyerEmail);
+    }
+    const textContent = customBodyText || `Thank you for your interest in ${companyName}. After careful review, this opportunity is no longer available for your profile at this time. Sincerely, The SourceCo Team`;
 
     const result = await sendEmail({
       templateName: 'buyer_rejection',
