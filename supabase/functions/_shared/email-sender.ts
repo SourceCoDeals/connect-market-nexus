@@ -108,7 +108,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   const correlationId = crypto.randomUUID();
   const senderEmail = options.senderEmail || VERIFIED_SENDER_EMAIL;
   const senderName = options.senderName || VERIFIED_SENDER_NAME;
-  const replyTo = options.replyTo || DEFAULT_REPLY_TO;
+  const replyTo = options.replyTo || options.senderEmail || DEFAULT_REPLY_TO;
+
+  // Lock Brevo sender to noreply@ for consistent inbox delivery.
+  // Admin's personal email goes to replyTo only.
+  const isCustomSender = options.senderEmail && options.senderEmail !== VERIFIED_SENDER_EMAIL && options.senderEmail !== NOREPLY_SENDER_EMAIL;
+  const brevoSenderName = isCustomSender ? `${senderName} via SourceCo` : senderName;
+  const brevoSenderEmail = NOREPLY_SENDER_EMAIL;
 
   // ── Step 1: Create outbound_emails record (status=queued) ──
   let emailId: string | undefined;
@@ -143,9 +149,10 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
 
   // ── Step 2: Build Brevo payload ──
   const payload: Record<string, unknown> = {
-    sender: { name: senderName, email: senderEmail },
+    sender: { name: brevoSenderName, email: brevoSenderEmail },
     to: [{ email: options.to, name: options.toName || options.to }],
     subject: options.subject,
+    htmlContent: options.htmlContent,
     htmlContent: options.htmlContent,
   };
 
@@ -173,7 +180,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     };
   }
 
-  console.log(`[email-sender] SENDING | template=${options.templateName} | to=${options.to} | from=${senderName} <${senderEmail}> | replyTo=${replyTo} | attachments=${options.attachments?.length || 0} | correlationId=${correlationId}`);
+  console.log(`[email-sender] SENDING | template=${options.templateName} | to=${options.to} | from=${brevoSenderName} <${brevoSenderEmail}> | replyTo=${replyTo} | attachments=${options.attachments?.length || 0} | correlationId=${correlationId}`);
 
   // ── Step 3: Send with retry ──
   let lastError = '';
