@@ -16,9 +16,10 @@ import { PipelineDetailNotes } from './tabs/PipelineDetailNotes';
 import { PipelineDetailDataRoom } from './tabs/PipelineDetailDataRoom';
 import { PipelineDetailDealInfo } from './tabs/PipelineDetailDealInfo';
 import { PipelineDetailOtherBuyers } from './tabs/PipelineDetailOtherBuyers';
+import { DealActivityLog } from '@/components/remarketing/deal-detail/DealActivityLog';
 import { EntityTasksTab, CreateTaskButton } from '@/components/daily-tasks';
 import { ArchiveDealDialog } from '@/components/admin/deals/ArchiveDealDialog';
-import { useSoftDeleteDeal } from '@/hooks/admin/use-deals';
+import { useSoftDeleteDeal, useRestoreDeal } from '@/hooks/admin/use-deals';
 
 interface PipelineDetailPanelProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -29,6 +30,8 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const softDeleteMutation = useSoftDeleteDeal();
+  const restoreMutation = useRestoreDeal();
+  const isArchived = (selectedDeal as Record<string, unknown> | null)?._isArchived === true;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -103,7 +106,9 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     {selectedDeal.remarketing_buyer_id && (
                       <DropdownMenuItem
                         onClick={() =>
-                          navigate(`/admin/buyers/${selectedDeal.remarketing_buyer_id}`, { state: { from: location.pathname } })
+                          navigate(`/admin/buyers/${selectedDeal.remarketing_buyer_id}`, {
+                            state: { from: location.pathname },
+                          })
                         }
                       >
                         <Target className="h-4 w-4 mr-2" />
@@ -113,13 +118,25 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <Archive className="h-4 w-4 mr-2" />
-                  Archive Deal
-                </DropdownMenuItem>
+                {isArchived ? (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      await restoreMutation.mutateAsync(selectedDeal!.deal_id);
+                      pipeline.setSelectedDeal(null);
+                    }}
+                  >
+                    <Archive className="h-4 w-4 mr-2" />
+                    Restore Deal
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Archive className="h-4 w-4 mr-2" />
+                    Archive Deal
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button
@@ -137,14 +154,18 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       <ArchiveDealDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        deal={selectedDeal ? {
-          id: selectedDeal.deal_id,
-          name: selectedDeal.title,
-          listingTitle: selectedDeal.listing_title,
-          contactName: selectedDeal.contact_name,
-          stageName: selectedDeal.stage_name ?? undefined,
-          assignedTo: selectedDeal.assigned_to,
-        } : null}
+        deal={
+          selectedDeal
+            ? {
+                id: selectedDeal.deal_id,
+                name: selectedDeal.title,
+                listingTitle: selectedDeal.listing_title,
+                contactName: selectedDeal.contact_name,
+                stageName: selectedDeal.stage_name ?? undefined,
+                assignedTo: selectedDeal.assigned_to,
+              }
+            : null
+        }
         onConfirmArchive={async (reason) => {
           await softDeleteMutation.mutateAsync({
             dealId: selectedDeal!.deal_id,
@@ -157,7 +178,7 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <div className="px-8 mb-6">
-          <TabsList className="grid w-full grid-cols-6 bg-muted/30 h-10 rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-7 bg-muted/30 h-10 rounded-lg p-1">
             <TabsTrigger
               value="overview"
               className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
@@ -175,6 +196,12 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
               className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
             >
               Notes
+            </TabsTrigger>
+            <TabsTrigger
+              value="history"
+              className="text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md"
+            >
+              History
             </TabsTrigger>
             <TabsTrigger
               value="dataroom"
@@ -215,6 +242,14 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
             className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
           >
             <PipelineDetailNotes deal={selectedDeal} />
+          </TabsContent>
+          <TabsContent
+            value="history"
+            className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col"
+          >
+            <div className="flex-1 overflow-auto px-8 pb-8">
+              <DealActivityLog dealId={selectedDeal.deal_id} />
+            </div>
           </TabsContent>
           <TabsContent
             value="dataroom"

@@ -113,6 +113,75 @@ export function mapRpcRowToDeal(row: Record<string, unknown>) {
   };
 }
 
+/**
+ * G6 FIX: Fetch archived (soft-deleted) deals for the "Archived" filter.
+ * These are excluded from get_deals_with_buyer_profiles so we query directly.
+ */
+export function useArchivedDeals(enabled: boolean) {
+  return useQuery({
+    queryKey: ['deals-archived'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('deal_pipeline' as 'deals')
+        .select(
+          `
+          id, title, description, value, priority, probability,
+          expected_close_date, source, created_at, updated_at, stage_entered_at,
+          stage_id, listing_id, connection_request_id,
+          nda_status, fee_agreement_status, followed_up, negative_followed_up,
+          assigned_to, meeting_scheduled, under_loi, deleted_at,
+          lost_reason, lost_reason_detail, final_price, closed_at, fee_earned
+        `,
+        )
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map((row: Record<string, unknown>) => ({
+        deal_id: row.id,
+        title: row.title || 'Archived Deal',
+        deal_value: Number(row.value ?? 0),
+        deal_priority: row.priority ?? 'medium',
+        deal_probability: Number(row.probability ?? 0),
+        deal_expected_close_date: row.expected_close_date,
+        deal_source: row.source ?? 'manual',
+        deal_created_at: row.created_at,
+        deal_updated_at: row.updated_at,
+        deal_stage_entered_at: row.stage_entered_at,
+        stage_id: row.stage_id ?? '',
+        stage_name: 'Archived',
+        stage_color: '#6b7280',
+        stage_position: 99,
+        listing_id: row.listing_id ?? null,
+        listing_title: '',
+        listing_revenue: 0,
+        listing_ebitda: 0,
+        listing_location: '',
+        nda_status: row.nda_status ?? 'not_sent',
+        fee_agreement_status: row.fee_agreement_status ?? 'not_sent',
+        followed_up: Boolean(row.followed_up),
+        negative_followed_up: Boolean(row.negative_followed_up),
+        assigned_to: row.assigned_to as string | undefined,
+        total_tasks: 0,
+        pending_tasks: 0,
+        completed_tasks: 0,
+        activity_count: 0,
+        connection_request_id: row.connection_request_id as string | undefined,
+        meeting_scheduled: Boolean(row.meeting_scheduled),
+        under_loi: Boolean(row.under_loi),
+        lost_reason: row.lost_reason as string | undefined,
+        final_price: row.final_price as number | undefined,
+        closed_at: row.closed_at as string | undefined,
+        fee_earned: row.fee_earned as number | undefined,
+        _isArchived: true,
+      })) as (Deal & { _isArchived?: boolean })[];
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useDeals() {
   return useQuery({
     queryKey: ['deals'],

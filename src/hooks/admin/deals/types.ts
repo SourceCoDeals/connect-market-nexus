@@ -113,6 +113,40 @@ export interface Deal {
 
   // Under LOI flag
   under_loi?: boolean;
+
+  // LOI detail tracking (20260627000000 migration)
+  loi_submitted_at?: string;
+  loi_signed_at?: string;
+  loi_expiry_date?: string;
+  loi_value?: number;
+  loi_terms_summary?: string;
+  loi_counterparty?: string;
+
+  // Close capture (20260625000000 migration)
+  final_price?: number;
+  closed_at?: string;
+  lost_reason?: string;
+  lost_reason_detail?: string;
+  lost_to_competitor?: string;
+
+  // Commission tracking (20260627000000 migration)
+  commission_rate?: number;
+  fee_earned?: number;
+  fee_paid_at?: string;
+
+  // Owner intro response tracking (G11)
+  intro_response_status?: 'pending' | 'accepted' | 'declined' | 'no_response';
+  intro_response_at?: string;
+
+  // Call outcome tracking (G12)
+  call_outcome?:
+    | 'proceed_to_dd'
+    | 'needs_more_info'
+    | 'scheduling_followup'
+    | 'buyer_passed'
+    | 'seller_passed'
+    | 'mutual_pass';
+  call_outcome_at?: string;
 }
 
 export interface DealStage {

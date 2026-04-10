@@ -17,6 +17,7 @@ import { PipelineKanbanCardOverlay } from './PipelineKanbanCardOverlay';
 import { DealOwnerWarningDialog } from '@/components/admin/DealOwnerWarningDialog';
 import { AssignOwnerDialog } from '@/components/admin/AssignOwnerDialog';
 import { OwnerIntroConfigDialog } from '@/components/admin/OwnerIntroConfigDialog';
+import { CloseDealDialog, type CloseOutcome, type CloseDealDialogResult } from '../CloseDealDialog';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,6 +58,16 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
     stageId: string;
     currentDealOwner: { id: string; name: string; email: string } | null;
     currentPrimaryOwner: { id: string; name: string; email: string } | null;
+    fromStage?: string;
+    toStage?: string;
+  } | null>(null);
+
+  const [closePrompt, setClosePrompt] = useState<{
+    outcome: CloseOutcome;
+    dealId: string;
+    dealTitle: string;
+    defaultValue?: number;
+    stageId: string;
     fromStage?: string;
     toStage?: string;
   } | null>(null);
@@ -130,7 +141,10 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
 
     // H-5 FIX: Use stage type instead of hardcoded name for owner intro check.
     // Supports both the preferred type-based check and legacy name match as fallback.
-    if ((targetStage as any).type === 'owner_intro' || targetStage.name === 'Owner intro requested') {
+    if (
+      (targetStage as any).type === 'owner_intro' ||
+      targetStage.name === 'Owner intro requested'
+    ) {
       try {
         if (!deal.listing_id) {
           toast({
@@ -224,6 +238,22 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
       }
     }
 
+    // Prompt for close metadata (final price / loss reason) when dropping into a closed stage
+    const targetStageType = (targetStage as { stage_type?: string }).stage_type;
+    if (targetStageType === 'closed_won' || targetStageType === 'closed_lost') {
+      setClosePrompt({
+        outcome: targetStageType === 'closed_won' ? 'won' : 'lost',
+        dealId,
+        dealTitle: deal.title,
+        defaultValue: deal.deal_value || undefined,
+        stageId: destStageId,
+        fromStage: deal.stage_name || undefined,
+        toStage: targetStage.name,
+      });
+      setActiveId(null);
+      return;
+    }
+
     // Check if this deal belongs to another owner BEFORE attempting the mutation
     if (currentUserId && deal.assigned_to && deal.assigned_to !== currentUserId) {
       const ownerName = deal.assigned_admin_name
@@ -311,6 +341,44 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
         description: 'Failed to assign owner. Please try again.',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleCloseDealConfirm = async (result: CloseDealDialogResult) => {
+    if (!closePrompt) return;
+    try {
+      // 1) Persist close metadata onto the deal row
+      const closeUpdates: Record<string, unknown> = {
+        closed_at: result.closedAt,
+      };
+      if (closePrompt.outcome === 'won') {
+        if (result.finalPrice != null) closeUpdates.final_price = result.finalPrice;
+        if (result.commissionRate != null) closeUpdates.commission_rate = result.commissionRate;
+        if (result.feeEarned != null) closeUpdates.fee_earned = result.feeEarned;
+      } else {
+        closeUpdates.lost_reason = result.lostReason;
+        closeUpdates.lost_reason_detail = result.lostReasonDetail;
+        closeUpdates.lost_to_competitor = result.lostToCompetitor;
+      }
+      await updateDeal.mutateAsync({ dealId: closePrompt.dealId, updates: closeUpdates });
+
+      // 2) Then move the stage
+      updateDealStage.mutate({
+        dealId: closePrompt.dealId,
+        stageId: closePrompt.stageId,
+        fromStage: closePrompt.fromStage,
+        toStage: closePrompt.toStage,
+        currentAdminId: currentUserId ?? undefined,
+        skipOwnerCheck: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save close metadata. The stage was not moved.',
+        variant: 'destructive',
+      });
+    } finally {
+      setClosePrompt(null);
     }
   };
 
@@ -443,6 +511,16 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
           onOpenChange={(open) => !open && setOwnerAssignmentNeeded(null)}
           dealTitle={ownerAssignmentNeeded.dealTitle}
           onConfirm={handleOwnerAssignmentConfirm}
+        />
+      )}
+      {closePrompt && (
+        <CloseDealDialog
+          open
+          outcome={closePrompt.outcome}
+          dealTitle={closePrompt.dealTitle}
+          defaultValue={closePrompt.defaultValue}
+          onCancel={() => setClosePrompt(null)}
+          onConfirm={handleCloseDealConfirm}
         />
       )}
       {ownerIntroConfig && (

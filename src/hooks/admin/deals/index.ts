@@ -1,5 +1,5 @@
 export type { Deal, DealStage } from './types';
-export { useDeals } from './useDealsList';
+export { useDeals, useArchivedDeals } from './useDealsList';
 export { useDealStages, useStageDealCount } from './useDealStages';
 export {
   useUpdateDealStage,
