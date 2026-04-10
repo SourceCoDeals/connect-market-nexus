@@ -1,105 +1,88 @@
 
 
-# Deep Audit: Connection Request Approval/Rejection Flow
+# Audit: Connection Request Flow -- Current State
 
-## What is confirmed working
+## Everything confirmed working in code
 
-### 1. ConnectionRequestEmailDialog.tsx
-- Wide modal (`sm:max-w-4xl`) with full email wrapper simulation (SourceCo logo, warm background, footer)
-- First-person voice when a named admin sender is selected ("I will be in touch")
-- Third-person voice for generic support@ sender
+### 1. AdminRequests.tsx -- Unified and correct
+- Line 32/45: Uses `useUpdateConnectionRequestStatus` (direct `.update()`) -- no more RPC
+- Line 248: `await updateStatus.mutateAsync(...)` with try/catch -- email only sends on success
+- Line 258-261: Sender resolved from `DEAL_OWNER_SENDERS`
+- Line 275: `listingId: selectedRequest.listing?.id || undefined` -- no empty string
+- Line 265: Falls back to `lead_email` for webflow/guest leads
+- Line 280: `customBody` forwarded to edge function
+
+### 2. WebflowLeadDetail.tsx -- Unified and correct
+- Line 84: `await updateStatus.mutateAsync(...)` with try/catch + early return on failure
+- Line 119: `await updateStatus.mutateAsync(...)` for reject path, same pattern
+- Line 75: `comment` parameter is used (not prefixed with underscore)
+- Line 84: `notes: comment || undefined` -- admin comment saved
+- Line 95: `if (buyerEmail)` -- no `listingId` guard
+- Line 105: `listingId: listingId || undefined` -- correct
+
+### 3. useConnectionRequestActions.ts -- Unified and correct
+- Line 88: `notes: adminComment || undefined`
+- Line 108-109: Uses "Your request for" (not "Your introduction to") -- fixed
+- Line 123: `if (buyerEmail)` -- no `listingId` guard
+- Line 137: `listingId` passed directly (can be undefined)
+- Line 139-143: Sender info forwarded correctly
+- Line 144: `customBodyText` forwarded
+
+### 4. connection-request-actions/index.tsx
+- Line 74-81: `comment` forwarded as third arg to `handleAccept` and `handleReject`
+
+### 5. ConnectionRequestEmailDialog.tsx
+- Wide modal (`sm:max-w-4xl`)
+- Full email wrapper simulation (SourceCo logo, warm background, footer)
+- First-person voice for named senders ("I will be in touch")
+- Third-person for support@ ("SourceCo Support will be in touch")
 - "Access" not "introductions" in both approval and rejection copy
-- Edit/reset email body functionality
-- Admin comment (internal note) is forwarded via `onConfirm(comment, senderEmail, customBody)`
-- Adam Haile is in the sender dropdown
-
-### 2. connection-request-actions/index.tsx (side panel flow)
-- Line 74: `comment` is correctly passed to `handleAccept` and `handleReject` (no underscore prefix)
-- Email dialog properly wired
-
-### 3. useConnectionRequestActions.ts (side panel flow)
-- Line 123: Guard is `if (buyerEmail)` -- no `listingId` requirement
-- Line 88: `adminComment` passed as `notes` to `updateStatus.mutateAsync`
-- Sender info correctly resolved from `DEAL_OWNER_SENDERS`
-- Uses `useUpdateConnectionRequestStatus` which does a direct `.update()` on `connection_requests`
-
-### 4. WebflowLeadDetail.tsx
-- Line 75-143: Comment forwarded to `updateStatus.mutate({ notes: comment })`, no `listingId` guard, sender info resolved and passed to both edge functions
-
-### 5. notify-buyer-rejection edge function
-- Line 22: "We limit access to a small number of buyers per deal" (correct)
-- Custom body splits by double-newlines into proper `<p>` tags
+- Edit/reset body functionality
+- Admin comment saved and forwarded
+- Adam Haile in sender dropdown
 
 ### 6. send-connection-notification edge function
-- `listingId` is optional in the interface
-- First-person body for named senders ("I will be in touch")
-- Custom body text uses paragraph-level formatting
-- `listingUrl` falls back to marketplace when no listingId
-- Reply-to set to sender email for named senders
+- `listingId` optional in interface (line 16)
+- First-person body for named senders (lines 143-148)
+- Custom body splits into `<p>` tags via double-newline (lines 134-136)
+- `listingUrl` falls back to marketplace when no listingId (line 99)
+- Reply-to set to sender email (line 177)
 
-### 7. admin-profiles.ts
-- Adam Haile is in `DEAL_OWNER_SENDERS` (line 90)
+### 7. notify-buyer-rejection edge function
+- "We limit access to a small number of buyers per deal" (line 22) -- correct
+- Custom body splits into paragraphs (lines 50-54)
+- No "introductions" language anywhere
+
+### 8. admin-profiles.ts
+- Adam Haile in `DEAL_OWNER_SENDERS` (line 90)
 - All senders have correct names and titles
 
-## Remaining issues found
+## One concern: Zero edge function logs
 
-### Issue 1: AdminRequests.tsx uses a DIFFERENT mutation path (CRITICAL)
+Both `send-connection-notification` and `notify-buyer-rejection` show **zero logs**. This could mean:
+- No approval/rejection has been attempted since the last deploy (likely, since the code was just unified)
+- Or the edge functions need a fresh redeploy
 
-`AdminRequests.tsx` line 44 uses `useConnectionRequestsMutation()` from `use-connection-requests-mutation.ts`. This mutation uses `supabase.rpc('update_connection_request_status', ...)` -- an **RPC function**. This is a completely different code path from the side panel's `useUpdateConnectionRequestStatus` which does a direct `.update()`.
+The code in the source files is correct. The only risk is whether the deployed version matches the source. A redeploy of both functions will eliminate this risk.
 
-If the RPC `update_connection_request_status` doesn't exist, has wrong parameter names, or has RLS issues, this path silently fails. **This is the most likely reason the user's approval attempt failed** -- the RPC threw an error, the mutation's `onError` handler showed a destructive toast, and neither the status update nor email send happened.
+## No remaining code issues found
 
-The side panel flow (`useConnectionRequestActions`) uses `useUpdateConnectionRequestStatus` (direct `.update()`), which works. But the main Requests page uses the RPC-based mutation, which may be broken.
+All three entry points (side panel, main Requests page, Webflow detail) now use:
+- The same `useUpdateConnectionRequestStatus` hook (direct `.update()`)
+- `await mutateAsync()` with try/catch (email only sends on success)
+- No `listingId` guard on email sends
+- Admin comment forwarded as `notes`
+- Sender info resolved from `DEAL_OWNER_SENDERS`
+- Custom body forwarded to edge functions
 
-**Fix**: Either verify the RPC works, or switch `AdminRequests.tsx` to use `useUpdateConnectionRequestStatus` directly (the same hook the side panel uses), eliminating the inconsistency.
+## Recommended action
 
-### Issue 2: AdminRequests.tsx sends approval email even when senderEmail is undefined
+Redeploy both edge functions to guarantee the live code matches the audited source, then test end-to-end.
 
-Line 258: `const finalSenderEmail = senderEmail || 'support@sourcecodeals.com'` -- this means the edge function always gets `senderEmail: 'support@sourcecodeals.com'` and `senderName: 'SourceCo'` when no sender is selected. But the `ConnectionRequestEmailDialog` always provides a sender, so this is a minor defensiveness issue, not a bug.
-
-### Issue 3: No edge function logs exist for `send-connection-notification`
-
-Zero logs found. This confirms that the approval edge function has **never been successfully invoked** since the last deploy. This aligns with the hypothesis that the status update (RPC) fails before the email send is reached.
-
-### Issue 4: Duplicate status update logic across 3 entry points
-
-There are now THREE separate status update mechanisms:
-1. `useUpdateConnectionRequestStatus` (direct `.update()`) -- used by side panel + WebflowLeadDetail
-2. `useConnectionRequestsMutation` (RPC `update_connection_request_status`) -- used by AdminRequests.tsx
-3. Both paths handle errors differently and have different side effects
-
-This duplication is the root cause of inconsistent behavior.
-
-### Issue 5: WebflowLeadDetail uses `.mutate()` not `.mutateAsync()`
-
-Line 83: `updateStatus.mutate(...)` is fire-and-forget. If it fails, the email still sends. The side panel uses `mutateAsync` with proper error handling. This means WebflowLeadDetail could send an approval email even if the status update fails.
-
-### Issue 6: Minor copy inconsistency in approval in-app message
-
-`useConnectionRequestActions.ts` line 108 still says "Your introduction to..." in the in-app message thread, while the email says "Your request for...". The user specifically said "We're not making an introduction" -- this in-app message should also say "Your request for..." or similar.
-
-## Recommended implementation plan
-
-### 1. Unify the status update path (HIGH PRIORITY)
-- Make `AdminRequests.tsx` use `useUpdateConnectionRequestStatus` (the direct `.update()` hook) instead of the RPC-based `useConnectionRequestsMutation`
-- This eliminates the RPC as a failure point and ensures all 3 entry points use the same proven code path
-
-### 2. Fix WebflowLeadDetail to use `mutateAsync`
-- Change `updateStatus.mutate(...)` to `await updateStatus.mutateAsync(...)` with proper error handling
-- Only send email if status update succeeds
-
-### 3. Fix in-app message copy
-- Change "Your introduction to" to "Your request for" in `useConnectionRequestActions.ts` lines 108-109
-
-### 4. Redeploy edge functions
-- Both `send-connection-notification` and `notify-buyer-rejection` should be redeployed to ensure the live code matches source
-
-## Files that need changes
-
-| File | Change |
-|------|--------|
-| `src/pages/admin/AdminRequests.tsx` | Replace RPC mutation with direct update hook |
-| `src/components/admin/WebflowLeadDetail.tsx` | Change `.mutate()` to `await .mutateAsync()` with error handling |
-| `src/components/admin/connection-request-actions/useConnectionRequestActions.ts` | Fix "introduction" copy in in-app messages |
-| Edge functions | Redeploy both |
+| Action | Detail |
+|--------|--------|
+| Redeploy `send-connection-notification` | Ensure live version has optional listingId, first-person copy, paragraph formatting |
+| Redeploy `notify-buyer-rejection` | Ensure live version has "access" terminology, paragraph formatting |
+| Test approval with Adam as sender | Verify status changes + email arrives |
+| Test rejection | Verify status changes + email arrives |
 
