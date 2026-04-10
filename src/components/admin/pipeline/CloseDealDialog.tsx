@@ -41,6 +41,8 @@ export interface CloseDealDialogResult {
   lostReason?: string;
   lostReasonDetail?: string;
   lostToCompetitor?: string;
+  commissionRate?: number;
+  feeEarned?: number;
 }
 
 interface CloseDealDialogProps {
@@ -61,12 +63,16 @@ export function CloseDealDialog({
   onConfirm,
 }: CloseDealDialogProps) {
   const [finalPrice, setFinalPrice] = useState<string>(defaultValue ? String(defaultValue) : '');
+  const [commissionRate, setCommissionRate] = useState<string>('');
+  const [feeEarned, setFeeEarned] = useState<string>('');
   const [lostReason, setLostReason] = useState<string>('');
   const [lostReasonDetail, setLostReasonDetail] = useState('');
   const [lostToCompetitor, setLostToCompetitor] = useState('');
 
   const reset = () => {
     setFinalPrice(defaultValue ? String(defaultValue) : '');
+    setCommissionRate('');
+    setFeeEarned('');
     setLostReason('');
     setLostReasonDetail('');
     setLostToCompetitor('');
@@ -81,9 +87,13 @@ export function CloseDealDialog({
     const closedAt = new Date().toISOString();
     if (outcome === 'won') {
       const parsed = finalPrice ? Number(finalPrice) : undefined;
+      const parsedRate = commissionRate ? Number(commissionRate) : undefined;
+      const parsedFee = feeEarned ? Number(feeEarned) : undefined;
       onConfirm({
         finalPrice: Number.isFinite(parsed) ? parsed : undefined,
         closedAt,
+        commissionRate: Number.isFinite(parsedRate) ? parsedRate : undefined,
+        feeEarned: Number.isFinite(parsedFee) ? parsedFee : undefined,
       });
     } else {
       onConfirm({
@@ -127,6 +137,31 @@ export function CloseDealDialog({
                 Leave blank if the final price is confidential; the close date will still be
                 recorded.
               </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="commission-rate">Commission Rate (%)</Label>
+                <Input
+                  id="commission-rate"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.25"
+                  placeholder="e.g. 5.0"
+                  value={commissionRate}
+                  onChange={(e) => setCommissionRate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fee-earned">Fee Earned (USD)</Label>
+                <Input
+                  id="fee-earned"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="e.g. 375000"
+                  value={feeEarned}
+                  onChange={(e) => setFeeEarned(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         ) : (

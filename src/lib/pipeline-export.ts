@@ -32,6 +32,17 @@ const HEADERS = [
   'Listing Category',
   'Last Activity At',
   'Deal Score',
+  'LOI Value',
+  'LOI Submitted At',
+  'LOI Signed At',
+  'LOI Expiry',
+  'LOI Counterparty',
+  'Final Price',
+  'Closed At',
+  'Lost Reason',
+  'Lost Reason Detail',
+  'Commission Rate (%)',
+  'Fee Earned',
 ];
 
 function escapeCsvField(value: unknown): string {
@@ -85,6 +96,17 @@ export function dealsToCsv(deals: Deal[]): string {
       d.listing_category || '',
       d.last_activity_at || '',
       d.deal_score ?? '',
+      d.loi_value ?? '',
+      d.loi_submitted_at || '',
+      d.loi_signed_at || '',
+      d.loi_expiry_date || '',
+      d.loi_counterparty || '',
+      d.final_price ?? '',
+      d.closed_at || '',
+      d.lost_reason || '',
+      d.lost_reason_detail || '',
+      d.commission_rate ?? '',
+      d.fee_earned ?? '',
     ];
     rows.push(row.map(escapeCsvField).join(','));
   }

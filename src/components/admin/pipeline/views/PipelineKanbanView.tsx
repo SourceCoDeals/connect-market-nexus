@@ -353,6 +353,8 @@ export function PipelineKanbanView({ pipeline, onOpenCreateDeal }: PipelineKanba
       };
       if (closePrompt.outcome === 'won') {
         if (result.finalPrice != null) closeUpdates.final_price = result.finalPrice;
+        if (result.commissionRate != null) closeUpdates.commission_rate = result.commissionRate;
+        if (result.feeEarned != null) closeUpdates.fee_earned = result.feeEarned;
       } else {
         closeUpdates.lost_reason = result.lostReason;
         closeUpdates.lost_reason_detail = result.lostReasonDetail;
