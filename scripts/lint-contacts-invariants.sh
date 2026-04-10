@@ -41,9 +41,11 @@ fail=0
 migration_files=$(echo "$staged_files" | grep -E '^supabase/migrations/.*\.sql$' || true)
 if [ -n "$migration_files" ]; then
   # Allow public.contacts and public.contact_events; anything else is a fork
+  # Match any CREATE TABLE with a name containing "contact" — then exclude
+  # only the exact canonical table names (word-boundary anchored).
   forbidden=$(echo "$migration_files" | xargs grep -nE 'CREATE TABLE (IF NOT EXISTS )?(public\.)?\w*contacts?\b' 2>/dev/null \
-    | grep -vE '(public\.)?contacts\s*\(' \
-    | grep -vE '(public\.)?contact_events\s*\(' \
+    | grep -vE '\b(public\.)?contacts\b\s*\(' \
+    | grep -vE '\b(public\.)?contact_events\b\s*\(' \
     || true)
   if [ -n "$forbidden" ]; then
     echo "ERROR: new contact-related table detected. Extend public.contacts instead."
