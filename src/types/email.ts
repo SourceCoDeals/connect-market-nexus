@@ -17,6 +17,7 @@ export interface EmailMessage {
   from_address: string;
   to_addresses: string[];
   cc_addresses: string[];
+  bcc_addresses: string[];
   subject: string | null;
   body_html: string | null;
   body_text: string | null;

@@ -8,6 +8,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { successResponse, errorResponse } from '../_shared/response-helpers.ts';
+import { requireServiceRole } from '../_shared/auth.ts';
 
 import { decryptToken, encryptToken } from '../_shared/microsoft-tokens.ts';
 
@@ -17,6 +18,12 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'POST') {
     return errorResponse('Method not allowed', 405, corsHeaders);
+  }
+
+  // Only allow service role (called via pg_cron scheduler)
+  const authCheck = requireServiceRole(req);
+  if (!authCheck.authorized) {
+    return errorResponse(authCheck.error || 'Unauthorized', 403, corsHeaders);
   }
 
   const supabase = createClient(
@@ -46,22 +53,19 @@ Deno.serve(async (req) => {
 
   for (const conn of connections) {
     try {
-      const refreshToken = decryptToken(conn.encrypted_refresh_token);
+      const refreshToken = await decryptToken(conn.encrypted_refresh_token);
 
-      const resp = await fetch(
-        `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            client_id: clientId,
-            client_secret: clientSecret,
-            refresh_token: refreshToken,
-            grant_type: 'refresh_token',
-            scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read offline_access',
-          }).toString(),
-        },
-      );
+      const resp = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+          scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read offline_access',
+        }).toString(),
+      });
 
       if (resp.ok) {
         const data = await resp.json();
@@ -70,7 +74,7 @@ Deno.serve(async (req) => {
         await supabase
           .from('email_connections')
           .update({
-            encrypted_refresh_token: encryptToken(data.refresh_token || refreshToken),
+            encrypted_refresh_token: await encryptToken(data.refresh_token || refreshToken),
             token_expires_at: newExpiresAt,
             last_sync_error_count: 0,
             error_message: null,
@@ -104,10 +108,7 @@ Deno.serve(async (req) => {
           });
         }
 
-        await supabase
-          .from('email_connections')
-          .update(updates)
-          .eq('id', conn.id);
+        await supabase.from('email_connections').update(updates).eq('id', conn.id);
 
         failed++;
       }

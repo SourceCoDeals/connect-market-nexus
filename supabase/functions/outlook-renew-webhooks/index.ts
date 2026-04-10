@@ -8,8 +8,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { successResponse, errorResponse } from '../_shared/response-helpers.ts';
+import { requireServiceRole } from '../_shared/auth.ts';
 
-import { decryptToken, refreshAccessToken as refreshTokenFull } from '../_shared/microsoft-tokens.ts';
+import {
+  decryptToken,
+  refreshAccessToken as refreshTokenFull,
+} from '../_shared/microsoft-tokens.ts';
 
 async function refreshAccessToken(refreshToken: string): Promise<string | null> {
   const result = await refreshTokenFull(refreshToken);
@@ -22,6 +26,12 @@ Deno.serve(async (req) => {
 
   if (req.method !== 'POST') {
     return errorResponse('Method not allowed', 405, corsHeaders);
+  }
+
+  // Only allow service role (called via pg_cron scheduler)
+  const authCheck = requireServiceRole(req);
+  if (!authCheck.authorized) {
+    return errorResponse(authCheck.error || 'Unauthorized', 403, corsHeaders);
   }
 
   const supabase = createClient(
@@ -44,11 +54,15 @@ Deno.serve(async (req) => {
   if (connections && connections.length > 0) {
     for (const conn of connections) {
       try {
-        const refreshToken = decryptToken(conn.encrypted_refresh_token);
+        const refreshToken = await decryptToken(conn.encrypted_refresh_token);
         const accessToken = await refreshAccessToken(refreshToken);
 
         if (!accessToken) {
-          results.push({ userId: conn.sourceco_user_id, renewed: false, error: 'Token refresh failed' });
+          results.push({
+            userId: conn.sourceco_user_id,
+            renewed: false,
+            error: 'Token refresh failed',
+          });
           continue;
         }
 
@@ -93,7 +107,8 @@ Deno.serve(async (req) => {
                   notificationUrl: webhookUrl,
                   resource: '/me/messages',
                   expirationDateTime: newExpiration,
-                  clientState: Deno.env.get('MICROSOFT_WEBHOOK_SECRET') || 'sourceco-outlook-integration',
+                  clientState:
+                    Deno.env.get('MICROSOFT_WEBHOOK_SECRET') || 'sourceco-outlook-integration',
                 }),
               });
 
@@ -127,7 +142,11 @@ Deno.serve(async (req) => {
           }
         }
       } catch (err) {
-        results.push({ userId: conn.sourceco_user_id, renewed: false, error: (err as Error).message });
+        results.push({
+          userId: conn.sourceco_user_id,
+          renewed: false,
+          error: (err as Error).message,
+        });
       }
     }
   }

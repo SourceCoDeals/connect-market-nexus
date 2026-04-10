@@ -1,43 +1,84 @@
 /**
  * Shared Microsoft token encryption/decryption and refresh utilities.
  *
- * Used across all outlook-* edge functions to avoid duplicating crypto logic.
- * In production, replace XOR encryption with Supabase Vault or a proper KMS.
+ * Uses AES-256-GCM via the Web Crypto API for token encryption at rest.
+ * Each encrypted value includes a random 12-byte IV prepended to the
+ * ciphertext, so identical plaintexts produce different ciphertexts.
  */
 
-function getEncryptionKey(): string {
-  const key = Deno.env.get('MICROSOFT_CLIENT_SECRET');
-  if (!key) {
-    throw new Error('MICROSOFT_CLIENT_SECRET is required for token encryption — refusing to use fallback key');
+const SALT = new TextEncoder().encode('sourceco-outlook-token-encryption');
+
+async function deriveKey(): Promise<CryptoKey> {
+  const secret = Deno.env.get('MICROSOFT_CLIENT_SECRET');
+  if (!secret) {
+    throw new Error(
+      'MICROSOFT_CLIENT_SECRET is required for token encryption — refusing to use fallback key',
+    );
   }
-  return key;
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: SALT, iterations: 100_000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
 }
 
 /**
- * Encrypt a token using XOR with the Microsoft client secret as key.
- * This is a baseline implementation — use Supabase Vault or AES-256 in production.
+ * Encrypt a token using AES-256-GCM with a random 12-byte IV.
+ * Output format: base64(iv || ciphertext || authTag)
  */
-export function encryptToken(token: string): string {
-  const key = getEncryptionKey();
-  const encoded = new TextEncoder().encode(token);
-  const keyBytes = new TextEncoder().encode(key);
-  const encrypted = new Uint8Array(encoded.length);
-  for (let i = 0; i < encoded.length; i++) {
-    encrypted[i] = encoded[i] ^ keyBytes[i % keyBytes.length];
-  }
-  return btoa(String.fromCharCode(...encrypted));
+export async function encryptToken(token: string): Promise<string> {
+  const key = await deriveKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(token),
+  );
+  // Prepend IV to ciphertext (GCM auth tag is appended by the API)
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return btoa(String.fromCharCode(...combined));
 }
 
 /**
  * Decrypt a token encrypted with encryptToken().
+ * Supports both new AES-256-GCM format and legacy XOR format for migration.
  */
-export function decryptToken(encrypted: string): string {
-  const key = getEncryptionKey();
-  const decoded = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
-  const keyBytes = new TextEncoder().encode(key);
-  const decrypted = new Uint8Array(decoded.length);
-  for (let i = 0; i < decoded.length; i++) {
-    decrypted[i] = decoded[i] ^ keyBytes[i % keyBytes.length];
+export async function decryptToken(encrypted: string): Promise<string> {
+  const raw = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
+
+  // AES-GCM: IV (12 bytes) + ciphertext (>= 16 bytes for auth tag alone)
+  if (raw.length >= 28) {
+    try {
+      const key = await deriveKey();
+      const iv = raw.slice(0, 12);
+      const ciphertext = raw.slice(12);
+      const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+      return new TextDecoder().decode(plaintext);
+    } catch {
+      // Fall through to legacy XOR decryption for tokens encrypted before migration
+    }
+  }
+
+  // Legacy XOR decryption (for tokens encrypted before AES-GCM migration)
+  const secret = Deno.env.get('MICROSOFT_CLIENT_SECRET');
+  if (!secret) {
+    throw new Error('MICROSOFT_CLIENT_SECRET is required for token decryption');
+  }
+  const keyBytes = new TextEncoder().encode(secret);
+  const decrypted = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) {
+    decrypted[i] = raw[i] ^ keyBytes[i % keyBytes.length];
   }
   return new TextDecoder().decode(decrypted);
 }
@@ -53,20 +94,17 @@ export async function refreshAccessToken(
   const clientSecret = Deno.env.get('MICROSOFT_CLIENT_SECRET')!;
   const tenantId = Deno.env.get('MICROSOFT_TENANT_ID') || 'common';
 
-  const resp = await fetch(
-    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token',
-        scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read offline_access',
-      }).toString(),
-    },
-  );
+  const resp = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+      scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read offline_access',
+    }).toString(),
+  });
 
   if (!resp.ok) {
     console.error('Token refresh failed:', resp.status);

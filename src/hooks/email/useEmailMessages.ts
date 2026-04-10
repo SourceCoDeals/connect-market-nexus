@@ -39,9 +39,7 @@ export function useEmailMessages(contactId: string | undefined) {
 
 export function useEmailThreads(contactId: string | undefined, additionalContactIds?: string[]) {
   const { user } = useAuth();
-  const allContactIds = contactId
-    ? [contactId, ...(additionalContactIds || [])]
-    : [];
+  const allContactIds = contactId ? [contactId, ...(additionalContactIds || [])] : [];
 
   return useQuery({
     queryKey: ['email', 'threads', ...allContactIds],
@@ -99,7 +97,9 @@ export function useEmailThreads(contactId: string | undefined, additionalContact
       }
 
       // Sort threads by last message date descending
-      threads.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+      threads.sort(
+        (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+      );
       return threads;
     },
     enabled: !!contactId && !!user?.id,
@@ -139,9 +139,33 @@ export function useDealEmailActivity(dealId: string | undefined) {
 
       const { data, error } = await (supabase as any)
         .from('smartlead_reply_inbox')
-        .select('id, from_email, to_email, subject, reply_body, sent_message_body, time_replied, event_timestamp, ai_category, ai_sentiment, ai_confidence, ai_reasoning, ai_is_positive, campaign_name, lead_first_name, lead_last_name, lead_company_name, manual_category, recategorized_by, created_at')
+        .select(
+          'id, from_email, to_email, subject, reply_body, sent_message_body, time_replied, event_timestamp, ai_category, ai_sentiment, ai_confidence, ai_reasoning, ai_is_positive, campaign_name, lead_first_name, lead_last_name, lead_company_name, manual_category, recategorized_by, created_at',
+        )
         .eq('linked_deal_id', dealId)
         .order('time_replied', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!dealId && !!user?.id,
+  });
+}
+
+export function useDealOutlookEmails(dealId: string | undefined) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['email', 'deal-outlook', dealId],
+    queryFn: async (): Promise<EmailMessage[]> => {
+      if (!dealId) return [];
+
+      const { data, error } = await (supabase as any)
+        .from('email_messages')
+        .select('*')
+        .eq('deal_id', dealId)
+        .order('sent_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
@@ -157,7 +181,9 @@ export function useSendEmail() {
 
   return useMutation({
     mutationFn: async (request: SendEmailRequest) => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('Not authenticated');
 
       const resp = await supabase.functions.invoke('outlook-send-email', {
@@ -190,15 +216,23 @@ export function useSendEmail() {
 }
 
 export function useLogEmailAccess() {
+  const { user } = useAuth();
+
   return useMutation({
-    mutationFn: async ({ emailMessageId, action }: { emailMessageId: string; action: 'viewed' | 'sent' | 'replied' }) => {
-      const { error } = await (supabase as any)
-        .from('email_access_log')
-        .insert({
-          sourceco_user_id: (await supabase.auth.getUser()).data.user?.id,
-          email_message_id: emailMessageId,
-          action,
-        });
+    mutationFn: async ({
+      emailMessageId,
+      action,
+    }: {
+      emailMessageId: string;
+      action: 'viewed' | 'sent' | 'replied';
+    }) => {
+      if (!user?.id) return;
+
+      const { error } = await (supabase as any).from('email_access_log').insert({
+        sourceco_user_id: user.id,
+        email_message_id: emailMessageId,
+        action,
+      });
 
       if (error) throw error;
     },
