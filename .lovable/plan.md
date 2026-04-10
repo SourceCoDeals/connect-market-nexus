@@ -1,44 +1,62 @@
 
 
-# Complete Status: Admin Email Preview + Sender Selection
+# Redesign Connection Request Email Modal + Fix Email Copy + Fix Critical Bug
 
-## Everything Is Fully Implemented
+## Critical Bug Found
 
-All features from the original request have been built and are working across every action path:
+`AdminRequests.tsx` (table-level approve) sends `type: 'buyer_approval'` to the edge function, but the function only handles `'approval_notification'`. It also sends `buyerEmail` instead of `recipientEmail`. This means **approval emails from the main table buttons silently fail** -- the request falls into the admin-notification branch and sends to support@ instead of the buyer.
 
-### 1. Auto-select logged-in admin as default sender
-`ConnectionRequestEmailDialog` uses `useAuth()` to match the admin's email against `DEAL_OWNER_SENDERS`. If Bill logs in, his email is pre-selected. If an admin isn't in the list, it defaults to support@sourcecodeals.com.
+## Changes
 
-### 2. Sender dropdown with all deal owners
-`DEAL_OWNER_SENDERS` in `src/lib/admin-profiles.ts` contains:
-- support@sourcecodeals.com (default)
-- bill.martin@sourcecodeals.com
-- alia.ballout@sourcecodeals.com
-- brandon.hall@sourcecodeals.com
+### 1. Fix AdminRequests.tsx edge function call (critical)
 
-### 3. Exact email preview in modal
-The dialog shows From, To, Subject, and the full email body -- matching what the edge functions actually send for both approval and rejection.
+Change the `send-connection-notification` invocation:
+- `type: 'buyer_approval'` to `type: 'approval_notification'`
+- `buyerEmail` to `recipientEmail`
+- `buyerName` to `recipientName` + `requesterName` + `requesterEmail`
+- Add `listingId` (currently missing)
 
-### 4. Editable email body
-Edit button switches the preview to a Textarea. Reset button restores the default. Only sends customBody when the admin actually changed the text.
+### 2. Redesign ConnectionRequestEmailDialog -- wider, Apple/Stripe-level
 
-### 5. All action paths correctly wired
+- Widen to `max-w-2xl` (from `max-w-lg`)
+- Clean, minimal layout with more whitespace
+- Refined typography and spacing
+- Email preview styled as a proper email card with subtle shadow
 
-| Path | Sender + Custom Body Forwarded? |
-|------|------|
-| Expanded row actions (ConnectionRequestActions) | Yes -- via `useConnectionRequestActions.handleAccept/handleReject` |
-| Table-level actions (AdminRequests.tsx) | Yes -- `confirmAction` calls edge functions directly |
-| Mobile actions (MobileConnectionRequests) | Yes -- delegates to parent AdminRequests dialog |
-| Webflow leads (WebflowLeadDetail) | Yes -- calls edge functions with sender overrides |
+### 3. Update email copy (approval)
 
-### 6. Edge functions accept all overrides
-Both `send-connection-notification` and `notify-buyer-rejection` accept `senderEmail`, `senderName`, `replyTo`, and `customBodyText`. When customBody is provided, it replaces the default template.
+Old: "Your introduction to X has been approved. We are making a direct introduction..."
+New: "Your request for X has been approved. You now have access to additional deal materials, detailed company information -- including the real company name -- and supporting documents. [Selected admin name] will be in touch shortly with next steps."
 
-## Brevo / External Requirements
+- Keep "What to expect" but update bullets to match new framing (access to materials, not "introduction")
+- Keep "This is an exclusive opportunity..." but remove "Please do not reply to this email" (they can reply now)
+- Add "You can also reply directly to this email" to the messaging bullet
 
-**No action needed.** Your domain `sourcecodeals.com` is already authenticated in Brevo at the domain level. Bill, Alia, and Brandon's @sourcecodeals.com addresses work as senders immediately -- no individual sender verification required.
+### 4. Update edge function default body to match
 
-## Nothing Remaining
+Update `send-connection-notification/index.ts` approval_notification default body to use the same new copy so the preview matches what actually sends.
 
-All five iterations of this feature are complete. No bugs, no missing wiring, no TODO items.
+### 5. Update dialog preview to match new copy
+
+The inline preview JSX in the dialog must mirror the new edge function body exactly.
+
+### 6. Update defaultBody text (used for edit mode)
+
+The `defaultBody` useMemo string must also match so edit-mode starts with the correct text.
+
+### 7. Update subject line
+
+Change from "Introduction approved: X" to "Request approved: X" -- both in dialog and edge function.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `src/components/admin/ConnectionRequestEmailDialog.tsx` | Wider modal, redesigned layout, updated copy, remove "do not reply" |
+| `src/pages/admin/AdminRequests.tsx` | Fix edge function `type` and field names |
+| `supabase/functions/send-connection-notification/index.ts` | Update default approval body copy + subject |
+
+## Edge Function Deployment
+
+`send-connection-notification` must be redeployed after the copy update.
 
