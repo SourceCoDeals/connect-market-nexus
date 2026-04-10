@@ -262,12 +262,14 @@ const AdminRequests = () => {
         if (actionType === 'approve') {
           supabase.functions.invoke('send-connection-notification', {
             body: {
-              type: 'buyer_approval',
-              connectionRequestId: selectedRequest.id,
-              buyerEmail: selectedRequest.user?.email,
-              buyerName: `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim(),
+              type: 'approval_notification',
+              recipientEmail: selectedRequest.user?.email || selectedRequest.lead_email,
+              recipientName: `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim() || selectedRequest.lead_name,
+              requesterName: `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim() || selectedRequest.lead_name || '',
+              requesterEmail: selectedRequest.user?.email || selectedRequest.lead_email || '',
               listingTitle: selectedRequest.listing?.title || '',
-              companyName: selectedRequest.listing?.internal_company_name || selectedRequest.listing?.title || '',
+              listingId: selectedRequest.listing?.id || '',
+              requestId: selectedRequest.id,
               senderEmail: finalSenderEmail,
               senderName: finalSenderName,
               replyTo: finalSenderEmail,
