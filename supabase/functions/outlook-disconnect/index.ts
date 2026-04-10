@@ -29,20 +29,17 @@ async function getAccessToken(refreshToken: string): Promise<string | null> {
   const tenantId = Deno.env.get('MICROSOFT_TENANT_ID') || 'common';
 
   try {
-    const resp = await fetch(
-      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          refresh_token: refreshToken,
-          grant_type: 'refresh_token',
-          scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read',
-        }).toString(),
-      },
-    );
+    const resp = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+        scope: 'Mail.Read Mail.ReadWrite Mail.Send User.Read',
+      }).toString(),
+    });
 
     if (!resp.ok) return null;
     const data = await resp.json();
@@ -100,7 +97,7 @@ Deno.serve(async (req) => {
   // Try to revoke webhook subscription if one exists
   if (connection.webhook_subscription_id && connection.encrypted_refresh_token) {
     try {
-      const refreshToken = decryptToken(connection.encrypted_refresh_token);
+      const refreshToken = await decryptToken(connection.encrypted_refresh_token);
       const accessToken = await getAccessToken(refreshToken);
       if (accessToken) {
         await revokeWebhookSubscription(accessToken, connection.webhook_subscription_id);
@@ -154,8 +151,11 @@ Deno.serve(async (req) => {
     },
   });
 
-  return successResponse({
-    disconnected: true,
-    assignmentsRevoked: deactivatedAssignments?.length || 0,
-  }, corsHeaders);
+  return successResponse(
+    {
+      disconnected: true,
+      assignmentsRevoked: deactivatedAssignments?.length || 0,
+    },
+    corsHeaders,
+  );
 });

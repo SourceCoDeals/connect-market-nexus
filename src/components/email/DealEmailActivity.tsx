@@ -1,14 +1,15 @@
 /**
- * DealEmailActivity: Shows Smartlead email activity for a deal.
- * Queries smartlead_reply_inbox by linked_deal_id.
+ * DealEmailActivity: Shows email activity for a deal.
+ * Combines Outlook email history (email_messages) and Smartlead campaign replies.
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Mail, ArrowDownLeft } from 'lucide-react';
-import { useDealEmailActivity } from '@/hooks/email';
+import { Mail, ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
+import { useDealEmailActivity, useDealOutlookEmails } from '@/hooks/email';
 import type { SmartleadReplyRecord } from '@/hooks/email/useEmailMessages';
+import type { EmailMessage } from '@/types/email';
 
 interface DealEmailActivityProps {
   dealId: string;
@@ -25,7 +26,11 @@ function formatDate(dateStr: string): string {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -74,25 +79,29 @@ function ReplyItem({ record }: { record: SmartleadReplyRecord }) {
           </span>
         </div>
         <p className="text-xs font-medium mt-0.5">{record.subject || '(No subject)'}</p>
-        
+
         {/* Reply body */}
         {replyPreview && (
           <p className="text-xs text-muted-foreground truncate mt-0.5">
             <span className="font-medium text-foreground/70">Reply:</span>{' '}
-            {replyPreview.slice(0, 150)}{replyPreview.length > 150 ? '...' : ''}
+            {replyPreview.slice(0, 150)}
+            {replyPreview.length > 150 ? '...' : ''}
           </p>
         )}
-        
+
         {/* Original sent message */}
         {sentPreview && !replyPreview && (
           <p className="text-xs text-muted-foreground truncate mt-0.5">
             <span className="font-medium text-foreground/70">Sent:</span>{' '}
-            {sentPreview.slice(0, 120)}{sentPreview.length > 120 ? '...' : ''}
+            {sentPreview.slice(0, 120)}
+            {sentPreview.length > 120 ? '...' : ''}
           </p>
         )}
 
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-          <Badge className={`text-[10px] px-1.5 py-0 ${CATEGORY_COLORS[category] || CATEGORY_COLORS.neutral}`}>
+          <Badge
+            className={`text-[10px] px-1.5 py-0 ${CATEGORY_COLORS[category] || CATEGORY_COLORS.neutral}`}
+          >
             {getCategoryLabel(category)}
           </Badge>
           {record.ai_sentiment && record.ai_sentiment !== 'neutral' && (
@@ -106,7 +115,10 @@ function ReplyItem({ record }: { record: SmartleadReplyRecord }) {
             </Badge>
           )}
           {record.recategorized_by && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-700">
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-700"
+            >
               Recategorized
             </Badge>
           )}
@@ -116,8 +128,76 @@ function ReplyItem({ record }: { record: SmartleadReplyRecord }) {
   );
 }
 
+function OutlookEmailItem({ message }: { message: EmailMessage }) {
+  const isOutbound = message.direction === 'outbound';
+  const timestamp = message.sent_at;
+  const preview = message.body_text || (message.body_html ? stripHtml(message.body_html) : '');
+
+  return (
+    <div className="flex items-start gap-3 py-2.5 border-b last:border-b-0">
+      <div className="mt-0.5 shrink-0">
+        {isOutbound ? (
+          <ArrowUpRight className="h-4 w-4 text-blue-500" />
+        ) : (
+          <ArrowDownLeft className="h-4 w-4 text-green-500" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium truncate">
+            {isOutbound ? `To: ${message.to_addresses[0] || ''}` : message.from_address}
+          </span>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+            {formatDate(timestamp)}
+          </span>
+        </div>
+        <p className="text-xs font-medium mt-0.5">{message.subject || '(No subject)'}</p>
+        {preview && (
+          <p className="text-xs text-muted-foreground truncate mt-0.5">
+            {preview.slice(0, 150)}
+            {preview.length > 150 ? '...' : ''}
+          </p>
+        )}
+        <div className="flex items-center gap-1.5 mt-1">
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+            <Send className="h-2.5 w-2.5 mr-0.5" />
+            Outlook
+          </Badge>
+          {isOutbound ? (
+            <Badge className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+              Sent
+            </Badge>
+          ) : (
+            <Badge className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+              Received
+            </Badge>
+          )}
+          {message.has_attachments && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+              Attachments
+            </Badge>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function DealEmailActivity({ dealId, dealTitle }: DealEmailActivityProps) {
-  const { data: replies, isLoading, error } = useDealEmailActivity(dealId);
+  const {
+    data: replies,
+    isLoading: repliesLoading,
+    error: repliesError,
+  } = useDealEmailActivity(dealId);
+  const {
+    data: outlookEmails,
+    isLoading: outlookLoading,
+    error: outlookError,
+  } = useDealOutlookEmails(dealId);
+
+  const isLoading = repliesLoading || outlookLoading;
+  const error = repliesError || outlookError;
+  const totalCount = (replies?.length || 0) + (outlookEmails?.length || 0);
 
   if (isLoading) {
     return (
@@ -140,9 +220,9 @@ export function DealEmailActivity({ dealId, dealTitle }: DealEmailActivityProps)
         <CardTitle className="text-base flex items-center gap-2">
           <Mail className="h-4 w-4" />
           Email Activity
-          {replies && replies.length > 0 && (
+          {totalCount > 0 && (
             <Badge variant="secondary" className="text-xs">
-              {replies.length}
+              {totalCount}
             </Badge>
           )}
         </CardTitle>
@@ -152,7 +232,7 @@ export function DealEmailActivity({ dealId, dealTitle }: DealEmailActivityProps)
           <p className="text-sm text-muted-foreground text-center py-4">
             Failed to load email activity.
           </p>
-        ) : !replies || replies.length === 0 ? (
+        ) : totalCount === 0 ? (
           <div className="text-center py-8">
             <Mail className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
             <p className="text-sm text-muted-foreground">
@@ -161,9 +241,14 @@ export function DealEmailActivity({ dealId, dealTitle }: DealEmailActivityProps)
           </div>
         ) : (
           <div className="divide-y-0">
-            {replies.map((record) => (
-              <ReplyItem key={record.id} record={record} />
-            ))}
+            {/* Outlook direct emails */}
+            {outlookEmails &&
+              outlookEmails.length > 0 &&
+              outlookEmails.map((msg) => <OutlookEmailItem key={msg.id} message={msg} />)}
+            {/* Smartlead campaign replies */}
+            {replies &&
+              replies.length > 0 &&
+              replies.map((record) => <ReplyItem key={record.id} record={record} />)}
           </div>
         )}
       </CardContent>

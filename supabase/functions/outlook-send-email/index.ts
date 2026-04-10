@@ -23,7 +23,10 @@ interface SendEmailRequest {
   attachments?: { name: string; contentBytes: string; contentType: string }[];
 }
 
-import { decryptToken, refreshAccessToken as refreshTokenFull } from '../_shared/microsoft-tokens.ts';
+import {
+  decryptToken,
+  refreshAccessToken as refreshTokenFull,
+} from '../_shared/microsoft-tokens.ts';
 
 async function refreshAccessToken(refreshToken: string): Promise<string | null> {
   const result = await refreshTokenFull(refreshToken);
@@ -68,7 +71,11 @@ Deno.serve(async (req) => {
     .single();
 
   if (!connection) {
-    return errorResponse('No active Outlook connection. Please connect your account in Settings.', 400, corsHeaders);
+    return errorResponse(
+      'No active Outlook connection. Please connect your account in Settings.',
+      400,
+      corsHeaders,
+    );
   }
 
   // Verify user has access to this contact (checks both contact and deal assignments)
@@ -83,7 +90,7 @@ Deno.serve(async (req) => {
   }
 
   // Get access token
-  const refreshToken = decryptToken(connection.encrypted_refresh_token);
+  const refreshToken = await decryptToken(connection.encrypted_refresh_token);
   const accessToken = await refreshAccessToken(refreshToken);
 
   if (!accessToken) {
@@ -96,7 +103,11 @@ Deno.serve(async (req) => {
       })
       .eq('id', connection.id);
 
-    return errorResponse('Failed to authenticate with Outlook. Please reconnect your account.', 401, corsHeaders);
+    return errorResponse(
+      'Failed to authenticate with Outlook. Please reconnect your account.',
+      401,
+      corsHeaders,
+    );
   }
 
   try {
@@ -186,7 +197,8 @@ Deno.serve(async (req) => {
         has_attachments: (body.attachments || []).length > 0,
         attachment_metadata: (body.attachments || []).map((a) => ({
           name: a.name,
-          size: a.contentBytes ? Math.round(a.contentBytes.length * 0.75) : 0,
+          // contentBytes is base64: every 4 chars represent 3 bytes of original data
+          size: a.contentBytes ? Math.round((a.contentBytes.length * 3) / 4) : 0,
           contentType: a.contentType,
         })),
       })

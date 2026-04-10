@@ -11,6 +11,7 @@
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { successResponse, errorResponse } from '../_shared/response-helpers.ts';
+import { requireServiceRole } from '../_shared/auth.ts';
 
 interface GraphMessage {
   id: string;
@@ -48,7 +49,8 @@ async function fetchMessages(
     const params = new URLSearchParams({
       $top: '50',
       $orderby: 'sentDateTime desc',
-      $select: 'id,conversationId,subject,bodyPreview,body,from,toRecipients,ccRecipients,sentDateTime,receivedDateTime,hasAttachments',
+      $select:
+        'id,conversationId,subject,bodyPreview,body,from,toRecipients,ccRecipients,sentDateTime,receivedDateTime,hasAttachments',
     });
 
     if (since) {
@@ -105,13 +107,15 @@ async function fetchAttachmentMetadata(
   }
 }
 
-async function loadKnownContactEmails(supabase: SupabaseClient): Promise<Map<string, ContactMatch>> {
+async function loadKnownContactEmails(
+  supabase: SupabaseClient,
+): Promise<Map<string, ContactMatch>> {
   const emailMap = new Map<string, ContactMatch>();
 
   // Load from unified contacts table
   const { data: contacts } = await supabase
     .from('contacts')
-    .select('id, email, listing_id')
+    .select('id, email')
     .not('email', 'is', null)
     .eq('archived', false);
 
@@ -123,9 +127,50 @@ async function loadKnownContactEmails(supabase: SupabaseClient): Promise<Map<str
     }
   }
 
-  // Legacy remarketing_buyer_contacts read removed — all contacts are in
-  // the canonical contacts table since the 20260228 backfill + mirror trigger.
-  // No additional lookup needed.
+  // Look up deal associations for contacts via buyer_contact_id and seller_contact_id.
+  // Only fetch active deals (not archived/lost) to link the most relevant deal.
+  const contactIds = contacts?.map((c) => c.id) || [];
+  if (contactIds.length > 0) {
+    // Batch in chunks of 500 to avoid query size limits
+    const chunkSize = 500;
+    for (let i = 0; i < contactIds.length; i += chunkSize) {
+      const chunk = contactIds.slice(i, i + chunkSize);
+
+      const { data: buyerDeals } = await supabase
+        .from('deals')
+        .select('id, buyer_contact_id')
+        .in('buyer_contact_id', chunk)
+        .not('stage', 'in', '("lost","archived")');
+
+      if (buyerDeals) {
+        for (const d of buyerDeals) {
+          if (d.buyer_contact_id) {
+            const contact = [...emailMap.values()].find((c) => c.id === d.buyer_contact_id);
+            if (contact && !contact.deal_id) {
+              contact.deal_id = d.id;
+            }
+          }
+        }
+      }
+
+      const { data: sellerDeals } = await supabase
+        .from('deals')
+        .select('id, seller_contact_id')
+        .in('seller_contact_id', chunk)
+        .not('stage', 'in', '("lost","archived")');
+
+      if (sellerDeals) {
+        for (const d of sellerDeals) {
+          if (d.seller_contact_id) {
+            const contact = [...emailMap.values()].find((c) => c.id === d.seller_contact_id);
+            if (contact && !contact.deal_id) {
+              contact.deal_id = d.id;
+            }
+          }
+        }
+      }
+    }
+  }
 
   return emailMap;
 }
@@ -136,8 +181,12 @@ function matchEmailToContacts(
   userEmail: string,
 ): { contacts: ContactMatch[]; direction: 'inbound' | 'outbound' } {
   const fromAddress = message.from?.emailAddress?.address?.toLowerCase() || '';
-  const toAddresses = (message.toRecipients || []).map((r) => r.emailAddress?.address?.toLowerCase());
-  const ccAddresses = (message.ccRecipients || []).map((r) => r.emailAddress?.address?.toLowerCase());
+  const toAddresses = (message.toRecipients || []).map((r) =>
+    r.emailAddress?.address?.toLowerCase(),
+  );
+  const ccAddresses = (message.ccRecipients || []).map((r) =>
+    r.emailAddress?.address?.toLowerCase(),
+  );
 
   const allAddresses = [fromAddress, ...toAddresses, ...ccAddresses];
   const isOutbound = fromAddress === userEmail.toLowerCase();
@@ -178,6 +227,12 @@ Deno.serve(async (req) => {
 
   // If called from polling (no accessToken provided), process all active connections
   if (!body.userId && !body.accessToken) {
+    // Polling mode is only for service role (pg_cron scheduler or internal webhook trigger)
+    const authCheck = requireServiceRole(req);
+    if (!authCheck.authorized) {
+      return errorResponse(authCheck.error || 'Unauthorized', 403, corsHeaders);
+    }
+
     // Only poll connections that have completed initial sync
     const { data: connections } = await supabase
       .from('email_connections')
@@ -193,7 +248,7 @@ Deno.serve(async (req) => {
 
     for (const conn of connections) {
       try {
-        const refreshToken = decryptToken(conn.encrypted_refresh_token);
+        const refreshToken = await decryptToken(conn.encrypted_refresh_token);
         const tokenResult = await refreshAccessToken(refreshToken);
 
         if (!tokenResult) {
@@ -209,12 +264,13 @@ Deno.serve(async (req) => {
             updates.error_message = 'Token refresh failed 3 consecutive times';
           }
 
-          await supabase
-            .from('email_connections')
-            .update(updates)
-            .eq('id', conn.id);
+          await supabase.from('email_connections').update(updates).eq('id', conn.id);
 
-          results.push({ userId: conn.sourceco_user_id, synced: 0, errors: ['Token refresh failed'] });
+          results.push({
+            userId: conn.sourceco_user_id,
+            synced: 0,
+            errors: ['Token refresh failed'],
+          });
           continue;
         }
 
@@ -223,7 +279,7 @@ Deno.serve(async (req) => {
           await supabase
             .from('email_connections')
             .update({
-              encrypted_refresh_token: encryptToken(tokenResult.newRefreshToken),
+              encrypted_refresh_token: await encryptToken(tokenResult.newRefreshToken),
               token_expires_at: new Date(Date.now() + tokenResult.expiresIn * 1000).toISOString(),
             })
             .eq('id', conn.id);
@@ -249,17 +305,30 @@ Deno.serve(async (req) => {
           })
           .eq('id', conn.id);
 
-        results.push({ userId: conn.sourceco_user_id, synced: syncResult.synced, errors: syncResult.errors });
+        results.push({
+          userId: conn.sourceco_user_id,
+          synced: syncResult.synced,
+          errors: syncResult.errors,
+        });
       } catch (err) {
         console.error(`Sync failed for user ${conn.sourceco_user_id}:`, err);
-        results.push({ userId: conn.sourceco_user_id, synced: 0, errors: [(err as Error).message] });
+        results.push({
+          userId: conn.sourceco_user_id,
+          synced: 0,
+          errors: [(err as Error).message],
+        });
       }
     }
 
     return successResponse({ results }, corsHeaders);
   }
 
-  // Single user sync (called from callback or manually)
+  // Single user sync (called from callback or webhook trigger, both use service role key)
+  const authCheck = requireServiceRole(req);
+  if (!authCheck.authorized) {
+    return errorResponse(authCheck.error || 'Unauthorized', 403, corsHeaders);
+  }
+
   const userId = body.userId!;
   let accessToken = body.accessToken;
 
@@ -276,7 +345,7 @@ Deno.serve(async (req) => {
       return errorResponse('No active connection found', 404, corsHeaders);
     }
 
-    const refreshToken = decryptToken(conn.encrypted_refresh_token);
+    const refreshToken = await decryptToken(conn.encrypted_refresh_token);
     const tokenResult = await refreshAccessToken(refreshToken);
     if (!tokenResult) {
       return errorResponse('Failed to refresh access token', 500, corsHeaders);
@@ -318,10 +387,7 @@ Deno.serve(async (req) => {
     syncUpdate.initial_sync_complete = true;
   }
 
-  await supabase
-    .from('email_connections')
-    .update(syncUpdate)
-    .eq('sourceco_user_id', userId);
+  await supabase.from('email_connections').update(syncUpdate).eq('sourceco_user_id', userId);
 
   return successResponse(result, corsHeaders);
 });
@@ -386,6 +452,16 @@ async function syncEmails(
           const match = matchEmailToContacts(msg, contactEmails, userEmail);
           if (match.contacts.length === 0) {
             skipped++;
+            if (isInitial && skipped <= 10) {
+              // Log a sample of unmatched emails during initial sync for diagnostics
+              const participants = [
+                msg.from?.emailAddress?.address,
+                ...(msg.toRecipients || []).map((r) => r.emailAddress?.address),
+              ].filter(Boolean);
+              console.log(
+                `Skipped unmatched email: subject="${(msg.subject || '').slice(0, 50)}" participants=${participants.join(',')}`,
+              );
+            }
             continue;
           }
 
@@ -397,30 +473,36 @@ async function syncEmails(
 
           // Create a record for each matched contact (uses ON CONFLICT to avoid race conditions)
           for (const contact of match.contacts) {
-            const { error: insertError } = await supabase.from('email_messages').upsert({
-              microsoft_message_id: msg.id,
-              microsoft_conversation_id: msg.conversationId,
-              contact_id: contact.id,
-              deal_id: contact.deal_id || null,
-              sourceco_user_id: userId,
-              direction: match.direction,
-              from_address: msg.from?.emailAddress?.address || '',
-              to_addresses: (msg.toRecipients || []).map((r) => r.emailAddress?.address),
-              cc_addresses: (msg.ccRecipients || []).map((r) => r.emailAddress?.address),
-              subject: msg.subject || '(No subject)',
-              body_html: msg.body?.contentType === 'html' ? msg.body.content : null,
-              body_text: msg.body?.contentType === 'text' ? msg.body.content : msg.bodyPreview,
-              sent_at: msg.sentDateTime || msg.receivedDateTime,
-              has_attachments: msg.hasAttachments || false,
-              attachment_metadata: attachmentMeta,
-              bcc_addresses: [],
-            }, {
-              onConflict: 'microsoft_message_id,contact_id',
-              ignoreDuplicates: true,
-            });
+            const { error: insertError } = await supabase.from('email_messages').upsert(
+              {
+                microsoft_message_id: msg.id,
+                microsoft_conversation_id: msg.conversationId,
+                contact_id: contact.id,
+                deal_id: contact.deal_id || null,
+                sourceco_user_id: userId,
+                direction: match.direction,
+                from_address: msg.from?.emailAddress?.address || '',
+                to_addresses: (msg.toRecipients || []).map((r) => r.emailAddress?.address),
+                cc_addresses: (msg.ccRecipients || []).map((r) => r.emailAddress?.address),
+                subject: msg.subject || '(No subject)',
+                body_html: msg.body?.contentType === 'html' ? msg.body.content : null,
+                body_text: msg.body?.contentType === 'text' ? msg.body.content : msg.bodyPreview,
+                sent_at: msg.sentDateTime || msg.receivedDateTime,
+                has_attachments: msg.hasAttachments || false,
+                attachment_metadata: attachmentMeta,
+                bcc_addresses: [],
+              },
+              {
+                onConflict: 'microsoft_message_id,contact_id',
+                ignoreDuplicates: true,
+              },
+            );
 
             if (insertError) {
-              if (!insertError.message?.includes('duplicate') && !insertError.message?.includes('conflict')) {
+              if (
+                !insertError.message?.includes('duplicate') &&
+                !insertError.message?.includes('conflict')
+              ) {
                 errors.push(`Insert failed for ${msg.id}: ${insertError.message}`);
               } else {
                 skipped++;

@@ -40,14 +40,11 @@ async function exchangeCodeForTokens(code: string): Promise<TokenResponse> {
     scope: 'openid profile email offline_access Mail.Read Mail.ReadWrite Mail.Send User.Read',
   });
 
-  const resp = await fetch(
-    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    },
-  );
+  const resp = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
 
   if (!resp.ok) {
     const errBody = await resp.text();
@@ -175,7 +172,7 @@ Deno.serve(async (req) => {
           sourceco_user_id: auth.userId,
           microsoft_user_id: graphUser.id,
           email_address: emailAddress,
-          encrypted_refresh_token: encryptToken(tokens.refresh_token),
+          encrypted_refresh_token: await encryptToken(tokens.refresh_token),
           token_expires_at: tokenExpiresAt,
           webhook_subscription_id: webhookSubscription?.id || null,
           webhook_expires_at: webhookSubscription?.expirationDateTime || null,

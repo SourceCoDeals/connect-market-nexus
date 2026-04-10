@@ -54,7 +54,9 @@ export async function requireAdmin(
   const auth = await requireAuth(req);
   if (!auth.authenticated) return auth;
 
-  const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin', { user_id: auth.userId });
+  const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin', {
+    user_id: auth.userId,
+  });
   if (adminCheckError) {
     console.error('is_admin RPC error:', adminCheckError.message);
   }
@@ -73,6 +75,26 @@ export async function requireAdmin(
   }
 
   return { authenticated: true, isAdmin: true, userId: auth.userId };
+}
+
+/**
+ * Verify the request was made using the Supabase service role key.
+ * Used by scheduler-only functions (cron jobs) that should not accept user tokens.
+ */
+export function requireServiceRole(req: Request): { authorized: boolean; error?: string } {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return { authorized: false, error: 'Authorization header required' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!serviceRoleKey || token !== serviceRoleKey) {
+    return { authorized: false, error: 'Service role authorization required' };
+  }
+
+  return { authorized: true };
 }
 
 /**
