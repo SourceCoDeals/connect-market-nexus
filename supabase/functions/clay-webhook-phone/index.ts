@@ -102,7 +102,7 @@ serve(async (req: Request) => {
       console.error(`[clay-webhook-phone] Update failed: ${updateErr.message}`);
     }
 
-    // 7. If phone found, save to enriched_contacts
+    // 7. If phone found, save to contacts via RPC
     if (resultPhone) {
       const fullName = `${request.first_name || ''} ${request.last_name || ''}`.trim();
 

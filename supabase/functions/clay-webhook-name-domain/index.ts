@@ -100,7 +100,7 @@ serve(async (req: Request) => {
       console.error(`[clay-webhook-name-domain] Update failed: ${updateErr.message}`);
     }
 
-    // 7. If email found, save to enriched_contacts
+    // 7. If email found, save to contacts via RPC
     if (resultEmail) {
       const fullName = `${request.first_name || ''} ${request.last_name || ''}`.trim();
 
