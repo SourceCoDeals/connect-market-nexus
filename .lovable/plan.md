@@ -1,43 +1,48 @@
 
 
-# Fix: Listing Edit Changes Not Saving
+# Fix: Listing Description Not Saving + Build Errors
 
-## Root Cause
+## Problem 1: Description HTML not persisting
 
-The `ImprovedListingEditor` form submit handler (line 436) manually calls `form.trigger()` for validation, then `form.getValues()` to get form data. The problem: **`getValues()` returns raw input values** (pre-zod-transform), so:
+**Root cause**: The `description_html` and `description_json` fields are set via `form.setValue()` but have no registered `<FormField>` component. When `form.handleSubmit()` runs through Zod, these programmatically-set values may not reliably appear in the transformed output because React Hook Form's resolver only validates/transforms fields that are part of the schema resolution path.
 
-- `revenue` goes to the DB as a formatted string like `"5,000,000"` instead of the number `5000000`
-- `ebitda` same issue
-- `location` goes as `["South Central"]` (array) instead of `"South Central"` (string)
+Additionally, when `form.handleSubmit` applies Zod transforms (e.g., `revenue` string → number, `location` array → string), the output type changes. The `description_html` field, being `z.string().optional()`, should pass through -- but the casting to `ListingFormValues` (which is `z.infer<typeof listingFormSchema>` and has `location` as `string` not `string[]`) creates type mismatch issues that may cause fields to be dropped.
 
-The DB columns `revenue` and `ebitda` are `numeric`, so PostgREST rejects the comma-formatted strings, causing a silent update failure.
-
-The location is manually handled (lines 461-463), but revenue/ebitda are not.
-
-## Fix
-
-**File: `src/components/admin/ImprovedListingEditor.tsx`**
-
-Replace the manual `trigger()` + `getValues()` approach in `handleFormSubmit` with React Hook Form's built-in `form.handleSubmit()`, which runs zod transforms and returns properly typed output values (numbers for revenue/ebitda, string for location).
-
-Specifically, change lines 436-476 from the manual validation pattern to:
+**Fix**: In `handleFormSubmit` (line 436 of `ImprovedListingEditor.tsx`), after getting `formData` from `form.handleSubmit`, explicitly merge `description_html` and `description_json` from `form.getValues()` to guarantee they're included:
 
 ```typescript
 const handleFormSubmit = form.handleSubmit(async (formData) => {
-  await handleSubmit(formData);
-}, (errors) => {
-  const errorFields = Object.keys(errors)
-    .map((key) => `${key}: ${errors[key]?.message || 'Invalid'}`)
-    .join(', ');
-  toast({
-    variant: 'destructive',
-    title: 'Please fix the following errors',
-    description: errorFields || 'Form validation failed',
-  });
-});
+  // Ensure description_html/json are always included (they're set via setValue, not FormField)
+  const rawValues = form.getValues();
+  const enrichedData = {
+    ...formData,
+    description_html: rawValues.description_html,
+    description_json: rawValues.description_json,
+  };
+  await handleSubmit(enrichedData as unknown as ListingFormValues);
+}, (errors) => { /* ...existing error handler... */ });
 ```
 
-And remove the manual location transform in `handleSubmit` since zod already transforms `location` from array to string.
+## Problem 2: Pre-existing build errors (4 files)
 
-This is a one-file change that ensures revenue/ebitda are parsed to numbers and location is transformed to a string before hitting the database.
+### 2a. `src/hooks/admin/deals/useDealsList.ts` (lines 124-141)
+The `deal_pipeline` table alias `as 'deals'` doesn't match Supabase types. Fix: use `untypedFrom('deal_pipeline')` pattern or cast properly.
+
+### 2b. `src/hooks/admin/use-pipeline-core.ts` (line 160)
+Missing `weightedValue` in metrics return. Fix: add `weightedValue` calculation to the metrics object.
+
+### 2c. `src/hooks/use-buyer-introductions.ts` (line 233)
+`create_deal_from_introduction` RPC not in generated types. Fix: use `supabase.rpc('create_deal_from_introduction' as any, ...)`.
+
+### 2d. `src/hooks/use-buyer-introductions.ts` (line 257)
+Unused `_legacyCreateDealFromIntroduction_DEAD` function. Fix: prefix with `// @ts-ignore` or remove entirely since it's dead code kept only for reference.
+
+## Files to modify
+
+| File | Change |
+|------|--------|
+| `src/components/admin/ImprovedListingEditor.tsx` | Merge `description_html`/`description_json` from raw values into handleSubmit output |
+| `src/hooks/admin/deals/useDealsList.ts` | Fix `deal_pipeline` table typing |
+| `src/hooks/admin/use-pipeline-core.ts` | Add `weightedValue` to metrics |
+| `src/hooks/use-buyer-introductions.ts` | Fix RPC type + remove dead function |
 
