@@ -1,65 +1,95 @@
 
+Audit result: not everything is truly fixed yet.
 
-# Investigation Results + Fix Plan
+What is confirmed fixed
+- `src/components/admin/ConnectionRequestEmailDialog.tsx`
+  - widened to `sm:max-w-4xl`
+  - upgraded preview styling
+  - Adam is in the sender dropdown
+  - first-person approval copy is implemented for named senders
+  - approval preview says buyers can reply to the email
+  - full email wrapper is simulated in the modal
+- `src/components/admin/connection-request-actions/index.tsx`
+  - admin comment is now forwarded into the action handlers
+- `src/components/admin/connection-request-actions/useConnectionRequestActions.ts`
+  - approval flow no longer requires `listingId` before attempting email send
+  - admin comment is passed into the status mutation
+  - sender info is passed into the approval email call
+- `supabase/functions/send-connection-notification/index.ts`
+  - `listingId` is optional
+  - first-person default approval body exists
+  - approval copy now says access to materials/details and allows replies
+  - no “do not reply” in the approval email body
 
-## Root Cause Analysis
+What is still not fully fixed
+1. `src/components/admin/WebflowLeadDetail.tsx` still contains the old bugs
+- still discards the dialog comment: `(_comment: string, ...)`
+- approve path still does `if (buyerEmail && listingId)`, so general-inquiry/webflow cases can still skip email entirely
+- approve path does not save the admin comment
+- this means one admin surface is still broken even though another was fixed
 
-### Bug 1: Email never sent (CRITICAL)
-In `useConnectionRequestActions.ts` line 123:
-```typescript
-if (buyerEmail && listingId) {
-```
-The request you tested is a **General Inquiry** (listing_id = sentinel UUID `00000000-0000-0000-0000-000000000001`). The `listing` prop passed to this component is `null` for General Inquiries, so `listing?.id` is `undefined`, making `listingId` falsy. The entire email-sending block is **skipped silently**.
+2. `supabase/functions/notify-buyer-rejection/index.ts` still uses old wording
+- still says “move forward with an introduction”
+- still says “We limit introductions...”
+- that part of the copy request was not fully implemented
 
-**Fix**: Change the guard to `if (buyerEmail)` and handle missing `listingId` gracefully. The edge function already works fine without a real listing ID -- it just needs `listingTitle`.
+3. `src/pages/admin/AdminRequests.tsx` uses a separate approval/rejection path from the fixed hook
+- the main Requests page does not use `useConnectionRequestActions`
+- it uses `useConnectionRequestsMutation()` and then separately invokes the email function
+- because of that, the “fixed” logic is not centralized and not guaranteed across all admin entry points
 
-### Bug 2: Status didn't change (CRITICAL)
-The status update (`updateStatus.mutateAsync`) on line 88 runs before the email block. If it succeeds, the status should change. However, looking at the RLS on `connection_requests`, the update uses the **anon key** client, and the admin's ability to update depends on RLS policies. If the update silently fails or the optimistic update rolls back without a visible error, the UI would appear unchanged.
+4. The latest failure strongly suggests the main Requests-page status update path is still the real blocker
+- edge logs show recent `user_confirmation` and `admin_notification` sends
+- there are no matching `approval_notification` logs for the failed approval attempt
+- in `AdminRequests.tsx`, the email send only happens after `await updateRequest(...)`
+- if status stayed “decision required” and no approval email log exists, the likely failure point is the status mutation/RPC path before the email call
 
-More likely: the `updateStatus.mutateAsync` call throws (possibly RLS), the catch block shows a destructive toast ("Action failed"), and both status update and email are skipped. Need to check if you saw an error toast.
+5. “Exact final email preview” is still only partially true
+- default preview is close to the sent email
+- but when the admin edits the body, the edge function sends the edited text as one escaped paragraph with `<br>` line breaks
+- so custom-edited content is sent, but the preview is not a perfect final-render match for richer formatting
 
-However, if the `listing` being null also causes issues earlier in the flow (e.g., the `sendMessage.mutateAsync` on line 111 might fail if the connection request's thread resolution fails for a General Inquiry), that error would be caught and the whole operation would abort after the status update but the toast would still say "Request approved."
+What I can conclude from read-only investigation
+- The earlier fixes were implemented only partially across the codebase.
+- One flow was repaired (`connection-request-actions`), but duplicate approval flows remain and still contain old logic.
+- That is why you can still see failures even though parts of the system look updated.
 
-Actually wait -- line 88 runs first and succeeds (status updates), then line 111 sends a message, then line 123 sends email. If the message send fails, the catch block runs and shows an error toast, but the status was already updated. Let me re-read... Actually `mutateAsync` on line 88 would commit the status. So if line 111 throws, status IS updated but the error toast shows.
+Recommended implementation plan
+1. Unify approval/rejection logic
+- make `AdminRequests.tsx` and `WebflowLeadDetail.tsx` use the same shared approval/rejection action path as `useConnectionRequestActions`
+- remove duplicated email/status logic so there is one source of truth
 
-But the user says status didn't change. So either:
-1. The `updateStatus.mutateAsync` itself failed (RLS issue)
-2. Or the optimistic update showed "approved" briefly then rolled back
+2. Fix the remaining broken paths
+- in `WebflowLeadDetail.tsx`, pass the dialog comment through, save it, and remove the `listingId` email guard
+- in `notify-buyer-rejection/index.ts`, update all remaining “introduction(s)” language to the new “access/opportunity” framing
 
-Let me check if there's an RLS issue by checking the mutation code -- it uses `supabase.from('connection_requests').update()` with the client-side anon key. This would require an RLS policy allowing admin updates.
+3. Harden the main Requests-page flow
+- add explicit error handling around `updateRequest(...)`
+- keep the modal open and show the actual failure if status update fails
+- only show success after the mutation succeeds
+- log enough context to confirm whether the RPC or follow-up read is failing
 
-### Bug 3: Admin comment never saved
-In `handleEmailDialogConfirm` (line 74), the `_comment` parameter (admin's note from the dialog) is prefixed with underscore and **never passed** to `handleAccept` or `handleReject`. The note is discarded.
+4. Make edited-email behavior match the preview more closely
+- preserve paragraph structure in custom edited emails instead of wrapping the whole body in a single `<p>`
+- ensure the sent version visually matches what the admin saw
 
-**Fix**: Pass the comment to `handleAccept`/`handleReject` and include it in `updateStatus.mutateAsync({ requestId, status, notes: comment })`.
+5. Verify end-to-end after rebuilding
+- approve a normal listing request
+- approve a general inquiry / no-listing request
+- approve with Adam as sender
+- edit the email body and verify the edited body arrives
+- confirm `admin_comment` is stored
+- confirm status changes immediately in UI and persists after refresh
+- confirm edge logs show `approval_notification` and the email provider accepts the send
 
-### Bug 4: Rejection copy still says "introductions"
-Line 88 of the dialog: `"We limit introductions to a small number of buyers"` -- should be "We limit access to a small number of buyers" per user's instructions.
+Files that still need work
+- `src/pages/admin/AdminRequests.tsx`
+- `src/components/admin/WebflowLeadDetail.tsx`
+- `supabase/functions/notify-buyer-rejection/index.ts`
+- likely also the shared approval action wiring so all screens use one implementation
 
-## Changes
-
-### 1. `useConnectionRequestActions.ts`
-- Remove `listingId` guard from email sending -- send email even when listing is null/General Inquiry
-- Accept `adminComment` parameter in `handleAccept` and `handleReject`, pass to `updateStatus.mutateAsync` as `notes`
-- Use `listingTitle` fallback ("General Inquiry" or "this deal") when listing is missing
-
-### 2. `connection-request-actions/index.tsx`
-- Pass the admin comment from `handleEmailDialogConfirm` to `handleAccept`/`handleReject` instead of discarding it
-
-### 3. `ConnectionRequestEmailDialog.tsx`
-- Fix rejection copy: "introductions" → "access"
-
-### 4. `send-connection-notification/index.ts`
-- Make `listingId` optional in the interface (it already handles missing listing gracefully in the URL, just need the type to allow it)
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/components/admin/connection-request-actions/useConnectionRequestActions.ts` | Remove listingId guard, accept+pass adminComment |
-| `src/components/admin/connection-request-actions/index.tsx` | Forward admin comment to handlers |
-| `src/components/admin/ConnectionRequestEmailDialog.tsx` | Fix "introductions" → "access" in rejection copy |
-| `supabase/functions/send-connection-notification/index.ts` | Make listingId optional |
-
-Edge function redeploy required.
-
+Bottom line
+- No, it is not fully fixed yet.
+- The modal/design work and much of the approval-email copy work are in place.
+- The system still has duplicated admin flows, and at least one of those flows still contains the old bugs.
+- The next step should be a consolidation pass plus a true end-to-end verification pass.
