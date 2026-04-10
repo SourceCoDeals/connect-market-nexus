@@ -160,6 +160,7 @@ export function usePipelineCore() {
       return {
         totalDeals: 0,
         totalValue: 0,
+        weightedValue: 0,
         avgProbability: 0,
         pendingTasks: 0,
         conversionRate: 0,
