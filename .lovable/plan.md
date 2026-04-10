@@ -1,88 +1,70 @@
 
 
-# Implement Deal Owner Sender Selection + Exact Email Preview
+# Remaining Work: Admin Email Preview + Edit for Connection Requests
 
-## Summary
+## Current State
 
-Upgrade the `ConnectionRequestEmailDialog` to show the **exact email body** (matching what the edge functions send) and add a **sender dropdown** so admins can send approval/rejection emails from their own `@sourcecodeals.com` address. Add Brandon and Alia to admin profiles. Update edge functions to accept sender overrides. Wire sender selection through action handlers.
+The email preview dialog, sender dropdown, and edge function sender overrides are all wired up. Three gaps remain:
 
-**Brevo: No action needed.** Your domain `sourcecodeals.com` is already authenticated. Any `@sourcecodeals.com` address works as sender immediately.
+1. **Auto-select logged-in admin as default sender** -- Currently always defaults to support@sourcecodeals.com regardless of who's logged in
+2. **WebflowLeadDetail doesn't send emails** -- The Webflow lead approve/reject path only updates status; it never invokes the edge functions to send emails. The sender email from the dialog is discarded.
+3. **Email body is not editable** -- The preview is read-only. You asked for the ability to edit the email and send a modified version.
 
 ## Plan
 
-### 1. Add Brandon & Alia to `src/lib/admin-profiles.ts`
+### 1. Auto-select logged-in admin's sender email
 
-```
-brandon.hall@sourcecodeals.com → Brandon Hall
-alia.ballout@sourcecodeals.com → Alia Ballout
-```
+In `ConnectionRequestEmailDialog.tsx`:
+- Accept the current user's email (from `useAuth`) 
+- On dialog open, check if the logged-in admin's email matches any `DEAL_OWNER_SENDERS` entry
+- If yes, default the dropdown to their email instead of support@
+- If no match, keep support@ as default
 
-Add a new exported constant `DEAL_OWNER_SENDERS` -- array of `{ email, name, title }` for the sender dropdown:
-- `support@sourcecodeals.com` (SourceCo Support) -- default
-- `bill.martin@sourcecodeals.com` (Bill Martin)
-- `alia.ballout@sourcecodeals.com` (Alia Ballout)
-- `brandon.hall@sourcecodeals.com` (Brandon Hall)
+### 2. Fix WebflowLeadDetail to actually send emails
 
-### 2. Upgrade `ConnectionRequestEmailDialog.tsx` -- exact email body + sender selector
+In `WebflowLeadDetail.tsx`:
+- Replace `handleAcceptDirect` / `handleRejectDirect` with proper logic that mirrors `useConnectionRequestActions` -- i.e., after updating status, invoke `send-connection-notification` (for approvals) and `notify-buyer-rejection` (for rejections) with the selected sender
+- Pass the `senderEmail` from the dialog through to these edge function calls
 
-Replace bullet-point summaries with the **actual email text** that matches the edge functions:
+### 3. Make email body editable in the dialog
 
-**Approval preview** (mirrors `send-connection-notification` approval_notification):
-- "Your introduction to [Deal Title] has been approved."
-- "We are making a direct introduction to the business owner..."
-- Bullet list of next steps
-- "This is an exclusive introduction..."
-- CTA: "View Messages"
+In `ConnectionRequestEmailDialog.tsx`:
+- Replace the read-only email body preview with a `<Textarea>` pre-filled with the email text (plain text version of what would be sent)
+- Track edited body in state
+- Pass the edited body through `onConfirm` as a new parameter: `(comment, senderEmail, customBody?) => Promise<void>`
 
-**Rejection preview** (mirrors `notify-buyer-rejection`):
-- "Thank you for your interest in [Deal Title]."
-- "After reviewing your profile against this specific opportunity..."
-- "Your interest has been noted..."
-- "In the meantime, continue browsing..."
+### 4. Update edge functions to accept a custom body override
 
-Add a `<Select>` dropdown at the top: **"From:"** with the `DEAL_OWNER_SENDERS` list. Selected value is passed to `onConfirm` as `senderEmail`.
+In both `send-connection-notification` and `notify-buyer-rejection`:
+- Accept an optional `customBodyHtml` or `customBodyText` field
+- If provided, use it instead of the default template HTML (wrap it in the standard email template wrapper)
+- If not provided, use the existing template (backward compatible)
 
-Update `onConfirm` signature: `(comment: string, senderEmail: string) => Promise<void>`
+### 5. Wire custom body through action handlers
 
-### 3. Update `useConnectionRequestActions.ts` -- pass sender to edge functions
+In `useConnectionRequestActions.ts`:
+- Update `handleAccept` and `handleReject` to accept and forward `customBody`
+- Pass it to the edge function invocation body
 
-Update `handleAccept` and `handleReject` to accept an optional `senderEmail` parameter.
-
-For **approvals** (`send-connection-notification`): pass `senderEmail`, `senderName`, `replyTo` in the request body.
-
-For **rejections** (`notify-buyer-rejection`): pass `senderEmail`, `senderName`, `replyTo` in the request body.
-
-### 4. Update `connection-request-actions/index.tsx` -- forward sender
-
-Update `handleEmailDialogConfirm` to pass the sender email from the dialog through to `handleAccept`/`handleReject`.
-
-### 5. Update `WebflowLeadDetail.tsx` -- same forwarding
-
-Pass sender selection through the email dialog to the action handlers.
-
-### 6. Update edge functions to accept sender overrides
-
-**`send-connection-notification/index.ts`** (approval_notification branch):
-- Accept optional `senderEmail`, `senderName`, `replyTo` in request body
-- Pass to `sendEmail()` call, falling back to current defaults
-
-**`notify-buyer-rejection/index.ts`**:
-- Accept optional `senderEmail`, `senderName`, `replyTo` in request body
-- Pass to `sendEmail()` call, falling back to current defaults
-
-### 7. Deploy edge functions
-
-Deploy both `send-connection-notification` and `notify-buyer-rejection`.
+In `connection-request-actions/index.tsx` and `WebflowLeadDetail.tsx`:
+- Forward the custom body from the dialog's `onConfirm` callback
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/lib/admin-profiles.ts` | Add Brandon & Alia, add `DEAL_OWNER_SENDERS` |
-| `src/components/admin/ConnectionRequestEmailDialog.tsx` | Exact email body preview + sender dropdown |
-| `src/components/admin/connection-request-actions/useConnectionRequestActions.ts` | Accept + forward `senderEmail` param |
-| `src/components/admin/connection-request-actions/index.tsx` | Pass sender from dialog to handlers |
-| `src/components/admin/WebflowLeadDetail.tsx` | Pass sender from dialog to handlers |
-| `supabase/functions/send-connection-notification/index.ts` | Accept sender overrides |
-| `supabase/functions/notify-buyer-rejection/index.ts` | Accept sender overrides |
+| `src/components/admin/ConnectionRequestEmailDialog.tsx` | Auto-select admin sender, make body editable, pass customBody in onConfirm |
+| `src/components/admin/WebflowLeadDetail.tsx` | Send actual emails on approve/reject with sender + custom body |
+| `src/components/admin/connection-request-actions/useConnectionRequestActions.ts` | Accept + forward customBody to edge functions |
+| `src/components/admin/connection-request-actions/index.tsx` | Forward customBody from dialog |
+| `supabase/functions/send-connection-notification/index.ts` | Accept optional customBodyHtml override |
+| `supabase/functions/notify-buyer-rejection/index.ts` | Accept optional customBodyHtml override |
+
+## Brevo / External Steps
+
+**None required.** Your domain `sourcecodeals.com` is already authenticated. Bill, Alia, and Brandon's `@sourcecodeals.com` addresses work as senders immediately.
+
+## Edge Function Deployment
+
+Both `send-connection-notification` and `notify-buyer-rejection` need redeployment after the custom body override is added.
 
