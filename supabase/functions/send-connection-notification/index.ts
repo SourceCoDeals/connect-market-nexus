@@ -124,35 +124,34 @@ const handler = async (req: Request): Promise<Response> => {
     } else if (type === 'approval_notification') {
       if (!recipientEmail) throw new Error('recipientEmail is required for approval_notification');
 
-      const buyerMessagesUrl = 'https://marketplace.sourcecodeals.com/my-deals';
-      const subject = `Introduction approved: ${escapeHtml(listingTitle)}`;
+      const buyerDealUrl = 'https://marketplace.sourcecodeals.com/my-deals';
+      const senderDisplayName = customSenderName || 'SourceCo';
+      const subject = `Request approved: ${escapeHtml(listingTitle)}`;
 
       let htmlContent: string;
       if (customBodyText) {
-        // Admin edited the email body — wrap plain text in the standard template
         const escapedBody = escapeHtmlWithBreaks(customBodyText);
         htmlContent = wrapEmailHtml({
           bodyHtml: `<p>${escapedBody}</p>`,
-          preheader: 'Your introduction is confirmed. Here is what happens next.',
+          preheader: 'Your request has been approved. Here is what happens next.',
           recipientEmail,
         });
       } else {
-        const buyerMessagesUrl = 'https://marketplace.sourcecodeals.com/my-deals';
         htmlContent = wrapEmailHtml({
           bodyHtml: `
-    <p>Your introduction to ${escapeHtml(listingTitle)} has been approved.</p>
-    <p>We are making a direct introduction to the business owner. You will receive a message from our team with next steps, typically within one business day.</p>
+    <p>Your request for ${escapeHtml(listingTitle)} has been approved.</p>
+    <p>You now have access to additional deal materials, detailed company information - including the real company name - and supporting documents. ${escapeHtml(senderDisplayName)} will be in touch shortly with next steps.</p>
     <p>What to expect</p>
     <ul style="padding-left: 20px; line-height: 1.8;">
-      <li>Our team facilitates the initial introduction</li>
-      <li>You receive access to deal details and supporting materials</li>
-      <li>Message us directly on the platform for support. All conversations are tracked there for your records</li>
+      <li>Access to the full deal profile, data room, and supporting materials</li>
+      <li>${escapeHtml(senderDisplayName)} from our team will reach out to coordinate next steps</li>
+      <li>Message us directly on the platform or reply to this email</li>
     </ul>
-    <p>This is an exclusive introduction. We work with a small number of buyers per deal. Move at your own pace, but do not sit on it. Please do not reply to this email.</p>
+    <p>This is an exclusive opportunity. We work with a small number of buyers per deal. Move at your own pace, but do not sit on it.</p>
     <div style="text-align: center; margin: 32px 0;">
-      <a href="${buyerMessagesUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">View Messages</a>
+      <a href="${buyerDealUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">View Deal</a>
     </div>`,
-          preheader: 'Your introduction is confirmed. Here is what happens next.',
+          preheader: 'Your request has been approved. Here is what happens next.',
           recipientEmail,
         });
       }
@@ -165,7 +164,7 @@ const handler = async (req: Request): Promise<Response> => {
         htmlContent,
         senderName: customSenderName || 'SourceCo Notifications',
         senderEmail: customSenderEmail || 'noreply@sourcecodeals.com',
-        replyTo: customReplyTo || 'noreply@sourcecodeals.com',
+        replyTo: customReplyTo || customSenderEmail || 'support@sourcecodeals.com',
         isTransactional: true,
       });
 
@@ -173,7 +172,7 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('Connection approval email sent to:', recipientEmail);
 
     } else {
-      // Admin notification — send only to support inbox
+      // Admin notification
       const subject = `New Connection Request: ${listingTitle} from ${requesterName}`;
       const htmlContent = buildAdminNotificationHtml(requesterName, requesterEmail, listingTitle, listingUrl, adminUrl, message);
 
