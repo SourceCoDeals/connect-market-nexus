@@ -18,8 +18,6 @@ const formatCurrency = (val: number) => {
  * Renders six metrics already computed in usePipelineCore.
  */
 export function PipelineMetricsCard({ metrics }: PipelineMetricsCardProps) {
-  const weightedValue = Math.round(metrics.totalValue * (metrics.avgProbability / 100));
-
   const items = [
     {
       label: 'Deals',
@@ -33,9 +31,9 @@ export function PipelineMetricsCard({ metrics }: PipelineMetricsCardProps) {
     },
     {
       label: 'Weighted',
-      value: formatCurrency(weightedValue),
+      value: formatCurrency(metrics.weightedValue),
       icon: Gauge,
-      title: 'Total value × average probability',
+      title: 'Sum of each deal value × its probability',
     },
     {
       label: 'Avg Prob.',

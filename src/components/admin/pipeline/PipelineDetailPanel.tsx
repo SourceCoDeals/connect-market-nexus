@@ -19,7 +19,7 @@ import { PipelineDetailOtherBuyers } from './tabs/PipelineDetailOtherBuyers';
 import { DealActivityLog } from '@/components/remarketing/deal-detail/DealActivityLog';
 import { EntityTasksTab, CreateTaskButton } from '@/components/daily-tasks';
 import { ArchiveDealDialog } from '@/components/admin/deals/ArchiveDealDialog';
-import { useSoftDeleteDeal } from '@/hooks/admin/use-deals';
+import { useSoftDeleteDeal, useRestoreDeal } from '@/hooks/admin/use-deals';
 
 interface PipelineDetailPanelProps {
   pipeline: ReturnType<typeof usePipelineCore>;
@@ -30,6 +30,8 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const softDeleteMutation = useSoftDeleteDeal();
+  const restoreMutation = useRestoreDeal();
+  const isArchived = (selectedDeal as Record<string, unknown> | null)?._isArchived === true;
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -116,13 +118,25 @@ export function PipelineDetailPanel({ pipeline }: PipelineDetailPanelProps) {
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <Archive className="h-4 w-4 mr-2" />
-                  Archive Deal
-                </DropdownMenuItem>
+                {isArchived ? (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      await restoreMutation.mutateAsync(selectedDeal!.deal_id);
+                      pipeline.setSelectedDeal(null);
+                    }}
+                  >
+                    <Archive className="h-4 w-4 mr-2" />
+                    Restore Deal
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Archive className="h-4 w-4 mr-2" />
+                    Archive Deal
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button

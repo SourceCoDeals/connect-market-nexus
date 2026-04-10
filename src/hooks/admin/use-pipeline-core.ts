@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useDeals, useDealStages, Deal } from '@/hooks/admin/use-deals';
+import { useDeals, useArchivedDeals, useDealStages, Deal } from '@/hooks/admin/use-deals';
 import {
   useDealFilters,
   DealStatusFilter,
@@ -16,6 +16,7 @@ export type ViewMode = 'kanban' | 'list' | 'table';
 export interface PipelineMetrics {
   totalDeals: number;
   totalValue: number;
+  weightedValue: number;
   avgProbability: number;
   pendingTasks: number;
   conversionRate: number;
@@ -52,6 +53,7 @@ export function usePipelineCore() {
   // Data fetching - include all stages (including closed won/lost)
   const { data: deals, isLoading: dealsLoading, error: _dealsError } = useDeals();
   const { data: allStages, isLoading: stagesLoading, error: _stagesError } = useDealStages(true); // Include all stages
+
   const { data: pipelineViews = [] } = usePipelineViews();
 
   // Filter stages based on current view with custom ordering
@@ -83,7 +85,13 @@ export function usePipelineCore() {
 
   // Filtering
   const filterHook = useDealFilters(deals || [], currentAdminId);
-  const { filteredAndSortedDeals } = filterHook;
+
+  // G6 FIX: Fetch archived deals only when filter is 'archived'
+  const isArchivedFilter = filterHook.statusFilter === 'archived';
+  const { data: archivedDeals } = useArchivedDeals(isArchivedFilter);
+  const filteredAndSortedDeals = isArchivedFilter
+    ? archivedDeals || []
+    : filterHook.filteredAndSortedDeals;
 
   // Load filter config when view changes
   useEffect(() => {
@@ -160,6 +168,11 @@ export function usePipelineCore() {
     }
 
     const totalValue = filteredAndSortedDeals.reduce((sum, deal) => sum + deal.deal_value, 0);
+    // G4 FIX: Per-deal weighted value (each deal's value × its probability), not total × avg
+    const weightedValue = filteredAndSortedDeals.reduce(
+      (sum, deal) => sum + deal.deal_value * (deal.deal_probability / 100),
+      0,
+    );
     const avgProbability =
       filteredAndSortedDeals.length > 0
         ? filteredAndSortedDeals.reduce((sum, deal) => sum + deal.deal_probability, 0) /
@@ -194,6 +207,7 @@ export function usePipelineCore() {
     return {
       totalDeals: filteredAndSortedDeals.length,
       totalValue,
+      weightedValue,
       avgProbability,
       pendingTasks,
       conversionRate,

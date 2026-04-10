@@ -133,6 +133,20 @@ export interface Deal {
   commission_rate?: number;
   fee_earned?: number;
   fee_paid_at?: string;
+
+  // Owner intro response tracking (G11)
+  intro_response_status?: 'pending' | 'accepted' | 'declined' | 'no_response';
+  intro_response_at?: string;
+
+  // Call outcome tracking (G12)
+  call_outcome?:
+    | 'proceed_to_dd'
+    | 'needs_more_info'
+    | 'scheduling_followup'
+    | 'buyer_passed'
+    | 'seller_passed'
+    | 'mutual_pass';
+  call_outcome_at?: string;
 }
 
 export interface DealStage {

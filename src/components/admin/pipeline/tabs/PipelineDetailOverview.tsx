@@ -704,6 +704,71 @@ export function PipelineDetailOverview({ deal }: PipelineDetailOverviewProps) {
         </div>
       </div>
 
+      {/* ═══════════ INTRO RESPONSE + CALL OUTCOME (G11, G12) ═══════════ */}
+      {(deal.stage_name === 'Owner Intro Requested' ||
+        deal.stage_name === 'Buyer/Seller Call' ||
+        deal.intro_response_status ||
+        deal.call_outcome) && (
+        <div className="px-8 pb-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            {(deal.stage_name === 'Owner Intro Requested' || deal.intro_response_status) && (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">
+                  Intro Response:
+                </Label>
+                <select
+                  className="text-xs border rounded px-2 py-1 bg-background"
+                  value={deal.intro_response_status || 'pending'}
+                  onChange={(e) =>
+                    updateDeal.mutate({
+                      dealId: deal.deal_id,
+                      updates: {
+                        intro_response_status: e.target.value,
+                        intro_response_at:
+                          e.target.value !== 'pending' ? new Date().toISOString() : null,
+                      },
+                    })
+                  }
+                >
+                  <option value="pending">Pending</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="declined">Declined</option>
+                  <option value="no_response">No Response</option>
+                </select>
+              </div>
+            )}
+            {(deal.stage_name === 'Buyer/Seller Call' || deal.call_outcome) && (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground whitespace-nowrap">
+                  Call Outcome:
+                </Label>
+                <select
+                  className="text-xs border rounded px-2 py-1 bg-background"
+                  value={deal.call_outcome || ''}
+                  onChange={(e) =>
+                    updateDeal.mutate({
+                      dealId: deal.deal_id,
+                      updates: {
+                        call_outcome: e.target.value || null,
+                        call_outcome_at: e.target.value ? new Date().toISOString() : null,
+                      },
+                    })
+                  }
+                >
+                  <option value="">Not set</option>
+                  <option value="proceed_to_dd">Proceed to DD</option>
+                  <option value="needs_more_info">Needs More Info</option>
+                  <option value="scheduling_followup">Scheduling Follow-up</option>
+                  <option value="buyer_passed">Buyer Passed</option>
+                  <option value="seller_passed">Seller Passed</option>
+                  <option value="mutual_pass">Mutual Pass</option>
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ═══════════ MESSAGING AREA ═══════════ */}
       <div className="flex-1 flex flex-col min-h-0 border-t border-border/40">
         {!connectionRequestId ? (

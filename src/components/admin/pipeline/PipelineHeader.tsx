@@ -355,6 +355,7 @@ export function PipelineHeader({
             <SelectItem value="closed_won">Closed Won</SelectItem>
             <SelectItem value="closed_lost">Closed Lost</SelectItem>
             <SelectItem value="closed">Closed (All)</SelectItem>
+            <SelectItem value="archived">Archived</SelectItem>
           </SelectContent>
         </Select>
 
@@ -519,6 +520,7 @@ export function PipelineHeader({
             <SelectItem value="probability">Highest Probability</SelectItem>
             <SelectItem value="stage_entered">Recently Entered Stage</SelectItem>
             <SelectItem value="last_activity">Last Activity</SelectItem>
+            <SelectItem value="expected_close">Expected Close</SelectItem>
           </SelectContent>
         </Select>
 
