@@ -46,26 +46,38 @@ audit — there are 5 sources of truth for the same concept.
 **Action:** Migrate remaining writers to `admin_view_state`, add a unique
 constraint on `(admin_id, view_type)`, and drop the 4 legacy tables.
 
-### 1.2 Contact store — **4 overlapping tables**
+### 1.2 Contact store — **3 overlapping tables** (was 5; two already dropped)
 
-| Table | Defined in | Purpose |
-|---|---|---|
-| `contacts` | `20260228000000_unified_contacts_system.sql` | Canonical unified store (2nd definition, first was `20260222031933`) |
-| `enriched_contacts` | `20260310000000_contact_intelligence.sql:5` | Enrichment cache (17 cols) |
-| `remarketing_buyer_contacts` | `20260122172855_*.sql:57` | Remarketing-specific (20 cols) — flagged 2026-03-11, still live |
-| `pe_firm_contacts` | `20260127030827_*.sql:8` | PE firm contacts |
-| `platform_contacts` | `20260127030827_*.sql:35` | Generic platform contacts |
+| Table | Defined in | Purpose | Status |
+|---|---|---|---|
+| `contacts` | `20260228000000_unified_contacts_system.sql` | Canonical unified store (2nd definition, first was `20260222031933`) | live |
+| `enriched_contacts` | `20260310000000_contact_intelligence.sql:5` | Enrichment cache (17 cols) | live |
+| `remarketing_buyer_contacts` | `20260122172855_*.sql:57` | Remarketing-specific (20 cols) — flagged 2026-03-11 | live (dead-mirror) |
+| ~~`pe_firm_contacts`~~ | ~~`20260127030827_*.sql:8`~~ | PE firm contacts | **DROPPED** `20260302100000_drop_dead_columns_and_orphaned_tables.sql:74` |
+| ~~`platform_contacts`~~ | ~~`20260127030827_*.sql:35`~~ | Generic platform contacts | **DROPPED** `20260302100000_drop_dead_columns_and_orphaned_tables.sql:77` |
+
+**Correction (2026-04-10):** An earlier pass of this audit listed
+`pe_firm_contacts` and `platform_contacts` as live. They were in fact
+dropped in `20260302100000_drop_dead_columns_and_orphaned_tables.sql`
+(lines 74 and 77). The `src/` references to them in
+`src/lib/migrations.ts:806-807` are a historical migration-tracker log,
+not live queries. The `src/integrations/supabase/types.ts` references
+are stale auto-generated types that will clean up on the next
+`supabase gen types`.
 
 `contacts` has been created twice (`20260222031933` and `20260228000000`),
-and mirror triggers (`trg_mirror_rbc_to_contacts`) attempt to keep
+and a mirror trigger (`trg_mirror_rbc_to_contacts`,
+`20260306300000_remarketing_contacts_mirror_trigger.sql:19-80`) keeps
 `remarketing_buyer_contacts` in sync — a classic two-way-sync hazard.
-`CTO_DEAD_CODE_DUPLICATES_AUDIT_2026-03-11.md:214` flagged this; no
-consolidation has landed.
+`CTO_DEAD_CODE_DUPLICATES_AUDIT_2026-03-11.md:214` flagged this; the
+`remarketing_buyer_contacts` side of the consolidation has not landed.
 
-**Action:** Complete Phase 1 of `docs/SCHEMA_REFACTOR_STRATEGY.md` — collapse
-`remarketing_buyer_contacts`, `pe_firm_contacts`, `platform_contacts` into
-`contacts` with a `source`/`context` discriminator. Keep `enriched_contacts`
-as a join-side cache.
+**Action:** Complete Phase 1 of `docs/SCHEMA_REFACTOR_STRATEGY.md` for
+`remarketing_buyer_contacts`: rewrite the one remaining reader
+(`supabase/functions/outlook-sync-emails/index.ts:113`), observe 30 days
+with zero fires on the mirror trigger, then drop the trigger and the
+table. `enriched_contacts` should be folded into a new
+`contact_events` history log (see strategy §2 below).
 
 ### 1.3 Lead intake — **4 parallel tables**
 
