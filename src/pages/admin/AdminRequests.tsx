@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAdmin } from '@/hooks/use-admin';
 import { AdminConnectionRequest } from '@/types/admin';
 import ConnectionRequestsTable from '@/components/admin/ConnectionRequestsTable';
-import { ConnectionRequestDialog } from '@/components/admin/ConnectionRequestDialog';
+import { ConnectionRequestEmailDialog } from '@/components/admin/ConnectionRequestEmailDialog';
 import { ApprovalEmailDialog } from '@/components/admin/ApprovalEmailDialog';
 import { PipelineFilters } from '@/components/admin/PipelineFilters';
 import {
@@ -236,39 +236,10 @@ const AdminRequests = () => {
     ? requests.find((r) => r.listing?.id === selectedListingId)?.listing
     : null;
 
-  const handleAction = async (request: AdminConnectionRequest, action: 'approve' | 'reject') => {
-    try {
-      await updateRequest({
-        requestId: request.id,
-        status: action === 'approve' ? 'approved' : 'rejected',
-        adminComment: `Request ${action}d by admin`,
-      });
-      // Force refetch to ensure UI updates immediately
-      await refetch();
-
-      // Send email notification based on action type (non-blocking)
-      if (action === 'approve') {
-        sendConnectionApprovalEmail(request).catch((e) => console.error('Email send failed:', e));
-        toast({
-          title: 'Request approved',
-          description: 'Connection request has been approved',
-        });
-      } else {
-        sendConnectionRejectionEmail(request).catch((e) => console.error('Email send failed:', e));
-        toast({
-          title: 'Request rejected',
-          description: 'Connection request has been rejected',
-        });
-      }
-       
-    } catch (error: unknown) {
-      console.error(`[AdminRequests] handleAction failed:`, error);
-      toast({
-        variant: 'destructive',
-        title: 'Update failed',
-        description: (error as Error)?.message || 'Could not update connection request status',
-      });
-    }
+  const handleAction = (request: AdminConnectionRequest, action: 'approve' | 'reject') => {
+    setSelectedRequest(request);
+    setActionType(action);
+    setIsDialogOpen(true);
   };
 
   const confirmAction = async (comment: string) => {
@@ -402,7 +373,7 @@ const AdminRequests = () => {
             )}
         </div>
 
-        <ConnectionRequestDialog
+        <ConnectionRequestEmailDialog
           isOpen={isDialogOpen}
           onClose={() => setIsDialogOpen(false)}
           onConfirm={confirmAction}

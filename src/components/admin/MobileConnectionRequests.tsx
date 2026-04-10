@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search } from 'lucide-react';
 import { AdminConnectionRequest } from '@/types/admin';
 import { MobileConnectionRequestsTable } from './MobileConnectionRequestsTable';
-import { ConnectionRequestDialog } from './ConnectionRequestDialog';
+import { ConnectionRequestEmailDialog } from './ConnectionRequestEmailDialog';
 
 interface MobileConnectionRequestsProps {
   requests: AdminConnectionRequest[];
@@ -102,7 +102,7 @@ export function MobileConnectionRequests({
         />
       </div>
 
-      <ConnectionRequestDialog
+      <ConnectionRequestEmailDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
         onConfirm={async (_comment) => {
