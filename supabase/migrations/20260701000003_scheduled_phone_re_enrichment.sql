@@ -30,7 +30,21 @@ DECLARE
   v_queued INT := 0;
   v_skipped INT := 0;
   v_contact RECORD;
+  v_workspace_id UUID;
 BEGIN
+  -- Resolve the default workspace_id (first active workspace)
+  SELECT id INTO v_workspace_id
+  FROM public.workspaces
+  WHERE archived = false
+  ORDER BY created_at ASC
+  LIMIT 1;
+
+  IF v_workspace_id IS NULL THEN
+    RAISE NOTICE 'No active workspace found — cannot queue enrichment requests';
+    RETURN QUERY SELECT 0, 0;
+    RETURN;
+  END IF;
+
   FOR v_contact IN
     SELECT c.id, c.first_name, c.last_name, c.linkedin_url, c.title
     FROM public.contacts c
@@ -61,6 +75,8 @@ BEGIN
     -- Insert a Clay enrichment request for phone lookup
     INSERT INTO public.clay_enrichment_requests (
       request_id,
+      request_type,
+      workspace_id,
       linkedin_url,
       first_name,
       last_name,
@@ -71,6 +87,8 @@ BEGIN
       created_at
     ) VALUES (
       gen_random_uuid()::TEXT,
+      'phone',
+      v_workspace_id,
       v_contact.linkedin_url,
       v_contact.first_name,
       v_contact.last_name,
@@ -100,14 +118,14 @@ GRANT EXECUTE ON FUNCTION public.queue_phone_re_enrichment(INT, INT)
 -- 2. Schedule with pg_cron if available (runs daily at 3 AM UTC)
 -- NOTE: pg_cron must be enabled on the Supabase project. If not available,
 -- this SELECT will fail silently and the function can be called manually.
-DO $$
+DO $outer$
 BEGIN
   -- Only attempt to schedule if pg_cron extension exists
   IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
     PERFORM cron.schedule(
       'phone-re-enrichment-daily',
-      '0 3 * * *',  -- daily at 3:00 AM UTC
-      $$SELECT * FROM public.queue_phone_re_enrichment(50, 30)$$
+      '0 3 * * *',
+      $cron$SELECT * FROM public.queue_phone_re_enrichment(50, 30)$cron$
     );
     RAISE NOTICE 'pg_cron job scheduled: phone-re-enrichment-daily';
   ELSE
@@ -117,4 +135,4 @@ EXCEPTION
   WHEN OTHERS THEN
     RAISE NOTICE 'Could not schedule pg_cron job: %. The function is still available for manual use.', SQLERRM;
 END;
-$$;
+$outer$;

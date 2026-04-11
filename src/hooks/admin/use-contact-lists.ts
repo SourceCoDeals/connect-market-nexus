@@ -212,13 +212,13 @@ export function useContactList(listId: string | undefined) {
       const missingEmails = membersWithoutContact.map((m) => m.contact_email);
       const contactByEmail: Record<
         string,
-        { first_name: string | null; last_name: string | null; email: string | null; phone: string | null; title: string | null; company_name: string | null }
+        { first_name: string | null; last_name: string | null; email: string | null; phone: string | null; title: string | null; company_name: string | null; linkedin_url: string | null; mobile_phone_1: string | null; mobile_phone_2: string | null; mobile_phone_3: string | null; office_phone: string | null }
       > = {};
 
       if (missingEmails.length > 0) {
         const { data: lookedUp } = await supabase
           .from('contacts')
-          .select('first_name, last_name, email, phone, title, company_name')
+          .select('first_name, last_name, email, phone, title, company_name, linkedin_url, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone')
           .in('email', missingEmails);
         for (const c of lookedUp ?? []) {
           if (c.email) contactByEmail[c.email] = c;

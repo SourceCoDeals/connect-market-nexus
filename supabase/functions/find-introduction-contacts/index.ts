@@ -368,6 +368,8 @@ Deno.serve(async (req: Request) => {
           email: normalizedEmail || null,
           linkedin_url: contact.linkedin_url || null,
           phone: contact.phone || null,
+          mobile_phone_1: contact.phone || null,
+          phone_source: contact.phone ? 'find_contacts' : null,
           contact_type: 'buyer',
         },
         p_source: 'auto_introduction_approval',

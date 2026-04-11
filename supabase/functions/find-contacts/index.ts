@@ -1512,7 +1512,7 @@ Deno.serve(async (req: Request) => {
       for (const c of allContacts) {
         // Route phone to mobile_phone_1 — enrichment providers (Blitz, Prospeo)
         // prioritize mobile/direct numbers, so this is a safe default.
-        const phoneSource = c.source === 'blitz_enrichment' ? 'blitz'
+        const phoneSource = c.source === 'blitz' ? 'blitz'
           : c.source === 'prospeo' ? 'prospeo'
           : c.source || 'find_contacts';
 
