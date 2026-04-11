@@ -251,9 +251,6 @@ const AdminRequests = () => {
           notes: comment || undefined,
         });
 
-        // Force refetch
-        await refetch();
-
         // Resolve sender details
         const { DEAL_OWNER_SENDERS } = await import('@/lib/admin-profiles');
         const sender = DEAL_OWNER_SENDERS.find(s => s.email === senderEmail);
