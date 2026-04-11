@@ -581,38 +581,35 @@ async function syncEmails(
   // ── Trigger auto-summarize for email threads with 3+ messages ──
   if (synced > 0) {
     try {
-      // Find conversation threads with 3+ emails that haven't been summarized yet
-      const { data: threadCandidates } = await (supabase as any).rpc('get_unsummarized_email_threads', {});
-      // Fallback: query directly if RPC doesn't exist
-      if (!threadCandidates) {
-        const { data: threads } = await (supabase as any)
-          .from('email_messages')
-          .select('microsoft_conversation_id, deal_id')
-          .not('microsoft_conversation_id', 'is', null)
-          .not('deal_id', 'is', null);
+      // Find conversation threads with 3+ emails that haven't been summarized
+      const { data: threads } = await (supabase as any)
+        .from('email_messages')
+        .select('microsoft_conversation_id, deal_id')
+        .not('microsoft_conversation_id', 'is', null)
+        .not('deal_id', 'is', null);
 
-        if (threads) {
-          // Count by conversation_id + deal_id
-          const threadCounts = new Map<string, { count: number; deal_id: string; conversation_id: string }>();
-          for (const t of threads) {
-            const key = `${t.microsoft_conversation_id}::${t.deal_id}`;
-            const existing = threadCounts.get(key);
-            if (existing) {
-              existing.count++;
-            } else {
-              threadCounts.set(key, { count: 1, deal_id: t.deal_id, conversation_id: t.microsoft_conversation_id });
-            }
+      if (threads && threads.length > 0) {
+        // Count emails per conversation_id + deal_id
+        const threadCounts = new Map<string, { count: number; deal_id: string; conversation_id: string }>();
+        for (const t of threads) {
+          const key = `${t.microsoft_conversation_id}::${t.deal_id}`;
+          const existing = threadCounts.get(key);
+          if (existing) {
+            existing.count++;
+          } else {
+            threadCounts.set(key, { count: 1, deal_id: t.deal_id, conversation_id: t.microsoft_conversation_id });
           }
+        }
 
-          for (const [, thread] of threadCounts) {
-            if (thread.count >= 3) {
-              try {
-                await supabase.functions.invoke('auto-summarize-email-thread', {
-                  body: { conversation_id: thread.conversation_id, deal_id: thread.deal_id },
-                });
-              } catch (e) {
-                console.error(`[outlook-sync] Failed to trigger email thread summary:`, e);
-              }
+        // Trigger summarization for threads with 3+ messages
+        for (const [, thread] of threadCounts) {
+          if (thread.count >= 3) {
+            try {
+              await supabase.functions.invoke('auto-summarize-email-thread', {
+                body: { conversation_id: thread.conversation_id, deal_id: thread.deal_id },
+              });
+            } catch (e) {
+              console.error(`[outlook-sync] Failed to trigger email thread summary:`, e);
             }
           }
         }

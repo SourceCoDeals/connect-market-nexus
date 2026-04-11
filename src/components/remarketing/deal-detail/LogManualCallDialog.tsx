@@ -60,9 +60,25 @@ export function LogManualCallDialog({
   const [durationMinutes, setDurationMinutes] = useState('');
   const [notes, setNotes] = useState('');
 
+  const resetForm = () => {
+    setContactName(defaultContactName);
+    setContactEmail(defaultContactEmail);
+    setContactPhone(defaultContactPhone);
+    setDirection('outbound');
+    setOutcome('connected');
+    setDurationMinutes('');
+    setNotes('');
+  };
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) resetForm();
+    onOpenChange(isOpen);
+  };
+
   const logCallMutation = useMutation({
     mutationFn: async () => {
-      const durationSeconds = durationMinutes ? parseInt(durationMinutes, 10) * 60 : 0;
+      const parsedMinutes = durationMinutes ? parseInt(durationMinutes, 10) : 0;
+      const durationSeconds = isNaN(parsedMinutes) ? 0 : Math.max(0, parsedMinutes) * 60;
       const connected = outcome === 'connected' || outcome === 'callback';
       const now = new Date().toISOString();
 
@@ -154,15 +170,7 @@ export function LogManualCallDialog({
       queryClient.invalidateQueries({ queryKey: ['contact-combined-history'] });
       queryClient.invalidateQueries({ queryKey: ['unified-timeline'] });
       toast.success('Call logged successfully');
-      onOpenChange(false);
-      // Reset form
-      setContactName(defaultContactName);
-      setContactEmail(defaultContactEmail);
-      setContactPhone(defaultContactPhone);
-      setDirection('outbound');
-      setOutcome('connected');
-      setDurationMinutes('');
-      setNotes('');
+      handleOpenChange(false);
     },
     onError: (err) => {
       toast.error(`Failed to log call: ${(err as Error).message}`);
@@ -170,7 +178,7 @@ export function LogManualCallDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -258,7 +266,7 @@ export function LogManualCallDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button
