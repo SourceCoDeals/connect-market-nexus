@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, Users, Mail, Linkedin, Sparkles, Loader2, Pencil } from 'lucide-react';
+import { Plus, Trash2, Users, Mail, Linkedin, Sparkles, Loader2, Pencil, Building2, PhoneCall } from 'lucide-react';
 import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 import { Contact } from './types';
 
@@ -20,6 +20,8 @@ interface ContactsTabProps {
   onDeleteContact: (contactId: string) => void;
   onEnrichContacts?: () => void;
   isEnrichingContacts?: boolean;
+  onRetryPhoneEnrichment?: () => void;
+  isRetryingPhoneEnrichment?: boolean;
 }
 
 export const ContactsTab = ({
@@ -29,7 +31,12 @@ export const ContactsTab = ({
   onDeleteContact,
   onEnrichContacts,
   isEnrichingContacts,
+  onRetryPhoneEnrichment,
+  isRetryingPhoneEnrichment,
 }: ContactsTabProps) => {
+  const contactsNeedingPhone = contacts.filter(
+    (c) => !c.mobile_phone_1 && !c.phone,
+  ).length;
   return (
     <Card>
       <CardHeader>
@@ -39,6 +46,23 @@ export const ContactsTab = ({
             <CardDescription>Key contacts at this organization</CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            {onRetryPhoneEnrichment && contactsNeedingPhone > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onRetryPhoneEnrichment}
+                disabled={isRetryingPhoneEnrichment}
+              >
+                {isRetryingPhoneEnrichment ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <PhoneCall className="mr-2 h-4 w-4" />
+                )}
+                {isRetryingPhoneEnrichment
+                  ? 'Enriching phones...'
+                  : `Retry Phones (${contactsNeedingPhone})`}
+              </Button>
+            )}
             {onEnrichContacts && (
               <Button
                 size="sm"
@@ -105,16 +129,38 @@ export const ContactsTab = ({
                     )}
                   </TableCell>
                   <TableCell>
-                    {contact.phone ? (
-                      <ClickToDialPhone
-                        phone={contact.phone}
-                        name={contact.name || undefined}
-                        email={contact.email || undefined}
-                        size="sm"
-                      />
-                    ) : (
-                      '\u2014'
-                    )}
+                    <div className="flex flex-col gap-0.5">
+                      {contact.mobile_phone_1 ? (
+                        <ClickToDialPhone
+                          phone={contact.mobile_phone_1}
+                          name={contact.name || undefined}
+                          email={contact.email || undefined}
+                          size="sm"
+                        />
+                      ) : contact.phone ? (
+                        <ClickToDialPhone
+                          phone={contact.phone}
+                          name={contact.name || undefined}
+                          email={contact.email || undefined}
+                          size="sm"
+                        />
+                      ) : null}
+                      {contact.mobile_phone_2 && (
+                        <ClickToDialPhone
+                          phone={contact.mobile_phone_2}
+                          name={contact.name || undefined}
+                          email={contact.email || undefined}
+                          size="sm"
+                        />
+                      )}
+                      {contact.office_phone && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Building2 className="h-3 w-3" />
+                          {contact.office_phone}
+                        </span>
+                      )}
+                      {!contact.mobile_phone_1 && !contact.phone && !contact.office_phone && '\u2014'}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {contact.linkedin_url ? (

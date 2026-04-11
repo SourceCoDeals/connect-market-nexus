@@ -88,6 +88,7 @@ const ReMarketingBuyerDetail = () => {
     addTranscriptMutation,
     extractTranscriptMutation,
     deleteTranscriptMutation,
+    retryPhoneEnrichmentMutation,
     isContactDialogOpen,
     setIsContactDialogOpen,
     newContact,
@@ -103,6 +104,10 @@ const ReMarketingBuyerDetail = () => {
     role: '',
     linkedin_url: '',
     is_primary: false,
+    mobile_phone_1: '',
+    mobile_phone_2: '',
+    mobile_phone_3: '',
+    office_phone: '',
   });
 
   const {
@@ -454,12 +459,23 @@ const ReMarketingBuyerDetail = () => {
                 role: contact.role || '',
                 linkedin_url: contact.linkedin_url || '',
                 is_primary: contact.is_primary || false,
+                mobile_phone_1: contact.mobile_phone_1 || '',
+                mobile_phone_2: contact.mobile_phone_2 || '',
+                mobile_phone_3: contact.mobile_phone_3 || '',
+                office_phone: contact.office_phone || '',
               });
               setIsEditDialogOpen(true);
             }}
             onDeleteContact={(contactId) => deleteContactMutation.mutate(contactId)}
             onEnrichContacts={() => findContactsMutation.mutate()}
             isEnrichingContacts={findContactsMutation.isPending}
+            onRetryPhoneEnrichment={() => {
+              const needsPhone = contacts
+                .filter((c) => !c.mobile_phone_1 && !c.phone)
+                .map((c) => c.id);
+              if (needsPhone.length > 0) retryPhoneEnrichmentMutation.mutate(needsPhone);
+            }}
+            isRetryingPhoneEnrichment={retryPhoneEnrichmentMutation.isPending}
           />
         </TabsContent>
 

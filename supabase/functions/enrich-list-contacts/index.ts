@@ -167,7 +167,11 @@ Deno.serve(async (req: Request) => {
         if (enriched && (enriched.email || enriched.phone)) {
           const updateFields: Record<string, unknown> = {};
           if (enriched.email && !contact.email) updateFields.email = enriched.email;
-          if (enriched.phone && !contact.phone) updateFields.phone = enriched.phone;
+          if (enriched.phone && !contact.phone) {
+            updateFields.phone = enriched.phone;
+            updateFields.mobile_phone_1 = enriched.phone;
+            updateFields.phone_source = enriched.source || 'list_enrich';
+          }
           if (enriched.linkedin_url && !contact.linkedin_url)
             updateFields.linkedin_url = enriched.linkedin_url;
 

@@ -21,6 +21,10 @@ export function useBuyerMutations(
     role: '',
     linkedin_url: '',
     is_primary: false,
+    mobile_phone_1: '',
+    mobile_phone_2: '',
+    mobile_phone_3: '',
+    office_phone: '',
   });
 
   const enrichMutation = useMutation({
@@ -198,13 +202,18 @@ export function useBuyerMutations(
         p_first_name: firstName,
         p_last_name: lastName,
         p_email: newContact.email || null,
-        p_phone: newContact.phone || null,
+        p_phone: newContact.mobile_phone_1 || newContact.phone || null,
         p_title: newContact.role || null,
         p_linkedin_url: newContact.linkedin_url || null,
         p_is_primary_at_firm: newContact.is_primary,
         p_remarketing_buyer_id: id!,
         p_firm_id: buyer?.marketplace_firm_id ?? null,
         p_source: 'remarketing_manual',
+        p_mobile_phone_1: newContact.mobile_phone_1 || null,
+        p_mobile_phone_2: newContact.mobile_phone_2 || null,
+        p_mobile_phone_3: newContact.mobile_phone_3 || null,
+        p_office_phone: newContact.office_phone || null,
+        p_phone_source: 'manual',
       });
       if (error) throw error;
     },
@@ -219,6 +228,10 @@ export function useBuyerMutations(
         role: '',
         linkedin_url: '',
         is_primary: false,
+        mobile_phone_1: '',
+        mobile_phone_2: '',
+        mobile_phone_3: '',
+        office_phone: '',
       });
     },
     onError: () => {
@@ -234,6 +247,10 @@ export function useBuyerMutations(
       phone: string;
       role: string;
       linkedin_url: string;
+      mobile_phone_1?: string;
+      mobile_phone_2?: string;
+      mobile_phone_3?: string;
+      office_phone?: string;
     }) => {
       const nameParts = contact.name.trim().split(/\s+/);
       const firstName = nameParts[0] || 'Unknown';
@@ -244,9 +261,14 @@ export function useBuyerMutations(
         p_first_name: firstName,
         p_last_name: lastName,
         p_email: contact.email || null,
-        p_phone: contact.phone || null,
+        p_phone: contact.mobile_phone_1 || contact.phone || null,
         p_title: contact.role || null,
         p_linkedin_url: contact.linkedin_url || null,
+        p_mobile_phone_1: contact.mobile_phone_1 || null,
+        p_mobile_phone_2: contact.mobile_phone_2 || null,
+        p_mobile_phone_3: contact.mobile_phone_3 || null,
+        p_office_phone: contact.office_phone || null,
+        p_phone_source: 'manual',
       });
       if (error) throw error;
     },
@@ -418,6 +440,32 @@ export function useBuyerMutations(
     },
   });
 
+  const retryPhoneEnrichmentMutation = useMutation({
+    mutationFn: async (contactIds: string[]) => {
+      if (contactIds.length === 0) throw new Error('No contacts need phone enrichment');
+
+      const { data, error } = await invokeWithTimeout<{
+        results: Array<{ contact_id: string; phone: string | null; source: string | null }>;
+      }>('enrich-list-contacts', {
+        body: { contact_ids: contactIds },
+        timeoutMs: 120_000,
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
+      const phonesFound = data?.results?.filter((r: { phone: string | null }) => r.phone).length || 0;
+      toast.success(
+        `Phone enrichment complete: ${phonesFound} phone${phonesFound !== 1 ? 's' : ''} found`,
+      );
+    },
+    onError: (error: Error) => {
+      toast.error(`Phone enrichment failed: ${error.message}`);
+    },
+  });
+
   return {
     enrichMutation,
     findContactsMutation,
@@ -430,6 +478,7 @@ export function useBuyerMutations(
     addTranscriptMutation,
     extractTranscriptMutation,
     deleteTranscriptMutation,
+    retryPhoneEnrichmentMutation,
     isContactDialogOpen,
     setIsContactDialogOpen,
     newContact,
