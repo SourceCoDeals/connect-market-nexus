@@ -243,6 +243,7 @@ export function useSendMessage() {
       queryClient.invalidateQueries({ queryKey: ['unread-message-counts'] });
       queryClient.invalidateQueries({ queryKey: ['unread-buyer-message-counts'] });
       queryClient.invalidateQueries({ queryKey: ['message-center-threads'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
     },
   });
 }

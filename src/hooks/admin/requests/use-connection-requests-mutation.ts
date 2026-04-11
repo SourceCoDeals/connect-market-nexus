@@ -32,21 +32,10 @@ export function useConnectionRequestsMutation() {
 
       if (updateError) throw updateError;
 
-      // Phase 5 (F-A3): Explicitly call create_pipeline_deal RPC on approval.
-      // The trigger also fires, but both are idempotent (dedupe on connection_request_id).
-      // Once verified in production, the trigger can be dropped.
-      if (status === 'approved') {
-        const { error: dealError } = await supabase.rpc('create_pipeline_deal', {
-          p_connection_request_id: requestId,
-        });
-        if (dealError) {
-          // Non-blocking: trigger may have already created the deal.
-          console.warn(
-            '[useConnectionRequestsMutation] create_pipeline_deal failed (trigger may have handled it):',
-            dealError.message,
-          );
-        }
-      }
+      // Deal creation is handled automatically by the DB trigger
+      // `trg_auto_create_deal_from_connection` which fires when
+      // connection_requests.status changes to 'approved'.
+      // No explicit RPC call needed here.
 
       // Get complete request data for email notification
       const { data: requestData, error: requestError } = await supabase

@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { QUERY_KEYS } from '@/lib/query-keys';
 
 export function useRealtimeConnections() {
   const queryClient = useQueryClient();
@@ -15,6 +16,14 @@ export function useRealtimeConnections() {
     // Admins still get INSERT events for the admin table, but no buyer toasts.
     const updateFilter = user?.id ? `user_id=eq.${user.id}` : undefined;
 
+    const invalidateAll = () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.connectionRequests });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.userConnectionRequests });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.admin.connectionRequests });
+      queryClient.invalidateQueries({ queryKey: ['connection-status'] });
+      queryClient.invalidateQueries({ queryKey: ['all-connection-statuses'] });
+    };
+
     const channel = supabase
       .channel('connection-requests-realtime')
       .on(
@@ -25,10 +34,7 @@ export function useRealtimeConnections() {
           table: 'connection_requests',
         },
         (_payload) => {
-          // Invalidate all connection-related queries
-          queryClient.invalidateQueries({ queryKey: ['connection-status'] });
-          queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
-          queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
+          invalidateAll();
         },
       )
       .on(
@@ -46,7 +52,7 @@ export function useRealtimeConnections() {
             const newStatus = payload.new.status;
             if (newStatus === 'approved') {
               toast({
-                title: 'Connection Approved! ✅',
+                title: 'Connection Approved!',
                 description: 'Your connection request has been approved.',
               });
             } else if (newStatus === 'rejected') {
@@ -58,10 +64,7 @@ export function useRealtimeConnections() {
             }
           }
 
-          // Invalidate all connection-related queries
-          queryClient.invalidateQueries({ queryKey: ['connection-status'] });
-          queryClient.invalidateQueries({ queryKey: ['user-connection-requests'] });
-          queryClient.invalidateQueries({ queryKey: ['admin-connection-requests'] });
+          invalidateAll();
           queryClient.invalidateQueries({ queryKey: ['user-notifications'] });
         },
       )
