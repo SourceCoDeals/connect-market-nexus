@@ -111,7 +111,7 @@ export function ApprovalSection({
                   <TooltipTrigger asChild>
                     <Button
                       variant="outline"
-                      onClick={() => setShowRejectDialog(true)}
+                      onClick={handleReject}
                       disabled={isStatusPending}
                       className="border-border text-foreground h-9 px-4 text-sm font-medium"
                     >
@@ -229,7 +229,7 @@ export function ApprovalSection({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowRejectDialog(true)}
+              onClick={handleReject}
               disabled={isStatusPending}
               className="text-xs h-7 px-3 border-red-200 text-red-700 hover:bg-red-50"
             >

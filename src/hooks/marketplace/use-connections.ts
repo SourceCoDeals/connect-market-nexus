@@ -227,7 +227,7 @@ export const useAllConnectionStatuses = () => {
         return new Map<string, { exists: boolean; status: string; id: string }>();
       }
     },
-    staleTime: 1000 * 60,
+    staleTime: 0, // Realtime subscription handles cache freshness
   });
 };
 
@@ -321,6 +321,6 @@ export const useUserConnectionRequests = () => {
         return [];
       }
     },
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 0, // Realtime subscription handles cache freshness
   });
 };
