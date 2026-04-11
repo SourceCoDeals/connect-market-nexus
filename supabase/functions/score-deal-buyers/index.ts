@@ -102,10 +102,13 @@ Deno.serve(async (req: Request) => {
     const contentHashStr = String(contentHash);
 
     // ── Check cache (Issue #40: also verify universe context matches + content hash) ──
-    if (!forceRefresh) {
+    if (!forceRefresh && !lookupBuyerId) {
+      // Select known columns only; content_hash may not exist yet (requires migration).
+      // If the column exists, it'll be in the result; if not, the query still works
+      // with just the known columns and we skip hash-based invalidation.
       const { data: cached } = await supabase
         .from('buyer_recommendation_cache')
-        .select('results, buyer_count, scored_at, universe_ids, content_hash')
+        .select('results, buyer_count, scored_at, universe_ids')
         .eq('listing_id', listingId)
         .gt('expires_at', new Date().toISOString())
         .maybeSingle();
@@ -123,8 +126,7 @@ Deno.serve(async (req: Request) => {
 
       if (
         cached &&
-        JSON.stringify((cached.universe_ids || []).slice().sort()) === currentUniverseKey &&
-        (!cached.content_hash || cached.content_hash === contentHashStr)
+        JSON.stringify((cached.universe_ids || []).slice().sort()) === currentUniverseKey
       ) {
         return new Response(
           JSON.stringify({
@@ -554,7 +556,7 @@ Deno.serve(async (req: Request) => {
           : buyer.hq_state || '';
       const matchingServiceTerms = svc.signals
         .map((s) => {
-          const m = s.match(/^(?:Exact industry match|Adjacent industry):\s*(.+)/i);
+          const m = s.match(/^(?:Exact industry match|Same-family industry|Adjacent industry):\s*(.+)/i);
           return m?.[1]?.trim() || null;
         })
         .filter(Boolean) as string[];
@@ -581,6 +583,16 @@ Deno.serve(async (req: Request) => {
             );
           } else {
             matchDetails.push(`directly targets ${dealIndustry || 'this industry'}`);
+          }
+        } else if (svc.score >= 80) {
+          if (matchingServiceTerms.length > 0) {
+            matchDetails.push(
+              `same-family fit via ${matchingServiceTerms.slice(0, 2).map(titleCase).join(', ')} to ${dealIndustry || 'this industry'}`,
+            );
+          } else {
+            matchDetails.push(
+              `same-family fit to ${dealIndustry || 'this industry'}${buyer.industry_vertical ? ` (${buyer.industry_vertical})` : ''}`,
+            );
           }
         } else if (svc.score >= 60) {
           if (matchingServiceTerms.length > 0) {
@@ -642,6 +654,8 @@ Deno.serve(async (req: Request) => {
             : buyer.hq_state || '';
         const parts: string[] = [];
         if (svc.score >= 100) parts.push(`targets ${dealIndustry || 'this'} industry directly`);
+        else if (svc.score >= 80)
+          parts.push(`operates in a related ${dealIndustry || 'industry'} vertical`);
         else if (svc.score >= 60)
           parts.push(`invests in adjacent ${dealIndustry || 'industry'} verticals`);
         if (geo.score >= 100)
@@ -745,6 +759,10 @@ Deno.serve(async (req: Request) => {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + CACHE_HOURS * 60 * 60 * 1000);
 
+    // Note: content_hash is computed above but not written to the cache table yet.
+    // A future migration should add a content_hash TEXT column to buyer_recommendation_cache,
+    // then uncomment content_hash in the upsert and add it to the cache SELECT above
+    // for stale-on-edit invalidation.
     const { error: cacheError } = await supabase.from('buyer_recommendation_cache').upsert(
       {
         listing_id: listingId,
@@ -754,7 +772,7 @@ Deno.serve(async (req: Request) => {
         results: topBuyers,
         score_version: 'v4',
         universe_ids: universeIds,
-        content_hash: contentHashStr,
+        // content_hash: contentHashStr, // Uncomment after migration adds this column
       },
       { onConflict: 'listing_id' },
     );

@@ -935,6 +935,7 @@ export function RecommendedBuyersTab({
           </p>
         </div>
       ) : (
+        <>
         {/* Platform / All Buyers toggle */}
         <div className="flex items-center gap-1 mb-3">
           <Filter className="h-3.5 w-3.5 text-muted-foreground mr-1" />
@@ -1158,6 +1159,7 @@ export function RecommendedBuyersTab({
             </p>
           )}
         </Tabs>
+        </>
       )}
 
       {/* Rejection Reason Dialog */}
