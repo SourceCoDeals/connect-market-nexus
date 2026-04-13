@@ -1,6 +1,7 @@
 /**
  * OutlookSettingsPage: Connection management for individual team members
  * and admin dashboard showing all connections.
+ * Includes Historical Email Backfill with 1yr/3yr/5yr/10yr presets.
  */
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
