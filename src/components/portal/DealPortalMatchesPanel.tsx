@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -5,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useDealPortalMatches,
-  useApproveRecommendation,
   useDismissRecommendation,
+  useMarkRecommendationPushed,
 } from '@/hooks/portal/use-portal-recommendations';
+import { PushToPortalDialog } from './PushToPortalDialog';
 
 interface DealPortalMatchesPanelProps {
   listingId: string;
+  listingTitle?: string;
 }
 
 const SCORE_COLOR = (score: number) =>
@@ -31,14 +34,23 @@ const STATUS_STYLES: Record<string, string> = {
   approved: 'bg-blue-100 text-blue-800',
   pushed: 'bg-green-100 text-green-800',
   dismissed: 'bg-gray-100 text-gray-600',
+  stale: 'bg-gray-100 text-gray-500',
 };
 
-export function DealPortalMatchesPanel({ listingId }: DealPortalMatchesPanelProps) {
-  const { data: matches, isLoading } = useDealPortalMatches(listingId);
-  const approveRecommendation = useApproveRecommendation();
-  const dismissRecommendation = useDismissRecommendation();
+type PortalMatch = NonNullable<ReturnType<typeof useDealPortalMatches>['data']>[number];
 
-  const count = matches?.length ?? 0;
+export function DealPortalMatchesPanel({ listingId, listingTitle }: DealPortalMatchesPanelProps) {
+  const { data: matches, isLoading } = useDealPortalMatches(listingId);
+  const dismissRecommendation = useDismissRecommendation();
+  const markPushed = useMarkRecommendationPushed();
+  const [pushTargetOrgId, setPushTargetOrgId] = useState<string | null>(null);
+
+  // P3-28: hide terminal states (dismissed / stale) from the panel so it
+  // only surfaces actionable matches.
+  const visibleMatches = (matches ?? []).filter(
+    (m) => m.status !== 'dismissed' && m.status !== 'stale',
+  );
+  const count = visibleMatches.length;
 
   return (
     <Card>
@@ -52,7 +64,7 @@ export function DealPortalMatchesPanel({ listingId }: DealPortalMatchesPanelProp
           <p className="text-sm text-muted-foreground">No portal matches</p>
         ) : (
           <div className="space-y-3">
-            {matches!.map((match) => (
+            {visibleMatches.map((match: PortalMatch) => (
               <div
                 key={match.id}
                 className="flex items-center justify-between gap-3 rounded-md border p-3"
@@ -91,15 +103,10 @@ export function DealPortalMatchesPanel({ listingId }: DealPortalMatchesPanelProp
                       size="sm"
                       variant="default"
                       className="h-7 text-xs gap-1"
-                      onClick={() =>
-                        approveRecommendation.mutate({
-                          id: match.id,
-                          portalOrgId: match.portal_org_id,
-                        })
-                      }
+                      onClick={() => setPushTargetOrgId(match.portal_org_id)}
                     >
                       <Check className="h-3.5 w-3.5" />
-                      Approve
+                      Push
                     </Button>
                     <Button
                       size="sm"
@@ -122,6 +129,17 @@ export function DealPortalMatchesPanel({ listingId }: DealPortalMatchesPanelProp
           </div>
         )}
       </CardContent>
+
+      <PushToPortalDialog
+        open={pushTargetOrgId !== null}
+        onOpenChange={(open) => !open && setPushTargetOrgId(null)}
+        listingId={listingId}
+        listingTitle={listingTitle}
+        defaultPortalOrgId={pushTargetOrgId ?? undefined}
+        onPushSuccess={({ pushId, portalOrgId, listingId: lid }) => {
+          markPushed.mutate({ portalOrgId, listingId: lid, pushId });
+        }}
+      />
     </Card>
   );
 }

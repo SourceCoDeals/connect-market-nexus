@@ -279,15 +279,10 @@ export function usePartnerActions(
   const handleBulkArchive = async (reason?: string) => {
     const ids = confirmAction?.ids || [];
     if (!ids.length) return;
-    const updatePayload: Record<string, unknown> = { status: 'archived' };
-    if (reason) {
-      updatePayload.archive_reason = reason;
-      updatePayload.archived_at = new Date().toISOString();
-    }
-    const { error } = await supabase
-      .from('listings')
-      .update(updatePayload as never)
-      .in('id', ids);
+    const { error } = await supabase.rpc('archive_listings_bulk', {
+      p_listing_ids: ids,
+      p_reason: reason ?? null,
+    });
     if (error) toast.error('Failed to archive deals');
     else {
       toast.success(`${ids.length} deals archived`);

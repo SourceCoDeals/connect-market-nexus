@@ -10,31 +10,45 @@ import type {
 
 const QUERY_KEY = 'portal-recommendations';
 
+export const DEFAULT_RECOMMENDATIONS_PAGE_SIZE = 25;
+
+export interface UsePortalRecommendationsOptions {
+  statusFilter?: RecommendationStatus | 'all';
+  /** Zero-indexed page. */
+  page?: number;
+  pageSize?: number;
+}
+
 export function usePortalRecommendations(
   portalOrgId: string | undefined,
-  statusFilter?: RecommendationStatus | 'all',
+  options: UsePortalRecommendationsOptions = {},
 ) {
+  const { statusFilter = 'all', page = 0, pageSize = DEFAULT_RECOMMENDATIONS_PAGE_SIZE } = options;
+
   return useQuery({
-    queryKey: [QUERY_KEY, portalOrgId, statusFilter],
+    queryKey: [QUERY_KEY, portalOrgId, statusFilter, page, pageSize],
     queryFn: async () => {
-      if (!portalOrgId) return [];
+      if (!portalOrgId) return { rows: [] as PortalDealRecommendationWithListing[], total: 0 };
 
       let query = untypedFrom('portal_deal_recommendations')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('portal_org_id', portalOrgId)
-        .order('match_score', { ascending: false });
+        .order('match_score', { ascending: false })
+        .range(page * pageSize, page * pageSize + pageSize - 1);
 
       if (statusFilter && statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
 
       const recos = (data ?? []) as PortalDealRecommendation[];
-      if (recos.length === 0) return [] as PortalDealRecommendationWithListing[];
+      if (recos.length === 0) {
+        return { rows: [] as PortalDealRecommendationWithListing[], total: count ?? 0 };
+      }
 
-      // Fetch listing details for all recommendations
+      // Fetch listing details for this page
       const listingIds = [...new Set(recos.map((r) => r.listing_id))];
       const { data: listings } = await supabase
         .from('listings')
@@ -60,7 +74,7 @@ export function usePortalRecommendations(
         }
       }
 
-      return recos.map((r) => {
+      const rows = recos.map((r) => {
         const listing = listingMap.get(r.listing_id);
         return {
           ...r,
@@ -72,13 +86,61 @@ export function usePortalRecommendations(
           thesis_label: r.thesis_criteria_id ? criteriaMap.get(r.thesis_criteria_id) : undefined,
         } as PortalDealRecommendationWithListing;
       });
+
+      return { rows, total: count ?? rows.length };
     },
     enabled: !!portalOrgId,
     staleTime: 30_000,
   });
 }
 
-/** Lightweight count of pending recommendations per portal org */
+/** Count of unseen strong pending recommendations for a portal.
+ *  Used by the "X new strong" badge on the Recommendations tab. */
+export function useUnseenStrongMatchCount(portalOrgId: string | undefined) {
+  return useQuery({
+    queryKey: [QUERY_KEY, 'unseen-strong', portalOrgId],
+    queryFn: async () => {
+      if (!portalOrgId) return 0;
+      const { count, error } = await untypedFrom('portal_deal_recommendations')
+        .select('*', { count: 'exact', head: true })
+        .eq('portal_org_id', portalOrgId)
+        .eq('status', 'pending')
+        .eq('match_category', 'strong')
+        .is('strong_match_alerted_at', null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!portalOrgId,
+    staleTime: 15_000,
+  });
+}
+
+/** Mark all unseen strong matches for a portal as seen. Call this when
+ *  an admin first renders the Recommendations tab. */
+export function useMarkStrongMatchesSeen() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ portalOrgId }: { portalOrgId: string }) => {
+      const { error } = await untypedFrom('portal_deal_recommendations')
+        .update({ strong_match_alerted_at: new Date().toISOString() })
+        .eq('portal_org_id', portalOrgId)
+        .eq('status', 'pending')
+        .eq('match_category', 'strong')
+        .is('strong_match_alerted_at', null);
+      if (error) throw error;
+      return { portalOrgId };
+    },
+    onSuccess: ({ portalOrgId }) => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'unseen-strong', portalOrgId] });
+    },
+  });
+}
+
+/** Lightweight count of pending recommendations per portal org.
+ *  Uses portal_org_id grouping on the client, but only fetches the single
+ *  column — still cheaper than pulling full rows. For very large pending
+ *  backlogs, move this to a view or RPC.
+ */
 export function useRecommendationPendingCounts() {
   return useQuery({
     queryKey: [QUERY_KEY, 'pending-counts'],
@@ -98,18 +160,20 @@ export function useRecommendationPendingCounts() {
   });
 }
 
-/** Count for a single portal org */
+/** Count of pending recommendations for a single portal org.
+ *  Uses Postgres `count: 'exact'` with `head: true` so no rows are returned
+ *  (much cheaper than pulling every id client-side). */
 export function useRecommendationCount(portalOrgId: string | undefined) {
   return useQuery({
     queryKey: [QUERY_KEY, 'count', portalOrgId],
     queryFn: async () => {
       if (!portalOrgId) return 0;
-      const { data, error } = await untypedFrom('portal_deal_recommendations')
-        .select('id')
+      const { count, error } = await untypedFrom('portal_deal_recommendations')
+        .select('*', { count: 'exact', head: true })
         .eq('portal_org_id', portalOrgId)
         .eq('status', 'pending');
       if (error) throw error;
-      return (data as unknown[] | null)?.length ?? 0;
+      return count ?? 0;
     },
     enabled: !!portalOrgId,
     staleTime: 30_000,
@@ -145,38 +209,12 @@ export function useDismissRecommendation() {
     onSuccess: ({ portalOrgId }) => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, portalOrgId] });
       qc.invalidateQueries({ queryKey: [QUERY_KEY, 'pending-counts'] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'count', portalOrgId] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'deal'] });
       toast.success('Recommendation dismissed');
     },
     onError: (err: Error) => {
       toast.error('Failed to dismiss', { description: err.message });
-    },
-  });
-}
-
-export function useApproveRecommendation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, portalOrgId }: { id: string; portalOrgId: string }) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const { error } = await untypedFrom('portal_deal_recommendations')
-        .update({
-          status: 'approved',
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-      if (error) throw error;
-      return { portalOrgId };
-    },
-    onSuccess: ({ portalOrgId }) => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, portalOrgId] });
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'pending-counts'] });
-      toast.success('Recommendation approved');
-    },
-    onError: (err: Error) => {
-      toast.error('Failed to approve', { description: err.message });
     },
   });
 }
@@ -194,19 +232,30 @@ export function useMarkRecommendationPushed() {
       listingId: string;
       pushId?: string;
     }) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       const { error } = await untypedFrom('portal_deal_recommendations')
         .update({
           status: 'pushed',
           push_id: pushId || null,
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString(),
         })
         .eq('portal_org_id', portalOrgId)
         .eq('listing_id', listingId);
       if (error) throw error;
-      return { portalOrgId };
+      return { portalOrgId, listingId };
     },
     onSuccess: ({ portalOrgId }) => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, portalOrgId] });
       qc.invalidateQueries({ queryKey: [QUERY_KEY, 'pending-counts'] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'count', portalOrgId] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'deal'] });
+    },
+    onError: (err: Error) => {
+      toast.error('Failed to mark recommendation as pushed', { description: err.message });
     },
   });
 }

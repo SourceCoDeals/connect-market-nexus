@@ -216,10 +216,10 @@ export function useDealsActions({
   const confirmArchiveDeal = useCallback(
     async (reason: string) => {
       if (!archiveTarget) return;
-      const { error } = await supabase
-        .from('listings')
-        .update({ remarketing_status: 'archived', archive_reason: reason } as never)
-        .eq('id', archiveTarget.id);
+      const { error } = await supabase.rpc('archive_listing', {
+        p_listing_id: archiveTarget.id,
+        p_reason: reason,
+      });
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
         throw error;
@@ -495,10 +495,10 @@ export function useDealsActions({
     setIsArchiving(true);
     try {
       const ids = Array.from(selectedDeals);
-      const { error } = await supabase
-        .from('listings')
-        .update({ remarketing_status: 'archived' })
-        .in('id', ids);
+      const { error } = await supabase.rpc('archive_listings_bulk', {
+        p_listing_ids: ids,
+        p_reason: null,
+      });
       if (error) throw error;
       toast({ title: 'Deals archived', description: `${ids.length} deal(s) have been archived` });
       setSelectedDeals(new Set());

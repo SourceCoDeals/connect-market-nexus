@@ -2952,6 +2952,7 @@ export type Database = {
       contact_list_members: {
         Row: {
           added_at: string
+          added_by: string
           contact_company: string | null
           contact_email: string
           contact_id: string | null
@@ -2966,6 +2967,7 @@ export type Database = {
         }
         Insert: {
           added_at?: string
+          added_by?: string
           contact_company?: string | null
           contact_email: string
           contact_id?: string | null
@@ -2980,6 +2982,7 @@ export type Database = {
         }
         Update: {
           added_at?: string
+          added_by?: string
           contact_company?: string | null
           contact_email?: string
           contact_id?: string | null
@@ -3011,6 +3014,7 @@ export type Database = {
       }
       contact_lists: {
         Row: {
+          auto_add_enabled: boolean
           contact_count: number
           created_at: string
           created_by: string | null
@@ -3018,15 +3022,21 @@ export type Database = {
           filter_snapshot: Json | null
           id: string
           is_archived: boolean
+          is_smart_list: boolean
+          last_evaluated_at: string | null
           last_pushed_at: string | null
           last_pushed_by: string | null
+          list_rules: Json | null
           list_type: string
+          match_mode: string | null
           name: string
+          source_entity: string | null
           tags: string[] | null
           updated_at: string
           updated_by: string | null
         }
         Insert: {
+          auto_add_enabled?: boolean
           contact_count?: number
           created_at?: string
           created_by?: string | null
@@ -3034,15 +3044,21 @@ export type Database = {
           filter_snapshot?: Json | null
           id?: string
           is_archived?: boolean
+          is_smart_list?: boolean
+          last_evaluated_at?: string | null
           last_pushed_at?: string | null
           last_pushed_by?: string | null
+          list_rules?: Json | null
           list_type?: string
+          match_mode?: string | null
           name: string
+          source_entity?: string | null
           tags?: string[] | null
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
+          auto_add_enabled?: boolean
           contact_count?: number
           created_at?: string
           created_by?: string | null
@@ -3050,10 +3066,15 @@ export type Database = {
           filter_snapshot?: Json | null
           id?: string
           is_archived?: boolean
+          is_smart_list?: boolean
+          last_evaluated_at?: string | null
           last_pushed_at?: string | null
           last_pushed_by?: string | null
+          list_rules?: Json | null
           list_type?: string
+          match_mode?: string | null
           name?: string
+          source_entity?: string | null
           tags?: string[] | null
           updated_at?: string
           updated_by?: string | null
@@ -11344,6 +11365,52 @@ export type Database = {
           },
         ]
       }
+      smart_list_buyer_evaluation_queue: {
+        Row: {
+          buyer_id: string
+          queued_at: string
+        }
+        Insert: {
+          buyer_id: string
+          queued_at?: string
+        }
+        Update: {
+          buyer_id?: string
+          queued_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smart_list_buyer_evaluation_queue_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: true
+            referencedRelation: "buyers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      smart_list_evaluation_queue: {
+        Row: {
+          listing_id: string
+          queued_at: string
+        }
+        Insert: {
+          listing_id: string
+          queued_at?: string
+        }
+        Update: {
+          listing_id?: string
+          queued_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smart_list_evaluation_queue_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       smartlead_campaign_leads: {
         Row: {
           buyer_contact_id: string | null
@@ -13459,6 +13526,51 @@ export type Database = {
       }
     }
     Functions: {
+      clone_list: {
+        Args: {
+          p_source_id: string
+          p_new_name: string
+        }
+        Returns: string
+      }
+      evaluate_smart_list_now: {
+        Args: {
+          p_list_id: string
+        }
+        Returns: number
+      }
+      intersect_lists: {
+        Args: {
+          p_list_ids: string[]
+          p_new_name: string
+          p_list_type?: string
+        }
+        Returns: string
+      }
+      merge_lists: {
+        Args: {
+          p_list_ids: string[]
+          p_new_name: string
+          p_list_type?: string
+        }
+        Returns: string
+      }
+      subtract_lists: {
+        Args: {
+          p_primary_id: string
+          p_exclude_ids: string[]
+          p_new_name: string
+        }
+        Returns: string
+      }
+      archive_listing: {
+        Args: { p_listing_id: string; p_reason?: string | null }
+        Returns: boolean
+      }
+      archive_listings_bulk: {
+        Args: { p_listing_ids: string[]; p_reason?: string | null }
+        Returns: number
+      }
       assign_connection_request_decider: {
         Args: {
           p_admin_id: string
@@ -14428,6 +14540,10 @@ export type Database = {
       resolve_portal_access: { Args: { p_slug: string }; Returns: Json }
       resolve_user_firm_id: { Args: { p_user_id: string }; Returns: string }
       restore_deal: { Args: { deal_id: string }; Returns: boolean }
+      restore_listing: {
+        Args: { p_listing_id: string }
+        Returns: boolean
+      }
       restore_soft_deleted: {
         Args: { p_record_id: string; p_table_name: string }
         Returns: boolean

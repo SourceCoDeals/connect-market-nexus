@@ -9,3 +9,5 @@ export {
 } from './useEmailMessages';
 export type { SmartleadReplyRecord } from './useEmailMessages';
 export { useAdminEmailConnections } from './useAdminEmailConnections';
+export { useOutlookMigrationHealth } from './useOutlookMigrationHealth';
+export type { OutlookMigrationHealth } from './useOutlookMigrationHealth';

@@ -20,9 +20,15 @@ import {
   Shield,
   Webhook,
   Activity,
+  History,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEmailConnection, useAdminEmailConnections } from '@/hooks/email';
+import {
+  useEmailConnection,
+  useAdminEmailConnections,
+  useOutlookMigrationHealth,
+} from '@/hooks/email';
 import type { EmailConnectionStatus } from '@/types/email';
 
 function StatusBadge({ status }: { status: EmailConnectionStatus }) {
@@ -69,6 +75,57 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
+const BACKFILL_PRESETS: { label: string; days: number }[] = [
+  { label: '1 year', days: 365 },
+  { label: '3 years', days: 1095 },
+  { label: '5 years', days: 1825 },
+  { label: '10 years', days: 3650 },
+];
+
+/**
+ * Banner rendered at the top of the Outlook settings page when the Outlook
+ * historical-tracking migration hasn't been applied to the production
+ * database. Without the migration, sync silently drops every unmatched
+ * email (the target queue table doesn't exist) and historical linking
+ * breaks, so surfacing this prominently saves a long debugging session.
+ */
+function MigrationHealthBanner({ isAdmin }: { isAdmin: boolean }) {
+  const { data: health } = useOutlookMigrationHealth(isAdmin);
+  if (!health || health.migrationApplied) return null;
+  return (
+    <Alert variant="destructive">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>Database migration not applied</AlertTitle>
+      <AlertDescription className="space-y-2">
+        <p>
+          The Outlook historical-tracking migration{' '}
+          <code className="bg-black/10 dark:bg-white/10 px-1 rounded">
+            20260703000001_fix_outlook_historical_tracking.sql
+          </code>{' '}
+          has not been applied to this database. Until it is, the sync engine silently drops every
+          email from an unknown contact, historical emails aren&apos;t linked to deals, and the
+          Backfill button will error out.
+        </p>
+        <p>Run this once from a terminal with the Supabase CLI installed and authenticated:</p>
+        <pre className="bg-black/10 dark:bg-white/10 p-2 rounded text-xs font-mono overflow-x-auto">
+          supabase db push --project-ref vhzipqarkmmfuqadefep
+        </pre>
+        <p className="text-xs">
+          If you don&apos;t have the CLI, open Supabase dashboard → SQL Editor and paste the
+          contents of the migration file instead. Refresh this page after the migration succeeds —
+          this banner will disappear.
+        </p>
+        {health.errorCode && (
+          <p className="text-xs opacity-75">
+            Detected error code: <code>{health.errorCode}</code>
+            {health.errorMessage ? ` — ${health.errorMessage}` : null}
+          </p>
+        )}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 function MyConnection() {
   const {
     connection,
@@ -78,7 +135,11 @@ function MyConnection() {
     isConnecting,
     disconnect,
     isDisconnecting,
+    backfillHistory,
+    isBackfilling,
+    lastBackfillResult,
   } = useEmailConnection();
+  const [selectedPreset, setSelectedPreset] = useState<number>(365);
 
   if (isLoading) {
     return (
@@ -177,6 +238,63 @@ function MyConnection() {
 
         <Separator />
 
+        {isConnected && (
+          <>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">Historical Email Backfill</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The initial connection automatically syncs the last 365 days of history. Run a
+                deeper backfill below to pull older Outlook threads and automatically link them to
+                matching contacts and deals. Emails that don&apos;t match a known contact yet are
+                stored and retro-linked the moment a matching contact is created.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {BACKFILL_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.days}
+                    size="sm"
+                    variant={selectedPreset === preset.days ? 'default' : 'outline'}
+                    onClick={() => setSelectedPreset(preset.days)}
+                    disabled={isBackfilling}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  onClick={() => backfillHistory({ daysBack: selectedPreset })}
+                  disabled={isBackfilling}
+                >
+                  {isBackfilling ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <History className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {isBackfilling ? 'Backfilling…' : `Backfill ${selectedPreset} days`}
+                </Button>
+              </div>
+              {lastBackfillResult && (
+                <p className="text-xs text-muted-foreground">
+                  Last backfill pulled{' '}
+                  <span className="font-medium text-foreground">
+                    {lastBackfillResult.syncResult?.synced ?? 0}
+                  </span>{' '}
+                  matched emails and queued{' '}
+                  <span className="font-medium text-foreground">
+                    {lastBackfillResult.syncResult?.queuedUnmatched ?? 0}
+                  </span>{' '}
+                  for future contacts.
+                </p>
+              )}
+            </div>
+
+            <Separator />
+          </>
+        )}
+
         <div className="flex gap-2">
           {!isConnected && (
             <Button size="sm" onClick={() => connect()} disabled={isConnecting}>
@@ -188,7 +306,11 @@ function MyConnection() {
             size="sm"
             variant="outline"
             onClick={() => {
-              if (window.confirm('Are you sure you want to disconnect your Outlook account? Email history will be preserved.')) {
+              if (
+                window.confirm(
+                  'Are you sure you want to disconnect your Outlook account? Email history will be preserved.',
+                )
+              ) {
                 disconnect(undefined);
               }
             }}
@@ -205,7 +327,13 @@ function MyConnection() {
 
 function AdminConnectionsDashboard() {
   const { data: connections, isLoading } = useAdminEmailConnections();
-  const { disconnect, isDisconnecting } = useEmailConnection();
+  const {
+    disconnect,
+    isDisconnecting,
+    bulkBackfillAll,
+    isBulkBackfilling,
+    lastBulkBackfillResult,
+  } = useEmailConnection();
 
   if (isLoading) {
     return (
@@ -216,6 +344,18 @@ function AdminConnectionsDashboard() {
       </Card>
     );
   }
+
+  const activeConnectionCount = (connections || []).filter((c) => c.status === 'active').length;
+
+  const handleBulkBackfill = () => {
+    if (activeConnectionCount === 0) return;
+    const confirmed = window.confirm(
+      `This will import the last 365 days of Outlook history for all ${activeConnectionCount} connected team member${activeConnectionCount === 1 ? '' : 's'}, linking emails to existing contacts and deals. Emails for contacts that don't exist yet will be queued and auto-linked when those contacts are created.\n\nThis may take several minutes. Continue?`,
+    );
+    if (confirmed) {
+      bulkBackfillAll({ daysBack: 365 });
+    }
+  };
 
   return (
     <Card>
@@ -228,7 +368,76 @@ function AdminConnectionsDashboard() {
           Monitor all team member email connections. Connections in error state need attention.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {/* Bulk backfill — lives in its own dedicated block above the
+            connection list so it's visually impossible to miss. The old
+            placement (tucked into the CardHeader) was invisible in some
+            layouts. */}
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Historical Email Backfill — All Mailboxes
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Imports the last 365 days of Outlook history for every connected team member in one
+                sequential run, linking each email to existing contacts and deals. Emails for
+                contacts that don&apos;t exist yet are queued and auto-linked the moment those
+                contacts are created.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleBulkBackfill}
+              disabled={isBulkBackfilling || activeConnectionCount === 0}
+              title={
+                activeConnectionCount === 0
+                  ? 'No active connections to backfill'
+                  : `Backfill 365 days of history for all ${activeConnectionCount} connected mailboxes`
+              }
+            >
+              {isBulkBackfilling ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <History className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              {isBulkBackfilling
+                ? 'Backfilling all…'
+                : `Backfill all (365 days)${
+                    activeConnectionCount > 0 ? ` · ${activeConnectionCount}` : ''
+                  }`}
+            </Button>
+          </div>
+          {activeConnectionCount === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No active connections yet. Have team members click Connect Outlook above first, then
+              come back here to backfill.
+            </p>
+          )}
+          {lastBulkBackfillResult && (
+            <p className="text-xs text-muted-foreground">
+              Last run: processed{' '}
+              <span className="font-medium text-foreground">
+                {lastBulkBackfillResult.mailboxesProcessed}
+              </span>{' '}
+              mailboxes ({lastBulkBackfillResult.mailboxesFailed} failed). Imported{' '}
+              <span className="font-medium text-foreground">
+                {lastBulkBackfillResult.totalSynced}
+              </span>{' '}
+              matched emails, queued{' '}
+              <span className="font-medium text-foreground">
+                {lastBulkBackfillResult.totalQueued}
+              </span>{' '}
+              for future contacts, re-linked{' '}
+              <span className="font-medium text-foreground">
+                {lastBulkBackfillResult.totalRematched}
+              </span>{' '}
+              from the unmatched queue.
+            </p>
+          )}
+        </div>
+
         {!connections || connections.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             No team members have connected their Outlook accounts yet.
@@ -242,8 +451,8 @@ function AdminConnectionsDashboard() {
                   conn.status === 'error'
                     ? 'border-destructive/50 bg-destructive/5'
                     : conn.status === 'expired'
-                    ? 'border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-900/10'
-                    : ''
+                      ? 'border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-900/10'
+                      : ''
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -256,7 +465,9 @@ function AdminConnectionsDashboard() {
                     </p>
                     <p className="text-xs text-muted-foreground truncate">{conn.email_address}</p>
                     {conn.error_message && (
-                      <p className="text-xs text-destructive mt-0.5 truncate">{conn.error_message}</p>
+                      <p className="text-xs text-destructive mt-0.5 truncate">
+                        {conn.error_message}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -293,7 +504,7 @@ function AdminConnectionsDashboard() {
 
 const OutlookSettingsPage = () => {
   const { user } = useAuth();
-  const isAdmin = user?.is_admin;
+  const isAdmin = !!user?.is_admin;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -304,6 +515,8 @@ const OutlookSettingsPage = () => {
           correspondence with contacts.
         </p>
       </div>
+
+      {isAdmin && <MigrationHealthBanner isAdmin={isAdmin} />}
 
       <MyConnection />
 

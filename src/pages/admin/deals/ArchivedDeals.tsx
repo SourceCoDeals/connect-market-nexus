@@ -170,10 +170,9 @@ export default function ArchivedDeals() {
       await restoreDealMutation.mutateAsync(restoreTarget.id);
       queryClient.invalidateQueries({ queryKey: ['deals', 'archived'] });
     } else {
-      const { error } = await supabase
-        .from('listings')
-        .update({ remarketing_status: 'active', archive_reason: null } as never)
-        .eq('id', restoreTarget.id);
+      const { error } = await supabase.rpc('restore_listing', {
+        p_listing_id: restoreTarget.id,
+      });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'archived-listings'] });
       queryClient.invalidateQueries({ queryKey: ['remarketing'] });

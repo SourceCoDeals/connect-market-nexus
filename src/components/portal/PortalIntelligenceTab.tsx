@@ -1,17 +1,21 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronDown, ChevronUp, FileText, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, FileText, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import {
   usePortalIntelligenceDocs,
   useDeleteIntelligenceDoc,
 } from '@/hooks/portal/use-portal-intelligence';
 import { AddIntelligenceDocDialog } from './AddIntelligenceDocDialog';
 import type { IntelligenceDocType, PortalIntelligenceDoc } from '@/types/portal';
+
+const INTEL_BUCKET = 'portal-intelligence-docs';
 
 interface PortalIntelligenceTabProps {
   portalOrgId: string;
@@ -35,10 +39,29 @@ const DOC_TYPE_LABELS: Record<IntelligenceDocType, string> = {
 
 function DocCard({ doc, portalOrgId }: { doc: PortalIntelligenceDoc; portalOrgId: string }) {
   const [expanded, setExpanded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const deleteMutation = useDeleteIntelligenceDoc();
   const content = doc.content ?? '';
   const isLong = content.length > 200;
   const displayContent = expanded ? content : content.slice(0, 200);
+
+  const handleDownload = async () => {
+    if (!doc.file_url) return;
+    setDownloading(true);
+    try {
+      // file_url is stored as the bucket path; create a signed URL valid for 60s.
+      const { data, error } = await supabase.storage
+        .from(INTEL_BUCKET)
+        .createSignedUrl(doc.file_url, 60);
+      if (error) throw error;
+      if (data?.signedUrl) window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Download failed';
+      toast.error('Download failed', { description: msg });
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <Card>
@@ -52,20 +75,43 @@ function DocCard({ doc, portalOrgId }: { doc: PortalIntelligenceDoc; portalOrgId
               <span className="text-[11px] text-muted-foreground">
                 {format(new Date(doc.created_at), 'MMM d, yyyy')}
               </span>
+              {doc.fireflies_transcript_id && (
+                <Badge variant="outline" className="text-[10px]">
+                  Fireflies
+                </Badge>
+              )}
             </div>
             <h4 className="text-sm font-semibold truncate">{doc.title}</h4>
           </div>
 
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-            disabled={deleteMutation.isPending}
-            onClick={() => deleteMutation.mutate({ id: doc.id, portalOrgId })}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex items-center gap-1 shrink-0">
+            {doc.file_url && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                disabled={downloading}
+                onClick={handleDownload}
+                title={doc.file_name ?? 'Download file'}
+              >
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate({ id: doc.id, portalOrgId })}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
+
+        {doc.file_name && (
+          <p className="text-[11px] text-muted-foreground truncate">📎 {doc.file_name}</p>
+        )}
 
         {content && (
           <div>

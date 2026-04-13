@@ -272,7 +272,7 @@ export const PASS_REASON_LABELS: Record<PassReasonCategory, string> = {
   other: 'Other',
 };
 
-export type RecommendationStatus = 'pending' | 'approved' | 'pushed' | 'dismissed';
+export type RecommendationStatus = 'pending' | 'approved' | 'pushed' | 'dismissed' | 'stale';
 
 export type IntelligenceDocType =
   | 'call_transcript'

@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Copy, Plus } from 'lucide-react';
 import { usePortalThesisCriteria, useDeleteThesisCriteria } from '@/hooks/portal/use-portal-thesis';
 import { ThesisCriteriaCard } from './ThesisCriteriaCard';
 import { ThesisCriteriaForm } from './ThesisCriteriaForm';
+import { CloneThesisDialog } from './CloneThesisDialog';
 import type { PortalThesisCriteria } from '@/types/portal';
 
 interface PortalThesisTabProps {
@@ -22,6 +23,7 @@ export function PortalThesisTab({ portalOrgId }: PortalThesisTabProps) {
   const deleteMutation = useDeleteThesisCriteria();
 
   const [formOpen, setFormOpen] = useState(false);
+  const [cloneOpen, setCloneOpen] = useState(false);
   const [editingCriteria, setEditingCriteria] = useState<PortalThesisCriteria | null>(null);
 
   // Compute summary from active criteria
@@ -106,10 +108,21 @@ export function PortalThesisTab({ portalOrgId }: PortalThesisTabProps) {
         ) : (
           <p className="text-sm text-muted-foreground">No active criteria</p>
         )}
-        <Button size="sm" onClick={handleAddNew}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add Industry
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setCloneOpen(true)}
+            title="Copy thesis from another portal"
+          >
+            <Copy className="h-4 w-4 mr-1" />
+            Clone from Portal
+          </Button>
+          <Button size="sm" onClick={handleAddNew}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Industry
+          </Button>
+        </div>
       </div>
 
       {/* Empty state */}
@@ -146,6 +159,13 @@ export function PortalThesisTab({ portalOrgId }: PortalThesisTabProps) {
         onOpenChange={setFormOpen}
         portalOrgId={portalOrgId}
         editingCriteria={editingCriteria}
+      />
+
+      {/* Clone dialog */}
+      <CloneThesisDialog
+        open={cloneOpen}
+        onOpenChange={setCloneOpen}
+        targetPortalOrgId={portalOrgId}
       />
     </div>
   );
