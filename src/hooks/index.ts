@@ -98,10 +98,7 @@ export {
 export { useAnalyticsTracking } from './use-analytics-tracking';
 export { useClickTracking } from './use-click-tracking';
 export { usePageEngagement } from './use-page-engagement';
-export {
-  useSimpleMarketplaceAnalytics,
-  useAnalyticsHealthCheck,
-} from './use-simple-marketplace-analytics';
+// useSimpleMarketplaceAnalytics — removed (dead code)
 
 // ─── UTM & Attribution ───
 export {
@@ -158,21 +155,15 @@ export { useCampaignAttribution } from './useCampaignAttribution';
 export { useReMarketingAnalytics } from './useReMarketingAnalytics';
 
 // ─── User Journeys ───
-export { useUserJourneys, useJourneyDetail } from './useUserJourneys';
-export { useJourneyMilestones } from './useJourneyMilestones';
 export { useVisitorIdentity } from './useVisitorIdentity';
 export { useUserDetail } from './useUserDetail';
 
 // ─── Scoring ───
 export { useAlignmentScoring } from './useAlignmentScoring';
 export { useBackgroundScoringProgress } from './useBackgroundScoringProgress';
-export { useBackgroundGuideGeneration } from './useBackgroundGuideGeneration';
 
 // ─── Mapbox ───
 export { useMapboxToken, preloadMapboxToken } from './useMapboxToken';
-
-// ─── Signup ───
-export { useSignupAnalytics } from './use-signup-analytics';
 
 // ─── Activity ───
 export { useRecentActivity } from './use-recent-activity';
