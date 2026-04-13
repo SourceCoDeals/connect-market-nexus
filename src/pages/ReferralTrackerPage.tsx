@@ -26,12 +26,21 @@ import { Loader2, Lock, Building2, ChevronDown, Users, Search, X } from 'lucide-
 import { toast } from 'sonner';
 import { ReferralSubmissionForm } from '@/components/remarketing/ReferralSubmissionForm';
 import { ReferralCSVUpload } from '@/components/remarketing/ReferralCSVUpload';
-const sourcecoLogo = '/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png';
+const sourcecoLogo = '/assets/b879fa06-6a99-4263-b973-b9ced4404acb.png';
 
 interface PartnerData {
   name: string;
   company: string | null;
 }
+
+type DerivedStatus =
+  | 'in_diligence'
+  | 'connecting_with_buyers'
+  | 'unable_to_reach_owner'
+  | 'in_review'
+  | 'archived'
+  | 'rejected'
+  | 'pending';
 
 interface DealRow {
   id: string;
@@ -51,6 +60,13 @@ interface DealRow {
   main_contact_email?: string | null;
   linkedin_employee_count?: number | null;
   linkedin_employee_range?: string | null;
+  // Enriched fields from edge function
+  pipeline_deal_count?: number;
+  buyer_intro_count?: number;
+  needs_owner_contact?: boolean;
+  pushed_to_all_deals?: boolean;
+  // Computed on frontend
+  derived_status?: DerivedStatus;
 }
 
 const formatCurrency = (value: number | null) => {
@@ -60,27 +76,86 @@ const formatCurrency = (value: number | null) => {
   return `$${value.toLocaleString()}`;
 };
 
-const statusBadge = (status: string | undefined, source: 'listing' | 'submission') => {
-  if (!status) return null;
-  if (source === 'listing') {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>;
-      case 'draft':
-        return <Badge className="bg-amber-100 text-amber-800 border-amber-200">In Review</Badge>;
-      case 'archived':
-        return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Archived</Badge>;
-      default:
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">{status}</Badge>;
-    }
+const DERIVED_STATUS_LABELS: Record<DerivedStatus, string> = {
+  in_diligence: 'In Diligence',
+  connecting_with_buyers: 'Connecting with Buyers',
+  unable_to_reach_owner: 'Unable to Reach Owner',
+  in_review: 'In Review',
+  archived: 'Archived',
+  rejected: 'Rejected',
+  pending: 'Pending Review',
+};
+
+function computeDerivedStatus(deal: DealRow): DerivedStatus {
+  if (deal.source === 'submission') {
+    if (deal.status === 'rejected') return 'rejected';
+    return 'pending';
   }
-  switch (status) {
-    case 'pending':
-      return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>;
-    case 'approved':
-      return <Badge className="bg-green-100 text-green-800 border-green-200">Approved</Badge>;
+
+  // Listing-based logic with precedence
+  if (deal.status === 'archived') return 'archived';
+
+  // In pipeline with a buyer = highest positive signal
+  if ((deal.pipeline_deal_count ?? 0) > 0) return 'in_diligence';
+
+  // Has buyer introductions OR pushed to all deals = connecting with buyers
+  if ((deal.buyer_intro_count ?? 0) > 0 || deal.pushed_to_all_deals)
+    return 'connecting_with_buyers';
+
+  // No contact info = unable to reach owner (needs partner help)
+  if (deal.needs_owner_contact || (!deal.main_contact_email && !deal.main_contact_name)) {
+    return 'unable_to_reach_owner';
+  }
+
+  // Everything else is in review
+  return 'in_review';
+}
+
+const statusBadge = (derivedStatus: DerivedStatus | undefined) => {
+  if (!derivedStatus) return null;
+  switch (derivedStatus) {
+    case 'in_diligence':
+      return (
+        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
+          {DERIVED_STATUS_LABELS.in_diligence}
+        </Badge>
+      );
+    case 'connecting_with_buyers':
+      return (
+        <Badge className="bg-green-100 text-green-800 border-green-200">
+          {DERIVED_STATUS_LABELS.connecting_with_buyers}
+        </Badge>
+      );
+    case 'unable_to_reach_owner':
+      return (
+        <Badge className="bg-red-100 text-red-700 border-red-200">
+          {DERIVED_STATUS_LABELS.unable_to_reach_owner}
+        </Badge>
+      );
+    case 'in_review':
+      return (
+        <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+          {DERIVED_STATUS_LABELS.in_review}
+        </Badge>
+      );
+    case 'archived':
+      return (
+        <Badge className="bg-gray-100 text-gray-600 border-gray-200">
+          {DERIVED_STATUS_LABELS.archived}
+        </Badge>
+      );
     case 'rejected':
-      return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Rejected</Badge>;
+      return (
+        <Badge className="bg-gray-100 text-gray-600 border-gray-200">
+          {DERIVED_STATUS_LABELS.rejected}
+        </Badge>
+      );
+    case 'pending':
+      return (
+        <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+          {DERIVED_STATUS_LABELS.pending}
+        </Badge>
+      );
     default:
       return null;
   }
@@ -107,7 +182,7 @@ export default function ReferralTrackerPage() {
     const locations = new Set<string>();
     for (const d of deals) {
       if (d.category) categories.add(d.category);
-      if (d.status) statuses.add(d.status);
+      if (d.derived_status) statuses.add(d.derived_status);
       if (d.location) locations.add(d.location);
     }
     return {
@@ -135,7 +210,7 @@ export default function ReferralTrackerPage() {
       // Category filter
       if (categoryFilter !== 'all' && deal.category !== categoryFilter) return false;
       // Status filter
-      if (statusFilter !== 'all' && deal.status !== statusFilter) return false;
+      if (statusFilter !== 'all' && deal.derived_status !== statusFilter) return false;
       // Location filter
       if (locationFilter !== 'all' && deal.location !== locationFilter) return false;
       return true;
@@ -177,7 +252,7 @@ export default function ReferralTrackerPage() {
 
       if (data.listings) {
         for (const l of data.listings) {
-          dealRows.push({
+          const row: DealRow = {
             id: l.id,
             title: l.title || l.internal_company_name,
             category: l.category,
@@ -195,7 +270,13 @@ export default function ReferralTrackerPage() {
             main_contact_email: l.main_contact_email,
             linkedin_employee_count: l.linkedin_employee_count,
             linkedin_employee_range: l.linkedin_employee_range,
-          });
+            pipeline_deal_count: l.pipeline_deal_count ?? 0,
+            buyer_intro_count: l.buyer_intro_count ?? 0,
+            needs_owner_contact: l.needs_owner_contact ?? false,
+            pushed_to_all_deals: l.pushed_to_all_deals ?? false,
+          };
+          row.derived_status = computeDerivedStatus(row);
+          dealRows.push(row);
         }
       }
 
@@ -203,7 +284,7 @@ export default function ReferralTrackerPage() {
         for (const s of data.submissions) {
           if (s.status === 'approved' && s.listing_id) continue;
 
-          dealRows.push({
+          const row: DealRow = {
             id: s.id,
             title: s.company_name,
             category: s.industry,
@@ -216,7 +297,9 @@ export default function ReferralTrackerPage() {
             website: s.website || null,
             main_contact_name: s.contact_name || null,
             main_contact_email: s.contact_email || null,
-          });
+          };
+          row.derived_status = computeDerivedStatus(row);
+          dealRows.push(row);
         }
       }
 
@@ -400,7 +483,7 @@ export default function ReferralTrackerPage() {
                         <SelectItem value="all">All Statuses</SelectItem>
                         {filterOptions.statuses.map((s) => (
                           <SelectItem key={s} value={s}>
-                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                            {DERIVED_STATUS_LABELS[s as DerivedStatus] ?? s}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -435,7 +518,8 @@ export default function ReferralTrackerPage() {
                 </div>
                 {hasActiveFilters && (
                   <p className="text-xs text-muted-foreground">
-                    Showing <span className="font-medium text-foreground">{filteredDeals.length}</span> of{' '}
+                    Showing{' '}
+                    <span className="font-medium text-foreground">{filteredDeals.length}</span> of{' '}
                     <span className="font-medium text-foreground">{deals.length}</span> referrals
                   </p>
                 )}
@@ -446,179 +530,181 @@ export default function ReferralTrackerPage() {
                     <p className="text-sm">No referrals match your search</p>
                   </div>
                 ) : (
-              <div className="border border-sourceco-form rounded-lg overflow-auto">
-                <Table className="table-fixed w-full" style={{ minWidth: '1100px' }}>
-                  <TableHeader>
-                    <TableRow className="border-sourceco-form bg-sourceco-form/30">
-                      <TableHead
-                        className="text-foreground font-semibold overflow-hidden resize-x"
-                        style={{ width: 180 }}
-                      >
-                        Company Name
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold overflow-hidden resize-x"
-                        style={{ width: 180 }}
-                      >
-                        Industry
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold overflow-hidden resize-x"
-                        style={{ width: 140 }}
-                      >
-                        Website
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold text-center overflow-hidden resize-x"
-                        style={{ width: 70 }}
-                      >
-                        Score
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold overflow-hidden resize-x"
-                        style={{ width: 160 }}
-                      >
-                        Contact
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold text-right overflow-hidden resize-x"
-                        style={{ width: 100 }}
-                      >
-                        Revenue
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold text-right overflow-hidden resize-x"
-                        style={{ width: 100 }}
-                      >
-                        EBITDA
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold overflow-hidden resize-x"
-                        style={{ width: 120 }}
-                      >
-                        LinkedIn
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold overflow-hidden resize-x"
-                        style={{ width: 110 }}
-                      >
-                        Location
-                      </TableHead>
-                      <TableHead
-                        className="text-foreground font-semibold overflow-hidden resize-x"
-                        style={{ width: 80 }}
-                      >
-                        Status
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredDeals.map((deal) => (
-                      <TableRow
-                        key={deal.id}
-                        className={`border-sourceco-form ${deal.is_priority_target ? 'bg-amber-50' : ''}`}
-                      >
-                        <TableCell className="font-medium text-foreground truncate">
-                          {deal.title || 'Untitled'}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm truncate">
-                          {deal.category || '-'}
-                        </TableCell>
-                        <TableCell className="text-sm truncate">
-                          {deal.website ? (
-                            <a
-                              href={
-                                deal.website.startsWith('http')
-                                  ? deal.website
-                                  : `https://${deal.website}`
-                              }
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sourceco-accent hover:underline truncate block"
-                            >
-                              {deal.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {deal.deal_total_score ? (
-                            <Badge
-                              className={`text-xs ${
-                                deal.deal_total_score >= 80
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                                  : deal.deal_total_score >= 60
-                                    ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                    : deal.deal_total_score >= 40
-                                      ? 'bg-amber-100 text-amber-800 border-amber-200'
-                                      : 'bg-red-100 text-red-800 border-red-200'
-                              }`}
-                            >
-                              {deal.deal_total_score}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm truncate">
-                          {deal.main_contact_name ? (
-                            <div className="space-y-0.5 overflow-hidden">
-                              <div className="text-foreground font-medium text-xs truncate">
-                                {deal.main_contact_name}
-                              </div>
-                              {deal.main_contact_title && (
-                                <div className="text-muted-foreground text-xs truncate">
-                                  {deal.main_contact_title}
-                                </div>
-                              )}
-                              {deal.main_contact_email && (
+                  <div className="border border-sourceco-form rounded-lg overflow-auto">
+                    <Table className="table-fixed w-full" style={{ minWidth: '1100px' }}>
+                      <TableHeader>
+                        <TableRow className="border-sourceco-form bg-sourceco-form/30">
+                          <TableHead
+                            className="text-foreground font-semibold overflow-hidden resize-x"
+                            style={{ width: 180 }}
+                          >
+                            Company Name
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold overflow-hidden resize-x"
+                            style={{ width: 180 }}
+                          >
+                            Industry
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold overflow-hidden resize-x"
+                            style={{ width: 140 }}
+                          >
+                            Website
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold text-center overflow-hidden resize-x"
+                            style={{ width: 70 }}
+                          >
+                            Score
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold overflow-hidden resize-x"
+                            style={{ width: 160 }}
+                          >
+                            Contact
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold text-right overflow-hidden resize-x"
+                            style={{ width: 100 }}
+                          >
+                            Revenue
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold text-right overflow-hidden resize-x"
+                            style={{ width: 100 }}
+                          >
+                            EBITDA
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold overflow-hidden resize-x"
+                            style={{ width: 120 }}
+                          >
+                            LinkedIn
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold overflow-hidden resize-x"
+                            style={{ width: 110 }}
+                          >
+                            Location
+                          </TableHead>
+                          <TableHead
+                            className="text-foreground font-semibold overflow-hidden resize-x"
+                            style={{ width: 80 }}
+                          >
+                            Status
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredDeals.map((deal) => (
+                          <TableRow
+                            key={deal.id}
+                            className={`border-sourceco-form ${deal.is_priority_target ? 'bg-amber-50' : ''}`}
+                          >
+                            <TableCell className="font-medium text-foreground truncate">
+                              {deal.title || 'Untitled'}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm truncate">
+                              {deal.category || '-'}
+                            </TableCell>
+                            <TableCell className="text-sm truncate">
+                              {deal.website ? (
                                 <a
-                                  href={`mailto:${deal.main_contact_email}`}
-                                  className="text-sourceco-accent hover:underline text-xs block truncate"
+                                  href={
+                                    deal.website.startsWith('http')
+                                      ? deal.website
+                                      : `https://${deal.website}`
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sourceco-accent hover:underline truncate block"
                                 >
-                                  {deal.main_contact_email}
+                                  {deal.website
+                                    .replace(/^https?:\/\/(www\.)?/, '')
+                                    .replace(/\/$/, '')}
                                 </a>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
                               )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm text-right truncate">
-                          {formatCurrency(deal.revenue)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm text-right truncate">
-                          {formatCurrency(deal.ebitda)}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {deal.linkedin_employee_count ? (
-                            <div className="space-y-0.5 overflow-hidden">
-                              <div className="flex items-center gap-1 text-foreground">
-                                <Users className="h-3 w-3 text-blue-600 shrink-0" />
-                                <span className="font-medium text-xs">
-                                  {deal.linkedin_employee_count.toLocaleString()}
-                                </span>
-                              </div>
-                              {deal.linkedin_employee_range && (
-                                <div className="text-muted-foreground text-xs truncate">
-                                  {deal.linkedin_employee_range}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {deal.deal_total_score ? (
+                                <Badge
+                                  className={`text-xs ${
+                                    deal.deal_total_score >= 80
+                                      ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                      : deal.deal_total_score >= 60
+                                        ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                        : deal.deal_total_score >= 40
+                                          ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                          : 'bg-red-100 text-red-800 border-red-200'
+                                  }`}
+                                >
+                                  {deal.deal_total_score}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm truncate">
+                              {deal.main_contact_name ? (
+                                <div className="space-y-0.5 overflow-hidden">
+                                  <div className="text-foreground font-medium text-xs truncate">
+                                    {deal.main_contact_name}
+                                  </div>
+                                  {deal.main_contact_title && (
+                                    <div className="text-muted-foreground text-xs truncate">
+                                      {deal.main_contact_title}
+                                    </div>
+                                  )}
+                                  {deal.main_contact_email && (
+                                    <a
+                                      href={`mailto:${deal.main_contact_email}`}
+                                      className="text-sourceco-accent hover:underline text-xs block truncate"
+                                    >
+                                      {deal.main_contact_email}
+                                    </a>
+                                  )}
                                 </div>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
                               )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm truncate">
-                          {deal.location || '-'}
-                        </TableCell>
-                        <TableCell>{statusBadge(deal.status, deal.source)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm text-right truncate">
+                              {formatCurrency(deal.revenue)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm text-right truncate">
+                              {formatCurrency(deal.ebitda)}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {deal.linkedin_employee_count ? (
+                                <div className="space-y-0.5 overflow-hidden">
+                                  <div className="flex items-center gap-1 text-foreground">
+                                    <Users className="h-3 w-3 text-blue-600 shrink-0" />
+                                    <span className="font-medium text-xs">
+                                      {deal.linkedin_employee_count.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  {deal.linkedin_employee_range && (
+                                    <div className="text-muted-foreground text-xs truncate">
+                                      {deal.linkedin_employee_range}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm truncate">
+                              {deal.location || '-'}
+                            </TableCell>
+                            <TableCell>{statusBadge(deal.derived_status)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </>
             )}
