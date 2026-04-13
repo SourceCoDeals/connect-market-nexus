@@ -1,11 +1,18 @@
 /**
  * outlook-sync-emails: Syncs emails from Microsoft Graph to the platform.
  *
- * Two modes:
- *   1. Initial sync (isInitialSync=true): Pull last 90 days of email history
- *   2. Polling sync: Fetch recent emails since last sync (fallback for webhooks)
+ * Modes:
+ *   1. Initial sync (isInitialSync=true): Pull `initialLookbackDays` of
+ *      email history (default 365 days). Callers can override
+ *      `initialLookbackDays` up to 3650 (≈10 years) for deeper historical
+ *      backfills triggered from the Outlook settings page.
+ *   2. Polling sync: Fetch recent emails since last sync (fallback for webhooks).
  *
- * Only stores emails that match known contact email addresses.
+ * Emails whose participants match a known contact are written to
+ * `email_messages` and linked to the appropriate deal. Emails whose
+ * participants do NOT match any known contact are persisted to
+ * `outlook_unmatched_emails` so they can be retro-linked when a matching
+ * contact is added later.
  */
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -31,9 +38,15 @@ interface GraphMessage {
 interface ContactMatch {
   id: string;
   email: string;
+  /** deal_pipeline.id — the CRM deal this contact is attached to, if any. */
   deal_id?: string | null;
+  /** listings.id — seller-contact convenience link (kept for downstream UI). */
   listing_id?: string | null;
 }
+
+const DEFAULT_INITIAL_LOOKBACK_DAYS = 365;
+const MAX_INITIAL_LOOKBACK_DAYS = 3650; // ~10 years
+const MAX_INITIAL_PAGES = 400; // 50 messages/page → up to 20k emails per backfill
 
 import { decryptToken, encryptToken, refreshAccessToken } from '../_shared/microsoft-tokens.ts';
 
@@ -124,14 +137,19 @@ async function loadKnownContactEmails(
     for (const c of contacts) {
       if (c.email) {
         emailMap.set(c.email.toLowerCase(), {
-          id: c.id, email: c.email, listing_id: c.listing_id || null, deal_id: null,
+          id: c.id,
+          email: c.email,
+          listing_id: c.listing_id || null,
+          deal_id: null,
         });
       }
     }
   }
 
   // Batch-resolve listing_id → deal_pipeline.id for remarketing deals
-  const listingIds = [...new Set([...emailMap.values()].map(c => c.listing_id).filter(Boolean))] as string[];
+  const listingIds = [
+    ...new Set([...emailMap.values()].map((c) => c.listing_id).filter(Boolean)),
+  ] as string[];
   if (listingIds.length > 0) {
     const chunkSize = 500;
     for (let i = 0; i < listingIds.length; i += chunkSize) {
@@ -153,46 +171,52 @@ async function loadKnownContactEmails(
     }
   }
 
-  // Look up deal associations for contacts via buyer_contact_id and seller_contact_id.
-  // Only fetch active deals (not archived/lost) to link the most relevant deal.
-  const contactIds = contacts?.map((c) => c.id) || [];
+  // Look up deal associations for contacts via buyer_contact_id / seller_contact_id
+  // on `deal_pipeline` (renamed from `deals` in 20260506000000). We exclude
+  // soft-deleted deals via `deleted_at IS NULL` — `deal_pipeline` has no
+  // `stage` text column; stage is an FK to `deal_stages`, so the previous
+  // `.not('stage', 'in', '(...)')` filter was also broken.
+  const contactById = new Map<string, ContactMatch>();
+  for (const c of emailMap.values()) contactById.set(c.id, c);
+
+  const contactIds = Array.from(contactById.keys());
   if (contactIds.length > 0) {
-    // Batch in chunks of 500 to avoid query size limits
     const chunkSize = 500;
     for (let i = 0; i < contactIds.length; i += chunkSize) {
       const chunk = contactIds.slice(i, i + chunkSize);
 
-      const { data: buyerDeals } = await supabase
-        .from('deals')
-        .select('id, buyer_contact_id')
+      const { data: buyerDeals, error: buyerErr } = await supabase
+        .from('deal_pipeline')
+        .select('id, buyer_contact_id, updated_at')
         .in('buyer_contact_id', chunk)
-        .not('stage', 'in', '("lost","archived")');
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false });
 
-      if (buyerDeals) {
-        for (const d of buyerDeals) {
-          if (d.buyer_contact_id) {
-            const contact = [...emailMap.values()].find((c) => c.id === d.buyer_contact_id);
-            if (contact && !contact.deal_id) {
-              contact.deal_id = d.id;
-            }
-          }
+      if (buyerErr) {
+        console.error('[outlook-sync] deal_pipeline buyer lookup failed:', buyerErr.message);
+      } else {
+        for (const d of buyerDeals || []) {
+          if (!d.buyer_contact_id) continue;
+          const contact = contactById.get(d.buyer_contact_id);
+          // First match wins (we sorted by updated_at desc → most recent deal).
+          if (contact && !contact.deal_id) contact.deal_id = d.id;
         }
       }
 
-      const { data: sellerDeals } = await supabase
-        .from('deals')
-        .select('id, seller_contact_id')
+      const { data: sellerDeals, error: sellerErr } = await supabase
+        .from('deal_pipeline')
+        .select('id, seller_contact_id, updated_at')
         .in('seller_contact_id', chunk)
-        .not('stage', 'in', '("lost","archived")');
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false });
 
-      if (sellerDeals) {
-        for (const d of sellerDeals) {
-          if (d.seller_contact_id) {
-            const contact = [...emailMap.values()].find((c) => c.id === d.seller_contact_id);
-            if (contact && !contact.deal_id) {
-              contact.deal_id = d.id;
-            }
-          }
+      if (sellerErr) {
+        console.error('[outlook-sync] deal_pipeline seller lookup failed:', sellerErr.message);
+      } else {
+        for (const d of sellerDeals || []) {
+          if (!d.seller_contact_id) continue;
+          const contact = contactById.get(d.seller_contact_id);
+          if (contact && !contact.deal_id) contact.deal_id = d.id;
         }
       }
     }
@@ -239,7 +263,13 @@ Deno.serve(async (req) => {
     return errorResponse('Method not allowed', 405, corsHeaders);
   }
 
-  let body: { userId?: string; accessToken?: string; isInitialSync?: boolean };
+  let body: {
+    userId?: string;
+    accessToken?: string;
+    isInitialSync?: boolean;
+    /** How many days back to pull on an initial sync. Default 365. Max 3650. */
+    initialLookbackDays?: number;
+  };
   try {
     body = await req.json();
   } catch {
@@ -390,8 +420,12 @@ Deno.serve(async (req) => {
     return errorResponse('Connection not found', 404, corsHeaders);
   }
 
+  const requestedLookback = Math.max(
+    1,
+    Math.min(body.initialLookbackDays || DEFAULT_INITIAL_LOOKBACK_DAYS, MAX_INITIAL_LOOKBACK_DAYS),
+  );
   const since = body.isInitialSync
-    ? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    ? new Date(Date.now() - requestedLookback * 24 * 60 * 60 * 1000).toISOString()
     : undefined;
 
   const result = await syncEmails(
@@ -425,14 +459,15 @@ async function syncEmails(
   userEmail: string,
   since?: string,
   isInitial = false,
-): Promise<{ synced: number; skipped: number; errors: string[] }> {
+): Promise<{ synced: number; skipped: number; queuedUnmatched: number; errors: string[] }> {
   const contactEmails = await loadKnownContactEmails(supabase);
   let synced = 0;
   let skipped = 0;
+  let queuedUnmatched = 0;
   const errors: string[] = [];
   let nextLink: string | undefined;
   let pageCount = 0;
-  const maxPages = isInitial ? 100 : 10; // Limit pages for polling
+  const maxPages = isInitial ? MAX_INITIAL_PAGES : 10; // Deep backfill for initial, bounded for polling
 
   do {
     try {
@@ -476,25 +511,73 @@ async function syncEmails(
 
           // Match to known contacts
           const match = matchEmailToContacts(msg, contactEmails, userEmail);
-          if (match.contacts.length === 0) {
-            skipped++;
-            if (isInitial && skipped <= 10) {
-              // Log a sample of unmatched emails during initial sync for diagnostics
-              const participants = [
-                msg.from?.emailAddress?.address,
-                ...(msg.toRecipients || []).map((r) => r.emailAddress?.address),
-              ].filter(Boolean);
-              console.log(
-                `Skipped unmatched email: subject="${(msg.subject || '').slice(0, 50)}" participants=${participants.join(',')}`,
-              );
-            }
-            continue;
-          }
 
-          // Fetch attachment metadata if needed
+          // Fetch attachment metadata once regardless of matched/unmatched — we
+          // want the queued unmatched rows to retain the same fidelity so they
+          // can be promoted faithfully later.
           let attachmentMeta: { name: string; size: number; contentType: string }[] = [];
           if (msg.hasAttachments) {
             attachmentMeta = await fetchAttachmentMetadata(accessToken, msg.id);
+          }
+
+          if (match.contacts.length === 0) {
+            // Persist to the unmatched queue so a future contact insert can
+            // retro-link this email via the `rematch_unmatched_outlook_emails`
+            // RPC / the `trg_contacts_rematch_outlook` trigger.
+            const fromAddr = msg.from?.emailAddress?.address?.toLowerCase() || '';
+            const toAddrs = (msg.toRecipients || [])
+              .map((r) => r.emailAddress?.address?.toLowerCase())
+              .filter(Boolean) as string[];
+            const ccAddrs = (msg.ccRecipients || [])
+              .map((r) => r.emailAddress?.address?.toLowerCase())
+              .filter(Boolean) as string[];
+
+            const participantEmails = Array.from(
+              new Set(
+                [fromAddr, ...toAddrs, ...ccAddrs].filter(
+                  (addr): addr is string => !!addr && addr !== userEmail.toLowerCase(),
+                ),
+              ),
+            );
+
+            // If nobody besides the mailbox owner was on the message, there is
+            // nothing worth queueing — skip outright.
+            if (participantEmails.length === 0) {
+              skipped++;
+              continue;
+            }
+
+            const { error: queueError } = await supabase.from('outlook_unmatched_emails').upsert(
+              {
+                microsoft_message_id: msg.id,
+                microsoft_conversation_id: msg.conversationId,
+                sourceco_user_id: userId,
+                mailbox_address: userEmail,
+                direction: match.direction,
+                from_address: msg.from?.emailAddress?.address || '',
+                to_addresses: (msg.toRecipients || []).map((r) => r.emailAddress?.address),
+                cc_addresses: (msg.ccRecipients || []).map((r) => r.emailAddress?.address),
+                participant_emails: participantEmails,
+                subject: msg.subject || '(No subject)',
+                body_html: msg.body?.contentType === 'html' ? msg.body.content : null,
+                body_text: msg.body?.contentType === 'text' ? msg.body.content : null,
+                body_preview: msg.bodyPreview || null,
+                sent_at: msg.sentDateTime || msg.receivedDateTime,
+                has_attachments: msg.hasAttachments || false,
+                attachment_metadata: attachmentMeta,
+              },
+              {
+                onConflict: 'microsoft_message_id,sourceco_user_id',
+                ignoreDuplicates: true,
+              },
+            );
+
+            if (queueError && !queueError.message?.includes('duplicate')) {
+              errors.push(`Queue unmatched ${msg.id}: ${queueError.message}`);
+            } else {
+              queuedUnmatched++;
+            }
+            continue;
           }
 
           // Create a record for each matched contact (uses ON CONFLICT to avoid race conditions)
@@ -536,25 +619,39 @@ async function syncEmails(
             } else {
               synced++;
 
-              // Log to deal_activities for deal timeline visibility (use listing_id as deal_id)
-              if (contact.listing_id) {
+              // Log to deal_activities for deal timeline visibility. The
+              // `deal_activities.deal_id` FK points at `deal_pipeline(id)` as
+              // of migration 20260618000000, so we must pass
+              // `contact.deal_id` (a deal_pipeline row) — NOT the legacy
+              // `contact.listing_id` (a listings row).
+              if (contact.deal_id) {
                 try {
-                  const fromName = msg.from?.emailAddress?.name || msg.from?.emailAddress?.address || 'Unknown';
-                  const toNames = (msg.toRecipients || []).map((r: any) => r.emailAddress?.name || r.emailAddress?.address).join(', ');
+                  const fromName =
+                    msg.from?.emailAddress?.name || msg.from?.emailAddress?.address || 'Unknown';
+                  const toNames = (msg.toRecipients || [])
+                    .map((r: any) => r.emailAddress?.name || r.emailAddress?.address)
+                    .join(', ');
                   await supabase.rpc('log_deal_activity', {
-                    p_deal_id: contact.listing_id,
-                    p_activity_type: match.direction === 'outbound' ? 'email_sent' : 'email_received',
-                    p_title: match.direction === 'outbound' ? `Email sent to ${toNames}` : `Email from ${fromName}`,
+                    p_deal_id: contact.deal_id,
+                    p_activity_type:
+                      match.direction === 'outbound' ? 'email_sent' : 'email_received',
+                    p_title:
+                      match.direction === 'outbound'
+                        ? `Email sent to ${toNames}`
+                        : `Email from ${fromName}`,
                     p_description: msg.subject || '(No subject)',
                     p_admin_id: null,
                     p_metadata: {
                       email_message_id: msg.id,
                       direction: match.direction,
                       from_address: msg.from?.emailAddress?.address || null,
-                      to_addresses: (msg.toRecipients || []).map((r: any) => r.emailAddress?.address),
+                      to_addresses: (msg.toRecipients || []).map(
+                        (r: any) => r.emailAddress?.address,
+                      ),
                       subject: msg.subject,
                       has_attachments: msg.hasAttachments || false,
                       contact_id: contact.id,
+                      listing_id: contact.listing_id || null,
                       body_preview: msg.bodyPreview?.substring(0, 300) || null,
                     },
                   });
@@ -576,13 +673,18 @@ async function syncEmails(
     }
   } while (nextLink && pageCount < maxPages);
 
-  console.log(`Sync complete: ${synced} synced, ${skipped} skipped, ${errors.length} errors`);
+  console.log(
+    `Sync complete: ${synced} synced, ${skipped} skipped, ${queuedUnmatched} queued-unmatched, ${errors.length} errors`,
+  );
 
   // ── Trigger auto-summarize for email threads with 3+ messages ──
   if (synced > 0) {
     try {
       // Find conversation threads with 3+ emails that haven't been summarized yet
-      const { data: threadCandidates } = await (supabase as any).rpc('get_unsummarized_email_threads', {});
+      const { data: threadCandidates } = await (supabase as any).rpc(
+        'get_unsummarized_email_threads',
+        {},
+      );
       // Fallback: query directly if RPC doesn't exist
       if (!threadCandidates) {
         const { data: threads } = await (supabase as any)
@@ -593,14 +695,21 @@ async function syncEmails(
 
         if (threads) {
           // Count by conversation_id + deal_id
-          const threadCounts = new Map<string, { count: number; deal_id: string; conversation_id: string }>();
+          const threadCounts = new Map<
+            string,
+            { count: number; deal_id: string; conversation_id: string }
+          >();
           for (const t of threads) {
             const key = `${t.microsoft_conversation_id}::${t.deal_id}`;
             const existing = threadCounts.get(key);
             if (existing) {
               existing.count++;
             } else {
-              threadCounts.set(key, { count: 1, deal_id: t.deal_id, conversation_id: t.microsoft_conversation_id });
+              threadCounts.set(key, {
+                count: 1,
+                deal_id: t.deal_id,
+                conversation_id: t.microsoft_conversation_id,
+              });
             }
           }
 
@@ -622,5 +731,5 @@ async function syncEmails(
     }
   }
 
-  return { synced, skipped, errors };
+  return { synced, skipped, queuedUnmatched, errors };
 }

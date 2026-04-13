@@ -20,7 +20,9 @@ import {
   Shield,
   Webhook,
   Activity,
+  History,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEmailConnection, useAdminEmailConnections } from '@/hooks/email';
 import type { EmailConnectionStatus } from '@/types/email';
@@ -69,6 +71,13 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
+const BACKFILL_PRESETS: { label: string; days: number }[] = [
+  { label: '1 year', days: 365 },
+  { label: '3 years', days: 1095 },
+  { label: '5 years', days: 1825 },
+  { label: '10 years', days: 3650 },
+];
+
 function MyConnection() {
   const {
     connection,
@@ -78,7 +87,11 @@ function MyConnection() {
     isConnecting,
     disconnect,
     isDisconnecting,
+    backfillHistory,
+    isBackfilling,
+    lastBackfillResult,
   } = useEmailConnection();
+  const [selectedPreset, setSelectedPreset] = useState<number>(365);
 
   if (isLoading) {
     return (
@@ -177,6 +190,63 @@ function MyConnection() {
 
         <Separator />
 
+        {isConnected && (
+          <>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">Historical Email Backfill</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The initial connection automatically syncs the last 365 days of history. Run a
+                deeper backfill below to pull older Outlook threads and automatically link them to
+                matching contacts and deals. Emails that don&apos;t match a known contact yet are
+                stored and retro-linked the moment a matching contact is created.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {BACKFILL_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.days}
+                    size="sm"
+                    variant={selectedPreset === preset.days ? 'default' : 'outline'}
+                    onClick={() => setSelectedPreset(preset.days)}
+                    disabled={isBackfilling}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  onClick={() => backfillHistory({ daysBack: selectedPreset })}
+                  disabled={isBackfilling}
+                >
+                  {isBackfilling ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <History className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {isBackfilling ? 'Backfilling…' : `Backfill ${selectedPreset} days`}
+                </Button>
+              </div>
+              {lastBackfillResult && (
+                <p className="text-xs text-muted-foreground">
+                  Last backfill pulled{' '}
+                  <span className="font-medium text-foreground">
+                    {lastBackfillResult.syncResult?.synced ?? 0}
+                  </span>{' '}
+                  matched emails and queued{' '}
+                  <span className="font-medium text-foreground">
+                    {lastBackfillResult.syncResult?.queuedUnmatched ?? 0}
+                  </span>{' '}
+                  for future contacts.
+                </p>
+              )}
+            </div>
+
+            <Separator />
+          </>
+        )}
+
         <div className="flex gap-2">
           {!isConnected && (
             <Button size="sm" onClick={() => connect()} disabled={isConnecting}>
@@ -188,7 +258,11 @@ function MyConnection() {
             size="sm"
             variant="outline"
             onClick={() => {
-              if (window.confirm('Are you sure you want to disconnect your Outlook account? Email history will be preserved.')) {
+              if (
+                window.confirm(
+                  'Are you sure you want to disconnect your Outlook account? Email history will be preserved.',
+                )
+              ) {
                 disconnect(undefined);
               }
             }}
@@ -242,8 +316,8 @@ function AdminConnectionsDashboard() {
                   conn.status === 'error'
                     ? 'border-destructive/50 bg-destructive/5'
                     : conn.status === 'expired'
-                    ? 'border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-900/10'
-                    : ''
+                      ? 'border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-900/10'
+                      : ''
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -256,7 +330,9 @@ function AdminConnectionsDashboard() {
                     </p>
                     <p className="text-xs text-muted-foreground truncate">{conn.email_address}</p>
                     {conn.error_message && (
-                      <p className="text-xs text-destructive mt-0.5 truncate">{conn.error_message}</p>
+                      <p className="text-xs text-destructive mt-0.5 truncate">
+                        {conn.error_message}
+                      </p>
                     )}
                   </div>
                 </div>
