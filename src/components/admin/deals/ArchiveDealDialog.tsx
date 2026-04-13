@@ -146,7 +146,13 @@ export function ArchiveDealDialog({
     } catch (err) {
       console.error('Archive failed:', err);
       const { toast } = await import('sonner');
-      toast.error('Failed to archive deal. Please try again.');
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'Please try again.';
+      toast.error('Failed to archive deal', { description: message });
     } finally {
       setIsArchiving(false);
     }
