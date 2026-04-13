@@ -6,7 +6,16 @@
 -- H1: Schedule process-smart-list-queue to run every 5 minutes.
 -- Matches the pattern in 20260315000001_fix_hardcoded_service_keys.sql
 -- using app.settings.supabase_url / service_role_key GUCs.
+-- Idempotent: unschedule if the job already exists before re-scheduling.
 -- ------------------------------------------------------------
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'process-smart-list-queue') THEN
+    PERFORM cron.unschedule('process-smart-list-queue');
+  END IF;
+END;
+$$;
+
 SELECT cron.schedule(
   'process-smart-list-queue',
   '*/5 * * * *',
@@ -22,6 +31,62 @@ SELECT cron.schedule(
   ) AS request_id;
   $$
 );
+
+-- ------------------------------------------------------------
+-- A2: Expand trigger UPDATE OF to cover soft-delete / disqualification
+-- columns so retracts fire when a listing is removed from eligibility.
+-- Same for buyers + archived.
+-- ------------------------------------------------------------
+DROP TRIGGER IF EXISTS trg_smart_list_on_listing_update ON listings;
+CREATE TRIGGER trg_smart_list_on_listing_update
+  AFTER UPDATE OF industry, category, address_state, linkedin_employee_count,
+    google_review_count, google_rating, number_of_locations, deal_total_score,
+    enriched_at, main_contact_email, main_contact_phone, services, categories,
+    executive_summary, service_mix, is_priority_target, deal_source,
+    deleted_at, not_a_fit
+  ON listings
+  FOR EACH ROW
+  WHEN (OLD IS DISTINCT FROM NEW)
+  EXECUTE FUNCTION queue_smart_list_evaluation();
+
+DROP TRIGGER IF EXISTS trg_smart_list_on_buyer_update ON buyers;
+CREATE TRIGGER trg_smart_list_on_buyer_update
+  AFTER UPDATE OF target_services, target_geographies, buyer_type,
+    is_pe_backed, hq_state, archived, deleted_at
+  ON buyers
+  FOR EACH ROW
+  WHEN (OLD IS DISTINCT FROM NEW)
+  EXECUTE FUNCTION queue_smart_list_buyer_evaluation();
+
+-- ------------------------------------------------------------
+-- A-archive: when a contact list is archived, mark all its
+-- smart_rule-added members as removed so they don't come back
+-- if the list is un-archived later and never get stuck in a
+-- weird "ghost member" state.
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.cleanup_smart_list_on_archive()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  IF NEW.is_archived = TRUE AND (OLD.is_archived IS DISTINCT FROM NEW.is_archived) THEN
+    UPDATE contact_list_members
+    SET removed_at = now()
+    WHERE list_id = NEW.id
+      AND added_by = 'smart_rule'
+      AND removed_at IS NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_cleanup_smart_list_on_archive ON contact_lists;
+CREATE TRIGGER trg_cleanup_smart_list_on_archive
+  AFTER UPDATE OF is_archived ON contact_lists
+  FOR EACH ROW
+  EXECUTE FUNCTION cleanup_smart_list_on_archive();
 
 -- ------------------------------------------------------------
 -- M8: Add SET search_path to queue trigger functions.

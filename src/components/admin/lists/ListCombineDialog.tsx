@@ -88,7 +88,7 @@ export function ListCombineDialog({
   // If the selection contains a mix of list types, force the result to 'mixed'.
   // subtract_lists ignores this parameter and uses the primary's type instead.
   const uniqueTypes = Array.from(new Set(selectedLists.map((l) => l.list_type)));
-  const listType = uniqueTypes.length === 1 ? (uniqueTypes[0] ?? 'mixed') : 'mixed';
+  const listType = uniqueTypes.length === 1 ? uniqueTypes[0] : 'mixed';
   const hasMixedTypes = uniqueTypes.length > 1;
   const listIds = selectedLists.map((l) => l.id);
   const isPending = mergeLists.isPending || subtractLists.isPending || intersectLists.isPending;

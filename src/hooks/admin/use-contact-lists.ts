@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import type { Database, Json } from '@/integrations/supabase/types';
 import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import type {
   ContactList,
@@ -273,18 +273,20 @@ export function useCreateContactList() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('Authentication required');
 
-      // Create the list
+      // Create the list. list_rules is JSONB in Postgres — structurally
+      // compatible with SmartListConfig but TS widens Json, so we accept
+      // the implicit conversion here.
       const insertData: Database['public']['Tables']['contact_lists']['Insert'] = {
         name: input.name,
         description: input.description || null,
         list_type: input.list_type,
         tags: input.tags || [],
-        filter_snapshot: input.filter_snapshot || null,
+        filter_snapshot: (input.filter_snapshot ?? null) as Json | null,
         created_by: user.id,
         contact_count: input.members.length,
         ...(input.is_smart_list && {
           is_smart_list: true,
-          list_rules: (input.list_rules ?? null) as unknown as Database['public']['Tables']['contact_lists']['Insert']['list_rules'],
+          list_rules: (input.list_rules ?? null) as Json | null,
           match_mode: input.match_mode ?? 'all',
           source_entity: input.source_entity,
           auto_add_enabled: input.auto_add_enabled ?? true,

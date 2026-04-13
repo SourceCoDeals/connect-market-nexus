@@ -158,6 +158,30 @@ serve(async (_req) => {
       // Track which queue items successfully completed (H4: only delete on success).
       const successfulListingIds = new Set<string>();
 
+      // Invalid listings (soft-deleted, not_a_fit, no email) need their
+      // stale smart_rule rows retracted across ALL smart lists — otherwise
+      // they hang around forever.
+      const invalidListingIds = listingIds.filter(
+        (id) => !validListings.some((l) => l.id === id),
+      );
+      for (const id of invalidListingIds) {
+        const { data: removed, error } = await supabase
+          .from('contact_list_members')
+          .update({ removed_at: new Date().toISOString() })
+          .eq('entity_type', 'listing')
+          .eq('entity_id', id)
+          .eq('added_by', 'smart_rule')
+          .is('removed_at', null)
+          .select('id');
+        if (error) {
+          console.error('Seller invalid retract failed:', { listing: id, error });
+          // leave in queue so it gets retried
+        } else {
+          if (removed && removed.length > 0) results.seller_removed += removed.length;
+          successfulListingIds.add(id);
+        }
+      }
+
       if (smartLists && smartLists.length > 0) {
         for (const listing of validListings) {
           results.seller_processed++;
@@ -170,7 +194,7 @@ serve(async (_req) => {
             const matches = matchesRules(listing as Record<string, unknown>, config);
 
             if (matches) {
-              const { error } = await supabase.from('contact_list_members').upsert(
+              const { error: upsertErr } = await supabase.from('contact_list_members').upsert(
                 {
                   list_id: smartList.id,
                   contact_email: listing.main_contact_email!,
@@ -185,25 +209,48 @@ serve(async (_req) => {
                 },
                 { onConflict: 'list_id,contact_email', ignoreDuplicates: false },
               );
-              if (error) {
+              if (upsertErr) {
                 listingOk = false;
-                console.error('Seller upsert failed:', { list: smartList.id, listing: listing.id, error });
-              } else {
-                results.seller_added++;
+                console.error('Seller upsert failed:', { list: smartList.id, listing: listing.id, error: upsertErr });
+                continue;
               }
-            } else {
-              // H2: no longer matches — retract if this member was added by the rule.
-              const { data: removed, error } = await supabase
+              results.seller_added++;
+
+              // Retract any OTHER smart_rule rows for this listing in this
+              // list that have a stale contact_email (covers the case where
+              // main_contact_email changed — the new row was just upserted,
+              // the old one is orphaned).
+              const { data: orphans, error: orphanErr } = await supabase
                 .from('contact_list_members')
                 .update({ removed_at: new Date().toISOString() })
                 .eq('list_id', smartList.id)
-                .eq('contact_email', listing.main_contact_email!)
+                .eq('entity_type', 'listing')
+                .eq('entity_id', listing.id)
+                .eq('added_by', 'smart_rule')
+                .is('removed_at', null)
+                .neq('contact_email', listing.main_contact_email!)
+                .select('id');
+              if (orphanErr) {
+                listingOk = false;
+                console.error('Seller orphan retract failed:', { list: smartList.id, listing: listing.id, error: orphanErr });
+              } else if (orphans && orphans.length > 0) {
+                results.seller_removed += orphans.length;
+              }
+            } else {
+              // H2/A1: retract ALL smart_rule rows for this listing in this
+              // list — keyed by entity_id so email changes don't orphan rows.
+              const { data: removed, error: retractErr } = await supabase
+                .from('contact_list_members')
+                .update({ removed_at: new Date().toISOString() })
+                .eq('list_id', smartList.id)
+                .eq('entity_type', 'listing')
+                .eq('entity_id', listing.id)
                 .eq('added_by', 'smart_rule')
                 .is('removed_at', null)
                 .select('id');
-              if (error) {
+              if (retractErr) {
                 listingOk = false;
-                console.error('Seller retract failed:', { list: smartList.id, listing: listing.id, error });
+                console.error('Seller retract failed:', { list: smartList.id, listing: listing.id, error: retractErr });
               } else if (removed && removed.length > 0) {
                 results.seller_removed += removed.length;
               }
@@ -213,14 +260,6 @@ serve(async (_req) => {
           if (listingOk) successfulListingIds.add(listing.id);
         }
 
-        // Listings that were in the queue but filtered out (deleted, not_a_fit,
-        // no contact email) still need to leave the queue — they will never
-        // match again and re-queuing is wasteful.
-        for (const id of listingIds) {
-          const wasValid = validListings.some((l) => l.id === id);
-          if (!wasValid) successfulListingIds.add(id);
-        }
-
         // Update last_evaluated_at on all smart lists we processed.
         const smartListIds = smartLists.map((l) => l.id);
         await supabase
@@ -228,8 +267,8 @@ serve(async (_req) => {
           .update({ last_evaluated_at: new Date().toISOString() })
           .in('id', smartListIds);
       } else {
-        // No active smart lists — nothing to evaluate against, safe to clear queue.
-        for (const id of listingIds) successfulListingIds.add(id);
+        // No active smart lists — nothing to evaluate against, safe to clear.
+        for (const listing of validListings) successfulListingIds.add(listing.id);
       }
 
       // H4: only delete successfully processed items.
@@ -303,6 +342,28 @@ serve(async (_req) => {
 
       const successfulBuyerIds = new Set<string>();
 
+      // Invalid buyers (archived, soft-deleted) need their smart_rule rows
+      // retracted across ALL smart lists.
+      const invalidBuyerIds = buyerIds.filter(
+        (id) => !validBuyers.some((b) => b.id === id),
+      );
+      for (const id of invalidBuyerIds) {
+        const { data: removed, error } = await supabase
+          .from('contact_list_members')
+          .update({ removed_at: new Date().toISOString() })
+          .eq('entity_type', 'remarketing_buyer')
+          .eq('entity_id', id)
+          .eq('added_by', 'smart_rule')
+          .is('removed_at', null)
+          .select('id');
+        if (error) {
+          console.error('Buyer invalid retract failed:', { buyer: id, error });
+        } else {
+          if (removed && removed.length > 0) results.buyer_removed += removed.length;
+          successfulBuyerIds.add(id);
+        }
+      }
+
       if (buyerSmartLists && buyerSmartLists.length > 0) {
         for (const buyer of validBuyers) {
           results.buyer_processed++;
@@ -316,8 +377,10 @@ serve(async (_req) => {
             const matches = matchesRules(buyer as Record<string, unknown>, config);
 
             if (matches) {
+              const activeEmails: string[] = [];
               for (const contact of contacts) {
                 if (!contact.email) continue;
+                activeEmails.push(contact.email);
                 const { error } = await supabase.from('contact_list_members').upsert(
                   {
                     list_id: smartList.id,
@@ -339,6 +402,39 @@ serve(async (_req) => {
                   console.error('Buyer upsert failed:', { list: smartList.id, buyer: buyer.id, error });
                 } else {
                   results.buyer_added++;
+                }
+              }
+
+              // Retract orphan smart_rule rows for this buyer whose contact
+              // is no longer present (contact archived / deleted / email cleared).
+              // Fetch existing rows then update by id to avoid escaping traps.
+              const { data: existing, error: fetchErr } = await supabase
+                .from('contact_list_members')
+                .select('id, contact_email')
+                .eq('list_id', smartList.id)
+                .eq('entity_type', 'remarketing_buyer')
+                .eq('entity_id', buyer.id)
+                .eq('added_by', 'smart_rule')
+                .is('removed_at', null);
+              if (fetchErr) {
+                buyerOk = false;
+                console.error('Buyer orphan fetch failed:', { list: smartList.id, buyer: buyer.id, error: fetchErr });
+              } else if (existing) {
+                const activeSet = new Set(activeEmails);
+                const orphanIds = existing
+                  .filter((r) => !activeSet.has(r.contact_email))
+                  .map((r) => r.id);
+                if (orphanIds.length > 0) {
+                  const { error: orphanErr } = await supabase
+                    .from('contact_list_members')
+                    .update({ removed_at: new Date().toISOString() })
+                    .in('id', orphanIds);
+                  if (orphanErr) {
+                    buyerOk = false;
+                    console.error('Buyer orphan retract failed:', { list: smartList.id, buyer: buyer.id, error: orphanErr });
+                  } else {
+                    results.buyer_removed += orphanIds.length;
+                  }
                 }
               }
             } else {
@@ -364,18 +460,13 @@ serve(async (_req) => {
           if (buyerOk) successfulBuyerIds.add(buyer.id);
         }
 
-        for (const id of buyerIds) {
-          const wasValid = validBuyers.some((b) => b.id === id);
-          if (!wasValid) successfulBuyerIds.add(id);
-        }
-
         const smartListIds = buyerSmartLists.map((l) => l.id);
         await supabase
           .from('contact_lists')
           .update({ last_evaluated_at: new Date().toISOString() })
           .in('id', smartListIds);
       } else {
-        for (const id of buyerIds) successfulBuyerIds.add(id);
+        for (const buyer of validBuyers) successfulBuyerIds.add(buyer.id);
       }
 
       if (successfulBuyerIds.size > 0) {
