@@ -13,10 +13,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Inbox } from 'lucide-react';
 import {
   usePortalRecommendations,
-  useApproveRecommendation,
   useDismissRecommendation,
+  useMarkRecommendationPushed,
 } from '@/hooks/portal/use-portal-recommendations';
 import { RecommendationCard } from './RecommendationCard';
+import { PushToPortalDialog } from './PushToPortalDialog';
 import type { PortalDealRecommendationWithListing, RecommendationStatus } from '@/types/portal';
 
 interface PortalRecommendationsTabProps {
@@ -25,19 +26,22 @@ interface PortalRecommendationsTabProps {
 
 type StatusFilter = 'all' | RecommendationStatus;
 
+const DISMISS_REASON_MAX = 500;
+
 export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsTabProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [dismissReason, setDismissReason] = useState('');
+  const [pushTarget, setPushTarget] = useState<PortalDealRecommendationWithListing | null>(null);
 
   const { data: recommendations, isLoading } = usePortalRecommendations(portalOrgId, statusFilter);
-  const approveMutation = useApproveRecommendation();
   const dismissMutation = useDismissRecommendation();
+  const markPushed = useMarkRecommendationPushed();
 
   const pendingCount = recommendations?.filter((r) => r.status === 'pending').length ?? 0;
 
   const handleApproveAndPush = (reco: PortalDealRecommendationWithListing) => {
-    approveMutation.mutate({ id: reco.id, portalOrgId });
+    setPushTarget(reco);
   };
 
   const handleDismissClick = (reco: PortalDealRecommendationWithListing) => {
@@ -72,6 +76,7 @@ export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsT
             <SelectItem value="approved">Approved</SelectItem>
             <SelectItem value="pushed">Pushed</SelectItem>
             <SelectItem value="dismissed">Dismissed</SelectItem>
+            <SelectItem value="stale">Stale</SelectItem>
           </SelectContent>
         </Select>
 
@@ -122,6 +127,7 @@ export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsT
                     placeholder="Reason for dismissing (optional)"
                     value={dismissReason}
                     onChange={(e) => setDismissReason(e.target.value)}
+                    maxLength={DISMISS_REASON_MAX}
                     className="h-8 text-xs max-w-sm"
                     autoFocus
                     onKeyDown={(e) => {
@@ -152,6 +158,19 @@ export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsT
           ))}
         </div>
       )}
+
+      {/* Push dialog — opens when user clicks "Approve & Push". After a
+          successful push, mark the recommendation row as pushed. */}
+      <PushToPortalDialog
+        open={pushTarget !== null}
+        onOpenChange={(open) => !open && setPushTarget(null)}
+        listingId={pushTarget?.listing_id}
+        listingTitle={pushTarget?.listing_title}
+        defaultPortalOrgId={pushTarget?.portal_org_id}
+        onPushSuccess={({ pushId, portalOrgId: orgId, listingId }) => {
+          markPushed.mutate({ portalOrgId: orgId, listingId, pushId });
+        }}
+      />
     </div>
   );
 }

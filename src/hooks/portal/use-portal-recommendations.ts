@@ -78,7 +78,11 @@ export function usePortalRecommendations(
   });
 }
 
-/** Lightweight count of pending recommendations per portal org */
+/** Lightweight count of pending recommendations per portal org.
+ *  Uses portal_org_id grouping on the client, but only fetches the single
+ *  column — still cheaper than pulling full rows. For very large pending
+ *  backlogs, move this to a view or RPC.
+ */
 export function useRecommendationPendingCounts() {
   return useQuery({
     queryKey: [QUERY_KEY, 'pending-counts'],
@@ -98,18 +102,20 @@ export function useRecommendationPendingCounts() {
   });
 }
 
-/** Count for a single portal org */
+/** Count of pending recommendations for a single portal org.
+ *  Uses Postgres `count: 'exact'` with `head: true` so no rows are returned
+ *  (much cheaper than pulling every id client-side). */
 export function useRecommendationCount(portalOrgId: string | undefined) {
   return useQuery({
     queryKey: [QUERY_KEY, 'count', portalOrgId],
     queryFn: async () => {
       if (!portalOrgId) return 0;
-      const { data, error } = await untypedFrom('portal_deal_recommendations')
-        .select('id')
+      const { count, error } = await untypedFrom('portal_deal_recommendations')
+        .select('*', { count: 'exact', head: true })
         .eq('portal_org_id', portalOrgId)
         .eq('status', 'pending');
       if (error) throw error;
-      return (data as unknown[] | null)?.length ?? 0;
+      return count ?? 0;
     },
     enabled: !!portalOrgId,
     staleTime: 30_000,
@@ -145,38 +151,12 @@ export function useDismissRecommendation() {
     onSuccess: ({ portalOrgId }) => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, portalOrgId] });
       qc.invalidateQueries({ queryKey: [QUERY_KEY, 'pending-counts'] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'count', portalOrgId] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'deal'] });
       toast.success('Recommendation dismissed');
     },
     onError: (err: Error) => {
       toast.error('Failed to dismiss', { description: err.message });
-    },
-  });
-}
-
-export function useApproveRecommendation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, portalOrgId }: { id: string; portalOrgId: string }) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const { error } = await untypedFrom('portal_deal_recommendations')
-        .update({
-          status: 'approved',
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-      if (error) throw error;
-      return { portalOrgId };
-    },
-    onSuccess: ({ portalOrgId }) => {
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, portalOrgId] });
-      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'pending-counts'] });
-      toast.success('Recommendation approved');
-    },
-    onError: (err: Error) => {
-      toast.error('Failed to approve', { description: err.message });
     },
   });
 }
@@ -194,19 +174,30 @@ export function useMarkRecommendationPushed() {
       listingId: string;
       pushId?: string;
     }) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       const { error } = await untypedFrom('portal_deal_recommendations')
         .update({
           status: 'pushed',
           push_id: pushId || null,
+          reviewed_by: user?.id,
+          reviewed_at: new Date().toISOString(),
         })
         .eq('portal_org_id', portalOrgId)
         .eq('listing_id', listingId);
       if (error) throw error;
-      return { portalOrgId };
+      return { portalOrgId, listingId };
     },
     onSuccess: ({ portalOrgId }) => {
       qc.invalidateQueries({ queryKey: [QUERY_KEY, portalOrgId] });
       qc.invalidateQueries({ queryKey: [QUERY_KEY, 'pending-counts'] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'count', portalOrgId] });
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, 'deal'] });
+    },
+    onError: (err: Error) => {
+      toast.error('Failed to mark recommendation as pushed', { description: err.message });
     },
   });
 }

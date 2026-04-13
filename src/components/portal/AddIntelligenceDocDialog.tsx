@@ -123,9 +123,13 @@ export function AddIntelligenceDocDialog({
                 id="doc-content"
                 placeholder="Paste notes, transcript, or any relevant content..."
                 rows={8}
+                maxLength={20000}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground text-right">
+                {content.length.toLocaleString()} / 20,000
+              </p>
             </div>
           </div>
 
