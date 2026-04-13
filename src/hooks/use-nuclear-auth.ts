@@ -190,122 +190,142 @@ export function useNuclearAuth() {
 
     const visitorId = localStorage.getItem(VISITOR_ID_KEY);
 
+    // Send only core identity fields in signUp to avoid payload-too-large errors.
+    // The handle_new_user trigger creates the profile from these fields.
+    // Extended buyer profile fields are written directly to the profiles table after signup.
+    const coreMetadata = {
+      visitor_id: visitorId || null,
+      first_name: userData.first_name || '',
+      last_name: userData.last_name || '',
+      company: userData.company || '',
+      website: websiteNormalized,
+      phone_number: userData.phone_number || '',
+      buyer_type: userData.buyer_type || 'corporate',
+      linkedin_profile: userData.linkedin_profile || '',
+      referral_source: userData.referral_source || '',
+      referral_source_detail: userData.referral_source_detail || '',
+    };
+
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: {
-          visitor_id: visitorId || null,
-          first_name: userData.first_name || '',
-          last_name: userData.last_name || '',
-          company: userData.company || '',
-          website: websiteNormalized,
-          phone_number: userData.phone_number || '',
-          buyer_type: userData.buyer_type || 'corporate',
-          linkedin_profile: userData.linkedin_profile || '',
-          ideal_target_description: userData.ideal_target_description || '',
-          business_categories: Array.isArray(userData.business_categories)
-            ? standardizeCategories(userData.business_categories)
-            : [],
-          target_locations: Array.isArray(userData.target_locations)
-            ? standardizeLocations(userData.target_locations)
-            : [],
-          revenue_range_min: userData.revenue_range_min || '',
-          revenue_range_max: userData.revenue_range_max || '',
-          specific_business_search: userData.specific_business_search || '',
-          job_title: userData.job_title || '',
-          estimated_revenue: userData.estimated_revenue || '',
-          fund_size: userData.fund_size || '',
-          investment_size: Array.isArray(userData.investment_size)
-            ? userData.investment_size
-            : userData.investment_size
-              ? [userData.investment_size as string]
-              : [],
-          aum: userData.aum || '',
-          is_funded: userData.is_funded || '',
-          funded_by: userData.funded_by || '',
-          target_company_size: userData.target_company_size || '',
-          funding_source: userData.funding_source || '',
-          needs_loan: userData.needs_loan || '',
-          ideal_target: userData.ideal_target || '',
-          deploying_capital_now: userData.deploying_capital_now || '',
-          owning_business_unit: userData.owning_business_unit || '',
-          deal_size_band: userData.deal_size_band || '',
-          integration_plan: Array.isArray(userData.integration_plan)
-            ? userData.integration_plan
-            : [],
-          corpdev_intent: userData.corpdev_intent || '',
-          discretion_type: userData.discretion_type || '',
-          committed_equity_band: userData.committed_equity_band || '',
-          equity_source: Array.isArray(userData.equity_source) ? userData.equity_source : [],
-          deployment_timing: userData.deployment_timing || '',
-          target_deal_size_min:
-            typeof userData.target_deal_size_min === 'number'
-              ? userData.target_deal_size_min
-              : userData.target_deal_size_min
-                ? Number(userData.target_deal_size_min)
-                : null,
-          target_deal_size_max:
-            typeof userData.target_deal_size_max === 'number'
-              ? userData.target_deal_size_max
-              : userData.target_deal_size_max
-                ? Number(userData.target_deal_size_max)
-                : null,
-          geographic_focus: Array.isArray(userData.geographic_focus)
-            ? standardizeLocations(userData.geographic_focus)
-            : [],
-          industry_expertise: Array.isArray(userData.industry_expertise)
-            ? standardizeCategories(userData.industry_expertise)
-            : [],
-          deal_structure_preference: userData.deal_structure_preference || '',
-          permanent_capital: userData.permanent_capital || null,
-          operating_company_targets: Array.isArray(userData.operating_company_targets)
-            ? userData.operating_company_targets
-            : [],
-          flex_subxm_ebitda: userData.flex_subxm_ebitda || null,
-          search_type: userData.search_type || '',
-          acq_equity_band: userData.acq_equity_band || '',
-          financing_plan: Array.isArray(userData.financing_plan) ? userData.financing_plan : [],
-          search_stage: userData.search_stage || '',
-          flex_sub2m_ebitda: userData.flex_sub2m_ebitda || null,
-          on_behalf_of_buyer: userData.on_behalf_of_buyer || '',
-          buyer_role: userData.buyer_role || '',
-          buyer_org_url: userData.buyer_org_url || '',
-          owner_timeline: userData.owner_timeline || '',
-          owner_intent: userData.owner_intent || '',
-          uses_bank_finance: userData.uses_bank_finance || '',
-          max_equity_today_band: userData.max_equity_today_band || '',
-          mandate_blurb: userData.mandate_blurb || '',
-          portfolio_company_addon: userData.portfolio_company_addon || '',
-          backers_summary: userData.backers_summary || '',
-          anchor_investors_summary: userData.anchor_investors_summary || '',
-          deal_intent: userData.deal_intent || '',
-          exclusions: Array.isArray(userData.exclusions)
-            ? userData.exclusions
-            : typeof userData.exclusions === 'string' && userData.exclusions
-              ? (userData.exclusions as string)
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [],
-          include_keywords: Array.isArray(userData.include_keywords)
-            ? userData.include_keywords
-            : typeof userData.include_keywords === 'string' && userData.include_keywords
-              ? (userData.include_keywords as string)
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : [],
-          referral_source: userData.referral_source || '',
-          referral_source_detail: userData.referral_source_detail || '',
-          deal_sourcing_methods: Array.isArray(userData.deal_sourcing_methods)
-            ? userData.deal_sourcing_methods
-            : [],
-          target_acquisition_volume: userData.target_acquisition_volume || '',
-        },
+        data: coreMetadata,
       },
     });
+
+    // After successful signup, hydrate the full buyer profile directly on the profiles table.
+    // This avoids stuffing 85+ fields into auth metadata which can hit payload limits.
+    if (!error && data.user) {
+      const extendedProfile: Record<string, unknown> = {
+        ideal_target_description: userData.ideal_target_description || '',
+        business_categories: Array.isArray(userData.business_categories)
+          ? standardizeCategories(userData.business_categories)
+          : [],
+        target_locations: Array.isArray(userData.target_locations)
+          ? standardizeLocations(userData.target_locations)
+          : [],
+        revenue_range_min: userData.revenue_range_min || '',
+        revenue_range_max: userData.revenue_range_max || '',
+        specific_business_search: userData.specific_business_search || '',
+        job_title: userData.job_title || '',
+        estimated_revenue: userData.estimated_revenue || '',
+        fund_size: userData.fund_size || '',
+        investment_size: Array.isArray(userData.investment_size)
+          ? userData.investment_size
+          : userData.investment_size
+            ? [userData.investment_size as string]
+            : [],
+        aum: userData.aum || '',
+        is_funded: userData.is_funded || '',
+        funded_by: userData.funded_by || '',
+        target_company_size: userData.target_company_size || '',
+        funding_source: userData.funding_source || '',
+        needs_loan: userData.needs_loan || '',
+        ideal_target: userData.ideal_target || '',
+        deploying_capital_now: userData.deploying_capital_now || '',
+        owning_business_unit: userData.owning_business_unit || '',
+        deal_size_band: userData.deal_size_band || '',
+        integration_plan: Array.isArray(userData.integration_plan) ? userData.integration_plan : [],
+        corpdev_intent: userData.corpdev_intent || '',
+        discretion_type: userData.discretion_type || '',
+        committed_equity_band: userData.committed_equity_band || '',
+        equity_source: Array.isArray(userData.equity_source) ? userData.equity_source : [],
+        deployment_timing: userData.deployment_timing || '',
+        target_deal_size_min:
+          typeof userData.target_deal_size_min === 'number'
+            ? userData.target_deal_size_min
+            : userData.target_deal_size_min
+              ? Number(userData.target_deal_size_min)
+              : null,
+        target_deal_size_max:
+          typeof userData.target_deal_size_max === 'number'
+            ? userData.target_deal_size_max
+            : userData.target_deal_size_max
+              ? Number(userData.target_deal_size_max)
+              : null,
+        geographic_focus: Array.isArray(userData.geographic_focus)
+          ? standardizeLocations(userData.geographic_focus)
+          : [],
+        industry_expertise: Array.isArray(userData.industry_expertise)
+          ? standardizeCategories(userData.industry_expertise)
+          : [],
+        deal_structure_preference: userData.deal_structure_preference || '',
+        permanent_capital: userData.permanent_capital || null,
+        operating_company_targets: Array.isArray(userData.operating_company_targets)
+          ? userData.operating_company_targets
+          : [],
+        flex_subxm_ebitda: userData.flex_subxm_ebitda || null,
+        search_type: userData.search_type || '',
+        acq_equity_band: userData.acq_equity_band || '',
+        financing_plan: Array.isArray(userData.financing_plan) ? userData.financing_plan : [],
+        search_stage: userData.search_stage || '',
+        flex_sub2m_ebitda: userData.flex_sub2m_ebitda || null,
+        on_behalf_of_buyer: userData.on_behalf_of_buyer || '',
+        buyer_role: userData.buyer_role || '',
+        buyer_org_url: userData.buyer_org_url || '',
+        owner_timeline: userData.owner_timeline || '',
+        owner_intent: userData.owner_intent || '',
+        uses_bank_finance: userData.uses_bank_finance || '',
+        max_equity_today_band: userData.max_equity_today_band || '',
+        mandate_blurb: userData.mandate_blurb || '',
+        portfolio_company_addon: userData.portfolio_company_addon || '',
+        backers_summary: userData.backers_summary || '',
+        anchor_investors_summary: userData.anchor_investors_summary || '',
+        deal_intent: userData.deal_intent || '',
+        exclusions: Array.isArray(userData.exclusions)
+          ? userData.exclusions
+          : typeof userData.exclusions === 'string' && userData.exclusions
+            ? (userData.exclusions as string)
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [],
+        include_keywords: Array.isArray(userData.include_keywords)
+          ? userData.include_keywords
+          : typeof userData.include_keywords === 'string' && userData.include_keywords
+            ? (userData.include_keywords as string)
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [],
+        deal_sourcing_methods: Array.isArray(userData.deal_sourcing_methods)
+          ? userData.deal_sourcing_methods
+          : [],
+        target_acquisition_volume: userData.target_acquisition_volume || '',
+      };
+
+      // Write extended profile fields — non-blocking, profile trigger already created the row
+      supabase
+        .from('profiles')
+        .update(extendedProfile)
+        .eq('id', data.user.id)
+        .then(({ error: profileErr }) => {
+          if (profileErr)
+            console.warn('Extended profile hydration failed (non-critical):', profileErr);
+        });
+    }
 
     if (error) throw error;
 
@@ -369,11 +389,7 @@ export function useNuclearAuth() {
           console.warn('Buyer scoring failed (will be scored later):', err);
         });
 
-      await Promise.allSettled([
-        adminNotificationPromise,
-        firmCreationPromise,
-        scoringPromise,
-      ]);
+      await Promise.allSettled([adminNotificationPromise, firmCreationPromise, scoringPromise]);
     }
   }, []);
 
