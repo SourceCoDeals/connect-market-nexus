@@ -6,11 +6,24 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { RoleBadge } from './RoleBadge';
 import { RoleSelector } from './RoleSelector';
 import { formatDistanceToNow } from 'date-fns';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { MoreVertical, KeyRound, Lock, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -45,8 +58,8 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
   };
 
   const handleManualReset = async () => {
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -71,7 +84,9 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
     }
   };
 
-  const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || (user.email?.[0] || '?').toUpperCase();
+  const initials =
+    `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() ||
+    (user.email?.[0] || '?').toUpperCase();
   const displayRole = role === 'owner' ? 'admin' : role;
 
   return (
@@ -121,7 +136,13 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleSendPasswordReset} disabled={sendingReset}>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      handleSendPasswordReset();
+                    }}
+                    disabled={sendingReset}
+                  >
                     {sendingReset ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
@@ -130,7 +151,16 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
                     Send Password Reset Link
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setManualResetOpen(true)}>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      // Prevent Radix dropdown from stealing focus back to the
+                      // trigger while the dialog is opening — that race caused
+                      // the dialog to immediately dismiss / scroll-jump, which
+                      // looked like being navigated to another screen.
+                      e.preventDefault();
+                      setManualResetOpen(true);
+                    }}
+                  >
                     <Lock className="h-4 w-4 mr-2" />
                     Set Password Manually
                   </DropdownMenuItem>
@@ -141,10 +171,16 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
         </CardContent>
       </Card>
 
-      <Dialog open={manualResetOpen} onOpenChange={(open) => {
-        setManualResetOpen(open);
-        if (!open) { setNewPassword(''); setConfirmPassword(''); }
-      }}>
+      <Dialog
+        open={manualResetOpen}
+        onOpenChange={(open) => {
+          setManualResetOpen(open);
+          if (!open) {
+            setNewPassword('');
+            setConfirmPassword('');
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Set Password Manually</DialogTitle>
@@ -160,7 +196,7 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Min 6 characters"
+                placeholder="Min 8 characters"
               />
             </div>
             <div className="space-y-2">
@@ -178,7 +214,10 @@ export const TeamMemberCard = ({ user, role }: TeamMemberCardProps) => {
             <Button variant="outline" onClick={() => setManualResetOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleManualReset} disabled={resettingPassword || !newPassword || !confirmPassword}>
+            <Button
+              onClick={handleManualReset}
+              disabled={resettingPassword || !newPassword || !confirmPassword}
+            >
               {resettingPassword && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Reset Password
             </Button>
