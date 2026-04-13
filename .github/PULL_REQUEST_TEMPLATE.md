@@ -29,22 +29,26 @@
 ## Checklist
 
 ### Code Quality
+
 - [ ] My code follows the project's coding standards
 - [ ] I have performed a self-review of my code
 - [ ] I have added comments where necessary (complex logic, workarounds, etc.)
 - [ ] No new TypeScript `any` types introduced (or justified in comments)
 
 ### Testing
+
 - [ ] Existing tests pass locally (`npm run test`)
 - [ ] I have added tests for new functionality
 - [ ] I have tested edge cases and error scenarios
 
 ### Build & Lint
+
 - [ ] `npm run lint` passes without new warnings
 - [ ] `npx tsc --noEmit` passes without errors
 - [ ] `npm run build` succeeds
 
 ### Deployment
+
 - [ ] Environment variables are documented in `.env.example` if new ones were added
 - [ ] No secrets or credentials are committed
 - [ ] Database migrations are included if schema changes were made
