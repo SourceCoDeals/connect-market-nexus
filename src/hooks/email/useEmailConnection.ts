@@ -139,6 +139,64 @@ export function useEmailConnection() {
     },
   });
 
+  const bulkBackfillAllMutation = useMutation({
+    mutationFn: async ({ daysBack }: { daysBack: number }) => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+
+      const resp = await supabase.functions.invoke('outlook-bulk-backfill-all', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: { daysBack },
+      });
+
+      if (resp.error) throw new Error(resp.error.message || 'Bulk backfill failed');
+      return resp.data?.data as {
+        daysBack: number;
+        mailboxesProcessed: number;
+        mailboxesSucceeded: number;
+        mailboxesFailed: number;
+        totalSynced: number;
+        totalSkipped: number;
+        totalQueued: number;
+        totalRematched: number;
+        results: Array<{
+          userId: string;
+          emailAddress: string;
+          ok: boolean;
+          synced?: number;
+          skipped?: number;
+          queuedUnmatched?: number;
+          error?: string;
+        }>;
+      };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: EMAIL_CONNECTION_KEY });
+      queryClient.invalidateQueries({ queryKey: ['email', 'messages'] });
+      queryClient.invalidateQueries({ queryKey: ['email', 'threads'] });
+      queryClient.invalidateQueries({ queryKey: ['email', 'deal-outlook'] });
+      queryClient.invalidateQueries({ queryKey: ['admin', 'email-connections'] });
+      const processed = data?.mailboxesProcessed ?? 0;
+      const failed = data?.mailboxesFailed ?? 0;
+      const synced = data?.totalSynced ?? 0;
+      const queued = data?.totalQueued ?? 0;
+      const rematched = data?.totalRematched ?? 0;
+      toast({
+        title: 'Bulk Backfill Complete',
+        description: `Processed ${processed} mailboxes (${failed} failed). Imported ${synced} matched emails, queued ${queued} for later matching, and re-linked ${rematched} from previous runs.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Bulk Backfill Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const disconnectMutation = useMutation({
     mutationFn: async (targetUserId?: string) => {
       const {
@@ -189,5 +247,9 @@ export function useEmailConnection() {
     backfillHistory: backfillMutation.mutate,
     isBackfilling: backfillMutation.isPending,
     lastBackfillResult: backfillMutation.data,
+
+    bulkBackfillAll: bulkBackfillAllMutation.mutate,
+    isBulkBackfilling: bulkBackfillAllMutation.isPending,
+    lastBulkBackfillResult: bulkBackfillAllMutation.data,
   };
 }
