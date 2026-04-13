@@ -191,12 +191,28 @@ Deno.serve(async (req) => {
       return errorResponse('Failed to save connection', 500, corsHeaders);
     }
 
-    // 5. Trigger initial 365-day sync as a background job. The sync engine
-    //    will also persist any participant-unmatched emails to
-    //    `outlook_unmatched_emails` so they can be retro-linked later when a
-    //    contact is created for them.
-    try {
-      await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/outlook-sync-emails`, {
+    // 5. Trigger the initial sync as a TRUE background task.
+    //
+    //    We deliberately only pull 30 days of history at connect-time because
+    //    the edge function handling this request has a hard 150-second
+    //    ceiling (Supabase platform limit), and a 365-day pull against a
+    //    busy mailbox reliably exceeds that. Before this fix the callback
+    //    awaited the sync synchronously, so the OAuth flow failed with a
+    //    504 even though the connection row had already been written.
+    //
+    //    The "Backfill all (365 days)" admin button (outlook-bulk-backfill-all)
+    //    is the canonical path for deeper historical imports — it processes
+    //    mailboxes sequentially and reports per-mailbox success/failure, so
+    //    it's better suited to long runs than this synchronous-to-OAuth path.
+    //
+    //    We use `EdgeRuntime.waitUntil` when available (Deno Deploy /
+    //    Supabase Edge Runtime) so the sync promise keeps running after we
+    //    return the HTTP response to the browser. If the primitive isn't
+    //    available (local dev), we fall back to a fire-and-forget pattern —
+    //    the polling cron will catch up either way.
+    const initialSyncPromise = fetch(
+      `${Deno.env.get('SUPABASE_URL')}/functions/v1/outlook-sync-emails`,
+      {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,11 +222,20 @@ Deno.serve(async (req) => {
           userId: auth.userId,
           accessToken: tokens.access_token,
           isInitialSync: true,
-          initialLookbackDays: 365,
+          initialLookbackDays: 30,
         }),
-      });
-    } catch (err) {
-      console.error('Failed to trigger initial sync (will be caught by polling):', err);
+      },
+    ).catch((err) => {
+      console.error('[outlook-callback] Background initial sync failed (polling will retry):', err);
+    });
+
+    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
+      (globalThis as any).EdgeRuntime.waitUntil(initialSyncPromise);
+    } else {
+      // Local dev or non-Deno-Deploy runtime — detach the promise so we
+      // don't block the response, but keep the rejection handler from
+      // tripping an unhandled-rejection warning.
+      initialSyncPromise.catch(() => {});
     }
 
     return successResponse(
