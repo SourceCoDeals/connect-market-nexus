@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < contentHashInput.length; i++) {
       contentHash = ((contentHash << 5) - contentHash + contentHashInput.charCodeAt(i)) | 0;
     }
-    const contentHashStr = String(contentHash);
+    const _contentHashStr = String(contentHash);
 
     // ── Check cache (Issue #40: also verify universe context matches + content hash) ──
     if (!forceRefresh && !lookupBuyerId) {
@@ -119,9 +119,7 @@ Deno.serve(async (req: Request) => {
         .select('universe_id')
         .eq('listing_id', listingId)
         .eq('status', 'active');
-      const currentUniverseIds = (cacheCheckUniverseLinks || [])
-        .map((l) => l.universe_id)
-        .sort();
+      const currentUniverseIds = (cacheCheckUniverseLinks || []).map((l) => l.universe_id).sort();
       const currentUniverseKey = JSON.stringify(currentUniverseIds);
 
       if (
@@ -162,10 +160,7 @@ Deno.serve(async (req: Request) => {
 
       if (universe) {
         weights = getScoreWeights(universe);
-        console.log(
-          `[score-deal-buyers] Using universe weights for ${universeIds[0]}:`,
-          weights,
-        );
+        console.log(`[score-deal-buyers] Using universe weights for ${universeIds[0]}:`, weights);
       }
     }
 
@@ -216,13 +211,19 @@ Deno.serve(async (req: Request) => {
       buyerError = internalResult.error || aiSeededResult.error || noUniverseResult.error;
 
       if (internalResult.data?.length === 10000) {
-        console.warn(`Buyer pool hit 10,000 limit for universes ${universeIds}. Some buyers may be excluded from scoring.`);
+        console.warn(
+          `Buyer pool hit 10,000 limit for universes ${universeIds}. Some buyers may be excluded from scoring.`,
+        );
       }
       if (aiSeededResult.data?.length === 5000) {
-        console.warn(`AI-seeded buyer pool hit 5,000 limit. Some buyers may be excluded from scoring.`);
+        console.warn(
+          `AI-seeded buyer pool hit 5,000 limit. Some buyers may be excluded from scoring.`,
+        );
       }
       if (noUniverseResult.data?.length === 5000) {
-        console.warn(`No-universe buyer pool hit 5,000 limit. Some buyers may be excluded from scoring.`);
+        console.warn(
+          `No-universe buyer pool hit 5,000 limit. Some buyers may be excluded from scoring.`,
+        );
       }
 
       // Merge and deduplicate by buyer id
@@ -242,11 +243,18 @@ Deno.serve(async (req: Request) => {
       fetchedBuyers = merged;
     } else {
       // No universes connected — fall back to unfiltered behavior (all buyers)
-      const result = await supabase.from('buyers').select(BUYER_SELECT).eq('archived', false).order('created_at', { ascending: false }).limit(10000);
+      const result = await supabase
+        .from('buyers')
+        .select(BUYER_SELECT)
+        .eq('archived', false)
+        .order('created_at', { ascending: false })
+        .limit(10000);
       fetchedBuyers = result.data;
       buyerError = result.error;
       if (result.data?.length === 10000) {
-        console.warn(`Buyer pool hit 10,000 limit (no universes). Some buyers may be excluded from scoring.`);
+        console.warn(
+          `Buyer pool hit 10,000 limit (no universes). Some buyers may be excluded from scoring.`,
+        );
       }
     }
 
@@ -303,11 +311,16 @@ Deno.serve(async (req: Request) => {
       for (const row of transcriptRows || []) {
         // Keep only the most recent transcript per buyer
         if (!transcriptInsightsMap.has(row.buyer_id)) {
-          transcriptInsightsMap.set(row.buyer_id, row.extracted_insights as Record<string, unknown>);
+          transcriptInsightsMap.set(
+            row.buyer_id,
+            row.extracted_insights as Record<string, unknown>,
+          );
         }
       }
     }
-    console.log(`[score-deal-buyers] Loaded transcript insights for ${transcriptInsightsMap.size} buyers`);
+    console.log(
+      `[score-deal-buyers] Loaded transcript insights for ${transcriptInsightsMap.size} buyers`,
+    );
 
     // ── Fetch rejected buyers from discovery feedback ──
     const { data: rejectedRows } = await supabase
@@ -316,9 +329,7 @@ Deno.serve(async (req: Request) => {
       .eq('listing_id', listingId)
       .eq('action', 'rejected');
 
-    const rejectedBuyerIds = new Set<string>(
-      (rejectedRows || []).map((r) => r.buyer_id),
-    );
+    const rejectedBuyerIds = new Set<string>((rejectedRows || []).map((r) => r.buyer_id));
 
     // Issue #41: Fetch cross-niche rejections — buyers rejected on OTHER deals
     // in the same industry/category. These get a soft penalty (-15) rather than
@@ -341,9 +352,7 @@ Deno.serve(async (req: Request) => {
           .in('listing_id', siblingIds)
           .eq('action', 'rejected');
 
-        nicheRejectedBuyerIds = new Set<string>(
-          (nicheRejectedRows || []).map((r) => r.buyer_id),
-        );
+        nicheRejectedBuyerIds = new Set<string>((nicheRejectedRows || []).map((r) => r.buyer_id));
         // Remove buyers already hard-excluded so we don't double-penalize
         for (const id of rejectedBuyerIds) {
           nicheRejectedBuyerIds.delete(id);
@@ -408,10 +417,12 @@ Deno.serve(async (req: Request) => {
         const buyerCriteria = insights.buyer_criteria as Record<string, unknown> | undefined;
         if (buyerCriteria) {
           // Merge transcript services (if confidence >= 50)
-          const svcCriteria = buyerCriteria.service_criteria as {
-            target_services?: string[];
-            service_confidence?: number;
-          } | undefined;
+          const svcCriteria = buyerCriteria.service_criteria as
+            | {
+                target_services?: string[];
+                service_confidence?: number;
+              }
+            | undefined;
           if (svcCriteria?.target_services?.length && (svcCriteria.service_confidence ?? 0) >= 50) {
             const transcriptServices = normArray(svcCriteria.target_services);
             const mergedServices = new Set([...buyerServices, ...transcriptServices]);
@@ -419,11 +430,13 @@ Deno.serve(async (req: Request) => {
           }
 
           // Merge transcript geography (if confidence >= 50)
-          const geoCriteria = buyerCriteria.geography_criteria as {
-            target_states?: string[];
-            target_regions?: string[];
-            confidence?: number;
-          } | undefined;
+          const geoCriteria = buyerCriteria.geography_criteria as
+            | {
+                target_states?: string[];
+                target_regions?: string[];
+                confidence?: number;
+              }
+            | undefined;
           if (geoCriteria?.confidence && geoCriteria.confidence >= 50) {
             if (geoCriteria.target_states?.length) {
               const transcriptGeos = normArray(geoCriteria.target_states);
@@ -440,13 +453,19 @@ Deno.serve(async (req: Request) => {
           if (geoCriteria?.target_states?.length) {
             summaryParts.push(`in ${geoCriteria.target_states.slice(0, 4).join(', ')}`);
           }
-          const sizeCriteria = buyerCriteria.size_criteria as {
-            ebitda_min?: number;
-            ebitda_max?: number;
-          } | undefined;
+          const sizeCriteria = buyerCriteria.size_criteria as
+            | {
+                ebitda_min?: number;
+                ebitda_max?: number;
+              }
+            | undefined;
           if (sizeCriteria?.ebitda_min || sizeCriteria?.ebitda_max) {
-            const minStr = sizeCriteria.ebitda_min ? `$${(sizeCriteria.ebitda_min / 1_000_000).toFixed(1)}M` : '';
-            const maxStr = sizeCriteria.ebitda_max ? `$${(sizeCriteria.ebitda_max / 1_000_000).toFixed(1)}M` : '';
+            const minStr = sizeCriteria.ebitda_min
+              ? `$${(sizeCriteria.ebitda_min / 1_000_000).toFixed(1)}M`
+              : '';
+            const maxStr = sizeCriteria.ebitda_max
+              ? `$${(sizeCriteria.ebitda_max / 1_000_000).toFixed(1)}M`
+              : '';
             if (minStr && maxStr) summaryParts.push(`${minStr}-${maxStr} EBITDA`);
             else if (minStr) summaryParts.push(`${minStr}+ EBITDA`);
             else if (maxStr) summaryParts.push(`up to ${maxStr} EBITDA`);
@@ -485,10 +504,7 @@ Deno.serve(async (req: Request) => {
       const bonus = scoreBonus(buyer);
 
       // v4: Composite = service + geography only. Bonus removed to focus on pure fit.
-      const rawComposite = Math.round(
-        svc.score * weights.service +
-          geo.score * weights.geography,
-      );
+      const rawComposite = Math.round(svc.score * weights.service + geo.score * weights.geography);
 
       // Apply service fit gate multiplier — crushes composite for bad service fits
       const gateMultiplier = getServiceGateMultiplier(svc.score, svc.noData);
@@ -556,7 +572,9 @@ Deno.serve(async (req: Request) => {
           : buyer.hq_state || '';
       const matchingServiceTerms = svc.signals
         .map((s) => {
-          const m = s.match(/^(?:Exact industry match|Same-family industry|Adjacent industry):\s*(.+)/i);
+          const m = s.match(
+            /^(?:Exact industry match|Same-family industry|Adjacent industry):\s*(.+)/i,
+          );
           return m?.[1]?.trim() || null;
         })
         .filter(Boolean) as string[];

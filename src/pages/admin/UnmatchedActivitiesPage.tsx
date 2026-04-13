@@ -1,7 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader as _CardHeader,
+  CardTitle as _CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,7 +43,9 @@ export default function UnmatchedActivitiesPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('contact_activities')
-        .select('id, activity_type, contact_email, user_name, call_duration_seconds, disposition_label, created_at, matching_status')
+        .select(
+          'id, activity_type, contact_email, user_name, call_duration_seconds, disposition_label, created_at, matching_status',
+        )
         .eq('matching_status', 'unmatched')
         .order('created_at', { ascending: false })
         .limit(100);
@@ -65,7 +72,15 @@ export default function UnmatchedActivitiesPage() {
 
   // Link activity to deal mutation
   const linkMutation = useMutation({
-    mutationFn: async ({ activityId, dealId, listingId }: { activityId: string; dealId: string; listingId: string }) => {
+    mutationFn: async ({
+      activityId,
+      dealId,
+      listingId,
+    }: {
+      activityId: string;
+      dealId: string;
+      listingId: string;
+    }) => {
       // 1. Update the activity with listing info
       const { error: updateErr } = await (supabase as any)
         .from('contact_activities')
@@ -83,7 +98,8 @@ export default function UnmatchedActivitiesPage() {
         try {
           await supabase.rpc('log_deal_activity', {
             p_deal_id: dealId,
-            p_activity_type: activity.activity_type === 'call_completed' ? 'call_completed' : 'note_added',
+            p_activity_type:
+              activity.activity_type === 'call_completed' ? 'call_completed' : 'note_added',
             p_title: `Manually linked: ${activity.activity_type} from ${activity.contact_email || 'unknown'}`,
             p_description: activity.disposition_label || null,
             p_admin_id: null,
@@ -117,7 +133,8 @@ export default function UnmatchedActivitiesPage() {
             Unmatched Activities
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Activities from PhoneBurner that couldn't be automatically linked to a deal. Manually link them to recover data.
+            Activities from PhoneBurner that couldn't be automatically linked to a deal. Manually
+            link them to recover data.
           </p>
         </div>
         <Badge variant="outline" className="text-lg px-3 py-1">
@@ -163,20 +180,25 @@ export default function UnmatchedActivitiesPage() {
                         {activity.contact_email && <span>{activity.contact_email}</span>}
                         {activity.user_name && <span>by {activity.user_name}</span>}
                         {activity.call_duration_seconds != null && (
-                          <span>{Math.floor(activity.call_duration_seconds / 60)}m {activity.call_duration_seconds % 60}s</span>
+                          <span>
+                            {Math.floor(activity.call_duration_seconds / 60)}m{' '}
+                            {activity.call_duration_seconds % 60}s
+                          </span>
                         )}
                         {activity.disposition_label && <span>{activity.disposition_label}</span>}
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        {format(new Date(activity.created_at), 'MMM d, yyyy h:mm a')}
-                        {' '}({formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })})
+                        {format(new Date(activity.created_at), 'MMM d, yyyy h:mm a')} (
+                        {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })})
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <Select
                         value={selectedDealId[activity.id] || ''}
-                        onValueChange={(val) => setSelectedDealId((prev) => ({ ...prev, [activity.id]: val }))}
+                        onValueChange={(val) =>
+                          setSelectedDealId((prev) => ({ ...prev, [activity.id]: val }))
+                        }
                       >
                         <SelectTrigger className="w-[250px] text-xs">
                           <SelectValue placeholder="Select deal to link..." />
@@ -195,7 +217,9 @@ export default function UnmatchedActivitiesPage() {
                         variant="default"
                         disabled={!selectedDealId[activity.id] || linkMutation.isPending}
                         onClick={() => {
-                          const [dealId, listingId] = (selectedDealId[activity.id] || '').split('::');
+                          const [dealId, listingId] = (selectedDealId[activity.id] || '').split(
+                            '::',
+                          );
                           if (dealId && listingId) {
                             linkMutation.mutate({ activityId: activity.id, dealId, listingId });
                           }

@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
+import { createClient as _createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { sendEmail } from '../_shared/email-sender.ts';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
@@ -33,25 +33,50 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
 
   try {
-    const { connectionRequestId, buyerEmail, buyerName, companyName, senderEmail: customSenderEmail, senderName: customSenderName, replyTo: customReplyTo, customBodyText }: BuyerRejectionRequest = await req.json();
+    const {
+      connectionRequestId,
+      buyerEmail,
+      buyerName,
+      companyName,
+      senderEmail: customSenderEmail,
+      senderName: customSenderName,
+      replyTo: customReplyTo,
+      customBodyText,
+    }: BuyerRejectionRequest = await req.json();
 
     if (!buyerEmail || !companyName) {
-      return new Response(JSON.stringify({ success: false, error: 'buyerEmail and companyName are required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      return new Response(
+        JSON.stringify({ success: false, error: 'buyerEmail and companyName are required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+      );
     }
 
-    console.log('[notify-buyer-rejection] Sending rejection email to:', buyerEmail, 'for:', companyName);
+    console.log(
+      '[notify-buyer-rejection] Sending rejection email to:',
+      buyerEmail,
+      'for:',
+      companyName,
+    );
 
     const subject = `Regarding Your Interest in ${companyName}`;
 
     let htmlContent: string;
     if (customBodyText) {
       // Split by double-newlines into paragraphs, then convert single newlines to <br>
-      const paragraphs = customBodyText.split(/\n\s*\n/).map((p: string) => p.trim()).filter(Boolean);
-      const bodyParagraphs = paragraphs.map((p: string) => {
-        const escaped = p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
-        return `<p>${escaped}</p>`;
-      }).join('\n');
+      const paragraphs = customBodyText
+        .split(/\n\s*\n/)
+        .map((p: string) => p.trim())
+        .filter(Boolean);
+      const bodyParagraphs = paragraphs
+        .map((p: string) => {
+          const escaped = p
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br/>');
+          return `<p>${escaped}</p>`;
+        })
+        .join('\n');
       htmlContent = wrapEmailHtml({
         bodyHtml: bodyParagraphs,
         preheader: `Update on your interest in ${companyName}`,
@@ -60,7 +85,9 @@ const handler = async (req: Request): Promise<Response> => {
     } else {
       htmlContent = buildRejectionHtml(buyerName, companyName, buyerEmail);
     }
-    const textContent = customBodyText || `Thank you for your interest in ${companyName}. After careful review, this opportunity is no longer available for your profile at this time. Sincerely, The SourceCo Team`;
+    const textContent =
+      customBodyText ||
+      `Thank you for your interest in ${companyName}. After careful review, this opportunity is no longer available for your profile at this time. Sincerely, The SourceCo Team`;
 
     const result = await sendEmail({
       templateName: 'buyer_rejection',
@@ -84,13 +111,23 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('[notify-buyer-rejection] Email sent successfully:', result.providerMessageId);
 
     return new Response(
-      JSON.stringify({ success: true, message_id: result.providerMessageId, recipient: buyerEmail, correlation_id: result.correlationId }),
+      JSON.stringify({
+        success: true,
+        message_id: result.providerMessageId,
+        recipient: buyerEmail,
+        correlation_id: result.correlationId,
+      }),
       { headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   } catch (error: unknown) {
     console.error('[notify-buyer-rejection] Error:', error);
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }),
-      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+    );
   }
 };
 

@@ -11,7 +11,7 @@ describe('ListingCardFinancials', () => {
         revenue={5000000}
         ebitda={1000000}
         formatCurrency={mockFormatCurrency}
-      />
+      />,
     );
     expect(screen.getByText('ANNUAL REVENUE')).toBeInTheDocument();
     expect(screen.getByText('EBITDA')).toBeInTheDocument();
@@ -25,7 +25,7 @@ describe('ListingCardFinancials', () => {
         revenue={5000000}
         ebitda={1000000}
         formatCurrency={mockFormatCurrency}
-      />
+      />,
     );
     expect(mockFormatCurrency).toHaveBeenCalledWith(5000000);
     expect(mockFormatCurrency).toHaveBeenCalledWith(1000000);
@@ -37,19 +37,13 @@ describe('ListingCardFinancials', () => {
         revenue={10000000}
         ebitda={2000000}
         formatCurrency={mockFormatCurrency}
-      />
+      />,
     );
     expect(screen.getByText('20.0%')).toBeInTheDocument();
   });
 
   it('handles zero revenue for margin', () => {
-    render(
-      <ListingCardFinancials
-        revenue={0}
-        ebitda={0}
-        formatCurrency={mockFormatCurrency}
-      />
-    );
+    render(<ListingCardFinancials revenue={0} ebitda={0} formatCurrency={mockFormatCurrency} />);
     expect(screen.getByText('0.0%')).toBeInTheDocument();
   });
 
@@ -61,7 +55,7 @@ describe('ListingCardFinancials', () => {
         formatCurrency={mockFormatCurrency}
         fullTimeEmployees={50}
         partTimeEmployees={10}
-      />
+      />,
     );
     expect(screen.getByText('60')).toBeInTheDocument();
   });
@@ -74,7 +68,7 @@ describe('ListingCardFinancials', () => {
         formatCurrency={mockFormatCurrency}
         fullTimeEmployees={0}
         partTimeEmployees={0}
-      />
+      />,
     );
     expect(screen.getByText('\u2014')).toBeInTheDocument();
   });
@@ -86,9 +80,9 @@ describe('ListingCardFinancials', () => {
         ebitda={1000000}
         formatCurrency={mockFormatCurrency}
         viewType="list"
-      />
+      />,
     );
-    expect(container.querySelector('.grid-cols-4')).toBeTruthy();
+    expect(container.querySelector('[class*="grid-cols-4"]')).toBeTruthy();
   });
 
   it('renders in grid view type by default', () => {
@@ -97,7 +91,7 @@ describe('ListingCardFinancials', () => {
         revenue={5000000}
         ebitda={1000000}
         formatCurrency={mockFormatCurrency}
-      />
+      />,
     );
     expect(container.querySelector('.grid-cols-2')).toBeTruthy();
   });

@@ -19,7 +19,7 @@ function loadMigration(filename: string): string {
 }
 
 describe('portal intelligence RLS — migration static analysis', () => {
-  const auditFixes = loadMigration('20260703000001_portal_intelligence_audit_fixes.sql');
+  const auditFixes = loadMigration('20260703000011_portal_intelligence_audit_fixes.sql');
   const phase2 = loadMigration('20260703000002_portal_intelligence_phase_2.sql');
 
   it('audit-fixes migration uses public.is_admin() for all admin policies', () => {

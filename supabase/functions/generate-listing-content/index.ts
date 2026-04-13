@@ -45,29 +45,44 @@ function markdownToHtml(markdown: string): string {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) {
-      if (inList) { html += '</ul>\n'; inList = false; }
+      if (inList) {
+        html += '</ul>\n';
+        inList = false;
+      }
       continue;
     }
     if (trimmed.startsWith('## ')) {
-      if (inList) { html += '</ul>\n'; inList = false; }
+      if (inList) {
+        html += '</ul>\n';
+        inList = false;
+      }
       const text = trimmed.replace(/^## /, '').trim();
       html += `<h2>${text}</h2>\n`;
       continue;
     }
     if (trimmed.startsWith('### ')) {
-      if (inList) { html += '</ul>\n'; inList = false; }
+      if (inList) {
+        html += '</ul>\n';
+        inList = false;
+      }
       const text = trimmed.replace(/^### /, '').trim();
       html += `<h3>${text}</h3>\n`;
       continue;
     }
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      if (!inList) { html += '<ul>\n'; inList = true; }
+      if (!inList) {
+        html += '<ul>\n';
+        inList = true;
+      }
       const text = trimmed.replace(/^[-*] /, '').trim();
       const formatted = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       html += `<li>${formatted}</li>\n`;
       continue;
     }
-    if (inList) { html += '</ul>\n'; inList = false; }
+    if (inList) {
+      html += '</ul>\n';
+      inList = false;
+    }
     const formatted = trimmed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     html += `<p>${formatted}</p>\n`;
   }
@@ -144,7 +159,7 @@ SECTION SPECS:
 
 // ─── Title generation prompt ───
 
-const TITLE_SYSTEM = `Generate an anonymous marketplace listing title for an M&A deal.
+const _TITLE_SYSTEM = `Generate an anonymous marketplace listing title for an M&A deal.
 
 Rules:
 - Never use em dashes or en dashes. Use hyphens (-) only.
@@ -171,20 +186,20 @@ serve(async (req: Request) => {
     const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
 
     if (!anthropicApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Auth check
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     const adminResult = await requireAdmin(req, supabaseAdmin);
     if (adminResult.error) {
-      return new Response(
-        JSON.stringify({ error: adminResult.error }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: adminResult.error }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const body = await req.json();
@@ -192,10 +207,10 @@ serve(async (req: Request) => {
     const listingId = body.listing_id;
 
     if (!dealId) {
-      return new Response(
-        JSON.stringify({ error: 'deal_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return new Response(JSON.stringify({ error: 'deal_id is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log(`[generate-listing-content] Starting for deal_id=${dealId}`);
@@ -223,7 +238,14 @@ serve(async (req: Request) => {
       }
 
       // Use pipeline deal data
-      return await generateFromRawData(pipelineDeal, dealId, listingId, anthropicApiKey, supabaseAdmin, corsHeaders);
+      return await generateFromRawData(
+        pipelineDeal,
+        dealId,
+        listingId,
+        anthropicApiKey,
+        supabaseAdmin,
+        corsHeaders,
+      );
     }
 
     // Check if a lead memo exists
@@ -239,12 +261,26 @@ serve(async (req: Request) => {
 
     if (leadMemo?.content) {
       console.log(`[generate-listing-content] Found lead memo, using memo-based generation`);
-      return await generateFromMemo(deal, leadMemo, dealId, listingId, anthropicApiKey, supabaseAdmin, corsHeaders);
+      return await generateFromMemo(
+        deal,
+        leadMemo,
+        dealId,
+        listingId,
+        anthropicApiKey,
+        supabaseAdmin,
+        corsHeaders,
+      );
     }
 
     console.log(`[generate-listing-content] No lead memo found, using raw deal data`);
-    return await generateFromRawData(deal, dealId, listingId, anthropicApiKey, supabaseAdmin, corsHeaders);
-
+    return await generateFromRawData(
+      deal,
+      dealId,
+      listingId,
+      anthropicApiKey,
+      supabaseAdmin,
+      corsHeaders,
+    );
   } catch (err) {
     console.error('[generate-listing-content] Error:', err);
     return new Response(
@@ -282,7 +318,15 @@ ${leadMemoText}
 
 Apply all anonymization rules strictly. Return markdown only - no preamble, no explanation, no code fences. Start directly with ## HERO_DESCRIPTION.`;
 
-  return await callAIAndRespond(deal, userPrompt, dealId, listingId, anthropicApiKey, supabaseAdmin, corsHeaders);
+  return await callAIAndRespond(
+    deal,
+    userPrompt,
+    dealId,
+    listingId,
+    anthropicApiKey,
+    supabaseAdmin,
+    corsHeaders,
+  );
 }
 
 // ─── Generate from raw deal data ───
@@ -313,7 +357,9 @@ async function generateFromRawData(
   if (deal.growth_trajectory) dataPoints.push(`Growth Context: ${deal.growth_trajectory}`);
   if (deal.number_of_locations) dataPoints.push(`Locations: ${deal.number_of_locations}`);
   if (deal.geographic_states) {
-    const states = Array.isArray(deal.geographic_states) ? deal.geographic_states.join(', ') : deal.geographic_states;
+    const states = Array.isArray(deal.geographic_states)
+      ? deal.geographic_states.join(', ')
+      : deal.geographic_states;
     dataPoints.push(`Geographic States (anonymize to region): ${states}`);
   }
 
@@ -321,8 +367,10 @@ async function generateFromRawData(
   if (deal.enrichment_data && typeof deal.enrichment_data === 'object') {
     const ed = deal.enrichment_data as Record<string, unknown>;
     if (ed.company_overview) dataPoints.push(`Company Overview: ${ed.company_overview}`);
-    if (ed.services_offered) dataPoints.push(`Services Detail: ${JSON.stringify(ed.services_offered)}`);
-    if (ed.competitive_advantages) dataPoints.push(`Competitive Advantages: ${JSON.stringify(ed.competitive_advantages)}`);
+    if (ed.services_offered)
+      dataPoints.push(`Services Detail: ${JSON.stringify(ed.services_offered)}`);
+    if (ed.competitive_advantages)
+      dataPoints.push(`Competitive Advantages: ${JSON.stringify(ed.competitive_advantages)}`);
     if (ed.target_market) dataPoints.push(`Target Market: ${JSON.stringify(ed.target_market)}`);
     if (ed.employee_count) dataPoints.push(`Employees: ${ed.employee_count}`);
   }
@@ -351,12 +399,15 @@ async function generateFromRawData(
         .join('\n');
       if (transcriptContext) dataPoints.push(`Call Intelligence:\n${transcriptContext}`);
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   if (dataPoints.length === 0) {
     return new Response(
       JSON.stringify({
-        error: 'Insufficient deal data to generate a listing. Add a description, financial data, or notes first.',
+        error:
+          'Insufficient deal data to generate a listing. Add a description, financial data, or notes first.',
       }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
@@ -371,7 +422,15 @@ ${dataPoints.join('\n\n')}
 
 Apply all anonymization rules strictly. Return markdown only - no preamble, no explanation, no code fences. Start directly with ## HERO_DESCRIPTION.`;
 
-  return await callAIAndRespond(deal, userPrompt, dealId, listingId, anthropicApiKey, supabaseAdmin, corsHeaders);
+  return await callAIAndRespond(
+    deal,
+    userPrompt,
+    dealId,
+    listingId,
+    anthropicApiKey,
+    supabaseAdmin,
+    corsHeaders,
+  );
 }
 
 // ─── Shared AI call + response ───
@@ -448,7 +507,8 @@ async function callAIAndRespond(
   if (heroDescription.length > 280) {
     const trimmed = heroDescription.substring(0, 280);
     const lastPeriod = trimmed.lastIndexOf('.');
-    heroDescription = lastPeriod > 80 ? trimmed.substring(0, lastPeriod + 1).trim() : trimmed.trim();
+    heroDescription =
+      lastPeriod > 80 ? trimmed.substring(0, lastPeriod + 1).trim() : trimmed.trim();
   }
 
   // Fallback: build from metrics if AI didn't produce a hero
@@ -468,11 +528,21 @@ async function callAIAndRespond(
   const industry = (deal.industry || deal.category || 'Services') as string;
   const rawState = (deal.address_state || deal.location || '') as string;
   const regionDescriptor = resolveRegion(rawState);
-  const margin = deal.ebitda && deal.revenue
-    ? Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 100)
-    : 0;
+  const margin =
+    deal.ebitda && deal.revenue
+      ? Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 100)
+      : 0;
   const rev = (deal.revenue || 0) as number;
-  const descriptor = margin >= 25 ? 'High-Margin' : margin >= 15 ? 'Profitable' : rev >= 10_000_000 ? 'Scaled' : rev >= 5_000_000 ? 'Growth-Stage' : 'Established';
+  const descriptor =
+    margin >= 25
+      ? 'High-Margin'
+      : margin >= 15
+        ? 'Profitable'
+        : rev >= 10_000_000
+          ? 'Scaled'
+          : rev >= 5_000_000
+            ? 'Growth-Stage'
+            : 'Established';
   const title = regionDescriptor
     ? `${descriptor} ${industry} Business - ${regionDescriptor}`
     : `${descriptor} ${industry} Business`;
@@ -483,7 +553,9 @@ async function callAIAndRespond(
   // Resolve location for form
   const location = regionDescriptor || (deal.location as string) || '';
 
-  console.log(`[generate-listing-content] Generated ${descriptionHtml.length} chars HTML, title="${title}"`);
+  console.log(
+    `[generate-listing-content] Generated ${descriptionHtml.length} chars HTML, title="${title}"`,
+  );
 
   // --- Smart metric generation ---
   const primaryCategory = (deal.industry || deal.category || '') as string;
@@ -578,9 +650,10 @@ async function callAIAndRespond(
 function buildMetricsLines(deal: Record<string, unknown>): string {
   const revenue = deal.revenue ? formatRevenueRange(deal.revenue as number) : null;
   const ebitda = deal.ebitda ? formatRevenueRange(deal.ebitda as number) : null;
-  const ebitdaMargin = deal.ebitda && deal.revenue
-    ? `~${Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 90)}-${Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 110)}%`
-    : null;
+  const ebitdaMargin =
+    deal.ebitda && deal.revenue
+      ? `~${Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 90)}-${Math.round(((deal.ebitda as number) / (deal.revenue as number)) * 110)}%`
+      : null;
   const industry = (deal.industry || deal.category || 'Services') as string;
   const rawState = (deal.address_state || deal.location || '') as string;
   const regionDescriptor = resolveRegion(rawState);
@@ -593,7 +666,9 @@ function buildMetricsLines(deal: Record<string, unknown>): string {
     deal.full_time_employees ? `Employees: ${deal.full_time_employees}` : null,
     deal.number_of_locations ? `Locations: ${deal.number_of_locations}` : null,
     regionDescriptor ? `Geography: ${regionDescriptor} (regional descriptor)` : null,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function resolveRegion(rawState: string): string {

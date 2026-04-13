@@ -40,6 +40,7 @@ export function normArray(arr: string[] | null | undefined): string[] {
 export function extractDealKeywords(deal: Record<string, unknown>): string[] {
   const richText = [
     deal.executive_summary,
+    deal.description,
     deal.hero_description,
     deal.investment_thesis,
     deal.end_market_description,

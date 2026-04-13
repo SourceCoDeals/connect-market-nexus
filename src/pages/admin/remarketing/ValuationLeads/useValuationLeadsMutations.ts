@@ -452,24 +452,19 @@ export function useValuationLeadsMutations(deps: MutationDeps) {
       setIsEnriching(false);
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     [leads, user?.id, startOrQueueMajorOp, completeOperation, queryClient, setSelectedIds],
   );
 
   const handleDelete = useCallback(
     async (leadIds: string[]) => {
       if (leadIds.length === 0) return;
-      const { error } = await supabase
-        .from('valuation_leads')
-        .delete()
-        .in('id', leadIds);
+      const { error } = await supabase.from('valuation_leads').delete().in('id', leadIds);
       if (error) {
         sonnerToast.error('Failed to delete leads');
         return;
       }
-      sonnerToast.success(
-        `Deleted ${leadIds.length} lead${leadIds.length !== 1 ? 's' : ''}`,
-      );
+      sonnerToast.success(`Deleted ${leadIds.length} lead${leadIds.length !== 1 ? 's' : ''}`);
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'valuation-leads'] });
     },

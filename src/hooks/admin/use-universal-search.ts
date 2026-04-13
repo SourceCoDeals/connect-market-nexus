@@ -10,7 +10,7 @@ async function fetchAllRows<T>(
 ): Promise<T[]> {
   const allRows: T[] = [];
   let offset = 0;
-  // eslint-disable-next-line no-constant-condition
+
   while (true) {
     const { data, error } = await buildQuery(offset, offset + pageSize - 1);
     if (error) throw error;
@@ -95,16 +95,15 @@ export function useUniversalSearch() {
   const allDealsQuery = useQuery({
     queryKey: ['universal-search', 'all-deals'],
     queryFn: async () => {
-      const rows = await fetchAllRows<Record<string, unknown>>(
-        (from, to) =>
-          supabase
-            .from('listings')
-            .select(
-              'id, title, internal_company_name, description, location, category, industry, website, deal_source, remarketing_status, main_contact_name, main_contact_email, captarget_client_name, address_state, status',
-            )
-            .is('deleted_at', null)
-            .order('created_at', { ascending: false })
-            .range(from, to),
+      const rows = await fetchAllRows<Record<string, unknown>>((from, to) =>
+        supabase
+          .from('listings')
+          .select(
+            'id, title, internal_company_name, description, location, category, industry, website, deal_source, remarketing_status, main_contact_name, main_contact_email, captarget_client_name, address_state, status',
+          )
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .range(from, to),
       );
       return rows.map((l: Record<string, unknown>) => {
         // Route to the appropriate detail page based on deal_source
@@ -122,7 +121,10 @@ export function useUniversalSearch() {
           href = `/admin/remarketing/leads/sourceco`;
         }
 
-        const companyName = (l.internal_company_name || l.real_company_name || l.title || 'Untitled') as string;
+        const companyName = (l.internal_company_name ||
+          l.real_company_name ||
+          l.title ||
+          'Untitled') as string;
         return {
           id: l.id as string,
           title: companyName,
@@ -278,7 +280,9 @@ export function useUniversalSearch() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, first_name, last_name, email, title, phone, remarketing_buyer_id, buyers!inner(company_name)')
+        .select(
+          'id, first_name, last_name, email, title, phone, remarketing_buyer_id, buyers!inner(company_name)',
+        )
         .eq('contact_type', 'buyer')
         .eq('archived', false)
         .order('first_name');
@@ -309,40 +313,37 @@ export function useUniversalSearch() {
     buyersQuery.isLoading ||
     buyerContactsQuery.isLoading;
 
-  const allResults: UniversalSearchResult[] = useMemo(
-    () => {
-      // Combine all sources, then deduplicate by id within each category
-      const combined = [
-        ...(dealsQuery.data ?? []),
-        ...(allDealsQuery.data ?? []),
-        ...(valuationQuery.data ?? []),
-        ...(inboundQuery.data ?? []),
-        ...(ownerQuery.data ?? []),
-        ...(referralQuery.data ?? []),
-        ...(buyersQuery.data ?? []),
-        ...(buyerContactsQuery.data ?? []),
-      ];
+  const allResults: UniversalSearchResult[] = useMemo(() => {
+    // Combine all sources, then deduplicate by id within each category
+    const combined = [
+      ...(dealsQuery.data ?? []),
+      ...(allDealsQuery.data ?? []),
+      ...(valuationQuery.data ?? []),
+      ...(inboundQuery.data ?? []),
+      ...(ownerQuery.data ?? []),
+      ...(referralQuery.data ?? []),
+      ...(buyersQuery.data ?? []),
+      ...(buyerContactsQuery.data ?? []),
+    ];
 
-      // Deduplicate: keep first occurrence per id+category
-      const seen = new Set<string>();
-      return combined.filter((r) => {
-        const key = `${r.category}:${r.id}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    },
-    [
-      dealsQuery.data,
-      allDealsQuery.data,
-      valuationQuery.data,
-      inboundQuery.data,
-      ownerQuery.data,
-      referralQuery.data,
-      buyersQuery.data,
-      buyerContactsQuery.data,
-    ],
-  );
+    // Deduplicate: keep first occurrence per id+category
+    const seen = new Set<string>();
+    return combined.filter((r) => {
+      const key = `${r.category}:${r.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [
+    dealsQuery.data,
+    allDealsQuery.data,
+    valuationQuery.data,
+    inboundQuery.data,
+    ownerQuery.data,
+    referralQuery.data,
+    buyersQuery.data,
+    buyerContactsQuery.data,
+  ]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();

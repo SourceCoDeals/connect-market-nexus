@@ -257,7 +257,7 @@ function PortalPreview({ push }: { push: Record<string, unknown> | null }) {
             </Card>
 
             {/* Business description */}
-            {Boolean(snapshot.business_description) ? (
+            {snapshot.business_description ? (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Business Overview</CardTitle>
