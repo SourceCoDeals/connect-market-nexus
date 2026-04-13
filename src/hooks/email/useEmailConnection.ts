@@ -33,11 +33,10 @@ const EMAIL_CONNECTION_KEY = ['email', 'connection'];
  * from our own `errorResponse` helper, which always exposes a user-facing
  * `error` string. That way callers see "Only admins can backfill…" instead
  * of "Edge Function returned a non-2xx status code".
+ *
+ * Exported for unit testing.
  */
-async function extractFunctionError(
-  error: unknown,
-  fallback: string,
-): Promise<string> {
+export async function extractFunctionError(error: unknown, fallback: string): Promise<string> {
   if (!error) return fallback;
 
   // Try to dig the server-provided error string out of the response body.
@@ -48,8 +47,7 @@ async function extractFunctionError(
       const body = await (ctx as Response).clone().json();
       if (body && typeof body === 'object') {
         const serverMessage =
-          (body as { error?: string }).error ||
-          (body as { message?: string }).message;
+          (body as { error?: string }).error || (body as { message?: string }).message;
         if (serverMessage && typeof serverMessage === 'string') {
           return serverMessage;
         }
