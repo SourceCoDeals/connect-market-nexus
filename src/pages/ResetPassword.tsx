@@ -129,7 +129,7 @@ export default function ResetPassword() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={loading || !token || password.length < 6 || password !== confirm}
+                disabled={loading || !token || password.length < 8 || password !== confirm}
               >
                 {loading ? 'Updating...' : 'Update password'}
               </Button>

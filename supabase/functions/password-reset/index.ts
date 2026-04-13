@@ -1,9 +1,9 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-import { sendEmail } from "../_shared/email-sender.ts";
-import { wrapEmailHtml } from "../_shared/email-template-wrapper.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { sendEmail } from '../_shared/email-sender.ts';
+import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -18,7 +18,9 @@ interface PasswordResetRequest {
 }
 
 function bytesToHex(bytes: Uint8Array) {
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 async function generateAndStoreToken(userId: string) {
@@ -57,10 +59,10 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`Password reset requested for email: ${email}`);
 
       if (!email) {
-        return new Response(
-          JSON.stringify({ error: 'Email is required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
+        return new Response(JSON.stringify({ error: 'Email is required' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
       }
 
       // Look up user by email in profiles (service role bypasses RLS)
@@ -74,16 +76,22 @@ const handler = async (req: Request): Promise<Response> => {
         console.error('Profile lookup failed:', profileError);
         // Do not leak details
         return new Response(
-          JSON.stringify({ success: true, message: 'If the email exists, a reset link will be sent.' }),
-          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          JSON.stringify({
+            success: true,
+            message: 'If the email exists, a reset link will be sent.',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
         );
       }
 
       // If no user, still respond 200
       if (!profile?.id) {
         return new Response(
-          JSON.stringify({ success: true, message: 'If the email exists, a reset link will be sent.' }),
-          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          JSON.stringify({
+            success: true,
+            message: 'If the email exists, a reset link will be sent.',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
         );
       }
 
@@ -95,20 +103,25 @@ const handler = async (req: Request): Promise<Response> => {
         console.error('Error creating reset token:', e);
         // Still do not leak existence
         return new Response(
-          JSON.stringify({ success: true, message: 'If the email exists, a reset link will be sent.' }),
-          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          JSON.stringify({
+            success: true,
+            message: 'If the email exists, a reset link will be sent.',
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
         );
       }
 
-      // Security: Hardcode origin to prevent reflected URL attacks via Origin header
+      // Use SITE_URL env var (set in Supabase dashboard) with production fallback.
+      // This ensures reset links work across environments (staging, preview, production).
       const ALLOWED_ORIGINS = [
+        Deno.env.get('SITE_URL') || 'https://marketplace.sourcecodeals.com',
         'https://marketplace.sourcecodeals.com',
         'https://sourcecodeals.com',
-      ];
+      ].filter(Boolean);
       const requestOrigin = req.headers.get('origin') || '';
       const origin = ALLOWED_ORIGINS.includes(requestOrigin)
         ? requestOrigin
-        : 'https://marketplace.sourcecodeals.com';
+        : Deno.env.get('SITE_URL') || 'https://marketplace.sourcecodeals.com';
       const resetUrl = `${origin}/reset-password?token=${resetToken}`;
 
       // Send password reset email directly via sendEmail
@@ -140,24 +153,28 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       return new Response(
-        JSON.stringify({ success: true, message: 'If the email exists, a reset link will be sent.', emailSent }),
-        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        JSON.stringify({
+          success: true,
+          message: 'If the email exists, a reset link will be sent.',
+          emailSent,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
 
     if (action === 'reset') {
       if (!token || !newPassword) {
-        return new Response(
-          JSON.stringify({ error: 'Token and new password are required' }),
-          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
+        return new Response(JSON.stringify({ error: 'Token and new password are required' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
       }
 
-      if (newPassword.length < 6) {
-        return new Response(
-          JSON.stringify({ error: 'Password must be at least 6 characters' }),
-          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
+      if (newPassword.length < 8) {
+        return new Response(JSON.stringify({ error: 'Password must be at least 8 characters' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
       }
 
       console.log('Validating reset token...');
@@ -172,10 +189,10 @@ const handler = async (req: Request): Promise<Response> => {
         .maybeSingle();
 
       if (!tokenRow?.user_id) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired reset token' }),
-          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
+        return new Response(JSON.stringify({ error: 'Invalid or expired reset token' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
       }
 
       // Update password using Admin API
@@ -185,34 +202,40 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (resetError) {
         console.error('Password reset failed:', resetError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to reset password' }),
-          { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-        );
+        return new Response(JSON.stringify({ error: 'Failed to reset password' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
       }
 
       // Mark token as used
-      await supabase
-        .from('password_reset_tokens')
-        .update({ used: true })
-        .eq('token', token);
+      await supabase.from('password_reset_tokens').update({ used: true }).eq('token', token);
+
+      // Invalidate all existing sessions for this user (security: old sessions from
+      // potentially compromised password should not remain active)
+      try {
+        await supabase.auth.admin.signOut(tokenRow.user_id, 'global');
+      } catch (logoutErr) {
+        // Non-critical — password was still changed successfully
+        console.warn('Session invalidation after reset failed:', logoutErr);
+      }
 
       return new Response(
         JSON.stringify({ success: true, message: 'Password reset successfully' }),
-        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
       );
     }
 
-    return new Response(
-      JSON.stringify({ error: 'Invalid action' }),
-      { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
+    return new Response(JSON.stringify({ error: 'Invalid action' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   } catch (error: unknown) {
     console.error('Error in password-reset function:', error);
-    return new Response(
-      JSON.stringify({ error: error?.message || 'Internal server error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-    );
+    return new Response(JSON.stringify({ error: error?.message || 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 };
 

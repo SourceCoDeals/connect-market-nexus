@@ -35,9 +35,12 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const profileColumns = 'email_verified, approval_status, is_admin, first_name, last_name, email';
+      const profileColumns =
+        'email_verified, approval_status, is_admin, first_name, last_name, email';
 
-      const fetchProfile = async (authUser: SupabaseUser): Promise<Record<string, unknown> | null> => {
+      const fetchProfile = async (
+        authUser: SupabaseUser,
+      ): Promise<Record<string, unknown> | null> => {
         const { data: fetchedProfile, error: profileError } = await supabase
           .from('profiles')
           .select(profileColumns)
@@ -66,11 +69,15 @@ export default function AuthCallback() {
           if (setSessionError) throw setSessionError;
           authUser = data.user;
         } else if (pkceCode) {
-          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(pkceCode);
+          const { data, error: exchangeError } =
+            await supabase.auth.exchangeCodeForSession(pkceCode);
           if (exchangeError) throw exchangeError;
           authUser = data.user;
         } else {
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
           if (sessionError) throw sessionError;
           authUser = session?.user ?? null;
         }
@@ -86,18 +93,23 @@ export default function AuthCallback() {
             approvalStatus: profile?.approval_status,
           });
 
-          // Wait for DB trigger sync if auth says verified but profile hasn't caught up
+          // Wait for DB trigger sync if auth says verified but profile hasn't caught up.
+          // Uses exponential backoff: 500ms, 1s, 1.5s, 2s, 2.5s, 3s, 3.5s, 4s = ~18s max wait.
           if (emailConfirmed && !profile?.email_verified) {
             console.info('[auth/callback] Profile not yet synced, retrying...');
-            for (let attempt = 1; attempt <= 5; attempt += 1) {
-              await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+            for (let attempt = 1; attempt <= 8; attempt += 1) {
+              await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
               profile = await fetchProfile(authUser);
-              console.info(`[auth/callback] Retry ${attempt}/5: profile.email_verified=${profile?.email_verified}`);
+              console.info(
+                `[auth/callback] Retry ${attempt}/8: profile.email_verified=${profile?.email_verified}`,
+              );
               if (profile?.email_verified) break;
             }
 
             if (!profile?.email_verified) {
-              console.warn('[auth/callback] Profile still not synced after 5 retries. Auth says verified, profile says false.');
+              console.warn(
+                '[auth/callback] Profile still not synced after 8 retries. Auth says verified, profile says false. Will proceed with auth-confirmed state.',
+              );
             }
           }
 
@@ -105,11 +117,18 @@ export default function AuthCallback() {
           if (emailConfirmed && profile?.approval_status === 'approved') {
             // Check if this is a portal magic link redirect
             const hashParams = new URLSearchParams(CAPTURED_HASH);
-            const redirectTo = hashParams.get('redirect_to') || hashParams.get('redirect_url') || hashParams.get('redirectTo');
+            const redirectTo =
+              hashParams.get('redirect_to') ||
+              hashParams.get('redirect_url') ||
+              hashParams.get('redirectTo');
             const searchParams = new URLSearchParams(CAPTURED_SEARCH);
-            const redirectParam = searchParams.get('redirect_to') || searchParams.get('redirect') || searchParams.get('next');
-            const portalRedirect = [redirectTo, redirectParam]
-              .find((url) => url && url.startsWith('/portal/'));
+            const redirectParam =
+              searchParams.get('redirect_to') ||
+              searchParams.get('redirect') ||
+              searchParams.get('next');
+            const portalRedirect = [redirectTo, redirectParam].find(
+              (url) => url && url.startsWith('/portal/'),
+            );
 
             if (portalRedirect) {
               navigate(portalRedirect);
