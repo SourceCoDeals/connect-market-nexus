@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { useCreateThesisCriteria, useUpdateThesisCriteria } from '@/hooks/portal/use-portal-thesis';
+import { useBuyerSearch, useBuyerLabel } from '@/hooks/portal/use-buyer-search';
+import { AsyncCombobox } from '@/components/ui/async-combobox';
 import type { PortalThesisCriteria } from '@/types/portal';
 
 interface ThesisCriteriaFormProps {
@@ -29,10 +31,15 @@ function parseCommaList(value: string): string[] {
     .filter(Boolean);
 }
 
-function toNumberOrNull(value: string): number | null {
+/**
+ * Parse a currency/number input. DB storage is BIGINT so non-integer values
+ * are rounded. Returns null for empty or unparseable input.
+ */
+function toIntegerOrNull(value: string): number | null {
   if (!value.trim()) return null;
   const n = Number(value.replace(/[,$]/g, ''));
-  return Number.isFinite(n) ? n : null;
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n);
 }
 
 export function ThesisCriteriaForm({
@@ -58,9 +65,13 @@ export function ThesisCriteriaForm({
   const [employeeMin, setEmployeeMin] = useState('');
   const [employeeMax, setEmployeeMax] = useState('');
   const [targetStates, setTargetStates] = useState('');
-  const [portfolioCompany, setPortfolioCompany] = useState('');
+  const [portfolioBuyerId, setPortfolioBuyerId] = useState<string | null>(null);
+  const [buyerSearch, setBuyerSearch] = useState('');
   const [priority, setPriority] = useState('3');
   const [notes, setNotes] = useState('');
+
+  const { options: buyerOptions, isLoading: buyerLoading } = useBuyerSearch(buyerSearch);
+  const { data: selectedBuyerLabel } = useBuyerLabel(portfolioBuyerId);
 
   // Reset form when dialog opens / editing changes
   useEffect(() => {
@@ -75,7 +86,7 @@ export function ThesisCriteriaForm({
         setEmployeeMin(editingCriteria.employee_min?.toString() ?? '');
         setEmployeeMax(editingCriteria.employee_max?.toString() ?? '');
         setTargetStates(editingCriteria.target_states.join(', '));
-        setPortfolioCompany(editingCriteria.portfolio_buyer_id ?? '');
+        setPortfolioBuyerId(editingCriteria.portfolio_buyer_id ?? null);
         setPriority(editingCriteria.priority.toString());
         setNotes(editingCriteria.notes ?? '');
       } else {
@@ -88,35 +99,59 @@ export function ThesisCriteriaForm({
         setEmployeeMin('');
         setEmployeeMax('');
         setTargetStates('');
-        setPortfolioCompany('');
+        setPortfolioBuyerId(null);
         setPriority('3');
         setNotes('');
       }
     }
   }, [open, editingCriteria]);
 
+  // Live validation: keywords must be non-empty and ranges must not be inverted.
+  const validationError = useMemo(() => {
+    const keywords = parseCommaList(industryKeywords);
+    if (industryLabel.trim() && keywords.length === 0) {
+      return 'At least one industry keyword is required.';
+    }
+    const pairs: Array<[number | null, number | null, string]> = [
+      [toIntegerOrNull(ebitdaMin), toIntegerOrNull(ebitdaMax), 'EBITDA'],
+      [toIntegerOrNull(revenueMin), toIntegerOrNull(revenueMax), 'Revenue'],
+      [toIntegerOrNull(employeeMin), toIntegerOrNull(employeeMax), 'Employee'],
+    ];
+    for (const [min, max, label] of pairs) {
+      if (min != null && max != null && min > max) {
+        return `${label} min cannot be greater than max.`;
+      }
+    }
+    return null;
+  }, [
+    industryLabel,
+    industryKeywords,
+    ebitdaMin,
+    ebitdaMax,
+    revenueMin,
+    revenueMax,
+    employeeMin,
+    employeeMax,
+  ]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!industryLabel.trim()) return;
+    if (!industryLabel.trim() || validationError) return;
 
     const payload = {
       portal_org_id: portalOrgId,
       industry_label: industryLabel.trim(),
       industry_keywords: parseCommaList(industryKeywords),
-      ebitda_min: toNumberOrNull(ebitdaMin),
-      ebitda_max: toNumberOrNull(ebitdaMax),
-      revenue_min: toNumberOrNull(revenueMin),
-      revenue_max: toNumberOrNull(revenueMax),
-      employee_min: toNumberOrNull(employeeMin),
-      employee_max: toNumberOrNull(employeeMax),
+      ebitda_min: toIntegerOrNull(ebitdaMin),
+      ebitda_max: toIntegerOrNull(ebitdaMax),
+      revenue_min: toIntegerOrNull(revenueMin),
+      revenue_max: toIntegerOrNull(revenueMax),
+      employee_min: toIntegerOrNull(employeeMin),
+      employee_max: toIntegerOrNull(employeeMax),
       target_states: parseCommaList(targetStates),
-      // portfolio_buyer_id requires a UUID — leave null until buyer search is wired up
-      portfolio_buyer_id: null,
+      portfolio_buyer_id: portfolioBuyerId,
       priority: Math.min(5, Math.max(1, Number(priority) || 3)),
-      notes:
-        [portfolioCompany.trim() ? `Portfolio: ${portfolioCompany.trim()}` : '', notes.trim()]
-          .filter(Boolean)
-          .join('\n') || null,
+      notes: notes.trim() || null,
     };
 
     const onSuccess = () => {
@@ -153,14 +188,17 @@ export function ThesisCriteriaForm({
 
           {/* Industry Keywords */}
           <div className="space-y-1.5">
-            <Label htmlFor="industry-keywords">Industry Keywords</Label>
+            <Label htmlFor="industry-keywords">Industry Keywords *</Label>
             <Input
               id="industry-keywords"
               value={industryKeywords}
               onChange={(e) => setIndustryKeywords(e.target.value)}
               placeholder="HVAC, mechanical, heating, cooling"
+              required
             />
-            <p className="text-xs text-muted-foreground">Comma-separated keywords for matching</p>
+            <p className="text-xs text-muted-foreground">
+              Comma-separated keywords for matching. At least one required.
+            </p>
           </div>
 
           {/* EBITDA Range */}
@@ -249,15 +287,25 @@ export function ThesisCriteriaForm({
             </p>
           </div>
 
-          {/* Portfolio Company */}
+          {/* Portfolio Buyer (optional) — links this criterion to an existing
+              buyer/PE portfolio company so recommendations can credit the match. */}
           <div className="space-y-1.5">
-            <Label htmlFor="portfolio-company">Portfolio Company (notes)</Label>
-            <Input
-              id="portfolio-company"
-              value={portfolioCompany}
-              onChange={(e) => setPortfolioCompany(e.target.value)}
-              placeholder="e.g., Comfort Systems"
+            <Label>Portfolio Buyer (optional)</Label>
+            <AsyncCombobox
+              value={portfolioBuyerId}
+              onValueChange={(v) => setPortfolioBuyerId(v)}
+              options={buyerOptions}
+              onSearchChange={setBuyerSearch}
+              isLoading={buyerLoading}
+              selectedLabel={selectedBuyerLabel}
+              placeholder="No portfolio buyer linked"
+              searchPlaceholder="Search buyers..."
+              emptyText="No matching buyers"
             />
+            <p className="text-xs text-muted-foreground">
+              Link this thesis to an existing buyer so recommendations show the portfolio company
+              name.
+            </p>
           </div>
 
           {/* Priority */}
@@ -285,6 +333,13 @@ export function ThesisCriteriaForm({
             />
           </div>
 
+          {validationError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{validationError}</span>
+            </div>
+          )}
+
           <DialogFooter>
             <Button
               type="button"
@@ -294,7 +349,10 @@ export function ThesisCriteriaForm({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending || !industryLabel.trim()}>
+            <Button
+              type="submit"
+              disabled={isPending || !industryLabel.trim() || !!validationError}
+            >
               {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isEditing ? 'Save Changes' : 'Add Criterion'}
             </Button>

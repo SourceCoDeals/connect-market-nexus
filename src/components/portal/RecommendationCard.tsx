@@ -17,6 +17,7 @@ const STATUS_STYLES: Record<string, string> = {
   approved: 'bg-blue-100 text-blue-800',
   pushed: 'bg-green-100 text-green-800',
   dismissed: 'bg-gray-100 text-gray-600',
+  stale: 'bg-gray-100 text-gray-500',
 };
 
 function formatEbitda(value: number | null | undefined): string {

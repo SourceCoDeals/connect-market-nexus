@@ -87,3 +87,61 @@ export function useDeleteThesisCriteria() {
     },
   });
 }
+
+/**
+ * Clone all active thesis criteria from one portal org to another.
+ * Used by the "Clone from another portal" feature on new clients —
+ * saves typing the same HVAC/plumbing/electrical thesis from scratch.
+ */
+export function useCloneThesisCriteria() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sourcePortalOrgId,
+      targetPortalOrgId,
+    }: {
+      sourcePortalOrgId: string;
+      targetPortalOrgId: string;
+    }) => {
+      // 1. Fetch the source criteria
+      const { data: source, error: fetchErr } = await untypedFrom('portal_thesis_criteria')
+        .select('*')
+        .eq('portal_org_id', sourcePortalOrgId)
+        .eq('is_active', true);
+      if (fetchErr) throw fetchErr;
+      if (!source || source.length === 0) {
+        throw new Error('Source portal has no active thesis criteria to clone');
+      }
+
+      // 2. Strip ids + timestamps, rewrite portal_org_id
+      const rows = (source as PortalThesisCriteria[]).map((row) => ({
+        portal_org_id: targetPortalOrgId,
+        industry_label: row.industry_label,
+        industry_keywords: row.industry_keywords,
+        ebitda_min: row.ebitda_min,
+        ebitda_max: row.ebitda_max,
+        revenue_min: row.revenue_min,
+        revenue_max: row.revenue_max,
+        employee_min: row.employee_min,
+        employee_max: row.employee_max,
+        target_states: row.target_states,
+        portfolio_buyer_id: row.portfolio_buyer_id,
+        priority: row.priority,
+        is_active: true,
+        notes: row.notes,
+      }));
+
+      const { error: insertErr } = await untypedFrom('portal_thesis_criteria').insert(rows);
+      if (insertErr) throw insertErr;
+
+      return { targetPortalOrgId, count: rows.length };
+    },
+    onSuccess: ({ targetPortalOrgId, count }) => {
+      qc.invalidateQueries({ queryKey: [QUERY_KEY, targetPortalOrgId] });
+      toast.success(`Cloned ${count} thesis criteria`);
+    },
+    onError: (err: Error) => {
+      toast.error('Failed to clone thesis', { description: err.message });
+    },
+  });
+}

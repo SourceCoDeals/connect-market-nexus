@@ -70,6 +70,7 @@ import { InvitePortalUserDialog } from '@/components/portal/InvitePortalUserDial
 import { PortalThesisTab } from '@/components/portal/PortalThesisTab';
 import { PortalIntelligenceTab } from '@/components/portal/PortalIntelligenceTab';
 import { PortalRecommendationsTab } from '@/components/portal/PortalRecommendationsTab';
+import { PassReasonPanel } from '@/components/portal/PassReasonPanel';
 import type {
   PortalOrgStatus,
   PortalNotificationFrequency,
@@ -615,6 +616,8 @@ export default function ClientPortalDetail() {
 
         {/* Responses Tab */}
         <TabsContent value="responses" className="space-y-4">
+          {org && <PassReasonPanel portalOrgId={org.id} />}
+
           <div className="flex items-center gap-2">
             <Select value={responseTypeFilter} onValueChange={setResponseTypeFilter}>
               <SelectTrigger className="w-[220px]">
