@@ -646,24 +646,24 @@ export function useCapTargetActions(
   const confirmArchiveDeal = useCallback(
     async (reason: string) => {
       if (!archiveTarget) return;
-      const { error } = await supabase
-        .from('listings')
-        .update({ remarketing_status: 'archived', archive_reason: reason } as never)
-        .eq('id', archiveTarget.id);
+      const { error } = await supabase.rpc('archive_listing', {
+        p_listing_id: archiveTarget.id,
+        p_reason: reason,
+      });
       if (error) {
         toast({
           title: 'Error',
           description: error.message,
           variant: 'destructive',
         });
-      } else {
-        toast({
-          title: 'Deal archived',
-          description: 'Deal has been archived',
-        });
-        setArchiveTarget(null);
-        refetch();
+        throw error;
       }
+      toast({
+        title: 'Deal archived',
+        description: 'Deal has been archived',
+      });
+      setArchiveTarget(null);
+      refetch();
     },
     [archiveTarget, toast, refetch],
   );

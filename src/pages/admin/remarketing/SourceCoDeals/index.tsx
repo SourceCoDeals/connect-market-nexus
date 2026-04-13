@@ -70,10 +70,10 @@ export default function SourceCoDeals() {
     setIsArchiving(true);
     try {
       const dealIds = Array.from(hook.selectedIds);
-      const { error } = await supabase
-        .from('listings')
-        .update({ status: 'inactive' })
-        .in('id', dealIds);
+      const { error } = await supabase.rpc('archive_listings_bulk', {
+        p_listing_ids: dealIds,
+        p_reason: null,
+      });
       if (error) throw error;
       hook.toast({ title: 'Deals Archived', description: `${dealIds.length} deal(s) archived` });
       hook.setSelectedIds(new Set());
@@ -502,10 +502,10 @@ export default function SourceCoDeals() {
         deal={archiveTarget ? { id: archiveTarget.id, name: archiveTarget.name } : null}
         onConfirmArchive={async (reason) => {
           if (!archiveTarget) return;
-          const { error } = await supabase
-            .from('listings')
-            .update({ remarketing_status: 'archived', archive_reason: reason } as never)
-            .eq('id', archiveTarget.id);
+          const { error } = await supabase.rpc('archive_listing', {
+            p_listing_id: archiveTarget.id,
+            p_reason: reason,
+          });
           if (error) throw error;
           setArchiveTarget(null);
           hook.queryClient.invalidateQueries({ queryKey: ['remarketing', 'sourceco-deals'] });

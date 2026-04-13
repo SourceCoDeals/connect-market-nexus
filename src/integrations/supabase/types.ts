@@ -13563,6 +13563,14 @@ export type Database = {
         }
         Returns: string
       }
+      archive_listing: {
+        Args: { p_listing_id: string; p_reason?: string | null }
+        Returns: boolean
+      }
+      archive_listings_bulk: {
+        Args: { p_listing_ids: string[]; p_reason?: string | null }
+        Returns: number
+      }
       assign_connection_request_decider: {
         Args: {
           p_admin_id: string
@@ -14532,6 +14540,10 @@ export type Database = {
       resolve_portal_access: { Args: { p_slug: string }; Returns: Json }
       resolve_user_firm_id: { Args: { p_user_id: string }; Returns: string }
       restore_deal: { Args: { deal_id: string }; Returns: boolean }
+      restore_listing: {
+        Args: { p_listing_id: string }
+        Returns: boolean
+      }
       restore_soft_deleted: {
         Args: { p_record_id: string; p_table_name: string }
         Returns: boolean
