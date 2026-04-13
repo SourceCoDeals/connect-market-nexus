@@ -279,7 +279,13 @@ function MyConnection() {
 
 function AdminConnectionsDashboard() {
   const { data: connections, isLoading } = useAdminEmailConnections();
-  const { disconnect, isDisconnecting } = useEmailConnection();
+  const {
+    disconnect,
+    isDisconnecting,
+    bulkBackfillAll,
+    isBulkBackfilling,
+    lastBulkBackfillResult,
+  } = useEmailConnection();
 
   if (isLoading) {
     return (
@@ -291,16 +297,70 @@ function AdminConnectionsDashboard() {
     );
   }
 
+  const activeConnectionCount = (connections || []).filter((c) => c.status === 'active').length;
+
+  const handleBulkBackfill = () => {
+    if (activeConnectionCount === 0) return;
+    const confirmed = window.confirm(
+      `This will import the last 365 days of Outlook history for all ${activeConnectionCount} connected team member${activeConnectionCount === 1 ? '' : 's'}, linking emails to existing contacts and deals. Emails for contacts that don't exist yet will be queued and auto-linked when those contacts are created.\n\nThis may take several minutes. Continue?`,
+    );
+    if (confirmed) {
+      bulkBackfillAll({ daysBack: 365 });
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Shield className="h-4 w-4" />
-          Team Outlook Connections
-        </CardTitle>
-        <CardDescription>
-          Monitor all team member email connections. Connections in error state need attention.
-        </CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Team Outlook Connections
+            </CardTitle>
+            <CardDescription>
+              Monitor all team member email connections. Connections in error state need attention.
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            onClick={handleBulkBackfill}
+            disabled={isBulkBackfilling || activeConnectionCount === 0}
+            title={
+              activeConnectionCount === 0
+                ? 'No active connections to backfill'
+                : `Backfill 365 days of history for all ${activeConnectionCount} connected mailboxes`
+            }
+          >
+            {isBulkBackfilling ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <History className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            {isBulkBackfilling ? 'Backfilling all…' : 'Backfill all (365 days)'}
+          </Button>
+        </div>
+        {lastBulkBackfillResult && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Last bulk run: processed{' '}
+            <span className="font-medium text-foreground">
+              {lastBulkBackfillResult.mailboxesProcessed}
+            </span>{' '}
+            mailboxes ({lastBulkBackfillResult.mailboxesFailed} failed). Imported{' '}
+            <span className="font-medium text-foreground">
+              {lastBulkBackfillResult.totalSynced}
+            </span>{' '}
+            matched emails, queued{' '}
+            <span className="font-medium text-foreground">
+              {lastBulkBackfillResult.totalQueued}
+            </span>{' '}
+            for future contacts, re-linked{' '}
+            <span className="font-medium text-foreground">
+              {lastBulkBackfillResult.totalRematched}
+            </span>{' '}
+            from the unmatched queue.
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         {!connections || connections.length === 0 ? (
