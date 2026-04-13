@@ -17,10 +17,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLinkInboxToDeal } from '@/hooks/smartlead/use-smartlead-inbox';
 import { supabase } from '@/integrations/supabase/client';
+
+type DuplicateMatch = {
+  id: string;
+  title: string | null;
+  internal_company_name: string | null;
+  website: string | null;
+  main_contact_email: string | null;
+  match_reason: string;
+};
+
+function extractDomain(url: string): string | null {
+  if (!url) return null;
+  const cleaned = url
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '');
+  const domain = cleaned.split('/')[0]?.split('?')[0];
+  if (!domain || !domain.includes('.')) return null;
+  return domain;
+}
 
 interface CreateDealFromReplyDialogProps {
   open: boolean;
@@ -33,7 +54,6 @@ const REMARKETING_LIST_OPTIONS = [
   { value: 'gp_partners', label: 'GP Partner Deals' },
   { value: 'sourceco', label: 'SourceCo Deals' },
 ];
-
 
 export function CreateDealFromReplyDialog({
   open,
@@ -49,7 +69,7 @@ export function CreateDealFromReplyDialog({
   const contactName = enrichedFullName || String(item.to_name || '').trim();
   const campaignName = String(item.campaign_name || '').trim();
   const subject = String(item.subject || '').trim();
-  
+
   const leadEmail = String(item.to_email || item.sl_lead_email || '').trim();
 
   // Enriched fields from Smartlead API
@@ -65,14 +85,20 @@ export function CreateDealFromReplyDialog({
   function companyFromEmail(email: string): string {
     if (!email || !email.includes('@')) return '';
     const domain = email.split('@')[1]?.split('.')[0] || '';
-    if (['gmail', 'yahoo', 'hotmail', 'outlook', 'aol', 'icloud', 'mail', 'protonmail'].includes(domain.toLowerCase())) return '';
+    if (
+      ['gmail', 'yahoo', 'hotmail', 'outlook', 'aol', 'icloud', 'mail', 'protonmail'].includes(
+        domain.toLowerCase(),
+      )
+    )
+      return '';
     return domain.charAt(0).toUpperCase() + domain.slice(1);
   }
 
   const derivedCompany = enrichedCompany || companyFromEmail(leadEmail);
   const derivedPhone = enrichedPhone || enrichedMobile;
 
-  const defaultTitle = derivedCompany || contactName || subject || campaignName || 'SmartLead Response';
+  const defaultTitle =
+    derivedCompany || contactName || subject || campaignName || 'SmartLead Response';
 
   const defaultSummary = [
     subject ? `Subject: ${subject}` : null,
@@ -96,6 +122,8 @@ export function CreateDealFromReplyDialog({
   const [executiveSummary, setExecutiveSummary] = useState(defaultSummary);
   const [dealSource, setDealSource] = useState('captarget');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -110,11 +138,62 @@ export function CreateDealFromReplyDialog({
       setContactIndustry(enrichedIndustry);
       setExecutiveSummary(defaultSummary);
       setDealSource('captarget');
+      setDuplicates([]);
+      setDuplicateAcknowledged(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const handleSubmit = async () => {
+  const checkForDuplicates = async (): Promise<DuplicateMatch[]> => {
+    const domain = extractDomain(contactWebsite.trim());
+    const emailDomain = contactEmail.includes('@')
+      ? contactEmail.split('@')[1]?.toLowerCase().trim() || null
+      : null;
+    const checkDomain = domain || emailDomain;
+    const email = contactEmail.trim().toLowerCase();
+
+    if (!checkDomain && !email) return [];
+
+    const matches: DuplicateMatch[] = [];
+
+    // Query 1: domain match on website
+    if (checkDomain) {
+      const { data: domainMatches } = await supabase
+        .from('listings')
+        .select('id, title, internal_company_name, website, main_contact_email')
+        .is('deleted_at', null)
+        .ilike('website', `%${checkDomain}%`)
+        .limit(5);
+      (domainMatches || []).forEach((row) => {
+        matches.push({
+          ...(row as DuplicateMatch),
+          match_reason: `Website matches ${checkDomain}`,
+        });
+      });
+    }
+
+    // Query 2: exact email match on main_contact_email
+    if (email) {
+      const { data: emailMatches } = await supabase
+        .from('listings')
+        .select('id, title, internal_company_name, website, main_contact_email')
+        .is('deleted_at', null)
+        .eq('main_contact_email', email)
+        .limit(5);
+      (emailMatches || []).forEach((row) => {
+        if (!matches.find((m) => m.id === row.id)) {
+          matches.push({
+            ...(row as DuplicateMatch),
+            match_reason: `Contact email matches ${email}`,
+          });
+        }
+      });
+    }
+
+    return matches;
+  };
+
+  const handleSubmit = async (skipDuplicateCheck = false) => {
     if (!title.trim()) {
       toast.error('Title is required');
       return;
@@ -127,6 +206,16 @@ export function CreateDealFromReplyDialog({
     setIsSubmitting(true);
 
     try {
+      // Duplicate check — skip if user has already acknowledged existing warning.
+      if (!skipDuplicateCheck && !duplicateAcknowledged) {
+        const found = await checkForDuplicates();
+        if (found.length > 0) {
+          setDuplicates(found);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const { data: newListing, error: listingError } = await supabase
         .from('listings')
         .insert({
@@ -154,7 +243,9 @@ export function CreateDealFromReplyDialog({
           { id: String(item.id), dealId: newListing.id },
           {
             onSuccess: () => {
-              toast.success(`Lead added to ${REMARKETING_LIST_OPTIONS.find(o => o.value === dealSource)?.label}`);
+              toast.success(
+                `Lead added to ${REMARKETING_LIST_OPTIONS.find((o) => o.value === dealSource)?.label}`,
+              );
               setIsSubmitting(false);
               onOpenChange(false);
             },
@@ -178,7 +269,8 @@ export function CreateDealFromReplyDialog({
         <DialogHeader>
           <DialogTitle>Create Lead from Reply</DialogTitle>
           <DialogDescription>
-            Review and edit the pre-filled fields. This will add the lead to the selected remarketing list.
+            Review and edit the pre-filled fields. This will add the lead to the selected
+            remarketing list.
           </DialogDescription>
         </DialogHeader>
 
@@ -218,7 +310,9 @@ export function CreateDealFromReplyDialog({
             </Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="contact-name" className="text-xs">Name</Label>
+                <Label htmlFor="contact-name" className="text-xs">
+                  Name
+                </Label>
                 <Input
                   id="contact-name"
                   value={contactNameField}
@@ -228,7 +322,9 @@ export function CreateDealFromReplyDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="contact-email" className="text-xs">Email</Label>
+                <Label htmlFor="contact-email" className="text-xs">
+                  Email
+                </Label>
                 <Input
                   id="contact-email"
                   type="email"
@@ -239,7 +335,9 @@ export function CreateDealFromReplyDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="contact-company" className="text-xs">Company</Label>
+                <Label htmlFor="contact-company" className="text-xs">
+                  Company
+                </Label>
                 <Input
                   id="contact-company"
                   value={contactCompany}
@@ -249,7 +347,9 @@ export function CreateDealFromReplyDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="contact-phone" className="text-xs">Phone</Label>
+                <Label htmlFor="contact-phone" className="text-xs">
+                  Phone
+                </Label>
                 <Input
                   id="contact-phone"
                   value={contactPhone}
@@ -259,7 +359,9 @@ export function CreateDealFromReplyDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="contact-website" className="text-xs">Website</Label>
+                <Label htmlFor="contact-website" className="text-xs">
+                  Website
+                </Label>
                 <Input
                   id="contact-website"
                   value={contactWebsite}
@@ -269,7 +371,9 @@ export function CreateDealFromReplyDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="contact-linkedin" className="text-xs">LinkedIn</Label>
+                <Label htmlFor="contact-linkedin" className="text-xs">
+                  LinkedIn
+                </Label>
                 <Input
                   id="contact-linkedin"
                   value={contactLinkedIn}
@@ -279,7 +383,9 @@ export function CreateDealFromReplyDialog({
                 />
               </div>
               <div className="space-y-1 col-span-2">
-                <Label htmlFor="contact-industry" className="text-xs">Industry</Label>
+                <Label htmlFor="contact-industry" className="text-xs">
+                  Industry
+                </Label>
                 <Input
                   id="contact-industry"
                   value={contactIndustry}
@@ -303,18 +409,50 @@ export function CreateDealFromReplyDialog({
             />
           </div>
 
+          {/* Duplicate warning */}
+          {duplicates.length > 0 && (
+            <div className="rounded-lg border border-amber-400 bg-amber-50 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="text-sm font-semibold text-amber-900">
+                    {duplicates.length === 1
+                      ? '1 possible duplicate found'
+                      : `${duplicates.length} possible duplicates found`}
+                  </div>
+                  <ul className="text-xs text-amber-900 space-y-1">
+                    {duplicates.map((d) => (
+                      <li key={d.id} className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {d.internal_company_name || d.title || '(untitled)'}
+                        </span>
+                        <span className="text-amber-700">· {d.match_reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="text-xs text-amber-800">
+                    Click "Create Anyway" to proceed, or cancel to review the existing record(s).
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2 border-t">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isSubmitting}
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
+            <Button
+              onClick={() => {
+                const hasWarning = duplicates.length > 0;
+                if (hasWarning) setDuplicateAcknowledged(true);
+                handleSubmit(hasWarning);
+              }}
+              disabled={isSubmitting}
+            >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSubmitting ? 'Adding...' : 'Create Lead'}
+              {isSubmitting ? 'Adding...' : duplicates.length > 0 ? 'Create Anyway' : 'Create Lead'}
             </Button>
           </div>
         </div>

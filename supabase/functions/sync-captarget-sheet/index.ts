@@ -609,25 +609,51 @@ serve(async (req) => {
             }
           }
 
-          // Track websites we're inserting in this batch to catch intra-batch dupes
+          // Track websites we're inserting in this batch to catch intra-batch dupes.
+          // When a duplicate domain is found, SKIP the insert entirely and log it to
+          // the exclusion table — previous behavior nulled the website and still
+          // inserted, which created orphan listings without websites (WF-11 gap).
           const batchWebsites = new Set<string>();
           const batchDomains = new Set<string>();
+          const dedupedInsert: unknown[] = [];
 
           for (const record of toInsert) {
             if (record.website) {
               const domain = normalizeDomain(record.website);
-              if (
+              const isDuplicate =
                 existingWebsites.has(record.website) ||
                 batchWebsites.has(record.website) ||
-                (domain && batchDomains.has(domain))
-              ) {
-                record.website = null; // Clear to avoid unique constraint violation
-              } else {
-                batchWebsites.add(record.website);
-                if (domain) batchDomains.add(domain);
+                (domain && batchDomains.has(domain));
+
+              if (isDuplicate) {
+                rowsSkipped++;
+                if (exclusionReasons.length < 200) {
+                  exclusionReasons.push({
+                    company: record.internal_company_name || record.title || 'Unknown',
+                    reason: `Duplicate website domain: ${domain || record.website}`,
+                    category: 'duplicate_domain',
+                  });
+                }
+                exclusionsToLog.push({
+                  company_name: record.internal_company_name || record.title,
+                  contact_title: record.main_contact_title,
+                  description_snippet: (record.captarget_call_notes || '').slice(0, 500),
+                  exclusion_reason: `Duplicate website domain: ${domain || record.website}`,
+                  exclusion_category: 'duplicate_domain',
+                  source: 'sync',
+                  captarget_row_hash: record.captarget_row_hash,
+                  raw_row_data: record,
+                });
+                continue;
               }
+              batchWebsites.add(record.website);
+              if (domain) batchDomains.add(domain);
             }
+            dedupedInsert.push(record);
           }
+          // Replace toInsert with the deduped set
+          toInsert.length = 0;
+          toInsert.push(...dedupedInsert);
 
           // Insert in small batches instead of one-by-one for performance
           for (let ic = 0; ic < toInsert.length; ic += INSERT_CHUNK) {

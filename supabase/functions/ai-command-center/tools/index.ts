@@ -43,6 +43,7 @@ import { industryResearchTools, executeIndustryResearchTool } from './industry-r
 import { firefliesSummaryTools, executeFirefliesSummaryTool } from './fireflies-summary-tools.ts';
 import { alertTools, executeAlertTool } from './alert-tools.ts';
 import { recommendedBuyerTools, executeRecommendedBuyerTool } from './recommended-buyer-tools.ts';
+import { introductionTools, executeIntroductionTool } from './introduction-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -83,6 +84,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...firefliesSummaryTools,
   ...alertTools,
   ...recommendedBuyerTools,
+  ...introductionTools,
 ];
 
 // ---------- Backward-compat: old tool name → executor mapping ----------
@@ -133,6 +135,8 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_deal_documents',
     'get_deal_communication', // merged: was get_deal_comments
     'get_deal_scoring_adjustments',
+    'get_deal_introductions',
+    'get_introduction_conversion_stats',
     'search_contacts',
     'get_connection_requests',
   ],
@@ -173,6 +177,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'generate_buyer_narrative',
     'get_buyer_signals', // merged: was get_buyer_decisions
     'get_buyer_history', // merged: was get_score_history + get_buyer_learning_history
+    'get_buyer_introductions_history',
     'search_pe_contacts',
     'search_contacts',
     'select_table_rows',
@@ -210,6 +215,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_enrichment_status',
     'get_industry_trackers',
     'get_connection_requests',
+    'get_introduction_conversion_stats',
   ],
   DAILY_BRIEFING: [
     'get_current_user_context',
@@ -280,6 +286,9 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'sort_table_column',
     'trigger_page_action',
     'get_buyer_signals', // merged: was get_engagement_signals + get_buyer_decisions
+    'get_deal_introductions',
+    'get_buyer_introductions_history',
+    'get_introduction_conversion_stats',
     'clay_find_email',
     'clay_find_phone',
   ],
@@ -658,6 +667,8 @@ async function _executeToolInternal(
     return executeAlertTool(supabase, toolName, resolvedArgs, userId);
   if (recommendedBuyerTools.some((t) => t.name === toolName))
     return executeRecommendedBuyerTool(supabase, toolName, resolvedArgs);
+  if (introductionTools.some((t) => t.name === toolName))
+    return executeIntroductionTool(supabase, toolName, resolvedArgs);
 
   // Backward compatibility: route old (merged) tool names to their new executors
   const legacyRouter = LEGACY_TOOL_ROUTING[toolName];

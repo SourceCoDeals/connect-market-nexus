@@ -19,15 +19,75 @@ interface ContactSearchResult {
   firmName: string;
 }
 
+/** Cross-deal contact discovery dedup window.
+ * If a buyer was approved for a second deal within this many days after the
+ * last discovery run, skip the edge function call — the contacts are shared
+ * across all deals for this buyer and re-running would waste enrichment quota. */
+const CONTACT_DISCOVERY_FRESH_DAYS = 30;
+
 /**
  * Looks up buyer details and invokes the find-introduction-contacts edge function.
  * Non-blocking — callers should `.catch(() => {})` or handle errors gracefully.
+ *
+ * Skips the edge function call entirely when the buyer already has recent
+ * contacts, unless triggerSource='manual' or 'retry' (explicit user intent).
  */
 export async function findIntroductionContacts(
   buyerId: string,
   triggerSource: 'approval' | 'bulk_approval' | 'manual' | 'retry' = 'approval',
 ): Promise<ContactSearchResult | null> {
   try {
+    // Cross-deal dedup: if this buyer already had contacts discovered recently,
+    // skip the API call. Approving the same buyer for 5 deals previously fired
+    // discovery 5× and hit rate limits; now it fires at most once per window.
+    const isAutoTrigger = triggerSource === 'approval' || triggerSource === 'bulk_approval';
+    if (isAutoTrigger) {
+      const since = new Date(
+        Date.now() - CONTACT_DISCOVERY_FRESH_DAYS * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const { data: recentContacts, error: recentErr } = await supabase
+        .from('contacts')
+        .select('id, created_at')
+        .eq('remarketing_buyer_id', buyerId)
+        .eq('archived', false)
+        .gte('created_at', since)
+        .limit(1);
+
+      if (!recentErr && recentContacts && recentContacts.length > 0) {
+        // Get a count for the toast
+        const { count: totalCount } = await supabase
+          .from('contacts')
+          .select('id', { count: 'exact', head: true })
+          .eq('remarketing_buyer_id', buyerId)
+          .eq('archived', false);
+
+        // Fetch buyer name for the toast
+        const { data: buyerName } = await supabase
+          .from('buyers')
+          .select('company_name, pe_firm_name')
+          .eq('id', buyerId)
+          .maybeSingle();
+
+        console.log(
+          `[findIntroductionContacts] Skipping discovery for buyer=${buyerId} — already has ${totalCount ?? 0} recent contacts`,
+        );
+
+        return {
+          success: true,
+          pe_contacts_found: 0,
+          company_contacts_found: 0,
+          total_saved: 0,
+          skipped_duplicates: totalCount ?? 0,
+          message: 'skipped_recent_discovery',
+          firmName:
+            (buyerName as { pe_firm_name: string | null; company_name: string } | null)
+              ?.pe_firm_name ||
+            (buyerName as { company_name: string } | null)?.company_name ||
+            'Buyer',
+        };
+      }
+    }
+
     // Fetch buyer details
     const { data: buyer, error: buyerError } = await supabase
       .from('buyers')

@@ -19,6 +19,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -34,7 +41,8 @@ import {
 } from '@/hooks/portal/use-portal-deals';
 import { PushStatusBadge, PriorityBadge } from '@/components/portal/PortalStatusBadge';
 import { PortalDealChat } from '@/components/portal/PortalDealChat';
-import type { PortalResponseType, TeaserSection } from '@/types/portal';
+import type { PortalResponseType, TeaserSection, PassReasonCategory } from '@/types/portal';
+import { PASS_REASON_LABELS } from '@/types/portal';
 
 function formatCurrency(value: number | null | undefined): string {
   if (value == null) return '-';
@@ -73,6 +81,7 @@ export default function PortalDealDetail() {
   const [responseDialogOpen, setResponseDialogOpen] = useState(false);
   const [selectedResponseType, setSelectedResponseType] = useState<PortalResponseType | null>(null);
   const [responseNotes, setResponseNotes] = useState('');
+  const [passReasonCategory, setPassReasonCategory] = useState<PassReasonCategory | undefined>();
 
   const canRespond = portalUser?.role !== 'viewer';
 
@@ -91,6 +100,7 @@ export default function PortalDealDetail() {
   const handleOpenResponse = (type: PortalResponseType) => {
     setSelectedResponseType(type);
     setResponseNotes('');
+    setPassReasonCategory(undefined);
     setResponseDialogOpen(true);
   };
 
@@ -100,6 +110,7 @@ export default function PortalDealDetail() {
       push_id: push.id,
       response_type: selectedResponseType,
       notes: responseNotes.trim() || undefined,
+      pass_reason_category: selectedResponseType === 'pass' ? passReasonCategory : undefined,
       portal_user_id: portalUser.id,
       portal_org_id: portalUser.portal_org.id,
       responder_name: portalUser.name,
@@ -367,7 +378,13 @@ export default function PortalDealDetail() {
         )}
 
         {/* Response dialog */}
-        <Dialog open={responseDialogOpen} onOpenChange={setResponseDialogOpen}>
+        <Dialog
+          open={responseDialogOpen}
+          onOpenChange={(open) => {
+            setResponseDialogOpen(open);
+            if (!open) setPassReasonCategory(undefined);
+          }}
+        >
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>
@@ -375,6 +392,28 @@ export default function PortalDealDetail() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {selectedResponseType === 'pass' && (
+                <div>
+                  <label className="text-sm font-medium">Reason</label>
+                  <Select
+                    value={passReasonCategory ?? ''}
+                    onValueChange={(v) => setPassReasonCategory(v as PassReasonCategory)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a reason..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.entries(PASS_REASON_LABELS) as [PassReasonCategory, string][]).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium">Notes (optional)</label>
                 <Textarea

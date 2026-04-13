@@ -13,6 +13,13 @@ export interface ContactList {
   is_archived: boolean;
   created_at: string;
   updated_at: string;
+  // Smart list fields
+  is_smart_list: boolean;
+  list_rules: import('@/lib/smart-list-rules').SmartListConfig | null;
+  match_mode: 'all' | 'any';
+  source_entity: 'listings' | 'remarketing_buyers' | null;
+  last_evaluated_at: string | null;
+  auto_add_enabled: boolean;
   // Joined fields (not in table, populated by queries)
   created_by_name?: string;
   members?: ContactListMember[];
@@ -70,6 +77,12 @@ export interface CreateContactListInput {
   tags?: string[];
   filter_snapshot?: ContactListFilterSnapshot;
   members: CreateContactListMemberInput[];
+  // Smart list fields
+  is_smart_list?: boolean;
+  list_rules?: import('@/lib/smart-list-rules').SmartListConfig;
+  match_mode?: 'all' | 'any';
+  source_entity?: 'listings' | 'remarketing_buyers';
+  auto_add_enabled?: boolean;
 }
 
 export interface CreateContactListMemberInput {

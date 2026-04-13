@@ -1,6 +1,12 @@
 import { useMemo, useCallback } from 'react';
 import { useBuyerIntroductions } from '@/hooks/use-buyer-introductions';
-import type { BuyerIntroduction, IntroductionStatus, ScoreSnapshot, UpdateBuyerIntroductionInput } from '@/types/buyer-introductions';
+import { untypedFrom, supabase } from '@/integrations/supabase/client';
+import type {
+  BuyerIntroduction,
+  IntroductionStatus,
+  ScoreSnapshot,
+  UpdateBuyerIntroductionInput,
+} from '@/types/buyer-introductions';
 
 export type KanbanColumn = 'to_introduce' | 'introduced' | 'interested' | 'passed';
 
@@ -27,6 +33,59 @@ export function getColumnForStatus(status: IntroductionStatus): KanbanColumn {
 
 export function getStatusForColumn(column: KanbanColumn): IntroductionStatus {
   return STATUS_FOR_COLUMN[column];
+}
+
+/**
+ * Write a buyer_discovery_feedback row when a buyer is rejected via the Kanban.
+ * This feeds the -15 niche rejection penalty in score-deal-buyers and the hard
+ * exclusion on this same deal's future refreshes. Without this, moving a card
+ * to "Not a Fit" only set passed_date and never affected future scoring.
+ */
+async function recordKanbanRejectionFeedback(
+  listingId: string,
+  intro: BuyerIntroduction,
+  passedReason: string | undefined,
+) {
+  if (!intro.remarketing_buyer_id) return;
+
+  try {
+    // Fetch the deal's niche context. Cached at the request layer by Supabase;
+    // these moves are human-scale (not hot-path) so an extra read is fine.
+    const { data: listing } = await supabase
+      .from('listings')
+      .select('industry, category, categories')
+      .eq('id', listingId)
+      .maybeSingle();
+
+    const industry = (listing as { industry: string | null } | null)?.industry || null;
+    const categories = (listing as { categories: string[] | null } | null)?.categories || null;
+    const primaryCategory = (listing as { category: string | null } | null)?.category || null;
+    const nicheCategory = industry || categories?.[0] || primaryCategory || 'general';
+    const snap = intro.score_snapshot;
+
+    await untypedFrom('buyer_discovery_feedback').upsert(
+      {
+        listing_id: listingId,
+        buyer_id: intro.remarketing_buyer_id,
+        buyer_name: intro.buyer_name || intro.company_name,
+        pe_firm_name: snap?.pe_firm_name || null,
+        action: 'rejected',
+        reason: passedReason || null,
+        reason_category: null,
+        niche_category: nicheCategory,
+        deal_industry: industry,
+        deal_categories: categories,
+        buyer_type: snap?.buyer_type || null,
+        buyer_source: snap?.source || null,
+        composite_score: snap?.composite_score ?? null,
+        service_score: snap?.service_score ?? null,
+      },
+      { onConflict: 'listing_id,buyer_id,action' },
+    );
+  } catch (err) {
+    // Non-fatal — logging only so that future scoring doesn't silently lose the signal.
+    console.error('Failed to record Kanban rejection feedback (non-fatal):', err);
+  }
 }
 
 export function useIntroductionPipeline(listingId: string | undefined) {
@@ -102,8 +161,19 @@ export function useIntroductionPipeline(listingId: string | undefined) {
       }
 
       updateStatus({ id: introId, updates });
+
+      // Feedback loop: when a buyer is moved to "Not a Fit" on the Kanban,
+      // write a buyer_discovery_feedback row so the scoring engine can apply
+      // the niche rejection penalty and hard-exclusion on future refreshes.
+      // Fire-and-forget — errors are logged inside recordKanbanRejectionFeedback.
+      if (targetColumn === 'passed' && listingId) {
+        const intro = introductions.find((i) => i.id === introId);
+        if (intro) {
+          void recordKanbanRejectionFeedback(listingId, intro, extra?.passed_reason);
+        }
+      }
     },
-    [updateStatus],
+    [updateStatus, listingId, introductions],
   );
 
   /** Update only the notes on an introduction — does NOT change status */

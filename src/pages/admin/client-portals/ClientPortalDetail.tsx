@@ -19,6 +19,8 @@ import {
   ExternalLink,
   FileText,
   Inbox,
+  Brain,
+  Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,6 +67,9 @@ import {
   PriorityBadge as _PriorityBadge,
 } from '@/components/portal/PortalStatusBadge';
 import { InvitePortalUserDialog } from '@/components/portal/InvitePortalUserDialog';
+import { PortalThesisTab } from '@/components/portal/PortalThesisTab';
+import { PortalIntelligenceTab } from '@/components/portal/PortalIntelligenceTab';
+import { PortalRecommendationsTab } from '@/components/portal/PortalRecommendationsTab';
 import type {
   PortalOrgStatus,
   PortalNotificationFrequency,
@@ -345,6 +350,18 @@ export default function ClientPortalDetail() {
           <TabsTrigger value="activity" className="flex items-center gap-1.5">
             <Activity className="h-3.5 w-3.5" />
             Activity
+          </TabsTrigger>
+          <TabsTrigger value="thesis" className="flex items-center gap-1.5">
+            <Brain className="h-3.5 w-3.5" />
+            Thesis
+          </TabsTrigger>
+          <TabsTrigger value="intelligence" className="flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            Intelligence
+          </TabsTrigger>
+          <TabsTrigger value="recommendations" className="flex items-center gap-1.5">
+            <Lightbulb className="h-3.5 w-3.5" />
+            Recommendations
           </TabsTrigger>
           <TabsTrigger value="settings" className="flex items-center gap-1.5">
             <Settings className="h-3.5 w-3.5" />
@@ -852,6 +869,19 @@ export default function ClientPortalDetail() {
               })}
             </div>
           )}
+        </TabsContent>
+
+        {/* Thesis Tab */}
+        <TabsContent value="thesis">{org && <PortalThesisTab portalOrgId={org.id} />}</TabsContent>
+
+        {/* Intelligence Tab */}
+        <TabsContent value="intelligence">
+          {org && <PortalIntelligenceTab portalOrgId={org.id} />}
+        </TabsContent>
+
+        {/* Recommendations Tab */}
+        <TabsContent value="recommendations">
+          {org && <PortalRecommendationsTab portalOrgId={org.id} />}
         </TabsContent>
 
         {/* Settings Tab */}

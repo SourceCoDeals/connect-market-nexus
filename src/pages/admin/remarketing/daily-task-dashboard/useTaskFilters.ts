@@ -10,6 +10,8 @@ interface TaskFiltersInput {
   selectedMeeting: string | null;
   selectedTags: Set<string>;
   showCompleted: boolean;
+  /** Filter to tasks assigned to this user id. null = no assignee filter. */
+  assigneeFilter?: string | null;
 }
 
 interface TaskFiltersResult {
@@ -35,6 +37,7 @@ export function useTaskFilters({
   entityFilter,
   selectedMeeting,
   selectedTags,
+  assigneeFilter,
 }: TaskFiltersInput): TaskFiltersResult {
   const today = getLocalDateString();
 
@@ -74,14 +77,15 @@ export function useTaskFilters({
       });
   }, [tasks]);
 
-  // Combined filter: entity + meeting
+  // Combined filter: entity + meeting + assignee
   const matchesAllFilters = useMemo(() => {
     return (t: DailyStandupTaskWithRelations) => {
       if (!matchesEntityFilter(t)) return false;
       if (selectedMeeting && t.source_meeting?.id !== selectedMeeting) return false;
+      if (assigneeFilter && t.assignee_id !== assigneeFilter) return false;
       return true;
     };
-  }, [matchesEntityFilter, selectedMeeting]);
+  }, [matchesEntityFilter, selectedMeeting, assigneeFilter]);
 
   // Separate tasks by approval status
   const pendingApprovalTasks = useMemo(() => {
@@ -119,9 +123,7 @@ export function useTaskFilters({
 
   // Overdue — explicitly separated from today
   const overdueTasks = useMemo(() => {
-    return approvedTasks.filter(
-      (t) => t.status === 'overdue',
-    );
+    return approvedTasks.filter((t) => t.status === 'overdue');
   }, [approvedTasks]);
 
   // Today — due today or no date, but NOT overdue

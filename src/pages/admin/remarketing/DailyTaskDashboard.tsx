@@ -38,6 +38,7 @@ const DailyTaskDashboard = () => {
 
   const [pageMode, setPageMode] = useState<'tasks' | 'standups'>('tasks');
   const [view, setView] = useState<'my' | 'all'>('my');
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [calendarView, setCalendarView] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -83,6 +84,7 @@ const DailyTaskDashboard = () => {
     selectedMeeting: null,
     selectedTags: new Set(),
     showCompleted,
+    assigneeFilter: view === 'all' ? assigneeFilter : null,
   });
 
   const handleDelete = async () => {
@@ -173,15 +175,21 @@ const DailyTaskDashboard = () => {
         stats={stats}
       />
 
-      {/* Filters: My/All + Calendar/List + Show completed */}
+      {/* Filters: My/All + Assignee + Calendar/List + Show completed */}
       <TaskFiltersBar
         view={view}
-        onViewChange={setView}
+        onViewChange={(v) => {
+          setView(v);
+          if (v === 'my') setAssigneeFilter(null);
+        }}
         showCompleted={showCompleted}
         onShowCompletedChange={setShowCompleted}
         calendarView={calendarView}
         onCalendarViewChange={setCalendarView}
         overdueCount={overdueTasks.length}
+        assigneeFilter={assigneeFilter}
+        onAssigneeFilterChange={setAssigneeFilter}
+        teamMembers={teamMembers}
       />
 
       {/* Pending Approval Banner (leadership only) */}

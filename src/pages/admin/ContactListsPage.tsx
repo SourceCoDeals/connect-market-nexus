@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,9 +26,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ListChecks, Search, Phone, MoreHorizontal, Trash2, Users, Plus, Loader2 } from 'lucide-react';
+import {
+  ListChecks,
+  Search,
+  Phone,
+  MoreHorizontal,
+  Trash2,
+  Users,
+  Plus,
+  Loader2,
+  Copy,
+  Merge,
+  Minus,
+  X,
+  Zap,
+} from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { useContactLists, useDeleteContactList, useCreateContactList } from '@/hooks/admin/use-contact-lists';
+import {
+  useContactLists,
+  useDeleteContactList,
+  useCreateContactList,
+} from '@/hooks/admin/use-contact-lists';
+import { useCloneList } from '@/hooks/admin/use-list-operations';
+import { ListCombineDialog } from '@/components/admin/lists/ListCombineDialog';
+import type { ListOperation } from '@/components/admin/lists/ListCombineDialog';
+import { CreateSmartListDialog } from '@/components/admin/lists/CreateSmartListDialog';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 
@@ -36,9 +59,14 @@ const ContactListsPage = () => {
   const { data: lists = [], isLoading } = useContactLists();
   const deleteMutation = useDeleteContactList();
   const createList = useCreateContactList();
+  const cloneList = useCloneList();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newListName, setNewListName] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [combineOpen, setCombineOpen] = useState(false);
+  const [combineOp, setCombineOp] = useState<ListOperation>('merge');
+  const [smartListOpen, setSmartListOpen] = useState(false);
 
   // Register AI Command Center context
   const { setPageContext } = useAICommandCenterContext();
@@ -46,12 +74,9 @@ const ContactListsPage = () => {
     setPageContext({ page: 'contact_lists', entity_type: 'contacts' });
   }, [setPageContext]);
 
-  // Wire AI UI actions
-  useAIUIActionHandler({
-    table: 'contacts',
-  });
+  useAIUIActionHandler({ table: 'contacts' });
 
-  // URL-persisted search (survives browser Back navigation)
+  // URL-persisted search
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get('q') ?? '';
   const setSearchQuery = useCallback(
@@ -79,6 +104,33 @@ const ContactListsPage = () => {
     );
   });
 
+  const selectedLists = useMemo(
+    () => filteredLists.filter((l) => selectedIds.has(l.id)),
+    [filteredLists, selectedIds],
+  );
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredLists.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredLists.map((l) => l.id)));
+    }
+  };
+
+  const openCombine = (op: ListOperation) => {
+    setCombineOp(op);
+    setCombineOpen(true);
+  };
+
   const handleCreateList = () => {
     if (!newListName.trim()) return;
     createList.mutate(
@@ -91,6 +143,10 @@ const ContactListsPage = () => {
         },
       },
     );
+  };
+
+  const handleClone = (listId: string, listName: string) => {
+    cloneList.mutate({ sourceId: listId, name: `${listName} (Copy)` });
   };
 
   return (
@@ -109,6 +165,10 @@ const ContactListsPage = () => {
               <Badge variant="secondary" className="text-xs">
                 {lists.length} list{lists.length !== 1 ? 's' : ''}
               </Badge>
+              <Button size="sm" variant="outline" onClick={() => setSmartListOpen(true)}>
+                <Zap className="h-4 w-4 mr-1" />
+                Smart List
+              </Button>
               <Button size="sm" onClick={() => setCreateOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 New List
@@ -130,6 +190,36 @@ const ContactListsPage = () => {
           />
         </div>
 
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+            <Badge variant="secondary" className="text-sm">
+              {selectedIds.size} selected
+            </Badge>
+            {selectedIds.size >= 2 && (
+              <>
+                <Button size="sm" variant="outline" onClick={() => openCombine('merge')}>
+                  <Merge className="h-3.5 w-3.5 mr-1.5" />
+                  Merge
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => openCombine('subtract')}>
+                  <Minus className="h-3.5 w-3.5 mr-1.5" />
+                  Subtract
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => openCombine('intersect')}>
+                  <ListChecks className="h-3.5 w-3.5 mr-1.5" />
+                  Intersect
+                </Button>
+              </>
+            )}
+            <div className="flex-1" />
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+              <X className="h-3.5 w-3.5 mr-1" />
+              Clear
+            </Button>
+          </div>
+        )}
+
         {/* Table */}
         <div className="bg-card rounded-lg border overflow-hidden">
           {isLoading ? (
@@ -144,10 +234,13 @@ const ContactListsPage = () => {
             <div className="text-center py-16 text-muted-foreground">
               <ListChecks className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-sm font-medium">No lists yet</p>
-              <p className="text-xs mt-1">
-                Create a new list to get started.
-              </p>
-              <Button size="sm" variant="outline" className="mt-4" onClick={() => setCreateOpen(true)}>
+              <p className="text-xs mt-1">Create a new list to get started.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-4"
+                onClick={() => setCreateOpen(true)}
+              >
                 <Plus className="h-4 w-4 mr-1" />
                 New List
               </Button>
@@ -156,6 +249,14 @@ const ContactListsPage = () => {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={
+                        selectedIds.size === filteredLists.length && filteredLists.length > 0
+                      }
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>List Name</TableHead>
                   <TableHead className="text-center">Contacts</TableHead>
                   <TableHead>Type</TableHead>
@@ -169,12 +270,29 @@ const ContactListsPage = () => {
                 {filteredLists.map((list) => (
                   <TableRow key={list.id} className="hover:bg-muted/50">
                     <TableCell>
-                      <Link
-                        to={`/admin/lists/${list.id}`}
-                        className="font-medium text-sm hover:underline"
-                      >
-                        {list.name}
-                      </Link>
+                      <Checkbox
+                        checked={selectedIds.has(list.id)}
+                        onCheckedChange={() => toggleSelect(list.id)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          to={`/admin/lists/${list.id}`}
+                          className="font-medium text-sm hover:underline"
+                        >
+                          {list.name}
+                        </Link>
+                        {list.is_smart_list && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] gap-0.5 px-1.5 py-0 text-amber-600 border-amber-300"
+                          >
+                            <Zap className="h-2.5 w-2.5" />
+                            Smart
+                          </Badge>
+                        )}
+                      </div>
                       {list.description && (
                         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                           {list.description}
@@ -246,6 +364,10 @@ const ContactListsPage = () => {
                               View Members
                             </Link>
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleClone(list.id, list.name)}>
+                            <Copy className="h-4 w-4 mr-2" />
+                            Clone List
+                          </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => deleteMutation.mutate(list.id)}
@@ -265,7 +387,13 @@ const ContactListsPage = () => {
       </div>
 
       {/* Create List Dialog */}
-      <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setNewListName(''); }}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(v) => {
+          setCreateOpen(v);
+          if (!v) setNewListName('');
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create New List</DialogTitle>
@@ -277,7 +405,9 @@ const ContactListsPage = () => {
               value={newListName}
               onChange={(e) => setNewListName(e.target.value)}
               placeholder="e.g., Q1 Seller Outreach"
-              onKeyDown={(e) => { if (e.key === 'Enter') handleCreateList(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateList();
+              }}
               autoFocus
             />
           </div>
@@ -285,7 +415,10 @@ const ContactListsPage = () => {
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateList} disabled={!newListName.trim() || createList.isPending}>
+            <Button
+              onClick={handleCreateList}
+              disabled={!newListName.trim() || createList.isPending}
+            >
               {createList.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -301,6 +434,20 @@ const ContactListsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Smart List Dialog */}
+      <CreateSmartListDialog open={smartListOpen} onOpenChange={setSmartListOpen} />
+
+      {/* Combine Lists Dialog */}
+      <ListCombineDialog
+        open={combineOpen}
+        onOpenChange={(v) => {
+          setCombineOpen(v);
+          if (!v) setSelectedIds(new Set());
+        }}
+        selectedLists={selectedLists}
+        defaultOperation={combineOp}
+      />
     </div>
   );
 };

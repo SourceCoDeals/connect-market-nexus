@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -12,24 +12,22 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
+import { ListChecks, Loader2, Building2, AlertTriangle, Plus, Sparkles } from 'lucide-react';
 import {
-  ListChecks,
-  Loader2,
-  Building2,
-  AlertTriangle,
-  Plus,
-  Sparkles,
-} from "lucide-react";
-import { useContactLists, useCreateContactList, useAddMembersToList, useEnrichListContacts } from "@/hooks/admin/use-contact-lists";
-import type { CreateContactListMemberInput } from "@/types/contact-list";
+  useContactLists,
+  useCreateContactList,
+  useAddMembersToList,
+  useEnrichListContacts,
+} from '@/hooks/admin/use-contact-lists';
+import type { CreateContactListMemberInput } from '@/types/contact-list';
 
 export interface DealForList {
   dealId: string;
@@ -46,39 +44,47 @@ interface AddDealsToListDialogProps {
   entityType?: string;
 }
 
-type ListMode = "new" | "existing";
+type ListMode = 'new' | 'existing';
 
 export function AddDealsToListDialog({
   open,
   onOpenChange,
   selectedDeals,
-  entityType = "deal",
+  entityType = 'deal',
 }: AddDealsToListDialogProps) {
   const navigate = useNavigate();
-  const [listMode, setListMode] = useState<ListMode>("existing");
-  const [selectedListId, setSelectedListId] = useState<string>("");
-  const [name, setName] = useState("");
+  const [listMode, setListMode] = useState<ListMode>('existing');
+  const [selectedListId, setSelectedListId] = useState<string>('');
+  const [name, setName] = useState('');
 
   // Track enriched data locally so the UI updates without re-fetching
-  const [enrichedDeals, setEnrichedDeals] = useState<Record<string, { email: string | null; phone: string | null }>>({});
+  const [enrichedDeals, setEnrichedDeals] = useState<
+    Record<string, { email: string | null; phone: string | null }>
+  >({});
 
-  const { data: existingLists } = useContactLists();
+  const { data: allLists } = useContactLists();
   const createList = useCreateContactList();
   const addMembers = useAddMembersToList();
   const enrichContacts = useEnrichListContacts();
 
+  // Only show seller and mixed lists in the picker
+  const existingLists = useMemo(
+    () => allLists?.filter((l) => l.list_type === 'seller' || l.list_type === 'mixed'),
+    [allLists],
+  );
+
   // Default to "existing" when lists are available, fall back to "new" if none
   useEffect(() => {
     if (open && existingLists) {
-      setListMode(existingLists.length > 0 ? "existing" : "new");
+      setListMode(existingLists.length > 0 ? 'existing' : 'new');
     }
   }, [open, existingLists]);
 
   // Reset on close
   useEffect(() => {
     if (!open) {
-      setName("");
-      setSelectedListId("");
+      setName('');
+      setSelectedListId('');
       setEnrichedDeals({});
     }
   }, [open]);
@@ -102,10 +108,7 @@ export function AddDealsToListDialog({
 
   // Deals eligible for enrichment: missing email AND have a contact name we can search with
   const enrichableDealIds = useMemo(
-    () =>
-      mergedDeals
-        .filter((d) => !d.contactEmail && d.contactName)
-        .map((d) => d.dealId),
+    () => mergedDeals.filter((d) => !d.contactEmail && d.contactName).map((d) => d.dealId),
     [mergedDeals],
   );
 
@@ -115,9 +118,9 @@ export function AddDealsToListDialog({
     const rawContacts = mergedDeals
       .filter((d) => enrichableDealIds.includes(d.dealId) && d.contactName)
       .map((d) => {
-        const parts = (d.contactName || "").trim().split(/\s+/);
-        const firstName = parts[0] || "";
-        const lastName = parts.slice(1).join(" ") || "";
+        const parts = (d.contactName || '').trim().split(/\s+/);
+        const firstName = parts[0] || '';
+        const lastName = parts.slice(1).join(' ') || '';
         return {
           key: d.dealId,
           first_name: firstName,
@@ -126,19 +129,22 @@ export function AddDealsToListDialog({
         };
       });
 
-    enrichContacts.mutate({ raw_contacts: rawContacts }, {
-      onSuccess: (results) => {
-        setEnrichedDeals((prev) => {
-          const next = { ...prev };
-          for (const r of results) {
-            if (r.email || r.phone) {
-              next[r.contact_id] = { email: r.email, phone: r.phone };
+    enrichContacts.mutate(
+      { raw_contacts: rawContacts },
+      {
+        onSuccess: (results) => {
+          setEnrichedDeals((prev) => {
+            const next = { ...prev };
+            for (const r of results) {
+              if (r.email || r.phone) {
+                next[r.contact_id] = { email: r.email, phone: r.phone };
+              }
             }
-          }
-          return next;
-        });
+            return next;
+          });
+        },
       },
-    });
+    );
   };
 
   const buildMembers = (): CreateContactListMemberInput[] =>
@@ -156,15 +162,15 @@ export function AddDealsToListDialog({
     const members = buildMembers();
     if (members.length === 0) return;
 
-    if (listMode === "new") {
+    if (listMode === 'new') {
       createList.mutate(
-        { name, list_type: "mixed", members },
+        { name, list_type: 'seller', members },
         {
           onSuccess: (data) => {
             onOpenChange(false);
             navigate(`/admin/lists/${data.id}`);
           },
-        }
+        },
       );
     } else {
       addMembers.mutate(
@@ -174,7 +180,7 @@ export function AddDealsToListDialog({
             onOpenChange(false);
             navigate(`/admin/lists/${listId}`);
           },
-        }
+        },
       );
     }
   };
@@ -183,7 +189,7 @@ export function AddDealsToListDialog({
   const canSubmit =
     dealsWithContact.length > 0 &&
     !isPending &&
-    (listMode === "new" ? name.trim().length > 0 : selectedListId.length > 0);
+    (listMode === 'new' ? name.trim().length > 0 : selectedListId.length > 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -194,7 +200,8 @@ export function AddDealsToListDialog({
             Add to Contact List
           </DialogTitle>
           <DialogDescription>
-            Add {selectedDeals.length} deal{selectedDeals.length !== 1 ? "s" : ""} to a contact list for outreach.
+            Add {selectedDeals.length} deal{selectedDeals.length !== 1 ? 's' : ''} to a contact list
+            for outreach.
           </DialogDescription>
         </DialogHeader>
 
@@ -223,7 +230,7 @@ export function AddDealsToListDialog({
                     ) : (
                       <Sparkles className="h-3 w-3" />
                     )}
-                    {enrichContacts.isPending ? "Enriching..." : "Find via Prospeo"}
+                    {enrichContacts.isPending ? 'Enriching...' : 'Find via Prospeo'}
                   </Button>
                 )}
               </>
@@ -238,12 +245,12 @@ export function AddDealsToListDialog({
                 {mergedDeals.map((deal) => (
                   <div
                     key={deal.dealId}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm ${!deal.contactEmail ? "text-muted-foreground" : ""}`}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm ${!deal.contactEmail ? 'text-muted-foreground' : ''}`}
                   >
                     <Building2 className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
                     <span className="font-medium truncate flex-1">{deal.dealName}</span>
                     <span className="text-xs text-muted-foreground truncate ml-auto max-w-[180px]">
-                      {deal.contactEmail || "No contact email"}
+                      {deal.contactEmail || 'No contact email'}
                     </span>
                   </div>
                 ))}
@@ -255,24 +262,24 @@ export function AddDealsToListDialog({
           <div className="space-y-3">
             <div className="flex gap-2">
               <Button
-                variant={listMode === "new" ? "secondary" : "ghost"}
+                variant={listMode === 'new' ? 'secondary' : 'ghost'}
                 size="sm"
-                onClick={() => setListMode("new")}
+                onClick={() => setListMode('new')}
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 New List
               </Button>
               <Button
-                variant={listMode === "existing" ? "secondary" : "ghost"}
+                variant={listMode === 'existing' ? 'secondary' : 'ghost'}
                 size="sm"
-                onClick={() => setListMode("existing")}
+                onClick={() => setListMode('existing')}
               >
                 <ListChecks className="h-3.5 w-3.5 mr-1" />
-                Existing List {existingLists?.length ? `(${existingLists.length})` : ""}
+                Existing List {existingLists?.length ? `(${existingLists.length})` : ''}
               </Button>
             </div>
 
-            {listMode === "new" ? (
+            {listMode === 'new' ? (
               <div className="space-y-1.5">
                 <Label htmlFor="deal-list-name">List Name *</Label>
                 <Input
@@ -299,7 +306,9 @@ export function AddDealsToListDialog({
                 </Select>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground py-2">No lists yet. Switch to "New List" to create one.</p>
+              <p className="text-sm text-muted-foreground py-2">
+                No lists yet. Switch to "New List" to create one.
+              </p>
             )}
           </div>
         </div>
@@ -317,7 +326,7 @@ export function AddDealsToListDialog({
             ) : (
               <>
                 <ListChecks className="mr-2 h-4 w-4" />
-                {listMode === "new" ? "Create List" : "Add to List"} ({dealsWithContact.length})
+                {listMode === 'new' ? 'Create List' : 'Add to List'} ({dealsWithContact.length})
               </>
             )}
           </Button>

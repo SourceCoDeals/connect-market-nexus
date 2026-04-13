@@ -33,6 +33,23 @@ export interface UniverseMetric {
   buyers: number;
 }
 
+export interface CallActivitySummary {
+  totalCalls: number;
+  connects: number;
+  voicemails: number;
+  connectRate: number; // 0-100
+  totalTalkSeconds: number;
+}
+
+export interface AdminActivity {
+  userId: string;
+  calls: number;
+  connects: number;
+  talkSeconds: number;
+  tasksCompleted: number;
+  dealsOwned: number;
+}
+
 // ─── Helpers ───
 
 export function getFromDate(tf: Timeframe): string | null {
@@ -160,6 +177,55 @@ export function useDashboardData(timeframe: Timeframe) {
     staleTime: 60_000,
   });
 
+  // ── Call activity in the selected timeframe ────────────────────────────
+  // Aggregates PhoneBurner calls from contact_activities for the dashboard
+  // headline metrics and per-admin activity breakdown.
+  type CallActivityRow = {
+    id: string;
+    user_id: string | null;
+    call_connected: boolean | null;
+    talk_time_seconds: number | null;
+    call_duration_seconds: number | null;
+    disposition_label: string | null;
+    call_outcome: string | null;
+    created_at: string;
+  };
+
+  const { data: callActivityRows, isLoading: callActivityLoading } = useQuery({
+    queryKey: ['dashboard', 'call-activity', fromDate],
+    queryFn: async (): Promise<CallActivityRow[]> => {
+      let query = (supabase as any)
+        .from('contact_activities')
+        .select(
+          'id, user_id, call_connected, call_duration_seconds, talk_time_seconds, disposition_label, call_outcome, created_at',
+        );
+      if (fromDate) query = query.gte('created_at', fromDate);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as CallActivityRow[];
+    },
+    staleTime: 60_000,
+  });
+
+  // ── Tasks completed in timeframe (for per-admin breakdown) ─────────────
+  type TaskCountRow = { assignee_id: string | null; id: string; completed_at: string | null };
+
+  const { data: taskActivityRows } = useQuery({
+    queryKey: ['dashboard', 'task-activity', fromDate],
+    queryFn: async (): Promise<TaskCountRow[]> => {
+      let query = (supabase as any)
+        .from('daily_standup_tasks')
+        .select('id, assignee_id, completed_at')
+        .eq('status', 'completed')
+        .not('completed_at', 'is', null);
+      if (fromDate) query = query.gte('completed_at', fromDate);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as TaskCountRow[];
+    },
+    staleTime: 60_000,
+  });
+
   // Extract metrics from RPC result
   const cards = stats?.cards;
   const newBySource = stats?.new_by_source || {};
@@ -182,6 +248,76 @@ export function useDashboardData(timeframe: Timeframe) {
       })
       .sort((a, b) => b.approved - a.approved);
   }, [universes, scoreData, buyerData]);
+
+  // ── Call activity summary (WF-14) ───────────────────────────────────────
+  const callActivity = useMemo<CallActivitySummary | null>(() => {
+    if (!callActivityRows) return null;
+    let totalCalls = 0;
+    let connects = 0;
+    let voicemails = 0;
+    let totalTalkSeconds = 0;
+    for (const row of callActivityRows) {
+      totalCalls++;
+      if (row.call_connected === true) connects++;
+      const label = (row.disposition_label || row.call_outcome || '').toLowerCase();
+      if (label.includes('voicemail') || label.includes('vm')) voicemails++;
+      totalTalkSeconds += row.talk_time_seconds || 0;
+    }
+    return {
+      totalCalls,
+      connects,
+      voicemails,
+      connectRate: totalCalls > 0 ? Math.round((connects / totalCalls) * 1000) / 10 : 0,
+      totalTalkSeconds,
+    };
+  }, [callActivityRows]);
+
+  // ── Per-admin activity (WF-7) ───────────────────────────────────────────
+  // Combines call counts, tasks completed, and deals owned into a single
+  // per-admin roll-up so leadership can see who is driving what in the period.
+  const adminActivity = useMemo<AdminActivity[]>(() => {
+    const byUser = new Map<string, AdminActivity>();
+    const bump = (userId: string): AdminActivity => {
+      let row = byUser.get(userId);
+      if (!row) {
+        row = {
+          userId,
+          calls: 0,
+          connects: 0,
+          talkSeconds: 0,
+          tasksCompleted: 0,
+          dealsOwned: 0,
+        };
+        byUser.set(userId, row);
+      }
+      return row;
+    };
+
+    for (const row of callActivityRows || []) {
+      if (!row.user_id) continue;
+      const entry = bump(row.user_id);
+      entry.calls++;
+      if (row.call_connected === true) entry.connects++;
+      entry.talkSeconds += row.talk_time_seconds || 0;
+    }
+
+    for (const row of taskActivityRows || []) {
+      if (!row.assignee_id) continue;
+      bump(row.assignee_id).tasksCompleted++;
+    }
+
+    // Deals owned comes from the team RPC result (each team entry is an owner).
+    for (const t of teamData as Array<{ owner_id?: string; total?: number }>) {
+      if (t.owner_id && t.owner_id !== '__unassigned') {
+        bump(t.owner_id).dealsOwned = (t.total as number) || 0;
+      }
+    }
+
+    // Sort most active first (calls + tasks as the blended signal).
+    return Array.from(byUser.values()).sort(
+      (a, b) => b.calls + b.tasksCompleted - (a.calls + a.tasksCompleted),
+    );
+  }, [callActivityRows, taskActivityRows, teamData]);
 
   // Score buckets from RPC
   const scoreBuckets = scoreDist
@@ -206,5 +342,8 @@ export function useDashboardData(timeframe: Timeframe) {
     recentActivity,
     scoreBuckets,
     universeMetrics,
+    callActivity,
+    callActivityLoading,
+    adminActivity,
   };
 }

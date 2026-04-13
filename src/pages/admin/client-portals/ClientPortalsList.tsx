@@ -4,7 +4,9 @@ import { Plus, Users, Send, Search, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { usePortalOrganizations } from '@/hooks/portal/use-portal-organizations';
+import { useRecommendationPendingCounts } from '@/hooks/portal/use-portal-recommendations';
 import { CreatePortalDialog } from '@/components/portal/CreatePortalDialog';
 import { OrgStatusBadge } from '@/components/portal/PortalStatusBadge';
 
@@ -12,17 +14,19 @@ export default function ClientPortalsList() {
   const [createOpen, setCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { data: orgs, isLoading } = usePortalOrganizations();
+  const { data: pendingCounts } = useRecommendationPendingCounts();
 
   const filteredOrgs = useMemo(() => {
     if (!orgs) return [];
     if (!searchQuery.trim()) return orgs;
     const q = searchQuery.toLowerCase();
-    return orgs.filter((o) =>
-      o.name.toLowerCase().includes(q) ||
-      o.buyer?.company_name?.toLowerCase().includes(q) ||
-      o.buyer?.buyer_type?.replace(/_/g, ' ').toLowerCase().includes(q) ||
-      o.relationship_owner?.first_name?.toLowerCase().includes(q) ||
-      o.relationship_owner?.last_name?.toLowerCase().includes(q)
+    return orgs.filter(
+      (o) =>
+        o.name.toLowerCase().includes(q) ||
+        o.buyer?.company_name?.toLowerCase().includes(q) ||
+        o.buyer?.buyer_type?.replace(/_/g, ' ').toLowerCase().includes(q) ||
+        o.relationship_owner?.first_name?.toLowerCase().includes(q) ||
+        o.relationship_owner?.last_name?.toLowerCase().includes(q),
     );
   }, [orgs, searchQuery]);
 
@@ -112,7 +116,14 @@ export default function ClientPortalsList() {
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{org.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">{org.name}</CardTitle>
+                      {(pendingCounts?.get(org.id) ?? 0) > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {pendingCounts!.get(org.id)} matches
+                        </Badge>
+                      )}
+                    </div>
                     <OrgStatusBadge status={org.status} />
                   </div>
                   {org.buyer && (

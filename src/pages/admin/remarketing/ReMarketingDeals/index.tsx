@@ -137,6 +137,9 @@ const ReMarketingDeals = () => {
         deal_total_score: 'score',
         added: 'added',
         created_at: 'added',
+        last_activity: 'last_activity',
+        last_activity_at: 'last_activity',
+        updated_at: 'last_activity',
         address_state: 'location',
         industry: 'industry',
         category: 'industry',
@@ -384,12 +387,11 @@ const ReMarketingDeals = () => {
           )}
         </Button>
         <div className="flex items-center gap-2 ml-2">
-          <Switch
-            id="hide-not-a-fit"
-            checked={h.hideNotAFit}
-            onCheckedChange={h.setHideNotAFit}
-          />
-          <Label htmlFor="hide-not-a-fit" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+          <Switch id="hide-not-a-fit" checked={h.hideNotAFit} onCheckedChange={h.setHideNotAFit} />
+          <Label
+            htmlFor="hide-not-a-fit"
+            className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap"
+          >
             Hide Not a Fit
           </Label>
         </div>
@@ -777,7 +779,9 @@ const ReMarketingDeals = () => {
       {/* Archive Deal Dialog */}
       <ArchiveDealDialog
         open={!!h.archiveTarget}
-        onOpenChange={(open) => { if (!open) h.setArchiveTarget(null); }}
+        onOpenChange={(open) => {
+          if (!open) h.setArchiveTarget(null);
+        }}
         deal={h.archiveTarget ? { id: h.archiveTarget.id, name: h.archiveTarget.name } : null}
         onConfirmArchive={h.confirmArchiveDeal}
       />

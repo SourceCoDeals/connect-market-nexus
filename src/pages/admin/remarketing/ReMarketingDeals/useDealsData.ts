@@ -71,7 +71,7 @@ export function useDealsData() {
           .from('listings')
           .select(
             `
-            id, title, description, location, revenue, ebitda, status, created_at,
+            id, title, description, location, revenue, ebitda, status, created_at, updated_at,
             category, industry, website, executive_summary, service_mix,
             internal_company_name, internal_deal_memo_link, geographic_states,
             enriched_at, full_time_employees, linkedin_employee_count,
@@ -412,6 +412,23 @@ export function useDealsData() {
           aVal = new Date(a.created_at).getTime();
           bVal = new Date(b.created_at).getTime();
           break;
+        case 'last_activity': {
+          // Most recent of updated_at / enriched_at / created_at.
+          // Used for stale deal identification (WF-17).
+          const lastA = Math.max(
+            a.updated_at ? new Date(a.updated_at).getTime() : 0,
+            a.enriched_at ? new Date(a.enriched_at).getTime() : 0,
+            a.created_at ? new Date(a.created_at).getTime() : 0,
+          );
+          const lastB = Math.max(
+            b.updated_at ? new Date(b.updated_at).getTime() : 0,
+            b.enriched_at ? new Date(b.enriched_at).getTime() : 0,
+            b.created_at ? new Date(b.created_at).getTime() : 0,
+          );
+          aVal = lastA;
+          bVal = lastB;
+          break;
+        }
         case 'priority':
           aVal = a.is_priority_target ? 1 : 0;
           bVal = b.is_priority_target ? 1 : 0;

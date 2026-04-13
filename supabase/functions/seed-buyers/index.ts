@@ -161,18 +161,14 @@ function validateDealFields(deal: Record<string, unknown>): string[] {
 
   // At least one description field must be populated
   const hasDescription =
-    (deal.executive_summary as string)?.trim() ||
-    (deal.hero_description as string)?.trim();
-  if (!hasDescription)
-    missing.push('description (executive_summary or hero_description)');
+    (deal.executive_summary as string)?.trim() || (deal.hero_description as string)?.trim();
+  if (!hasDescription) missing.push('description (executive_summary or hero_description)');
 
   // Industry and categories are alternatives — only flag if NEITHER is present
   const dealCats = deal.categories as string[] | null;
   const dealCat = (deal.category as string) || '';
   const hasIndustryOrCategory =
-    (deal.industry as string)?.trim() ||
-    (dealCats && dealCats.length > 0) ||
-    dealCat?.trim();
+    (deal.industry as string)?.trim() || (dealCats && dealCats.length > 0) || dealCat?.trim();
   if (!hasIndustryOrCategory) missing.push('industry or categories');
 
   return missing;
@@ -551,7 +547,10 @@ Deno.serve(async (req: Request) => {
 
   /** Returns remaining ms before the edge function should stop work */
   function remainingMs(): number {
-    return Math.max(0, WALL_TIME_LIMIT_MS - WALL_TIME_SAFETY_MARGIN_MS - (Date.now() - fnStartTime));
+    return Math.max(
+      0,
+      WALL_TIME_LIMIT_MS - WALL_TIME_SAFETY_MARGIN_MS - (Date.now() - fnStartTime),
+    );
   }
 
   try {
@@ -600,10 +599,13 @@ Deno.serve(async (req: Request) => {
     async function updateJobProgress(updates: Record<string, unknown>) {
       if (!jobId) return;
       try {
-        await supabase.from('buyer_search_jobs').update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        }).eq('id', jobId);
+        await supabase
+          .from('buyer_search_jobs')
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', jobId);
       } catch (e) {
         console.warn('Job progress update failed (non-fatal):', e);
       }
@@ -635,6 +637,25 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // ── Look up the deal's universe (if any) so AI-seeded buyers are scoped ──
+    // Previously, seed-buyers inserted discovered buyers globally with no
+    // universe_id. They were only included in scoring via the ai_seeded=true
+    // bypass. Assigning the first linked universe keeps universe management
+    // consistent and makes the discovered buyers visible in that universe.
+    let dealUniverseId: string | null = null;
+    try {
+      const { data: universeLinks } = await supabase
+        .from('remarketing_universe_deals')
+        .select('universe_id')
+        .eq('listing_id', listingId)
+        .limit(1);
+      if (universeLinks && universeLinks.length > 0) {
+        dealUniverseId = (universeLinks[0] as { universe_id: string }).universe_id;
+      }
+    } catch (e) {
+      console.warn('[seed-buyers] Failed to resolve deal universe:', e);
+    }
+
     // ── Phase 0a: AI inference fallback for missing industry/categories ──
     const dealIndustry = (deal.industry as string)?.trim();
     const dealCats = deal.categories as string[] | null;
@@ -652,8 +673,11 @@ Deno.serve(async (req: Request) => {
           const inferResult = await callClaude({
             model: CLAUDE_MODELS.haiku,
             maxTokens: 256,
-            systemPrompt: 'You classify businesses. Return ONLY a JSON object with two keys: "industry" (string, e.g. "HVAC Services") and "categories" (array of 1-3 short category strings). No markdown, no explanation.',
-            messages: [{ role: 'user', content: `Classify this business:\n\n${descText.slice(0, 1500)}` }],
+            systemPrompt:
+              'You classify businesses. Return ONLY a JSON object with two keys: "industry" (string, e.g. "HVAC Services") and "categories" (array of 1-3 short category strings). No markdown, no explanation.',
+            messages: [
+              { role: 'user', content: `Classify this business:\n\n${descText.slice(0, 1500)}` },
+            ],
             timeoutMs: Math.min(15_000, remainingMs() - 120_000), // reserve time for main passes
           });
 
@@ -661,13 +685,21 @@ Deno.serve(async (req: Request) => {
           const textBlock = inferResult?.content?.find((b: any) => b.type === 'text');
           const rawText = (textBlock as any)?.text || '';
           if (rawText) {
-            const cleaned = rawText.replace(/```json\s*/g, '').replace(/```/g, '').trim();
+            const cleaned = rawText
+              .replace(/```json\s*/g, '')
+              .replace(/```/g, '')
+              .trim();
             const parsed = JSON.parse(cleaned);
             if (parsed.industry && !dealIndustry) {
               (deal as Record<string, unknown>).industry = parsed.industry;
               console.log(`[seed-buyers] Inferred industry: ${parsed.industry}`);
             }
-            if (Array.isArray(parsed.categories) && parsed.categories.length > 0 && !dealCats?.length && !dealCat) {
+            if (
+              Array.isArray(parsed.categories) &&
+              parsed.categories.length > 0 &&
+              !dealCats?.length &&
+              !dealCat
+            ) {
               (deal as Record<string, unknown>).categories = parsed.categories;
               console.log(`[seed-buyers] Inferred categories: ${parsed.categories.join(', ')}`);
             }
@@ -786,7 +818,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Pass 1: Define the buyer profile ──
-    await updateJobProgress({ status: 'searching', progress_pct: 10, progress_message: 'Defining ideal buyer profile (Pass 1)…' });
+    await updateJobProgress({
+      status: 'searching',
+      progress_pct: 10,
+      progress_message: 'Defining ideal buyer profile (Pass 1)…',
+    });
     console.log('Pass 1: Defining buyer profile...');
     // Cap timeout to remaining wall time (need to save time for Pass 2 + inserts)
     const pass1Timeout = Math.min(30_000, remainingMs() - 100_000); // reserve 100s for Pass 2 + post-processing
@@ -823,7 +859,11 @@ Deno.serve(async (req: Request) => {
     );
 
     // ── Pass 2: Find PE-backed platforms matching the profile ──
-    await updateJobProgress({ status: 'searching', progress_pct: 35, progress_message: 'Searching for PE-backed platform companies (Pass 2)…' });
+    await updateJobProgress({
+      status: 'searching',
+      progress_pct: 35,
+      progress_message: 'Searching for PE-backed platform companies (Pass 2)…',
+    });
     console.log('Pass 2: Finding PE-backed platform companies...');
     const cappedMax = Math.min(maxBuyers, 8);
 
@@ -865,7 +905,11 @@ Deno.serve(async (req: Request) => {
     const suggestedBuyers = parseClaudeResponse(pass2Text);
 
     // ── Deduplicate and insert ──
-    await updateJobProgress({ status: 'scoring', progress_pct: 65, progress_message: `Found ${suggestedBuyers.length} candidates. Deduplicating & inserting…` });
+    await updateJobProgress({
+      status: 'scoring',
+      progress_pct: 65,
+      progress_message: `Found ${suggestedBuyers.length} candidates. Deduplicating & inserting…`,
+    });
     const results: SeedResult[] = [];
     const newBuyerIds: string[] = [];
     const seedLogEntries: Record<string, unknown>[] = [];
@@ -886,7 +930,9 @@ Deno.serve(async (req: Request) => {
           console.warn(`  → Serper lookup failed for ${suggested.company_name}:`, serperErr);
         }
       } else if (!suggested.company_website) {
-        console.info(`${suggested.company_name} — skipping Serper lookup (low wall time: ${remainingMs()}ms)`);
+        console.info(
+          `${suggested.company_name} — skipping Serper lookup (low wall time: ${remainingMs()}ms)`,
+        );
       }
 
       const domain = extractDomain(suggested.company_website);
@@ -923,14 +969,24 @@ Deno.serve(async (req: Request) => {
         action = 'enriched_existing';
         buyerId = existingId;
 
-        await supabase
-          .from('buyers')
-          .update({
-            ai_seeded: true,
-            ai_seeded_at: now,
-            ai_seeded_from_deal_id: listingId,
-          })
-          .eq('id', buyerId);
+        // Only set universe_id if the existing buyer is currently unscoped,
+        // to avoid stealing a buyer that another team has already curated.
+        const enrichUpdate: Record<string, unknown> = {
+          ai_seeded: true,
+          ai_seeded_at: now,
+          ai_seeded_from_deal_id: listingId,
+        };
+        if (dealUniverseId) {
+          const { data: existingBuyer } = await supabase
+            .from('buyers')
+            .select('universe_id')
+            .eq('id', buyerId)
+            .maybeSingle();
+          if (existingBuyer && !(existingBuyer as { universe_id: string | null }).universe_id) {
+            enrichUpdate.universe_id = dealUniverseId;
+          }
+        }
+        await supabase.from('buyers').update(enrichUpdate).eq('id', buyerId);
       } else {
         action = 'inserted';
         wasNew = true;
@@ -1002,6 +1058,7 @@ Deno.serve(async (req: Request) => {
             ai_seeded: true,
             ai_seeded_at: now,
             ai_seeded_from_deal_id: listingId,
+            universe_id: dealUniverseId,
             verification_status: 'pending',
             is_pe_backed: !!suggested.pe_firm_name,
           })
@@ -1019,7 +1076,9 @@ Deno.serve(async (req: Request) => {
               .limit(10);
 
             // Filter to exact domain match in application code
-            const exactMatch = (raced || []).find(r => extractDomain(r.company_website) === domain);
+            const exactMatch = (raced || []).find(
+              (r) => extractDomain(r.company_website) === domain,
+            );
 
             if (exactMatch) {
               action = 'enriched_existing';
@@ -1080,12 +1139,10 @@ Deno.serve(async (req: Request) => {
 
     // ── Batch upsert seed log entries (resilient to duplicates) ──
     if (seedLogEntries.length > 0) {
-      const { error: logError } = await supabase
-        .from('buyer_seed_log')
-        .upsert(seedLogEntries, {
-          onConflict: 'remarketing_buyer_id,source_deal_id',
-          ignoreDuplicates: false,
-        });
+      const { error: logError } = await supabase.from('buyer_seed_log').upsert(seedLogEntries, {
+        onConflict: 'remarketing_buyer_id,source_deal_id',
+        ignoreDuplicates: false,
+      });
       if (logError) {
         console.error('Seed log upsert failed:', logError.message);
         // Mark job with warning so UI knows
@@ -1166,30 +1223,61 @@ Deno.serve(async (req: Request) => {
     let errorCode: string;
     let statusCode = 500;
 
-    if (lowerMsg.includes('timeout') || lowerMsg.includes('timed out') || lowerMsg.includes('aborterror') || (error instanceof Error && error.name === 'TimeoutError')) {
-      userMessage = 'The AI search timed out. This can happen with complex deals. Please try again.';
+    if (
+      lowerMsg.includes('timeout') ||
+      lowerMsg.includes('timed out') ||
+      lowerMsg.includes('aborterror') ||
+      (error instanceof Error && error.name === 'TimeoutError')
+    ) {
+      userMessage =
+        'The AI search timed out. This can happen with complex deals. Please try again.';
       errorCode = 'ai_timeout';
-    } else if (lowerMsg.includes('rate limit') || lowerMsg.includes('429') || lowerMsg.includes('too many requests')) {
+    } else if (
+      lowerMsg.includes('rate limit') ||
+      lowerMsg.includes('429') ||
+      lowerMsg.includes('too many requests')
+    ) {
       userMessage = 'The AI service is currently rate-limited. Please wait a minute and try again.';
       errorCode = 'rate_limited';
       statusCode = 429;
-    } else if (lowerMsg.includes('anthropic_api_key') || lowerMsg.includes('api key') || lowerMsg.includes('not configured')) {
+    } else if (
+      lowerMsg.includes('anthropic_api_key') ||
+      lowerMsg.includes('api key') ||
+      lowerMsg.includes('not configured')
+    ) {
       userMessage = 'The AI service is not configured. Please contact your administrator.';
       errorCode = 'config_error';
-    } else if (lowerMsg.includes('claude api error 5') || lowerMsg.includes('service unavailable') || lowerMsg.includes('bad gateway') || lowerMsg.includes('502') || lowerMsg.includes('503')) {
+    } else if (
+      lowerMsg.includes('claude api error 5') ||
+      lowerMsg.includes('service unavailable') ||
+      lowerMsg.includes('bad gateway') ||
+      lowerMsg.includes('502') ||
+      lowerMsg.includes('503')
+    ) {
       userMessage = 'The AI service is temporarily unavailable. Please try again in a few minutes.';
       errorCode = 'ai_unavailable';
     } else if (lowerMsg.includes('claude api error 4')) {
       userMessage = 'The AI service rejected the request. Please contact your administrator.';
       errorCode = 'ai_request_error';
-    } else if (lowerMsg.includes('json') || lowerMsg.includes('parse') || lowerMsg.includes('unexpected response')) {
+    } else if (
+      lowerMsg.includes('json') ||
+      lowerMsg.includes('parse') ||
+      lowerMsg.includes('unexpected response')
+    ) {
       userMessage = 'The AI returned an unexpected response format. Please try again.';
       errorCode = 'parse_error';
-    } else if (lowerMsg.includes('network') || lowerMsg.includes('fetch') || lowerMsg.includes('econnrefused') || lowerMsg.includes('econnreset')) {
-      userMessage = 'A network error occurred while contacting the AI service. Please check your connection and try again.';
+    } else if (
+      lowerMsg.includes('network') ||
+      lowerMsg.includes('fetch') ||
+      lowerMsg.includes('econnrefused') ||
+      lowerMsg.includes('econnreset')
+    ) {
+      userMessage =
+        'A network error occurred while contacting the AI service. Please check your connection and try again.';
       errorCode = 'network_error';
     } else {
-      userMessage = 'An unexpected error occurred during AI buyer search. Please try again or contact support.';
+      userMessage =
+        'An unexpected error occurred during AI buyer search. Please try again or contact support.';
       errorCode = 'internal_error';
     }
 
@@ -1199,15 +1287,20 @@ Deno.serve(async (req: Request) => {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const errClient = createClient(supabaseUrl, supabaseServiceKey);
-        await errClient.from('buyer_search_jobs').update({
-          status: 'failed',
-          progress_pct: 0,
-          progress_message: userMessage,
-          error: `[${errorCode}] ${rawMsg}`.slice(0, 500),
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq('id', _jobId);
-      } catch { /* best effort */ }
+        await errClient
+          .from('buyer_search_jobs')
+          .update({
+            status: 'failed',
+            progress_pct: 0,
+            progress_message: userMessage,
+            error: `[${errorCode}] ${rawMsg}`.slice(0, 500),
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', _jobId);
+      } catch {
+        /* best effort */
+      }
     }
     return new Response(
       JSON.stringify({ error: userMessage, code: errorCode, details: rawMsg.slice(0, 500) }),

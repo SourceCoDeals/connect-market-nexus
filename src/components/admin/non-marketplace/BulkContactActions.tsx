@@ -83,8 +83,9 @@ export const BulkContactActions = ({
     URL.revokeObjectURL(url);
   };
 
-  // Collect source_ids for the dialer push
-  const contactIds = selectedUsers.map((u) => u.source_id);
+  // Collect source_ids for the dialer push — only contacts with phone numbers.
+  // Dialer/Smartlead pushes must exclude phone-less contacts to avoid failed dials.
+  const contactIds = selectedUsers.filter((u) => u.phone).map((u) => u.source_id);
 
   return (
     <>

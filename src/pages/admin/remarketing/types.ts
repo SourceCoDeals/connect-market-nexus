@@ -9,6 +9,7 @@ export interface DealListing {
   ebitda: number | null;
   status: string | null;
   created_at: string;
+  updated_at: string | null;
   category: string | null;
   industry: string | null;
   website: string | null;

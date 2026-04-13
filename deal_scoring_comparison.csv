@@ -1,0 +1,502 @@
+internal_company_name,industry,deal_source,employees,linkedin_employee_range,reviews,rating,locations,revenue,ebitda,fte,management_depth,has_exec_summary,has_recurring_kw,has_3plus_services,address_city,address_state,has_website,is_enriched,captarget_interest_type,old_score,quality_calculation_version,new_size,new_quality,new_market
+GC Northwest LLC,Restoration Services,gp_partners,351,201-500 employees,1,5.0,1,0,5000000,0,"The owner's name is David Millar. The notes do not provide details about the management team beyond the owner. The presence of a strong #2, succession planning, or the owner's day-to-day involvement in operations are unknown and require further investigation.",true,true,false,Vancouver,WA,true,true,,94,v5,45,18,8
+Peters Body & Fender,Auto Body Repair,gp_partners,121,51-200 employees,90,4.7,1,0,0,0,"Dave Laganella, an experienced mechanic, manages the shop. The notes do not mention any other key personnel or a strong #2 in place, so there is a potential owner dependency risk.",true,true,true,Oakland,NJ,true,true,,58,v5,40,21,8
+Ray's Auto Body Crafters,Auto Body Repair,gp_partners,251,11-50 employees,63,4.7,1,0,0,0,"Management depth is not explicitly detailed in the notes. The notes mention I-CAR Pro Level-2 rated estimators, suggesting a focus on professional certifications and expertise. Further investigation is needed to understand the roles and responsibilities of key personnel and the company's succession planning.",true,false,true,Rapid City,SD,true,true,,64,v5,45,15,8
+Onspring,Unspecified,gp_partners,112,51-200 employees,2,4.0,0,30000000,6000000,50,"Management depth details are not explicitly mentioned. Chad Kreimendahl is identified as the Founder and CEO, but information on the broader management team and succession planning is not available. It is important to assess the strength of the management team and the potential impact of owner departure.",true,false,true,Overland Park,KS,true,true,,94,v5,40,13,8
+Bug Busters Pest Control Services,Pest Control,gp_partners,25,11-50 employees,622,4.8,0,0,0,0,"The notes do not provide details on management depth. It's unclear who runs the day-to-day operations besides the owner, and if there's a strong #2 or a team in place to support the business. Understanding the management structure is crucial for assessing the business's scalability and transition readiness.",true,true,true,Farmville,VA,true,true,,46,v5,27,25,8
+Randy Hall,Vacation Rentals,gp_partners,60,51-200 employees,5,3.4,1,0,0,0,Randy Hall is the CEO. Ellie Geoffrey is the broker. No other management details provided.,true,true,true,Orange Beach,AL,true,true,,52,v5,34,17,8
+JC Beal Construction,Construction,gp_partners,46,11-50 employees,18,4.8,0,0,0,0,"Management depth is not detailed in the notes. Further information is needed to understand the key personnel, their roles, and the succession plan in place.",true,true,true,Detroit,MI,true,true,,49,v5,27,21,11
+Jerry's Auto Build,Collision and Autobody Repair,gp_partners,62,11-50 employees,31,4.6,1,1000000,100000,5,"The notes mention Jerry's Autorebuild, suggesting Jerry is a key figure in the company's management. The depth of the management team and whether there is a strong #2 or succession plan is not detailed.",true,false,true,Bainbridge Island,WA,true,true,,24,v5,34,15,8
+Road Art Paint & Collision,Auto Body Repair,gp_partners,73,"501-1,000 employees",25,5.0,1,0,0,0,"Details regarding the management team and their roles within the company are not included. It's unclear who the key personnel are, their tenure, and whether there is a strong #2 in place to ensure continuity.",true,false,true,Mt Gilead,NC,true,true,,52,v5,34,15,8
+"Davis Roofing, Inc.",Roofing,gp_partners,13,11-50 employees,61,4.8,811,0,0,0,"The notes mention Jon Walsh, presumably the owner, but do not provide information on the management team's depth, succession readiness, or key personnel beyond Mr. Walsh.",true,true,false,Lombard,IL,true,true,,64,v5,15,28,12
+Civalgo,Unclear from notes,gp_partners,26,11-50 employees,8,4.5,0,0,0,0,Management depth is not mentioned in the provided notes.,true,true,false,Montreal,QC,true,true,,46,v5,27,18,8
+Clinical Research Associates,Clinical Research,gp_partners,17,11-50 employees,38,4.7,0,0,0,,The notes do not provide information on the management depth.,true,true,false,Nashville,TN,true,true,,41,v5,21,18,11
+Clinical Outcome Solutions,Healthcare,gp_partners,74,51-200 employees,1,3.0,0,0,0,,Unknown,true,false,false,Tucson,AZ,true,true,,53,v5,34,8,8
+Green Shield Pest Control,Pest Control,gp_partners,,,204,5.0,0,0,0,0,"No information is provided about the management team or key personnel. Details regarding key personnel, their roles, and succession planning are needed for a comprehensive analysis.",true,true,true,Columbus,OH,true,true,,22,v5,14,25,11
+The Pest Rangers Hazleton: Termite and Pest Control,Pest Control,gp_partners,12,1-10 employees,456,5.0,1,0,0,0,"The management depth is not explicitly mentioned in the provided text. Further information is needed to determine the key personnel, their roles, and the succession readiness of the company.",true,true,true,Hazleton,PA,true,true,,34,v5,15,25,8
+Build Right Roofing & Construction,Roofing & Construction,gp_partners,10,11-50 employees,461,5.0,0,0,0,0,Unknown,true,true,true,Rapid City,SD,true,true,,34,v5,15,25,8
+The Heart Institute of East Texas,Healthcare,gp_partners,39,51-200 employees,89,4.2,1,0,0,0,"The provided notes contain no information about the management team, key personnel, or the organizational structure of the Heart Institute.",true,false,true,Lufkin,TX,true,true,,44,v5,27,13,8
+Gold Coast Auto Body,Collision Repair / Auto Body,gp_partners,21,11-50 employees,777,4.8,1,1,1,1,"Management depth is not explicitly detailed, but Dominic Martino appears to be a key figure, possibly the owner or a senior manager. The presence of a representative suggests they may have external advisors assisting with strategic decisions.",true,false,false,Chicago,IL,true,true,,29,v5,21,16,11
+LiveField,Construction Software,gp_partners,,,15109,4.4,0,0,0,0,No information provided about the management depth.,true,true,true,Dallas,TX,true,true,,27,v5,14,23,11
+Prolato Clinical Research Center,Clinical Research,gp_partners,20,11-50 employees,44,4.7,1,0,0,0,"The notes mention Sreedhar Mandayam, MD, MPH, MBA, but do not provide details about management depth or succession readiness.",true,false,true,Houston,TX,true,true,,43,v5,21,15,11
+Pipe Masters,Home Services,gp_partners,,,280,4.9,0,0,0,0,"Jason Koran is mentioned as the Manager. The notes do not provide information about other key personnel, succession readiness, or the management structure beyond Jason Koran.",true,true,true,Honolulu,HI,true,true,,19,v5,14,25,8
+Zepth,Construction AI Platform,gp_partners,19,11-50 employees,3,4.3,0,0,0,0,No information on management depth is available in the provided notes.,true,true,true,Anywhere,,true,true,,40,v5,21,19,5
+GoodMonsters Pest Control,Pest Control,gp_partners,,,499,4.9,0,0,0,0,No information provided about the management depth.,true,true,false,Mount Vernon,WA,true,true,,19,v5,14,22,8
+Cape Auto Body Collision Center,Auto Body Collision Repair,gp_partners,,,229,4.7,1,0,0,0,"The business is owned and operated by Dave Gallerani. The notes do not provide details on the management team, the presence of a strong #2, or succession planning.",true,true,false,Plymouth,MA,true,true,,19,v5,14,22,8
+Boyes Electric,EV Charging / Electrical,gp_partners,,,206,4.9,0,0,0,0,Management depth information is not mentioned in the provided notes.,true,true,false,Oakland,CA,true,true,,19,v5,14,22,8
+BugBros Pest Control,Pest Control,gp_partners,,,2080,5.0,1,10000000,0,0,Management depth is not explicitly stated in the provided notes.,true,true,false,Tulsa,OK,true,true,,83,v5,14,22,8
+Victory Financial,Wealth Management,gp_partners,37,11-50 employees,0,,1,0,0,0,Management depth is not mentioned in the notes.,true,false,false,Southlake,TX,true,true,,46,v5,27,8,8
+West Wind Reinforcing,Concrete Reinforcing,gp_partners,34,201-500 employees,8,3.0,1,60000000,60000000,0,"Louie Leon is the Vice President-Member. The text suggests a concern for the well-being of the 'employee team', inferring their importance to the company's operations.",true,false,false,Hubbard,OR,true,true,,94,v5,27,8,8
+425 Motorsports,Automotive,gp_partners,10,1-10 employees,171,4.9,1,25000000,4000000,2,Dan Reiss is the Chief Executive Officer and appears to be the key leader. The notes don't provide detail on other management personnel or succession planning.,true,false,true,Kirkland,WA,true,true,,87,v5,15,19,8
+631 Tire & Wheel,Tires & Automotive,gp_partners,,,313,4.4,1,0,0,0,"Management depth is not detailed in the notes, and it is unclear who besides the owner is involved in managing the business.",true,true,false,Lindenhurst,NY,true,true,,19,v5,14,20,8
+Ipest,Pest Control,gp_partners,,,158,4.9,1,0,0,0,No information provided regarding management depth.,true,true,false,San Antonio,TX,true,true,,14,v5,9,22,11
+Frontline Adjusters,Restoration Services,gp_partners,12,11-50 employees,60,4.8,0,5000000,1000000,25,Not mentioned in the notes.,true,true,false,Glen Ellyn,IL,true,true,,74,v5,15,18,8
+"A1 Garage Repair, LLC.",Garage Door Services,gp_partners,,,957,5.0,,,,,,true,true,true,Plain City,OH,true,true,,7,v5,14,19,8
+Jim's Body Shop & Services Center,Collision Repair / Auto Body,gp_partners,16,1-10 employees,42,4.6,0,0,0,,Not mentioned in the notes.,true,false,false,Seymour,IN,true,true,,38,v5,21,12,8
+Skyview Investment Advisors,RIA / Wealth Management,gp_partners,22,11-50 employees,0,,1,0,0,0,"The notes do not provide any information about the management depth of Skyview Investment Advisors. It is unknown who the key personnel are, their roles, and whether there is a strong #2 in place. Further information is needed to assess the company's management structure and succession planning.",true,false,true,Shrewsbury,NJ,true,true,,40,v5,21,11,8
+Blue Peaks Roofing,Home Services,gp_partners,6,1-10 employees,153,4.9,1,0,0,0,"Management depth is not mentioned in the notes, but direct communication with Andrew Ubben suggests he may be a key figure in the company's operations.",true,true,false,Littleton,CO,true,true,interest,23,v5,9,22,8
+Compton Doors,Garage Doors,gp_partners,,,116,4.9,1,0,0,0,Bob Dean is in operations.,true,true,false,Attleboro,MA,true,true,,14,v5,9,22,8
+Utah Flood Guys,Flood Mitigation & Restoration,gp_partners,,,197,5.0,1,1000000,100000,5,Management depth details are not included in the notes.,true,true,false,Sandy,UT,true,true,,24,v5,9,22,8
+ChefaloCC,Restoration Services,gp_partners,,,134,4.9,0,0,0,0,No information about the company's management depth is provided in the notes.,true,true,false,Poughkeepsie,NY,true,true,,14,v5,9,22,8
+Brookstone Restoration,Restoration Services,gp_partners,,,294,4.7,1,0,0,0,"Mike Whitcomb's sons are now running the business, indicating a transition of leadership to the next generation. Further details about their roles and responsibilities were not provided.",true,false,false,Bessemer,AL,true,true,,17,v5,14,16,8
+Private Label Partners,OTC Manufacturing,gp_partners,,,58,4.9,0,0,0,0,Management depth is currently unknown.,true,true,true,Alpharetta,GA,true,true,,11,v5,9,21,8
+Lakonia Imports,Imports,gp_partners,7,1-10 employees,13,4.7,0,0,0,0,Management depth is not specified in the notes.,true,true,true,Humble,TX,true,true,,25,v5,9,21,8
+A Perfect Plumber,Home Services,gp_partners,3,1-10 employees,527,5.0,1,0,0,0,"The owner and contact person is Chris Coleman. The notes do not offer insights into the management depth of A Perfect Plumber, LLC, including the presence of a strong #2 or details on day-to-day operations management.",true,true,true,Englewood,CO,true,true,,19,v5,5,25,8
+Motor City Plumbing and Drain,Home Services,gp_partners,,,2579,4.9,1,0,0,0,Management depth details are not included in the notes. It's unknown if there is a #2 or who manages the day-to-day operations.,true,false,false,Roseville,MI,true,true,,27,v5,14,16,8
+"4-T Door Systems, Inc",Garage Door Services,gp_partners,3,11-50 employees,173,4.8,1,0,0,0,"Jason Dean is the President of 4-T Door Systems, Inc. No other management details are provided.",true,true,true,Elkhart,IN,true,true,,16,v5,5,25,8
+EPIC Restoration,Restoration Services,gp_partners,,,334,4.8,0,1500000,1500000,0,Management depth is not mentioned in the provided notes.,true,false,false,Sacramento,CA,true,true,,27,v5,14,16,8
+CGX Overhead Door,Life Sciences,gp_partners,,,906,5.0,1,3000000,3000000,4,Management depth details are not provided in the notes beyond the mention of it being a family-owned business. The role of family members and the existence of a strong #2 are unknown.,true,false,false,St. Louis,MO,true,true,,89,v5,14,16,8
+Emergency Glass Repair,Glass Repair,gp_partners,,,496,4.8,1,0,0,0,Not mentioned in the provided notes.,true,false,false,Tucson,AZ,true,true,,20,v5,14,16,8
+Saas Capital,Financial Services,gp_partners,12,1-10 employees,0,,0,0,0,0,Information regarding the management depth of SaaS Capital is not available in the notes. The notes do not mention key personnel or succession planning.,true,true,false,Cincinnati,OH,true,true,,35,v5,15,14,8
+Phoenix Collision Center,Collision Repair / Auto Body,gp_partners,,,139,4.9,1,0,0,0,No management depth mentioned in the provided notes.,true,false,false,Phoenix,AZ,true,true,,15,v5,9,16,11
+Loisa,Food & Seasoning,gp_partners,8,1-10 employees,461,4.5,0,0,0,0,The notes do not contain any information regarding management depth.,true,false,true,Rochester,NY,true,true,,23,v5,9,19,8
+Uni-Tech Paint & Body Shop,Collision Repair / Auto Body,gp_partners,,,197,4.7,1,0,0,0,Management depth is not mentioned in the notes.,true,false,false,Atlanta,GA,true,true,,15,v5,9,16,11
+Just-In Glass,Glass Services,gp_partners,,,118,4.8,0,0,0,0,Management depth is not mentioned in the provided text.,true,false,true,Dickinson,ND,true,true,,14,v5,9,19,8
+Car Wash City,Car Wash,gp_partners,,,528,4.4,0,0,0,0,The notes do not contain any information about the management depth.,true,false,false,Springfield,IL,true,true,,22,v5,14,14,8
+Icon Auto Glass,Auto Glass,gp_partners,,,460,4.4,0,0,0,0,The management depth is currently unknown. Further investigation is needed to assess the experience and capabilities of the management team and the presence of a strong second-in-command.,true,false,false,Salt Lake City,UT,true,true,,18,v5,14,14,8
+Amarillo Steam Team,Restoration Services,gp_partners,1,11-50 employees,303,4.9,1,0,0,0,Management depth is not mentioned in the notes.,true,true,false,Amarillo,TX,true,true,,10,v5,5,22,8
+Fairway Auto Care Center,Tires & Automotive,gp_partners,4,1-10 employees,120,4.7,1,0,0,0,The notes do not provide information on management depth.,true,true,false,Cedar Rapids,IA,true,true,,14,v5,5,22,8
+Southwest Exterminators,Pest Control,gp_partners,2,11-50 employees,219,4.8,0,0,0,0,Management depth details were not mentioned in the notes.,true,true,false,St. George,UT,true,true,,8,v5,5,22,8
+Premium Nut and Dried Fruit,Nut and Dried Fruit,gp_partners,,,114,3.9,0,0,0,0,No information provided about the management depth.,true,false,true,Dallas,TX,true,true,,15,v5,9,15,11
+Tercero Inc,EV Charging / Electrical,gp_partners,8,1-10 employees,2,5.0,0,0,0,0,Unknown.,true,true,false,Hawthorne,CA,true,true,,23,v5,9,18,8
+Lateral Technology,Technology,gp_partners,14,11-50 employees,17,4.9,0,0,0,0,No information about management depth was provided in the notes.,true,false,true,London,,true,true,,32,v5,15,15,5
+Bay Area Bed Bug,Bed Bug Extermination,gp_partners,,,223,5.0,,,,,,true,false,true,San Ramon,CA,true,true,,19,v5,14,13,8
+Aeret Restoration,Restoration,gp_partners,11,11-50 employees,69,4.9,0,0,0,0,No details regarding management depth were provided in the notes.,true,false,false,Bonita Springs,FL,true,true,,32,v5,15,12,8
+Window Screen Pros,Garage Doors,gp_partners,,,66,4.9,0,0,0,0,"Management depth cannot be assessed based on the notes, though Devin Smith is the contact person.",true,true,false,Lincoln,NE,true,true,,11,v5,9,18,8
+Family Pest Solutions,Pest Control,gp_partners,3,11-50 employees,517,4.9,1,0,0,0,No information provided about management depth.,true,true,false,Altamont,NY,true,true,,16,v5,5,22,8
+"ARKANSAS MOLD and WATER, INC.",Restoration Services,gp_partners,,,88,4.6,1,0,0,0,"Information on management depth, key personnel, tenure, succession readiness, and day-to-day operations is not available in the provided notes.",true,true,false,North Little Rock,AR,true,true,,11,v5,9,18,8
+"Betro and Company, P.C.",CPA/Accounting,gp_partners,12,1-10 employees,3,3.7,2,2000000,698000,15,Felix Betro is the President of the firm and appears to be a key figure. Gary Blumenthal is a partner and is involved in discussions. The depth of management beyond these two individuals and the existence of a clear succession plan are currently unknown.,true,false,true,Foxborough,MA,true,true,,37,v5,15,11,8
+Tenjin Ai Capital Advisors,Wealth Management,gp_partners,6,1-10 employees,0,,1,46000000,0,0,No information provided about management depth.,true,true,false,New York,NY,true,true,,75,v5,9,14,11
+restoration xpress,Restoration Services,gp_partners,,,115,4.9,0,,,,No information about management depth is available in the provided notes.,true,false,false,Davie,FL,true,true,,12,v5,9,16,8
+Campus Salon,Collision Repair / Auto Body,gp_partners,6,1-10 employees,382,4.9,1,0,0,0,"No information about the management team, key personnel, or succession planning is available in the notes.",true,false,false,Tempe,AZ,true,true,,23,v5,9,16,8
+Nu-Vu Auto Glass,Auto Glass,gp_partners,5,11-50 employees,258,4.9,0,0,0,0,Management depth information is not available in the provided notes.,true,false,false,Twin Falls,ID,true,true,,25,v5,9,16,8
+Jerry's Auto Body,Auto Body Repair,gp_partners,,,192,4.8,0,0,0,0,Not specified in the provided text.,true,false,false,Stillwater,MN,true,true,,12,v5,9,16,8
+Fargo Garage Floors & Doors,Garage Door Services,gp_partners,,,119,4.9,1,0,0,0,The management depth is not described in the provided text. It is unknown who runs the day-to-day operations or if there is a strong #2 in place. The text does not provide insights into succession readiness or potential impact of the owner's departure.,true,false,false,Fargo,ND,true,true,,14,v5,9,16,8
+Colorado Car Works,Collision Repair / Auto Body,gp_partners,,,114,4.9,1,0,0,0,Management depth details are not available in the provided notes. It is unknown if there is a strong #2 or who runs the day-to-day operations. Understanding the management structure and succession readiness is crucial for assessing the stability and future leadership of the company. Further investigation is needed to gather these details.,true,false,false,Lakewood,CO,true,true,,14,v5,9,16,8
+U.s.a. Financial & Tax Services,RIA / Wealth Management,gp_partners,5,1-10 employees,1,5.0,0,0,0,0,No information about management depth is available in the provided notes.,true,false,true,Wilton,CT,true,true,,23,v5,9,15,8
+"Archer Tax Group, LLC",Tax & Accounting,gp_partners,1,1-10 employees,4,4.0,1,0,0,0,Andrew Kernosky is the founder and leader of Archer Tax Group. The notes do not mention any other key personnel or a strong #2 within the organization. The succession readiness appears to be dependent on Andrew.,true,true,true,Littleton,CO,true,true,,8,v5,5,19,8
+Sansara 24/7 Restoration & Remodeling,Disaster Restoration & Remodeling,gp_partners,2,11-50 employees,138,4.9,1,5000000,0,0,"Dave Kosanke is the owner. The presence of craftsmen and designers suggests a team-based structure, but the depth of management is not detailed.",true,false,true,Wildwood,MO,true,true,,72,v5,5,19,8
+Proper Auto Body Services,Collision Repair / Auto Body,gp_partners,,,70,4.8,0,0,0,,No information provided about management depth.,true,false,true,Hayward,CA,true,true,,9,v5,9,15,8
+Complete Water Removal,Fire & Water Restoration,gp_partners,4,1-10 employees,117,4.8,1,0,0,,"The email is signed by John W Henderson Sr., National Catastrophe Response Coordinator, implying a senior leadership role. The depth of management and the presence of a strong #2 are not discernible from the text.",true,false,true,Gainesville,GA,true,true,,14,v5,5,19,8
+Structured Pest Control and Home Services,Pest Control & Home Services,gp_partners,,,51,5.0,,,,,,true,true,true,Dixon,CA,true,true,,5,v5,9,15,8
+Pro Care Horticultural Services,Horticultural Services,gp_partners,9,51-200 employees,27,4.9,0,0,0,0,,true,true,true,Carmel,IN,true,true,keep_in_mind,25,v5,9,15,8
+Red Coat Pest Solutions,Pest Control,gp_partners,5,1-10 employees,62,4.7,1,0,0,0,"The notes do not provide details on the company's management depth. Information on key personnel, their roles and tenure, and the presence of a strong second-in-command is needed to evaluate the company's leadership structure.",true,false,false,Atlanta,GA,true,true,,26,v5,9,12,11
+Bentley Adjusters,Public Adjusting,gp_partners,1,,32,4.9,1,4000000,600000,10,"The notes mention that ""Rickey"" is running the business, but there are no details about other key personnel or the depth of the management team. Further information is needed to assess the management structure and succession readiness.",true,false,true,Austin,TX,true,true,,49,v5,5,15,11
+McDaniel Engineering & Maintenance,Electrical Services,gp_partners,2,11-50 employees,17,4.8,0,25000000,0,0,Information not provided in notes.,true,true,false,Lenoir,NC,true,true,,69,v5,5,18,8
+EV Plugz,EV Charging / Electrical,gp_partners,3,1-10 employees,82,5.0,0,0,0,0,No information about the management depth was mentioned in the provided notes.,true,true,false,Melbourne,FL,true,true,,14,v5,5,18,8
+ATC Auto Body Paint Inc,Auto Body Repair,gp_partners,,,60,4.3,1,0,0,,"The business appears to be heavily reliant on the owner, Dien Chang, as it's described as 'owner-operated.' The notes do not mention other key personnel or a strong #2 in place. Further information is needed to assess the management depth and succession planning.",true,false,false,Portland,OR,true,true,,12,v5,9,10,11
+Crew Console,No industry information provided.,gp_partners,,,26,5.0,0,0,0,0,No information provided regarding management depth.,true,true,true,Archdale,NC,true,true,,8,v5,0,21,8
+"Citywide Restoration, LLC",Restoration Services,gp_partners,,,58,4.8,1,1000000,0,0,"Lori Mitchell is identified as the Green COO, indicating a defined management structure. However, the depth of the management team beyond this role is unclear. Further investigation is needed to determine the presence of a strong number two, key personnel responsibilities, and overall organizational capabilities.",true,false,false,Cypress,TX,true,true,,24,v5,9,12,8
+Emergency Restoration,Home Services,gp_partners,,,51,4.6,0,0,0,0,No information about the management depth is available in the provided notes.,true,false,false,Troy,MI,true,true,,10,v5,9,12,8
+Montana Medical Research,Medical Research,gp_partners,7,1-10 employees,9,4.6,1,0,0,0,Marria Hegel is the Clinical Research Director. The notes do not provide information on other key personnel or succession readiness.,true,false,false,Missoula,MT,true,true,,25,v5,9,12,8
+Clean Green Restorations,Restoration Services,gp_partners,,,54,5.0,1,5000000,5000000,1,"Management depth is not specified. The owner, Miles McNeill, is mentioned, but no details about other key personnel are given.",true,false,false,Nixa,MO,true,true,,92,v5,9,12,8
+AY Remodeling & Restoration LLC,Restoration Services,gp_partners,5,1-10 employees,61,5.0,0,0,0,,Management depth and key personnel information is unavailable as the company is not for sale.,true,false,false,Carmel,IN,true,true,,23,v5,9,12,8
+ConsLog,Construction Project Management Software,gp_partners,9,11-50 employees,5,4.8,0,0,0,0,The notes do not contain any information regarding management depth or key personnel. There is no mention of a #2 or succession planning.,true,false,false,Salt Lake City,UT,true,true,,26,v5,9,12,8
+Rite Way Auto Glass,Auto Glass,gp_partners,,,77,5.0,0,0,0,0,Management depth details are not mentioned in the provided notes.,true,false,false,Shepherdsville,KY,true,true,,9,v5,9,12,8
+RADA Collision (Repair Any Damage And Collision),Collision Repair / Auto Body,gp_partners,,,78,4.6,1,0,0,0,"Management depth is not mentioned in the provided notes. Information about the key personnel, their roles, and the organizational structure is needed to assess the business's operational stability and succession readiness.",true,false,false,Lehigh Acres,FL,true,true,,9,v5,9,12,8
+Eagle Services Cleaning,Cleaning Services,gp_partners,,,97,4.9,0,0,0,0,No information about the management depth is available in the provided notes.,true,false,false,Burleson,TX,true,true,,9,v5,9,12,8
+Best Pest Control Billings,Pest Control,gp_partners,,,59,4.6,1,0,0,0,Management depth is not mentioned in the provided notes. It is unknown if there is a strong management team in place or if the business is heavily reliant on the owner. Determining management depth is important for assessing the business's sustainability and scalability.,true,false,false,Billings,MT,true,true,,9,v5,9,12,8
+Advanced Window,Window and Door Sales and Installation,gp_partners,5,1-10 employees,11,3.5,1,0,0,0,"The company appears to be heavily reliant on Alicia Tippit, who is directly involved in customer care and decision-making. The text doesn't mention any other key personnel or a strong #2 who could take over operations. The management depth seems limited, indicating potential owner dependency. Succession readiness seems low, as the owner is looking to retire without a clear successor in place.",true,false,true,Valley Center,CA,true,true,,25,v5,9,11,8
+Bsquared,CPA/Accounting,gp_partners,7,1-10 employees,0,,2,0,0,0,Lisa Cotner is the owner and presumably the key manager. The notes don't provide information on the presence of a strong #2 or succession plan. The firm's reliance on Lisa Cotner is unclear.,true,false,true,St. Louis,MO,true,true,,25,v5,9,11,8
+Number One Plumbing Heating & Air Conditioning,"Plumbing, Heating, and Air Conditioning (HVAC)",gp_partners,,,38,3.9,1,0,0,0,"The owner is Antoine L. Gaffney. The notes do not provide information on other key personnel, succession planning, or who manages day-to-day operations.",true,true,true,Las Vegas,NV,true,true,,11,v5,0,17,11
+Gessner Wealth Strategies,Wealth Management,gp_partners,2,1-10 employees,6,5.0,0,0,0,,Management depth is currently unknown.,true,false,false,Houston,TX,true,true,,11,v5,5,12,11
+ZoomGrants,Grant Management Software,gp_partners,6,11-50 employees,,,0,0,0,0,The notes do not contain any information about the management depth.,true,false,true,Anywhere,CO,true,true,,23,v5,9,11,8
+Southern Fire Control,Fire Sprinkler Contracting,gp_partners,,,6,4.3,1,12000000,2400000,45,"The company has family management continuity with a family member involved in operations, indicating potential for a smooth transition. The owner is seeking retirement, suggesting the need for a capable management team to take over.",true,true,true,Fort Lauderdale,FL,true,true,,84,v5,0,19,8
+CB Mechanical,Mechanical Services,gp_partners,,,33,4.4,0,0,0,0,No information about the management depth is provided in the notes.,true,true,true,Foreston,MN,true,true,,8,v5,0,19,8
+Legacy Family Roofing,Roofing,gp_partners,,,130,5.0,1,5000000,1000000,15,"Management depth is not explicitly detailed in the notes, but the presence of a strong management team is likely important for a smooth transition. Assessing the capabilities and experience of key personnel is important. Understanding the roles and responsibilities of key employees is needed.",true,false,false,Ewing Township,NJ,false,true,,72,v5,9,9,8
+Rapid Restoration,Restoration Services,gp_partners,,,1,5.0,0,0,0,0,"Management depth is not mentioned in the provided notes. Information is needed to determine the key personnel, their roles and tenure, and the succession readiness of the company.",true,true,false,Santa Fe,NM,true,true,,6,v5,0,18,8
+All About Contents,Contents Restoration,gp_partners,,,31,4.7,0,0,0,,"The notes do not provide any information about the management depth of the company. Information is needed to determine the key personnel, their roles, and their experience within the organization. Succession planning and the presence of a strong #2 are also important factors to consider.",true,false,true,Dallas,GA,true,true,,11,v5,0,15,11
+Kosty  William A CPA,CPA/Accounting,gp_partners,,,10,4.5,0,0,0,0,No information about the management depth of the company is available from the provided notes.,true,true,false,Port St. Lucie,FL,true,true,,6,v5,0,18,8
+Evanston Premier,Unknown,gp_partners,,,1,5.0,1,0,0,,No information about the company's management depth is available in the provided notes.,true,true,false,Evanston,IL,true,true,,4,v5,0,18,8
+Magna Dry Cleaning and Restoration,Carpet Cleaning & Restoration,gp_partners,,,89,4.9,,,,,,true,false,true,Mt Vernon,NY,true,true,,9,v5,9,9,8
+Rosemont Auto Body,Auto Body Repair,gp_partners,4,1-10 employees,61,4.3,1,0,0,0,"Management depth is not detailed in the notes. The notes mention 'Call Edward anytime,' implying Edward is a key figure, potentially the owner-operator. Information about other key personnel, succession planning, and the team's capabilities are not provided and require further investigation.",true,false,true,Des Plaines,IL,true,true,,16,v5,5,13,8
+Flat Roofs Unlimited,Roofing,gp_partners,,,4,5.0,0,0,0,0,No information provided regarding management depth.,true,true,false,Kalona,IA,true,true,,6,v5,0,18,8
+Freedom Tire Inc,Auto Repair & Tire Sales,gp_partners,,,89,4.5,2,,,,,true,false,true,Plaistow,NH,true,true,,11,v5,9,9,8
+Rhinelander Collision Center,Collision Repair and Recreational/Marine Services,gp_partners,2,1-10 employees,36,4.3,1,1200000,0,5,"The business is family-owned and operated, with a lean team of 5 employees. The notes do not provide specific information on management depth beyond the owner. It is unclear if there is a strong #2 or a formal succession plan in place.",true,false,true,Rhinelander,WI,true,true,,24,v5,5,13,8
+Empleate,I do not have enough information to fulfill this request. Please provide more context on the industry.,gp_partners,,,15,4.5,0,0,0,,I do not have enough information to fulfill this request. Please provide more context on the management depth.,true,false,true,Dallas,TX,true,true,,7,v5,0,15,11
+Beaton Accounting,CPA/Accounting,gp_partners,3,1-10 employees,35,4.9,0,0,0,0,Management depth is not discussed in the notes. It is unknown if there is a strong management team in place beyond the owner. The reliance on key personnel and succession planning need to be assessed.,true,false,false,Winston-Salem,NC,true,true,,16,v5,5,12,8
+Pinnacle Construction Services,Roofing,gp_partners,,,3,1.0,1,0,0,0,The principal is Kevin Molleda. More information is needed to determine the management depth and if there is a strong #2 in place.,true,true,false,Houston,TX,true,true,,9,v5,0,14,11
+Rbf Capital Management,Wealth Management,gp_partners,2,1-10 employees,22,5.0,0,0,0,,No information about the company's management depth is provided in the text.,true,false,false,Sarasota,FL,true,true,,8,v5,5,12,8
+Woody's Restoration Services,Restoration Services,gp_partners,2,1-10 employees,5,5.0,0,0,0,0,Not specified in the notes.,true,false,false,San Rafael,CA,true,true,,8,v5,5,12,8
+Marathon Capital Management,RIA / Wealth Management,gp_partners,3,1-10 employees,1,5.0,1,800000000,0,0,"The firm highlights the strength of its operations team, implying good management depth in that area. However, no specific details about key personnel or succession planning are provided.",true,false,false,Cockeysville,MD,true,true,,72,v5,5,12,8
+Fresh Bread Investments,Wealth Management,gp_partners,6,1-10 employees,0,,1,41000000,0,0,Need more information on management depth.,true,false,false,Weston,FL,true,true,,72,v5,9,8,8
+Sa Services,Wealth Management,gp_partners,7,1-10 employees,0,,0,0,0,0,Management depth details are not mentioned in the notes.,true,false,false,The Woodlands,TX,true,true,,23,v5,9,8,8
+Quantum Pest Management Inc,Pest Control,gp_partners,1,11-50 employees,37,5.0,1,0,0,0,Management depth and key personnel information are not available in the notes.,true,false,false,Woodland Hills,CA,true,true,,10,v5,5,12,8
+FinishLine Software,Software,gp_partners,,,30,3.8,1,0,0,0,"Management depth is implied through the mention of Dr. Robert Bess as CEO, but further details are lacking.",true,true,true,Honolulu,HI,true,true,,6,v5,0,17,8
+Active Collision,Collision Repair / Auto Body,gp_partners,4,1-10 employees,61,4.8,1,0,0,0,Leo Gutierrez is the Director of Operations.,true,false,false,La Puente,CA,true,true,,14,v5,5,12,8
+707 Pest Solutions,Pest Control,gp_partners,3,1-10 employees,22,4.8,0,0,0,0,No information provided about the management depth.,true,false,false,Eureka,CA,true,true,,16,v5,5,12,8
+Masters Wealth Management Group,Wealth Management,gp_partners,4,2-10 employees,10,3.8,1,0,0,0,The firm is led by President & CEO Gary Mastrodonato. The notes do not provide information on other key personnel or the depth of the management team. Understanding whether there is a strong #2 or succession plan in place would be important for assessing the firm's long-term stability.,true,false,true,Oriental,NC,true,true,,16,v5,5,11,8
+Membrane Roofers,Roofing,gp_partners,,,5,4.2,0,2300000,0,0,"Management depth is not mentioned in the provided notes. Further details are needed to understand key personnel, their roles and tenure, and succession readiness.",true,true,false,Sharpsville,PA,true,true,,32,v5,0,16,8
+Alexander Guess CPA PA,CPA / Accounting,gp_partners,,,3,5.0,1,795000,0,0,Management depth cannot be assessed from the information available. It is likely that Alexander Guess is the key person managing the business.,true,false,true,Cary,NC,true,true,,12,v5,0,15,8
+Prakash Investment Advisors,RIA / Wealth Management,gp_partners,,,5,5.0,1,0,0,0,"Management depth is not mentioned in the provided notes. Details regarding key personnel, their roles, and succession planning are currently unknown.",true,false,false,Las Vegas,NV,true,true,,7,v5,0,12,11
+Ben Davis Restoration,Restoration Services,gp_partners,,,29,4.6,1,0,0,0,"Information about management depth, key personnel, succession readiness, and operational leadership is not available in the provided notes.",true,false,true,Springfield,MO,true,true,,8,v5,0,15,8
+"ABA Advisors, LLC",CPA / Accounting,gp_partners,,,4,5.0,1,2600000,650000,5,The notes do not contain information about the company's management depth.,true,false,false,Indianapolis,IN,true,true,,40,v5,0,12,11
+Applications International,Unknown,gp_partners,,,5,5.0,0,0,0,0,No information on management depth provided in the notes.,true,false,false,San Diego,CA,true,true,,7,v5,0,12,11
+Eskuad,No industry mentioned in the notes.,gp_partners,,,2,5.0,0,0,0,0,No management depth mentioned in the notes.,true,false,false,Tampa,FL,true,true,,7,v5,0,12,11
+Hi Tech Termite Control,Pest Control,gp_partners,,,34,4.5,1,0,0,0,"Unclear from notes. The notes do not provide any information on the company's management depth. The roles and tenure of key personnel, succession readiness, and the presence of a strong #2 are unknown.",true,false,true,Hayward,CA,true,true,,8,v5,0,15,8
+"Hubble's Collision, LLC",Automotive Collision Repair,gp_partners,,,32,4.9,1,0,0,0,"The company has a team boasting over 50 years of combined industry experience, indicating a seasoned staff. However, specific details regarding key personnel, roles, and succession readiness are not available.",true,false,false,Saranac,MI,true,true,,6,v5,0,12,8
+The Claims Crew,Restoration Services,gp_partners,,,9,5.0,1,0,0,0,Ryan Lawson is mentioned as a contact person. No other information about management depth was provided in the notes.,true,false,false,Rogersville,TN,true,true,,4,v5,0,12,8
+Castle Island Wealth,Wealth Management,gp_partners,,,25,4.8,0,0,0,0,No management depth details provided.,true,false,false,Boynton Beach,FL,true,true,,6,v5,0,12,8
+"Alabama Restoration, LLC",Restoration Services,gp_partners,,,28,4.5,1,3000000,0,0,Management depth is not mentioned in the provided notes.,true,false,false,Greenville,AL,true,true,,39,v5,0,12,8
+Imandoust CPA Firm,CPA / Accounting,gp_partners,,,1,5.0,0,0,0,0,No details provided regarding management depth.,true,false,false,La Jolla,CA,true,true,,4,v5,0,12,8
+City Collision Service,Collision Repair / Auto Body,gp_partners,,,14,4.9,0,0,0,0,No information on management depth is available.,true,false,false,Hillsdale,MI,true,true,,4,v5,0,12,8
+Rapid Bumper Repair & Collision at Shelburne's,Collision Repair / Auto Body,gp_partners,,,45,4.9,1,0,0,0,No information provided about management depth.,true,false,false,Louisville,KY,true,true,,7,v5,0,12,8
+OverPower,AI-powered Cybersecurity,gp_partners,,,2,5.0,0,0,0,0,Unknown,true,false,false,Anytown,CA,true,true,,6,v5,0,12,8
+Wealth Preservation Advisors,Wealth Management,gp_partners,,,47,5.0,1,0,0,0,Gene Rice is the President. The notes do not provide information on other key personnel or succession readiness.,true,false,false,Asheville,NC,true,true,,7,v5,0,12,8
+A.C. Proctor's Paint & Body Shop,Collision Repair / Auto Body,gp_partners,,,33,4.9,0,0,0,,No information about the management depth was provided in the notes.,true,false,false,Romulus,MI,true,true,,8,v5,0,12,8
+Automatic Door Company,Garage Doors,gp_partners,,,31,4.8,0,1000000,0,0,Details about the management depth are absent from the notes.,true,false,false,Milford,CT,true,true,,22,v5,0,12,8
+River Valley Pest Management,Pest Control,gp_partners,,,33,4.8,1,,,,,true,true,false,Bradley,IL,true,true,,8,v5,0,12,8
+Organic Mosquito LLC,Mosquito Control Services,gp_partners,,,43,3.9,,,,,,true,true,true,Durham,NC,true,true,,20,v5,0,11,8
+Skyline Roofing Partners,Restoration Services,gp_partners,,,44,4.7,1,2500000,400000,10,The notes do not provide specific details regarding the management team beyond the owner. It is important to determine whether there is a strong #2 or a capable team in place to ensure a smooth transition after the owner's departure.,true,false,true,San Antonio,TX,false,true,,40,v5,0,8,11
+Om Research,Clinical Trials Research,gp_partners,,,3,2.3,0,0,0,,No information about management depth is available in the notes.,true,false,true,Lancaster,CA,true,true,,4,v5,0,11,8
+Bultman Advisory Services,Wealth Management,gp_partners,,,0,,1,0,0,0,No information about management depth was provided in the notes.,true,false,false,New York,NY,true,true,,17,v5,0,8,11
+Compound Global Advisors,Wealth Management,gp_partners,,,8,3.1,0,0,0,0,No management depth details were mentioned in the provided notes.,true,false,false,Seattle,WA,true,true,,7,v5,0,8,11
+PCCR Solutions,Clinical Research,gp_partners,,,0,,0,0,0,0,The notes do not contain information about the company's management depth.,true,false,true,Grapevine,TX,true,true,,14,v5,0,11,8
+Freedom Financial Planning Solutions,RIA / Wealth Management,gp_partners,,,5,4.2,1,50000000,0,0,Steve Underriter is the President and appears to be the key individual in the firm.,true,false,false,Belmont,NC,true,true,,92,v5,0,10,8
+Animal Pest Control Specialists,Pest Control,gp_partners,,,44,4.1,0,0,0,,Need more information on management depth.,true,false,false,Commerce City,CO,true,true,,6,v5,0,10,8
+Frye Pest Management,Pest Control Services,gp_partners,,,30,4.5,1,,,,,true,false,true,Saxonburg,PA,true,true,,8,v5,0,9,8
+Dry Titan,Restoration Services,gp_partners,,,25,5.0,1,,,,,true,false,true,Southwest Ranches,FL,true,true,,6,v5,0,9,8
+"Watershape Consulting, Inc.",Restoration Services,gp_partners,,,0,,0,0,0,0,Unknown,true,false,false,Northridge,CA,true,true,,17,v5,0,8,8
+Primo Homes,Restoration Services,gp_partners,,,0,,0,0,0,0,No information about management depth is available in the provided notes.,true,false,false,Kissimmee,FL,true,true,,14,v5,0,8,8
+TRYPOWER Electric,Electrical Contracting,gp_partners,,,1,5.0,1,0,0,0,Management depth is not explicitly mentioned in the notes. It is important to understand the roles and responsibilities of key personnel. Determining if there is a strong #2 in place and a clear succession plan is crucial for assessing the long-term sustainability of the business.,true,false,false,Tampa,FL,false,true,,9,v5,0,5,11
+L A Landscapes,Landscaping,gp_partners,,,,,1,0,0,0,,true,true,false,Noblesville,IN,true,true,,16,v5,0,8,8
+Barra Tax Services,CPA / Accounting,gp_partners,,,4,3.0,0,0,0,0,No information provided about management depth.,true,false,false,Milton,FL,true,true,,6,v5,0,8,8
+Jordan Roof Company,Roofing Services,gp_partners,,,33,4.0,1,,,,,true,false,true,Garden Grove,CA,true,true,,8,v5,0,7,8
+Renov8 Remodeling & Restoration LLC,Home Remodeling & Restoration,gp_partners,,,7,4.9,1,10000000,0,0,Management depth is not detailed in the notes. The provided information does not specify the roles or capabilities of individuals beyond the owner.,true,false,true,,,true,true,,82,v5,0,15,0
+Red Door Pest Control,Pest Control Services,gp_partners,,,1,4.0,1,,,,,true,false,true,Chillicothe,OH,true,true,,4,v5,0,7,8
+The Bug's End,Pest Control Services,gp_partners,,,16,5.0,,,,,,true,false,false,Kilgore,TX,true,true,,4,v5,0,6,8
+A+ Remodeling and Restoration,Residential Remodeling,gp_partners,,,1,1.0,2,,,,,true,false,true,Angleton,TX,true,true,,4,v5,0,5,8
+A Greener Image,Website Blocking Service,gp_partners,,,49,3.7,,,,,,true,false,false,Jacksonville,FL,true,true,,9,v5,0,2,11
+NBE Property Restoration,Property Restoration,gp_partners,,,2,3.5,1,,,,,true,false,true,Santa Rosa,CA,true,true,,7,v5,0,5,8
+Collision Craftsmen Roseville,Auto Body Repair,gp_partners,,,3,3.0,1,,,,,true,false,true,Roseville,MI,true,true,,6,v5,0,5,8
+Restoracore,Home Remodeling,gp_partners,,,0,,1,,,,,true,false,true,Vista,CA,true,true,,14,v5,0,5,8
+Overall Air,Overall Air (Mixed),gp_partners,,,9,5.0,0,0,0,0,No information about the management depth was provided in the notes.,true,false,false,,,true,true,,2,v5,0,12,0
+CSI Visa Processing,Visa Processing,gp_partners,,,4,4.8,0,0,0,0,The notes do not contain information about the company's management depth.,true,false,false,,,true,true,,2,v5,0,12,0
+Blue Cardinal Home Services Group,Buyer Outreach,gp_partners,,,5,4.2,,,,,,true,false,false,Dallas,TX,false,true,,7,v5,0,-3,11
+Badgerland Commercial Roofing,Commercial Specialist,gp_partners,,,5,5.0,,,,,,true,false,false,Watertown,WI,false,true,,4,v5,0,-1,8
+C and S Roofing,Specialty Systems,gp_partners,,,10,2.5,,,,,,true,false,false,Philadelphia,PA,false,true,,7,v5,0,-5,11
+Allen Allen & Foster LLP,CPA/Accounting,gp_partners,,,11,4.2,,,,,,true,false,false,Daphne,AL,false,true,,4,v5,0,-3,8
+,Ria A/B Test,gp_partners,,,0,,,,,,,true,false,false,Four Corners,FL,false,true,,12,v5,0,-5,8
+Capital City Solar,EV Charging Infrastructure,gp_partners,,,5,3.4,,,,,,true,false,false,,,false,true,,2,v5,0,-5,0
+MPG Tire & Auto,Automotive Repair and Maintenance,manual,,,0,3.1,6,5000000,800000,,Regional manager in Texas is a former owner of an auto shop that sold to MPG and would be a strong candidate to continue building out the business.,true,true,true,El Paso,TX,true,true,,70,v4,22,27,12
+Kinetic Energies Inc.,Oil & Gas Construction & Maintenance,manual,51,11-50 employees,23,4.4,1,3200000,800000,15,"The company has a strong management team in place, including a general manager who oversees day-to-day operations. The general manager has been with the company for 10 years and is highly capable. The owner is confident that the general manager can successfully run the business without him.",true,true,true,Grande Prairie,AB,true,true,,,,34,19,8
+Big L Tire Pros,Tire Sales & Service,manual,13,11-50 employees,182,4.4,5,7000000,700000,15,"Roger Hutt is the co-founder of Big L Tires. Together with his brother, he has grown the business to its current size. The notes do not specify the roles and responsibilities of other key personnel or whether there is a clear succession plan in place.",true,false,true,Harrisonburg,VA,true,true,,26,v4,15,27,12
+Northern Lights Heating & Cooling Ltd.,HVACR,manual,,,0,4.6,3,6000000,900000,20,,true,true,false,Edmonton,AB,true,true,,70,v4,22,18,12
+Glass Nickel Pizza Co.,Pizza Restaurant,manual,,,,,9,0,0,85,,true,false,true,Madison,WI,true,true,,55,v5,22,15,12
+BASTIUM CONSTRUCTION,Construction,manual,40,11-50 employees,10,4.2,1,3333333,500000,15,"The company is primarily managed by the owner, who oversees all aspects of the business. There is a project manager who handles day-to-day operations, but no clear successor in place. The owner's departure would create a significant management gap.",true,false,true,Montreal,QC,true,true,,,,27,13,8
+Build Recruitment Incorporated,Recruitment,manual,34,11-50 employees,0,,1,4000000,1000000,15,"The company is heavily reliant on the current owner, who manages all aspects of the business. There is no mention of a strong #2 or a succession plan in place. The owner handles key client relationships and oversees the recruitment team. A buyer will need to assess the depth of the management team and develop a plan to address the owner dependency.",true,false,true,Toronto,ON,true,true,,,,27,11,8
+Southeast Fleet Services,"Truck and Trailer Repair, Equipment Leasing",manual,10,51-200 employees,5,5.0,5,5300000,800000,15,,true,false,true,Salisbury,NC,true,true,,70,v4,15,19,12
+Silver Star Automotive,Automotive Repair,manual,16,2-10 employees,366,4.8,1,,,,,true,true,false,Spokane,WA,true,true,,70,v4,21,16,8
+Bill Tyson's Auto Centers,Auto Repair,manual,11,11-50 employees,258,4.9,3,6000000,1000000,,,true,false,false,Boca Raton,FL,true,true,,34,v4,15,16,12
+"Pro4mance Fire & Water Restoration Services, LLC",Fire & Water Restoration,manual,17,2-10 employees,200,4.7,1,13500000,1350000,70,,true,false,true,Sellersburg,IN,true,true,,80,v4,21,13,8
+Omega Services and Supply,Business Services & Supplies,manual,,,12,4.7,0,0,0,10,Unknown,true,true,false,Dallas,TX,true,true,,37,v5,0,18,11
+Essential Benefit Administrators,Insurance Third Party Administrator (TPA),manual,13,51-200 employees,2,3.0,1,6000000,5000000,17,,true,false,true,Irvine,CA,true,true,,90,v4,15,5,8
+Care Collision,Auto Body Repair,manual,6,11-50 employees,230,4.7,2,,,,,true,false,false,Modesto,California,true,true,,53,v4,9,10,8
+Mustang Plumbing,Plumbing Services,manual,,,147,3.5,1,40000000,3000000,,,true,false,true,Round Rock,TX,true,true,,,,9,9,8
+Central Confinement Service LLC,Confinement Services,manual,,,11,4.8,1,0,0,0,Management depth was not detailed. It is unknown if there is a strong #2 or who handles day-to-day operations. The notes do not provide information on the capabilities of any employees or the existence of a training pipeline.,true,false,false,Columbus,NE,true,true,,,,0,12,11
+Auto Body Brothers,Auto Body Repair,manual,4,,0,4.8,1,2000000,600000,6,,true,false,false,Hyattsville,MD,true,true,,39,v5,5,6,8
+Tropical Oasis,Liquid Vitamin Supplements,manual,,,0,,,11500000,2500000,,,true,true,false,Bacliff,TX,true,true,,,,0,8,8
+FCP Services,"Painting, Construction, Facility Maintenance",manual,,,,,1,35000000,3500000,100,,true,true,false,3275 Sun Dr
+Eagan,MN,true,true,,85,v4,0,8,8
+MPG Tire & Auto,,manual,,,,,,5000000,800000,0,,false,,true,,,true,false,,,,0,5,0
+Quality Roofing & Sheet Metal,,manual,,,,,,6250000,650000,25,,false,,true,,,true,false,,,,0,5,0
+Mike Hess Brewing,,manual,,,,,,12500000,4875000,90,,false,,true,,,true,false,,,,0,5,0
+Combined Comfort Systems,,manual,,,,,,5000000,1200000,0,,false,,true,,,true,false,,,,0,5,0
+Saks Metering,,manual,,,,,,12000000,2300000,0,,false,,true,,,true,false,,,,0,5,0
+Bill Tyson's Auto Centers,,manual,,,,,,6000000,1000000,11,,false,,true,,,true,false,,,,0,5,0
+Clear Choice Windows & Doors,,manual,,,,,,8000000,1500000,0,,true,false,true,,,true,false,,,,0,5,0
+Protegrity Restoration,,manual,,,,,0,4500000,1500000,0,,false,,false,,,true,false,,,,0,2,0
+,,manual,,,,,,0,0,,,true,false,false,,,true,false,,,,0,2,0
+The Life & Annuity Group (TLAG),Life & Annuity Systems Integrator,manual,,,,,,5000000,1400000,,,true,false,false,,,true,true,,70,v4,0,2,0
+National Tab Inteligence,,manual,,,,,,8500000,1300000,10,,false,,false,,,true,false,,,,0,2,0
+Pragra,IT Training and Placement Center,marketplace,68,51-200 employees,1,5.0,8,2000000,800000,12,,true,false,false,Schaumburg,IL,true,true,,39,v4,34,16,12
+Rejuv Medical,"Healthcare - Multi-discipline Integrated Regenerative Clinic (Hormone Replacement Therapy, Non-surgical Orthopedic, Functional Medicine)",marketplace,67,51-200 employees,292,4.6,2,7500000,1125000,14,"Garrett is the CEO and is willing to stay on. The clinical team includes 4 MDs, 3 orthopedic PAs, 4 nurse practitioners, and 3 physical therapists, supporting high throughput and multi-disciplinary care delivery. The founder operates an education and training platform, suggesting he is heavily involved in training and knowledge transfer.",true,false,true,Waite Park,MN,true,true,,75,v4,34,19,8
+Legacy Corporation,"Environmental Remediation, Civil Construction, Infrastructure Services",marketplace,31,11-50 employees,5,4.8,1,15000000,3000000,0,No information about the management depth is available in the notes.,true,false,true,Moline,IL,true,true,,85,v4,27,15,8
+Air & Ground Aviation,Aerospace Parts Distribution and Repair,marketplace,45,11-50 employees,1,5.0,0,0,0,0,"Ian Dodds is the CEO of Air & Ground Aviation, and Maria Caporaletti is the Head of Solution Support. The overall management depth is not detailed, but it is known that Ian Dodds leads the company. The cancellation of the meeting by Maria suggests she is an important point of contact. ",true,false,false,Fort Lauderdale,FL,true,true,,85,v4,27,12,8
+KR Solar,Solar Energy and Home Improvement,marketplace,88,51-200 employees,16,4.3,1,8000000,2000000,0,,true,false,false,Eustis,FL,true,true,,75,v4,34,4,8
+Ferguson Associates,3PL,marketplace,38,11-50 employees,7,5.0,1,8400000,1500000,55,,true,false,false,Edison,NJ,true,true,,75,v4,27,6,8
+PremiumIQ,Insurance Data & Analytics,marketplace,30,11-50 employees,0,,,6400000,600000,,,true,false,false,Chicago,IL,true,true,,70,v4,27,2,11
+NES,"Naval Engineering, Ship Repair & Maintenance",marketplace,6,1-10 employees,1,5.0,2,17000000,3500000,150,No details on management depth were mentioned in the notes.,true,true,true,National City,CA,true,true,,85,v4,9,21,8
+Jinher Nutra Inc.,Nutraceutical,marketplace,8,11-50 employees,2,3.0,1,1500000,300000,,,true,true,false,Chino,CA,true,true,,29,v4,9,8,8
+Root Cause LLC,Arborist Services,marketplace,1,2-10 employees,12,5.0,1,1100000,500000,0,,true,false,false,Mercer Island,Washington,true,true,,31,v4,5,6,8
+Electronic Expediters,Electronics Distribution,marketplace,,,1,5.0,1,1200000,0,11,,true,false,false,Oak Creek,WI,true,true,,24,v4,0,6,8
+MKB Construction,Construction,referral,122,201-500 employees,5,4.2,0,0,0,100,No information about the company's management depth is available in the provided notes.,true,true,false,Tempe,AZ,true,true,,74,v4,40,16,8
+Pella Windows & Doors of Wisconsin,Window & Door Sales,referral,80,51-200 employees,520,4.8,3,0,0,,,true,false,false,Monroe,CT,true,true,,80,v4,34,16,12
+Hansen-Rice Inc.,Industrial Design-Build,referral,142,51-200 employees,7,4.4,0,0,0,0,Information on management depth and key personnel is not available in the notes.,true,false,true,Nampa,ID,true,true,,73,v4,40,13,8
+All Trades Mechanical,Mechanical Services,referral,46,51-200 employees,2,5.0,1,0,0,0,Management depth is not mentioned in the provided notes.,true,true,false,Houston,TX,true,true,,62,v4,27,18,11
+Juel Group,Waste Management,referral,37,"1,001-5,000 employees",35,4.7,5,0,0,50,,true,false,false,Toronto,ON,true,true,,67,v4,27,16,12
+Radius Track Corporation,Construction,referral,121,51-200 employees,10,4.1,1,0,0,25,,true,false,false,Minneapolis,MN,true,true,,74,v4,40,4,11
+Haddad Plumbing & Heating,Plumbing & HVAC Services,referral,69,51-200 employees,75,3.3,,0,0,25,,true,true,true,Newark,NJ,true,true,,64,v4,34,11,8
+Phillips Companies,Construction Materials,referral,37,51-200 employees,37,4.4,5,0,0,50,,true,false,false,Beavercreek,OH,true,true,,62,v4,27,14,12
+Wolkow Braker Roofing Corp,Commercial Roofing,referral,41,51-200 employees,0,,0,0,0,0,No information about management depth is available in the provided notes.,true,true,false,New York,NY,true,true,,46,v4,27,14,11
+Window Wall,Unclear from notes - likely construction or building services related.,referral,31,51-200 employees,3,5.0,0,0,0,0,Not specified in the provided notes.,true,false,true,Jersey City,NJ,true,true,,90,v4,27,15,8
+Paryani Construction,Commercial Construction,referral,30,11-50 employees,5,5.0,1,0,0,22,,true,true,false,Atlanta,GA,true,true,,67,v4,27,12,11
+Matrix Basements,Home Improvement,referral,83,11-50 employees,0,5.0,2,90000000,5000000,200,,true,false,false,Cottage Grove,WI,true,true,,90,v4,34,6,8
+Roy's Wood Products,Wood Products Manufacturing,referral,26,2-10 employees,40,4.4,0,0,0,0,"Management depth information was not included in the notes. Further information is needed to understand the management team's structure, experience, and capabilities.",true,false,true,Lugoff,SC,true,true,,62,v4,27,13,8
+Artcraft Kitchens,Kitchen Cabinetry,referral,34,51-200 employees,2,5.0,0,0,0,0,No information about the management depth is available in the provided notes.,true,false,false,Niagara Falls,ON,true,true,,62,v4,27,12,8
+"Baker Brothers Installations, Inc.",Installations,referral,31,11-50 employees,2,5.0,0,0,0,0,"Details regarding the management team, key personnel, and the depth of the management structure are not provided in the notes. It is important to assess the management team's capabilities and their roles in the company's operations.",true,false,false,Kennesaw,GA,true,true,,62,v4,27,12,8
+Structural Wood Corporation,No industry mentioned.,referral,47,11-50 employees,8,5.0,0,0,0,25,No information provided regarding management depth.,true,false,false,St. Paul,MN,true,true,,62,v4,27,12,8
+"PHOENIX MILLWORK, INC.",Manufacturing,referral,47,51-200 employees,22,3.0,0,20,12025,75,Management depth is not mentioned in the notes.,true,false,false,San Antonio,TX,true,true,,80,v4,27,8,11
+Nuframe Group,Construction,referral,46,51-200 employees,16,5.0,1,75,0,100,,true,false,false,New York,NY,true,true,,90,v4,27,6,11
+Cole Builders Inc.,Construction,referral,22,11-50 employees,45,4.9,1,0,0,10,Management depth is currently unknown. The existence of a strong #2 or succession plan needs to be determined.,true,false,true,Fernandina Beach,FL,true,true,,59,v4,21,15,8
+5-STAR Building Solutions,Building Solutions,referral,24,51-200 employees,4,3.0,0,0,0,0,No information about the management depth is available in the provided notes.,true,true,false,Kennesaw,GA,true,true,,43,v4,21,14,8
+Walters Group Inc.,Steel Fabrication,referral,7,11-50 employees,11,4.5,8,72000000,0,281,,true,true,false,Hamilton,ON,true,true,,90,v4,9,22,12
+Bluebird Graphic Solutions,Graphic Solutions,referral,24,11-50 employees,7,4.4,1,0,0,0,Not mentioned in the notes.,true,false,true,Woburn,MA,true,true,,56,v4,21,13,8
+PEREGRINE Millwork Ltd.,Millwork,referral,31,51-200 employees,2,5.0,1,22.33,3000000,75,,true,false,false,Burnaby,BC,true,true,,85,v4,27,6,8
+Marc's Flooring Service Inc.,Flooring,referral,44,11-50 employees,33,4.6,1,0,0,25,,true,false,false,St Peters,MO,true,true,,65,v4,27,6,8
+CanCrete Equipment Ltd.,Industrial Equipment,referral,38,51-200 employees,20,4.5,1,0,0,12,,true,false,false,Mississauga,ON,true,true,,65,v4,27,6,8
+Park View Homes,Home Building,referral,39,51-200 employees,15,2.9,0,0,0,,,true,false,false,West New York,NJ,true,true,,50,v4,27,2,8
+Omega Services and Supply,Industrial Supply,referral,18,51-200 employees,0,,2,0,0,10,,true,false,false,Culver City,CA,true,true,,40,v4,21,2,8
+Reality Homes Inc.,Home Building,referral,,,20,5.0,0,0,0,0,"The notes do not provide any information regarding the management depth of Reality Homes Inc. Information is needed to determine the key personnel, their roles, tenure, and succession readiness.",true,false,true,Ontario,CA,true,true,,71,v4,0,15,8
+Keystone Integrated Solutions,Electrical Contracting,referral,,,5,4.2,,0,0,21,,true,true,false,North New Hyde Park,NY,true,true,,55,v4,0,10,8
+Structural Truss Systems,Construction,referral,,,0,5.0,1,28.5,0,220,,true,false,false,Locust,NC,true,true,,85,v4,0,6,8
+Turnkey Lumber,Construction,referral,,,2,5.0,2,0,0,50,,true,false,false,Leominster,MA,true,true,,68,v4,0,6,8
+Funds365,Fintech,referral,,,0,,,,,,,true,false,false,New York,NY,true,true,,17,v4,0,2,11
+SF Test Multi-Contact UPDATED,,salesforce_remarketing,,,,,,3500000,900000,,,false,,false,Denver,CO,true,false,,,,0,2,11
+Flexible Payload Corp Updated,,salesforce_remarketing,,,,,,4000000,,,,false,,false,,,true,false,,,,0,2,0
+Baby Yoda Test,,salesforce_remarketing,,,,,,1000000,1000000,,,false,,false,,,true,false,,,,0,2,0
+Brookfield Tractor,Auto Repair,sourceco,,,38,4.3,5,0,0,0,Management depth is not explicitly mentioned. Lance Carlson is the owner.,true,false,true,Brookfield,MO,true,true,,8,v5,22,23,12
+Performance Tire,Automotive Repair,sourceco,12,11-50 employees,454,4.8,1,0,0,0,"Management depth is not detailed, but Brandon Bentley is mentioned, likely the owner or manager.",true,true,true,Suwanee,GA,true,true,,16,v5,15,25,8
+Korey's Auto Kare,Auto Repair and Tire Shop,sourceco,,,237,4.7,1,0,0,0,Management depth details are not available from the provided notes. It is important to understand if Korey is the sole operator or if there is a strong #2 in place capable of running day-to-day operations. Succession readiness needs to be determined.,true,true,true,Delavan,WI,true,true,,19,v5,14,25,8
+Chuck's Main Street Auto,Auto Repair and Tire Shop,sourceco,,,206,4.5,1,0,0,0,"Management depth is not mentioned in the notes, but Adam Nielsen is the owner.",true,true,true,Sussex,WI,true,true,,19,v5,14,25,8
+Mad Hatter Auto Repair / Infinity Automotive,Auto Repair,sourceco,,,368,4.9,1,0,0,0,"Management depth is not detailed. Nancy Singh is the recipient of the email, implying she may be the owner or part of the management team, but no further information is provided about the management structure.",true,true,true,Brandon,FL,true,true,,19,v5,14,25,8
+EV Garage Miami,Auto Repair and Tire Shop,sourceco,6,2-10 employees,217,4.8,1,0,0,0,Not mentioned in the notes.,true,true,true,Miami,FL,true,true,,28,v5,9,25,11
+JM Auto Repair,Auto Repair,sourceco,,,133,4.8,1,0,0,0,Brad May is the owner and presumably manages the business. There is no mention of other key personnel or a management team.,true,true,true,Colorado Springs,CO,true,true,,15,v5,9,25,8
+MJR Auto,Auto Repair,sourceco,,,54,4.6,1,750000,100000,5,The email does not provide any information about the management depth at MJR Auto. Key personnel and their roles are not mentioned.,true,true,true,Minneapolis,MN,true,true,,12,v5,9,21,11
+Unknown,Auto Repair and Tire Shop,sourceco,,,373,4.7,1,0,0,0,Management depth is not detailed in the notes. It is unclear if Nicholas is the sole manager or if there is a management team in place.,true,false,true,Massapequa Park,NY,true,true,,32,v5,14,19,8
+Adair and Sons Automotive,Auto Repair and Tire Shop,sourceco,,,227,4.9,1,1000000,0,0,"The notes provide limited information about the management depth of Adair and Sons Automotive. Jerry Adair is the primary contact and likely the owner/operator. The company name suggests potential involvement of his sons, but their roles and responsibilities are not detailed. No other information about the management team or succession planning is available.",true,false,true,Round Rock,TX,true,true,,19,v5,14,19,8
+Salisbury Auto Salvage,Auto Repair,sourceco,,,1392,4.9,1,0,0,0,"Robert Carbone is the Treasurer of Salisbury Auto Salvage. The notes do not provide information about the management team beyond Robert. The presence of a strong #2 or succession plan is not mentioned, which could represent a risk factor.",true,false,true,Salisbury,MA,true,true,,22,v5,14,19,8
+RDS Automotive,Automotive,sourceco,,,102,4.6,1,1,1,1,No information about management depth is available in the notes.,true,true,false,Scottdale,GA,true,true,,14,v5,9,22,8
+Yocale,Auto Repair and Tire Shops,sourceco,,,88,4.8,0,0,0,11,"Tomos Mughan is the Founder & CEO of SourceCo, indicating he is a key member of the management team. No other management details are available from the provided notes.",true,true,true,Calgary,AB,true,true,,35,v5,9,21,8
+Branch Automotive,Auto Repair and Tire Shop,sourceco,4,2-10 employees,577,4.8,1,0,0,0,"Key employees are mentioned as potential buyers, indicating some level of management depth. It is unknown who runs the day-to-day operations.",true,true,true,Littleton,CO,true,true,,16,v5,5,25,8
+Poirier's Service,Auto Repair and Tire Shop,sourceco,,,364,4.8,1,0,0,0,"Horace Gomez is the President, suggesting he is a key figure in the management of the company. The notes do not mention the presence of a strong #2 or other key personnel.",true,false,false,Pompano Beach,FL,true,true,,10,v5,14,16,8
+Arvu Auto,Auto Repair and Tire,sourceco,,,96,4.7,2,0,0,,Management depth is not described in the notes. It's unknown who manages the day-to-day operations or if there is a strong #2 in place.,true,true,true,Cokato,MN,true,true,,46,v5,9,21,8
+EV Powers,Auto Repair,sourceco,,,67,4.9,1,0,0,0,Management depth is not detailed in the notes.,true,true,true,Madison,WI,true,true,,10,v5,9,21,8
+Pittmans Automotive Repair,Auto Repair & Tire,sourceco,,,130,4.7,1,0,0,0,Management depth details are not available in the notes. The notes do not specify the number of employees or the roles of key personnel beyond Preston's ownership.,true,false,true,Milledgeville,GA,true,true,,12,v5,9,19,8
+Oregon Man Clinics,Unspecified (Man Clinics),sourceco,9,,209,4.9,1,0,0,0,Management depth is not mentioned in the provided notes.,true,false,true,Bend,OR,true,true,,54,v5,9,19,8
+Pittmans Automotive Repair,Auto Repair and Tire Shop,sourceco,,,130,4.7,1,0,0,0,"Management depth is not explicitly mentioned, but the reference to Preston's buyout of his father suggests that he is currently the primary owner and operator. Further assessment is needed to determine the presence of a strong #2 or other key personnel.",true,false,true,Milledgeville,GA,true,true,,14,v5,9,19,8
+Sana Vida Wellness Center,Wellness Center,sourceco,6,2-10 employees,32,4.9,0,4000000,0,0,Management depth will be discussed with John Schanen during the call.,true,false,true,San Antonio,TX,true,true,,49,v5,9,15,11
+Advantage Automotive,Automotive,sourceco,,,175,4.5,0,0,0,0,Management depth is not explicitly mentioned in the provided notes.,true,false,false,Holiday,FL,true,true,,14,v5,9,16,8
+Wilton Auto,Auto Repair and Tire,sourceco,4,2-10 employees,599,4.9,1,2000000,600000,5,Michael Lindquist is the President of Wilton Auto and Tire. The notes do not provide information on other key personnel or management depth.,true,false,true,Wilton,CT,true,true,,16,v5,5,19,8
+East Side Napa Auto Care,Auto Care,sourceco,,,81,4.5,1,0,0,0,No information about management depth is available in the notes.,true,false,true,Worcester,MA,true,true,,11,v5,9,15,8
+A&G Auto,Auto Repair Services,sourceco,,,56,4.9,1,0,0,,,true,true,true,New Richmond,WI,true,true,,12,v5,9,15,8
+CW Custom Exhaust,Auto Repair and Tire Shop,sourceco,,,190,3.9,1,0,0,0,Details regarding the management depth of CW Custom Exhaust are absent from the notes. It is unknown if there is a strong #2 in place or who handles day-to-day operations. Further assessment is needed to understand the management team's capabilities and the impact of the owner's potential departure.,true,false,true,Douglasville,GA,true,true,,14,v5,9,15,8
+Affordable Automotive,Automotive Equipment Distribution,sourceco,4,11-50 employees,276,4.9,0,0,0,0,"There is no information about management depth in the notes. The owner is the only person mentioned, and there is no indication of a management team or succession plan.",true,false,false,Orlando,FL,true,true,,17,v5,5,16,11
+Maine Auto Service,Auto Repair and Tire Shop,sourceco,,,83,4.0,1,0,0,0,Management depth and key personnel information are not available in the notes.,true,false,true,Augusta,ME,true,true,,10,v5,9,13,8
+Vibrance Medical Group,Medical Group,sourceco,4,2-10 employees,150,4.9,1,1000000,400000,5,No information about the management depth or key personnel is available in the notes.,true,false,false,Westlake Village,CA,true,true,,27,v5,5,16,8
+Obiigo,Auto Repair and Tire Shops,sourceco,1,2-10 employees,657,3.9,0,0,0,0,John is the owner of Obiigo. Not mentioned if there is a #2 or additional management depth.,true,false,true,Fayetteville,AR,true,true,,10,v5,5,15,8
+Halpin Tire Service,Tire Service,sourceco,5,2-10 employees,45,4.2,1,0,0,0,No information provided about management depth.,true,false,false,Prairie du Chien,WI,true,true,,23,v5,9,10,8
+Super Trooper Motors,To be completed,sourceco,,,76,3.6,0,0,0,0,To be completed,true,false,false,Madison,WI,true,true,,12,v5,9,8,8
+DiagNation,Auto Repair and Tire Shops,sourceco,1,11-50 employees,0,,0,0,0,0,No management depth mentioned in the notes.,true,false,true,Owings,MD,true,true,,8,v5,5,11,8
+,Auto Repair & Tire Shop,sourceco,,,45,4.2,1,0,0,0,Management depth is not mentioned in the notes.,true,false,true,Prairie du Chien,WI,true,true,,8,v5,0,13,8
+"Planters Telephone Cooperative, Inc.",Auto Repair,sourceco,,,49,3.6,1,0,0,0,"Management depth is not mentioned in the provided text. There is no information about key personnel, their roles, or the presence of a strong second-in-command. The level of owner involvement in day-to-day operations is also unknown.",true,false,true,Newington,GA,true,true,,6,v5,0,11,8
+Grez Automotive,Automotive,sourceco,,,,,0,0,0,0,"The notes only contain the company name and a question 'How much we looking at', so management depth is not mentioned.",true,false,false,Springfield,MA,true,false,,9,v5,0,8,8
+R&J Cylinders,Industrial Manufacturing,sourceco,,,,,,15000000,3000000,,,false,,false,,,true,false,,,,0,2,8
+Ceremony Coffee,Specialty Coffee Roaster,valuation_calculator,,,,,6,10000000,2000000,,,true,true,true,Annapolis,MD,true,true,,,,22,21,12
+Watts Vault,Burial Vault & Monument Manufacturing,valuation_calculator,,,,,4,5825557,1123544,,,true,false,true,Des Moines,IA,true,true,,,,22,11,12
+Sims Funerals,Funeral Services,valuation_calculator,,,,,4,1500000,330000,,,true,false,true,Point,GA,true,true,,,,22,11,12
+Clear Pay,Payment Processing Services,valuation_calculator,,,,,,2700000,0,,,true,true,true,New York,NY,true,true,,,,0,11,11
+Fox Hunt,AI Career Platform,valuation_calculator,,,,,,32000,0,,,true,true,false,Dallas,TX,true,true,,,,0,8,11
+The Gainz Box,Fitness Subscription Box,valuation_calculator,,,,,1,188000,40000,,,true,true,true,Lehi,UT,true,true,,,,0,11,8
+Land Scape Garden Centers,Landscape & Garden Center,valuation_calculator,,,,,1,10000000,600000,,,true,true,true,Sioux Falls,SD,true,true,,,,0,11,8
+My Wealth Trace,Retirement Planning Software,valuation_calculator,,,,,,2000000,1400000,,,true,true,true,Hartford,CT,true,true,,,,0,11,8
+Willow Home,Luxury Home Concierge,valuation_calculator,,,,,,6000000,1100000,,,true,true,true,Boulder,CO,true,true,,,,0,11,8
+Einsteins Plumbing,Plumbing & HVAC Services,valuation_calculator,,,,,,100000,50000,,,true,true,true,Brooklyn,NY,true,true,,,,0,11,8
+Effulgent Taffy 3c432e Netlify App,AI Intelligence Platform,valuation_calculator,,,,,,100000,0,,,true,true,false,Austin,TX,true,true,,,,0,8,11
+Boyland Electric,Electrical Services,valuation_calculator,,,,,,6,2,,,true,true,true,Boyland,MD,true,true,,,,0,11,8
+Money Lion,Financial Services,valuation_calculator,,,,,,50000000,35000000,,,true,true,false,New York,NY,true,true,,,,0,8,11
+Legacy Plumbing,Plumbing Services,valuation_calculator,,,,,1,6500000,0,,,true,true,true,Shelby County,TN,true,true,,,,0,11,8
+Gilbert Home Comfort,HVAC & Electrical Services,valuation_calculator,,,,,1,5000000,600000,,,true,true,true,Leon,IA,true,true,,,,0,11,8
+Educomcontinuing Education,Chiropractic Continuing Education,valuation_calculator,,,,,1,600000,500000,,,true,true,true,Melbourne,FL,true,true,,,,0,11,8
+Davidallen Capital,Business Funding Services,valuation_calculator,,,,,,2300000,85000,,,true,false,true,Dallas,TX,true,true,,,,0,5,11
+Alpha Litigation,Legal Tech,valuation_calculator,,,,,,300000,200000,,,true,false,true,Dallas,TX,true,true,,,,0,5,11
+Stax,Retirement TPA Software,valuation_calculator,,,,,,2100000,3500000,,,true,false,true,San Francisco,CA,true,true,,90,v5,0,5,11
+Htpps:,Auto Body Collision Repair,valuation_calculator,,,,,,3650000,1956500,,,true,false,true,Miami,FL,true,true,,,,0,5,11
+Sanmora Bespoke,Clinical Research Organization,valuation_calculator,,,,,,450000,100000,,,true,false,true,Baltimore,MD,true,true,,,,0,5,11
+Mountain Top Roofing,Roofing & Solar,valuation_calculator,,,,,1,2000000,400000,,,true,false,true,Denver,CO,true,true,,,,0,5,11
+Eljun Llc,HRIS Integration,valuation_calculator,,,,,,850000,315000,,,true,false,true,Seattle,WA,true,true,,,,0,5,11
+Apex Elite,Executive Search,valuation_calculator,,,,,,3200000,2000000,,,true,false,true,Washington,DC,true,true,,,,0,5,11
+Tesloid,Tesla Accessories Retailer,valuation_calculator,,,,,1,2500000,500000,,,true,false,true,Los Angeles,CA,true,true,,,,0,5,11
+Blueline Glass,Glass Services,valuation_calculator,,,,,,220000,80000,,,true,false,true,Phoenix,AZ,true,true,,,,0,5,11
+ORR Financial,consulting,valuation_calculator,,,,,,68000,65000,,,false,,false,Tampa,FL,true,true,,,,0,2,11
+Scorpa,Corporate Finance Advisory,valuation_calculator,,,,,1,11262500,489937,,,true,false,true,Sandton,GP,true,true,,,,0,5,8
+Masource,M&A Professional Association,valuation_calculator,,,,,,3000000,500000,,,true,false,false,Chicago,IL,true,true,,,,0,2,11
+Bend Senior Care Management,Geriatric Care Management,valuation_calculator,,,,,1,365000,430000,,,true,false,true,Bend,OR,true,true,,,,0,5,8
+Google,Internet Search Engine,valuation_calculator,,,,,,86000000,24000000,,,true,false,true,Mountain View,CA,true,true,,,,0,5,8
+Custom Golfcartscolumbia,Custom Golf Carts,valuation_calculator,,,,,1,2100000,174000,,,true,false,true,Columbia,SC,true,true,,,,0,5,8
+Quality Auto,Pharmaceuticals,valuation_calculator,,,,,1,530000,160000,,,true,false,false,New York,NY,true,true,,,,0,2,11
+The Brass Works Inc,Marine Hardware Supplier,valuation_calculator,,,,,1,659000,15000,,,true,false,true,DeLand,FL,true,true,,,,0,5,8
+POLK Audio,Consumer Audio Equipment,valuation_calculator,,,,,,12000000,0,,,true,false,false,Baltimore,MD,true,true,,,,0,2,11
+Rain Tree Nursery,Online Nursery,valuation_calculator,,,,,,3500000,400000,,,true,false,true,Morton,WA,true,true,,,,0,5,8
+Roofing Standards,Commercial Roofing,valuation_calculator,,,,,,10000000,2000000,,,true,false,true,Placentia,CA,true,true,,,,0,5,8
+Legendvoi,Environmental Risk Intelligence,valuation_calculator,,,,,,1,0,,,true,false,false,Houston,TX,true,true,,,,0,2,11
+Sewp Inc,Wood Products Manufacturing,valuation_calculator,,,,,,8761400,1816324,,,true,false,true,Taylorsville,NC,true,true,,,,0,5,8
+The Valens Clinic,Mental Health Clinic,valuation_calculator,,,,,2,5000000,800000,,,true,false,true,Dubai,DU,true,true,,,,0,5,8
+Price Hub BLE,Real Estate Data Analytics,valuation_calculator,,,,,1,20000000,0,,,true,false,false,San Francisco,CA,true,true,,,,0,2,11
+Musitechnic,Audio Production School,valuation_calculator,,,,,1,1600000,160000,,,true,false,true,Montreal,QC,true,true,,,,0,5,8
+Kayes Kreative,Digital Marketing Agency,valuation_calculator,,,,,,700000,500000,,,true,false,true,Cleveland,OH,true,true,,,,0,5,8
+Vermont Compost,Compost Manufacturing,valuation_calculator,,,,,1,5300000,550000,,,true,false,true,Montpelier,VT,true,true,,,,0,5,8
+Ropella,Executive Search,valuation_calculator,,,,,,4000000,800000,,,true,false,false,Jacksonville,FL,true,true,,,,0,2,11
+Line Agecross Fit,CrossFit Gym,valuation_calculator,,,,,1,267900,160740,,,true,false,true,Clearwater,FL,true,true,,,,0,5,8
+Gkrestorations,Classic Car Restoration,valuation_calculator,,,,,1,250000,80000,,,true,false,true,Tallahassee,FL,true,true,,,,0,5,8
+Mo Hr,HR Software Solutions,valuation_calculator,,,,,,120000,100000,,,true,false,true,Cairo,,true,true,,,,0,5,5
+Amary,Accounting & Business Setup,valuation_calculator,,,,,,200000,100000,,,true,false,false,Dubai,DU,true,true,,,,0,2,8
+Potterystudio,Pottery Studio,valuation_calculator,,,,,1,132000,74000,,,true,false,true,Tauranga,,true,true,,,,0,5,5
+Ovationincentives,Business Incentives & Rewards,valuation_calculator,,,,,1,11,600000,,,true,false,true,London,,true,true,,,,0,5,5
+Indiaaitrends In,AI Technology Trends,valuation_calculator,,,,,,100000,90000,,,true,false,false,Rajkot,GJ,true,true,,,,0,2,8
+Rgpatrick,education,valuation_calculator,,,,,,340000,140000,,,false,,false,Pflugerville,TX,true,true,,,,0,2,8
+Advian Partners,Data Analytics Consulting,valuation_calculator,,,,,,1500000,250000,,,true,false,true,Fontenay-sous-Bois,,true,true,,,,0,5,5
+Training Provider Accreditation,Training Provider Accreditation,valuation_calculator,,,,,,5000000,950000,,,true,false,false,Lancaster,SC,true,true,,,,0,2,8
+Hoppah,Domain Name Sales,valuation_calculator,,,,,,10000000,500000,,,true,false,false,Scottsdale,AZ,true,true,,,,0,2,8
+Co Lasuonno,Domain Name Sales,valuation_calculator,,,,,1,2500000,350000,,,true,false,false,Scottsdale,AZ,true,true,,,,0,2,8
+The Project Foundry,ServiceNow Consulting,valuation_calculator,,,,,,16000000,900000,,,true,false,true,Dublin,,true,true,,,,0,5,5
+Ksd Custom S,Collision repair,valuation_calculator,,,,,,850000,150000,,,false,,false,Rome,GA,true,true,,,,0,2,8
+Ebautomations,software-saas,valuation_calculator,,,,,,3000000,750000,,,false,,false,Pittsburgh,PA,true,true,,,,0,2,8
+Abc401k,consulting,valuation_calculator,,,,,,800000,0,,,false,,false,St Louis,MO,true,true,,,,0,2,8
+The RGU Group,Wholesale Distribution,valuation_calculator,,,,,,3700000,550000,,,false,,false,Sarasota,FL,true,true,,,,0,2,8
+TBS,autobody collision and restoration,valuation_calculator,,,,,,120000,20000,,,false,,false,Macon,GA,true,true,,,,0,2,8
+Mmgtgw,Financial Management,valuation_calculator,,,,,,3000000,1.25,,,true,false,false,Greenwich,CT,true,true,,,,0,2,8
+Us Aquatics Inc,Aquatic Facility Management,valuation_calculator,,,,,,1000000,100000,,,true,true,false,,,true,true,,,,0,8,0
+Philscarcaretx,auto_repair,valuation_calculator,,,,,1,1596360,434743,,,false,,false,Livingston,,true,false,,,,0,2,5
+Giant Oak Automotive,,valuation_calculator,,,,,1,822000,120000,,,false,,false,Thousand Oaks,,true,false,,,,0,2,5
+Coin Gecko,Cryptocurrency Data Platform,valuation_calculator,,,,,,22000000,10000000,,,true,false,false,Singapore,,true,true,,,,0,2,5
+Smugglerscove,residential-services,valuation_calculator,,,,,,4000000,400000,,,false,,false,Sydney,,true,true,,,,0,2,5
+Blue Global School,Bilingual Christian Education,valuation_calculator,,,,,,2000000,500000,,,true,false,true,,,true,true,,,,0,5,0
+Merit Auto Service Co,Corporate Tax Planning,valuation_calculator,,,,,1,5500000,500000,,,true,false,true,,,true,true,,,,0,5,0
+Julian,Retail,valuation_calculator,,,,,,4400000,710000,,,false,,false,Albuquerque,NM,false,false,,,,0,-5,8
+Ekman Co,distribution-logistics,valuation_calculator,,,,,,1106000000,27000000,,,false,,false,,,true,true,,,,0,2,0
+Bre auto repair,auto_repair,valuation_calculator,,,,,1,800000,150000,,,false,,false,Newtown,,false,false,,,,0,-5,5
+Valley brake and wheel,auto_repair,valuation_calculator,,,,,1,1200000,200000,,,false,,false,Byron Center,,false,false,,,,0,-5,5
+Piper Fire Protection,Fire Protection Services,captarget,113,201-500 employees,832,4.9,5,,,,,true,false,false,Clearwater,Florida,true,true,interest,88,v4,40,20,12
+Quadrant,Staffing Agency,captarget,158,"501-1,000 employees",475,4.7,,,,,,true,true,false,Reston,Virginia,true,true,interest,16,v4,40,16,8
+Fortive,Industrial & Healthcare Technology,captarget,8291,"10,001+ employees",68,4.4,,,,,,true,false,false,Everett,Washington,true,true,interest,,,45,4,8
+Zylo,SaaS Management Platform,captarget,156,51-200 employees,2,5.0,,,,,,true,false,false,Indianapolis,Indiana,true,true,interest,19,v4,40,6,11
+Tobi.com,Online Fashion Retailer,captarget,134,51-200 employees,16,4.6,,,,,,true,false,false,Los Angeles,CA,true,true,interest,77,v4,40,6,11
+Visual Marketing,Retail Display Manufacturing,captarget,121,11-50 employees,,,,,,,,true,false,false,Chicago,IL,true,true,interest,61,v4,40,2,11
+P & R Enterprises,Janitorial Services,captarget,56,"1,001-5,000 employees",8,4.0,1,,,,,true,true,false,Falls Church,Virginia,true,true,interest,16,v4,34,10,8
+Texas Express Lube & Auto,Automotive Services,captarget,,,0,,600,,,,,true,true,false,Luling,Texas,true,true,interest,16,v4,22,18,12
+MLOGICA,IT Modernization Services,captarget,172,201-500 employees,,,,,,,,true,false,false,Vienna,VA,true,true,interest,58,v4,40,2,8
+ADCO Manufacturing,Packaging Machinery,captarget,85,51-200 employees,10,4.4,,,,,,true,false,false,Sanger,California,true,true,keep_in_mind,14,v4,34,4,8
+Die Cut Technologies,Die Cutting Services,captarget,,,0,5.0,4,,,,,true,false,false,Northglenn,Colorado,true,true,interest,17,v4,22,12,12
+SybridMD,Medical Billing Services,captarget,33,51-200 employees,29,4.2,,,,,,true,false,false,New York,New York,true,true,interest,67,v4,27,4,11
+Rehababilities,Rehabilitation Services,captarget,28,,3,5.0,,,,,,true,false,false,Ontario,California,true,true,keep_in_mind,62,v4,27,6,8
+Roof X,Roofing Contractor,captarget,,,285,4.9,1,,,,,true,true,false,Tampa,Florida,true,true,interest,37,v4,14,16,11
+Gavnat and Associates,Insurance Adjusting,captarget,39,11-50 employees,0,4.9,,,,,,true,false,false,Eden Prairie,Minnesota,true,true,interest,59,v4,27,6,8
+Muse Plastic Surgery,Plastic Surgery,captarget,,,416,4.9,,,,,,true,false,false,Atlanta,Georgia,true,true,interest,35,v4,14,10,11
+Face Stockholm,Cosmetics Retailer,captarget,23,11-50 employees,38,4.7,1,,,,,true,false,false,Hudson,New York,true,true,interest,14,v4,21,6,8
+Savor Brands,Custom Packaging Solutions,captarget,,,470,4.7,,,,,,true,false,false,Las Vegas,Nevada,true,true,interest,35,v4,14,10,11
+xtDirect,Business Process Outsourcing,captarget,22,201-500 employees,0,4.4,1,,,,,true,false,false,Omaha,Nebraska,true,true,interest,53,v4,21,4,8
+Arkansas River Valley Roofing,Roofing Services,captarget,,,275,4.9,,,,,,true,false,false,Little Rock,Arkansas,true,true,interest,32,v4,14,10,8
+PARSEC Group,IT Services,captarget,18,11-50 employees,0,,1,,,,,true,false,false,Arvada,Colorado,true,true,interest,17,v4,21,2,8
+World Tek Industries,Manufacturing,captarget,22,51-200 employees,9,3.7,,,,,,true,false,false,Romulus,Michigan,true,true,interest,52,v4,21,2,8
+Bitsbox,Kids Coding Education,captarget,7,2-10 employees,0,4.5,1,,,,,true,true,false,Boulder,Colorado,true,true,interest,40,v4,9,12,8
+Jifram Extrusions,Plastic Extrusions Manufacturing,captarget,13,11-50 employees,1,5.0,,,,,,true,false,false,Sheboygan Falls,Wisconsin,true,true,interest,50,v4,15,6,8
+OSC Automotive,Auto Parts Manufacturing,captarget,12,51-200 employees,5,4.6,1,,,,,true,false,false,Fullerton,California,true,true,keep_in_mind,14,v4,15,6,8
+Cache Creek Foods,Food Manufacturing,captarget,12,51-200 employees,0,4.3,,,,,,true,false,false,Woodland,California,true,true,interest,44,v4,15,4,8
+Ridgway Face & Aesthetic Center,Plastic Surgery,captarget,,,102,4.8,1,,,,,true,false,false,Bellevue,Washington,true,true,interest,29,v4,9,10,8
+Philly Music Lessons,Music Instruction,captarget,,,91,4.8,2,,,,,true,false,false,Philadelphia,Pennsylvania,true,true,keep_in_mind,29,v4,9,6,11
+McKenzie Engineering Group,Engineering Services,captarget,14,11-50 employees,0,,,,,,,true,false,false,Norwell,Massachusetts,true,true,interest,32,v4,15,2,8
+Grab Green,Cleaning Products,captarget,5,11-50 employees,1,5.0,,,,,,true,false,false,Camarillo,California,true,true,interest,43,v4,9,6,8
+Plastic Surgery Specialists of New Jersey,Cosmetic Surgery,captarget,1,2-10 employees,359,4.9,,,,,,true,false,false,Paramus,New Jersey,true,true,interest,38,v4,5,10,8
+Plastic Surgery of Michigan,Plastic Surgery,captarget,,,97,5.0,1,,,,,true,false,false,Novi,Michigan,true,true,interest,26,v4,9,6,8
+LibraryWorld,Library Automation Software,captarget,,,0,4.6,,,,,,true,true,false,San Jose,California,true,true,interest,22,v4,0,12,11
+Elite Merchant Solutions,Payment Processing Solutions,captarget,,,56,4.9,,,,,,true,false,false,Plano,Texas,true,true,interest,26,v4,9,6,8
+Simple DCP,Post-Production Services,captarget,7,2-10 employees,0,4.8,,,,,,true,false,false,Burbank,California,true,true,interest,38,v4,9,6,8
+Provenance Recruitment & Staffing,Staffing Agency,captarget,,,98,4.8,,,,,,true,false,false,Easley,South Carolina,true,true,interest,16,v4,9,6,8
+Organized Haven,Senior Move Management,captarget,,,67,5.0,1,,,,,true,false,false,Lakeland,Florida,true,true,interest,26,v4,9,6,8
+"Jordan, Knauff & Company",Investment Banking,captarget,6,2-10 employees,,,,,,,,true,false,false,Chicago,IL,true,true,interest,26,v4,9,2,11
+Ballantyne Plastic Surgery,Plastic Surgery,captarget,7,11-50 employees,,,1,,,,,true,false,false,Charlotte,NC,true,true,interest,28,v4,9,2,11
+Uplift Produce,Indoor Farming,captarget,1,11-50 employees,203,3.8,,,,,,true,false,false,Indianapolis,Indiana,true,true,interest,35,v4,5,6,11
+Celebrate Vitamins,Nutritional Supplements,captarget,,,54,4.4,,,,,,true,false,false,Sarasota,Florida,true,true,interest,25,v4,9,4,8
+Barracuda Swimworks,Swimming Instruction,captarget,6,2-10 employees,10,4.4,,,,,,true,false,false,Pensacola,Florida,true,true,interest,38,v4,9,4,8
+Solar Gem Greenhouses,Greenhouses & Growing Supplies,captarget,6,2-10 employees,24,4.0,1,,,,,true,false,false,Tacoma,Washington,true,true,interest,41,v4,9,4,8
+The Ferguson Clinic,Cosmetic Surgery,captarget,,,66,4.3,,,,,,true,false,false,Honolulu,Hawaii,true,true,interest,25,v4,9,4,8
+BigWave Software,Field Service Management Software,captarget,2,2-10 employees,,,1,,,,,true,true,false,Frisco,TX,true,true,interest,10,v4,5,8,8
+Diversified Roofing Systems,Commercial Roofing,captarget,,,6,4.8,,,,,,true,true,false,New Bedford,Massachusetts,true,true,interest,22,v4,0,12,8
+Peel,Landscaping Services & Supply,captarget,,,0,4.9,1,,,,,true,true,false,Georgetown,Texas,true,true,interest,19,v4,0,12,8
+Seaboard Welding Supply,Welding Supply,captarget,,,14,4.6,,,,,,true,true,false,Ocean Township,New Jersey,true,true,interest,22,v4,0,12,8
+EZ Roofing Contractor,Construction,captarget,,,6,5.0,1,,,,,true,true,false,Fort Myers,Florida,true,true,interest,22,v4,0,12,8
+Thompson Chocolate,Chocolate Manufacturer,captarget,,,0,4.6,1,,,,,true,true,false,Meriden,Connecticut,true,true,interest,19,v4,0,12,8
+Cox & Son Roofing,Roofing Contractor,captarget,,,0,4.6,,,,,,true,true,false,Hayesville,North Carolina,true,true,interest,19,v4,0,12,8
+Lystad Concrete Construction,Concrete Contractor,captarget,,,11,4.6,,,,,,true,true,false,Home,Washington,true,true,interest,22,v4,0,12,8
+Garner Roofing,Roofing Services,captarget,,,0,4.5,,,,,,true,true,false,Rancho Cordova,California,true,true,interest,19,v4,0,12,8
+Remote Estimation,Construction Estimating,captarget,,,6,5.0,,,,,,true,true,false,Jersey City,New Jersey,true,true,interest,22,v4,0,12,8
+Infra-Red Building & Power Service,Electrical Testing,captarget,,,0,4.9,1,,,,,true,true,false,Braintree,Massachusetts,true,true,interest,19,v4,0,12,8
+P.M. Landscaping Services,Landscaping Services,captarget,,,0,4.7,,,,,,true,true,false,Monterey,California,true,true,interest,19,v4,0,12,8
+Preston Greenhouse,Landscaping,captarget,,,74,3.8,1,,,,,true,false,false,Louisville,Kentucky,true,true,interest,21,v4,9,2,8
+Quality Digital Solutions,Signage & Printing Supplies,captarget,4,2-10 employees,83,4.8,,,,,,true,false,false,Calgary,Alberta,true,true,interest,38,v4,5,6,8
+Nu Style Landscaping,Landscaping Services,captarget,,,0,2.6,1,,,,,true,true,false,Denver,Colorado,true,true,interest,19,v4,0,8,11
+Rockland Pediatric Dental,Pediatric Dentistry,captarget,6,2-10 employees,,,,,,,,true,false,false,New City,NY,true,true,interest,23,v4,9,2,8
+Hunter Trust,Investment Management,captarget,2,2-10 employees,,,1,,,,,true,false,false,Minneapolis,MN,true,true,interest,11,v4,5,2,11
+We Logo Anything,Printing,captarget,4,2-10 employees,,,1,,,,,true,false,false,Austin,TX,true,true,interest,17,v4,5,2,11
+Paragon Manufacturing,Contract Manufacturing,captarget,,,0,4.0,1,,,,,true,true,false,Melrose Park,Illinois,true,true,interest,16,v4,0,10,8
+IR-G,Industrial Rubber Distribution,captarget,,,29,4.6,,,,,,true,false,false,Nashville,Tennessee,true,true,keep_in_mind,26,v4,0,6,11
+MY Piano Study,Music Instruction,captarget,,,6,4.8,,,,,,false,,false,Las Vegas,Nevada,true,true,interest,23,v4,0,6,11
+Fish Pro Fishing Gear,Fishing Gear Retailer,captarget,,,0,4.5,,,,,,false,,false,Nashville,Tennessee,true,true,interest,20,v4,0,6,11
+Docufi,Document Management Software,captarget,,,0,5.0,,,,,,true,false,false,Tampa,Florida,true,true,interest,20,v4,0,6,11
+EGads,Unknown,captarget,,,0,5.0,,,,,,true,false,false,San Antonio,Texas,true,true,interest,20,v4,0,6,11
+Taylor & Pond Corporate Communications,Marketing,captarget,,,3,4.7,1,,,,,true,false,false,New York,New York,true,true,interest,23,v4,0,6,11
+Commercial Gaskets of Minneapolis,Commercial Gasket Manufacturing,captarget,,,2,5.0,1,,,,,true,false,false,Minneapolis,Minnesota,true,true,interest,25,v4,0,6,11
+Christie Physical Therapy,Physical Therapy,captarget,,,0,5.0,,,,,,true,false,false,Austin,Texas,true,true,interest,20,v4,0,6,11
+GOGATHER Corporate Meetings and Events,Event Management Agency,captarget,,,0,5.0,1,,,,,true,false,false,Boston,MA,true,true,interest,22,v4,0,6,11
+Spine and Sports Physical Therapy,Physical Therapy,captarget,,,40,4.8,,,,,,true,false,false,Austin,Texas,true,true,interest,26,v4,0,6,11
+BEAR Cloud Technologies,IT Managed Services,captarget,,,0,5.0,,,,,,false,,false,San Francisco,California,true,true,interest,20,v4,0,6,11
+Diverse Tech Services,IT Managed Services,captarget,,,0,4.9,,,,,,true,false,false,Indianapolis,Indiana,true,true,interest,22,v4,0,6,11
+CloudLoop,Salesforce Consulting,captarget,,,0,,,,,,,true,true,false,Toronto,Ontario,true,true,interest,16,v4,0,8,8
+IT Supervision,IT Managed Services,captarget,,,0,,1,,,,,true,true,false,Franktown,Colorado,true,true,interest,16,v4,0,8,8
+Link Technologies,IT Managed Services,captarget,,,0,,,,,,,true,true,false,Germantown,Maryland,true,true,interest,16,v4,0,8,8
+GeoGraphics Screenprinting,Printing,captarget,,,6,4.2,1,,,,,true,false,false,Charlotte,North Carolina,true,true,interest,17,v4,0,4,11
+Resolution Systems,Debt Collection Agency,captarget,4,2-10 employees,0,,,,,,,false,,false,Oklahoma City,Oklahoma,true,true,interest,15,v4,5,2,8
+Eisonesoft,Software Development,captarget,,,0,4.0,1,,,,,true,false,false,San Francisco,California,true,true,interest,19,v4,0,4,11
+Action Plastic Sales,Packaging Supplies Distributor,captarget,,,0,5.0,,,,,,true,false,false,Santa Ana,California,true,true,keep_in_mind,17,v4,0,6,8
+CNS Cleaning,Commercial Cleaning,captarget,,,0,4.9,1,,,,,true,false,false,Bristol,Pennsylvania,true,true,interest,19,v4,0,6,8
+Fleetwood Industrial Products,Rotating Equipment Repair,captarget,,,0,4.9,,,,,,true,false,false,Addison,Illinois,true,true,interest,19,v4,0,6,8
+Integrity Commercial Cleaning,Commercial Cleaning,captarget,,,0,4.8,,,,,,false,,false,Tucker,Georgia,true,true,interest,17,v4,0,6,8
+Choice IOT,IoT Connectivity Solutions,captarget,,,0,5.0,,,,,,true,false,false,Syosset,New York,true,true,interest,19,v4,0,6,8
+Syserco,Building Automation Systems,captarget,,,21,4.6,,,,,,true,false,false,Fremont,California,true,true,interest,25,v4,0,6,8
+Flexible Packaging Specialties,Flexible Packaging Manufacturing,captarget,,,5,4.8,,,,,,true,false,false,Green Bay,Wisconsin,true,true,interest,21,v4,0,6,8
+Erie Weld Products,Metal Fabrication,captarget,,,0,5.0,1,,,,,true,false,false,Erie,Pennsylvania,true,true,interest,19,v4,0,6,8
+Chicago Industrial Fasteners,Industrial Distribution,captarget,,,0,5.0,,,,,,true,false,false,West Chicago,Illinois,true,true,interest,22,v4,0,6,8
+S&P Alliance,Commercial Food Equipment,captarget,,,11,4.9,1,,,,,true,false,false,Mansfield,Ohio,true,true,interest,20,v4,0,6,8
+Sage Music,Music Education,captarget,,,7,4.9,2,,,,,true,false,false,Red Bluff,California,true,true,keep_in_mind,20,v4,0,6,8
+Electrolab,Industrial Sensors Manufacturing,captarget,,,0,5.0,,,,,,true,false,false,Boerne,Texas,true,true,interest,17,v4,0,6,8
+Sunburst School of Music,Music Education,captarget,,,0,4.7,1,,,,,true,false,false,Pittsburgh,Pennsylvania,true,true,interest,18,v4,0,6,8
+Cumulus Global,Managed Cloud Services,captarget,,,0,5.0,,,,,,true,false,false,Westborough,Massachusetts,true,true,interest,19,v4,0,6,8
+ScaleSec,IT Services,captarget,,,10,4.5,,,,,,true,false,false,McDonough,Georgia,true,true,interest,19,v4,0,6,8
+Colorado Greenhouse Builders,Greenhouse Construction,captarget,,,0,4.5,,,,,,true,false,false,Elbert,Colorado,true,true,interest,17,v4,0,6,8
+SilcSkin,Skincare Products,captarget,,,0,5.0,,,,,,true,false,false,Monrovia,California,true,true,interest,17,v4,0,6,8
+Process Instruments,Scientific Instruments,captarget,,,0,5.0,1,,,,,true,false,false,Irvine,California,true,true,interest,17,v4,0,6,8
+MRL Promotions,Promotional Products,captarget,,,5,5.0,1,,,,,true,false,false,Fort Lauderdale,Florida,true,true,interest,20,v4,0,6,8
+Georgia Swim School,Swim School,captarget,,,22,5.0,1,,,,,true,false,false,Brunswick,Georgia,true,true,interest,23,v4,0,6,8
+Global Risk Solutions,Risk Management Solutions,captarget,,,25,5.0,,,,,,true,false,false,Palo Alto,California,true,true,interest,23,v4,0,6,8
+Bartu Plumbing,Plumbing,captarget,,,1,5.0,1,,,,,true,false,false,Richfield,OH,true,true,interest,22,v4,0,6,8
+Poor Boy Pallet,Pallet Manufacturing,captarget,,,10,4.9,,,,,,true,false,false,Bridgeton,New Jersey,true,true,interest,20,v4,0,6,8
+Cyndx,FinTech,captarget,,,0,,,,,,,true,false,false,New York,New York,true,true,interest,19,v4,0,2,11
+Bessemer Investors,Private Equity,captarget,,,0,,1,,,,,true,false,false,New York,New York,true,true,interest,17,v4,0,2,11
+Alpha Logistics Systems,Logistics Services,captarget,,,0,,,,,,,true,false,false,Houston,Texas,true,true,interest,17,v4,0,2,11
+Ace Food Service,Wholesale Meat Supplier,captarget,,,0,,1,,,,,true,false,false,Phoenix,Arizona,true,true,interest,17,v4,0,2,11
+IOR Global Services,Global Mobility Services,captarget,,,0,4.0,,,,,,true,false,false,Rosemont,Illinois,true,true,keep_in_mind,14,v4,0,4,8
+Lectro Engineering,Plastics Automation,captarget,,,0,4.0,1,,,,,true,false,false,St. Louis,Missouri,true,true,interest,16,v4,0,4,8
+Springseal,Industrial Seals Manufacturing,captarget,,,16,4.2,,,,,,true,false,false,Ravenna,Ohio,true,true,keep_in_mind,14,v4,0,4,8
+HAAS Architecural Millwork,Architectural Millwork Manufacturing,captarget,,,0,4.2,1,,,,,true,false,false,York,Pennsylvania,true,true,interest,14,v4,0,4,8
+Chemical Data Management Systems,EHS Compliance Services,captarget,,,0,,,,,,,true,false,false,Brentwood,Tennessee,true,true,interest,14,v4,0,2,8
+Community Pathways Unlimited,Behavioral Health Services,captarget,,,0,,,,,,,true,false,false,Oklahoma City,Oklahoma,true,true,keep_in_mind,15,v4,0,2,8
+Xponent Global,Business Consulting,captarget,,,0,,,,,,,true,false,false,Hudson,Massachusetts,true,true,interest,14,v4,0,2,8
+Trans-Soft,URL Redirect Service,captarget,,,0,,,,,,,true,false,false,Scottsdale,Arizona,true,true,keep_in_mind,12,v4,0,2,8
+Connecticut Spring & Stamping,Precision Manufacturing,captarget,,,11,3.8,,,,,,true,false,false,Farmington,Connecticut,true,true,interest,16,v4,0,2,8
+DIJAS Natural Foods,Natural Bakery,captarget,,,0,,,,,,,true,false,false,Morganville,New Jersey,true,true,interest,16,v4,0,2,8
+Shany Cosmetics,Cosmetics Retailer,captarget,,,0,,,,,,,true,false,false,Walnut,California,true,true,interest,14,v4,0,2,8
+DCG-PMI,Precision Machining,captarget,,,0,,,,,,,true,false,false,Bethel,Connecticut,true,true,interest,14,v4,0,2,8
+JMSI,Wastewater Treatment Solutions,captarget,,,0,,,,,,,true,false,false,West Palm Beach,Florida,true,true,interest,14,v4,0,2,8
+Orbit Beyond,Space Exploration,captarget,,,0,,1,,,,,true,false,false,Lexington,Kentucky,true,true,interest,16,v4,0,2,8
+Gray Decision Intelligence,Education Software,captarget,,,0,,,,,,,true,false,false,Tiffin,Ohio,true,true,interest,14,v4,0,2,8
+Hermitage Hardwood,Lumber Processing,captarget,,,0,,,,,,,true,false,false,Bedford,Pennsylvania,true,true,interest,14,v4,0,2,8
+Chaka Technologies,IT Consulting Services,captarget,,,0,,,,,,,true,false,false,Woodland Hills,California,true,true,interest,16,v4,0,2,8
+Light Guard Systems,Traffic Safety Solutions,captarget,,,0,,,,,,,true,false,false,Santa Rosa,California,true,true,interest,16,v4,0,2,8
+Associated Thermoforming,Thermoforming Manufacturing,captarget,,,7,3.7,,,,,,true,false,false,Berthoud,Colorado,true,true,interest,14,v4,0,2,8
+Turnkey,Experiential Marketing Agency,captarget,,,0,,,,,,,true,false,false,Ferndale,Michigan,true,true,interest,16,v4,0,2,8
+Tru-Tech Valve,Valve Manufacturing & Services,captarget,,,0,,,,,,,true,false,false,Canonsburg,Pennsylvania,true,true,interest,16,v4,0,2,8
+Northern Virginia Older Adult Counseling,Mental Health Services,captarget,,,6,3.5,,,,,,true,false,false,Fairfax,Virginia,true,true,interest,14,v4,0,2,8
+Urgent Care Clinic,Urgent Care,captarget,,,10,3.4,,,,,,false,,false,Memphis,Tennessee,true,true,interest,9,v4,0,2,8
+The Call List,Lead Generation,captarget,2,11-50 employees,,,,,,,,false,,false,,,true,true,interest,6,v4,5,2,0
+Spex Auto Repair & Oil Change,,captarget,,,,,,,,,,false,,false,,,true,false,interest,2,v4,0,2,0

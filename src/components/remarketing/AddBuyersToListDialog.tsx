@@ -81,10 +81,16 @@ export function AddBuyersToListDialog({
   // Only track expanded state for multi-contact companies
   const [expandedBuyers, setExpandedBuyers] = useState<Set<string>>(new Set());
 
-  const { data: existingLists } = useContactLists();
+  const { data: allLists } = useContactLists();
   const createList = useCreateContactList();
   const addMembers = useAddMembersToList();
   const enrichContacts = useEnrichListContacts();
+
+  // Only show buyer and mixed lists in the picker
+  const existingLists = useMemo(
+    () => allLists?.filter((l) => l.list_type === 'buyer' || l.list_type === 'mixed'),
+    [allLists],
+  );
 
   // Stable key for buyer list to avoid re-fetch on every render
   const buyerKey = selectedBuyers

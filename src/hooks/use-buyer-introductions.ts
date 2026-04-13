@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -87,6 +88,35 @@ export function useBuyerIntroductions(listingId: string | undefined) {
     },
     enabled: !!listingId,
   });
+
+  // Realtime: two admins working the same deal need live Kanban updates.
+  // Without this, status changes only flow through manual refresh and can
+  // cause duplicate introduction_status_log entries on race conditions.
+  useEffect(() => {
+    if (!listingId) return;
+
+    const channel = supabase
+      .channel(`buyer-introductions-${listingId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'buyer_introductions',
+          filter: `listing_id=eq.${listingId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // queryKey is stable for a given listingId, so we pin the deps to listingId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingId]);
 
   const notIntroduced = introductions.filter(
     (i) =>
@@ -253,8 +283,8 @@ export function useBuyerIntroductions(listingId: string | undefined) {
   // RPC above. Keeping the old function body commented out as documentation of
   // what the RPC consolidates.
   //
-   
-  // @ts-ignore -- dead code kept for reference
+
+  // @ts-expect-error -- dead code kept for reference
   async function _legacyCreateDealFromIntroduction_DEAD(
     buyer: BuyerIntroduction,
   ): Promise<boolean> {

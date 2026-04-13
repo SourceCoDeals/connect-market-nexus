@@ -1,6 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useShiftSelect } from '@/hooks/useShiftSelect';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ListAnalyticsSummary } from '@/components/admin/lists/ListAnalyticsSummary';
+import { useCloneList } from '@/hooks/admin/use-list-operations';
+import { SmartListBanner } from '@/components/admin/lists/SmartListBanner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -27,10 +30,11 @@ import {
   ListChecks,
   PhoneCall,
   X,
+  Copy,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useContactList, useRemoveListMember } from '@/hooks/admin/use-contact-lists';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { invokeWithTimeout } from '@/lib/invoke-with-timeout';
 import { toast } from 'sonner';
 import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
@@ -46,8 +50,10 @@ import { cn } from '@/lib/utils';
 const ContactListDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: list, isLoading } = useContactList(id);
   const removeMember = useRemoveListMember();
+  const cloneList = useCloneList();
 
   const retryPhoneEnrichment = useMutation({
     mutationFn: async (contactIds: string[]) => {
@@ -61,8 +67,11 @@ const ContactListDetailPage = () => {
       return data;
     },
     onSuccess: (data) => {
-      const phonesFound = data?.results?.filter((r: { phone: string | null }) => r.phone).length || 0;
-      toast.success(`Phone enrichment complete: ${phonesFound} phone${phonesFound !== 1 ? 's' : ''} found`);
+      const phonesFound =
+        data?.results?.filter((r: { phone: string | null }) => r.phone).length || 0;
+      toast.success(
+        `Phone enrichment complete: ${phonesFound} phone${phonesFound !== 1 ? 's' : ''} found`,
+      );
     },
     onError: (err: Error) => toast.error(`Phone enrichment failed: ${err.message}`),
   });
@@ -288,6 +297,16 @@ const ContactListDetailPage = () => {
                 <Download className="h-3.5 w-3.5" />
                 Export CSV
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => cloneList.mutate({ sourceId: list.id, name: `${list.name} (Copy)` })}
+                disabled={cloneList.isPending}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Clone
+              </Button>
             </div>
           </div>
           {list.tags.length > 0 && (
@@ -303,6 +322,19 @@ const ContactListDetailPage = () => {
       </div>
 
       <div className="px-4 md:px-8 py-6 space-y-4">
+        {/* Smart list banner */}
+        {list.is_smart_list && (
+          <SmartListBanner
+            list={list}
+            onRefresh={() =>
+              queryClient.invalidateQueries({ queryKey: ['admin', 'contact-lists', id] })
+            }
+          />
+        )}
+
+        {/* Analytics summary */}
+        {activeMembers.length > 0 && <ListAnalyticsSummary members={activeMembers} />}
+
         {/* Search & selection info */}
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
@@ -481,10 +513,7 @@ function MemberRow({
 }) {
   return (
     <TableRow
-      className={cn(
-        isSelected ? 'bg-primary/5' : '',
-        'cursor-pointer hover:bg-muted/50',
-      )}
+      className={cn(isSelected ? 'bg-primary/5' : '', 'cursor-pointer hover:bg-muted/50')}
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (target.closest('button') || target.closest('[role="checkbox"]')) return;

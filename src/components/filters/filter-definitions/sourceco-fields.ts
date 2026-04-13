@@ -163,6 +163,13 @@ export const SOURCECO_FIELDS: FilterFieldDef[] = [
     icon: Calendar,
   },
   {
+    key: 'updated_at',
+    label: 'Last Activity',
+    type: 'date',
+    group: 'Admin',
+    icon: Calendar,
+  },
+  {
     key: 'deal_owner_id',
     label: 'Deal Owner',
     type: 'user',

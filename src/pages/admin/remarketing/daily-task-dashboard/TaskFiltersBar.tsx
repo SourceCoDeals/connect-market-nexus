@@ -1,7 +1,15 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Eye, EyeOff, CalendarDays, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { TeamMember } from './types';
 
 interface TaskFiltersBarProps {
   view: 'my' | 'all';
@@ -11,6 +19,9 @@ interface TaskFiltersBarProps {
   calendarView: boolean;
   onCalendarViewChange: (cal: boolean) => void;
   overdueCount: number;
+  assigneeFilter?: string | null;
+  onAssigneeFilterChange?: (userId: string | null) => void;
+  teamMembers?: TeamMember[];
 }
 
 export function TaskFiltersBar({
@@ -21,7 +32,11 @@ export function TaskFiltersBar({
   calendarView,
   onCalendarViewChange,
   overdueCount,
+  assigneeFilter,
+  onAssigneeFilterChange,
+  teamMembers,
 }: TaskFiltersBarProps) {
+  const showAssigneePicker = view === 'all' && !!onAssigneeFilterChange && !!teamMembers;
   return (
     <div className="flex items-center justify-between">
       {/* Left: View toggle */}
@@ -55,6 +70,25 @@ export function TaskFiltersBar({
           <Badge variant="destructive" className="text-[10px] h-5 px-2">
             {overdueCount} overdue
           </Badge>
+        )}
+
+        {showAssigneePicker && (
+          <Select
+            value={assigneeFilter ?? '__all__'}
+            onValueChange={(v) => onAssigneeFilterChange!(v === '__all__' ? null : v)}
+          >
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue placeholder="Filter by assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All team members</SelectItem>
+              {teamMembers!.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </div>
 
@@ -91,11 +125,7 @@ export function TaskFiltersBar({
           onClick={() => onShowCompletedChange(!showCompleted)}
           className="text-xs gap-1.5 text-muted-foreground"
         >
-          {showCompleted ? (
-            <EyeOff className="h-3.5 w-3.5" />
-          ) : (
-            <Eye className="h-3.5 w-3.5" />
-          )}
+          {showCompleted ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           {showCompleted ? 'Hide done' : 'Show done'}
         </Button>
       </div>

@@ -17,10 +17,7 @@ export type PortalDealPushStatus =
 
 export type PortalDealPriority = 'standard' | 'high' | 'urgent';
 
-export type PortalResponseType =
-  | 'interested'
-  | 'pass'
-  | 'need_more_info';
+export type PortalResponseType = 'interested' | 'pass' | 'need_more_info';
 
 export type PortalNotificationType =
   | 'new_deal'
@@ -150,6 +147,7 @@ export interface PortalDealResponse {
   response_type: PortalResponseType;
   notes: string | null;
   internal_notes: string | null; // admin-only field
+  pass_reason_category: PassReasonCategory | null;
   created_at: string;
 }
 
@@ -183,7 +181,12 @@ export interface PortalActivityLog {
 
 export interface PortalOrganizationWithDetails extends PortalOrganization {
   relationship_owner?: { id: string; first_name: string; last_name: string; email: string } | null;
-  buyer?: { id: string; company_name: string; company_website: string | null; buyer_type: string | null } | null;
+  buyer?: {
+    id: string;
+    company_name: string;
+    company_website: string | null;
+    buyer_type: string | null;
+  } | null;
   user_count?: number;
   active_push_count?: number;
   last_activity_at?: string | null;
@@ -241,4 +244,133 @@ export interface SubmitDealResponseInput {
   push_id: string;
   response_type: PortalResponseType;
   notes?: string;
+  pass_reason_category?: PassReasonCategory;
+}
+
+// ── Portal Intelligence Types ─────────────────────────────────────────
+
+export type PassReasonCategory =
+  | 'too_small'
+  | 'too_large'
+  | 'wrong_geography'
+  | 'wrong_industry'
+  | 'owner_dependency'
+  | 'already_in_discussions'
+  | 'not_cultural_fit'
+  | 'timing_not_right'
+  | 'other';
+
+export const PASS_REASON_LABELS: Record<PassReasonCategory, string> = {
+  too_small: 'Too Small',
+  too_large: 'Too Large',
+  wrong_geography: 'Wrong Geography',
+  wrong_industry: 'Wrong Industry',
+  owner_dependency: 'Owner Dependency',
+  already_in_discussions: 'Already In Discussions',
+  not_cultural_fit: 'Not Cultural Fit',
+  timing_not_right: 'Timing Not Right',
+  other: 'Other',
+};
+
+export type RecommendationStatus = 'pending' | 'approved' | 'pushed' | 'dismissed';
+
+export type IntelligenceDocType =
+  | 'call_transcript'
+  | 'meeting_notes'
+  | 'thesis_document'
+  | 'pass_notes'
+  | 'general_notes';
+
+export interface PortalThesisCriteria {
+  id: string;
+  portal_org_id: string;
+  industry_label: string;
+  industry_keywords: string[];
+  ebitda_min: number | null;
+  ebitda_max: number | null;
+  revenue_min: number | null;
+  revenue_max: number | null;
+  employee_min: number | null;
+  employee_max: number | null;
+  target_states: string[];
+  portfolio_buyer_id: string | null;
+  universe_id: string | null;
+  priority: number;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateThesisCriteriaInput {
+  portal_org_id: string;
+  industry_label: string;
+  industry_keywords: string[];
+  ebitda_min?: number | null;
+  ebitda_max?: number | null;
+  revenue_min?: number | null;
+  revenue_max?: number | null;
+  employee_min?: number | null;
+  employee_max?: number | null;
+  target_states?: string[];
+  portfolio_buyer_id?: string | null;
+  universe_id?: string | null;
+  priority?: number;
+  notes?: string | null;
+}
+
+export interface PortalIntelligenceDoc {
+  id: string;
+  portal_org_id: string;
+  doc_type: IntelligenceDocType;
+  title: string;
+  content: string | null;
+  file_url: string | null;
+  file_name: string | null;
+  file_type: string | null;
+  fireflies_transcript_id: string | null;
+  listing_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateIntelligenceDocInput {
+  portal_org_id: string;
+  doc_type: IntelligenceDocType;
+  title: string;
+  content?: string | null;
+  file_url?: string | null;
+  file_name?: string | null;
+  file_type?: string | null;
+  fireflies_transcript_id?: string | null;
+  listing_id?: string | null;
+}
+
+export interface PortalDealRecommendation {
+  id: string;
+  portal_org_id: string;
+  listing_id: string;
+  thesis_criteria_id: string | null;
+  portfolio_buyer_id: string | null;
+  portfolio_company_name: string | null;
+  match_score: number;
+  match_reasons: string[];
+  match_category: 'strong' | 'moderate' | 'weak';
+  status: RecommendationStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  dismiss_reason: string | null;
+  push_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PortalDealRecommendationWithListing extends PortalDealRecommendation {
+  listing_title?: string;
+  listing_industry?: string;
+  listing_state?: string;
+  listing_ebitda?: number | null;
+  listing_employees?: number | null;
+  thesis_label?: string;
 }

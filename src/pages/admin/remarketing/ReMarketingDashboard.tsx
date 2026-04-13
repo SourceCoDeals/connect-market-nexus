@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom';
 import { DealSourceBadge } from '@/components/remarketing/DealSourceBadge';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { formatDistanceToNow } from 'date-fns';
-import { BarChart3, ArrowUpRight, Zap, Clock } from 'lucide-react';
+import { BarChart3, ArrowUpRight, Zap, Clock, Phone, CheckCircle2 } from 'lucide-react';
 
 import { DashboardFilters } from './DashboardFilters';
 import { WeeklyChart } from './DashboardCharts';
@@ -44,7 +44,18 @@ const ReMarketingDashboard = () => {
     recentActivity,
     scoreBuckets,
     universeMetrics,
+    callActivity,
+    callActivityLoading,
+    adminActivity,
   } = useDashboardData(timeframe);
+
+  const formatTalkTime = (seconds: number) => {
+    if (!seconds) return '0m';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
 
   return (
     <div className="p-6 space-y-5 bg-gray-50/50 min-h-screen">
@@ -68,7 +79,9 @@ const ReMarketingDashboard = () => {
         cards && (
           <div className="grid gap-3 md:grid-cols-5">
             <div className="rounded-xl border bg-gray-900 text-white px-4 py-3.5">
-              <p className="text-[10px] uppercase tracking-widest text-gray-400">Active Opportunities</p>
+              <p className="text-[10px] uppercase tracking-widest text-gray-400">
+                Active Opportunities
+              </p>
               <p className="text-2xl font-bold mt-1">{cards.all_visible}</p>
               <p className="text-[11px] text-gray-400 mt-0.5">
                 +{cards.all_new_in_period} in period
@@ -103,6 +116,61 @@ const ReMarketingDashboard = () => {
               <p className="text-[11px] text-gray-500 mt-0.5">
                 {cards.pending_enrichment} pending · {cards.failed_enrichment} failed
               </p>
+            </div>
+          </div>
+        )
+      )}
+
+      {/* ROW 1b: Call Activity metrics (WF-14) */}
+      {callActivityLoading ? (
+        <div className="grid gap-3 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
+      ) : (
+        callActivity && (
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Phone className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">Calls Made</p>
+                <p className="text-xl font-bold">{callActivity.totalCalls}</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">Connected</p>
+                <p className="text-xl font-bold">
+                  {callActivity.connects}
+                  <span className="text-xs text-gray-500 font-normal ml-1.5">
+                    ({callActivity.connectRate}%)
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Clock className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">Talk Time</p>
+                <p className="text-xl font-bold">{formatTalkTime(callActivity.totalTalkSeconds)}</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-gray-50 text-gray-500 flex items-center justify-center shrink-0">
+                <Phone className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-gray-500">Voicemails</p>
+                <p className="text-xl font-bold">{callActivity.voicemails}</p>
+              </div>
             </div>
           </div>
         )
@@ -261,11 +329,11 @@ const ReMarketingDashboard = () => {
           )}
         </div>
 
-        {/* Team Assignments */}
+        {/* Team Assignments + Per-admin Activity (WF-7) */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-              Team Assignments
+              Team Activity
             </h3>
             <span className="text-xs text-gray-400">{cards?.all_visible || 0} deals</span>
           </div>
@@ -273,19 +341,69 @@ const ReMarketingDashboard = () => {
             <Skeleton className="h-32 w-full" />
           ) : (
             (() => {
-              const entries = teamData.sort((a, b) => {
+              // Merge deal-ownership data with per-admin activity so unassigned
+              // deals and low-activity admins still render. Key by owner_id.
+              const byId = new Map<
+                string,
+                {
+                  owner_id: string;
+                  total: number;
+                  enriched: number;
+                  scored: number;
+                  calls: number;
+                  connects: number;
+                  tasksCompleted: number;
+                }
+              >();
+              for (const t of teamData as Array<Record<string, unknown>>) {
+                const oid = t.owner_id as string;
+                byId.set(oid, {
+                  owner_id: oid,
+                  total: (t.total as number) || 0,
+                  enriched: (t.enriched as number) || 0,
+                  scored: (t.scored as number) || 0,
+                  calls: 0,
+                  connects: 0,
+                  tasksCompleted: 0,
+                });
+              }
+              for (const a of adminActivity) {
+                const existing = byId.get(a.userId);
+                if (existing) {
+                  existing.calls = a.calls;
+                  existing.connects = a.connects;
+                  existing.tasksCompleted = a.tasksCompleted;
+                } else {
+                  byId.set(a.userId, {
+                    owner_id: a.userId,
+                    total: 0,
+                    enriched: 0,
+                    scored: 0,
+                    calls: a.calls,
+                    connects: a.connects,
+                    tasksCompleted: a.tasksCompleted,
+                  });
+                }
+              }
+
+              const entries = Array.from(byId.values()).sort((a, b) => {
                 if (a.owner_id === '__unassigned') return 1;
                 if (b.owner_id === '__unassigned') return -1;
-                return (b.total as number) - (a.total as number);
+                const activityA = a.calls + a.tasksCompleted + a.total;
+                const activityB = b.calls + b.tasksCompleted + b.total;
+                return activityB - activityA;
               });
+
               return (
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {entries.map((item: any) => {
-                    const oid = item.owner_id as string;
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                  {entries.map((item) => {
+                    const oid = item.owner_id;
                     const profile =
                       oid !== '__unassigned' && adminProfiles ? adminProfiles[oid] : null;
                     const name = profile ? profile.displayName : 'Unassigned';
                     const fi = profile ? initials(profile.first_name, profile.last_name) : '?';
+                    const connectRate =
+                      item.calls > 0 ? Math.round((item.connects / item.calls) * 100) : 0;
                     return (
                       <div key={oid} className="flex items-center gap-3">
                         <div
@@ -295,11 +413,31 @@ const ReMarketingDashboard = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-800 truncate">{name}</p>
-                          <p className="text-[11px] text-gray-500">
-                            {item.enriched} enriched · {item.scored} scored
+                          <p className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
+                            <span>{item.total} deals</span>
+                            {item.calls > 0 && (
+                              <>
+                                <span className="text-gray-300">·</span>
+                                <span>
+                                  {item.calls} calls
+                                  {connectRate > 0 ? ` (${connectRate}% conn)` : ''}
+                                </span>
+                              </>
+                            )}
+                            {item.tasksCompleted > 0 && (
+                              <>
+                                <span className="text-gray-300">·</span>
+                                <span>{item.tasksCompleted} tasks ✓</span>
+                              </>
+                            )}
+                            {item.enriched > 0 && (
+                              <>
+                                <span className="text-gray-300">·</span>
+                                <span>{item.enriched} enriched</span>
+                              </>
+                            )}
                           </p>
                         </div>
-                        <span className="text-sm font-bold text-gray-800">{item.total}</span>
                       </div>
                     );
                   })}
@@ -373,9 +511,13 @@ const ReMarketingDashboard = () => {
                         {String(deal.deal_total_score ?? '')}
                       </span>
                     </td>
-                    <td className="py-2.5 pr-3 text-gray-600">{String(deal.address_state || '—')}</td>
+                    <td className="py-2.5 pr-3 text-gray-600">
+                      {String(deal.address_state || '—')}
+                    </td>
                     <td className="py-2.5 text-right text-gray-500 text-xs">
-                      {formatDistanceToNow(new Date(deal.created_at as string), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(deal.created_at as string), {
+                        addSuffix: true,
+                      })}
                     </td>
                   </tr>
                 ))}
