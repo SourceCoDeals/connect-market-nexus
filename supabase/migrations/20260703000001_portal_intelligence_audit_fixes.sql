@@ -7,23 +7,35 @@
 --   P1-10: Add ON DELETE CASCADE FK on portal_deal_recommendations.listing_id
 --          and portal_intelligence_docs.listing_id so deleted listings don't
 --          leave stranded rows
---   P1-11: Add SELECT policy so portal users can view recommendations in their org
 --   P1-13: Require non-empty industry_keywords on portal_thesis_criteria
 --   P2-18: Skip deleted / not_a_fit listings in the queue trigger
 --   P2-19: Replace no-op `WHEN (OLD IS DISTINCT FROM NEW)` with per-column check
 --   P2-20: Widen money columns from INTEGER to BIGINT (>$2.1B cap)
 --   P3-22: CHECK constraints enforcing min <= max on size ranges
+--
+-- Product decision: thesis criteria and deal recommendations are
+-- INTERNAL-ONLY — portal users (clients) should NOT be able to see either.
+-- This migration also revokes the pre-existing "Portal users can view own
+-- org criteria" SELECT policy from the 20260703000000 migration.
 
 -- All statements are idempotent (safe to re-run).
 
 -- ================================================================
--- P0-6 / P1-11: RLS policies — use is_admin() and grant SELECT to portal users
+-- P0-6: RLS policies — use is_admin() (was profiles.is_admin, which is a
+-- stale-cache regression fixed everywhere else in the codebase).
+-- Thesis criteria + recommendations are admin-only — portal users must
+-- NOT see either. Intelligence docs are also admin-only (no change).
 -- ================================================================
 DROP POLICY IF EXISTS "Admins can manage thesis criteria" ON portal_thesis_criteria;
 CREATE POLICY "Admins can manage thesis criteria"
   ON portal_thesis_criteria FOR ALL
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
+
+-- Revoke the client-visible SELECT policy that shipped in 20260703000000.
+-- Portal users (clients) should not see their own thesis criteria — this
+-- data is SourceCo's internal targeting, not for client consumption.
+DROP POLICY IF EXISTS "Portal users can view own org criteria" ON portal_thesis_criteria;
 
 DROP POLICY IF EXISTS "Admins can manage intelligence docs" ON portal_intelligence_docs;
 CREATE POLICY "Admins can manage intelligence docs"
@@ -37,20 +49,9 @@ CREATE POLICY "Admins can manage recommendations"
   USING (public.is_admin(auth.uid()))
   WITH CHECK (public.is_admin(auth.uid()));
 
--- P1-11: portal users can read their own org's recommendations (read-only).
--- Only non-dismissed rows so dismissed recommendations don't leak to clients.
-DROP POLICY IF EXISTS "Portal users can view own org recommendations" ON portal_deal_recommendations;
-CREATE POLICY "Portal users can view own org recommendations"
-  ON portal_deal_recommendations FOR SELECT
-  USING (
-    status <> 'dismissed'
-    AND EXISTS (
-      SELECT 1 FROM portal_users
-      WHERE portal_users.portal_org_id = portal_deal_recommendations.portal_org_id
-        AND portal_users.profile_id = auth.uid()
-        AND portal_users.is_active = TRUE
-    )
-  );
+-- Intentionally no SELECT policy for portal users on portal_deal_recommendations.
+-- Recommendations are internal-only. With RLS enabled and no matching
+-- policy, portal-user queries return zero rows (not an error).
 
 -- ================================================================
 -- P1-9: Enable RLS on portal_recommendation_queue (service role still bypasses)
