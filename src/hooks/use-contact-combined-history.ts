@@ -315,8 +315,10 @@ export function useContactCombinedHistory(buyerId: string | null) {
 
       // ── 4. Outlook Emails ──
       const { data: buyerContacts } = await supabase
-        .from('contacts').select('id')
-        .eq('remarketing_buyer_id', buyerId).eq('archived', false);
+        .from('contacts')
+        .select('id')
+        .eq('remarketing_buyer_id', buyerId)
+        .eq('archived', false);
       const emailContactIds = (buyerContacts || []).map((c: { id: string }) => c.id);
 
       if (emailContactIds.length > 0) {
@@ -324,11 +326,13 @@ export function useContactCombinedHistory(buyerId: string | null) {
           .from('email_messages')
           .select('id, direction, from_address, to_addresses, subject, sent_at, has_attachments')
           .in('contact_id', emailContactIds)
-          .order('sent_at', { ascending: false }).limit(100);
+          .order('sent_at', { ascending: false })
+          .limit(100);
 
         for (const e of outlookEmails || []) {
           entries.push({
-            id: `outlook-${e.id}`, timestamp: e.sent_at,
+            id: `outlook-${e.id}`,
+            timestamp: e.sent_at,
             channel: 'email' as const,
             event_type: e.direction === 'outbound' ? 'EMAIL_SENT' : 'EMAIL_RECEIVED',
             label: e.direction === 'outbound' ? 'Email Sent (Outlook)' : 'Email Received (Outlook)',
@@ -343,11 +347,13 @@ export function useContactCombinedHistory(buyerId: string | null) {
         .from('buyer_transcripts')
         .select('id, title, call_date, duration_minutes, summary, fireflies_transcript_id')
         .eq('buyer_id', buyerId)
-        .order('call_date', { ascending: false }).limit(50);
+        .order('call_date', { ascending: false })
+        .limit(50);
 
       for (const t of buyerMeetings || []) {
         entries.push({
-          id: `meeting-${t.id}`, timestamp: t.call_date || new Date().toISOString(),
+          id: `meeting-${t.id}`,
+          timestamp: t.call_date || new Date().toISOString(),
           channel: 'call' as const,
           event_type: 'meeting_recorded',
           label: 'Meeting Recorded (Fireflies)',
@@ -359,10 +365,132 @@ export function useContactCombinedHistory(buyerId: string | null) {
         });
       }
 
-      // Sort by timestamp descending (newest first)
-      entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      // ── 6. SmartLead Messages (new per-message table) ──
+      // Scoped by remarketing_buyer_id — the anchor on every buyer outreach row.
+      // This complements section 2 (webhook events table) with the fully parsed
+      // per-message records including body, sequence, and direction.
+      if (emailContactIds.length > 0 || buyerId) {
+        const { data: smartleadMsgs } = await (supabase as any)
+          .from('smartlead_messages')
+          .select(
+            'id, smartlead_campaign_id, event_type, direction, subject, body_text, sent_at, sequence_number, from_address',
+          )
+          .eq('remarketing_buyer_id', buyerId)
+          .order('sent_at', { ascending: false })
+          .limit(100);
 
-      return entries;
+        // Resolve campaign names for display
+        const slMsgCampaignIds = [
+          ...new Set(
+            (smartleadMsgs || [])
+              .map((m: { smartlead_campaign_id: number }) => m.smartlead_campaign_id)
+              .filter(Boolean),
+          ),
+        ] as number[];
+        let slMsgCampaignNames = new Map<number, string>();
+        if (slMsgCampaignIds.length > 0) {
+          const { data: slmc } = await supabase
+            .from('smartlead_campaigns')
+            .select('name, smartlead_campaign_id')
+            .in('smartlead_campaign_id', slMsgCampaignIds);
+          slMsgCampaignNames = new Map(
+            (slmc || []).map((c: { smartlead_campaign_id: number; name: string }) => [
+              c.smartlead_campaign_id,
+              c.name,
+            ]),
+          );
+        }
+
+        for (const m of smartleadMsgs || []) {
+          const campaignName = m.smartlead_campaign_id
+            ? slMsgCampaignNames.get(m.smartlead_campaign_id) || null
+            : null;
+          entries.push({
+            id: `sl-msg-${m.id}`,
+            timestamp: m.sent_at,
+            channel: 'email',
+            event_type: m.event_type,
+            label:
+              EMAIL_EVENT_LABELS[m.event_type?.toUpperCase?.() ?? ''] || `Email ${m.event_type}`,
+            context: m.subject || (campaignName ? `Campaign: ${campaignName}` : null),
+            details: {
+              campaign_name: campaignName,
+              lead_email: m.from_address,
+            },
+          });
+        }
+      }
+
+      // ── 7. HeyReach Messages (new per-message table) ──
+      if (buyerId) {
+        const { data: heyreachMsgs } = await (supabase as any)
+          .from('heyreach_messages')
+          .select(
+            'id, heyreach_campaign_id, event_type, direction, message_type, subject, body_text, sent_at, from_linkedin_url, to_linkedin_url',
+          )
+          .eq('remarketing_buyer_id', buyerId)
+          .order('sent_at', { ascending: false })
+          .limit(100);
+
+        const hrMsgCampaignIds = [
+          ...new Set(
+            (heyreachMsgs || [])
+              .map((m: { heyreach_campaign_id: number }) => m.heyreach_campaign_id)
+              .filter(Boolean),
+          ),
+        ] as number[];
+        let hrMsgCampaignNames = new Map<number, string>();
+        if (hrMsgCampaignIds.length > 0) {
+          const { data: hrmc } = await supabase
+            .from('heyreach_campaigns')
+            .select('name, heyreach_campaign_id')
+            .in('heyreach_campaign_id', hrMsgCampaignIds);
+          hrMsgCampaignNames = new Map(
+            (hrmc || []).map((c: { heyreach_campaign_id: number; name: string }) => [
+              c.heyreach_campaign_id,
+              c.name,
+            ]),
+          );
+        }
+
+        for (const m of heyreachMsgs || []) {
+          const campaignName = m.heyreach_campaign_id
+            ? hrMsgCampaignNames.get(m.heyreach_campaign_id) || null
+            : null;
+          const labelKey = (m.event_type || '').toUpperCase();
+          entries.push({
+            id: `hr-msg-${m.id}`,
+            timestamp: m.sent_at,
+            channel: 'linkedin',
+            event_type: m.event_type,
+            label:
+              LINKEDIN_EVENT_LABELS[labelKey] ||
+              (m.event_type || 'LinkedIn Event').replace(/_/g, ' '),
+            context: m.subject || (campaignName ? `Campaign: ${campaignName}` : null),
+            details: {
+              campaign_name: campaignName,
+              lead_linkedin_url:
+                m.direction === 'outbound' ? m.to_linkedin_url : m.from_linkedin_url,
+            },
+          });
+        }
+      }
+
+      // De-duplicate by id across sections (webhook events + message tables
+      // may describe the same underlying event)
+      const seen = new Set<string>();
+      const deduped: UnifiedActivityEntry[] = [];
+      for (const e of entries) {
+        if (!seen.has(e.id)) {
+          seen.add(e.id);
+          deduped.push(e);
+        }
+      }
+
+      // Sort by timestamp descending (newest first)
+      deduped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return deduped;
     },
     enabled: !!buyerId,
     staleTime: 60_000,
@@ -536,8 +664,10 @@ export function useContactCombinedHistoryByEmail(email: string | null) {
 
       // ── 4. Outlook Emails by email address ──
       const { data: emailContacts } = await supabase
-        .from('contacts').select('id, remarketing_buyer_id')
-        .eq('email', email).eq('archived', false);
+        .from('contacts')
+        .select('id, remarketing_buyer_id')
+        .eq('email', email)
+        .eq('archived', false);
       const outlookContactIds = (emailContacts || []).map((c: any) => c.id);
 
       if (outlookContactIds.length > 0) {
@@ -545,11 +675,13 @@ export function useContactCombinedHistoryByEmail(email: string | null) {
           .from('email_messages')
           .select('id, direction, from_address, to_addresses, subject, sent_at, has_attachments')
           .in('contact_id', outlookContactIds)
-          .order('sent_at', { ascending: false }).limit(100);
+          .order('sent_at', { ascending: false })
+          .limit(100);
 
         for (const e of outlookEmails || []) {
           entries.push({
-            id: `outlook-${e.id}`, timestamp: e.sent_at,
+            id: `outlook-${e.id}`,
+            timestamp: e.sent_at,
             channel: 'email' as const,
             event_type: e.direction === 'outbound' ? 'EMAIL_SENT' : 'EMAIL_RECEIVED',
             label: e.direction === 'outbound' ? 'Email Sent (Outlook)' : 'Email Received (Outlook)',
@@ -560,17 +692,21 @@ export function useContactCombinedHistoryByEmail(email: string | null) {
       }
 
       // ── 5. Fireflies Meetings (via contact → buyer resolution) ──
-      const buyerIdsFromContacts = [...new Set((emailContacts || []).map((c: any) => c.remarketing_buyer_id).filter(Boolean))] as string[];
+      const buyerIdsFromContacts = [
+        ...new Set((emailContacts || []).map((c: any) => c.remarketing_buyer_id).filter(Boolean)),
+      ] as string[];
       if (buyerIdsFromContacts.length > 0) {
         const { data: emailBuyerMeetings } = await (supabase as any)
           .from('buyer_transcripts')
           .select('id, title, call_date, duration_minutes, summary, fireflies_transcript_id')
           .in('buyer_id', buyerIdsFromContacts)
-          .order('call_date', { ascending: false }).limit(50);
+          .order('call_date', { ascending: false })
+          .limit(50);
 
         for (const t of emailBuyerMeetings || []) {
           entries.push({
-            id: `meeting-${t.id}`, timestamp: t.call_date || new Date().toISOString(),
+            id: `meeting-${t.id}`,
+            timestamp: t.call_date || new Date().toISOString(),
             channel: 'call' as const,
             event_type: 'meeting_recorded',
             label: 'Meeting Recorded (Fireflies)',

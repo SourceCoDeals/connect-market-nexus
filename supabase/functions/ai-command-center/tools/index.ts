@@ -44,6 +44,7 @@ import { firefliesSummaryTools, executeFirefliesSummaryTool } from './fireflies-
 import { alertTools, executeAlertTool } from './alert-tools.ts';
 import { recommendedBuyerTools, executeRecommendedBuyerTool } from './recommended-buyer-tools.ts';
 import { introductionTools, executeIntroductionTool } from './introduction-tools.ts';
+import { outreachMessagesTools, executeOutreachMessagesTool } from './outreach-messages-tools.ts';
 
 // ---------- Tool Result Types ----------
 
@@ -85,6 +86,7 @@ const ALL_TOOLS: ClaudeTool[] = [
   ...alertTools,
   ...recommendedBuyerTools,
   ...introductionTools,
+  ...outreachMessagesTools,
 ];
 
 // ---------- Backward-compat: old tool name → executor mapping ----------
@@ -178,6 +180,9 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_buyer_signals', // merged: was get_buyer_decisions
     'get_buyer_history', // merged: was get_score_history + get_buyer_learning_history
     'get_buyer_introductions_history',
+    'get_contact_outreach_history',
+    'get_contact_outreach_summary',
+    'get_firm_outreach_summary',
     'search_pe_contacts',
     'search_contacts',
     'select_table_rows',
@@ -216,6 +221,7 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_industry_trackers',
     'get_connection_requests',
     'get_introduction_conversion_stats',
+    'get_campaign_outreach_stats',
   ],
   DAILY_BRIEFING: [
     'get_current_user_context',
@@ -289,6 +295,12 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_deal_introductions',
     'get_buyer_introductions_history',
     'get_introduction_conversion_stats',
+    'get_contact_outreach_history',
+    'get_contact_outreach_summary',
+    'get_firm_outreach_summary',
+    'get_campaign_outreach_stats',
+    'get_dropped_outreach_threads',
+    'get_stale_outreach_contacts',
     'clay_find_email',
     'clay_find_phone',
   ],
@@ -342,6 +354,10 @@ const TOOL_CATEGORIES: Record<string, string[]> = {
     'get_firm_agreements',
     'get_nda_logs',
     'get_call_history',
+    'get_contact_outreach_history',
+    'get_contact_outreach_summary',
+    'get_dropped_outreach_threads',
+    'get_stale_outreach_contacts',
     'enrich_contact', // merged: was enrich_buyer_contacts + enrich_linkedin_contact
     'find_contact', // merged: was find_contact_linkedin + find_and_enrich_person
     'clay_find_email',
@@ -669,6 +685,8 @@ async function _executeToolInternal(
     return executeRecommendedBuyerTool(supabase, toolName, resolvedArgs);
   if (introductionTools.some((t) => t.name === toolName))
     return executeIntroductionTool(supabase, toolName, resolvedArgs);
+  if (outreachMessagesTools.some((t) => t.name === toolName))
+    return executeOutreachMessagesTool(supabase, toolName, resolvedArgs);
 
   // Backward compatibility: route old (merged) tool names to their new executors
   const legacyRouter = LEGACY_TOOL_ROUTING[toolName];

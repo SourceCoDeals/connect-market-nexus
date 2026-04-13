@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,6 +29,12 @@ import { useNonMarketplaceUsers } from '@/hooks/admin/use-non-marketplace-users'
 import type { NonMarketplaceUserFilters } from '@/types/non-marketplace-user';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
+
+type ContactOutreachRow = {
+  contact_id: string;
+  last_touch_at: string | null;
+  total_outbound_events: number | null;
+};
 
 const BuyerContactsPage = () => {
   const { data: nonMarketplaceUsers = [], isLoading } = useNonMarketplaceUsers();
@@ -94,6 +102,52 @@ const BuyerContactsPage = () => {
     [setSearchParams],
   );
 
+  // Outreach staleness filter — reads v_contact_outreach_summary
+  // Values: 'all' | 'stale_21' | 'stale_60' | 'never_touched' | 'recent_reply'
+  const outreachFilter = searchParams.get('outreach') ?? 'all';
+  const setOutreachFilter = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('outreach', v);
+          else n.delete('outreach');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  // Load contact-level outreach rollup once. Keyed by contact_id.
+  const { data: outreachRows } = useQuery({
+    queryKey: ['buyer-contacts-outreach-summary'],
+    queryFn: async () => {
+      const { data, error } = await (
+        supabase as unknown as {
+          from: (t: string) => {
+            select: (
+              cols: string,
+            ) => Promise<{ data: ContactOutreachRow[] | null; error: Error | null }>;
+          };
+        }
+      )
+        .from('v_contact_outreach_summary')
+        .select('contact_id, last_touch_at, total_outbound_events');
+      if (error) throw error;
+      return (data || []) as ContactOutreachRow[];
+    },
+    staleTime: 120_000,
+    enabled: outreachFilter !== 'all',
+  });
+
+  const outreachMap = useMemo(() => {
+    const m = new Map<string, ContactOutreachRow>();
+    for (const row of outreachRows || []) m.set(row.contact_id, row);
+    return m;
+  }, [outreachRows]);
+
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -110,9 +164,17 @@ const BuyerContactsPage = () => {
       if (mode === 'replace') {
         setSelectedIds(new Set(rowIds));
       } else if (mode === 'add') {
-        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => next.add(id)); return next; });
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          rowIds.forEach((id) => next.add(id));
+          return next;
+        });
       } else {
-        setSelectedIds((prev) => { const next = new Set(prev); rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id))); return next; });
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          rowIds.forEach((id) => (next.has(id) ? next.delete(id) : next.add(id)));
+          return next;
+        });
       }
     },
     onClearSelection: () => setSelectedIds(new Set()),
@@ -182,9 +244,35 @@ const BuyerContactsPage = () => {
             break;
         }
       }
+      // Outreach staleness filter — joins to v_contact_outreach_summary via source_id
+      if (outreachFilter !== 'all') {
+        const outreachRow = outreachMap.get(user.source_id);
+        const lastTouch = outreachRow?.last_touch_at
+          ? new Date(outreachRow.last_touch_at).getTime()
+          : null;
+        const now = Date.now();
+        const day = 24 * 60 * 60 * 1000;
+
+        switch (outreachFilter) {
+          case 'never_touched':
+            // No row at all OR total_outbound_events is 0
+            if (outreachRow && (outreachRow.total_outbound_events ?? 0) > 0) return false;
+            break;
+          case 'stale_21':
+            if (lastTouch && now - lastTouch < 21 * day) return false;
+            break;
+          case 'stale_60':
+            if (lastTouch && now - lastTouch < 60 * day) return false;
+            break;
+          case 'recent_touch':
+            // Touched in last 7 days
+            if (!lastTouch || now - lastTouch > 7 * day) return false;
+            break;
+        }
+      }
       return true;
     });
-  }, [nonMarketplaceUsers, filters]);
+  }, [nonMarketplaceUsers, filters, outreachFilter, outreachMap]);
 
   // Stats
   const stats = useMemo(() => {
@@ -317,6 +405,18 @@ const BuyerContactsPage = () => {
               <SelectItem value="has_mobile">Has Mobile Phone</SelectItem>
               <SelectItem value="office_only">Office Phone Only</SelectItem>
               <SelectItem value="no_phone">No Phone At All</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={outreachFilter} onValueChange={setOutreachFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Outreach Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Outreach Status</SelectItem>
+              <SelectItem value="never_touched">Never Touched</SelectItem>
+              <SelectItem value="stale_21">No Outreach 21d+</SelectItem>
+              <SelectItem value="stale_60">No Outreach 60d+</SelectItem>
+              <SelectItem value="recent_touch">Touched Last 7d</SelectItem>
             </SelectContent>
           </Select>
         </div>

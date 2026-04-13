@@ -26,7 +26,7 @@ import { Loader2, Lock, Building2, ChevronDown, Users, Search, X } from 'lucide-
 import { toast } from 'sonner';
 import { ReferralSubmissionForm } from '@/components/remarketing/ReferralSubmissionForm';
 import { ReferralCSVUpload } from '@/components/remarketing/ReferralCSVUpload';
-const sourcecoLogo = '/assets/b879fa06-6a99-4263-b973-b9ced4404acb.png';
+const sourcecoLogo = '/lovable-uploads/b879fa06-6a99-4263-b973-b9ced4404acb.png';
 
 interface PartnerData {
   name: string;
