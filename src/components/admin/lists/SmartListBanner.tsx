@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Zap, RefreshCw, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -52,14 +53,17 @@ export function SmartListBanner({ list, onRefresh }: SmartListBannerProps) {
   const handleToggleAutoAdd = async (enabled: boolean) => {
     setIsTogglingAutoAdd(true);
     try {
-      const { error } = await (supabase.from('contact_lists') as any)
+      const { error } = await supabase
+        .from('contact_lists')
         .update({ auto_add_enabled: enabled })
         .eq('id', list.id);
       if (error) throw error;
       toast.success(enabled ? 'Auto-add enabled' : 'Auto-add paused');
       onRefresh();
     } catch (err) {
-      toast.error('Failed to update auto-add setting');
+      toast.error('Failed to update auto-add setting', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
     } finally {
       setIsTogglingAutoAdd(false);
     }
@@ -87,14 +91,32 @@ export function SmartListBanner({ list, onRefresh }: SmartListBannerProps) {
               Auto-add
             </Label>
           </div>
-          <Button variant="outline" size="sm" onClick={handleEvaluateNow} disabled={isEvaluating}>
-            {isEvaluating ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            )}
-            Evaluate Now
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEvaluateNow}
+                    disabled={isEvaluating || !list.auto_add_enabled}
+                  >
+                    {isEvaluating ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Evaluate Now
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!list.auto_add_enabled && (
+                <TooltipContent>
+                  Enable Auto-add first — paused smart lists are skipped by the worker.
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
