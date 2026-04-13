@@ -217,15 +217,57 @@ Deno.serve(async (req) => {
       ip_address: req.headers.get('x-forwarded-for') || req.headers.get('cf-connecting-ip') || null,
     });
 
-    // Log to deal_activities for deal timeline visibility (use listing_id as deal_id)
+    // Log to deal_activities for deal timeline visibility.
+    // `deal_activities.deal_id` is an FK to `deal_pipeline(id)` — NOT to
+    // `listings(id)` — so we must resolve the contact's *deal_pipeline* row
+    // via buyer/seller contact assignments, not via the legacy
+    // `contacts.listing_id` shortcut. We also backfill
+    // `email_messages.deal_id` on the placeholder record if we manage to
+    // resolve a deal here, so the send-time record already shows up on the
+    // deal timeline without waiting for the next Outlook sync cycle.
     let resolvedDealId = body.dealId || null;
     if (!resolvedDealId && body.contactId) {
       try {
-        const { data: ct } = await supabase.from('contacts').select('listing_id').eq('id', body.contactId).single();
-        if (ct?.listing_id) {
-          resolvedDealId = ct.listing_id;
+        const { data: buyerDeal } = await supabase
+          .from('deal_pipeline')
+          .select('id, updated_at')
+          .eq('buyer_contact_id', body.contactId)
+          .is('deleted_at', null)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (buyerDeal?.id) {
+          resolvedDealId = buyerDeal.id;
+        } else {
+          const { data: sellerDeal } = await supabase
+            .from('deal_pipeline')
+            .select('id, updated_at')
+            .eq('seller_contact_id', body.contactId)
+            .is('deleted_at', null)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (sellerDeal?.id) {
+            resolvedDealId = sellerDeal.id;
+          }
         }
-      } catch (_) { /* ignore resolution failure */ }
+      } catch (e) {
+        console.error('[outlook-send] Failed to resolve deal_pipeline for contact:', e);
+      }
+    }
+
+    // Backfill the just-created email_messages row with the resolved deal
+    // (best-effort; safe to ignore failures).
+    if (resolvedDealId && emailRecord?.id) {
+      try {
+        await supabase
+          .from('email_messages')
+          .update({ deal_id: resolvedDealId })
+          .eq('id', emailRecord.id)
+          .is('deal_id', null);
+      } catch (e) {
+        console.error('[outlook-send] Failed to backfill email deal_id:', e);
+      }
     }
 
     if (resolvedDealId) {
