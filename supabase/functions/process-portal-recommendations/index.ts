@@ -11,7 +11,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { requireServiceRole } from '../_shared/auth.ts';
-import { scoreListingAgainstCriteria, reasonsEqual, type ThesisCriteria } from './scoring.ts';
+import {
+  planRecommendationWrites,
+  type ExistingRecommendation,
+  type ThesisCriteria,
+} from './scoring.ts';
 
 const BATCH_SIZE = 200;
 
@@ -109,10 +113,7 @@ serve(async (req) => {
 
     // 4. Batch-fetch all existing recommendations for these listings (P2-15).
     // This avoids N+1 SELECTs inside the inner loop.
-    const existingMap = new Map<
-      string, // key: `${orgId}|${listingId}`
-      { id: string; match_score: number; match_reasons: string[] | null; status: string }
-    >();
+    let existingRecs: ExistingRecommendation[] = [];
     if (validListings.length > 0) {
       const { data: existingRows } = await supabase
         .from('portal_deal_recommendations')
@@ -121,104 +122,16 @@ serve(async (req) => {
           'listing_id',
           validListings.map((l) => l.id),
         );
-      for (const row of existingRows ?? []) {
-        existingMap.set(`${row.portal_org_id}|${row.listing_id}`, {
-          id: row.id,
-          match_score: row.match_score,
-          match_reasons: row.match_reasons,
-          status: row.status,
-        });
-      }
+      existingRecs = (existingRows ?? []) as ExistingRecommendation[];
     }
 
-    // 5. Evaluate each listing against each criterion
-    const toInsert: Array<Record<string, unknown>> = [];
-    const toUpdate: Array<{ id: string; patch: Record<string, unknown> }> = [];
-    const toReap: string[] = []; // recommendation IDs to flip to 'stale'
-
-    for (const listing of validListings) {
-      results.processed++;
-
-      // Group criteria by portal_org_id — only keep best match per org.
-      // Tiebreaker: higher priority (1 = highest → prefer lower number).
-      const bestByOrg = new Map<
-        string,
-        {
-          criteria: ThesisCriteria;
-          score: number;
-          reasons: string[];
-          category: string;
-        }
-      >();
-
-      for (const criteria of activeCriteria) {
-        const result = scoreListingAgainstCriteria(listing as Record<string, unknown>, criteria);
-
-        if (result.score < 30) continue; // Below threshold
-
-        const existing = bestByOrg.get(criteria.portal_org_id);
-        if (
-          !existing ||
-          result.score > existing.score ||
-          // P3-30: priority as tiebreaker when scores are equal
-          (result.score === existing.score && criteria.priority < existing.criteria.priority)
-        ) {
-          bestByOrg.set(criteria.portal_org_id, {
-            criteria,
-            ...result,
-          });
-        }
-      }
-
-      // Which orgs previously had a pending rec for this listing but no longer match?
-      // Flip them to status='stale' (P0-5 stale reaper).
-      for (const [key, existing] of existingMap) {
-        const [orgId, listingId] = key.split('|');
-        if (listingId !== listing.id) continue;
-        if (existing.status !== 'pending') continue;
-        if (!bestByOrg.has(orgId)) {
-          toReap.push(existing.id);
-        }
-      }
-
-      // 6. Queue inserts / updates for this listing
-      for (const [orgId, match] of bestByOrg) {
-        const key = `${orgId}|${listing.id}`;
-        const existing = existingMap.get(key);
-
-        if (!existing) {
-          toInsert.push({
-            portal_org_id: orgId,
-            listing_id: listing.id,
-            thesis_criteria_id: match.criteria.id,
-            portfolio_buyer_id: match.criteria.portfolio_buyer_id,
-            portfolio_company_name: match.criteria.portfolio_company_name || null,
-            match_score: match.score,
-            match_reasons: match.reasons,
-            match_category: match.category,
-            status: 'pending',
-          });
-        } else if (
-          existing.status === 'pending' &&
-          // P3-29: update when score OR reasons drifted (only match_reasons
-          // changes on criterion swap at same score)
-          (existing.match_score !== match.score ||
-            !reasonsEqual(existing.match_reasons, match.reasons))
-        ) {
-          toUpdate.push({
-            id: existing.id,
-            patch: {
-              match_score: match.score,
-              match_reasons: match.reasons,
-              match_category: match.category,
-              thesis_criteria_id: match.criteria.id,
-              portfolio_buyer_id: match.criteria.portfolio_buyer_id,
-              portfolio_company_name: match.criteria.portfolio_company_name || null,
-            },
-          });
-        }
-      }
-    }
+    // 5. Compute inserts/updates/reaps via the pure planner (testable).
+    results.processed += validListings.length;
+    const { toInsert, toUpdate, toReap } = planRecommendationWrites(
+      validListings as unknown as Parameters<typeof planRecommendationWrites>[0],
+      activeCriteria,
+      existingRecs,
+    );
 
     // 7. Execute writes. Abort the queue-drain if any write errors (P0-4).
     let writeFailure = false;

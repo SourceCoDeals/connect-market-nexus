@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useCreateThesisCriteria, useUpdateThesisCriteria } from '@/hooks/portal/use-portal-thesis';
+import { useBuyerSearch, useBuyerLabel } from '@/hooks/portal/use-buyer-search';
+import { AsyncCombobox } from '@/components/ui/async-combobox';
 import type { PortalThesisCriteria } from '@/types/portal';
 
 interface ThesisCriteriaFormProps {
@@ -63,9 +65,13 @@ export function ThesisCriteriaForm({
   const [employeeMin, setEmployeeMin] = useState('');
   const [employeeMax, setEmployeeMax] = useState('');
   const [targetStates, setTargetStates] = useState('');
-  const [portfolioCompany, setPortfolioCompany] = useState('');
+  const [portfolioBuyerId, setPortfolioBuyerId] = useState<string | null>(null);
+  const [buyerSearch, setBuyerSearch] = useState('');
   const [priority, setPriority] = useState('3');
   const [notes, setNotes] = useState('');
+
+  const { options: buyerOptions, isLoading: buyerLoading } = useBuyerSearch(buyerSearch);
+  const { data: selectedBuyerLabel } = useBuyerLabel(portfolioBuyerId);
 
   // Reset form when dialog opens / editing changes
   useEffect(() => {
@@ -80,7 +86,7 @@ export function ThesisCriteriaForm({
         setEmployeeMin(editingCriteria.employee_min?.toString() ?? '');
         setEmployeeMax(editingCriteria.employee_max?.toString() ?? '');
         setTargetStates(editingCriteria.target_states.join(', '));
-        setPortfolioCompany(editingCriteria.portfolio_buyer_id ?? '');
+        setPortfolioBuyerId(editingCriteria.portfolio_buyer_id ?? null);
         setPriority(editingCriteria.priority.toString());
         setNotes(editingCriteria.notes ?? '');
       } else {
@@ -93,7 +99,7 @@ export function ThesisCriteriaForm({
         setEmployeeMin('');
         setEmployeeMax('');
         setTargetStates('');
-        setPortfolioCompany('');
+        setPortfolioBuyerId(null);
         setPriority('3');
         setNotes('');
       }
@@ -143,13 +149,9 @@ export function ThesisCriteriaForm({
       employee_min: toIntegerOrNull(employeeMin),
       employee_max: toIntegerOrNull(employeeMax),
       target_states: parseCommaList(targetStates),
-      // portfolio_buyer_id requires a UUID — leave null until buyer search is wired up
-      portfolio_buyer_id: null,
+      portfolio_buyer_id: portfolioBuyerId,
       priority: Math.min(5, Math.max(1, Number(priority) || 3)),
-      notes:
-        [portfolioCompany.trim() ? `Portfolio: ${portfolioCompany.trim()}` : '', notes.trim()]
-          .filter(Boolean)
-          .join('\n') || null,
+      notes: notes.trim() || null,
     };
 
     const onSuccess = () => {
@@ -285,15 +287,25 @@ export function ThesisCriteriaForm({
             </p>
           </div>
 
-          {/* Portfolio Company */}
+          {/* Portfolio Buyer (optional) — links this criterion to an existing
+              buyer/PE portfolio company so recommendations can credit the match. */}
           <div className="space-y-1.5">
-            <Label htmlFor="portfolio-company">Portfolio Company (notes)</Label>
-            <Input
-              id="portfolio-company"
-              value={portfolioCompany}
-              onChange={(e) => setPortfolioCompany(e.target.value)}
-              placeholder="e.g., Comfort Systems"
+            <Label>Portfolio Buyer (optional)</Label>
+            <AsyncCombobox
+              value={portfolioBuyerId}
+              onValueChange={(v) => setPortfolioBuyerId(v)}
+              options={buyerOptions}
+              onSearchChange={setBuyerSearch}
+              isLoading={buyerLoading}
+              selectedLabel={selectedBuyerLabel}
+              placeholder="No portfolio buyer linked"
+              searchPlaceholder="Search buyers..."
+              emptyText="No matching buyers"
             />
+            <p className="text-xs text-muted-foreground">
+              Link this thesis to an existing buyer so recommendations show the portfolio company
+              name.
+            </p>
           </div>
 
           {/* Priority */}

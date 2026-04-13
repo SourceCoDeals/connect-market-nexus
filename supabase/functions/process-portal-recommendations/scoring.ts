@@ -172,3 +172,168 @@ export function scoreListingAgainstCriteria(
     score >= 70 ? 'strong' : score >= 45 ? 'moderate' : 'weak';
   return { score, reasons, category };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// PLANNER — pure function that computes what writes should happen for
+// a batch of listings given existing recommendations and active criteria.
+// Separated from the runtime orchestration in index.ts so it can be
+// unit tested without a real Supabase client.
+// ─────────────────────────────────────────────────────────────────────
+
+export interface PlannerListing {
+  id: string;
+  industry?: unknown;
+  category?: unknown;
+  categories?: unknown;
+  services?: unknown;
+  service_mix?: unknown;
+  executive_summary?: unknown;
+  address_state?: unknown;
+  ebitda?: unknown;
+  revenue?: unknown;
+  linkedin_employee_count?: unknown;
+  deal_total_score?: unknown;
+}
+
+export interface ExistingRecommendation {
+  id: string;
+  portal_org_id: string;
+  listing_id: string;
+  match_score: number;
+  match_reasons: string[] | null;
+  status: string;
+}
+
+export interface PlanInsert {
+  portal_org_id: string;
+  listing_id: string;
+  thesis_criteria_id: string;
+  portfolio_buyer_id: string | null;
+  portfolio_company_name: string | null;
+  match_score: number;
+  match_reasons: string[];
+  match_category: ScoreResult['category'];
+  status: 'pending';
+}
+
+export interface PlanUpdate {
+  id: string;
+  patch: {
+    match_score: number;
+    match_reasons: string[];
+    match_category: ScoreResult['category'];
+    thesis_criteria_id: string;
+    portfolio_buyer_id: string | null;
+    portfolio_company_name: string | null;
+  };
+}
+
+export interface PlanResult {
+  toInsert: PlanInsert[];
+  toUpdate: PlanUpdate[];
+  /** Recommendation IDs whose deal no longer matches any criterion. */
+  toReap: string[];
+}
+
+/**
+ * Given a batch of listings, all active criteria, and the existing rows
+ * in `portal_deal_recommendations` for those listings, compute what should
+ * be inserted, updated, and reaped.
+ *
+ * The function is pure — no side effects, no async, no network calls.
+ */
+export function planRecommendationWrites(
+  listings: PlannerListing[],
+  criteria: ThesisCriteria[],
+  existing: ExistingRecommendation[],
+  minScore = 30,
+): PlanResult {
+  const toInsert: PlanInsert[] = [];
+  const toUpdate: PlanUpdate[] = [];
+  const toReap: string[] = [];
+
+  // Index existing rows by (org, listing) for O(1) lookup.
+  const existingMap = new Map<string, ExistingRecommendation>();
+  for (const row of existing) {
+    existingMap.set(`${row.portal_org_id}|${row.listing_id}`, row);
+  }
+
+  for (const listing of listings) {
+    // Compute the best-scoring criterion per portal org for THIS listing.
+    const bestByOrg = new Map<
+      string,
+      {
+        criteria: ThesisCriteria;
+        score: number;
+        reasons: string[];
+        category: ScoreResult['category'];
+      }
+    >();
+
+    for (const criterion of criteria) {
+      const result = scoreListingAgainstCriteria(
+        listing as unknown as Record<string, unknown>,
+        criterion,
+      );
+
+      if (result.score < minScore) continue;
+
+      const best = bestByOrg.get(criterion.portal_org_id);
+      if (
+        !best ||
+        result.score > best.score ||
+        // Priority tiebreaker: smaller priority wins when scores are equal.
+        (result.score === best.score && criterion.priority < best.criteria.priority)
+      ) {
+        bestByOrg.set(criterion.portal_org_id, { criteria: criterion, ...result });
+      }
+    }
+
+    // Reap stale rows: an existing pending rec whose org no longer has a match.
+    for (const row of existing) {
+      if (row.listing_id !== listing.id) continue;
+      if (row.status !== 'pending') continue;
+      if (!bestByOrg.has(row.portal_org_id)) {
+        toReap.push(row.id);
+      }
+    }
+
+    // Decide inserts / updates for the winning matches.
+    for (const [orgId, match] of bestByOrg) {
+      const key = `${orgId}|${listing.id}`;
+      const existingRow = existingMap.get(key);
+
+      if (!existingRow) {
+        toInsert.push({
+          portal_org_id: orgId,
+          listing_id: listing.id,
+          thesis_criteria_id: match.criteria.id,
+          portfolio_buyer_id: match.criteria.portfolio_buyer_id,
+          portfolio_company_name: match.criteria.portfolio_company_name || null,
+          match_score: match.score,
+          match_reasons: match.reasons,
+          match_category: match.category,
+          status: 'pending',
+        });
+      } else if (
+        existingRow.status === 'pending' &&
+        (existingRow.match_score !== match.score ||
+          !reasonsEqual(existingRow.match_reasons, match.reasons))
+      ) {
+        toUpdate.push({
+          id: existingRow.id,
+          patch: {
+            match_score: match.score,
+            match_reasons: match.reasons,
+            match_category: match.category,
+            thesis_criteria_id: match.criteria.id,
+            portfolio_buyer_id: match.criteria.portfolio_buyer_id,
+            portfolio_company_name: match.criteria.portfolio_company_name || null,
+          },
+        });
+      }
+    }
+  }
+
+  return { toInsert, toUpdate, toReap };
+}
