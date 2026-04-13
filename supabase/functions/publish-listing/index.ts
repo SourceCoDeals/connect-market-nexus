@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 
 interface PublishRequest {
   listingId: string;
@@ -18,7 +18,7 @@ interface ValidationResult {
 function validateListingQuality(listing: Record<string, unknown>): ValidationResult {
   const errors: string[] = [];
 
-  const title = listing.title as string | undefined;
+  const _title = listing.title as string | undefined;
   const description = listing.description as string | undefined;
   const executiveSummary = listing.executive_summary as string | undefined;
   const category = listing.category as string | undefined;
@@ -26,9 +26,8 @@ function validateListingQuality(listing: Record<string, unknown>): ValidationRes
   const location = listing.location as string | undefined;
 
   // Fall back to executive_summary when description is missing
-  const effectiveDescription = (description && description.trim().length >= 50)
-    ? description
-    : executiveSummary;
+  const effectiveDescription =
+    description && description.trim().length >= 50 ? description : executiveSummary;
 
   if (!effectiveDescription || effectiveDescription.trim().length < 50) {
     errors.push('Description (or executive summary) must be at least 50 characters');
@@ -76,10 +75,12 @@ async function checkMemoPdfs(
     .in('document_category', ['full_memo', 'anonymous_teaser']);
 
   const hasLeadMemo = docs?.some(
-    (d: { document_category: string; storage_path: string | null }) => d.document_category === 'full_memo' && d.storage_path,
+    (d: { document_category: string; storage_path: string | null }) =>
+      d.document_category === 'full_memo' && d.storage_path,
   );
   const hasTeaser = docs?.some(
-    (d: { document_category: string; storage_path: string | null }) => d.document_category === 'anonymous_teaser' && d.storage_path,
+    (d: { document_category: string; storage_path: string | null }) =>
+      d.document_category === 'anonymous_teaser' && d.storage_path,
   );
 
   if (!hasLeadMemo) {
@@ -110,10 +111,10 @@ Deno.serve(async (req) => {
     // Get the authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Authorization header required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Create user client to verify auth
@@ -122,23 +123,28 @@ Deno.serve(async (req) => {
     });
 
     // Get the authenticated user
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseUser.auth.getUser();
     if (authError || !user) {
       console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Verify admin status via user_roles table (authoritative RBAC source)
-    const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin', { user_id: user.id });
+    const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin', {
+      user_id: user.id,
+    });
     if (adminCheckError || !isAdmin) {
       console.error('Admin check failed:', adminCheckError);
-      return new Response(
-        JSON.stringify({ error: 'Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Parse request body
@@ -146,10 +152,10 @@ Deno.serve(async (req) => {
     const { listingId, action } = body;
 
     if (!listingId) {
-      return new Response(
-        JSON.stringify({ error: 'listingId is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'listingId is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Fetch the listing
@@ -161,10 +167,10 @@ Deno.serve(async (req) => {
 
     if (fetchError || !listing) {
       console.error('Fetch error:', fetchError);
-      return new Response(
-        JSON.stringify({ error: 'Listing not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Listing not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (action === 'publish') {
@@ -172,7 +178,7 @@ Deno.serve(async (req) => {
       if (listing.is_internal_deal === false && listing.published_at) {
         return new Response(
           JSON.stringify({ success: false, error: 'Listing is already published' }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -186,9 +192,9 @@ Deno.serve(async (req) => {
           JSON.stringify({
             success: false,
             error: 'Listing does not meet quality requirements',
-            validationErrors: allErrors
+            validationErrors: allErrors,
           }),
-          { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
 
@@ -207,10 +213,10 @@ Deno.serve(async (req) => {
 
       if (updateError) {
         console.error('Update error:', updateError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to publish listing' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: 'Failed to publish listing' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       console.log(`Listing ${listingId} published by admin ${user.id}`);
@@ -225,7 +231,10 @@ Deno.serve(async (req) => {
           .eq('id', listing.source_deal_id);
 
         if (cleanupError) {
-          console.warn(`Queue cleanup failed for source deal ${listing.source_deal_id}:`, cleanupError.message);
+          console.warn(
+            `Queue cleanup failed for source deal ${listing.source_deal_id}:`,
+            cleanupError.message,
+          );
           // Non-blocking — publish still succeeds
         } else {
           console.log(`Queue cleanup: source deal ${listing.source_deal_id} removed from queue`);
@@ -233,14 +242,13 @@ Deno.serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: 'Listing published to marketplace',
-          listing: updatedListing 
+          listing: updatedListing,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
-
     } else if (action === 'unpublish') {
       // Unpublish - revert to internal
       const { data: updatedListing, error: updateError } = await supabaseAdmin
@@ -256,35 +264,33 @@ Deno.serve(async (req) => {
 
       if (updateError) {
         console.error('Update error:', updateError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to unpublish listing' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: 'Failed to unpublish listing' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       console.log(`Listing ${listingId} unpublished by admin ${user.id}`);
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: 'Listing removed from marketplace',
-          listing: updatedListing 
+          listing: updatedListing,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
-
     } else {
       return new Response(
         JSON.stringify({ error: 'Invalid action. Use "publish" or "unpublish"' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
-
   } catch (error) {
     console.error('Unexpected error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

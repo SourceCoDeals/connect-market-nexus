@@ -565,7 +565,7 @@ export async function enrichLinkedInContact(
       console.log(`[enrich-linkedin] Clay found email: ${clayResult.email} for ${linkedinUrl}`);
 
       // Save to enriched_contacts
-      const contactData = {
+      const _contactData = {
         workspace_id: userId,
         company_name: 'Unknown',
         full_name: `${firstName} ${lastName}`.trim() || 'Unknown',
@@ -742,7 +742,10 @@ export async function enrichLinkedInContact(
               // Update CRM with corrected URL + email
               if (fallbackCrmContactId) {
                 await (supabase as any).rpc('contacts_upsert', {
-                  p_identity: { email: retryResult.email || null, linkedin_url: googleResult.url || null },
+                  p_identity: {
+                    email: retryResult.email || null,
+                    linkedin_url: googleResult.url || null,
+                  },
                   p_fields: {
                     linkedin_url: googleResult.url,
                     email: retryResult.email,
@@ -758,7 +761,10 @@ export async function enrichLinkedInContact(
 
               // Save to enriched_contacts via RPC
               await (supabase as any).rpc('contacts_upsert', {
-                p_identity: { email: retryResult.email || null, linkedin_url: retryResult.linkedin_url || googleResult.url || null },
+                p_identity: {
+                  email: retryResult.email || null,
+                  linkedin_url: retryResult.linkedin_url || googleResult.url || null,
+                },
                 p_fields: {
                   first_name: retryResult.first_name,
                   last_name: retryResult.last_name,
@@ -814,7 +820,7 @@ export async function enrichLinkedInContact(
     }
 
     // Save to enriched_contacts for audit trail
-    const contactData = {
+    const _contactData = {
       workspace_id: userId,
       company_name: result.company || 'Unknown',
       full_name: `${result.first_name} ${result.last_name}`.trim(),
@@ -831,7 +837,10 @@ export async function enrichLinkedInContact(
     };
 
     await (supabase as any).rpc('contacts_upsert', {
-      p_identity: { email: result.email || null, linkedin_url: (result.linkedin_url || linkedinUrl) || null },
+      p_identity: {
+        email: result.email || null,
+        linkedin_url: result.linkedin_url || linkedinUrl || null,
+      },
       p_fields: {
         first_name: result.first_name,
         last_name: result.last_name,
@@ -872,7 +881,10 @@ export async function enrichLinkedInContact(
 
         if (Object.keys(updates).length > 0) {
           await (supabase as any).rpc('contacts_upsert', {
-            p_identity: { email: result.email || (existing.email as string) || null, linkedin_url: (existing.linkedin_url as string) || linkedinUrl || null },
+            p_identity: {
+              email: result.email || (existing.email as string) || null,
+              linkedin_url: (existing.linkedin_url as string) || linkedinUrl || null,
+            },
             p_fields: updates,
             p_source: 'ai_enrichment',
             p_enrichment: null,
@@ -902,7 +914,10 @@ export async function enrichLinkedInContact(
           if (result.phone && !existing.phone) updates.phone = result.phone;
 
           await (supabase as any).rpc('contacts_upsert', {
-            p_identity: { email: result.email || null, linkedin_url: (result.linkedin_url || linkedinUrl) || null },
+            p_identity: {
+              email: result.email || null,
+              linkedin_url: result.linkedin_url || linkedinUrl || null,
+            },
             p_fields: updates,
             p_source: 'ai_enrichment',
             p_enrichment: null,
@@ -1124,7 +1139,10 @@ export async function findAndEnrichPerson(
           if (contact?.id) {
             const updates: Record<string, unknown> = { email: clayResult.email };
             await (supabase as any).rpc('contacts_upsert', {
-              p_identity: { email: clayResult.email || (contact.email as string) || null, linkedin_url: (storedUrl as string) || null },
+              p_identity: {
+                email: clayResult.email || (contact.email as string) || null,
+                linkedin_url: (storedUrl as string) || null,
+              },
               p_fields: updates,
               p_source: 'ai_enrichment',
               p_enrichment: null,
@@ -1229,7 +1247,10 @@ export async function findAndEnrichPerson(
             // Update CRM with corrected LinkedIn URL
             if (contact?.id) {
               await (supabase as any).rpc('contacts_upsert', {
-                p_identity: { email: (contact.email as string) || null, linkedin_url: (contact.linkedin_url as string) || null },
+                p_identity: {
+                  email: (contact.email as string) || null,
+                  linkedin_url: (contact.linkedin_url as string) || null,
+                },
                 p_fields: { linkedin_url: googleResult.url },
                 p_source: 'ai_enrichment',
                 p_enrichment: null,
@@ -1285,7 +1306,10 @@ export async function findAndEnrichPerson(
               if (verifiedLinkedInUrl !== storedLinkedinUrl)
                 updates.linkedin_url = verifiedLinkedInUrl;
               await (supabase as any).rpc('contacts_upsert', {
-                p_identity: { email: result.email || (contact.email as string) || null, linkedin_url: (result.linkedin_url || verifiedLinkedInUrl) || null },
+                p_identity: {
+                  email: result.email || (contact.email as string) || null,
+                  linkedin_url: result.linkedin_url || verifiedLinkedInUrl || null,
+                },
                 p_fields: updates,
                 p_source: 'ai_enrichment',
                 p_enrichment: null,
@@ -1295,7 +1319,10 @@ export async function findAndEnrichPerson(
 
             // Save to enriched_contacts for audit trail
             await (supabase as any).rpc('contacts_upsert', {
-              p_identity: { email: result.email || null, linkedin_url: (result.linkedin_url || verifiedLinkedInUrl) || null },
+              p_identity: {
+                email: result.email || null,
+                linkedin_url: result.linkedin_url || verifiedLinkedInUrl || null,
+              },
               p_fields: {
                 first_name: result.first_name,
                 last_name: result.last_name,
@@ -1338,7 +1365,10 @@ export async function findAndEnrichPerson(
             const updates: Record<string, unknown> = { email: result.email };
             if (result.phone && !contact.phone) updates.phone = result.phone;
             await (supabase as any).rpc('contacts_upsert', {
-              p_identity: { email: result.email || (contact.email as string) || null, linkedin_url: (result.linkedin_url || verifiedLinkedInUrl) || null },
+              p_identity: {
+                email: result.email || (contact.email as string) || null,
+                linkedin_url: result.linkedin_url || verifiedLinkedInUrl || null,
+              },
               p_fields: updates,
               p_source: 'ai_enrichment',
               p_enrichment: null,
@@ -1347,7 +1377,10 @@ export async function findAndEnrichPerson(
           }
 
           await (supabase as any).rpc('contacts_upsert', {
-            p_identity: { email: result.email || null, linkedin_url: (result.linkedin_url || verifiedLinkedInUrl) || null },
+            p_identity: {
+              email: result.email || null,
+              linkedin_url: result.linkedin_url || verifiedLinkedInUrl || null,
+            },
             p_fields: {
               first_name: result.first_name,
               last_name: result.last_name,
@@ -1418,7 +1451,10 @@ export async function findAndEnrichPerson(
       // Update CRM with LinkedIn URL
       if (contact?.id) {
         await (supabase as any).rpc('contacts_upsert', {
-          p_identity: { email: (contact.email as string) || null, linkedin_url: (contact.linkedin_url as string) || null },
+          p_identity: {
+            email: (contact.email as string) || null,
+            linkedin_url: (contact.linkedin_url as string) || null,
+          },
           p_fields: { linkedin_url: discoveredLinkedIn },
           p_source: 'ai_enrichment',
           p_enrichment: null,
@@ -1450,7 +1486,10 @@ export async function findAndEnrichPerson(
           const updates: Record<string, unknown> = { email: result.email };
           if (result.phone && !contact.phone) updates.phone = result.phone;
           await (supabase as any).rpc('contacts_upsert', {
-            p_identity: { email: result.email || (contact.email as string) || null, linkedin_url: (result.linkedin_url || discoveredLinkedIn) || null },
+            p_identity: {
+              email: result.email || (contact.email as string) || null,
+              linkedin_url: result.linkedin_url || discoveredLinkedIn || null,
+            },
             p_fields: updates,
             p_source: 'ai_enrichment',
             p_enrichment: null,
@@ -1462,7 +1501,10 @@ export async function findAndEnrichPerson(
 
         // Save to enriched_contacts
         await (supabase as any).rpc('contacts_upsert', {
-          p_identity: { email: result.email || null, linkedin_url: (result.linkedin_url || discoveredLinkedIn) || null },
+          p_identity: {
+            email: result.email || null,
+            linkedin_url: result.linkedin_url || discoveredLinkedIn || null,
+          },
           p_fields: {
             first_name: result.first_name,
             last_name: result.last_name,
@@ -1527,7 +1569,10 @@ export async function findAndEnrichPerson(
             if (discoveredLinkedIn && !contact.linkedin_url)
               updates.linkedin_url = discoveredLinkedIn;
             await (supabase as any).rpc('contacts_upsert', {
-              p_identity: { email: result.email || (contact.email as string) || null, linkedin_url: (contact.linkedin_url as string) || discoveredLinkedIn || null },
+              p_identity: {
+                email: result.email || (contact.email as string) || null,
+                linkedin_url: (contact.linkedin_url as string) || discoveredLinkedIn || null,
+              },
               p_fields: updates,
               p_source: 'ai_enrichment',
               p_enrichment: null,

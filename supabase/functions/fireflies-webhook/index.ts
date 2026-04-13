@@ -104,7 +104,10 @@ Deno.serve(async (req) => {
 
     // Only process transcription_complete events
     if (eventType !== 'Transcription completed' && eventType !== 'transcription_complete') {
-      return successResponse({ skipped: true, reason: `Unhandled event: ${eventType}` }, corsHeaders);
+      return successResponse(
+        { skipped: true, reason: `Unhandled event: ${eventType}` },
+        corsHeaders,
+      );
     }
 
     if (!transcriptId) {
@@ -150,7 +153,7 @@ Deno.serve(async (req) => {
 
     // ── Phase 1: Email matching for buyers ──
     const matchedBuyerIds = new Set<string>();
-    let buyerMatchType = 'email';
+    let _buyerMatchType = 'email';
 
     if (externalEmails.length > 0) {
       const { data: buyerContacts } = await supabase
@@ -175,9 +178,12 @@ Deno.serve(async (req) => {
 
       for (const b of buyers || []) {
         const companyNorm = normalizeCompanyName(b.company_name || '');
-        if (companyNorm.length >= 3 && (normalizedTitle.includes(companyNorm) || companyNorm.includes(normalizedTitle))) {
+        if (
+          companyNorm.length >= 3 &&
+          (normalizedTitle.includes(companyNorm) || companyNorm.includes(normalizedTitle))
+        ) {
           matchedBuyerIds.add(b.id);
-          buyerMatchType = 'keyword';
+          _buyerMatchType = 'keyword';
         }
       }
     }
@@ -208,7 +214,10 @@ Deno.serve(async (req) => {
 
       for (const l of listings || []) {
         const listingNorm = normalizeCompanyName(l.title || '');
-        if (listingNorm.length >= 3 && (normalizedTitle.includes(listingNorm) || listingNorm.includes(normalizedTitle))) {
+        if (
+          listingNorm.length >= 3 &&
+          (normalizedTitle.includes(listingNorm) || listingNorm.includes(normalizedTitle))
+        ) {
           matchedListingIds.add(l.id);
           dealMatchType = 'keyword';
         }

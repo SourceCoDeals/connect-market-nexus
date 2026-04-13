@@ -6,11 +6,21 @@ import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 interface FeedbackNotificationRequest {
-  feedbackId: string; message: string; pageUrl?: string; userAgent?: string;
-  category?: string; priority?: string; userId?: string; userEmail?: string; userName?: string;
+  feedbackId: string;
+  message: string;
+  pageUrl?: string;
+  userAgent?: string;
+  category?: string;
+  priority?: string;
+  userId?: string;
+  userEmail?: string;
+  userName?: string;
 }
 
-const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+const _supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+);
 
 const handler = async (req: Request): Promise<Response> => {
   const corsHeaders = getCorsHeaders(req);
@@ -19,23 +29,37 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const auth = await requireAuth(req);
     if (!auth.authenticated) {
-      return new Response(JSON.stringify({ error: auth.error }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      return new Response(JSON.stringify({ error: auth.error }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     const body: FeedbackNotificationRequest = await req.json();
-    const { feedbackId, message, pageUrl, category, priority, userEmail, userName } = body;
+    const {
+      feedbackId: _feedbackId,
+      message,
+      pageUrl,
+      category,
+      priority,
+      userEmail,
+      userName,
+    } = body;
 
     const supportEmail = 'support@sourcecodeals.com';
 
     const safeUserName = escapeHtml(userName || '');
     const safeUserEmail = escapeHtml(userEmail || '');
     const safePageUrl = escapeHtml(pageUrl || '');
-    const safeCategoryLabel = escapeHtml(category?.charAt(0).toUpperCase() + category?.slice(1) || 'General');
+    const safeCategoryLabel = escapeHtml(
+      category?.charAt(0).toUpperCase() + category?.slice(1) || 'General',
+    );
     const safePriority = escapeHtml((priority || 'normal').toUpperCase());
 
-    const emailSubject = priority === 'urgent'
-      ? `URGENT Feedback: ${safeCategoryLabel}`
-      : `New Feedback: ${safeCategoryLabel}`;
+    const emailSubject =
+      priority === 'urgent'
+        ? `URGENT Feedback: ${safeCategoryLabel}`
+        : `New Feedback: ${safeCategoryLabel}`;
 
     const emailHtml = wrapEmailHtml({
       bodyHtml: `
@@ -69,14 +93,25 @@ const handler = async (req: Request): Promise<Response> => {
     if (result.success) console.log('Feedback email sent to support inbox');
     else console.error('Error sending feedback email to support inbox:', result.error);
 
-    return new Response(JSON.stringify({ success: true, message: `Feedback notification processed for ${adminUsers.length} admin(s)` }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `Feedback notification processed for ${adminUsers.length} admin(s)`,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      },
+    );
   } catch (error: unknown) {
     console.error('Error in send-feedback-notification function:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : String(error) }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      },
+    );
   }
 };
 

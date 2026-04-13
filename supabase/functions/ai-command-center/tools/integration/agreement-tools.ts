@@ -77,14 +77,17 @@ export async function sendDocument(
   }
 
   // Call the email-based agreement request edge function
-  const { data, error: fnError } = await supabase.functions.invoke('request-agreement-email', {
-    body: {
-      documentType,
-      recipientEmail: signerEmail,
-      recipientName: signerName,
-      firmId,
+  const { data: _data, error: fnError } = await supabase.functions.invoke(
+    'request-agreement-email',
+    {
+      body: {
+        documentType,
+        recipientEmail: signerEmail,
+        recipientName: signerName,
+        firmId,
+      },
     },
-  });
+  );
 
   if (fnError) {
     console.error('request-agreement-email error:', fnError);

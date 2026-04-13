@@ -39,11 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Upload,
   FileSpreadsheet,
@@ -77,7 +73,7 @@ export const ContactCSVImport = ({
   const {
     step,
     setStep,
-    csvData,
+    csvData: _csvData,
     mappings,
     isAnalyzing,
     importProgress,
@@ -117,8 +113,8 @@ export const ContactCSVImport = ({
               Import Contacts from Spreadsheet
             </DialogTitle>
             <DialogDescription>
-              Upload a CSV, XLS, or XLSX file to bulk import contacts with phone numbers.
-              Existing contacts are matched by email or LinkedIn URL.
+              Upload a CSV, XLS, or XLSX file to bulk import contacts with phone numbers. Existing
+              contacts are matched by email or LinkedIn URL.
             </DialogDescription>
           </DialogHeader>
 
@@ -143,7 +139,9 @@ export const ContactCSVImport = ({
                     <p className="mb-2 text-sm text-muted-foreground">
                       <span className="font-semibold">Click to upload</span> or drag and drop
                     </p>
-                    <p className="text-xs text-muted-foreground">CSV, XLS, or XLSX files (max 5 MB, 5,000 rows)</p>
+                    <p className="text-xs text-muted-foreground">
+                      CSV, XLS, or XLSX files (max 5 MB, 5,000 rows)
+                    </p>
                   </div>
                   <input
                     type="file"
@@ -166,18 +164,24 @@ export const ContactCSVImport = ({
                 ) : (
                   <>
                     <p className="text-sm text-muted-foreground">
-                      Map your spreadsheet columns to contact fields. Name + (Email or LinkedIn) are required.
+                      Map your spreadsheet columns to contact fields. Name + (Email or LinkedIn) are
+                      required.
                     </p>
                     <div className="space-y-2">
                       {mappings.map((mapping) => (
                         <div key={mapping.csvColumn} className="flex items-center gap-3">
-                          <span className="text-sm font-medium w-48 truncate" title={mapping.csvColumn}>
+                          <span
+                            className="text-sm font-medium w-48 truncate"
+                            title={mapping.csvColumn}
+                          >
                             {mapping.csvColumn}
                           </span>
                           <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <Select
                             value={mapping.targetField || '_skip'}
-                            onValueChange={(v) => updateMapping(mapping.csvColumn, v === '_skip' ? null : v)}
+                            onValueChange={(v) =>
+                              updateMapping(mapping.csvColumn, v === '_skip' ? null : v)
+                            }
                           >
                             <SelectTrigger className="w-64">
                               <SelectValue placeholder="Skip column" />
@@ -192,7 +196,9 @@ export const ContactCSVImport = ({
                             </SelectContent>
                           </Select>
                           {mapping.aiSuggested && (
-                            <Badge variant="secondary" className="text-[10px]">AI</Badge>
+                            <Badge variant="secondary" className="text-[10px]">
+                              AI
+                            </Badge>
                           )}
                         </div>
                       ))}
@@ -221,7 +227,9 @@ export const ContactCSVImport = ({
                 {skippedRows.length > 0 && (
                   <Collapsible open={skippedRowsOpen} onOpenChange={setSkippedRowsOpen}>
                     <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-                      <ChevronDown className={`h-4 w-4 transition-transform ${skippedRowsOpen ? '' : '-rotate-90'}`} />
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${skippedRowsOpen ? '' : '-rotate-90'}`}
+                      />
                       Show skipped rows
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -258,7 +266,8 @@ export const ContactCSVImport = ({
                             .slice(0, 6)
                             .map((m) => (
                               <TableHead key={m.csvColumn}>
-                                {TARGET_FIELDS.find((f) => f.value === m.targetField)?.label || m.targetField}
+                                {TARGET_FIELDS.find((f) => f.value === m.targetField)?.label ||
+                                  m.targetField}
                               </TableHead>
                             ))}
                         </TableRow>
@@ -270,7 +279,10 @@ export const ContactCSVImport = ({
                               .filter((m) => m.targetField)
                               .slice(0, 6)
                               .map((m) => (
-                                <TableCell key={m.csvColumn} className="text-sm truncate max-w-[200px]">
+                                <TableCell
+                                  key={m.csvColumn}
+                                  className="text-sm truncate max-w-[200px]"
+                                >
                                   {row[m.csvColumn] || '--'}
                                 </TableCell>
                               ))}
@@ -307,12 +319,18 @@ export const ContactCSVImport = ({
                     <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
                     <h3 className="text-lg font-semibold">Import Complete</h3>
                     <div className="flex items-center justify-center gap-6 text-sm">
-                      <span><strong>{importResults.created}</strong> created</span>
+                      <span>
+                        <strong>{importResults.created}</strong> created
+                      </span>
                       {importResults.errors > 0 && (
-                        <span className="text-destructive"><strong>{importResults.errors}</strong> errors</span>
+                        <span className="text-destructive">
+                          <strong>{importResults.errors}</strong> errors
+                        </span>
                       )}
                       {importResults.skipped > 0 && (
-                        <span className="text-muted-foreground"><strong>{importResults.skipped}</strong> skipped</span>
+                        <span className="text-muted-foreground">
+                          <strong>{importResults.skipped}</strong> skipped
+                        </span>
                       )}
                     </div>
                   </div>
@@ -324,7 +342,9 @@ export const ContactCSVImport = ({
           <DialogFooter className="border-t pt-4">
             {step === 'mapping' && !isAnalyzing && (
               <>
-                <Button variant="outline" onClick={resetImport}>Back</Button>
+                <Button variant="outline" onClick={resetImport}>
+                  Back
+                </Button>
                 <Button onClick={proceedToPreview} disabled={!hasRequiredMapping(mappings)}>
                   Preview Import
                 </Button>
@@ -332,14 +352,23 @@ export const ContactCSVImport = ({
             )}
             {step === 'preview' && (
               <>
-                <Button variant="outline" onClick={() => setStep('mapping')}>Back</Button>
+                <Button variant="outline" onClick={() => setStep('mapping')}>
+                  Back
+                </Button>
                 <Button onClick={handleImport} disabled={validRows.length === 0}>
                   Import {validRows.length} Contacts
                 </Button>
               </>
             )}
             {step === 'importing' && isComplete && (
-              <Button onClick={() => { setIsOpen(false); resetImport(); }}>Done</Button>
+              <Button
+                onClick={() => {
+                  setIsOpen(false);
+                  resetImport();
+                }}
+              >
+                Done
+              </Button>
             )}
           </DialogFooter>
         </DialogContent>

@@ -15,7 +15,11 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
-import { normalizePhone as normalizePhoneUtil, collectPhones, pickDialerPhones } from '../_shared/phone-utils.ts';
+import {
+  normalizePhone as normalizePhoneUtil,
+  collectPhones,
+  pickDialerPhones,
+} from '../_shared/phone-utils.ts';
 
 const PB_API_BASE = 'https://www.phoneburner.com/rest/1';
 
@@ -569,293 +573,299 @@ Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-  const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
-  const token = authHeader.replace('Bearer ', '');
-  const {
-    data: { user },
-    error: authError,
-  } = await anonClient.auth.getUser(token);
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
+    const token = authHeader.replace('Bearer ', '');
+    const {
+      data: { user },
+      error: authError,
+    } = await anonClient.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-  const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id });
-  if (!isAdmin) {
-    return new Response(JSON.stringify({ error: 'Admin access required' }), {
-      status: 403,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-  const body: PushRequest = await req.json();
-  const { session_name, skip_recent_days = 7 } = body;
-  const requestId = crypto.randomUUID();
+    const body: PushRequest = await req.json();
+    const { session_name, skip_recent_days = 7 } = body;
+    const requestId = crypto.randomUUID();
 
-  const pbTokenUserId = body.target_user_id || user.id;
-  const pbToken = await getValidToken(supabase, pbTokenUserId);
-  if (!pbToken) {
-    const targetLabel = body.target_user_id
-      ? 'The selected user does not have a PhoneBurner account connected.'
-      : 'PhoneBurner not connected. Please add your access token in Settings.';
-    return new Response(JSON.stringify({ error: targetLabel, code: 'PB_NOT_CONNECTED' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    const pbTokenUserId = body.target_user_id || user.id;
+    const pbToken = await getValidToken(supabase, pbTokenUserId);
+    if (!pbToken) {
+      const targetLabel = body.target_user_id
+        ? 'The selected user does not have a PhoneBurner account connected.'
+        : 'PhoneBurner not connected. Please add your access token in Settings.';
+      return new Response(JSON.stringify({ error: targetLabel, code: 'PB_NOT_CONNECTED' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-  const entityType: EntityType = body.entity_type || 'buyer_contacts';
-  const entityIds = body.entity_ids || body.contact_ids || [];
-  const inlineContacts: InlineContact[] = body.inline_contacts || [];
+    const entityType: EntityType = body.entity_type || 'buyer_contacts';
+    const entityIds = body.entity_ids || body.contact_ids || [];
+    const inlineContacts: InlineContact[] = body.inline_contacts || [];
 
-  let contacts: ResolvedContact[];
+    let contacts: ResolvedContact[];
 
-  if (inlineContacts.length > 0) {
-    // Direct contact details provided — no DB lookup needed
-    contacts = inlineContacts.map((c: InlineContact, i: number) => ({
-      id: `inline-${i}`,
-      name: c.name || 'Unknown',
-      phone: c.phone || null,
-      mobile_phone_1: null,
-      mobile_phone_2: null,
-      mobile_phone_3: null,
-      office_phone: null,
-      email: c.email || null,
-      title: null,
-      company: c.company || null,
-      source_entity: 'inline',
-      last_contacted_date: null,
-      contact_id: null,
-      listing_id: null,
-      remarketing_buyer_id: null,
-    }));
-  } else if (!entityIds.length) {
-    return new Response(JSON.stringify({ error: 'No entities provided' }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } else {
-    switch (entityType) {
-      case 'contacts':
-      case 'buyer_contacts':
-        contacts = await resolveFromBuyerContacts(supabase, entityIds);
-        break;
-      case 'buyers':
-        contacts = await resolveFromBuyers(supabase, entityIds);
-        break;
-      case 'listings':
-        contacts = await resolveFromListings(supabase, entityIds);
-        break;
-      case 'leads':
-        contacts = await resolveFromLeads(supabase, entityIds);
-        break;
-      case 'contact_list':
-        contacts = await resolveFromContactListMembers(supabase, entityIds);
-        break;
-      default:
-        return new Response(JSON.stringify({ error: `Unknown entity_type: ${entityType}` }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (inlineContacts.length > 0) {
+      // Direct contact details provided — no DB lookup needed
+      contacts = inlineContacts.map((c: InlineContact, i: number) => ({
+        id: `inline-${i}`,
+        name: c.name || 'Unknown',
+        phone: c.phone || null,
+        mobile_phone_1: null,
+        mobile_phone_2: null,
+        mobile_phone_3: null,
+        office_phone: null,
+        email: c.email || null,
+        title: null,
+        company: c.company || null,
+        source_entity: 'inline',
+        last_contacted_date: null,
+        contact_id: null,
+        listing_id: null,
+        remarketing_buyer_id: null,
+      }));
+    } else if (!entityIds.length) {
+      return new Response(JSON.stringify({ error: 'No entities provided' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    } else {
+      switch (entityType) {
+        case 'contacts':
+        case 'buyer_contacts':
+          contacts = await resolveFromBuyerContacts(supabase, entityIds);
+          break;
+        case 'buyers':
+          contacts = await resolveFromBuyers(supabase, entityIds);
+          break;
+        case 'listings':
+          contacts = await resolveFromListings(supabase, entityIds);
+          break;
+        case 'leads':
+          contacts = await resolveFromLeads(supabase, entityIds);
+          break;
+        case 'contact_list':
+          contacts = await resolveFromContactListMembers(supabase, entityIds);
+          break;
+        default:
+          return new Response(JSON.stringify({ error: `Unknown entity_type: ${entityType}` }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+      }
+    }
+
+    if (!contacts.length) {
+      return new Response(JSON.stringify({ error: 'No contacts found for the given entities' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Filter: skip recently contacted + no phone
+    // New logic: exclude only if ALL mobile phones are null (office_phone alone is
+    // included but flagged as "office line only")
+    const skipCutoff = new Date(Date.now() - skip_recent_days * 24 * 60 * 60 * 1000);
+    const eligible: ResolvedContact[] = [];
+    const excluded: { name: string; reason: string }[] = [];
+
+    for (const contact of contacts) {
+      const hasMobile = contact.mobile_phone_1 || contact.mobile_phone_2 || contact.mobile_phone_3;
+      const hasAnyPhone = hasMobile || contact.office_phone || contact.phone;
+
+      if (!hasAnyPhone) {
+        excluded.push({ name: contact.name, reason: 'No phone number' });
+        continue;
+      }
+      if (contact.last_contacted_date && new Date(contact.last_contacted_date) > skipCutoff) {
+        excluded.push({ name: contact.name, reason: `Contacted within ${skip_recent_days} days` });
+        continue;
+      }
+      if (!hasMobile && contact.office_phone) {
+        // Include but flag — office line only may not connect directly
+        excluded.push({
+          name: contact.name,
+          reason: 'Office line only — may not connect directly',
         });
+      }
+      eligible.push(contact);
     }
-  }
 
-  if (!contacts.length) {
-    return new Response(JSON.stringify({ error: 'No contacts found for the given entities' }), {
-      status: 404,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (eligible.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          contacts_added: 0,
+          contacts_excluded: excluded.length,
+          exclusions: excluded,
+          error: 'All contacts were excluded (no phone number or recently contacted)',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const sessionContacts = eligible.map((contact) => {
+      const [phone1, _phone2, _phone3] = pickDialerPhones(contact);
+      const allPhones = collectPhones(contact);
+      return {
+        source_id: contact.id,
+        source_entity: contact.source_entity,
+        name: contact.name,
+        phone: normalizePhoneUtil(phone1),
+        // Store all known phones to improve webhook matching when PhoneBurner
+        // returns a different primary phone than the one we pushed.
+        phones: allPhones,
+        contact_email: contact.email?.toLowerCase() || null,
+        contact_id: contact.contact_id || null,
+        listing_id: contact.listing_id || null,
+        remarketing_buyer_id: contact.remarketing_buyer_id || null,
+      };
     });
-  }
 
-  // Filter: skip recently contacted + no phone
-  // New logic: exclude only if ALL mobile phones are null (office_phone alone is
-  // included but flagged as "office line only")
-  const skipCutoff = new Date(Date.now() - skip_recent_days * 24 * 60 * 60 * 1000);
-  const eligible: ResolvedContact[] = [];
-  const excluded: { name: string; reason: string }[] = [];
+    // Build contacts array for PhoneBurner dial session
+    // PhoneBurner supports phone, phone2, phone3 — populate all three from structured fields
+    const pbContacts = eligible.map((contact) => {
+      const nameParts = contact.name.split(' ');
+      const [phone1, phone2, phone3] = pickDialerPhones(contact);
+      const pbContact: Record<string, unknown> = {
+        first_name: nameParts[0] || '',
+        last_name: nameParts.slice(1).join(' ') || '',
+        phone: phone1 || contact.phone || '',
+        phone2: phone2 || '',
+        phone3: phone3 || '',
+        email: contact.email || '',
+        company: contact.company || '',
+        title: contact.title || '',
+        lead_id: contact.id, // Maps back to our system
+      };
 
-  for (const contact of contacts) {
-    const hasMobile = contact.mobile_phone_1 || contact.mobile_phone_2 || contact.mobile_phone_3;
-    const hasAnyPhone = hasMobile || contact.office_phone || contact.phone;
+      const requestField: PbCustomField = { name: 'Request ID', type: 1, value: requestId };
+      const customFields = [...(contact.extra_context || []), requestField];
 
-    if (!hasAnyPhone) {
-      excluded.push({ name: contact.name, reason: 'No phone number' });
-      continue;
+      if (customFields.length > 0) {
+        pbContact.custom_fields = customFields;
+      }
+
+      return pbContact;
+    });
+
+    // Build webhook callback URL for call events
+    const webhookUrl = `${supabaseUrl}/functions/v1/phoneburner-webhook`;
+
+    // Create dial session — returns redirect_url to open dialer immediately
+    const pbRes = await fetch(`${PB_API_BASE}/dialsession`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${pbToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contacts: pbContacts,
+        callbacks: [
+          { callback_type: 'api_callbegin', callback: webhookUrl },
+          { callback_type: 'api_calldone', callback: webhookUrl },
+          { callback_type: 'api_contact_displayed', callback: webhookUrl },
+        ],
+        custom_data: {
+          source: 'sourceco',
+          session_name: session_name || '',
+          entity_type: entityType,
+          pushed_by: user.id,
+          request_id: requestId,
+        },
+      }),
+    });
+
+    if (!pbRes.ok) {
+      const errBody = await pbRes.text();
+      console.error('PhoneBurner dialsession error:', errBody);
+      return new Response(
+        JSON.stringify({ error: `PhoneBurner API error: ${errBody.slice(0, 200)}` }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
-    if (contact.last_contacted_date && new Date(contact.last_contacted_date) > skipCutoff) {
-      excluded.push({ name: contact.name, reason: `Contacted within ${skip_recent_days} days` });
-      continue;
-    }
-    if (!hasMobile && contact.office_phone) {
-      // Include but flag — office line only may not connect directly
-      excluded.push({ name: contact.name, reason: 'Office line only — may not connect directly' });
-    }
-    eligible.push(contact);
-  }
 
-  if (eligible.length === 0) {
+    const pbData = await pbRes.json();
+    const redirectUrl = pbData?.dialsessions?.redirect_url || null;
+    const phoneburnerSessionId =
+      pbData?.dialsessions?.id ||
+      pbData?.dialsessions?.session_id ||
+      pbData?.dialsession?.id ||
+      null;
+
+    // Look up display name for the target PB user
+    let targetDisplayName: string | null = null;
+    if (body.target_user_id) {
+      const { data: tokenRow } = await supabase
+        .from('phoneburner_oauth_tokens')
+        .select('display_name')
+        .eq('user_id', body.target_user_id)
+        .single();
+      targetDisplayName = tokenRow?.display_name || null;
+    }
+
+    const sessionLabel = targetDisplayName
+      ? `${session_name || 'Push'} → ${targetDisplayName}`
+      : session_name || `Push - ${new Date().toLocaleDateString()}`;
+
+    await supabase.from('phoneburner_sessions').insert({
+      phoneburner_session_id: phoneburnerSessionId ? String(phoneburnerSessionId) : null,
+      request_id: requestId,
+      session_name: sessionLabel,
+      session_type:
+        entityType === 'contacts' || entityType === 'buyer_contacts' || entityType === 'buyers'
+          ? 'buyer_outreach'
+          : entityType,
+      total_contacts_added: eligible.length,
+      session_status: 'active',
+      created_by_user_id: user.id,
+      started_at: new Date().toISOString(),
+      session_contacts: sessionContacts,
+      source_entity_type: entityType,
+      source_entity_ids: entityIds,
+    });
+
     return new Response(
       JSON.stringify({
-        success: false,
-        contacts_added: 0,
+        success: true,
+        request_id: requestId,
+        redirect_url: redirectUrl,
+        contacts_added: eligible.length,
         contacts_excluded: excluded.length,
         exclusions: excluded,
-        error: 'All contacts were excluded (no phone number or recently contacted)',
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
-  }
-
-  const sessionContacts = eligible.map((contact) => {
-    const [phone1, phone2, phone3] = pickDialerPhones(contact);
-    const allPhones = collectPhones(contact);
-    return {
-      source_id: contact.id,
-      source_entity: contact.source_entity,
-      name: contact.name,
-      phone: normalizePhoneUtil(phone1),
-      // Store all known phones to improve webhook matching when PhoneBurner
-      // returns a different primary phone than the one we pushed.
-      phones: allPhones,
-      contact_email: contact.email?.toLowerCase() || null,
-      contact_id: contact.contact_id || null,
-      listing_id: contact.listing_id || null,
-      remarketing_buyer_id: contact.remarketing_buyer_id || null,
-    };
-  });
-
-  // Build contacts array for PhoneBurner dial session
-  // PhoneBurner supports phone, phone2, phone3 — populate all three from structured fields
-  const pbContacts = eligible.map((contact) => {
-    const nameParts = contact.name.split(' ');
-    const [phone1, phone2, phone3] = pickDialerPhones(contact);
-    const pbContact: Record<string, unknown> = {
-      first_name: nameParts[0] || '',
-      last_name: nameParts.slice(1).join(' ') || '',
-      phone: phone1 || contact.phone || '',
-      phone2: phone2 || '',
-      phone3: phone3 || '',
-      email: contact.email || '',
-      company: contact.company || '',
-      title: contact.title || '',
-      lead_id: contact.id, // Maps back to our system
-    };
-
-    const requestField: PbCustomField = { name: 'Request ID', type: 1, value: requestId };
-    const customFields = [...(contact.extra_context || []), requestField];
-
-    if (customFields.length > 0) {
-      pbContact.custom_fields = customFields;
-    }
-
-    return pbContact;
-  });
-
-  // Build webhook callback URL for call events
-  const webhookUrl = `${supabaseUrl}/functions/v1/phoneburner-webhook`;
-
-  // Create dial session — returns redirect_url to open dialer immediately
-  const pbRes = await fetch(`${PB_API_BASE}/dialsession`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${pbToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contacts: pbContacts,
-      callbacks: [
-        { callback_type: 'api_callbegin', callback: webhookUrl },
-        { callback_type: 'api_calldone', callback: webhookUrl },
-        { callback_type: 'api_contact_displayed', callback: webhookUrl },
-      ],
-      custom_data: {
-        source: 'sourceco',
-        session_name: session_name || '',
-        entity_type: entityType,
-        pushed_by: user.id,
-        request_id: requestId,
-      },
-    }),
-  });
-
-  if (!pbRes.ok) {
-    const errBody = await pbRes.text();
-    console.error('PhoneBurner dialsession error:', errBody);
-    return new Response(
-      JSON.stringify({ error: `PhoneBurner API error: ${errBody.slice(0, 200)}` }),
-      { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
-  }
-
-  const pbData = await pbRes.json();
-  const redirectUrl = pbData?.dialsessions?.redirect_url || null;
-  const phoneburnerSessionId =
-    pbData?.dialsessions?.id || pbData?.dialsessions?.session_id || pbData?.dialsession?.id || null;
-
-  // Look up display name for the target PB user
-  let targetDisplayName: string | null = null;
-  if (body.target_user_id) {
-    const { data: tokenRow } = await supabase
-      .from('phoneburner_oauth_tokens')
-      .select('display_name')
-      .eq('user_id', body.target_user_id)
-      .single();
-    targetDisplayName = tokenRow?.display_name || null;
-  }
-
-  const sessionLabel = targetDisplayName
-    ? `${session_name || 'Push'} → ${targetDisplayName}`
-    : session_name || `Push - ${new Date().toLocaleDateString()}`;
-
-  await supabase.from('phoneburner_sessions').insert({
-    phoneburner_session_id: phoneburnerSessionId ? String(phoneburnerSessionId) : null,
-    request_id: requestId,
-    session_name: sessionLabel,
-    session_type:
-      entityType === 'contacts' || entityType === 'buyer_contacts' || entityType === 'buyers'
-        ? 'buyer_outreach'
-        : entityType,
-    total_contacts_added: eligible.length,
-    session_status: 'active',
-    created_by_user_id: user.id,
-    started_at: new Date().toISOString(),
-    session_contacts: sessionContacts,
-    source_entity_type: entityType,
-    source_entity_ids: entityIds,
-  });
-
-  return new Response(
-    JSON.stringify({
-      success: true,
-      request_id: requestId,
-      redirect_url: redirectUrl,
-      contacts_added: eligible.length,
-      contacts_excluded: excluded.length,
-      exclusions: excluded,
-    }),
-    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-  );
   } catch (err) {
     console.error('phoneburner-push-contacts error:', err);
     return new Response(

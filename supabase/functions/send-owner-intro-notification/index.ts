@@ -5,9 +5,15 @@ import { sendEmail } from '../_shared/email-sender.ts';
 import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
 
 interface OwnerIntroRequest {
-  dealId: string; listingId: string; buyerName: string; buyerEmail: string;
-  buyerCompany?: string; dealValue?: number; dealTitle: string;
-  dealOwnerName?: string; dealOwnerEmail?: string;
+  dealId: string;
+  listingId: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerCompany?: string;
+  dealValue?: number;
+  dealTitle: string;
+  dealOwnerName?: string;
+  dealOwnerEmail?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -15,34 +21,82 @@ const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
 
   try {
-    const { dealId, listingId, buyerName, buyerEmail, buyerCompany, dealValue, dealTitle: _dealTitle, dealOwnerName, dealOwnerEmail }: OwnerIntroRequest = await req.json();
+    const {
+      dealId,
+      listingId,
+      buyerName,
+      buyerEmail,
+      buyerCompany,
+      dealValue,
+      dealTitle: _dealTitle,
+      dealOwnerName,
+      _dealOwnerEmail,
+    }: OwnerIntroRequest = await req.json();
 
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { data: recentNotif } = await supabase.from('owner_intro_notifications').select('id').eq('deal_id', dealId).gte('created_at', fiveMinutesAgo).maybeSingle();
+    const { data: recentNotif } = await supabase
+      .from('owner_intro_notifications')
+      .select('id')
+      .eq('deal_id', dealId)
+      .gte('created_at', fiveMinutesAgo)
+      .maybeSingle();
     if (recentNotif) {
-      return new Response(JSON.stringify({ success: true, message: 'Notification already sent recently', duplicate: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Notification already sent recently',
+          duplicate: true,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
 
-    const { data: deal, error: dealError } = await supabase.from('deal_pipeline').select(`id, title, listing:listings!deals_listing_id_fkey (id, title, internal_company_name, primary_owner_id, primary_owner:profiles!listings_primary_owner_id_fkey (id, email, first_name, last_name)), deal_owner:profiles!deals_assigned_to_fkey (id, email, first_name, last_name)`).eq('id', dealId).single();
+    const { data: deal, error: dealError } = await supabase
+      .from('deal_pipeline')
+      .select(
+        `id, title, listing:listings!deals_listing_id_fkey (id, title, internal_company_name, primary_owner_id, primary_owner:profiles!listings_primary_owner_id_fkey (id, email, first_name, last_name)), deal_owner:profiles!deals_assigned_to_fkey (id, email, first_name, last_name)`,
+      )
+      .eq('id', dealId)
+      .single();
 
     if (dealError || !deal) {
-      return new Response(JSON.stringify({ success: false, error: 'Deal not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ success: false, error: 'Deal not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const listing = Array.isArray(deal.listing) ? deal.listing[0] : deal.listing;
     if (!listing) {
-      return new Response(JSON.stringify({ success: false, error: 'Deal not linked to listing' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ success: false, error: 'Deal not linked to listing' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
     if (!listing.primary_owner_id || !listing.primary_owner) {
-      return new Response(JSON.stringify({ success: false, error: 'No primary owner configured' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(
+        JSON.stringify({ success: false, error: 'No primary owner configured' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
     }
 
-    const primaryOwnerData = Array.isArray(listing.primary_owner) ? listing.primary_owner[0] : listing.primary_owner;
+    const primaryOwnerData = Array.isArray(listing.primary_owner)
+      ? listing.primary_owner[0]
+      : listing.primary_owner;
     const ownerName = `${primaryOwnerData.first_name} ${primaryOwnerData.last_name}`.trim();
     const companyName = listing.internal_company_name || listing.title;
-    const dealValueText = dealValue ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(dealValue) : 'Not specified';
+    const dealValueText = dealValue
+      ? new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: 0,
+        }).format(dealValue)
+      : 'Not specified';
 
     const subject = `Owner Intro Requested: ${buyerName} to ${companyName}`;
 
@@ -76,18 +130,42 @@ const handler = async (req: Request): Promise<Response> => {
     if (!result.success) throw new Error(`Failed to send email: ${result.error}`);
 
     await supabase.from('owner_intro_notifications').insert({
-      deal_id: dealId, listing_id: listingId, primary_owner_id: listing.primary_owner_id,
-      email_status: 'sent', metadata: { message_id: result.providerMessageId, buyer_name: buyerName, buyer_email: buyerEmail, email_subject: subject },
+      deal_id: dealId,
+      listing_id: listingId,
+      primary_owner_id: listing.primary_owner_id,
+      email_status: 'sent',
+      metadata: {
+        message_id: result.providerMessageId,
+        buyer_name: buyerName,
+        buyer_email: buyerEmail,
+        email_subject: subject,
+      },
     });
 
-    return new Response(JSON.stringify({ success: true, message: 'Owner intro notification sent', primary_owner_name: ownerName, message_id: result.providerMessageId, recipient: primaryOwnerData.email }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: 'Owner intro notification sent',
+        primary_owner_name: ownerName,
+        message_id: result.providerMessageId,
+        recipient: primaryOwnerData.email,
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    );
   } catch (error: unknown) {
     console.error('Error in send-owner-intro-notification:', error);
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) }), {
-      status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      },
+    );
   }
 };
 

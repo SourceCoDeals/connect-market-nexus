@@ -32,11 +32,15 @@ function buildUserConfirmationHtml(
     bodyHtml: `
     <p>We received your introduction request for ${escapeHtml(listingTitle)}.</p>
     <p>Our team reviews every request and selects buyers based on fit. You will hear from us within 24 hours.</p>
-    ${message ? `
+    ${
+      message
+        ? `
     <div style="background: #F7F6F3; padding: 16px; border-radius: 6px; margin: 20px 0;">
       <p style="margin: 0 0 4px 0; font-size: 12px; color: #9B9B9B; font-weight: 600; text-transform: uppercase;">Your message</p>
       <p style="margin: 0; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(message)}"</p>
-    </div>` : ''}
+    </div>`
+        : ''
+    }
     <p>What happens if you are selected</p>
     <ul style="padding-left: 20px; line-height: 1.8;">
       <li>We make a direct introduction to the business owner</li>
@@ -63,11 +67,15 @@ function buildAdminNotificationHtml(
   return wrapEmailHtml({
     bodyHtml: `
     <p>${escapeHtml(requesterName)} (${escapeHtml(requesterEmail)}) submitted a connection request for ${escapeHtml(listingTitle)}.</p>
-    ${message ? `
+    ${
+      message
+        ? `
     <div style="background: #F7F6F3; padding: 16px; border-radius: 6px; margin: 20px 0;">
       <p style="margin: 0 0 4px 0; font-size: 12px; color: #9B9B9B; font-weight: 600; text-transform: uppercase;">Buyer message</p>
       <p style="margin: 0; font-size: 14px; font-style: italic;">"${escapeHtmlWithBreaks(message)}"</p>
-    </div>` : ''}
+    </div>`
+        : ''
+    }
     <p>Log in to the admin dashboard to review and respond.</p>
     <div style="text-align: center; margin: 32px 0;">
       <a href="${adminUrl}" style="display: inline-block; background: #000000; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px;">View in Dashboard</a>
@@ -87,19 +95,44 @@ const handler = async (req: Request): Promise<Response> => {
       const auth = await requireAuth(req);
       if (!auth.authenticated) {
         return new Response(JSON.stringify({ error: auth.error }), {
-          status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          status: 401,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
     }
 
-    const { type, recipientEmail, recipientName, requesterName, requesterEmail, listingTitle, listingId, message, requestId, senderEmail: customSenderEmail, senderName: customSenderName, replyTo: customReplyTo, customBodyText } = requestData;
-    console.log('Processing connection notification:', { type, requesterName, listingTitle, requestId });
+    const {
+      type,
+      recipientEmail,
+      recipientName,
+      requesterName,
+      requesterEmail,
+      listingTitle,
+      listingId,
+      message,
+      requestId,
+      senderEmail: customSenderEmail,
+      senderName: customSenderName,
+      replyTo: customReplyTo,
+      customBodyText,
+    } = requestData;
+    console.log('Processing connection notification:', {
+      type,
+      requesterName,
+      listingTitle,
+      requestId,
+    });
 
     const loginUrl = 'https://marketplace.sourcecodeals.com/login';
-    const listingUrl = listingId ? `https://marketplace.sourcecodeals.com/listing/${listingId}` : 'https://marketplace.sourcecodeals.com/marketplace';
+    const listingUrl = listingId
+      ? `https://marketplace.sourcecodeals.com/listing/${listingId}`
+      : 'https://marketplace.sourcecodeals.com/marketplace';
     const adminUrl = 'https://marketplace.sourcecodeals.com/admin/marketplace/connections';
 
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const _supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
 
     if (type === 'user_confirmation') {
       if (!recipientEmail) throw new Error('recipientEmail is required for user_confirmation');
@@ -120,7 +153,6 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!result.success) throw new Error(`Failed to send confirmation: ${result.error}`);
       console.log('User confirmation sent to:', recipientEmail);
-
     } else if (type === 'approval_notification') {
       if (!recipientEmail) throw new Error('recipientEmail is required for approval_notification');
 
@@ -132,8 +164,13 @@ const handler = async (req: Request): Promise<Response> => {
       let htmlContent: string;
       if (customBodyText) {
         // Split by double-newlines into paragraphs, then convert single newlines to <br>
-        const paragraphs = customBodyText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-        const bodyParagraphs = paragraphs.map(p => `<p>${escapeHtmlWithBreaks(p)}</p>`).join('\n');
+        const paragraphs = customBodyText
+          .split(/\n\s*\n/)
+          .map((p) => p.trim())
+          .filter(Boolean);
+        const bodyParagraphs = paragraphs
+          .map((p) => `<p>${escapeHtmlWithBreaks(p)}</p>`)
+          .join('\n');
         htmlContent = wrapEmailHtml({
           bodyHtml: bodyParagraphs,
           preheader: 'Your request has been approved. Here is what happens next.',
@@ -180,11 +217,17 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!result.success) throw new Error(`Failed to send approval email: ${result.error}`);
       console.log('Connection approval email sent to:', recipientEmail);
-
     } else {
       // Admin notification
       const subject = `New Connection Request: ${listingTitle} from ${requesterName}`;
-      const htmlContent = buildAdminNotificationHtml(requesterName, requesterEmail, listingTitle, listingUrl, adminUrl, message);
+      const htmlContent = buildAdminNotificationHtml(
+        requesterName,
+        requesterEmail,
+        listingTitle,
+        listingUrl,
+        adminUrl,
+        message,
+      );
 
       const result = await sendEmail({
         templateName: 'connection_admin_notification',
@@ -209,7 +252,9 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: unknown) {
     console.error('Error in send-connection-notification:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Failed to send connection notification' }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Failed to send connection notification',
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 },
     );
   }

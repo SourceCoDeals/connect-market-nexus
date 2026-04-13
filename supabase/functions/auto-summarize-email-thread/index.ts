@@ -73,14 +73,17 @@ Deno.serve(async (req) => {
       .limit(50);
 
     if (fetchErr || !emails || emails.length < 3) {
-      return successResponse({
-        skipped: true,
-        reason: !emails || emails.length < 3 ? 'fewer_than_3_emails' : fetchErr?.message,
-      }, corsHeaders);
+      return successResponse(
+        {
+          skipped: true,
+          reason: !emails || emails.length < 3 ? 'fewer_than_3_emails' : fetchErr?.message,
+        },
+        corsHeaders,
+      );
     }
 
     // Check if already summarized (store in deal_activities metadata)
-    const summaryKey = `email_thread_${conversation_id}`;
+    const _summaryKey = `email_thread_${conversation_id}`;
     const { data: existing } = await (supabase as any)
       .from('deal_activities')
       .select('id')
@@ -95,14 +98,16 @@ Deno.serve(async (req) => {
     }
 
     // Build thread text
-    const threadText = emails.map((e: any) => {
-      const dir = e.direction === 'outbound' ? 'SENT' : 'RECEIVED';
-      const date = e.sent_at ? new Date(e.sent_at).toLocaleString() : 'Unknown date';
-      const from = e.from_address || 'Unknown';
-      const to = (e.to_addresses || []).join(', ');
-      const body = (e.body_text || '').substring(0, 3000);
-      return `[${dir}] ${date}\nFrom: ${from}\nTo: ${to}\nSubject: ${e.subject || '(No subject)'}\n\n${body}`;
-    }).join('\n\n---\n\n');
+    const threadText = emails
+      .map((e: any) => {
+        const dir = e.direction === 'outbound' ? 'SENT' : 'RECEIVED';
+        const date = e.sent_at ? new Date(e.sent_at).toLocaleString() : 'Unknown date';
+        const from = e.from_address || 'Unknown';
+        const to = (e.to_addresses || []).join(', ');
+        const body = (e.body_text || '').substring(0, 3000);
+        return `[${dir}] ${date}\nFrom: ${from}\nTo: ${to}\nSubject: ${e.subject || '(No subject)'}\n\n${body}`;
+      })
+      .join('\n\n---\n\n');
 
     // Call Gemini
     const apiKey = getGeminiApiKey();
@@ -119,7 +124,10 @@ Deno.serve(async (req) => {
           model: GEMINI_25_FLASH_MODEL,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: `Email Thread (${emails.length} messages):\n\n${threadText.substring(0, 30000)}` },
+            {
+              role: 'user',
+              content: `Email Thread (${emails.length} messages):\n\n${threadText.substring(0, 30000)}`,
+            },
           ],
           max_tokens: 1500,
           temperature: 0.3,
@@ -174,16 +182,21 @@ Deno.serve(async (req) => {
       },
     });
 
-    console.log(`[auto-summarize-email-thread] Summarized thread ${conversation_id}, note=${savedNote?.id}`);
+    console.log(
+      `[auto-summarize-email-thread] Summarized thread ${conversation_id}, note=${savedNote?.id}`,
+    );
 
-    return successResponse({
-      summarized: true,
-      conversation_id,
-      deal_id,
-      note_id: savedNote?.id || null,
-      email_count: emails.length,
-      summary_length: summaryText.length,
-    }, corsHeaders);
+    return successResponse(
+      {
+        summarized: true,
+        conversation_id,
+        deal_id,
+        note_id: savedNote?.id || null,
+        email_count: emails.length,
+        summary_length: summaryText.length,
+      },
+      corsHeaders,
+    );
   } catch (err) {
     console.error('[auto-summarize-email-thread] Error:', err);
     return errorResponse(`Summarization error: ${(err as Error).message}`, 500, corsHeaders);

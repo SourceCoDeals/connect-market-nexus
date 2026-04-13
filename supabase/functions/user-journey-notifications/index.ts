@@ -8,10 +8,15 @@ import { wrapEmailHtml } from '../_shared/email-template-wrapper.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const _supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 interface UserJourneyEvent {
-  event_type: 'user_created' | 'email_verified' | 'profile_approved' | 'profile_rejected' | 'reminder_due';
+  event_type:
+    | 'user_created'
+    | 'email_verified'
+    | 'profile_approved'
+    | 'profile_rejected'
+    | 'reminder_due';
   user_id: string;
   user_email: string;
   user_name: string;
@@ -75,7 +80,8 @@ function buildEmailVerifiedHtml(userName: string): string {
   </ol>
   <p>Nothing for you to do right now. We will email you the moment you are cleared.</p>
   <p style="color: #6B6B6B; margin-top: 32px;">The SourceCo Team</p>`,
-    preheader: 'Our team reviews applications same day. We will email you the moment you are cleared.',
+    preheader:
+      'Our team reviews applications same day. We will email you the moment you are cleared.',
   });
 }
 
@@ -119,7 +125,8 @@ const handler = async (req: Request): Promise<Response> => {
         break;
 
       case 'profile_rejected': {
-        const reason = (event.metadata?.rejection_reason as string) || 'Application did not meet our criteria';
+        const reason =
+          (event.metadata?.rejection_reason as string) || 'Application did not meet our criteria';
         subject = 'SourceCo account update';
         htmlContent = buildRejectionHtml(user_name || 'there', reason);
         textContent = `Hi ${user_name || 'there'}, we were unable to approve your account. Reason: ${reason}`;
@@ -127,12 +134,16 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       case 'reminder_due':
-        return new Response(JSON.stringify({ success: true, correlationId, message: 'Reminder skipped' }),
-          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(
+          JSON.stringify({ success: true, correlationId, message: 'Reminder skipped' }),
+          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+        );
 
       default:
-        return new Response(JSON.stringify({ success: true, correlationId, message: 'Unknown event type' }),
-          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(
+          JSON.stringify({ success: true, correlationId, message: 'Unknown event type' }),
+          { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
+        );
     }
 
     const result = await sendEmail({
@@ -180,7 +191,9 @@ const handler = async (req: Request): Promise<Response> => {
           senderName: 'SourceCo',
           isTransactional: true,
         });
-        console.log(`[${correlationId}] Admin notification sent to support inbox for new user registration`);
+        console.log(
+          `[${correlationId}] Admin notification sent to support inbox for new user registration`,
+        );
       } catch (adminErr) {
         console.error(`[${correlationId}] Failed to notify support inbox of new user:`, adminErr);
       }
@@ -193,7 +206,9 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: unknown) {
     console.error('Error in user-journey-notifications:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : String(error) || 'Internal server error' }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : String(error) || 'Internal server error',
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } },
     );
   }
