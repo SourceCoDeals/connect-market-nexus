@@ -198,10 +198,10 @@ function MyConnection() {
                 <p className="text-sm font-medium">Historical Email Backfill</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                The initial connection syncs 90 days of history. Run a deeper backfill to pull older
-                Outlook threads and automatically link them to matching contacts and deals. Emails
-                that don&apos;t match a known contact yet are stored and retro-linked the moment a
-                matching contact is created.
+                The initial connection automatically syncs the last 365 days of history. Run a
+                deeper backfill below to pull older Outlook threads and automatically link them to
+                matching contacts and deals. Emails that don&apos;t match a known contact yet are
+                stored and retro-linked the moment a matching contact is created.
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 {BACKFILL_PRESETS.map((preset) => (

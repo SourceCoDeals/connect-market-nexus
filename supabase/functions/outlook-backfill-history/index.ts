@@ -2,12 +2,12 @@
  * outlook-backfill-history: Triggers a deep historical sync of the caller's
  * Outlook mailbox against an extended lookback window.
  *
- * The standard initial sync (`outlook-sync-emails` with `isInitialSync=true`)
- * walks back 90 days by default. That is fine for newly-connected mailboxes,
- * but it leaves pre-existing Outlook history (threads older than 90 days)
- * unlinked to contacts and deals. This function lets an admin manually
- * request a deeper backfill (up to ~10 years) for their own mailbox or, with
- * admin privileges, for any team member's mailbox.
+ * The initial connect-time sync already pulls 365 days of history by default,
+ * which is sufficient for most newly-connected mailboxes. This function lets
+ * an admin manually request an even deeper backfill (up to ~10 years) for
+ * their own mailbox — or, with admin privileges, for any team member's
+ * mailbox — so older Outlook threads can be retroactively linked to
+ * contacts and deals.
  *
  * It also re-runs the `rematch_unmatched_outlook_emails` RPC afterwards so
  * that any emails captured into the unmatched queue during the backfill are

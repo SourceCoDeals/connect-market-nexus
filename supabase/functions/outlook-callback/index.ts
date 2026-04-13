@@ -191,7 +191,10 @@ Deno.serve(async (req) => {
       return errorResponse('Failed to save connection', 500, corsHeaders);
     }
 
-    // 5. Trigger initial 90-day sync as a background job
+    // 5. Trigger initial 365-day sync as a background job. The sync engine
+    //    will also persist any participant-unmatched emails to
+    //    `outlook_unmatched_emails` so they can be retro-linked later when a
+    //    contact is created for them.
     try {
       await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/outlook-sync-emails`, {
         method: 'POST',
@@ -203,6 +206,7 @@ Deno.serve(async (req) => {
           userId: auth.userId,
           accessToken: tokens.access_token,
           isInitialSync: true,
+          initialLookbackDays: 365,
         }),
       });
     } catch (err) {

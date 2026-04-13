@@ -3,7 +3,7 @@
  *
  * Modes:
  *   1. Initial sync (isInitialSync=true): Pull `initialLookbackDays` of
- *      email history (default 90 days). Callers can override
+ *      email history (default 365 days). Callers can override
  *      `initialLookbackDays` up to 3650 (≈10 years) for deeper historical
  *      backfills triggered from the Outlook settings page.
  *   2. Polling sync: Fetch recent emails since last sync (fallback for webhooks).
@@ -44,7 +44,7 @@ interface ContactMatch {
   listing_id?: string | null;
 }
 
-const DEFAULT_INITIAL_LOOKBACK_DAYS = 90;
+const DEFAULT_INITIAL_LOOKBACK_DAYS = 365;
 const MAX_INITIAL_LOOKBACK_DAYS = 3650; // ~10 years
 const MAX_INITIAL_PAGES = 400; // 50 messages/page → up to 20k emails per backfill
 
@@ -267,7 +267,7 @@ Deno.serve(async (req) => {
     userId?: string;
     accessToken?: string;
     isInitialSync?: boolean;
-    /** How many days back to pull on an initial sync. Default 90. Max 3650. */
+    /** How many days back to pull on an initial sync. Default 365. Max 3650. */
     initialLookbackDays?: number;
   };
   try {

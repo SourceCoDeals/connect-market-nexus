@@ -48,17 +48,68 @@ BEGIN;
 -- 1. Drop the broken artifacts from migration 20260629000000
 -- ---------------------------------------------------------------------------
 -- Note: `DROP TRIGGER ... IF EXISTS` requires the underlying table to exist,
--- so we guard each DROP against the (now-missing) `public.deals` table.
+-- so we guard the legacy `public.deals` drop in a DO block. We also drop the
+-- NEW trigger name (`trg_deal_pipeline_update_email_deal_id`) here so a
+-- re-run of this migration doesn't leave a dangling dependency on
+-- `public.update_email_messages_deal_id()`, which we're about to replace.
 
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'deals' AND relnamespace = 'public'::regnamespace) THEN
+  IF EXISTS (
+    SELECT 1
+      FROM pg_class
+     WHERE relname = 'deals'
+       AND relnamespace = 'public'::regnamespace
+  ) THEN
     EXECUTE 'DROP TRIGGER IF EXISTS trg_deals_update_email_deal_id ON public.deals';
   END IF;
 END $$;
 
 DROP TRIGGER IF EXISTS trg_deals_update_email_deal_id ON public.deal_pipeline;
+DROP TRIGGER IF EXISTS trg_deal_pipeline_update_email_deal_id ON public.deal_pipeline;
 DROP FUNCTION IF EXISTS public.update_email_messages_deal_id();
+
+-- ---------------------------------------------------------------------------
+-- 1b. Repoint `email_messages.deal_id` FK at `deal_pipeline`
+-- ---------------------------------------------------------------------------
+--    The original `email_messages` table (20260617000000) declared
+--    `deal_id UUID REFERENCES public.deals(id)`. When `deals` was renamed
+--    to `deal_pipeline`, Postgres auto-follows the FK reference — but the
+--    auto-follow only holds if the FK was created BEFORE the rename.
+--    Because `email_messages` was created *after* the rename in at least
+--    some environments, the constraint may already point at the right
+--    table or may be in an inconsistent state. Re-creating the FK
+--    explicitly eliminates both ambiguity and any risk of INSERTs failing
+--    against a dangling reference.
+-- ---------------------------------------------------------------------------
+
+DO $$
+DECLARE
+  v_constraint_name TEXT;
+BEGIN
+  -- Drop any existing FK on email_messages.deal_id regardless of its name.
+  FOR v_constraint_name IN
+    SELECT con.conname
+      FROM pg_constraint con
+      JOIN pg_class rel ON rel.oid = con.conrelid
+      JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+      JOIN pg_attribute att ON att.attrelid = rel.oid AND att.attnum = ANY(con.conkey)
+     WHERE nsp.nspname = 'public'
+       AND rel.relname = 'email_messages'
+       AND att.attname = 'deal_id'
+       AND con.contype = 'f'
+  LOOP
+    EXECUTE format('ALTER TABLE public.email_messages DROP CONSTRAINT %I', v_constraint_name);
+  END LOOP;
+
+  -- Recreate the FK pointing at deal_pipeline with ON DELETE SET NULL so
+  -- that deleting a deal preserves the email history against its contacts.
+  ALTER TABLE public.email_messages
+    ADD CONSTRAINT email_messages_deal_id_fkey
+    FOREIGN KEY (deal_id)
+    REFERENCES public.deal_pipeline(id)
+    ON DELETE SET NULL;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- 2. Re-create the trigger against the correct table (`deal_pipeline`)
