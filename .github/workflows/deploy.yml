@@ -1,8 +1,8 @@
 name: Production Deployment
 
+# Disabled — Lovable handles production deploys.
+# Re-enable when migrating to self-hosted Netlify/Vercel.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
