@@ -41,7 +41,10 @@ export function CreateSmartListDialog({ open, onOpenChange }: CreateSmartListDia
   const [rules, setRules] = useState<SmartListRule[]>([]);
   const [matchMode, setMatchMode] = useState<'all' | 'any'>('all');
   const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewSampled, setPreviewSampled] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
+
+  const PREVIEW_SAMPLE_SIZE = 10000;
 
   useEffect(() => {
     if (!open) {
@@ -50,6 +53,7 @@ export function CreateSmartListDialog({ open, onOpenChange }: CreateSmartListDia
       setRules([]);
       setMatchMode('all');
       setPreviewCount(null);
+      setPreviewSampled(false);
       setSourceEntity('listings');
     }
   }, [open]);
@@ -57,6 +61,7 @@ export function CreateSmartListDialog({ open, onOpenChange }: CreateSmartListDia
   // Reset preview when rules change
   useEffect(() => {
     setPreviewCount(null);
+    setPreviewSampled(false);
   }, [rules, matchMode, sourceEntity]);
 
   const handlePreview = async () => {
@@ -76,26 +81,30 @@ export function CreateSmartListDialog({ open, onOpenChange }: CreateSmartListDia
           .is('deleted_at', null)
           .or('not_a_fit.eq.false,not_a_fit.is.null')
           .not('main_contact_email', 'is', null)
-          .limit(5000);
+          .limit(PREVIEW_SAMPLE_SIZE);
 
         if (error) throw error;
-        const matches = (data || []).filter((row) =>
+        const rows = data || [];
+        const matches = rows.filter((row) =>
           matchesRules(row as Record<string, unknown>, config),
         );
         setPreviewCount(matches.length);
+        setPreviewSampled(rows.length >= PREVIEW_SAMPLE_SIZE);
       } else {
         const { data, error } = await supabase
           .from('buyers')
           .select('id, target_services, target_geographies, buyer_type, is_pe_backed, hq_state')
           .eq('archived', false)
           .is('deleted_at', null)
-          .limit(5000);
+          .limit(PREVIEW_SAMPLE_SIZE);
 
         if (error) throw error;
-        const matches = (data || []).filter((row) =>
+        const rows = data || [];
+        const matches = rows.filter((row) =>
           matchesRules(row as Record<string, unknown>, config),
         );
         setPreviewCount(matches.length);
+        setPreviewSampled(rows.length >= PREVIEW_SAMPLE_SIZE);
       }
     } catch (err) {
       console.error('Preview failed:', err);
@@ -204,7 +213,7 @@ export function CreateSmartListDialog({ open, onOpenChange }: CreateSmartListDia
 
           {/* Preview */}
           {rules.length > 0 && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 flex-wrap">
               <Button variant="outline" size="sm" onClick={handlePreview} disabled={isPreviewing}>
                 {isPreviewing ? (
                   <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -215,8 +224,15 @@ export function CreateSmartListDialog({ open, onOpenChange }: CreateSmartListDia
               </Button>
               {previewCount !== null && (
                 <Badge variant="secondary" className="text-sm">
+                  {previewSampled ? '~' : ''}
                   {previewCount} {sourceEntity === 'listings' ? 'leads' : 'buyers'} match
                 </Badge>
+              )}
+              {previewSampled && (
+                <span className="text-xs text-muted-foreground">
+                  Sampled first {PREVIEW_SAMPLE_SIZE.toLocaleString()} — full evaluation runs when
+                  the list is saved.
+                </span>
               )}
             </div>
           )}

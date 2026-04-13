@@ -274,7 +274,7 @@ export function useCreateContactList() {
       if (!user) throw new Error('Authentication required');
 
       // Create the list
-      const insertData: Record<string, unknown> = {
+      const insertData: Database['public']['Tables']['contact_lists']['Insert'] = {
         name: input.name,
         description: input.description || null,
         list_type: input.list_type,
@@ -284,7 +284,7 @@ export function useCreateContactList() {
         contact_count: input.members.length,
         ...(input.is_smart_list && {
           is_smart_list: true,
-          list_rules: input.list_rules,
+          list_rules: (input.list_rules ?? null) as unknown as Database['public']['Tables']['contact_lists']['Insert']['list_rules'],
           match_mode: input.match_mode ?? 'all',
           source_entity: input.source_entity,
           auto_add_enabled: input.auto_add_enabled ?? true,
@@ -292,7 +292,7 @@ export function useCreateContactList() {
       };
       const { data: list, error: listError } = await supabase
         .from('contact_lists')
-        .insert(insertData as Database['public']['Tables']['contact_lists']['Insert'])
+        .insert(insertData)
         .select()
         .single();
 

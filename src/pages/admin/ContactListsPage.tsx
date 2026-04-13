@@ -104,6 +104,24 @@ const ContactListsPage = () => {
     );
   });
 
+  // L6: drop selections that the current search has hidden so bulk actions
+  // only operate on what the user can actually see.
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(filteredLists.map((l) => l.id));
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (visible.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+    // filteredLists is derived from lists + searchQuery; those are the real deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lists, searchQuery]);
+
   const selectedLists = useMemo(
     () => filteredLists.filter((l) => selectedIds.has(l.id)),
     [filteredLists, selectedIds],

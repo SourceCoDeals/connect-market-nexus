@@ -3,9 +3,14 @@
  *
  * Processes the smart list evaluation queue. Called by cron every 5 minutes.
  * For each queued listing, evaluates it against all active seller smart lists.
- * If it matches, upserts a member into the list.
+ * If it matches, upserts a member into the list (resetting removed_at). If it
+ * no longer matches, marks any existing smart_rule member row as removed.
  *
  * Same pattern for buyer queue against buyer smart lists.
+ *
+ * NOTE: The rule evaluation logic here must stay in sync with
+ * `src/lib/smart-list-rules.ts` so that the frontend preview count matches
+ * the worker's decisions. When updating one, update the other.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -24,8 +29,9 @@ interface SmartListConfig {
   match_mode: 'all' | 'any';
 }
 
-// Seller list field definitions for contains_any search
-const SELLER_SEARCH_FIELDS: Record<string, string[]> = {
+// Seller list field definitions for contains_any search.
+// Must mirror SELLER_FIELDS[key='industry'].searchFields in smart-list-rules.ts.
+const SEARCH_FIELDS: Record<string, string[]> = {
   industry: ['industry', 'category', 'categories', 'services', 'service_mix', 'executive_summary'],
 };
 
@@ -52,7 +58,7 @@ function evaluateRule(record: Record<string, unknown>, rule: SmartListRule): boo
       return searchIn.includes(String(rule.value).toLowerCase());
     }
     case 'contains_any': {
-      const fieldsToSearch = SELLER_SEARCH_FIELDS[rule.field] ?? [rule.field];
+      const fieldsToSearch = SEARCH_FIELDS[rule.field] ?? [rule.field];
       const parts: string[] = [];
       for (const f of fieldsToSearch) {
         const val = record[f];
@@ -75,7 +81,10 @@ function evaluateRule(record: Record<string, unknown>, rule: SmartListRule): boo
     case 'lte':
       return Number(fieldValue ?? 0) <= Number(rule.value);
     case 'between': {
-      const [min, max] = rule.value as [number, number];
+      // Accept bounds in either order — match frontend behavior.
+      const [a, b] = rule.value as [number, number];
+      const min = Math.min(a, b);
+      const max = Math.max(a, b);
       const num = Number(fieldValue ?? 0);
       return num >= min && num <= max;
     }
@@ -84,9 +93,10 @@ function evaluateRule(record: Record<string, unknown>, rule: SmartListRule): boo
     case 'is_false':
       return !fieldValue || fieldValue === false || fieldValue === 'false';
     case 'is_not_null':
-      return fieldValue != null && fieldValue !== '' && fieldValue !== 0;
+      // Match frontend: 0 and false are valid non-null values.
+      return fieldValue != null && fieldValue !== '';
     case 'is_null':
-      return fieldValue == null || fieldValue === '' || fieldValue === 0;
+      return fieldValue == null || fieldValue === '';
     default:
       return false;
   }
@@ -103,11 +113,17 @@ serve(async (_req) => {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  const results = { seller_processed: 0, seller_added: 0, buyer_processed: 0, buyer_added: 0 };
+  const results = {
+    seller_processed: 0,
+    seller_added: 0,
+    seller_removed: 0,
+    buyer_processed: 0,
+    buyer_added: 0,
+    buyer_removed: 0,
+  };
 
   // ---- SELLER SMART LISTS ----
   try {
-    // 1. Pull queued listing IDs
     const { data: queue } = await supabase
       .from('smart_list_evaluation_queue')
       .select('listing_id')
@@ -117,7 +133,6 @@ serve(async (_req) => {
     if (queue && queue.length > 0) {
       const listingIds = queue.map((q) => q.listing_id);
 
-      // 2. Fetch listings
       const { data: listings } = await supabase
         .from('listings')
         .select(
@@ -125,7 +140,6 @@ serve(async (_req) => {
         )
         .in('id', listingIds);
 
-      // Filter out deleted/not_a_fit
       const validListings = (listings ?? []).filter(
         (l) =>
           l.deleted_at == null &&
@@ -133,24 +147,29 @@ serve(async (_req) => {
           l.main_contact_email,
       );
 
-      // 3. Fetch active seller smart lists
       const { data: smartLists } = await supabase
         .from('contact_lists')
-        .select('id, list_rules, match_mode')
+        .select('id, list_rules, match_mode, auto_add_enabled')
         .eq('is_smart_list', true)
         .eq('is_archived', false)
         .eq('auto_add_enabled', true)
         .eq('source_entity', 'listings');
 
-      // 4. Evaluate each listing against each smart list
+      // Track which queue items successfully completed (H4: only delete on success).
+      const successfulListingIds = new Set<string>();
+
       if (smartLists && smartLists.length > 0) {
         for (const listing of validListings) {
           results.seller_processed++;
+          let listingOk = true;
+
           for (const smartList of smartLists) {
             const config = smartList.list_rules as SmartListConfig;
             if (!config?.rules?.length) continue;
 
-            if (matchesRules(listing as Record<string, unknown>, config)) {
+            const matches = matchesRules(listing as Record<string, unknown>, config);
+
+            if (matches) {
               const { error } = await supabase.from('contact_list_members').upsert(
                 {
                   list_id: smartList.id,
@@ -166,21 +185,60 @@ serve(async (_req) => {
                 },
                 { onConflict: 'list_id,contact_email', ignoreDuplicates: false },
               );
-              if (!error) results.seller_added++;
+              if (error) {
+                listingOk = false;
+                console.error('Seller upsert failed:', { list: smartList.id, listing: listing.id, error });
+              } else {
+                results.seller_added++;
+              }
+            } else {
+              // H2: no longer matches — retract if this member was added by the rule.
+              const { data: removed, error } = await supabase
+                .from('contact_list_members')
+                .update({ removed_at: new Date().toISOString() })
+                .eq('list_id', smartList.id)
+                .eq('contact_email', listing.main_contact_email!)
+                .eq('added_by', 'smart_rule')
+                .is('removed_at', null)
+                .select('id');
+              if (error) {
+                listingOk = false;
+                console.error('Seller retract failed:', { list: smartList.id, listing: listing.id, error });
+              } else if (removed && removed.length > 0) {
+                results.seller_removed += removed.length;
+              }
             }
           }
+
+          if (listingOk) successfulListingIds.add(listing.id);
         }
 
-        // Update last_evaluated_at on all processed smart lists
+        // Listings that were in the queue but filtered out (deleted, not_a_fit,
+        // no contact email) still need to leave the queue — they will never
+        // match again and re-queuing is wasteful.
+        for (const id of listingIds) {
+          const wasValid = validListings.some((l) => l.id === id);
+          if (!wasValid) successfulListingIds.add(id);
+        }
+
+        // Update last_evaluated_at on all smart lists we processed.
         const smartListIds = smartLists.map((l) => l.id);
         await supabase
           .from('contact_lists')
           .update({ last_evaluated_at: new Date().toISOString() })
           .in('id', smartListIds);
+      } else {
+        // No active smart lists — nothing to evaluate against, safe to clear queue.
+        for (const id of listingIds) successfulListingIds.add(id);
       }
 
-      // 5. Clear processed queue items
-      await supabase.from('smart_list_evaluation_queue').delete().in('listing_id', listingIds);
+      // H4: only delete successfully processed items.
+      if (successfulListingIds.size > 0) {
+        await supabase
+          .from('smart_list_evaluation_queue')
+          .delete()
+          .in('listing_id', [...successfulListingIds]);
+      }
     }
   } catch (err) {
     console.error('Seller queue processing error:', err);
@@ -210,30 +268,55 @@ serve(async (_req) => {
 
       const { data: buyerSmartLists } = await supabase
         .from('contact_lists')
-        .select('id, list_rules, match_mode')
+        .select('id, list_rules, match_mode, auto_add_enabled')
         .eq('is_smart_list', true)
         .eq('is_archived', false)
         .eq('auto_add_enabled', true)
         .eq('source_entity', 'remarketing_buyers');
 
+      // M6: hoist contacts fetch out of the inner loop.
+      const buyerContacts: Record<string, Array<{
+        id: string;
+        email: string | null;
+        first_name: string | null;
+        last_name: string | null;
+        phone: string | null;
+        title: string | null;
+      }>> = {};
+      if (validBuyers.length > 0) {
+        const { data: contactsData } = await supabase
+          .from('contacts')
+          .select('id, email, first_name, last_name, phone, title, remarketing_buyer_id')
+          .in(
+            'remarketing_buyer_id',
+            validBuyers.map((b) => b.id),
+          )
+          .eq('archived', false)
+          .not('email', 'is', null);
+        for (const c of contactsData ?? []) {
+          const bid = (c as unknown as { remarketing_buyer_id: string | null }).remarketing_buyer_id;
+          if (!bid) continue;
+          if (!buyerContacts[bid]) buyerContacts[bid] = [];
+          buyerContacts[bid].push(c);
+        }
+      }
+
+      const successfulBuyerIds = new Set<string>();
+
       if (buyerSmartLists && buyerSmartLists.length > 0) {
         for (const buyer of validBuyers) {
           results.buyer_processed++;
+          let buyerOk = true;
+          const contacts = buyerContacts[buyer.id] ?? [];
 
           for (const smartList of buyerSmartLists) {
             const config = smartList.list_rules as SmartListConfig;
             if (!config?.rules?.length) continue;
 
-            if (matchesRules(buyer as Record<string, unknown>, config)) {
-              // Fetch contacts for this buyer
-              const { data: contacts } = await supabase
-                .from('contacts')
-                .select('id, email, first_name, last_name, phone, title, company_name')
-                .eq('remarketing_buyer_id', buyer.id)
-                .eq('archived', false)
-                .not('email', 'is', null);
+            const matches = matchesRules(buyer as Record<string, unknown>, config);
 
-              for (const contact of contacts ?? []) {
+            if (matches) {
+              for (const contact of contacts) {
                 if (!contact.email) continue;
                 const { error } = await supabase.from('contact_list_members').upsert(
                   {
@@ -251,10 +334,39 @@ serve(async (_req) => {
                   },
                   { onConflict: 'list_id,contact_email', ignoreDuplicates: false },
                 );
-                if (!error) results.buyer_added++;
+                if (error) {
+                  buyerOk = false;
+                  console.error('Buyer upsert failed:', { list: smartList.id, buyer: buyer.id, error });
+                } else {
+                  results.buyer_added++;
+                }
+              }
+            } else {
+              // H2: retract rule-added rows for this buyer that no longer match.
+              const { data: removed, error } = await supabase
+                .from('contact_list_members')
+                .update({ removed_at: new Date().toISOString() })
+                .eq('list_id', smartList.id)
+                .eq('entity_type', 'remarketing_buyer')
+                .eq('entity_id', buyer.id)
+                .eq('added_by', 'smart_rule')
+                .is('removed_at', null)
+                .select('id');
+              if (error) {
+                buyerOk = false;
+                console.error('Buyer retract failed:', { list: smartList.id, buyer: buyer.id, error });
+              } else if (removed && removed.length > 0) {
+                results.buyer_removed += removed.length;
               }
             }
           }
+
+          if (buyerOk) successfulBuyerIds.add(buyer.id);
+        }
+
+        for (const id of buyerIds) {
+          const wasValid = validBuyers.some((b) => b.id === id);
+          if (!wasValid) successfulBuyerIds.add(id);
         }
 
         const smartListIds = buyerSmartLists.map((l) => l.id);
@@ -262,9 +374,16 @@ serve(async (_req) => {
           .from('contact_lists')
           .update({ last_evaluated_at: new Date().toISOString() })
           .in('id', smartListIds);
+      } else {
+        for (const id of buyerIds) successfulBuyerIds.add(id);
       }
 
-      await supabase.from('smart_list_buyer_evaluation_queue').delete().in('buyer_id', buyerIds);
+      if (successfulBuyerIds.size > 0) {
+        await supabase
+          .from('smart_list_buyer_evaluation_queue')
+          .delete()
+          .in('buyer_id', [...successfulBuyerIds]);
+      }
     }
   } catch (err) {
     console.error('Buyer queue processing error:', err);

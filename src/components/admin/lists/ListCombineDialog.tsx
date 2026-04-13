@@ -85,7 +85,11 @@ export function ListCombineDialog({
     }
   }, [open, defaultOperation, selectedLists]);
 
-  const listType = selectedLists[0]?.list_type ?? 'mixed';
+  // If the selection contains a mix of list types, force the result to 'mixed'.
+  // subtract_lists ignores this parameter and uses the primary's type instead.
+  const uniqueTypes = Array.from(new Set(selectedLists.map((l) => l.list_type)));
+  const listType = uniqueTypes.length === 1 ? (uniqueTypes[0] ?? 'mixed') : 'mixed';
+  const hasMixedTypes = uniqueTypes.length > 1;
   const listIds = selectedLists.map((l) => l.id);
   const isPending = mergeLists.isPending || subtractLists.isPending || intersectLists.isPending;
 
@@ -130,12 +134,21 @@ export function ListCombineDialog({
                   className="flex items-center gap-2 text-sm px-3 py-1.5 rounded bg-muted/50"
                 >
                   <span className="font-medium truncate flex-1">{l.name}</span>
+                  <Badge variant="outline" className="text-xs capitalize">
+                    {l.list_type}
+                  </Badge>
                   <Badge variant="outline" className="text-xs">
                     {l.contact_count}
                   </Badge>
                 </div>
               ))}
             </div>
+            {hasMixedTypes && operation !== 'subtract' && (
+              <p className="text-xs text-muted-foreground">
+                Mixed list types selected — the new list will be created as{' '}
+                <span className="font-medium">mixed</span>.
+              </p>
+            )}
           </div>
 
           {/* Operation picker */}
