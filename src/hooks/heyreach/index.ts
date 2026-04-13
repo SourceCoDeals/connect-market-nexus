@@ -19,12 +19,4 @@ export {
   usePushToHeyReachDialog,
 } from './use-heyreach-leads';
 
-export {
-  useContactHeyReachHistory,
-  useContactHeyReachHistoryByEmail,
-} from './use-contact-heyreach-history';
-export type {
-  HeyReachContactActivity,
-  HeyReachContactEvent,
-  ContactHeyReachHistory,
-} from './use-contact-heyreach-history';
+// use-contact-heyreach-history removed (dead code, file deleted)
