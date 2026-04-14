@@ -46,7 +46,30 @@ interface ContactMatch {
 
 const DEFAULT_INITIAL_LOOKBACK_DAYS = 365;
 const MAX_INITIAL_LOOKBACK_DAYS = 3650; // ~10 years
-const MAX_INITIAL_PAGES = 400; // 50 messages/page → up to 20k emails per backfill
+// Graph page size was raised from 50 → 100 (the practical max for
+// /me/messages) so each Graph round-trip fetches twice as many messages per
+// invocation. Combined with the page-batched DB writes below that's the
+// largest single win for the historical backfill throughput — every page
+// fetched halves the number of DB checkpoint writes, Graph round-trips, and
+// per-page overhead in the sync loop.
+const GRAPH_PAGE_SIZE = 100;
+const MAX_INITIAL_PAGES = 400; // 100 messages/page → up to 40k emails per backfill
+// Concurrency cap for attachment metadata fetches against Microsoft Graph.
+// Graph throttles at the mailbox level; 8 in-flight requests is well under
+// the documented per-app-per-mailbox budget while still being enough to
+// saturate the latency of a single page's attachments.
+const ATTACHMENT_FETCH_CONCURRENCY = 8;
+// Module-level cache for the known-contact email map. Deno Deploy keeps
+// warm isolates around across invocations, so a short TTL lets resume calls
+// skip the ~3-query contact/deal warmup that dominates the first few seconds
+// of every `outlook-sync-emails` invocation. Safe because:
+//   1. `loadKnownContactEmails` always reads the latest snapshot — no writes.
+//   2. The 60-second TTL bounds staleness; rematch-on-contact-insert is
+//      handled separately by `rematch_unmatched_outlook_emails`, so a new
+//      contact added during a backfill just ends up in the unmatched queue
+//      until the next cache refresh, at which point retro-linking catches it.
+const CONTACT_CACHE_TTL_MS = 60_000;
+let _contactCache: { map: Map<string, ContactMatch>; loadedAt: number } | null = null;
 
 import { decryptToken, encryptToken, refreshAccessToken } from '../_shared/microsoft-tokens.ts';
 
@@ -61,7 +84,7 @@ async function fetchMessages(
 
   if (!url) {
     const params = new URLSearchParams({
-      $top: '50',
+      $top: String(GRAPH_PAGE_SIZE),
       $orderby: 'sentDateTime desc',
       $select:
         'id,conversationId,subject,bodyPreview,body,from,toRecipients,ccRecipients,sentDateTime,receivedDateTime,hasAttachments',
@@ -119,6 +142,61 @@ async function fetchAttachmentMetadata(
   } catch {
     return [];
   }
+}
+
+/**
+ * Fetch attachment metadata for a whole page of messages in parallel.
+ *
+ * Previously the sync loop awaited one `fetchAttachmentMetadata` call per
+ * message with attachments, serializing ~N*100ms of round-trips per page and
+ * becoming the single largest source of wall-clock time in the backfill.
+ * This batches the fetches with a fixed concurrency cap so we still saturate
+ * latency but never blow past Microsoft Graph's per-mailbox throttle.
+ *
+ * Returns a Map keyed by `message.id` so the page loop can look up each
+ * message's attachment list in O(1) without awaiting anything.
+ */
+async function fetchAttachmentMetadataBatch(
+  accessToken: string,
+  messageIds: string[],
+  concurrency = ATTACHMENT_FETCH_CONCURRENCY,
+): Promise<Map<string, { name: string; size: number; contentType: string }[]>> {
+  const result = new Map<string, { name: string; size: number; contentType: string }[]>();
+  if (messageIds.length === 0) return result;
+
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(concurrency, messageIds.length) }, async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= messageIds.length) return;
+      const id = messageIds[i];
+      const meta = await fetchAttachmentMetadata(accessToken, id);
+      result.set(id, meta);
+    }
+  });
+  await Promise.all(workers);
+  return result;
+}
+
+/**
+ * Module-level cached wrapper around {@link loadKnownContactEmails}.
+ *
+ * The raw loader does 3+ DB queries (contacts scan + two chunked
+ * `deal_pipeline` lookups). On a historical backfill that spans many resume
+ * invocations, this warmup dominates the first ~2-5s of every call. By
+ * caching the resolved map in an isolate-local variable with a short TTL we
+ * can reuse it across warm-isolate invocations without ever serving stale
+ * data for more than `CONTACT_CACHE_TTL_MS`. Callers should not mutate the
+ * returned map.
+ */
+async function getKnownContactEmails(supabase: SupabaseClient): Promise<Map<string, ContactMatch>> {
+  const now = Date.now();
+  if (_contactCache && now - _contactCache.loadedAt < CONTACT_CACHE_TTL_MS) {
+    return _contactCache.map;
+  }
+  const fresh = await loadKnownContactEmails(supabase);
+  _contactCache = { map: fresh, loadedAt: now };
+  return fresh;
 }
 
 async function loadKnownContactEmails(
@@ -508,7 +586,7 @@ async function syncEmails(
   isInitial = false,
   options: SyncEmailsOptions = {},
 ): Promise<{ synced: number; skipped: number; queuedUnmatched: number; errors: string[] }> {
-  const contactEmails = await loadKnownContactEmails(supabase);
+  const contactEmails = await getKnownContactEmails(supabase);
   let synced = 0;
   let skipped = 0;
   let queuedUnmatched = 0;
@@ -568,81 +646,191 @@ async function syncEmails(
         }
       }
 
-      for (const msg of result.messages) {
-        try {
-          // Check if this was sent via the platform (has a placeholder ID).
-          // Match by sender + contact + approximate timestamp to upgrade the record.
-          const fromAddr = msg.from?.emailAddress?.address?.toLowerCase() || '';
-          if (fromAddr === userEmail.toLowerCase()) {
-            const msgSentAt = msg.sentDateTime || msg.receivedDateTime;
-            const sentWindow = new Date(new Date(msgSentAt).getTime() - 60_000).toISOString();
-            const sentWindowEnd = new Date(new Date(msgSentAt).getTime() + 60_000).toISOString();
+      // ── Page-level batch processing ─────────────────────────────────────
+      //
+      // Everything below used to run per-message with `await` round-trips for
+      // the platform_sent lookup, attachment fetch, unmatched upsert, matched
+      // upsert, and deal-activity RPC — that's ~150+ sequential blocking
+      // calls per 50-message page, which is what made the historical backfill
+      // run at <3 messages/second. The rewrite collects every message's work
+      // into a few bulk ops per page instead:
+      //
+      //   1. One Graph-page-wide query for any `platform_sent_*` placeholder
+      //      rows that need to be upgraded with real Graph IDs. Matches are
+      //      resolved in-memory against `(from_address, sent_at ±60s)`.
+      //   2. One parallel fan-out of attachment-metadata fetches (concurrency
+      //      capped at ATTACHMENT_FETCH_CONCURRENCY).
+      //   3. One `upsert` into `outlook_unmatched_emails` for all unmatched
+      //      messages on the page.
+      //   4. One `upsert` into `email_messages` for all matched rows on the
+      //      page (flattened across contacts when a message matches several).
+      //   5. `deal_activities` logging is now handled by an AFTER INSERT
+      //      trigger on `email_messages` (migration 20260718000000) instead
+      //      of a per-row RPC call, so the sync loop doesn't pay for it at
+      //      all.
+      //
+      // Counters (`synced` / `skipped` / `queuedUnmatched`) are derived from
+      // the bulk upsert return value lengths so the progress row stays
+      // accurate even when `ignoreDuplicates` silently drops conflicting
+      // rows.
+      try {
+        const pageMessages = result.messages;
 
-            const { data: platformSent } = await supabase
+        // Track message IDs we've already accounted for in an earlier step
+        // (e.g. platform_sent claim, zero-participant skip) so they don't
+        // fall through to the matched/unmatched pipelines.
+        const consumedMessageIds = new Set<string>();
+
+        // ── 1. Platform-sent placeholder upgrade (batched) ────────────────
+        //
+        // Any outbound message on this page might correspond to an email the
+        // user previously sent via the platform's own send-email function —
+        // those live in `email_messages` under a `platform_sent_<uuid>`
+        // placeholder id and need to be upgraded in place with the real
+        // Graph id instead of creating a second row.
+        const outboundCandidates = pageMessages.filter(
+          (m) => m.from?.emailAddress?.address?.toLowerCase() === userEmail.toLowerCase(),
+        );
+
+        if (outboundCandidates.length > 0) {
+          // Compute the tightest sent_at window that covers every outbound
+          // message on this page (±60s tolerance for clock skew). One DB
+          // query for the whole page replaces up to N per-message calls.
+          let windowMin = Infinity;
+          let windowMax = -Infinity;
+          for (const m of outboundCandidates) {
+            const ts = new Date(m.sentDateTime || m.receivedDateTime).getTime();
+            if (Number.isFinite(ts)) {
+              if (ts < windowMin) windowMin = ts;
+              if (ts > windowMax) windowMax = ts;
+            }
+          }
+
+          if (Number.isFinite(windowMin) && Number.isFinite(windowMax)) {
+            const windowStart = new Date(windowMin - 60_000).toISOString();
+            const windowEnd = new Date(windowMax + 60_000).toISOString();
+
+            const { data: platformSentRows, error: platformSentErr } = await supabase
               .from('email_messages')
-              .select('id, microsoft_message_id')
+              .select('id, microsoft_message_id, from_address, sent_at')
               .like('microsoft_message_id', 'platform_sent_%')
               .eq('sourceco_user_id', userId)
-              .eq('from_address', fromAddr)
-              .gte('sent_at', sentWindow)
-              .lte('sent_at', sentWindowEnd)
-              .limit(1)
-              .maybeSingle();
+              .gte('sent_at', windowStart)
+              .lte('sent_at', windowEnd);
 
-            if (platformSent) {
-              // Upgrade the placeholder record with real Graph IDs
-              await supabase
-                .from('email_messages')
-                .update({
-                  microsoft_message_id: msg.id,
-                  microsoft_conversation_id: msg.conversationId,
-                })
-                .eq('id', platformSent.id);
-              skipped++;
-              continue;
+            if (platformSentErr) {
+              errors.push(`Platform-sent lookup failed: ${platformSentErr.message}`);
+            } else if (platformSentRows && platformSentRows.length > 0) {
+              // Match each outbound candidate to at most one platform_sent
+              // row (±60s around the reported sentDateTime). We mark
+              // claimed rows so the same placeholder can't be matched to
+              // two different Graph messages within one page.
+              const usedPlatformIds = new Set<string>();
+              const upgrades: { placeholderId: string; realId: string; conversationId: string }[] =
+                [];
+              for (const m of outboundCandidates) {
+                const fromAddr = m.from?.emailAddress?.address?.toLowerCase() || '';
+                const msgTs = new Date(m.sentDateTime || m.receivedDateTime).getTime();
+                if (!Number.isFinite(msgTs)) continue;
+                const match = platformSentRows.find((row) => {
+                  if (usedPlatformIds.has(row.id)) return false;
+                  if ((row.from_address || '').toLowerCase() !== fromAddr) return false;
+                  const rowTs = new Date(row.sent_at).getTime();
+                  return Math.abs(rowTs - msgTs) <= 60_000;
+                });
+                if (match) {
+                  usedPlatformIds.add(match.id);
+                  upgrades.push({
+                    placeholderId: match.id,
+                    realId: m.id,
+                    conversationId: m.conversationId,
+                  });
+                  consumedMessageIds.add(m.id);
+                }
+              }
+
+              if (upgrades.length > 0) {
+                // Upgrades target different PKs with different values, so we
+                // still need one UPDATE per row — but we fire them in
+                // parallel instead of awaiting sequentially. In practice a
+                // page has 0-2 of these so the cost is negligible compared
+                // to the old per-every-outbound-message behavior.
+                const upgradeResults = await Promise.all(
+                  upgrades.map((u) =>
+                    supabase
+                      .from('email_messages')
+                      .update({
+                        microsoft_message_id: u.realId,
+                        microsoft_conversation_id: u.conversationId,
+                      })
+                      .eq('id', u.placeholderId),
+                  ),
+                );
+                for (let i = 0; i < upgradeResults.length; i++) {
+                  const r = upgradeResults[i];
+                  if (r.error) {
+                    errors.push(
+                      `Platform-sent upgrade failed for ${upgrades[i].realId}: ${r.error.message}`,
+                    );
+                  } else {
+                    skipped++;
+                  }
+                }
+              }
             }
           }
+        }
 
-          // Match to known contacts
-          const match = matchEmailToContacts(msg, contactEmails, userEmail);
+        // ── 2. Attachment metadata (parallel fan-out) ─────────────────────
+        //
+        // Collect every non-consumed message with `hasAttachments` and
+        // fetch their metadata in parallel. `fetchAttachmentMetadataBatch`
+        // handles the concurrency cap so Microsoft Graph isn't swamped.
+        const attachmentTargets = pageMessages
+          .filter((m) => m.hasAttachments && !consumedMessageIds.has(m.id))
+          .map((m) => m.id);
+        const attachmentMap = await fetchAttachmentMetadataBatch(accessToken, attachmentTargets);
 
-          // Fetch attachment metadata once regardless of matched/unmatched — we
-          // want the queued unmatched rows to retain the same fidelity so they
-          // can be promoted faithfully later.
-          let attachmentMeta: { name: string; size: number; contentType: string }[] = [];
-          if (msg.hasAttachments) {
-            attachmentMeta = await fetchAttachmentMetadata(accessToken, msg.id);
-          }
+        // ── 3/4. Matched + unmatched row accumulation ─────────────────────
+        //
+        // Walk every remaining message once, classify it, and push the
+        // resulting row(s) into the right batch. Nothing awaits inside this
+        // loop — all the I/O happens above (already done) or below (bulk
+        // upserts).
+        const unmatchedRows: Record<string, unknown>[] = [];
+        const matchedRows: Record<string, unknown>[] = [];
 
-          if (match.contacts.length === 0) {
-            // Persist to the unmatched queue so a future contact insert can
-            // retro-link this email via the `rematch_unmatched_outlook_emails`
-            // RPC / the `trg_contacts_rematch_outlook` trigger.
-            const fromAddr = msg.from?.emailAddress?.address?.toLowerCase() || '';
-            const toAddrs = (msg.toRecipients || [])
-              .map((r) => r.emailAddress?.address?.toLowerCase())
-              .filter(Boolean) as string[];
-            const ccAddrs = (msg.ccRecipients || [])
-              .map((r) => r.emailAddress?.address?.toLowerCase())
-              .filter(Boolean) as string[];
+        for (const msg of pageMessages) {
+          if (consumedMessageIds.has(msg.id)) continue;
+          try {
+            const match = matchEmailToContacts(msg, contactEmails, userEmail);
+            const attachmentMeta = msg.hasAttachments ? attachmentMap.get(msg.id) || [] : [];
 
-            const participantEmails = Array.from(
-              new Set(
-                [fromAddr, ...toAddrs, ...ccAddrs].filter(
-                  (addr): addr is string => !!addr && addr !== userEmail.toLowerCase(),
+            if (match.contacts.length === 0) {
+              const fromAddr = msg.from?.emailAddress?.address?.toLowerCase() || '';
+              const toAddrs = (msg.toRecipients || [])
+                .map((r) => r.emailAddress?.address?.toLowerCase())
+                .filter(Boolean) as string[];
+              const ccAddrs = (msg.ccRecipients || [])
+                .map((r) => r.emailAddress?.address?.toLowerCase())
+                .filter(Boolean) as string[];
+
+              const participantEmails = Array.from(
+                new Set(
+                  [fromAddr, ...toAddrs, ...ccAddrs].filter(
+                    (addr): addr is string => !!addr && addr !== userEmail.toLowerCase(),
+                  ),
                 ),
-              ),
-            );
+              );
 
-            // If nobody besides the mailbox owner was on the message, there is
-            // nothing worth queueing — skip outright.
-            if (participantEmails.length === 0) {
-              skipped++;
-              continue;
-            }
+              // If nobody besides the mailbox owner was on the message there
+              // is nothing worth queueing — count as skipped and drop it.
+              if (participantEmails.length === 0) {
+                skipped++;
+                continue;
+              }
 
-            const { error: queueError } = await supabase.from('outlook_unmatched_emails').upsert(
-              {
+              unmatchedRows.push({
                 microsoft_message_id: msg.id,
                 microsoft_conversation_id: msg.conversationId,
                 sourceco_user_id: userId,
@@ -659,25 +847,12 @@ async function syncEmails(
                 sent_at: msg.sentDateTime || msg.receivedDateTime,
                 has_attachments: msg.hasAttachments || false,
                 attachment_metadata: attachmentMeta,
-              },
-              {
-                onConflict: 'microsoft_message_id,sourceco_user_id',
-                ignoreDuplicates: true,
-              },
-            );
-
-            if (queueError && !queueError.message?.includes('duplicate')) {
-              errors.push(`Queue unmatched ${msg.id}: ${queueError.message}`);
-            } else {
-              queuedUnmatched++;
+              });
+              continue;
             }
-            continue;
-          }
 
-          // Create a record for each matched contact (uses ON CONFLICT to avoid race conditions)
-          for (const contact of match.contacts) {
-            const { error: insertError } = await supabase.from('email_messages').upsert(
-              {
+            for (const contact of match.contacts) {
+              matchedRows.push({
                 microsoft_message_id: msg.id,
                 microsoft_conversation_id: msg.conversationId,
                 contact_id: contact.id,
@@ -694,70 +869,68 @@ async function syncEmails(
                 has_attachments: msg.hasAttachments || false,
                 attachment_metadata: attachmentMeta,
                 bcc_addresses: [],
-              },
-              {
-                onConflict: 'microsoft_message_id,contact_id',
-                ignoreDuplicates: true,
-              },
-            );
-
-            if (insertError) {
-              if (
-                !insertError.message?.includes('duplicate') &&
-                !insertError.message?.includes('conflict')
-              ) {
-                errors.push(`Insert failed for ${msg.id}: ${insertError.message}`);
-              } else {
-                skipped++;
-              }
-            } else {
-              synced++;
-
-              // Log to deal_activities for deal timeline visibility. The
-              // `deal_activities.deal_id` FK points at `deal_pipeline(id)` as
-              // of migration 20260618000000, so we must pass
-              // `contact.deal_id` (a deal_pipeline row) — NOT the legacy
-              // `contact.listing_id` (a listings row).
-              if (contact.deal_id) {
-                try {
-                  const fromName =
-                    msg.from?.emailAddress?.name || msg.from?.emailAddress?.address || 'Unknown';
-                  const toNames = (msg.toRecipients || [])
-                    .map((r: any) => r.emailAddress?.name || r.emailAddress?.address)
-                    .join(', ');
-                  await supabase.rpc('log_deal_activity', {
-                    p_deal_id: contact.deal_id,
-                    p_activity_type:
-                      match.direction === 'outbound' ? 'email_sent' : 'email_received',
-                    p_title:
-                      match.direction === 'outbound'
-                        ? `Email sent to ${toNames}`
-                        : `Email from ${fromName}`,
-                    p_description: msg.subject || '(No subject)',
-                    p_admin_id: null,
-                    p_metadata: {
-                      email_message_id: msg.id,
-                      direction: match.direction,
-                      from_address: msg.from?.emailAddress?.address || null,
-                      to_addresses: (msg.toRecipients || []).map(
-                        (r: any) => r.emailAddress?.address,
-                      ),
-                      subject: msg.subject,
-                      has_attachments: msg.hasAttachments || false,
-                      contact_id: contact.id,
-                      listing_id: contact.listing_id || null,
-                      body_preview: msg.bodyPreview?.substring(0, 300) || null,
-                    },
-                  });
-                } catch (e) {
-                  console.error('[outlook-sync] Failed to log deal activity:', e);
-                }
-              }
+              });
             }
+          } catch (err) {
+            errors.push(`Message ${msg.id}: ${(err as Error).message}`);
           }
-        } catch (err) {
-          errors.push(`Message ${msg.id}: ${(err as Error).message}`);
         }
+
+        // ── 5. Bulk upserts (one call each, in parallel) ──────────────────
+        //
+        // Run the two bulk upserts concurrently — they hit disjoint tables
+        // and neither depends on the other's result. `.select('id')` forces
+        // PostgREST to return only the rows that were actually inserted
+        // (ignoreDuplicates = `ON CONFLICT DO NOTHING`), so we can derive
+        // exact synced/skipped counts without round-tripping per row.
+        const unmatchedTask =
+          unmatchedRows.length > 0
+            ? (async () => {
+                const { data, error } = await supabase
+                  .from('outlook_unmatched_emails')
+                  .upsert(unmatchedRows, {
+                    onConflict: 'microsoft_message_id,sourceco_user_id',
+                    ignoreDuplicates: true,
+                  })
+                  .select('id');
+                if (error) {
+                  errors.push(`Bulk unmatched upsert failed: ${error.message}`);
+                  return;
+                }
+                const inserted = data?.length ?? 0;
+                queuedUnmatched += inserted;
+                skipped += unmatchedRows.length - inserted;
+              })()
+            : Promise.resolve();
+
+        const matchedTask =
+          matchedRows.length > 0
+            ? (async () => {
+                const { data, error } = await supabase
+                  .from('email_messages')
+                  .upsert(matchedRows, {
+                    onConflict: 'microsoft_message_id,contact_id',
+                    ignoreDuplicates: true,
+                  })
+                  .select('id');
+                if (error) {
+                  errors.push(`Bulk matched upsert failed: ${error.message}`);
+                  return;
+                }
+                const inserted = data?.length ?? 0;
+                synced += inserted;
+                skipped += matchedRows.length - inserted;
+              })()
+            : Promise.resolve();
+
+        await Promise.all([unmatchedTask, matchedTask]);
+      } catch (err) {
+        // Errors thrown *outside* the inner per-message try/catch (e.g. the
+        // Graph page itself failing mid-iteration) bubble up into the outer
+        // page-fetch catch below. We only land here for unexpected runtime
+        // failures inside the batch pipeline — record them so the operator
+        // sees them in the sync result.
+        errors.push(`Page batch processing error: ${(err as Error).message}`);
       }
 
       pageCount++;
