@@ -198,8 +198,6 @@ function MarketplaceCardPreview({ formValues, imagePreview }: EditorLivePreviewP
             revenue={revenue}
             ebitda={ebitda}
             formatCurrency={formatCurrency}
-            fullTimeEmployees={formValues.full_time_employees || 0}
-            partTimeEmployees={formValues.part_time_employees || 0}
           />
         </div>
 
