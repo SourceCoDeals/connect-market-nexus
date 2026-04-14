@@ -235,6 +235,391 @@ ${websiteContent.substring(0, 50000)}
 Extract all available business information using the provided tool. Be EXHAUSTIVE — capture every detail. The address_city and address_state fields are REQUIRED.`;
 }
 
+// ============================================================================
+// DATA ROOM TOOL SCHEMA
+// ============================================================================
+// Used when extracting from data room documents (CIMs, financials, legal docs).
+// Unlike the website schema, this includes financial and operational fields
+// because data room docs are authoritative due-diligence material.
+//
+// CRITICAL: Every field name here MUST exist in VALID_LISTING_UPDATE_KEYS
+// above, or STEP 5 will silently drop it.
+//
+// This schema is the fix for the bug where financial fields in uploaded CIMs
+// were being lost because DEAL_TOOL_SCHEMA (website-focused) had no place for
+// the AI to return them.
+// ============================================================================
+export const DEAL_DATA_ROOM_TOOL_SCHEMA = {
+  type: 'function',
+  function: {
+    name: 'extract_deal_intelligence_from_data_room',
+    description:
+      'Extract comprehensive business and financial intelligence from data room documents (CIMs, financials, legal, org charts) for M&A deal matching and profile population.',
+    parameters: {
+      type: 'object',
+      properties: {
+        // ── Company identity ────────────────────────────────────────────────
+        internal_company_name: {
+          type: 'string',
+          description:
+            'Legal entity or operating company name as it appears in the CIM / legal docs.',
+        },
+        industry: {
+          type: 'string',
+          description:
+            'Primary industry classification (2-4 words). E.g., "Agricultural Services", "HVAC Services", "Commercial Plumbing".',
+        },
+        website: { type: 'string', description: 'Company website URL if present in the docs.' },
+        linkedin_url: { type: 'string', description: 'LinkedIn company page URL.' },
+        founded_year: {
+          type: 'number',
+          description: 'Year the business was founded (e.g., 1987). Integer.',
+        },
+
+        // ── Summary & services ──────────────────────────────────────────────
+        executive_summary: {
+          type: 'string',
+          description:
+            '5-8 sentence PE-investor-grade summary drawn from the CIM / financials. Include: what the company does, business model, scale, competitive position, customer base, financial highlights if present, acquisition attractiveness.',
+        },
+        services: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Every distinct service or product offered. Lowercase except proper nouns.',
+        },
+        service_mix: {
+          type: 'string',
+          description: '2-4 sentence description of the full service portfolio and its dynamics.',
+        },
+
+        // ── Location ────────────────────────────────────────────────────────
+        street_address: { type: 'string', description: 'Street address only.' },
+        address_city: { type: 'string', description: 'City name.' },
+        address_state: {
+          type: 'string',
+          description: '2-letter US state / Canadian province code.',
+        },
+        address_zip: { type: 'string', description: 'ZIP / postal code.' },
+        address_country: { type: 'string', description: 'Country code (US / CA).' },
+        geographic_states: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '2-letter state codes where the company operates.',
+        },
+        number_of_locations: {
+          type: 'number',
+          description: 'Total count of physical locations / branches / facilities.',
+        },
+
+        // ── Financials (the critical gap — these ARE extractable from CIMs) ─
+        revenue: {
+          type: 'number',
+          description:
+            'Latest annual revenue in USD (not thousands, not millions — the full number). E.g., 5250000 for $5.25M. Set only if clearly stated in the docs.',
+        },
+        revenue_is_inferred: {
+          type: 'boolean',
+          description:
+            'True if revenue was inferred from partial data (e.g., trailing twelve months, projected, or estimated range).',
+        },
+        revenue_source_quote: {
+          type: 'string',
+          description:
+            'Verbatim quote from the document showing the revenue figure. For traceability.',
+        },
+        ebitda: {
+          type: 'number',
+          description: 'Latest annual EBITDA in USD. Can be negative for loss-making years.',
+        },
+        ebitda_margin: {
+          type: 'number',
+          description:
+            'EBITDA margin as a decimal (0.15 = 15%). If the doc shows a percentage like "18.3%", return 0.183.',
+        },
+        ebitda_is_inferred: { type: 'boolean', description: 'True if EBITDA was inferred.' },
+        ebitda_source_quote: {
+          type: 'string',
+          description: 'Verbatim quote from the document showing the EBITDA figure.',
+        },
+        asking_price: {
+          type: 'number',
+          description: 'Asking price in USD if stated. Integer.',
+        },
+        financial_notes: {
+          type: 'string',
+          description:
+            'Any additional financial context that should carry forward: customer concentration, margin trends, working capital notes, seasonality, CapEx, debt structure, one-time adjustments, normalization items.',
+        },
+        financial_followup_questions: {
+          type: 'string',
+          description:
+            'Questions the team should ask the seller about financials after reading these docs. Newline-separated.',
+        },
+
+        // ── Team & ownership ────────────────────────────────────────────────
+        full_time_employees: { type: 'number', description: 'Count of full-time employees.' },
+        part_time_employees: { type: 'number', description: 'Count of part-time employees.' },
+        ownership_structure: {
+          type: 'string',
+          description:
+            'How the company is owned. E.g., "Single founder owns 100%", "Two partners 60/40", "ESOP", "Family trust", "Private equity owned by Blackstone since 2018".',
+        },
+        management_depth: {
+          type: 'string',
+          description:
+            'Description of the management team depth. Is the owner the operator? Is there a second-line of management that can run the business without the founder?',
+        },
+        seller_motivation: {
+          type: 'string',
+          description:
+            'Why the owner is selling, if stated or implied. Retirement, health, partnership dissolution, strategic divestiture, etc.',
+        },
+        owner_goals: {
+          type: 'string',
+          description:
+            "The owner's stated goals around the transaction (maximize price, keep team employed, preserve legacy, quick close, etc.)",
+        },
+        transition_preferences: {
+          type: 'string',
+          description:
+            'How the owner wants to handle the transition. E.g., "6-month training period", "immediate exit", "earn-out over 3 years".',
+        },
+        timeline_notes: {
+          type: 'string',
+          description: 'Any notes about the expected timeline to close.',
+        },
+        special_requirements: {
+          type: 'string',
+          description:
+            'Any special requirements the seller has. E.g., "buyer must retain all employees", "seller continues as consultant".',
+        },
+
+        // ── Customers ───────────────────────────────────────────────────────
+        customer_types: {
+          type: 'string',
+          description: '1-2 sentence description of customer segments. Be specific.',
+        },
+        customer_geography: {
+          type: 'string',
+          description: 'Service radius, coverage area, or where customers are located.',
+        },
+        customer_concentration: {
+          type: 'number',
+          description:
+            'Customer concentration as a decimal (0.35 = 35% from top customer). 0 to 1 only.',
+        },
+        end_market_description: {
+          type: 'string',
+          description:
+            'The end markets this business serves — residential vs commercial, which verticals, specializations.',
+        },
+
+        // ── Operations / risk ───────────────────────────────────────────────
+        growth_trajectory: {
+          type: 'string',
+          description:
+            'Recent growth history and trajectory. Include historical revenue if stated.',
+        },
+        growth_drivers: {
+          type: 'string',
+          description:
+            'Primary drivers of growth: new customers, cross-sell, geographic expansion, pricing, M&A.',
+        },
+        key_risks: {
+          type: 'string',
+          description:
+            'Material risks the CIM discloses: customer concentration, key-man risk, regulatory, litigation, contract renewals, supply chain.',
+        },
+        technology_systems: {
+          type: 'string',
+          description: 'Tech stack / ERP / CRM / field service software used by the company.',
+        },
+        real_estate_info: {
+          type: 'string',
+          description: 'Owned vs leased real estate, square footage, lease terms.',
+        },
+
+        // ── Contact ─────────────────────────────────────────────────────────
+        main_contact_name: {
+          type: 'string',
+          description: 'Primary contact person (banker, advisor, owner) named in the docs.',
+        },
+        main_contact_email: { type: 'string', description: 'Primary contact email.' },
+        main_contact_phone: { type: 'string', description: 'Primary contact phone.' },
+
+        // ── Evidence ────────────────────────────────────────────────────────
+        key_quotes: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Up to 10 verbatim quotes from the documents that reveal positioning, differentiation, reputation, or risk.',
+        },
+      },
+      required: ['industry'],
+    },
+  },
+};
+
+// Numeric range guards used by sanitizeDataRoomExtraction.
+// Tuned to allow very small and very large legitimate businesses but reject
+// obvious hallucinations (e.g., AI returning 1.5 as "1.5M revenue").
+const DATA_ROOM_NUMERIC_RANGES: Record<string, { min: number; max: number }> = {
+  // Financials
+  revenue: { min: 0, max: 10_000_000_000 }, // up to $10B
+  ebitda: { min: -1_000_000_000, max: 10_000_000_000 }, // losses possible
+  ebitda_margin: { min: -1, max: 1 }, // -100% to +100%
+  asking_price: { min: 0, max: 100_000_000_000 }, // up to $100B
+  // People & locations
+  full_time_employees: { min: 0, max: 1_000_000 },
+  part_time_employees: { min: 0, max: 1_000_000 },
+  number_of_locations: { min: 0, max: 10_000 },
+  // Time
+  founded_year: { min: 1800, max: new Date().getFullYear() },
+  // Concentration
+  customer_concentration: { min: 0, max: 1 },
+};
+
+const DATA_ROOM_PLACEHOLDER_STRINGS = new Set([
+  'unknown',
+  'n/a',
+  'na',
+  'none',
+  'null',
+  'not found',
+  'not specified',
+  'not provided',
+  'not available',
+  'tbd',
+  'undefined',
+  'not disclosed',
+  'not stated',
+  'unclear',
+  '—',
+  '-',
+]);
+
+/**
+ * Validate + clean extracted data room fields.
+ *
+ * - Drops null/empty/placeholder string values
+ * - Coerces numeric fields from strings ("5.25M" → 5250000, "15%" → 0.15 for margin)
+ * - Clamps numeric fields to plausible ranges (hallucination guard)
+ * - Trims whitespace on all string fields
+ *
+ * Returns a new object — does not mutate the input.
+ */
+export function sanitizeDataRoomExtraction(raw: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === null || value === undefined) continue;
+
+    // Numeric fields — coerce and range-check
+    if (key in DATA_ROOM_NUMERIC_RANGES) {
+      const range = DATA_ROOM_NUMERIC_RANGES[key];
+      const coerced = coerceDataRoomNumeric(value, key);
+      if (coerced === null) continue;
+      if (coerced < range.min || coerced > range.max) {
+        console.warn(
+          `[sanitizeDataRoomExtraction] Dropping ${key}=${coerced} (outside ${range.min}..${range.max})`,
+        );
+        continue;
+      }
+      clean[key] = coerced;
+      continue;
+    }
+
+    // Boolean fields
+    if (key.endsWith('_is_inferred')) {
+      if (typeof value === 'boolean') clean[key] = value;
+      else if (value === 'true' || value === 1) clean[key] = true;
+      else if (value === 'false' || value === 0) clean[key] = false;
+      continue;
+    }
+
+    // Array fields (services, geographic_states, key_quotes)
+    if (Array.isArray(value)) {
+      const filtered = value
+        .map((v) => (typeof v === 'string' ? v.trim() : v))
+        .filter((v) => {
+          if (typeof v !== 'string') return v !== null && v !== undefined;
+          return v.length > 0 && !DATA_ROOM_PLACEHOLDER_STRINGS.has(v.toLowerCase());
+        });
+      if (filtered.length > 0) clean[key] = filtered;
+      continue;
+    }
+
+    // String fields
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) continue;
+      if (DATA_ROOM_PLACEHOLDER_STRINGS.has(trimmed.toLowerCase())) continue;
+      // Strip wrapper placeholders like "<unknown>"
+      if (
+        /^<.+>$/.test(trimmed) &&
+        DATA_ROOM_PLACEHOLDER_STRINGS.has(trimmed.slice(1, -1).toLowerCase())
+      )
+        continue;
+      clean[key] = trimmed;
+      continue;
+    }
+
+    // Pass through other types (numbers that weren't in the range map, etc.)
+    clean[key] = value;
+  }
+
+  return clean;
+}
+
+/**
+ * Coerce a data room numeric value. Handles:
+ *   - Pure numbers: 5250000 → 5250000
+ *   - Strings with unit suffixes: "5.25M" → 5250000, "$2.1M" → 2100000
+ *   - Percentages (for margin fields): "18.3%" → 0.183
+ *   - Thousands/millions/billions: "500K", "2.5B"
+ *   - Currency symbols and commas: "$1,234,567" → 1234567
+ */
+function coerceDataRoomNumeric(value: unknown, field: string): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value !== 'string') return null;
+
+  const s = value.trim().replace(/[$,\s]/g, '');
+  if (s.length === 0) return null;
+  if (DATA_ROOM_PLACEHOLDER_STRINGS.has(s.toLowerCase())) return null;
+
+  // Percentage handling — only apply if field is a margin/rate
+  if (s.endsWith('%')) {
+    const n = parseFloat(s.slice(0, -1));
+    if (!Number.isFinite(n)) return null;
+    if (field === 'ebitda_margin' || field === 'customer_concentration') {
+      return n / 100;
+    }
+    return n;
+  }
+
+  // Unit suffix handling
+  const match = s.match(/^(-?\d+(?:\.\d+)?)\s*([kmbtKMBT])?$/);
+  if (match) {
+    const base = parseFloat(match[1]);
+    if (!Number.isFinite(base)) return null;
+    const unit = (match[2] || '').toLowerCase();
+    const multiplier: Record<string, number> = {
+      k: 1_000,
+      m: 1_000_000,
+      b: 1_000_000_000,
+      t: 1_000_000_000_000,
+      '': 1,
+    };
+    return base * multiplier[unit];
+  }
+
+  // Plain number parse as fallback
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
 export const DEAL_TOOL_SCHEMA = {
   type: 'function',
   function: {
@@ -767,7 +1152,9 @@ export function mapTranscriptToListing(
       if (marginPct > 0 && marginPct <= 100) {
         out.ebitda_margin = marginPct / 100;
       } else {
-        console.warn(`Rejecting out-of-range ebitda_margin_percentage: ${marginPct}% (must be 0-100)`);
+        console.warn(
+          `Rejecting out-of-range ebitda_margin_percentage: ${marginPct}% (must be 0-100)`,
+        );
       }
     }
 
@@ -827,7 +1214,8 @@ export function mapTranscriptToListing(
   // Additional enrichment fields from transcript extraction
   {
     const askingPrice = toFiniteNumber(extracted?.asking_price);
-    if (askingPrice != null && askingPrice > 0 && askingPrice <= 10_000_000_000) out.asking_price = askingPrice;
+    if (askingPrice != null && askingPrice > 0 && askingPrice <= 10_000_000_000)
+      out.asking_price = askingPrice;
   }
   {
     const fte = toFiniteNumber(extracted?.full_time_employees);

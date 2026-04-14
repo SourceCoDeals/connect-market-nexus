@@ -205,6 +205,10 @@ Deno.serve(async (req: Request) => {
 
     // Extract text content from the document (non-blocking for the upload response).
     // Text is stored on the document record for use in deal enrichment and memo generation.
+    // After extraction completes, trigger enrich-deal so the extracted text is
+    // immediately turned into structured listing fields (industry, revenue,
+    // EBITDA, etc.). Without this chain, uploaded docs sit as raw text and the
+    // listing profile stays empty, blocking memo generation downstream.
     const geminiApiKey = getGeminiApiKey();
     if (geminiApiKey && documentCategory === 'data_room' && isExtractableType(file.type)) {
       // Run text extraction in the background — don't block the upload response
@@ -214,9 +218,35 @@ Deno.serve(async (req: Request) => {
         storagePath,
         file.type,
         geminiApiKey,
-      ).catch((err) => {
-        console.error('Background text extraction failed (non-blocking):', err);
-      });
+      )
+        .then(() => {
+          // Fire-and-forget enrichment so the new doc text flows into the deal.
+          // `skipExternalEnrichment: true` keeps it fast by skipping LinkedIn /
+          // Google Reviews lookups — the data room documents are the signal here.
+          const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+          if (!anonKey) {
+            console.warn(
+              '[data-room-upload] SUPABASE_ANON_KEY not set — skipping enrich-deal chain',
+            );
+            return;
+          }
+          fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${anonKey}`,
+            },
+            body: JSON.stringify({ dealId, skipExternalEnrichment: true }),
+          }).catch((err) => {
+            console.error(
+              '[data-room-upload] Background enrich-deal call failed (non-blocking):',
+              err,
+            );
+          });
+        })
+        .catch((err) => {
+          console.error('Background text extraction failed (non-blocking):', err);
+        });
     }
 
     return new Response(JSON.stringify({ success: true, document: doc }), {

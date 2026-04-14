@@ -22,7 +22,7 @@ import {
 } from '../_shared/ai-providers.ts';
 import { STATE_CODE_TO_NAME, STATE_CODE_TO_REGION } from '../_shared/geography.ts';
 import { logAICallCost } from '../_shared/cost-tracker.ts';
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Memo section structure
 interface MemoSection {
@@ -111,21 +111,19 @@ Deno.serve(async (req: Request) => {
     }
 
     // Fetch all deal data
-    const { data: deal, error: dealError } = await supabaseAdmin
-      .from('listings')
-      .select('*')
-      .eq('id', deal_id)
-      .single();
+    const dealFetch = await supabaseAdmin.from('listings').select('*').eq('id', deal_id).single();
 
-    if (dealError || !deal) {
+    if (dealFetch.error || !dealFetch.data) {
       return new Response(JSON.stringify({ error: 'Deal not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    // `deal` is reassigned below after auto-enrichment, hence `let`.
+    let deal = dealFetch.data;
 
     // Fetch transcripts
-    const { data: transcripts } = await supabaseAdmin
+    let { data: transcripts } = await supabaseAdmin
       .from('deal_transcripts')
       .select('transcript_text, extracted_data, call_date, title, extraction_status')
       .eq('listing_id', deal_id)
@@ -141,7 +139,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     // Fetch data room documents with extracted text
-    const { data: dataRoomDocs } = await supabaseAdmin
+    let { data: dataRoomDocs } = await supabaseAdmin
       .from('data_room_documents')
       .select('file_name, text_content')
       .eq('deal_id', deal_id)
@@ -152,17 +150,113 @@ Deno.serve(async (req: Request) => {
 
     // Listing completeness check: require minimum data before generating memos
     // (Audit P1: prevent blank-context memo generation)
-    const missingCritical: string[] = [];
-    if (!deal.industry && !deal.category) missingCritical.push('industry/category');
-    if (deal.ebitda == null) missingCritical.push('EBITDA');
-    if (deal.revenue == null) missingCritical.push('revenue');
-    if (!deal.executive_summary && !(transcripts && transcripts.length > 0)) {
-      missingCritical.push('executive summary or transcripts');
+    const computeMissingCritical = (
+      d: Record<string, unknown>,
+      t: { transcript_text?: string | null }[] | null | undefined,
+    ): string[] => {
+      const missing: string[] = [];
+      if (!d.industry && !d.category) missing.push('industry/category');
+      if (d.ebitda == null) missing.push('EBITDA');
+      if (d.revenue == null) missing.push('revenue');
+      if (!d.executive_summary && !(t && t.length > 0)) {
+        missing.push('executive summary or transcripts');
+      }
+      return missing;
+    };
+    let missingCritical = computeMissingCritical(deal, transcripts);
+
+    // Auto-enrichment fallback: if critical fields are missing but the data
+    // room already contains extracted document text, synchronously invoke
+    // `enrich-deal` to pull industry/revenue/EBITDA/etc. out of those docs
+    // and write them back to the listing. This handles the common case
+    // where users upload due-diligence material and expect the listing
+    // profile (and downstream memo generation) to reflect it automatically.
+    const dataRoomHasText =
+      Array.isArray(dataRoomDocs) &&
+      dataRoomDocs.some(
+        (d) => typeof d.text_content === 'string' && (d.text_content as string).trim().length > 0,
+      );
+    if (missingCritical.length > 0 && dataRoomHasText) {
+      console.warn(
+        `[generate-lead-memo] Deal ${deal_id} missing ${missingCritical.join(', ')} — ` +
+          `auto-enriching from ${dataRoomDocs!.length} data room document(s)`,
+      );
+      try {
+        const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+        if (!anonKey) {
+          console.warn(
+            '[generate-lead-memo] SUPABASE_ANON_KEY not set — cannot invoke enrich-deal',
+          );
+        } else {
+          const enrichResponse = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${anonKey}`,
+            },
+            body: JSON.stringify({ dealId: deal_id, skipExternalEnrichment: true }),
+          });
+          if (!enrichResponse.ok) {
+            const body = await enrichResponse.text().catch(() => '');
+            console.warn(
+              `[generate-lead-memo] enrich-deal responded ${enrichResponse.status}: ${body.substring(0, 300)}`,
+            );
+          } else {
+            console.warn('[generate-lead-memo] enrich-deal completed — re-fetching deal');
+            // Re-fetch the deal so the newly-extracted fields are visible
+            const { data: refreshedDeal, error: refreshError } = await supabaseAdmin
+              .from('listings')
+              .select('*')
+              .eq('id', deal_id)
+              .single();
+            if (refreshError || !refreshedDeal) {
+              console.warn(
+                '[generate-lead-memo] Failed to re-fetch deal after enrichment:',
+                refreshError,
+              );
+            } else {
+              deal = refreshedDeal;
+            }
+            // Re-fetch transcripts in case enrich-deal created new ones
+            const { data: refreshedTranscripts } = await supabaseAdmin
+              .from('deal_transcripts')
+              .select('transcript_text, extracted_data, call_date, title, extraction_status')
+              .eq('listing_id', deal_id)
+              .not('extraction_status', 'eq', 'failed')
+              .order('call_date', { ascending: false })
+              .limit(10);
+            transcripts = refreshedTranscripts;
+            // Re-fetch data room docs in case text extraction populated more
+            const { data: refreshedDocs } = await supabaseAdmin
+              .from('data_room_documents')
+              .select('file_name, text_content')
+              .eq('deal_id', deal_id)
+              .eq('document_category', 'data_room')
+              .eq('status', 'active')
+              .not('text_content', 'is', null)
+              .order('created_at', { ascending: false });
+            dataRoomDocs = refreshedDocs;
+
+            missingCritical = computeMissingCritical(deal, transcripts);
+            console.warn(
+              `[generate-lead-memo] After auto-enrichment, still missing: ${
+                missingCritical.length === 0 ? 'none' : missingCritical.join(', ')
+              }`,
+            );
+          }
+        }
+      } catch (enrichError) {
+        console.warn('[generate-lead-memo] Auto-enrichment threw (non-fatal):', enrichError);
+      }
     }
+
     if (missingCritical.length > 0) {
+      const hint = dataRoomHasText
+        ? ' The data room documents did not contain enough structured information to populate these fields — please fill them in manually or add a transcript.'
+        : ' Please populate these fields, add a transcript, or upload documents to the data room before generating memos.';
       return new Response(
         JSON.stringify({
-          error: `Listing is missing critical data for memo generation: ${missingCritical.join(', ')}. Please populate these fields before generating memos.`,
+          error: `Listing is missing critical data for memo generation: ${missingCritical.join(', ')}.${hint}`,
           missing_fields: missingCritical,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -172,7 +266,8 @@ Deno.serve(async (req: Request) => {
     // Additional completeness warning for anonymous teasers: flag thin data sources
     if (memo_type === 'anonymous_teaser' || memo_type === 'both') {
       const hasTranscripts = transcripts && transcripts.length > 0;
-      const hasInternalNotes = deal.internal_notes && (deal.internal_notes as string).trim().length > 0;
+      const hasInternalNotes =
+        deal.internal_notes && (deal.internal_notes as string).trim().length > 0;
       if (!hasTranscripts && !hasInternalNotes) {
         console.warn(
           `Deal ${deal_id}: Anonymous teaser generating from enrichment data only (no transcripts or internal notes). Output quality may be low.`,
@@ -181,7 +276,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // Build data context for AI
-    const dataContext = buildDataContext(deal, transcripts || [], valuationData, dataRoomDocs || []);
+    const dataContext = buildDataContext(
+      deal,
+      transcripts || [],
+      valuationData,
+      dataRoomDocs || [],
+    );
 
     // Generate memo(s)
     const results: Record<string, Record<string, unknown>> = {};
@@ -300,7 +400,12 @@ Deno.serve(async (req: Request) => {
         // The hero is the first thing buyers see on cards and landing pages —
         // it must be a concise 2-3 sentence elevator pitch, fully anonymized,
         // free of transcript language, with financials as approximate ranges.
-        listingUpdate.hero_description = await buildHeroFromMemo(anthropicApiKey, teaserContent.sections, deal, supabaseAdmin);
+        listingUpdate.hero_description = await buildHeroFromMemo(
+          anthropicApiKey,
+          teaserContent.sections,
+          deal,
+          supabaseAdmin,
+        );
 
         const { error: syncError } = await supabaseAdmin
           .from('listings')
@@ -372,9 +477,15 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error: unknown) {
     console.error('Generate memo error:', error);
+    // Surface the underlying error message so callers (and their toasts)
+    // can show something more actionable than "non-2xx status code".
+    // We keep the shape stable (`error` string) so `extractFunctionError`
+    // picks it up on the frontend.
+    const detail =
+      error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
     return new Response(
       JSON.stringify({
-        error: 'Failed to generate memo',
+        error: `Failed to generate memo: ${detail}`,
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
@@ -487,7 +598,10 @@ function buildDataContext(
 
   // Financial follow-up questions (array) — feed into analyst notes context
   let financialGapsBlock = '';
-  if (Array.isArray(deal.financial_followup_questions) && deal.financial_followup_questions.length > 0) {
+  if (
+    Array.isArray(deal.financial_followup_questions) &&
+    deal.financial_followup_questions.length > 0
+  ) {
     financialGapsBlock = `\n--- FINANCIAL FOLLOW-UP QUESTIONS (known data gaps) ---\n${deal.financial_followup_questions.map((q: string) => `- ${q}`).join('\n')}`;
   }
 
@@ -551,7 +665,10 @@ function buildDataContext(
     transcriptExcerpts,
     enrichmentData,
     manualEntries:
-      manualEntries + (notesExcerpt ? `\n\n--- GENERAL NOTES ---\n${notesExcerpt}` : '') + keyQuotesBlock + financialGapsBlock,
+      manualEntries +
+      (notesExcerpt ? `\n\n--- GENERAL NOTES ---\n${notesExcerpt}` : '') +
+      keyQuotesBlock +
+      financialGapsBlock,
     valuationData: valuationStr,
     dataRoomContent,
     sources,
@@ -590,11 +707,17 @@ async function buildHeroFromMemo(
   const state = (deal.address_state || '') as string;
 
   const metricsLines = [
-    revenue ? `Revenue: ~$${(revenue * 0.9 / 1_000_000).toFixed(1)}M-$${(revenue * 1.1 / 1_000_000).toFixed(1)}M` : null,
-    ebitda ? `EBITDA: ~$${(ebitda * 0.9 / 1_000).toFixed(0)}K-$${(ebitda * 1.1 / 1_000).toFixed(0)}K` : null,
+    revenue
+      ? `Revenue: ~$${((revenue * 0.9) / 1_000_000).toFixed(1)}M-$${((revenue * 1.1) / 1_000_000).toFixed(1)}M`
+      : null,
+    ebitda
+      ? `EBITDA: ~$${((ebitda * 0.9) / 1_000).toFixed(0)}K-$${((ebitda * 1.1) / 1_000).toFixed(0)}K`
+      : null,
     `Industry: ${industry}`,
     state ? `Geography: ${state} (convert to regional descriptor — never use state name)` : null,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const heroPrompt = `Generate a hero description for a marketplace listing. This is a 2-3 sentence elevator pitch shown at the top of the listing card. It is the first thing a buyer reads.
 
@@ -644,19 +767,19 @@ Return ONLY the hero description text. No preamble, no quotes, no explanation.`;
 
     // Log AI cost (non-blocking)
     if (supabase && result.usage) {
-      logAICallCost(
-        supabase,
-        'generate-lead-memo:hero',
-        'anthropic',
-        DEFAULT_CLAUDE_MODEL,
-        { inputTokens: result.usage.input_tokens, outputTokens: result.usage.output_tokens },
-      ).catch(console.error);
+      logAICallCost(supabase, 'generate-lead-memo:hero', 'anthropic', DEFAULT_CLAUDE_MODEL, {
+        inputTokens: result.usage.input_tokens,
+        outputTokens: result.usage.output_tokens,
+      }).catch(console.error);
     }
 
     let hero = (result.content?.[0]?.text || '').trim();
 
     // Strip any wrapping quotes the model may have added
-    if ((hero.startsWith('"') && hero.endsWith('"')) || (hero.startsWith("'") && hero.endsWith("'"))) {
+    if (
+      (hero.startsWith('"') && hero.endsWith('"')) ||
+      (hero.startsWith("'") && hero.endsWith("'"))
+    ) {
       hero = hero.slice(1, -1).trim();
     }
 
@@ -695,7 +818,12 @@ function buildHeroFallback(sections: MemoSection[]): string {
 
   const sentences = plainText.match(/[^.!?]+[.!?]+/g) || [];
   const hero = sentences.slice(0, 2).join('').trim();
-  return hero.length > 500 ? hero.substring(0, 500).replace(/\.[^.]*$/, '.').trim() : hero;
+  return hero.length > 500
+    ? hero
+        .substring(0, 500)
+        .replace(/\.[^.]*$/, '.')
+        .trim()
+    : hero;
 }
 
 // ─── AI Memo Generation ───
@@ -822,12 +950,12 @@ function stripOmissionLanguage(sections: MemoSection[]): MemoSection[] {
     /\bcentralized\s*back-office\b/i,
   ];
 
-  const isOmission = (text: string) => OMISSION_PATTERNS.some(p => p.test(text));
-  const isSourceContrast = (text: string) => SOURCE_CONTRAST_PATTERNS.some(p => p.test(text));
+  const isOmission = (text: string) => OMISSION_PATTERNS.some((p) => p.test(text));
+  const isSourceContrast = (text: string) => SOURCE_CONTRAST_PATTERNS.some((p) => p.test(text));
 
-  return sections.map(s => {
+  return sections.map((s) => {
     const lines = s.content.split('\n');
-    const filtered = lines.filter(line => {
+    const filtered = lines.filter((line) => {
       const trimmed = line.trim();
       if (!trimmed) return true; // keep blank lines
       // Keep lines that contain a dollar amount or percentage (factual data)
@@ -839,22 +967,23 @@ function stripOmissionLanguage(sections: MemoSection[]): MemoSection[] {
       return true;
     });
     // Second pass: clean semicolon-joined fragments within surviving lines
-    const cleaned = filtered.map(line => {
-      const trimmed = line.trim();
-      if (!trimmed || !trimmed.includes(';')) return line;
-      // Detect bullet prefix if any
-      const bulletMatch = trimmed.match(/^([-*•]\s*)/);
-      const prefix = bulletMatch ? bulletMatch[1] : '';
-      const body = prefix ? trimmed.slice(prefix.length) : trimmed;
-      const fragments = body.split(';').map(f => f.trim());
-      const kept = fragments.filter(f => !isOmission(f) && !isSourceContrast(f));
-      if (kept.length === 0) return null; // entire line was omission
-      return (prefix || '') + kept.join('; ');
-    }).filter((l): l is string => l !== null);
+    const cleaned = filtered
+      .map((line) => {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.includes(';')) return line;
+        // Detect bullet prefix if any
+        const bulletMatch = trimmed.match(/^([-*•]\s*)/);
+        const prefix = bulletMatch ? bulletMatch[1] : '';
+        const body = prefix ? trimmed.slice(prefix.length) : trimmed;
+        const fragments = body.split(';').map((f) => f.trim());
+        const kept = fragments.filter((f) => !isOmission(f) && !isSourceContrast(f));
+        if (kept.length === 0) return null; // entire line was omission
+        return (prefix || '') + kept.join('; ');
+      })
+      .filter((l): l is string => l !== null);
     return { ...s, content: cleaned.join('\n') };
   });
 }
-
 
 function enforceAnonymization(
   sections: MemoSection[],
@@ -898,9 +1027,15 @@ function enforceAnonymization(
   }
   // Generate and add company acronym (e.g., "Advanced Manufacturing Services" → "AMS")
   if (companyName) {
-    const words = companyName.replace(/[^a-zA-Z\s]/g, '').split(/\s+/).filter(w => w.length > 0);
+    const words = companyName
+      .replace(/[^a-zA-Z\s]/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length > 0);
     if (words.length >= 2) {
-      const acronym = words.map(w => w[0]).join('').toUpperCase();
+      const acronym = words
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase();
       if (acronym.length >= 2 && acronym.length <= 6) identifyingTerms.push(acronym);
     }
   }
@@ -1380,20 +1515,27 @@ Wrap analyst notes between the markers ANALYST_NOTES_START and ANALYST_NOTES_END
     if (memoStartIdx !== -1 && memoEndIdx !== -1 && memoEndIdx > memoStartIdx) {
       memoMarkdown = rawContent.substring(memoStartIdx + 'MEMO_START'.length, memoEndIdx).trim();
       if (notesStartIdx !== -1 && notesEndIdx !== -1 && notesEndIdx > notesStartIdx) {
-        analystNotesRaw = rawContent.substring(notesStartIdx + 'ANALYST_NOTES_START'.length, notesEndIdx).trim();
+        analystNotesRaw = rawContent
+          .substring(notesStartIdx + 'ANALYST_NOTES_START'.length, notesEndIdx)
+          .trim();
       }
     } else {
       // Method 2: Legacy delimiter fallback
       const delimiterIndex = rawContent.indexOf('---ANALYST-NOTES---');
       if (delimiterIndex !== -1) {
         memoMarkdown = rawContent.substring(0, delimiterIndex).trim();
-        analystNotesRaw = rawContent.substring(delimiterIndex + '---ANALYST-NOTES---'.length).trim();
+        analystNotesRaw = rawContent
+          .substring(delimiterIndex + '---ANALYST-NOTES---'.length)
+          .trim();
       } else {
         // Method 3: Heading fallback
         const headingMatch = rawContent.match(/\n##\s*ANALYST\s*NOTES?\b/i);
         if (headingMatch && headingMatch.index !== undefined) {
           memoMarkdown = rawContent.substring(0, headingMatch.index).trim();
-          analystNotesRaw = rawContent.substring(headingMatch.index).replace(/^##\s*ANALYST\s*NOTES?\s*/i, '').trim();
+          analystNotesRaw = rawContent
+            .substring(headingMatch.index)
+            .replace(/^##\s*ANALYST\s*NOTES?\s*/i, '')
+            .trim();
         }
       }
     }
@@ -1411,21 +1553,36 @@ Wrap analyst notes between the markers ANALYST_NOTES_START and ANALYST_NOTES_END
     sections = stripOmissionLanguage(sections);
 
     // Safety: remove any analyst-notes sections that leaked into parsed sections
-    sections = sections.filter(s => !/analyst\s*notes?/i.test(s.title));
+    sections = sections.filter((s) => !/analyst\s*notes?/i.test(s.title));
 
     // Investor-safety validation: reject if memo body contains analyst language
     const ANALYST_LANGUAGE_PATTERNS = [
-      /\btranscript\b/i, /\bcall\s*[1-9]\b/i, /\benrichment\s*data\b/i,
-      /\bmanual\s*entr/i, /\bdiscrepanc/i, /\bconflict\b/i, /\breconcile\b/i,
-      /\bunverified\b/i, /\bverified\b/i, /\bsource\s*data\b/i,
-      /\bdata\s*room\s*document/i, /\bnot\s*confirm/i, /\bnot\s*stated\b/i,
-      /\bnot\s*on\s*file\b/i, /\bnot\s*available\b/i, /\bnot\s*discussed\b/i,
-      /\bnot\s*provided\b/i, /\bis\s*unclear\b/i, /\bis\s*unknown\b/i,
-      /\bare\s*unknown\b/i, /\bLinkedIn\b/i,
-      /\bper\s*(internal|enrichment|manual)\s*data\b/i, /\binternal\s*data\b/i,
+      /\btranscript\b/i,
+      /\bcall\s*[1-9]\b/i,
+      /\benrichment\s*data\b/i,
+      /\bmanual\s*entr/i,
+      /\bdiscrepanc/i,
+      /\bconflict\b/i,
+      /\breconcile\b/i,
+      /\bunverified\b/i,
+      /\bverified\b/i,
+      /\bsource\s*data\b/i,
+      /\bdata\s*room\s*document/i,
+      /\bnot\s*confirm/i,
+      /\bnot\s*stated\b/i,
+      /\bnot\s*on\s*file\b/i,
+      /\bnot\s*available\b/i,
+      /\bnot\s*discussed\b/i,
+      /\bnot\s*provided\b/i,
+      /\bis\s*unclear\b/i,
+      /\bis\s*unknown\b/i,
+      /\bare\s*unknown\b/i,
+      /\bLinkedIn\b/i,
+      /\bper\s*(internal|enrichment|manual)\s*data\b/i,
+      /\binternal\s*data\b/i,
     ];
-    const memoText = sections.map(s => s.content).join(' ');
-    const hasAnalystLanguage = ANALYST_LANGUAGE_PATTERNS.some(p => p.test(memoText));
+    const memoText = sections.map((s) => s.content).join(' ');
+    const hasAnalystLanguage = ANALYST_LANGUAGE_PATTERNS.some((p) => p.test(memoText));
 
     bestSections = sections;
     // Store analyst notes for the final return
@@ -1441,7 +1598,9 @@ Wrap analyst notes between the markers ANALYST_NOTES_START and ANALYST_NOTES_END
     if (validation.passed && hasAnalystLanguage) {
       if (attempt < 3) {
         retryAppendix = `Your previous output contained analyst language in the memo body (e.g., references to "transcript", "enrichment data", "not confirmed", etc.). The memo must be investor-facing with NO source references or analyst commentary. Remove all such language and regenerate.`;
-        console.warn(`Investor-safety check failed (attempt ${attempt + 1}): analyst language detected in memo body`);
+        console.warn(
+          `Investor-safety check failed (attempt ${attempt + 1}): analyst language detected in memo body`,
+        );
         continue;
       }
     }
