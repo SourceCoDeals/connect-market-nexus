@@ -48,6 +48,11 @@ export const PAGE_PERMISSIONS: Record<string, PagePermission> = {
   '/admin/deals': { minRole: 'viewer', mutateRole: 'admin' },
   '/admin/deals/pipeline': { minRole: 'admin' },
 
+  // ── Contact Lists ───────────────────────────────────────
+  // Must match the RLS policy on contact_lists: is_admin(auth.uid()) resolves
+  // to role IN ('admin','owner','moderator'), so viewer is blocked.
+  '/admin/lists': { minRole: 'moderator', mutateRole: 'moderator' },
+
   // ── Buyers ──────────────────────────────────────────────
   '/admin/buyers': { minRole: 'viewer', mutateRole: 'admin' },
   '/admin/buyers/universes': { minRole: 'admin' },
