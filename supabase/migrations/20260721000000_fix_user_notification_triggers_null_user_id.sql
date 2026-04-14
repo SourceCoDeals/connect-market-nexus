@@ -1,18 +1,28 @@
--- Fix connection request notification triggers to handle NULL user_id.
+-- Fix connection request triggers to handle NULL user_id (lead-only requests).
 --
 -- Connection requests created from public landing pages (lead submissions)
 -- have a NULL user_id because the submitter is not an authenticated user.
--- The original trigger functions in 20251022184708_*.sql unconditionally
--- insert into user_notifications using NEW.user_id, which fails the
--- NOT NULL constraint on user_notifications.user_id and causes admin
--- Accept / Decline / On Hold actions to error out with:
+-- Several trigger functions on connection_requests unconditionally insert
+-- into downstream tables using NEW.user_id, which fails NOT NULL constraints
+-- and causes admin Accept / Decline / On Hold actions to error out. Example:
 --
 --   null value in column "user_id" of relation "user_notifications"
 --   violates not-null constraint
 --
--- This migration guards all four notification trigger functions so they
--- silently skip the notification insert when the underlying connection
--- request has no associated user.
+-- This migration guards every affected trigger so they silently skip the
+-- downstream insert when the underlying connection request has no associated
+-- authenticated user:
+--
+--   1. notify_user_on_connection_request       (INSERT trigger)
+--   2. notify_user_on_status_change            (UPDATE trigger on status)
+--   3. notify_user_on_admin_comment            (UPDATE trigger on admin_comment)
+--   4. notify_user_on_stage_change             (UPDATE trigger on pipeline_stage_id)
+--   5. create_listing_conversation             (UPDATE trigger on status='approved')
+--
+-- The listing_conversations.user_id column is NOT NULL REFERENCES profiles(id)
+-- (see 20251119161857_*.sql), so without this guard lead-based approvals would
+-- trip that constraint immediately after we unblock the user_notifications
+-- triggers above.
 
 -- Trigger function: New connection request
 CREATE OR REPLACE FUNCTION public.notify_user_on_connection_request()
@@ -146,6 +156,38 @@ BEGIN
       )
     );
   END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- Trigger function: Auto-create listing_conversations on approval
+-- Original defined in 20251119161857_*.sql. listing_conversations.user_id is
+-- NOT NULL REFERENCES profiles(id), so inserting NEW.user_id for a lead-only
+-- request (user_id IS NULL) fails with a not-null constraint violation and
+-- blocks the entire approval. Skip conversation creation for lead-only
+-- requests — there is no authenticated buyer account to create a
+-- conversation for yet; one can be created later if/when the lead signs up.
+CREATE OR REPLACE FUNCTION public.create_listing_conversation()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'approved'
+     AND OLD.status != 'approved'
+     AND NEW.user_id IS NOT NULL THEN
+    INSERT INTO listing_conversations (
+      listing_id,
+      connection_request_id,
+      user_id,
+      admin_id
+    )
+    VALUES (
+      NEW.listing_id,
+      NEW.id,
+      NEW.user_id,
+      NEW.approved_by
+    )
+    ON CONFLICT (connection_request_id) DO NOTHING;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
