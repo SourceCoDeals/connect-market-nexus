@@ -64,6 +64,11 @@ const FormMonitoringTab = lazy(() =>
 const MyDealsTab = lazy(() =>
   import('@/components/admin/dashboard/MyDealsTab').then((m) => ({ default: m.MyDealsTab })),
 );
+const MarketplaceMetricsTab = lazy(() =>
+  import('@/components/admin/marketplace/MarketplaceMetricsTab').then((m) => ({
+    default: m.MarketplaceMetricsTab,
+  })),
+);
 
 // Lazy-load remarketing dashboard content
 const ReMarketingDashboardContent = lazy(
@@ -268,10 +273,11 @@ const AdminDashboard = () => {
 
           {/* Marketplace sub-tabs (only when marketplace is active) */}
           {activeDashboard === 'marketplace' && (
-            <Tabs defaultValue="analytics" className="w-full">
+            <Tabs defaultValue="metrics" className="w-full">
               <div className="px-4 md:px-8 overflow-x-auto">
                 <TabsList className="inline-flex h-11 items-center justify-start rounded-none border-b-0 bg-transparent p-0 gap-6">
                   {[
+                    { value: 'metrics', label: 'Metrics' },
                     { value: 'analytics', label: 'Analytics' },
                     { value: 'overview', label: 'Overview' },
                     { value: 'my-deals', label: 'My Pipeline' },
@@ -293,6 +299,11 @@ const AdminDashboard = () => {
               </div>
 
               <div className="px-4 md:px-8 py-8">
+                <TabsContent value="metrics" className="mt-0">
+                  <Suspense fallback={<TabFallback />}>
+                    <MarketplaceMetricsTab />
+                  </Suspense>
+                </TabsContent>
                 <TabsContent value="overview" className="mt-0 space-y-6">
                   <Suspense fallback={<TabFallback />}>
                     <StripeOverviewTab />
