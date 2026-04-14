@@ -181,6 +181,10 @@ export default function ReMarketingDealMatching() {
           {data.filteredScores.map((score) => {
             const outreach = data.outreachRecords?.find((o) => o.score_id === score.id);
             const feeAgreement = data.feeAgreementLookup.get(score.id);
+            const buyerIdForTouchpoints = (score.buyer as { id?: string } | null | undefined)?.id;
+            const firmTouchpoints = buyerIdForTouchpoints
+              ? data.firmTouchpointByBuyer.get(buyerIdForTouchpoints)
+              : undefined;
             return (
               <BuyerMatchCard
                 key={score.id}
@@ -195,6 +199,8 @@ export default function ReMarketingDealMatching() {
                       }
                     : undefined
                 }
+                firmTouchpointCount={firmTouchpoints?.count ?? 0}
+                firmDomainCount={firmTouchpoints?.domainCount ?? 0}
                 isSelected={actions.selectedIds.has(score.id)}
                 isHighlighted={actions.highlightedBuyerIds?.includes(score.buyer_id)}
                 onSelect={actions.handleSelect}

@@ -202,6 +202,52 @@ export function useMatchingData(listingId: string | undefined) {
     return lookup;
   }, [feeAgreements, allScores]);
 
+  // Phase 5b: batch firm touchpoint counts for every buyer in this listing's
+  // score set. Feeds the "firm touchpoints" badge on BuyerMatchCard. Uses
+  // the dedicated get_firm_touchpoint_counts RPC (migration 20260722000000)
+  // so the page issues ONE query regardless of how many buyers are visible.
+  const buyerIdsForTouchpoints = useMemo(() => {
+    if (!allScores) return [] as string[];
+    const ids = new Set<string>();
+    for (const s of allScores) {
+      const buyerId = (s.buyer as { id?: string } | null | undefined)?.id;
+      if (buyerId) ids.add(buyerId);
+    }
+    return Array.from(ids);
+  }, [allScores]);
+
+  const { data: firmTouchpointRows } = useQuery({
+    queryKey: ['firm-touchpoint-counts', buyerIdsForTouchpoints],
+    queryFn: async () => {
+      if (buyerIdsForTouchpoints.length === 0) return [];
+      const { data, error } = await supabase.rpc('get_firm_touchpoint_counts', {
+        p_buyer_ids: buyerIdsForTouchpoints,
+      });
+      if (error) {
+        console.warn('[useMatchingData] get_firm_touchpoint_counts error:', error.message);
+        return [];
+      }
+      return (data || []) as Array<{
+        buyer_id: string;
+        firm_touchpoint_count: number;
+        firm_domain_count: number;
+      }>;
+    },
+    enabled: buyerIdsForTouchpoints.length > 0,
+    staleTime: 60_000,
+  });
+
+  const firmTouchpointByBuyer = useMemo(() => {
+    const map = new Map<string, { count: number; domainCount: number }>();
+    for (const row of firmTouchpointRows || []) {
+      map.set(row.buyer_id, {
+        count: Number(row.firm_touchpoint_count) || 0,
+        domainCount: Number(row.firm_domain_count) || 0,
+      });
+    }
+    return map;
+  }, [firmTouchpointRows]);
+
   // Fetch outreach records for this listing
   const { data: outreachRecords, refetch: refetchOutreach } = useQuery({
     queryKey: ['remarketing', 'outreach', listingId],
@@ -434,6 +480,7 @@ export function useMatchingData(listingId: string | undefined) {
     scoresLoading,
     filteredScores,
     feeAgreementLookup,
+    firmTouchpointByBuyer,
     outreachRecords,
     refetchOutreach,
     stats,
