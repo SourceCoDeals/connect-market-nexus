@@ -5,6 +5,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { extractFunctionError } from '@/hooks/email/useEmailConnection';
 import type { Json } from '@/integrations/supabase/types';
 
 function getFunctionsBaseUrl(): string {
@@ -293,7 +294,13 @@ export function useGenerateMemo() {
         body: params,
       });
 
-      if (response.error) throw new Error(response.error.message);
+      // `supabase.functions.invoke` flattens FunctionsHttpError.message to
+      // "Edge Function returned a non-2xx status code" and hides the real
+      // reason (e.g. "Listing is missing critical data...") in the response
+      // body. `extractFunctionError` digs it out so the toast is actionable.
+      if (response.error) {
+        throw new Error(await extractFunctionError(response.error, 'Failed to generate memo'));
+      }
       return response.data;
     },
     onSuccess: (_, variables) => {
@@ -317,7 +324,11 @@ export function useGenerateTeaser() {
         body: params,
       });
 
-      if (response.error) throw new Error(response.error.message);
+      // See useGenerateMemo — the Supabase client flattens the real error
+      // into a generic "non-2xx status code" message unless we unwrap it.
+      if (response.error) {
+        throw new Error(await extractFunctionError(response.error, 'Failed to generate teaser'));
+      }
       return response.data;
     },
     onSuccess: (data, variables) => {

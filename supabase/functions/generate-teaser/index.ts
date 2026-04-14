@@ -291,7 +291,11 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { deal_id: dealId, project_name: requestProjectName, branding: requestBranding } = await req.json();
+    const {
+      deal_id: dealId,
+      project_name: requestProjectName,
+      branding: requestBranding,
+    } = await req.json();
 
     if (!dealId) {
       return new Response(JSON.stringify({ error: 'deal_id is required' }), {
@@ -582,9 +586,15 @@ Verify before returning: search your output for any proper noun that is not the 
     );
   } catch (error: unknown) {
     console.error('Generate teaser error:', error);
+    // Surface the underlying error message so callers (and their toasts)
+    // can show something more actionable than "non-2xx status code".
+    // We keep the shape stable (`error` string) so `extractFunctionError`
+    // picks it up on the frontend.
+    const detail =
+      error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
     return new Response(
       JSON.stringify({
-        error: 'Failed to generate teaser',
+        error: `Failed to generate teaser: ${detail}`,
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
