@@ -19,10 +19,19 @@
  * Before this fix the request awaited the sync synchronously, so every
  * backfill invocation surfaced as "Failed to send a request to the Edge
  * Function" in the UI even though the connection row was fine. The HTTP
- * response returns immediately with status 202 ("accepted") so the browser
- * can reflect that the backfill is running; the caller should poll
- * `email_connections.last_sync_at` or just refresh after a couple of minutes
- * to see the imported emails.
+ * response returns immediately with status 202 ("accepted").
+ *
+ * ── PROGRESS + RESUMABILITY ─────────────────────────────────────────────────
+ * The function writes an initial progress row to
+ * `email_connections.backfill_*` before kicking off the background task,
+ * and the sync engine checkpoints those columns after every Microsoft Graph
+ * page. Callers poll that row to drive a live progress bar. If the isolate
+ * crashes/times out mid-run the row is left with `backfill_status='failed'`
+ * and the `backfill_next_link` pointing at the page that was in flight —
+ * calling this function again with `resume: true` re-invokes the sync engine
+ * from that cursor instead of re-walking the inbox from the top. The
+ * idempotent `(microsoft_message_id, contact_id)` upsert on `email_messages`
+ * makes resumes safe against partial double-runs.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -57,7 +66,18 @@ Deno.serve(async (req) => {
       return errorResponse(auth.error || 'Authentication required', 401, corsHeaders);
     }
 
-    let body: { targetUserId?: string; daysBack?: number } = {};
+    let body: {
+      targetUserId?: string;
+      daysBack?: number;
+      /**
+       * When true, resume an existing `failed` / `running` backfill from its
+       * stored `backfill_next_link` checkpoint instead of starting a fresh
+       * pull. Used by the "Resume" button on the Outlook settings page.
+       * When false, force-restart even over a currently-running row.
+       * When omitted, the function refuses to stomp a `running` row.
+       */
+      resume?: boolean;
+    } = {};
     try {
       body = await req.json();
     } catch {
@@ -92,9 +112,17 @@ Deno.serve(async (req) => {
       targetUserId = body.targetUserId;
     }
 
+    // Pull the full progress-state columns so we can decide whether this call
+    // is a fresh start or a resume of an in-flight / previously-failed run.
+    // When `resume=true` on the request, we carry forward `backfill_since`
+    // and `backfill_next_link` from the existing row so the cutoff window
+    // doesn't drift forward and we pick up at the last checkpoint instead
+    // of re-walking the inbox.
     const { data: connection, error: connErr } = await supabase
       .from('email_connections')
-      .select('id, email_address, status')
+      .select(
+        'id, email_address, status, backfill_status, backfill_since, backfill_next_link, backfill_days_back',
+      )
       .eq('sourceco_user_id', targetUserId)
       .maybeSingle();
 
@@ -115,6 +143,69 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Resume vs. fresh start decision ─────────────────────────────────────
+    //
+    // The caller can pass `resume: true` to explicitly pick up from the last
+    // checkpoint (used by the "Resume" button on a failed/stalled run). If
+    // the flag is omitted and the row is already `running`, we refuse to
+    // stomp the in-flight run — one backfill per mailbox at a time keeps
+    // the progress counters meaningful. The operator can force-restart by
+    // passing `resume: false` alongside a fresh `daysBack`.
+    const isResume = body.resume === true;
+    const shouldRefuseDuplicate =
+      connection.backfill_status === 'running' && !isResume && body.resume !== false;
+
+    if (shouldRefuseDuplicate) {
+      return errorResponse(
+        'A backfill is already running for this mailbox. Wait for it to finish or pass resume:true to continue it.',
+        409,
+        corsHeaders,
+      );
+    }
+
+    // Compute the effective cutoff + starting cursor + daysBack. On resume we
+    // reuse whatever's on the row; on a fresh start we snapshot them now.
+    const resumeNextLink =
+      isResume && connection.backfill_next_link ? connection.backfill_next_link : undefined;
+    const effectiveDaysBack =
+      isResume && connection.backfill_days_back ? connection.backfill_days_back : daysBack;
+    const effectiveSince =
+      isResume && connection.backfill_since
+        ? connection.backfill_since
+        : new Date(Date.now() - effectiveDaysBack * 24 * 60 * 60 * 1000).toISOString();
+
+    // Initialise (or reset) the progress state row up-front so the frontend
+    // can poll it and show a progress bar from t=0. On a fresh start we zero
+    // out the counters; on a resume we leave the aggregate counters alone so
+    // the UI's "X messages synced" doesn't drop back to zero visually.
+    const initState: Record<string, unknown> = {
+      backfill_status: 'running',
+      backfill_started_at: new Date().toISOString(),
+      backfill_completed_at: null,
+      backfill_days_back: effectiveDaysBack,
+      backfill_since: effectiveSince,
+      backfill_error_message: null,
+      backfill_heartbeat_at: new Date().toISOString(),
+    };
+    if (!isResume) {
+      initState.backfill_pages_processed = 0;
+      initState.backfill_messages_synced = 0;
+      initState.backfill_messages_skipped = 0;
+      initState.backfill_messages_queued = 0;
+      initState.backfill_earliest_seen_at = null;
+      initState.backfill_next_link = null;
+    }
+
+    const { error: initErr } = await supabase
+      .from('email_connections')
+      .update(initState)
+      .eq('sourceco_user_id', targetUserId);
+
+    if (initErr) {
+      console.error('[outlook-backfill-history] progress init failed:', initErr);
+      return errorResponse('Failed to initialise backfill progress', 500, corsHeaders);
+    }
+
     // Kick off the deep sync as a TRUE background task. A full historical pull
     // against a mailbox with real volume reliably exceeds the 150-second
     // Supabase edge-function ceiling; awaiting it here causes the platform to
@@ -123,6 +214,8 @@ Deno.serve(async (req) => {
     // engine itself is fine. We forward our service-role Authorization header
     // so the sync function's `requireServiceRole` check passes.
     const backfillPromise = (async () => {
+      let syncCallOk = false;
+      let errorMessage: string | null = null;
       try {
         const syncResp = await fetch(`${supabaseUrl}/functions/v1/outlook-sync-emails`, {
           method: 'POST',
@@ -133,7 +226,10 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             userId: targetUserId,
             isInitialSync: true,
-            initialLookbackDays: daysBack,
+            initialLookbackDays: effectiveDaysBack,
+            backfillSince: effectiveSince,
+            resumeFromNextLink: resumeNextLink,
+            trackBackfillProgress: true,
           }),
         });
 
@@ -144,6 +240,7 @@ Deno.serve(async (req) => {
           } catch {
             // non-JSON body
           }
+          errorMessage = `Sync call failed with status ${syncResp.status}`;
           console.error(
             '[outlook-backfill-history] background sync call failed:',
             syncResp.status,
@@ -151,6 +248,8 @@ Deno.serve(async (req) => {
           );
           return;
         }
+
+        syncCallOk = true;
 
         // After the pull, promote any rows the sync engine placed in the
         // unmatched queue so they land against today's contact set immediately.
@@ -162,7 +261,52 @@ Deno.serve(async (req) => {
           console.error('[outlook-backfill-history] background rematch failed:', e);
         }
       } catch (e) {
+        errorMessage = (e as Error).message || 'Background task threw';
         console.error('[outlook-backfill-history] background task threw:', e);
+      } finally {
+        // Finalize the progress state. The DB row is the source of truth:
+        //   - `backfill_next_link` is NULL  → sync reached the cutoff, mark completed
+        //   - `backfill_next_link` is SET   → sync stopped early (page-fetch error
+        //     inside the engine's loop writes a checkpoint with the failed-page
+        //     cursor and `break`s; the handler still returns HTTP 200, so we
+        //     can't trust `syncResp.ok` alone to decide completed vs failed).
+        //     We preserve the cursor so Resume picks up exactly where it stopped.
+        try {
+          const { data: postSync } = await supabase
+            .from('email_connections')
+            .select('backfill_next_link, backfill_pages_processed')
+            .eq('sourceco_user_id', targetUserId)
+            .maybeSingle();
+
+          const cursorRemaining =
+            postSync?.backfill_next_link !== null && postSync?.backfill_next_link !== undefined;
+          const actuallySucceeded = syncCallOk && !cursorRemaining;
+
+          const finalState: Record<string, unknown> = {
+            backfill_completed_at: new Date().toISOString(),
+            backfill_heartbeat_at: new Date().toISOString(),
+          };
+          if (actuallySucceeded) {
+            finalState.backfill_status = 'completed';
+            finalState.backfill_next_link = null;
+            finalState.backfill_error_message = null;
+          } else {
+            finalState.backfill_status = 'failed';
+            finalState.backfill_error_message =
+              errorMessage ||
+              (cursorRemaining
+                ? 'Sync stopped before reaching the cutoff. Click Resume to continue from the last checkpoint.'
+                : 'Unknown error');
+            // backfill_next_link is intentionally NOT cleared — it's the
+            // resume cursor the operator needs to pick up from.
+          }
+          await supabase
+            .from('email_connections')
+            .update(finalState)
+            .eq('sourceco_user_id', targetUserId);
+        } catch (finalErr) {
+          console.error('[outlook-backfill-history] failed to finalize progress state:', finalErr);
+        }
       }
     })();
 
@@ -178,15 +322,19 @@ Deno.serve(async (req) => {
     // Return 202 Accepted immediately. `syncResult` and
     // `rematchedFromUnmatchedQueue` intentionally come back null/0 because the
     // real counts won't be known until the background task finishes — callers
-    // should refresh after a couple of minutes to see the imported emails.
+    // should poll `email_connections.backfill_*` to watch progress. The
+    // initial progress row was already initialized above, so the UI can pick
+    // up a 0% progress bar immediately on the next poll.
     return successResponse(
       {
         targetUserId,
         emailAddress: connection.email_address,
-        daysBack,
+        daysBack: effectiveDaysBack,
+        resumed: isResume,
         status: 'started',
-        message:
-          'Backfill started in the background. Refresh this page in a couple of minutes to see the imported emails.',
+        message: isResume
+          ? 'Backfill resumed from last checkpoint. Progress will continue updating live on this page.'
+          : 'Backfill started in the background. Progress will appear live on this page.',
         syncResult: null,
         rematchedFromUnmatchedQueue: 0,
       },

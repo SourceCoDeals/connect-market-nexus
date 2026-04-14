@@ -31,6 +31,7 @@ import {
   useOutlookMigrationHealth,
 } from '@/hooks/email';
 import type { EmailConnectionStatus } from '@/types/email';
+import { BackfillProgressCard } from '@/components/outlook/BackfillProgressCard';
 
 function StatusBadge({ status }: { status: EmailConnectionStatus }) {
   switch (status) {
@@ -241,18 +242,18 @@ function MyConnection() {
 
         {isConnected && (
           <>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <History className="h-4 w-4 text-muted-foreground" />
                 <p className="text-sm font-medium">Historical Email Backfill</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                The initial connection automatically syncs the last 30 days of history. Run a
-                deeper backfill below to pull older Outlook threads and automatically link them to
-                matching contacts and deals. Emails that don&apos;t match a known contact yet are
-                stored and retro-linked the moment a matching contact is created. The backfill
-                runs in the background — refresh this page in a couple of minutes to see the
-                imported emails.
+                The initial connection automatically syncs the last 30 days of history. Run a deeper
+                backfill below to pull older Outlook threads and automatically link them to matching
+                contacts and deals. Emails that don&apos;t match a known contact yet are stored and
+                retro-linked the moment a matching contact is created. The backfill runs in the
+                background and checkpoints after every page — if it gets interrupted you can hit
+                Resume to pick up exactly where it stopped.
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 {BACKFILL_PRESETS.map((preset) => (
@@ -261,7 +262,7 @@ function MyConnection() {
                     size="sm"
                     variant={selectedPreset === preset.days ? 'default' : 'outline'}
                     onClick={() => setSelectedPreset(preset.days)}
-                    disabled={isBackfilling}
+                    disabled={isBackfilling || connection.backfill_status === 'running'}
                   >
                     {preset.label}
                   </Button>
@@ -269,23 +270,31 @@ function MyConnection() {
                 <Button
                   size="sm"
                   onClick={() => backfillHistory({ daysBack: selectedPreset })}
-                  disabled={isBackfilling}
+                  disabled={isBackfilling || connection.backfill_status === 'running'}
                 >
                   {isBackfilling ? (
                     <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                   ) : (
                     <History className="h-3.5 w-3.5 mr-1.5" />
                   )}
-                  {isBackfilling ? 'Backfilling…' : `Backfill ${selectedPreset} days`}
+                  {isBackfilling ? 'Starting…' : `Backfill ${selectedPreset} days`}
                 </Button>
               </div>
-              {lastBackfillResult && (
+              {/* Live progress panel — polls email_connections.backfill_* every
+                  2.5s via the refetchInterval on useEmailConnection. Renders
+                  a determinate progress bar + counters + ETA + a Resume button
+                  for failed/stalled runs. Hidden when the mailbox has never
+                  kicked off a deep backfill (status === 'idle'). */}
+              <BackfillProgressCard
+                connection={connection}
+                onResume={() => backfillHistory({ daysBack: selectedPreset, resume: true })}
+                isResuming={isBackfilling}
+              />
+              {lastBackfillResult && connection.backfill_status !== 'running' && (
                 <p className="text-xs text-muted-foreground">
-                  Backfill running in the background for the last{' '}
-                  <span className="font-medium text-foreground">
-                    {lastBackfillResult.daysBack}
-                  </span>{' '}
-                  days. Refresh this page in a couple of minutes to see the imported emails.
+                  Backfill dispatched for the last{' '}
+                  <span className="font-medium text-foreground">{lastBackfillResult.daysBack}</span>{' '}
+                  days. Live progress will appear above within a few seconds.
                 </p>
               )}
             </div>
@@ -422,8 +431,8 @@ function AdminConnectionsDashboard() {
                 {lastBulkBackfillResult.mailboxesProcessed}
               </span>{' '}
               mailbox
-              {lastBulkBackfillResult.mailboxesProcessed === 1 ? '' : 'es'}. Refresh this page in
-              a couple of minutes to see updated Last Synced timestamps and imported emails.
+              {lastBulkBackfillResult.mailboxesProcessed === 1 ? '' : 'es'}. Refresh this page in a
+              couple of minutes to see updated Last Synced timestamps and imported emails.
             </p>
           )}
         </div>

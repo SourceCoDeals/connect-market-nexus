@@ -34,7 +34,36 @@ export interface AttachmentMetadata {
   contentType: string;
 }
 
-export interface EmailConnection {
+export type OutlookBackfillStatus = 'idle' | 'running' | 'completed' | 'failed';
+
+/**
+ * Persisted per-connection backfill progress. Populated by the
+ * `outlook-backfill-history` edge function on start and updated by the
+ * `outlook-sync-emails` engine after every Microsoft Graph page. The Outlook
+ * settings page polls this every few seconds while `backfill_status` is
+ * `'running'` so it can render a live progress bar + ETA without round-
+ * tripping the edge runtime.
+ *
+ * See migration `20260716000000_outlook_backfill_progress.sql` for the
+ * column-level semantics.
+ */
+export interface OutlookBackfillProgress {
+  backfill_status: OutlookBackfillStatus;
+  backfill_started_at: string | null;
+  backfill_completed_at: string | null;
+  backfill_days_back: number | null;
+  backfill_since: string | null;
+  backfill_next_link: string | null;
+  backfill_pages_processed: number;
+  backfill_messages_synced: number;
+  backfill_messages_skipped: number;
+  backfill_messages_queued: number;
+  backfill_earliest_seen_at: string | null;
+  backfill_heartbeat_at: string | null;
+  backfill_error_message: string | null;
+}
+
+export interface EmailConnection extends Partial<OutlookBackfillProgress> {
   id: string;
   sourceco_user_id: string;
   microsoft_user_id: string;

@@ -269,6 +269,27 @@ Deno.serve(async (req) => {
     isInitialSync?: boolean;
     /** How many days back to pull on an initial sync. Default 365. Max 3650. */
     initialLookbackDays?: number;
+    /**
+     * Microsoft Graph `@odata.nextLink` to resume from. When set, the sync
+     * engine skips straight to this cursor instead of starting over at the
+     * top of the inbox — this is what makes a frozen backfill picking up
+     * from the last checkpoint possible instead of re-fetching every page.
+     */
+    resumeFromNextLink?: string;
+    /**
+     * ISO timestamp the caller originally started the backfill against.
+     * Persisted as `email_connections.backfill_since` so the cutoff window
+     * never drifts forward when a long backfill is resumed across multiple
+     * invocations.
+     */
+    backfillSince?: string;
+    /**
+     * When true, `syncEmails` writes progress checkpoints to
+     * `email_connections` after every page. Enabled for historical backfills
+     * (initial/deep) — skipped for incremental polling syncs, where the
+     * extra row update isn't worth the cost.
+     */
+    trackBackfillProgress?: boolean;
   };
   try {
     body = await req.json();
@@ -424,8 +445,12 @@ Deno.serve(async (req) => {
     1,
     Math.min(body.initialLookbackDays || DEFAULT_INITIAL_LOOKBACK_DAYS, MAX_INITIAL_LOOKBACK_DAYS),
   );
+  // Prefer the caller-provided `backfillSince` (carried forward across
+  // resumes) over a fresh `Date.now() - lookback` computation so the cutoff
+  // window is stable across checkpoint restarts.
   const since = body.isInitialSync
-    ? new Date(Date.now() - requestedLookback * 24 * 60 * 60 * 1000).toISOString()
+    ? body.backfillSince ||
+      new Date(Date.now() - requestedLookback * 24 * 60 * 60 * 1000).toISOString()
     : undefined;
 
   const result = await syncEmails(
@@ -435,6 +460,10 @@ Deno.serve(async (req) => {
     connection.email_address,
     since,
     body.isInitialSync || false,
+    {
+      resumeFromNextLink: body.resumeFromNextLink,
+      trackBackfillProgress: body.trackBackfillProgress === true,
+    },
   );
 
   // Update last sync timestamp (and mark initial sync complete if applicable)
@@ -452,6 +481,24 @@ Deno.serve(async (req) => {
   return successResponse(result, corsHeaders);
 });
 
+interface SyncEmailsOptions {
+  /**
+   * Microsoft Graph `@odata.nextLink` cursor to resume from. When set, the
+   * sync engine skips straight to this URL instead of walking the inbox from
+   * the newest page — this is what lets a crashed backfill pick up at its
+   * last checkpoint.
+   */
+  resumeFromNextLink?: string;
+  /**
+   * When true, write per-page checkpoints to
+   * `email_connections.backfill_*` so the Outlook settings page can show a
+   * live progress bar and the next resume call can pick up from
+   * `backfill_next_link`. Off by default for incremental polling — those
+   * don't need per-row progress.
+   */
+  trackBackfillProgress?: boolean;
+}
+
 async function syncEmails(
   supabase: SupabaseClient,
   accessToken: string,
@@ -459,20 +506,67 @@ async function syncEmails(
   userEmail: string,
   since?: string,
   isInitial = false,
+  options: SyncEmailsOptions = {},
 ): Promise<{ synced: number; skipped: number; queuedUnmatched: number; errors: string[] }> {
   const contactEmails = await loadKnownContactEmails(supabase);
   let synced = 0;
   let skipped = 0;
   let queuedUnmatched = 0;
   const errors: string[] = [];
-  let nextLink: string | undefined;
+  let nextLink: string | undefined = options.resumeFromNextLink;
   let pageCount = 0;
   const maxPages = isInitial ? MAX_INITIAL_PAGES : 10; // Deep backfill for initial, bounded for polling
+
+  // Tracks the oldest sentDateTime we've processed in this run — drives the
+  // progress-bar percentage in the Outlook settings UI via
+  // `(started_at - earliest_seen_at) / (started_at - since)`.
+  let earliestSeenAt: string | null = null;
+
+  /**
+   * Write a per-page checkpoint to `email_connections.backfill_*`. Called at
+   * the bottom of each successful page so a crash/timeout leaves a recoverable
+   * cursor behind. No-op when `trackBackfillProgress` is false.
+   *
+   * We write AFTER the upserts for the page have completed (not before), so
+   * `backfill_next_link` always points at the next page to fetch — never at
+   * a page whose messages haven't been persisted yet.
+   */
+  const writeCheckpoint = async (cursorNextLink: string | undefined) => {
+    if (!options.trackBackfillProgress) return;
+    try {
+      const update: Record<string, unknown> = {
+        backfill_next_link: cursorNextLink ?? null,
+        backfill_pages_processed: pageCount,
+        backfill_messages_synced: synced,
+        backfill_messages_skipped: skipped,
+        backfill_messages_queued: queuedUnmatched,
+        backfill_heartbeat_at: new Date().toISOString(),
+      };
+      if (earliestSeenAt) update.backfill_earliest_seen_at = earliestSeenAt;
+      await supabase.from('email_connections').update(update).eq('sourceco_user_id', userId);
+    } catch (e) {
+      // Checkpoint failures must never abort the sync — the worst case is the
+      // UI shows stale progress, but the idempotent upserts still make forward
+      // progress.
+      console.error('[outlook-sync] checkpoint write failed (non-fatal):', e);
+    }
+  };
 
   do {
     try {
       const result = await fetchMessages(accessToken, since, nextLink);
       nextLink = result.nextLink;
+
+      // Update the earliest-seen watermark for progress calculation. Pages
+      // come back newest-first (`$orderby: sentDateTime desc`), so the
+      // LAST message in the array is the oldest on this page.
+      if (result.messages.length > 0) {
+        const lastOnPage = result.messages[result.messages.length - 1];
+        const oldestTs = lastOnPage.sentDateTime || lastOnPage.receivedDateTime;
+        if (oldestTs && (!earliestSeenAt || oldestTs < earliestSeenAt)) {
+          earliestSeenAt = oldestTs;
+        }
+      }
 
       for (const msg of result.messages) {
         try {
@@ -667,8 +761,21 @@ async function syncEmails(
       }
 
       pageCount++;
+
+      // Per-page checkpoint. After this write, a crash/timeout leaves a
+      // resumable state behind: the next invocation of `outlook-backfill-history`
+      // can pass `resumeFromNextLink` and skip straight here instead of
+      // re-walking the inbox. This is the mechanism that makes "if it freezes
+      // we don't have to resync what we already synced" actually true even
+      // though the underlying upserts were already idempotent — it saves the
+      // wall-clock time of re-fetching every page from Microsoft Graph.
+      await writeCheckpoint(nextLink);
     } catch (err) {
       errors.push(`Page fetch error: ${(err as Error).message}`);
+      // Flush the checkpoint so the caller knows where we got to even though
+      // this run is aborting. `nextLink` still points at the page that just
+      // failed, so the resume path re-attempts exactly that page.
+      await writeCheckpoint(nextLink);
       break;
     }
   } while (nextLink && pageCount < maxPages);
