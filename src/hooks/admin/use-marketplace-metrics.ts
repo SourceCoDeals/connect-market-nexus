@@ -50,6 +50,23 @@ export interface MarketplaceMetrics {
   // Meetings
   meetingsHeld: number;
   meetingMinutes: number;
+
+  // Zero-request deals (deals with no connection requests ever)
+  zeroRequestDeals: Array<{
+    id: string;
+    name: string;
+    industry: string | null;
+    created_at: string;
+  }>;
+
+  // Trend data: monthly buckets within the selected range
+  monthlyTrend: Array<{
+    month: string; // e.g. "2026-01"
+    signups: number;
+    deals: number;
+    connections: number;
+    meetings: number;
+  }>;
 }
 
 async function fetchMarketplaceMetrics(
@@ -74,6 +91,11 @@ async function fetchMarketplaceMetrics(
     connectionsPendingRes,
     meetingsRes,
     totalListingsRes,
+    zeroReqListingsRes,
+    allConnectionListingIdsRes,
+    trendSignupsRes,
+    trendConnectionsRes,
+    trendMeetingsRes,
   ] = await Promise.all([
     // New signups in period
     supabase
@@ -121,18 +143,10 @@ async function fetchMarketplaceMetrics(
       .lt('created_at', to),
 
     // Deals by status
-    supabase
-      .from('listings')
-      .select('status')
-      .gte('created_at', from)
-      .lt('created_at', to),
+    supabase.from('listings').select('status').gte('created_at', from).lt('created_at', to),
 
     // Deals by industry
-    supabase
-      .from('listings')
-      .select('industry')
-      .gte('created_at', from)
-      .lt('created_at', to),
+    supabase.from('listings').select('industry').gte('created_at', from).lt('created_at', to),
 
     // Connection requests created in period
     supabase
@@ -171,6 +185,35 @@ async function fetchMarketplaceMetrics(
     // Total listings (for requests-per-deal denominator). We use total listings
     // rather than only new listings so the ratio reflects the whole marketplace.
     supabase.from('listings').select('id', { count: 'exact', head: true }),
+
+    // Zero-request deals: listings that have NEVER received a connection request
+    supabase
+      .from('listings')
+      .select('id, company_name, industry, created_at')
+      .gte('created_at', from)
+      .lt('created_at', to)
+      .order('created_at', { ascending: false })
+      .limit(500),
+
+    // All connection request listing_ids (to find zero-request deals)
+    supabase.from('connection_requests').select('listing_id'),
+
+    // Monthly trend: signups
+    supabase.from('profiles').select('created_at').gte('created_at', from).lt('created_at', to),
+
+    // Monthly trend: connection requests
+    supabase
+      .from('connection_requests')
+      .select('created_at')
+      .gte('created_at', from)
+      .lt('created_at', to),
+
+    // Monthly trend: meetings
+    supabase
+      .from('standup_meetings')
+      .select('meeting_date')
+      .gte('meeting_date', from)
+      .lt('meeting_date', to),
   ]);
 
   // Sum EBITDA and revenue from new listings
@@ -220,6 +263,75 @@ async function fetchMarketplaceMetrics(
   const connectionRequestsPerDeal =
     totalListings > 0 ? connectionRequestsCreated / totalListings : 0;
 
+  // Zero-request deals: listings in period that have never received any connection request
+  const listingsInPeriod = (zeroReqListingsRes.data ?? []) as Array<{
+    id: string;
+    company_name: string | null;
+    industry: string | null;
+    created_at: string;
+  }>;
+  const listingIdsWithRequests = new Set(
+    ((allConnectionListingIdsRes.data ?? []) as Array<{ listing_id: string | null }>)
+      .map((r) => r.listing_id)
+      .filter(Boolean),
+  );
+  const zeroRequestDeals = listingsInPeriod
+    .filter((l) => !listingIdsWithRequests.has(l.id))
+    .map((l) => ({
+      id: l.id,
+      name: l.company_name || 'Unnamed',
+      industry: l.industry,
+      created_at: l.created_at,
+    }))
+    .slice(0, 25);
+
+  // Monthly trend: bucket timestamps into YYYY-MM
+  function bucketByMonth(
+    rows: Array<{ created_at?: string; meeting_date?: string }>,
+  ): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const ts = row.created_at || row.meeting_date;
+      if (!ts) continue;
+      const month = ts.slice(0, 7); // "2026-01"
+      counts.set(month, (counts.get(month) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  const signupsByMonth = bucketByMonth(
+    (trendSignupsRes.data ?? []) as Array<{ created_at: string }>,
+  );
+  // Deal trend: bucket from listingsInPeriod (full set of listings added in range)
+  const dealsMonthBucket = new Map<string, number>();
+  for (const l of listingsInPeriod) {
+    const month = l.created_at.slice(0, 7);
+    dealsMonthBucket.set(month, (dealsMonthBucket.get(month) ?? 0) + 1);
+  }
+  const connectionsByMonth = bucketByMonth(
+    (trendConnectionsRes.data ?? []) as Array<{ created_at: string }>,
+  );
+  const meetingsByMonth = bucketByMonth(
+    (trendMeetingsRes.data ?? []) as Array<{ meeting_date: string }>,
+  );
+
+  // Merge all months into a sorted trend array
+  const allMonths = new Set([
+    ...signupsByMonth.keys(),
+    ...dealsMonthBucket.keys(),
+    ...connectionsByMonth.keys(),
+    ...meetingsByMonth.keys(),
+  ]);
+  const monthlyTrend = Array.from(allMonths)
+    .sort()
+    .map((month) => ({
+      month,
+      signups: signupsByMonth.get(month) ?? 0,
+      deals: dealsMonthBucket.get(month) ?? 0,
+      connections: connectionsByMonth.get(month) ?? 0,
+      meetings: meetingsByMonth.get(month) ?? 0,
+    }));
+
   return {
     newSignups: newSignupsRes.count ?? 0,
     usersApproved: usersApprovedRes.count ?? 0,
@@ -240,7 +352,47 @@ async function fetchMarketplaceMetrics(
 
     meetingsHeld,
     meetingMinutes,
+
+    zeroRequestDeals,
+    monthlyTrend,
   };
+}
+
+/**
+ * Compute the prior period range for a given range (same duration, immediately before).
+ */
+export function priorPeriodRange(range: MarketplaceMetricsRange): MarketplaceMetricsRange {
+  const fromMs = new Date(range.from).getTime();
+  const toMs = new Date(range.to).getTime();
+  const durationMs = toMs - fromMs;
+  return {
+    from: new Date(fromMs - durationMs).toISOString(),
+    to: range.from,
+  };
+}
+
+/**
+ * Hook that fetches both current and prior period metrics for delta comparison.
+ */
+export function useMarketplaceMetricsWithComparison(range: MarketplaceMetricsRange) {
+  const { user, authChecked, isAdmin } = useAuth();
+  const prior = priorPeriodRange(range);
+
+  const current = useQuery({
+    queryKey: ['marketplace-metrics', range.from, range.to],
+    queryFn: () => fetchMarketplaceMetrics(range),
+    enabled: authChecked && !!user && isAdmin,
+    staleTime: 60_000,
+  });
+
+  const previous = useQuery({
+    queryKey: ['marketplace-metrics', prior.from, prior.to],
+    queryFn: () => fetchMarketplaceMetrics(prior),
+    enabled: authChecked && !!user && isAdmin,
+    staleTime: 60_000,
+  });
+
+  return { current, previous };
 }
 
 /**
