@@ -112,7 +112,7 @@ export function UnifiedAdminSidebar({
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin: _isFullAdmin, canAccessSettings } = usePermissions();
+  const { isAdmin: _isFullAdmin, canAccessSettings, canAccessOutreachTools } = usePermissions();
   const { unviewedCount: unviewedDealSourcingCount } = useUnviewedDealSourcingCount();
   const { unviewedCount: unviewedConnectionRequestsCount } = useUnviewedConnectionRequests();
   const { unviewedCount: unviewedUsersCount } = useUnviewedUsers();
@@ -330,7 +330,11 @@ export function UnifiedAdminSidebar({
             href: '/admin/settings/notifications',
             icon: <Bell className="h-4 w-4" />,
           },
-          ...(canAccessSettings
+          // Per-user outreach tools — every internal team member connects
+          // their own mailbox / dialer, so these are visible to moderators
+          // as well as admins. Only the API-credential settings pages
+          // below stay gated behind canAccessSettings (admin only).
+          ...(canAccessOutreachTools
             ? [
                 {
                   label: 'Smartlead Campaigns',
@@ -338,22 +342,30 @@ export function UnifiedAdminSidebar({
                   icon: <Mail className="h-4 w-4" />,
                   separator: 'Smartlead',
                 },
-                {
-                  label: 'Smartlead Settings',
-                  href: '/admin/smartlead/settings',
-                  icon: <Settings className="h-4 w-4" />,
-                },
+                ...(canAccessSettings
+                  ? [
+                      {
+                        label: 'Smartlead Settings',
+                        href: '/admin/smartlead/settings',
+                        icon: <Settings className="h-4 w-4" />,
+                      },
+                    ]
+                  : []),
                 {
                   label: 'Dial Sessions',
                   href: '/admin/phoneburner/sessions',
                   icon: <Phone className="h-4 w-4" />,
                   separator: 'PhoneBurner',
                 },
-                {
-                  label: 'PhoneBurner Settings',
-                  href: '/admin/phoneburner/settings',
-                  icon: <Settings className="h-4 w-4" />,
-                },
+                ...(canAccessSettings
+                  ? [
+                      {
+                        label: 'PhoneBurner Settings',
+                        href: '/admin/phoneburner/settings',
+                        icon: <Settings className="h-4 w-4" />,
+                      },
+                    ]
+                  : []),
                 {
                   label: 'Fireflies',
                   href: '/admin/fireflies',
@@ -366,6 +378,10 @@ export function UnifiedAdminSidebar({
                   icon: <Mail className="h-4 w-4" />,
                   separator: 'Outlook',
                 },
+              ]
+            : []),
+          ...(canAccessSettings
+            ? [
                 {
                   label: 'Webhook Settings',
                   href: '/admin/settings/webhooks',
@@ -431,6 +447,7 @@ export function UnifiedAdminSidebar({
       unviewedMatchToolLeadsCount,
       pendingDocRequestCount,
       canAccessSettings,
+      canAccessOutreachTools,
     ],
   );
 

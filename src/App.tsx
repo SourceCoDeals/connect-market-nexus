@@ -678,11 +678,13 @@ function App() {
                 />
               </Route>
 
-              {/* SMARTLEAD */}
+              {/* SMARTLEAD — per-user campaigns page is open to all
+                  internal team members; the API-credential settings page
+                  stays admin-only. */}
               <Route
                 path="smartlead/campaigns"
                 element={
-                  <RoleGate min="admin">
+                  <RoleGate min="moderator">
                     <SmartleadCampaignsPage />
                   </RoleGate>
                 }
@@ -696,11 +698,12 @@ function App() {
                 }
               />
 
-              {/* PHONEBURNER */}
+              {/* PHONEBURNER — dialer sessions are a per-user tool; the
+                  API-credential settings page stays admin-only. */}
               <Route
                 path="phoneburner/sessions"
                 element={
-                  <RoleGate min="admin">
+                  <RoleGate min="moderator">
                     <PhoneBurnerSessionsPage />
                   </RoleGate>
                 }
@@ -714,11 +717,12 @@ function App() {
                 }
               />
 
-              {/* FIREFLIES */}
+              {/* FIREFLIES — transcript viewing is a per-user tool open
+                  to all internal team members. */}
               <Route
                 path="fireflies"
                 element={
-                  <RoleGate min="admin">
+                  <RoleGate min="moderator">
                     <FirefliesIntegrationPage />
                   </RoleGate>
                 }
