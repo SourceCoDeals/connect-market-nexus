@@ -203,7 +203,7 @@ export function ExtractThesisDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -218,7 +218,7 @@ export function ExtractThesisDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 flex flex-col">
           {isExtracting && (
             <div
               className="flex flex-col items-center justify-center py-16 text-center"
@@ -261,7 +261,7 @@ export function ExtractThesisDialog({
           )}
 
           {!isExtracting && candidates.length > 0 && (
-            <div className="space-y-3 h-full flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col gap-3">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>
                   Found <strong>{candidates.length}</strong> thesis{' '}
@@ -288,7 +288,7 @@ export function ExtractThesisDialog({
                 </div>
               )}
 
-              <ScrollArea className="flex-1 pr-3">
+              <ScrollArea className="flex-1 min-h-0 pr-3">
                 <div className="space-y-3">
                   {candidates.map((c) => {
                     const rowError = validationErrors.get(c._key);
