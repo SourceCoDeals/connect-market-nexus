@@ -51,7 +51,8 @@ import { DealHistoryTab } from './DealHistoryTab';
 import { AddContactDialog } from './AddContactDialog';
 import { BuyerEngagementSummary } from '@/components/remarketing/buyer-detail/BuyerEngagementSummary';
 import { BuyerActiveDealsSummary } from '@/components/remarketing/buyer-detail/BuyerActiveDealsSummary';
-import { useContactCombinedHistory } from '@/hooks/use-contact-combined-history';
+import { useContactCombinedHistoryByDomain } from '@/hooks/use-contact-combined-history';
+import { useFirmDomainAliases } from '@/hooks/admin/use-firm-agreement-queries';
 import { EditDialogs } from './EditDialogs';
 import { CallActivityTab } from './CallActivityTab';
 import { EmailHistoryTab } from '@/components/email';
@@ -120,7 +121,17 @@ const ReMarketingBuyerDetail = () => {
   } = useExtractionHandlers(transcripts, extractTranscriptMutation);
 
   const { data: transcriptCriteria } = useBuyerCriteriaFromTranscripts(buyer?.id);
-  const { data: combinedHistory = [] } = useContactCombinedHistory(buyer?.id || null);
+  // Phase 4: firm-wide engagement. Fetch the firm's domain aliases (via
+  // firm_domain_aliases) and pass them to the domain-aware history hook so
+  // the engagement summary reflects every touchpoint across everyone at the
+  // firm — not just activity logged against this one buyer row. Falls back
+  // to buyer-id-only behavior when no firm is linked or no aliases exist.
+  const { data: firmAliases = [] } = useFirmDomainAliases(buyer?.marketplace_firm_id || null);
+  const firmDomainList = firmAliases.map((a) => a.domain);
+  const { data: combinedHistory = [] } = useContactCombinedHistoryByDomain({
+    buyerId: buyer?.id || null,
+    domains: firmDomainList.length > 0 ? firmDomainList : null,
+  });
 
   if (!isNew && isLoading) {
     return (
@@ -241,7 +252,9 @@ const ReMarketingBuyerDetail = () => {
       {buyer?.id && <BuyerActiveDealsSummary buyerId={buyer.id} />}
 
       {/* Engagement Summary */}
-      {combinedHistory.length > 0 && <BuyerEngagementSummary entries={combinedHistory} />}
+      {combinedHistory.length > 0 && (
+        <BuyerEngagementSummary entries={combinedHistory} firmDomainCount={firmDomainList.length} />
+      )}
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="intelligence" className="space-y-4">
