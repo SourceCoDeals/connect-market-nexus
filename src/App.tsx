@@ -564,9 +564,26 @@ function App() {
               <Route path="buyers/deal-sourcing" element={<AdminDealSourcing />} />
               <Route path="buyers/contacts" element={<BuyerContactsPage />} />
 
-              {/* CONTACT LISTS */}
-              <Route path="lists" element={<ContactListsPage />} />
-              <Route path="lists/:id" element={<ContactListDetailPage />} />
+              {/* CONTACT LISTS — requires moderator+. Matches the RLS policy on
+                  contact_lists (is_admin() → role IN ('admin','owner','moderator')),
+                  so viewers get a clear /unauthorized screen instead of a
+                  silently-empty list page. */}
+              <Route
+                path="lists"
+                element={
+                  <RoleGate min="moderator">
+                    <ContactListsPage />
+                  </RoleGate>
+                }
+              />
+              <Route
+                path="lists/:id"
+                element={
+                  <RoleGate min="moderator">
+                    <ContactListDetailPage />
+                  </RoleGate>
+                }
+              />
 
               {/* MARKETPLACE (listings absorbed into unified All Deals page) */}
               <Route path="listing-preview/:id" element={<ListingPreview />} />

@@ -54,13 +54,18 @@ export function useContactList(listId: string | undefined) {
     queryKey: [...QUERY_KEY, listId],
     enabled: !!listId,
     queryFn: async () => {
+      // NOTE: maybeSingle() returns null (no error) on 0 rows, letting the UI
+      // distinguish "list truly not found / RLS-hidden" (data === null) from
+      // "real error" (listError is set). single() throws PGRST116 on 0 rows,
+      // which the caller used to swallow as a generic "List not found".
       const { data: list, error: listError } = await supabase
         .from('contact_lists')
         .select('*')
         .eq('id', listId!)
-        .single();
+        .maybeSingle();
 
       if (listError) throw listError;
+      if (!list) return null;
 
       // Fetch creator name separately
       let creatorName: string | null = null;
