@@ -252,7 +252,10 @@ describe('outlook-sync-emails — attachment-failure visibility', () => {
       /async function fetchAttachmentMetadata\([\s\S]*?\):\s*Promise<[^>]*AttachmentMeta\[\]\s*\|\s*null>/,
     );
     // And both failure sites must return null, not an empty array.
-    const fnMatch = SRC.match(/async function fetchAttachmentMetadata[\s\S]*?\n\}\n/);
+    // Use \r?\n so the regex works on both LF (CI/Linux) and CRLF (Windows)
+    // — the source file's line endings depend on git's autocrlf setting and
+    // this test was previously LF-only, silently failing on Windows dev.
+    const fnMatch = SRC.match(/async function fetchAttachmentMetadata[\s\S]*?\r?\n\}\r?\n/);
     expect(fnMatch, 'fetchAttachmentMetadata body not found').not.toBeNull();
     const body = fnMatch![0];
     expect(body).toMatch(/if\s*\(!resp\.ok\)\s*return\s+null/);
