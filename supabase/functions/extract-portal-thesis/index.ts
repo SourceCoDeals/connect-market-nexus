@@ -10,8 +10,35 @@ import {
 } from '../_shared/ai-providers.ts';
 
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { requireAdmin } from '../_shared/auth.ts';
 
 const INTEL_BUCKET = 'portal-intelligence-docs';
+
+/**
+ * 20 MB is the de-facto cap for Gemini's inline_data multimodal input; we
+ * reject anything larger before even attempting base64 encoding so we don't
+ * burn ~100 MB of heap and then get a 400 back from OpenRouter.
+ *
+ * This is intentionally tighter than the 25 MB bucket file_size_limit —
+ * audio files up to 25 MB can still upload, they just can't be extracted.
+ */
+const MAX_BINARY_BYTES = 20 * 1024 * 1024;
+
+/**
+ * Standardized error response helper. Returns a Response with a JSON body
+ * and the correct HTTP status, so clients (and FunctionsHttpError.context)
+ * can distinguish "bad input" (4xx) from "server/AI failure" (5xx).
+ */
+function errorResponse(
+  status: number,
+  message: string,
+  corsHeaders: Record<string, string>,
+): Response {
+  return new Response(JSON.stringify({ success: false, error: message }), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
 
 interface ThesisExtractionRequest {
   portal_intelligence_doc_id: string;
@@ -46,20 +73,48 @@ interface ExtractionResult {
 }
 
 /**
+ * Convert an ArrayBuffer to base64 in 8 KB chunks. The naive
+ * `String.fromCharCode(...bytes)` approach stack-overflows above ~2 MB because
+ * it spreads every byte as a function argument; the naive `for (i...)` +
+ * `binary += String.fromCharCode(bytes[i])` loop works but is O(n) string
+ * reallocations in some engines. The 8 KB chunk size is the same pattern used
+ * in supabase/functions/_shared/document-text-extractor.ts.
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const CHUNK_SIZE = 8192;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+const BINARY_MIME_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  doc: 'application/msword',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ppt: 'application/vnd.ms-powerpoint',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xls: 'application/vnd.ms-excel',
+};
+
+/**
  * Download a portal intelligence file from Supabase storage and return either
  * decoded text (for text-like files) or base64 + mime type (for binary formats
- * that Gemini can ingest natively as multimodal input).
+ * that Gemini can ingest natively as multimodal input). Throws with a
+ * `{ status, message }` shape so the caller can return the right HTTP code.
  */
-async function downloadIntelligenceFile(storagePath: string): Promise<DocumentContent> {
+async function downloadIntelligenceFile(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  storagePath: string,
+): Promise<DocumentContent> {
   console.log(`[DOCUMENT_FETCH] Downloading from bucket "${INTEL_BUCKET}": "${storagePath}"`);
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
-
   const decodedPath = decodeURIComponent(storagePath);
-  const { data, error } = await supabase.storage.from(INTEL_BUCKET).download(decodedPath);
+  const { data, error } = await supabaseAdmin.storage.from(INTEL_BUCKET).download(decodedPath);
 
   if (error || !data) {
     const errName = (error as { name?: string })?.name || 'Unknown';
@@ -75,26 +130,14 @@ async function downloadIntelligenceFile(storagePath: string): Promise<DocumentCo
   const ext = decodedPath.split('.').pop()?.toLowerCase() || '';
   console.log(`[DOCUMENT_FETCH] Downloaded ${buffer.byteLength} bytes, ext="${ext}"`);
 
-  const binaryFormats = ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'];
-  if (binaryFormats.includes(ext)) {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+  if (ext in BINARY_MIME_TYPES) {
+    if (buffer.byteLength > MAX_BINARY_BYTES) {
+      throw new Error(
+        `File too large for AI extraction: ${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB (max ${MAX_BINARY_BYTES / 1024 / 1024} MB). Try extracting from a smaller excerpt pasted into the Content field instead.`,
+      );
     }
-    const base64 = btoa(binary);
-
-    const mimeTypes: Record<string, string> = {
-      pdf: 'application/pdf',
-      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      doc: 'application/msword',
-      pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      ppt: 'application/vnd.ms-powerpoint',
-      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      xls: 'application/vnd.ms-excel',
-    };
-    const mimeType = mimeTypes[ext] || 'application/octet-stream';
-    return { base64, mimeType };
+    const base64 = arrayBufferToBase64(buffer);
+    return { base64, mimeType: BINARY_MIME_TYPES[ext] };
   }
 
   const text = new TextDecoder().decode(buffer);
@@ -280,7 +323,7 @@ async function runExtraction(
         tools: [THESIS_TOOL],
         tool_choice: { type: 'function', function: { name: THESIS_TOOL.function.name } },
         temperature: 0,
-        max_tokens: 4096,
+        max_tokens: 8192,
       },
       120_000,
       'Gemini/portal-thesis',
@@ -293,11 +336,30 @@ async function runExtraction(
     }
 
     const responseData = await response.json();
-    const toolCalls = responseData.choices?.[0]?.message?.tool_calls;
-    if (!toolCalls?.length) {
+    if (responseData.usage) {
+      console.log(
+        `[USAGE] input=${responseData.usage.prompt_tokens} output=${responseData.usage.completion_tokens}`,
+      );
+    }
+
+    const toolCall = responseData.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) {
       throw new Error('Gemini did not return a tool call for the intelligence doc');
     }
-    return JSON.parse(toolCalls[0].function.arguments) as ExtractionResult;
+
+    // OpenRouter returns `arguments` as either a JSON string or a pre-parsed
+    // object depending on the upstream provider. Handle both defensively so we
+    // never crash on a valid Gemini response. This mirrors the pattern in
+    // _shared/ai-providers.ts:319-322.
+    const rawArgs = toolCall.function.arguments;
+    try {
+      return (
+        typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs
+      ) as ExtractionResult;
+    } catch (parseErr) {
+      console.error('[EXTRACTION] Failed to parse tool_call.arguments:', parseErr);
+      throw new Error('AI response could not be parsed — try re-running the extraction');
+    }
   }
 
   // Text path — either the raw file text, the inline `content` column, or both.
@@ -321,8 +383,14 @@ async function runExtraction(
     geminiApiKey,
     DEFAULT_GEMINI_MODEL,
     60_000,
-    4096,
+    8192,
   );
+
+  if (result.usage) {
+    console.log(
+      `[USAGE] input=${result.usage.input_tokens} output=${result.usage.output_tokens}`,
+    );
+  }
 
   if (!result.data) {
     throw new Error(result.error?.message || 'No thesis data extracted from document');
@@ -403,48 +471,109 @@ serve(async (req) => {
     return corsPreflightResponse(req);
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  if (req.method !== 'POST') {
+    return errorResponse(405, 'Method not allowed', corsHeaders);
+  }
+
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
+  // Admin-only gate. Thesis extraction burns Gemini tokens and should never
+  // be triggered by an unauthenticated caller — a leaked doc UUID would
+  // otherwise let anyone spam our AI bill. `verify_jwt = false` in
+  // config.toml lets the function accept the service role too (for any
+  // future cron/internal use), but browser callers must be admins.
+  const auth = await requireAdmin(req, supabaseAdmin);
+  if (!auth.isAdmin) {
+    return errorResponse(
+      auth.authenticated ? 403 : 401,
+      auth.error || 'Admin access required',
+      corsHeaders,
     );
+  }
 
-    const { portal_intelligence_doc_id }: ThesisExtractionRequest = await req.json();
-    if (!portal_intelligence_doc_id) {
-      throw new Error('Missing required field: portal_intelligence_doc_id');
-    }
+  let body: ThesisExtractionRequest;
+  try {
+    body = await req.json();
+  } catch {
+    return errorResponse(400, 'Request body must be valid JSON', corsHeaders);
+  }
 
-    console.log(`[REQUEST] intelligence_doc_id=${portal_intelligence_doc_id}`);
+  const { portal_intelligence_doc_id } = body || {};
+  if (!portal_intelligence_doc_id || typeof portal_intelligence_doc_id !== 'string') {
+    return errorResponse(
+      400,
+      'Missing or invalid required field: portal_intelligence_doc_id',
+      corsHeaders,
+    );
+  }
 
-    const { data: doc, error: docError } = await supabase
+  console.log(
+    `[REQUEST] user=${auth.userId} intelligence_doc_id=${portal_intelligence_doc_id}`,
+  );
+
+  try {
+    const { data: doc, error: docError } = await supabaseAdmin
       .from('portal_intelligence_docs')
       .select('id, portal_org_id, doc_type, title, content, file_url, file_name, file_type')
       .eq('id', portal_intelligence_doc_id)
-      .single();
+      .maybeSingle();
 
-    if (docError || !doc) {
-      throw new Error(
-        `Intelligence doc not found: ${docError?.message || portal_intelligence_doc_id}`,
+    if (docError) {
+      console.error('[DOC_LOOKUP] DB error:', docError.message);
+      return errorResponse(500, `Database error: ${docError.message}`, corsHeaders);
+    }
+    if (!doc) {
+      return errorResponse(
+        404,
+        `Intelligence doc not found: ${portal_intelligence_doc_id}`,
+        corsHeaders,
       );
     }
 
-    // Pull either the uploaded file or the inline content. At least one must be present.
-    let fileContent: DocumentContent = {};
-    if (doc.file_url) {
-      fileContent = await downloadIntelligenceFile(doc.file_url);
+    // Require at least one of file_url or inline content before we spend
+    // any Gemini tokens. Return 422 (Unprocessable Entity) because the
+    // request is syntactically valid but the underlying resource is unusable.
+    const hasInlineContent = !!doc.content?.trim();
+    if (!doc.file_url && !hasInlineContent) {
+      return errorResponse(
+        422,
+        'Intelligence doc has no file and no inline content to extract from.',
+        corsHeaders,
+      );
     }
 
-    if (!doc.file_url && !doc.content?.trim()) {
-      throw new Error('Intelligence doc has no file and no inline content to extract from.');
+    let fileContent: DocumentContent = {};
+    if (doc.file_url) {
+      try {
+        fileContent = await downloadIntelligenceFile(supabaseAdmin, doc.file_url);
+      } catch (dlError) {
+        const msg = dlError instanceof Error ? dlError.message : String(dlError);
+        // File-too-large and missing-file both surface here; treat as 422 so
+        // the UI can show a clear error instead of a generic 500.
+        return errorResponse(422, msg, corsHeaders);
+      }
     }
 
     const startTime = Date.now();
-    const rawResult = await runExtraction(
-      fileContent,
-      doc.content ?? null,
-      doc.title || doc.file_name || 'Intelligence doc',
-      doc.doc_type || 'general_notes',
-    );
+    let rawResult: ExtractionResult;
+    try {
+      rawResult = await runExtraction(
+        fileContent,
+        doc.content ?? null,
+        doc.title || doc.file_name || 'Intelligence doc',
+        doc.doc_type || 'general_notes',
+      );
+    } catch (aiError) {
+      const msg = aiError instanceof Error ? aiError.message : String(aiError);
+      console.error('[EXTRACTION] AI failure:', msg);
+      // 502 = upstream (Gemini) failure, 500 = our bug. Both bubble the
+      // same way to the client but the status code helps triage.
+      const isUpstream = /AI extraction failed|Gemini|rate_limited|timeout/i.test(msg);
+      return errorResponse(isUpstream ? 502 : 500, msg, corsHeaders);
+    }
 
     const duration = Date.now() - startTime;
     console.log(`[EXTRACTION_COMPLETE] ${duration}ms`);
@@ -469,13 +598,12 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     );
   } catch (error: unknown) {
+    // Last-resort catch for unexpected throws outside the inner try blocks.
     console.error('[ERROR]', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 },
+    return errorResponse(
+      500,
+      error instanceof Error ? error.message : String(error),
+      corsHeaders,
     );
   }
 });

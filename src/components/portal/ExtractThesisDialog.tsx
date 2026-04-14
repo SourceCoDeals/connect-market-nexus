@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
   useSaveExtractedTheses,
   type ExtractedThesisCandidate,
 } from '@/hooks/portal/use-extract-portal-thesis';
+import { validateThesisCandidate } from '@/lib/portal/thesis-validation';
 import type { CreateThesisCriteriaInput, PortalIntelligenceDoc } from '@/types/portal';
 
 interface ExtractThesisDialogProps {
@@ -69,34 +70,6 @@ function confidenceColor(confidence: number): string {
 }
 
 /**
- * Check a candidate against the `portal_thesis_criteria` CHECK constraints so
- * we can block save before Postgres rejects the whole batch. Returns `null` if
- * the row is valid, otherwise a human-readable reason.
- *
- * DB constraints we enforce here:
- *   - industry_label NOT NULL (we also reject empty string)
- *   - cardinality(industry_keywords) > 0
- *   - ebitda_min <= ebitda_max when both set
- *   - revenue_min <= revenue_max when both set
- *   - employee_min <= employee_max when both set
- */
-function validateCandidate(c: ExtractedThesisCandidate): string | null {
-  if (!c.industry_label.trim()) return 'Industry label is required.';
-  if (c.industry_keywords.length === 0) return 'At least one industry keyword is required.';
-  const pairs: Array<[number | null, number | null, string]> = [
-    [c.ebitda_min, c.ebitda_max, 'EBITDA'],
-    [c.revenue_min, c.revenue_max, 'Revenue'],
-    [c.employee_min, c.employee_max, 'Employee'],
-  ];
-  for (const [min, max, label] of pairs) {
-    if (min != null && max != null && min > max) {
-      return `${label} min cannot be greater than max.`;
-    }
-  }
-  return null;
-}
-
-/**
  * Review dialog for AI-extracted thesis rows from a portal intelligence doc.
  *
  * Flow:
@@ -119,9 +92,26 @@ export function ExtractThesisDialog({
   const [overallConfidence, setOverallConfidence] = useState<number | null>(null);
   const [hasRun, setHasRun] = useState(false);
 
+  /**
+   * Per-instance cache of already-extracted doc IDs. Extraction is expensive
+   * (~$0.02 / call, 10–60s latency) so if the reviewer closes and reopens the
+   * dialog for the same doc we skip the re-run and reuse the candidates that
+   * are still in component state. Cleared when the doc id actually changes.
+   */
+  const lastExtractedDocId = useRef<string | null>(null);
+
   // Reset + kick off extraction when the dialog opens for a new doc.
   useEffect(() => {
     if (!open || !doc) return;
+
+    // Reopened for the same doc we already extracted — keep the existing
+    // candidates (including any edits the reviewer made) instead of burning
+    // another Gemini call. Reviewers can force a re-run by closing the dialog
+    // and re-opening after switching to another doc and back.
+    if (lastExtractedDocId.current === doc.id && hasRun) {
+      return;
+    }
+
     setCandidates([]);
     setExtractionNotes(null);
     setOverallConfidence(null);
@@ -142,6 +132,7 @@ export function ExtractThesisDialog({
         setExtractionNotes(res.extraction_notes);
         setOverallConfidence(res.overall_confidence);
         setHasRun(true);
+        lastExtractedDocId.current = doc.id;
       })
       .catch(() => {
         if (cancelled) return;
@@ -161,7 +152,7 @@ export function ExtractThesisDialog({
   const validationErrors = useMemo(() => {
     const errs = new Map<string, string>();
     for (const c of candidates) {
-      const err = validateCandidate(c);
+      const err = validateThesisCandidate(c);
       if (err) errs.set(c._key, err);
     }
     return errs;
@@ -229,8 +220,12 @@ export function ExtractThesisDialog({
 
         <div className="flex-1 min-h-0">
           {isExtracting && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+            <div
+              className="flex flex-col items-center justify-center py-16 text-center"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" aria-hidden="true" />
               <p className="text-sm font-medium">Reading document and extracting thesis...</p>
               <p className="text-xs text-muted-foreground mt-1">
                 This can take 10-60 seconds for large PDFs.
@@ -239,8 +234,11 @@ export function ExtractThesisDialog({
           )}
 
           {extractError && !isExtracting && (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+            <div
+              className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+              role="alert"
+            >
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
               <div className="flex-1">
                 <p className="font-medium">Extraction failed</p>
                 <p className="text-xs mt-1">{extractError.message}</p>
