@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParamState } from '@/hooks/use-search-param-state';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -41,21 +42,9 @@ const BuyerContactsPage = () => {
 
   // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
-  const searchQuery = searchParams.get('q') ?? '';
-  const setSearchQuery = useCallback(
-    (v: string) => {
-      setSearchParams(
-        (p) => {
-          const n = new URLSearchParams(p);
-          if (v) n.set('q', v);
-          else n.delete('q');
-          return n;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
+  // Search input uses local state + debounced URL sync so typing never triggers
+  // a router navigation on every keystroke.
+  const [searchQuery, setSearchQuery] = useSearchParamState('q');
   const sourceFilter = searchParams.get('source') ?? 'all';
   const setSourceFilter = useCallback(
     (v: string) => {

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useSearchParamState } from '@/hooks/use-search-param-state';
 import {
   Select,
   SelectContent,
@@ -35,35 +36,9 @@ export function EnhancedUserManagement({
   // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Search input: kept in local state so typing never triggers a router update
-  // on every keystroke. The URL (?q=…) is synced with a short debounce, which
-  // prevents the input from losing focus and keeps sidebar navigation responsive.
-  const urlSearchQuery = searchParams.get('q') ?? '';
-  const [searchInput, setSearchInput] = useState(urlSearchQuery);
-
-  // Sync URL → local state for back/forward navigation or external changes
-  useEffect(() => {
-    setSearchInput((prev) => (prev === urlSearchQuery ? prev : urlSearchQuery));
-  }, [urlSearchQuery]);
-
-  // Debounce local → URL sync so typing never writes to the router synchronously
-  useEffect(() => {
-    if (searchInput === urlSearchQuery) return;
-    const id = window.setTimeout(() => {
-      setSearchParams(
-        (p) => {
-          const n = new URLSearchParams(p);
-          if (searchInput) n.set('q', searchInput);
-          else n.delete('q');
-          return n;
-        },
-        { replace: true },
-      );
-    }, 250);
-    return () => window.clearTimeout(id);
-  }, [searchInput, urlSearchQuery, setSearchParams]);
-
-  const searchQuery = searchInput;
+  // Search input uses local state + debounced URL sync so typing never triggers
+  // a router navigation on every keystroke (prevents focus loss and input lag).
+  const [searchQuery, setSearchQuery] = useSearchParamState('q');
   const statusFilter = searchParams.get('status') ?? 'all';
   const setStatusFilter = useCallback(
     (v: string) => {
@@ -157,8 +132,10 @@ export function EnhancedUserManagement({
         user.company?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === 'all' || user.approval_status === statusFilter;
-      const matchesBuyerType = buyerTypeFilter === 'all' ||
-        user.buyer_type?.toLowerCase().replace(/[\s_]/g, '') === buyerTypeFilter.toLowerCase().replace(/[\s_]/g, '');
+      const matchesBuyerType =
+        buyerTypeFilter === 'all' ||
+        user.buyer_type?.toLowerCase().replace(/[\s_]/g, '') ===
+          buyerTypeFilter.toLowerCase().replace(/[\s_]/g, '');
 
       const profileCompletion = calculateProfileCompletion(user);
       const matchesCompletion =
@@ -423,8 +400,8 @@ export function EnhancedUserManagement({
                 <Input
                   id="search"
                   placeholder="Search by name, email, or company..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 h-10 border-border/60 focus:border-primary/40 transition-colors"
                 />
               </div>

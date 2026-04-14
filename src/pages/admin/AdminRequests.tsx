@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useSearchParamState } from '@/hooks/use-search-param-state';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAdmin } from '@/hooks/use-admin';
 import { AdminConnectionRequest } from '@/types/admin';
@@ -13,7 +14,6 @@ import {
   type BuyerTypeFilter,
   type NdaFilter,
   type FeeAgreementFilter,
-  
   type SortOption,
 } from '@/hooks/admin/use-pipeline-filters';
 import { toast } from '@/hooks/use-toast';
@@ -33,14 +33,11 @@ import { useUpdateConnectionRequestStatus } from '@/hooks/admin/use-connection-r
 
 const AdminRequests = () => {
   const queryClient = useQueryClient();
-  const {
-    useConnectionRequests,
-    sendCustomApprovalEmail,
-  } = useAdmin();
+  const { useConnectionRequests, sendCustomApprovalEmail } = useAdmin();
   const { markAsViewed } = useMarkConnectionRequestsViewed();
 
   const { data: requests = [], isLoading, error, refetch } = useConnectionRequests();
-  
+
   // Use the unified direct .update() hook instead of the RPC-based mutation
   const updateStatus = useUpdateConnectionRequestStatus();
   const isUpdating = updateStatus.isPending;
@@ -49,21 +46,9 @@ const AdminRequests = () => {
 
   // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
-  const searchQuery = searchParams.get('q') ?? '';
-  const setSearchQuery = useCallback(
-    (v: string) => {
-      setSearchParams(
-        (p) => {
-          const n = new URLSearchParams(p);
-          if (v) n.set('q', v);
-          else n.delete('q');
-          return n;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
+  // Search input uses local state + debounced URL sync so typing doesn't fire
+  // a router navigation on every keystroke.
+  const [searchQuery, setSearchQuery] = useSearchParamState('q');
   const selectedListingId = searchParams.get('listing') ?? null;
   const setSelectedListingId = useCallback(
     (v: string | null) => {
@@ -253,7 +238,7 @@ const AdminRequests = () => {
 
         // Resolve sender details
         const { DEAL_OWNER_SENDERS } = await import('@/lib/admin-profiles');
-        const sender = DEAL_OWNER_SENDERS.find(s => s.email === senderEmail);
+        const sender = DEAL_OWNER_SENDERS.find((s) => s.email === senderEmail);
         const finalSenderEmail = senderEmail || 'support@sourcecodeals.com';
         const finalSenderName = sender?.name || 'SourceCo';
 
@@ -261,22 +246,30 @@ const AdminRequests = () => {
         if (actionType === 'approve') {
           const approvalRecipient = selectedRequest.user?.email || selectedRequest.lead_email;
           if (approvalRecipient) {
-            supabase.functions.invoke('send-connection-notification', {
-              body: {
-                type: 'approval_notification',
-                recipientEmail: approvalRecipient,
-                recipientName: `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim() || selectedRequest.lead_name || approvalRecipient,
-                requesterName: `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim() || selectedRequest.lead_name || '',
-                requesterEmail: approvalRecipient,
-                listingTitle: selectedRequest.listing?.title || 'General Inquiry',
-                listingId: selectedRequest.listing?.id || undefined,
-                requestId: selectedRequest.id,
-                senderEmail: finalSenderEmail,
-                senderName: finalSenderName,
-                replyTo: finalSenderEmail,
-                customBodyText: customBody || undefined,
-              },
-            }).catch((e: Error) => console.error('Email send failed:', e));
+            supabase.functions
+              .invoke('send-connection-notification', {
+                body: {
+                  type: 'approval_notification',
+                  recipientEmail: approvalRecipient,
+                  recipientName:
+                    `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim() ||
+                    selectedRequest.lead_name ||
+                    approvalRecipient,
+                  requesterName:
+                    `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim() ||
+                    selectedRequest.lead_name ||
+                    '',
+                  requesterEmail: approvalRecipient,
+                  listingTitle: selectedRequest.listing?.title || 'General Inquiry',
+                  listingId: selectedRequest.listing?.id || undefined,
+                  requestId: selectedRequest.id,
+                  senderEmail: finalSenderEmail,
+                  senderName: finalSenderName,
+                  replyTo: finalSenderEmail,
+                  customBodyText: customBody || undefined,
+                },
+              })
+              .catch((e: Error) => console.error('Email send failed:', e));
           }
           toast({
             title: 'Request approved',
@@ -285,18 +278,26 @@ const AdminRequests = () => {
         } else {
           const rejectionRecipient = selectedRequest.user?.email || selectedRequest.lead_email;
           if (rejectionRecipient) {
-            supabase.functions.invoke('notify-buyer-rejection', {
-              body: {
-                connectionRequestId: selectedRequest.id,
-                buyerEmail: rejectionRecipient,
-                buyerName: `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim() || selectedRequest.lead_name || rejectionRecipient,
-                companyName: selectedRequest.listing?.internal_company_name || selectedRequest.listing?.title || 'General Inquiry',
-                senderEmail: finalSenderEmail,
-                senderName: finalSenderName,
-                replyTo: finalSenderEmail,
-                customBodyText: customBody || undefined,
-              },
-            }).catch((e: Error) => console.error('Email send failed:', e));
+            supabase.functions
+              .invoke('notify-buyer-rejection', {
+                body: {
+                  connectionRequestId: selectedRequest.id,
+                  buyerEmail: rejectionRecipient,
+                  buyerName:
+                    `${selectedRequest.user?.first_name || ''} ${selectedRequest.user?.last_name || ''}`.trim() ||
+                    selectedRequest.lead_name ||
+                    rejectionRecipient,
+                  companyName:
+                    selectedRequest.listing?.internal_company_name ||
+                    selectedRequest.listing?.title ||
+                    'General Inquiry',
+                  senderEmail: finalSenderEmail,
+                  senderName: finalSenderName,
+                  replyTo: finalSenderEmail,
+                  customBodyText: customBody || undefined,
+                },
+              })
+              .catch((e: Error) => console.error('Email send failed:', e));
           }
           toast({
             title: 'Request rejected',
@@ -307,7 +308,6 @@ const AdminRequests = () => {
         setIsDialogOpen(false);
         setSelectedRequest(null);
         setActionType(null);
-         
       } catch (error: unknown) {
         console.error(`[AdminRequests] confirmAction failed:`, error);
         toast({
@@ -347,61 +347,61 @@ const AdminRequests = () => {
         </div>
 
         <div className="space-y-6">
-            {/* Consolidated Filter Bar */}
-            <PipelineFilters
-              requests={requests}
-              filteredCount={filteredRequests.length}
-              statusFilter={statusFilter}
-              buyerTypeFilter={buyerTypeFilter}
-              ndaFilter={ndaFilter}
-              feeAgreementFilter={feeAgreementFilter}
-              dateRangeFilter={dateRangeFilter}
-              sortOption={sortOption}
-              searchQuery={searchQuery}
-              onStatusFilterChange={setStatusFilter}
-              onBuyerTypeFilterChange={(filter) => setBuyerTypeFilter(filter)}
-              onNdaFilterChange={setNdaFilter}
-              onFeeAgreementFilterChange={setFeeAgreementFilter}
-              onDateRangeFilterChange={setDateRangeFilter}
-              onSortChange={(sort) => setSortOption(sort)}
-              onSearchChange={setSearchQuery}
-              listingFilter={
-                <ListingFilterSelect
-                  requests={requests}
-                  selectedListingId={selectedListingId}
-                  onListingChange={setSelectedListingId}
-                />
-              }
-              viewSwitcher={
-                selectedListingId ? (
-                  <ViewSwitcher viewMode={viewMode} onViewChange={setViewMode} />
-                ) : undefined
+          {/* Consolidated Filter Bar */}
+          <PipelineFilters
+            requests={requests}
+            filteredCount={filteredRequests.length}
+            statusFilter={statusFilter}
+            buyerTypeFilter={buyerTypeFilter}
+            ndaFilter={ndaFilter}
+            feeAgreementFilter={feeAgreementFilter}
+            dateRangeFilter={dateRangeFilter}
+            sortOption={sortOption}
+            searchQuery={searchQuery}
+            onStatusFilterChange={setStatusFilter}
+            onBuyerTypeFilterChange={(filter) => setBuyerTypeFilter(filter)}
+            onNdaFilterChange={setNdaFilter}
+            onFeeAgreementFilterChange={setFeeAgreementFilter}
+            onDateRangeFilterChange={setDateRangeFilter}
+            onSortChange={(sort) => setSortOption(sort)}
+            onSearchChange={setSearchQuery}
+            listingFilter={
+              <ListingFilterSelect
+                requests={requests}
+                selectedListingId={selectedListingId}
+                onListingChange={setSelectedListingId}
+              />
+            }
+            viewSwitcher={
+              selectedListingId ? (
+                <ViewSwitcher viewMode={viewMode} onViewChange={setViewMode} />
+              ) : undefined
+            }
+          />
+
+          {/* Content area */}
+          {selectedListingId && viewMode === 'grid' ? (
+            <RequestsGridView
+              requests={filteredRequests}
+              selectedListing={
+                selectedListing
+                  ? {
+                      id: selectedListing.id,
+                      title: selectedListing.title,
+                      internal_company_name: selectedListing.internal_company_name,
+                    }
+                  : null
               }
             />
-
-            {/* Content area */}
-            {selectedListingId && viewMode === 'grid' ? (
-              <RequestsGridView
+          ) : (
+            <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
+              <ConnectionRequestsTable
                 requests={filteredRequests}
-                selectedListing={
-                  selectedListing
-                    ? {
-                        id: selectedListing.id,
-                        title: selectedListing.title,
-                        internal_company_name: selectedListing.internal_company_name,
-                      }
-                    : null
-                }
+                isLoading={isLoading}
+                onRefresh={() => refetch()}
               />
-            ) : (
-              <div className="bg-card/30 backdrop-blur-sm rounded-xl border border-border/50 overflow-hidden shadow-sm">
-                <ConnectionRequestsTable
-                  requests={filteredRequests}
-                  isLoading={isLoading}
-                  onRefresh={() => refetch()}
-                />
-              </div>
-            )}
+            </div>
+          )}
         </div>
 
         <ConnectionRequestEmailDialog
