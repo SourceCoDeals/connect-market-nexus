@@ -1,5 +1,5 @@
 import { Suspense, lazy, type ReactNode, type ComponentType } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -43,9 +43,7 @@ function AppProviders({ children }: { children: ReactNode }) {
         <NavigationStateProvider>
           <AuthProvider>
             <SessionTrackingProvider>
-              <AnalyticsProvider>
-                {children}
-              </AnalyticsProvider>
+              <AnalyticsProvider>{children}</AnalyticsProvider>
             </SessionTrackingProvider>
           </AuthProvider>
         </NavigationStateProvider>
@@ -106,7 +104,7 @@ const AdminLayout = lazyWithRetry(() => import('@/components/admin/AdminLayout')
 
 // Admin pages
 const AdminDashboard = lazyWithRetry(() => import('@/pages/admin/AdminDashboard'));
-const MarketplaceUsersPage = lazyWithRetry(() => import('@/pages/admin/AdminUsers'));
+const MarketplaceUsersPage = lazyWithRetry(() => import('@/pages/admin/MarketplaceUsersPage'));
 const InternalTeamPage = lazyWithRetry(() => import('@/pages/admin/InternalTeamPage'));
 const BuyerContactsPage = lazyWithRetry(() => import('@/pages/admin/BuyerContactsPage'));
 const ContactListsPage = lazyWithRetry(() => import('@/pages/admin/ContactListsPage'));
@@ -142,7 +140,9 @@ const TestingHub = lazyWithRetry(() => import('@/pages/admin/TestingHub'));
 const MessageCenter = lazyWithRetry(() => import('@/pages/admin/MessageCenter'));
 const MessagesLayout = lazyWithRetry(() => import('@/pages/admin/MessagesLayout'));
 const SmartleadResponsesList = lazyWithRetry(() => import('@/pages/admin/SmartleadResponsesList'));
-const SmartleadResponseDetail = lazyWithRetry(() => import('@/pages/admin/SmartleadResponseDetail'));
+const SmartleadResponseDetail = lazyWithRetry(
+  () => import('@/pages/admin/SmartleadResponseDetail'),
+);
 const AdminFeatureIdeas = lazyWithRetry(() => import('@/pages/admin/AdminFeatureIdeas'));
 const PEFirmLinkReview = lazyWithRetry(() => import('@/pages/admin/PEFirmLinkReview'));
 
@@ -164,7 +164,6 @@ const PhoneBurnerSettingsPage = lazyWithRetry(
 const FirefliesIntegrationPage = lazyWithRetry(
   () => import('@/pages/admin/FirefliesIntegrationPage'),
 );
-
 
 // Client Portal pages
 const ClientPortalsList = lazyWithRetry(
@@ -251,6 +250,17 @@ function RedirectWithId({ to }: { to: string }) {
   return <Navigate to={resolved} replace />;
 }
 
+// Legacy bookmark redirect: `/admin/marketplace/users?view=owners` used to
+// render the Owner/Seller Leads view from inside a shared page. Owner leads
+// now has its own dedicated route.
+function MarketplaceUsersRoute() {
+  const [params] = useSearchParams();
+  if (params.get('view') === 'owners') {
+    return <Navigate to="/admin/marketplace/owner-leads" replace />;
+  }
+  return <MarketplaceUsersPage />;
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -291,23 +301,142 @@ function App() {
         >
           <Routes>
             {/* ─── PUBLIC ─── */}
-            <Route path="/welcome" element={<RouteErrorBoundary name="PublicRoutes"><Welcome /></RouteErrorBoundary>} />
-            <Route path="/sell" element={<RouteErrorBoundary name="PublicRoutes"><OwnerInquiry /></RouteErrorBoundary>} />
-            <Route path="/sell/success" element={<RouteErrorBoundary name="PublicRoutes"><OwnerInquirySuccess /></RouteErrorBoundary>} />
-            <Route path="/login" element={<RouteErrorBoundary name="PublicRoutes"><Login /></RouteErrorBoundary>} />
-            <Route path="/signup" element={<RouteErrorBoundary name="PublicRoutes"><Signup /></RouteErrorBoundary>} />
-            <Route path="/signup-success" element={<RouteErrorBoundary name="PublicRoutes"><SignupSuccess /></RouteErrorBoundary>} />
-            <Route path="/forgot-password" element={<RouteErrorBoundary name="PublicRoutes"><ForgotPassword /></RouteErrorBoundary>} />
-            <Route path="/reset-password" element={<RouteErrorBoundary name="PublicRoutes"><ResetPassword /></RouteErrorBoundary>} />
-            <Route path="/pending-approval" element={<RouteErrorBoundary name="PublicRoutes"><PendingApproval /></RouteErrorBoundary>} />
-            <Route path="/auth/callback" element={<RouteErrorBoundary name="PublicRoutes"><AuthCallback /></RouteErrorBoundary>} />
-            <Route path="/unauthorized" element={<RouteErrorBoundary name="PublicRoutes"><Unauthorized /></RouteErrorBoundary>} />
-            <Route path="/admin-login" element={<RouteErrorBoundary name="PublicRoutes"><AdminLogin /></RouteErrorBoundary>} />
-            <Route path="/referrals/:shareToken" element={<RouteErrorBoundary name="PublicRoutes"><ReferralTrackerPage /></RouteErrorBoundary>} />
-            <Route path="/dataroom/:accessToken" element={<RouteErrorBoundary name="PublicRoutes"><DataRoomPortal /></RouteErrorBoundary>} />
-            <Route path="/view/:linkToken" element={<RouteErrorBoundary name="PublicRoutes"><TrackedDocumentViewer /></RouteErrorBoundary>} />
-            <Route path="/deals/:id" element={<RouteErrorBoundary name="PublicRoutes"><DealLandingPage /></RouteErrorBoundary>} />
-            <Route path="/auth/outlook/callback" element={<RouteErrorBoundary name="PublicRoutes"><OutlookCallback /></RouteErrorBoundary>} />
+            <Route
+              path="/welcome"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <Welcome />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/sell"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <OwnerInquiry />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/sell/success"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <OwnerInquirySuccess />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <Login />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <Signup />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/signup-success"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <SignupSuccess />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <ForgotPassword />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/reset-password"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <ResetPassword />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/pending-approval"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <PendingApproval />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/auth/callback"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <AuthCallback />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/unauthorized"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <Unauthorized />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/admin-login"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <AdminLogin />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/referrals/:shareToken"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <ReferralTrackerPage />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/dataroom/:accessToken"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <DataRoomPortal />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/view/:linkToken"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <TrackedDocumentViewer />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/deals/:id"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <DealLandingPage />
+                </RouteErrorBoundary>
+              }
+            />
+            <Route
+              path="/auth/outlook/callback"
+              element={
+                <RouteErrorBoundary name="PublicRoutes">
+                  <OutlookCallback />
+                </RouteErrorBoundary>
+              }
+            />
 
             {/* ─── BUYER-FACING (unchanged) ─── */}
             <Route
@@ -450,7 +579,8 @@ function App() {
                 <Route path="smartlead" element={<SmartleadResponsesList />} />
                 <Route path="smartlead/:inboxId" element={<SmartleadResponseDetail />} />
               </Route>
-              <Route path="marketplace/users" element={<MarketplaceUsersPage />} />
+              <Route path="marketplace/users" element={<MarketplaceUsersRoute />} />
+              <Route path="marketplace/owner-leads" element={<OwnerLeadsPage />} />
 
               {/* REMARKETING (GlobalActivityStatusBar lives in ReMarketingLayout wrapper) */}
               <Route
@@ -576,7 +706,6 @@ function App() {
                   </RoleGate>
                 }
               />
-
 
               {/* CLIENT PORTALS (admin) */}
               <Route path="client-portals" element={<ClientPortalsList />} />

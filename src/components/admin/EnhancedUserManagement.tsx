@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useSearchParamState } from '@/hooks/use-search-param-state';
 import {
   Select,
   SelectContent,
@@ -34,21 +35,10 @@ export function EnhancedUserManagement({
 }: EnhancedUserManagementProps) {
   // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
-  const searchQuery = searchParams.get('q') ?? '';
-  const setSearchQuery = useCallback(
-    (v: string) => {
-      setSearchParams(
-        (p) => {
-          const n = new URLSearchParams(p);
-          if (v) n.set('q', v);
-          else n.delete('q');
-          return n;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
+
+  // Search input uses local state + debounced URL sync so typing never triggers
+  // a router navigation on every keystroke (prevents focus loss and input lag).
+  const [searchQuery, setSearchQuery] = useSearchParamState('q');
   const statusFilter = searchParams.get('status') ?? 'all';
   const setStatusFilter = useCallback(
     (v: string) => {
@@ -142,8 +132,10 @@ export function EnhancedUserManagement({
         user.company?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === 'all' || user.approval_status === statusFilter;
-      const matchesBuyerType = buyerTypeFilter === 'all' ||
-        user.buyer_type?.toLowerCase().replace(/[\s_]/g, '') === buyerTypeFilter.toLowerCase().replace(/[\s_]/g, '');
+      const matchesBuyerType =
+        buyerTypeFilter === 'all' ||
+        user.buyer_type?.toLowerCase().replace(/[\s_]/g, '') ===
+          buyerTypeFilter.toLowerCase().replace(/[\s_]/g, '');
 
       const profileCompletion = calculateProfileCompletion(user);
       const matchesCompletion =

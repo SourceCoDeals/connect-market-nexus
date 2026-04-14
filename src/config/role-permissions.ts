@@ -58,6 +58,7 @@ export const PAGE_PERMISSIONS: Record<string, PagePermission> = {
   '/admin/marketplace/requests': { minRole: 'moderator', mutateRole: 'admin' },
   '/admin/marketplace/messages': { minRole: 'moderator' },
   '/admin/marketplace/users': { minRole: 'moderator', mutateRole: 'admin' },
+  '/admin/marketplace/owner-leads': { minRole: 'moderator', mutateRole: 'admin' },
 
   // ── ReMarketing ─────────────────────────────────────────
   '/admin/remarketing': { minRole: 'admin' },

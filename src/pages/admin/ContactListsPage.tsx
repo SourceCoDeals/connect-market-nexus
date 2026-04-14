@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useSearchParamState } from '@/hooks/use-search-param-state';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -76,23 +77,9 @@ const ContactListsPage = () => {
 
   useAIUIActionHandler({ table: 'contacts' });
 
-  // URL-persisted search
-  const [searchParams, setSearchParams] = useSearchParams();
-  const searchQuery = searchParams.get('q') ?? '';
-  const setSearchQuery = useCallback(
-    (v: string) => {
-      setSearchParams(
-        (p) => {
-          const n = new URLSearchParams(p);
-          if (v) n.set('q', v);
-          else n.delete('q');
-          return n;
-        },
-        { replace: true },
-      );
-    },
-    [setSearchParams],
-  );
+  // URL-persisted search — local state + debounced URL sync so typing doesn't
+  // fire a router navigation on every keystroke.
+  const [searchQuery, setSearchQuery] = useSearchParamState('q');
 
   const filteredLists = lists.filter((list) => {
     if (!searchQuery) return true;

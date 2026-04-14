@@ -158,7 +158,7 @@ export function UnifiedAdminSidebar({
           },
           {
             label: 'Owner/Seller Leads',
-            href: '/admin/marketplace/users?view=owners',
+            href: '/admin/marketplace/owner-leads',
             icon: <ClipboardList className="h-4 w-4" />,
             badge: unviewedOwnerLeadsCount,
           },
