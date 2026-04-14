@@ -89,12 +89,21 @@ export function requireServiceRole(req: Request): { authorized: boolean; error?:
 
   const token = authHeader.replace('Bearer ', '');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const cronSecret = Deno.env.get('CRON_SECRET');
 
-  if (!serviceRoleKey || token !== serviceRoleKey) {
-    return { authorized: false, error: 'Service role authorization required' };
+  // Accept service role key OR cron secret for internal/scheduled calls
+  if (serviceRoleKey && token === serviceRoleKey) return { authorized: true };
+  if (cronSecret && token === cronSecret) return { authorized: true };
+
+  // Also accept if the token is a valid service_role JWT (check the role claim)
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.role === 'service_role') return { authorized: true };
+  } catch {
+    // Not a valid JWT — fall through
   }
 
-  return { authorized: true };
+  return { authorized: false, error: 'Service role authorization required' };
 }
 
 /**
