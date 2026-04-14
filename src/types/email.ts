@@ -44,7 +44,7 @@ export type OutlookBackfillStatus = 'idle' | 'running' | 'completed' | 'failed';
  * `'running'` so it can render a live progress bar + ETA without round-
  * tripping the edge runtime.
  *
- * See migration `20260716000000_outlook_backfill_progress.sql` for the
+ * See migration `20260716000002_outlook_backfill_progress.sql` for the
  * column-level semantics.
  */
 export interface OutlookBackfillProgress {
