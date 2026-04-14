@@ -247,10 +247,12 @@ function MyConnection() {
                 <p className="text-sm font-medium">Historical Email Backfill</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                The initial connection automatically syncs the last 365 days of history. Run a
+                The initial connection automatically syncs the last 30 days of history. Run a
                 deeper backfill below to pull older Outlook threads and automatically link them to
                 matching contacts and deals. Emails that don&apos;t match a known contact yet are
-                stored and retro-linked the moment a matching contact is created.
+                stored and retro-linked the moment a matching contact is created. The backfill
+                runs in the background — refresh this page in a couple of minutes to see the
+                imported emails.
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
                 {BACKFILL_PRESETS.map((preset) => (
@@ -279,15 +281,11 @@ function MyConnection() {
               </div>
               {lastBackfillResult && (
                 <p className="text-xs text-muted-foreground">
-                  Last backfill pulled{' '}
+                  Backfill running in the background for the last{' '}
                   <span className="font-medium text-foreground">
-                    {lastBackfillResult.syncResult?.synced ?? 0}
+                    {lastBackfillResult.daysBack}
                   </span>{' '}
-                  matched emails and queued{' '}
-                  <span className="font-medium text-foreground">
-                    {lastBackfillResult.syncResult?.queuedUnmatched ?? 0}
-                  </span>{' '}
-                  for future contacts.
+                  days. Refresh this page in a couple of minutes to see the imported emails.
                 </p>
               )}
             </div>
@@ -351,7 +349,7 @@ function AdminConnectionsDashboard() {
   const handleBulkBackfill = () => {
     if (activeConnectionCount === 0) return;
     const confirmed = window.confirm(
-      `This will import the last 365 days of Outlook history for all ${activeConnectionCount} connected team member${activeConnectionCount === 1 ? '' : 's'}, linking emails to existing contacts and deals. Emails for contacts that don't exist yet will be queued and auto-linked when those contacts are created.\n\nThis may take several minutes. Continue?`,
+      `This will import the last 365 days of Outlook history for all ${activeConnectionCount} connected team member${activeConnectionCount === 1 ? '' : 's'}, linking emails to existing contacts and deals. Emails for contacts that don't exist yet will be queued and auto-linked when those contacts are created.\n\nThe backfill runs in the background and may take several minutes to finish — refresh this page afterwards to see results. Continue?`,
     );
     if (confirmed) {
       bulkBackfillAll({ daysBack: 365 });
@@ -385,7 +383,8 @@ function AdminConnectionsDashboard() {
                 Imports the last 365 days of Outlook history for every connected team member in one
                 sequential run, linking each email to existing contacts and deals. Emails for
                 contacts that don&apos;t exist yet are queued and auto-linked the moment those
-                contacts are created.
+                contacts are created. The run happens in the background — refresh this page in a
+                couple of minutes to see results.
               </p>
             </div>
             <Button
@@ -418,23 +417,13 @@ function AdminConnectionsDashboard() {
           )}
           {lastBulkBackfillResult && (
             <p className="text-xs text-muted-foreground">
-              Last run: processed{' '}
+              Bulk backfill running in the background for{' '}
               <span className="font-medium text-foreground">
                 {lastBulkBackfillResult.mailboxesProcessed}
               </span>{' '}
-              mailboxes ({lastBulkBackfillResult.mailboxesFailed} failed). Imported{' '}
-              <span className="font-medium text-foreground">
-                {lastBulkBackfillResult.totalSynced}
-              </span>{' '}
-              matched emails, queued{' '}
-              <span className="font-medium text-foreground">
-                {lastBulkBackfillResult.totalQueued}
-              </span>{' '}
-              for future contacts, re-linked{' '}
-              <span className="font-medium text-foreground">
-                {lastBulkBackfillResult.totalRematched}
-              </span>{' '}
-              from the unmatched queue.
+              mailbox
+              {lastBulkBackfillResult.mailboxesProcessed === 1 ? '' : 'es'}. Refresh this page in
+              a couple of minutes to see updated Last Synced timestamps and imported emails.
             </p>
           )}
         </div>

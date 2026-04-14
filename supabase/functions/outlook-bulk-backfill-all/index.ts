@@ -27,6 +27,16 @@
  * simultaneous initial syncs is much more likely to trip 429s than running
  * them one at a time. If you have 50 mailboxes this call may take several
  * minutes; the caller should handle that gracefully.
+ *
+ * IMPORTANT: The per-mailbox sync loop runs as a TRUE background task via
+ * `EdgeRuntime.waitUntil`. A sequential walk over N mailboxes with a 365-day
+ * lookback each reliably exceeds Supabase's hard 150-second edge-function
+ * ceiling, and before this fix the UI surfaced the platform timeout as
+ * "Failed to send a request to the Edge Function" even though the sync
+ * engine itself was healthy. The HTTP response now returns immediately
+ * with status 202 and the list of mailboxes queued for processing; callers
+ * should poll `email_connections.last_sync_at` or just refresh the settings
+ * page after a couple of minutes to see results.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -115,95 +125,96 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-  const results: PerMailboxResult[] = [];
+  // Build the queued list up front so we can tell the caller which mailboxes
+  // are scheduled for processing. Actual sync results are not available
+  // synchronously — the work runs in the background after we return 202.
+  const queuedMailboxes: PerMailboxResult[] = connections.map((conn) => ({
+    userId: conn.sourceco_user_id,
+    emailAddress: conn.email_address,
+    ok: true,
+  }));
 
-  // Process sequentially to avoid tripping Microsoft Graph rate limits.
-  for (const conn of connections) {
-    try {
-      const syncResp = await fetch(`${supabaseUrl}/functions/v1/outlook-sync-emails`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({
-          userId: conn.sourceco_user_id,
-          isInitialSync: true,
-          initialLookbackDays: daysBack,
-        }),
-      });
-
-      let syncJson: {
-        data?: { synced?: number; skipped?: number; queuedUnmatched?: number };
-        error?: string;
-      } | null = null;
+  const bulkBackfillPromise = (async () => {
+    // Process sequentially to avoid tripping Microsoft Graph rate limits.
+    for (const conn of connections) {
       try {
-        syncJson = await syncResp.json();
-      } catch {
-        // non-JSON body — leave null
-      }
-
-      if (!syncResp.ok) {
-        const errMsg = syncJson?.error || `HTTP ${syncResp.status}`;
-        console.error(`[outlook-bulk-backfill-all] sync failed for ${conn.email_address}:`, errMsg);
-        results.push({
-          userId: conn.sourceco_user_id,
-          emailAddress: conn.email_address,
-          ok: false,
-          error: errMsg,
+        const syncResp = await fetch(`${supabaseUrl}/functions/v1/outlook-sync-emails`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            userId: conn.sourceco_user_id,
+            isInitialSync: true,
+            initialLookbackDays: daysBack,
+          }),
         });
-        continue;
-      }
 
-      results.push({
-        userId: conn.sourceco_user_id,
-        emailAddress: conn.email_address,
-        ok: true,
-        synced: syncJson?.data?.synced ?? 0,
-        skipped: syncJson?.data?.skipped ?? 0,
-        queuedUnmatched: syncJson?.data?.queuedUnmatched ?? 0,
+        if (!syncResp.ok) {
+          let errBody: unknown = null;
+          try {
+            errBody = await syncResp.json();
+          } catch {
+            // non-JSON body
+          }
+          console.error(
+            `[outlook-bulk-backfill-all] background sync failed for ${conn.email_address}:`,
+            syncResp.status,
+            errBody,
+          );
+        }
+      } catch (e) {
+        const msg = (e as Error).message || 'Unknown error';
+        console.error(
+          `[outlook-bulk-backfill-all] background exception for ${conn.email_address}:`,
+          msg,
+        );
+      }
+    }
+
+    // Final rematch pass so any queued-unmatched rows from this bulk run get
+    // promoted against the current contact set in one shot.
+    try {
+      await supabase.rpc('rematch_unmatched_outlook_emails', {
+        p_contact_ids: null,
       });
     } catch (e) {
-      const msg = (e as Error).message || 'Unknown error';
-      console.error(`[outlook-bulk-backfill-all] exception for ${conn.email_address}:`, msg);
-      results.push({
-        userId: conn.sourceco_user_id,
-        emailAddress: conn.email_address,
-        ok: false,
-        error: msg,
-      });
+      console.error('[outlook-bulk-backfill-all] background final rematch failed:', e);
     }
+  })();
+
+  if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
+    (globalThis as any).EdgeRuntime.waitUntil(bulkBackfillPromise);
+  } else {
+    // Local dev / non-Deno-Deploy runtime — detach the promise so we don't
+    // block the response, but swallow the rejection so we don't trip an
+    // unhandled-rejection warning.
+    bulkBackfillPromise.catch(() => {});
   }
 
-  // Final rematch pass so any queued-unmatched rows from this bulk run get
-  // promoted against the current contact set in one shot.
-  let rematchedCount = 0;
-  try {
-    const { data } = await supabase.rpc('rematch_unmatched_outlook_emails', {
-      p_contact_ids: null,
-    });
-    rematchedCount = (data as number) || 0;
-  } catch (e) {
-    console.error('[outlook-bulk-backfill-all] final rematch failed:', e);
-  }
-
-  const totalSynced = results.reduce((acc, r) => acc + (r.synced ?? 0), 0);
-  const totalSkipped = results.reduce((acc, r) => acc + (r.skipped ?? 0), 0);
-  const totalQueued = results.reduce((acc, r) => acc + (r.queuedUnmatched ?? 0), 0);
-  const failures = results.filter((r) => !r.ok).length;
-
+  // Return 202 Accepted immediately. Per-mailbox synced/skipped/queued
+  // counts are intentionally zero because the real numbers won't be known
+  // until the background task finishes — admins should refresh after a
+  // couple of minutes to see results.
   return successResponse(
     {
       daysBack,
-      mailboxesProcessed: results.length,
-      mailboxesSucceeded: results.length - failures,
-      mailboxesFailed: failures,
-      totalSynced,
-      totalSkipped,
-      totalQueued,
-      totalRematched: rematchedCount,
-      results,
+      status: 'started',
+      message: `Bulk backfill started in the background for ${queuedMailboxes.length} mailbox${
+        queuedMailboxes.length === 1 ? '' : 'es'
+      }. Refresh this page in a couple of minutes to see results.`,
+      mailboxesProcessed: queuedMailboxes.length,
+      mailboxesSucceeded: queuedMailboxes.length,
+      mailboxesFailed: 0,
+      totalSynced: 0,
+      totalSkipped: 0,
+      totalQueued: 0,
+      totalRematched: 0,
+      results: queuedMailboxes,
     },
     corsHeaders,
+    undefined,
+    202,
   );
 });

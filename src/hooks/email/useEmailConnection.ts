@@ -10,6 +10,58 @@ import type { EmailConnection } from '@/types/email';
 
 const EMAIL_CONNECTION_KEY = ['email', 'connection'];
 
+/**
+ * Extract a human-readable message from the various error shapes
+ * `supabase.functions.invoke` can return:
+ *
+ *   - `FunctionsHttpError`   — the function responded with non-2xx; the
+ *                              body is on `error.context.body` (as a
+ *                              Response we can await) but the Supabase
+ *                              client already flattens `.message` to
+ *                              something like "Edge Function returned a
+ *                              non-2xx status code".
+ *   - `FunctionsFetchError`  — the request couldn't even be delivered
+ *                              (platform timeout, network blip). Message is
+ *                              "Failed to send a request to the Edge
+ *                              Function". This is the exact error surfaced
+ *                              in the Outlook backfill bug screenshot.
+ *   - `FunctionsRelayError`  — infrastructure error talking to the Edge
+ *                              Runtime relay.
+ *   - plain `Error` / string / `undefined` — belt-and-braces fallback.
+ *
+ * For `FunctionsHttpError` we *also* try to read the JSON body we returned
+ * from our own `errorResponse` helper, which always exposes a user-facing
+ * `error` string. That way callers see "Only admins can backfill…" instead
+ * of "Edge Function returned a non-2xx status code".
+ *
+ * Exported for unit testing.
+ */
+export async function extractFunctionError(error: unknown, fallback: string): Promise<string> {
+  if (!error) return fallback;
+
+  // Try to dig the server-provided error string out of the response body.
+  // FunctionsHttpError exposes the original Response on `context`.
+  const ctx = (error as { context?: unknown }).context;
+  if (ctx && typeof (ctx as Response).json === 'function') {
+    try {
+      const body = await (ctx as Response).clone().json();
+      if (body && typeof body === 'object') {
+        const serverMessage =
+          (body as { error?: string }).error || (body as { message?: string }).message;
+        if (serverMessage && typeof serverMessage === 'string') {
+          return serverMessage;
+        }
+      }
+    } catch {
+      // body wasn't JSON — fall through
+    }
+  }
+
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string') return error;
+  return fallback;
+}
+
 export function useEmailConnection() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -44,7 +96,9 @@ export function useEmailConnection() {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
-      if (resp.error) throw new Error(resp.error.message || 'Failed to start OAuth flow');
+      if (resp.error) {
+        throw new Error(await extractFunctionError(resp.error, 'Failed to start OAuth flow'));
+      }
       return resp.data?.data as { authUrl: string; state: string };
     },
     onSuccess: (data) => {
@@ -76,7 +130,9 @@ export function useEmailConnection() {
         body: { code, state },
       });
 
-      if (resp.error) throw new Error(resp.error.message || 'Callback failed');
+      if (resp.error) {
+        throw new Error(await extractFunctionError(resp.error, 'Callback failed'));
+      }
       return resp.data?.data;
     },
     onSuccess: () => {
@@ -108,11 +164,19 @@ export function useEmailConnection() {
         body: { daysBack, ...(targetUserId ? { targetUserId } : {}) },
       });
 
-      if (resp.error) throw new Error(resp.error.message || 'Backfill failed');
+      if (resp.error) {
+        throw new Error(await extractFunctionError(resp.error, 'Backfill failed'));
+      }
+      // NOTE: `syncResult` is intentionally null here now that the sync runs
+      // as a background task server-side — the real counts aren't known until
+      // well after the HTTP response returns. We still include the legacy
+      // field on the type for existing consumers.
       return resp.data?.data as {
         targetUserId: string;
         emailAddress: string;
         daysBack: number;
+        status?: 'started';
+        message?: string;
         rematchedFromUnmatchedQueue: number;
         syncResult: { synced: number; skipped: number; queuedUnmatched: number } | null;
       };
@@ -122,12 +186,11 @@ export function useEmailConnection() {
       queryClient.invalidateQueries({ queryKey: ['email', 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['email', 'threads'] });
       queryClient.invalidateQueries({ queryKey: ['email', 'deal-outlook'] });
-      const synced = data?.syncResult?.synced ?? 0;
-      const queued = data?.syncResult?.queuedUnmatched ?? 0;
-      const rematched = data?.rematchedFromUnmatchedQueue ?? 0;
       toast({
-        title: 'Historical Backfill Complete',
-        description: `Imported ${synced} matched emails, queued ${queued} for later matching, and re-linked ${rematched} from previous runs.`,
+        title: 'Backfill Started',
+        description:
+          data?.message ||
+          `Importing up to ${data?.daysBack ?? ''} days of Outlook history in the background. Refresh this page in a couple of minutes to see the imported emails.`,
       });
     },
     onError: (error: Error) => {
@@ -151,9 +214,17 @@ export function useEmailConnection() {
         body: { daysBack },
       });
 
-      if (resp.error) throw new Error(resp.error.message || 'Bulk backfill failed');
+      if (resp.error) {
+        throw new Error(await extractFunctionError(resp.error, 'Bulk backfill failed'));
+      }
+      // NOTE: per-mailbox synced/skipped/queued counts are intentionally
+      // zero in the initial response because the work runs as a background
+      // task server-side (see outlook-bulk-backfill-all). The `results`
+      // array lists the mailboxes that were queued for processing.
       return resp.data?.data as {
         daysBack: number;
+        status?: 'started';
+        message?: string;
         mailboxesProcessed: number;
         mailboxesSucceeded: number;
         mailboxesFailed: number;
@@ -178,14 +249,14 @@ export function useEmailConnection() {
       queryClient.invalidateQueries({ queryKey: ['email', 'threads'] });
       queryClient.invalidateQueries({ queryKey: ['email', 'deal-outlook'] });
       queryClient.invalidateQueries({ queryKey: ['admin', 'email-connections'] });
-      const processed = data?.mailboxesProcessed ?? 0;
-      const failed = data?.mailboxesFailed ?? 0;
-      const synced = data?.totalSynced ?? 0;
-      const queued = data?.totalQueued ?? 0;
-      const rematched = data?.totalRematched ?? 0;
+      const queued = data?.mailboxesProcessed ?? 0;
       toast({
-        title: 'Bulk Backfill Complete',
-        description: `Processed ${processed} mailboxes (${failed} failed). Imported ${synced} matched emails, queued ${queued} for later matching, and re-linked ${rematched} from previous runs.`,
+        title: 'Bulk Backfill Started',
+        description:
+          data?.message ||
+          `Queued ${queued} mailbox${
+            queued === 1 ? '' : 'es'
+          } for background backfill. Refresh this page in a couple of minutes to see results.`,
       });
     },
     onError: (error: Error) => {
@@ -209,7 +280,9 @@ export function useEmailConnection() {
         body: targetUserId ? { targetUserId } : {},
       });
 
-      if (resp.error) throw new Error(resp.error.message || 'Disconnect failed');
+      if (resp.error) {
+        throw new Error(await extractFunctionError(resp.error, 'Disconnect failed'));
+      }
       return resp.data?.data;
     },
     onSuccess: () => {
