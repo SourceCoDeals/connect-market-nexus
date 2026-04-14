@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Mail,
@@ -26,6 +27,7 @@ import {
   TrendingUp,
   Activity,
   Users,
+  UserPlus,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ListingNotesLog } from './ListingNotesLog';
@@ -49,6 +51,19 @@ interface ContactHistoryTrackerProps {
   listingId: string;
   primaryContactEmail?: string | null;
   primaryContactName?: string | null;
+  /**
+   * Email domains associated with the buyer's firm. When provided, the
+   * tracker queries activity across every domain (via get_firm_activity
+   * RPC) and surfaces any email address found at those domains that
+   * doesn't match an existing contact record as a "discovered" tab.
+   */
+  firmDomains?: string[] | null;
+  /**
+   * Fired when the user clicks "Add as Contact" on a discovered tab.
+   * Parent should open its AddContactDialog pre-filled with the email.
+   * Button is hidden if omitted.
+   */
+  onAddDiscoveredContact?: (email: string) => void;
 }
 
 // ── Main component ──
@@ -57,6 +72,8 @@ export function ContactHistoryTracker({
   listingId,
   primaryContactEmail,
   primaryContactName,
+  firmDomains,
+  onAddDiscoveredContact,
 }: ContactHistoryTrackerProps) {
   const [dateRange, setDateRange] = useState<DateRangeValue>('30d');
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -69,14 +86,14 @@ export function ContactHistoryTracker({
     primaryContactEmail,
     dateRange,
     primaryContactName,
+    firmDomains,
   );
 
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const effectiveContactTab =
-    activeContactTab || (contactTabs.length > 0 ? contactTabs[0].id : '');
+  const effectiveContactTab = activeContactTab || (contactTabs.length > 0 ? contactTabs[0].id : '');
   const activeContact = contactTabs.find((t) => t.id === effectiveContactTab);
 
   if (isLoading) {
@@ -306,6 +323,29 @@ export function ContactHistoryTracker({
 
               {/* Contact info header */}
               {activeContact && <ActiveContactHeader tab={activeContact} />}
+
+              {/* Add-as-contact CTA for auto-detected tabs — lets the user
+                  promote a discovered email into a real contact record. */}
+              {activeContact &&
+                activeContact.type === 'discovered' &&
+                activeContact.email &&
+                onAddDiscoveredContact && (
+                  <div className="mb-4 flex items-center justify-between rounded-md border border-dashed border-amber-300 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/20 dark:text-amber-200">
+                    <span>
+                      This contact was auto-detected from activity at your firm's domain. Promote it
+                      to a full contact record to enable direct outreach tracking.
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-3 h-7 border-amber-400 text-amber-900 hover:bg-amber-100 dark:text-amber-100 dark:border-amber-700 dark:hover:bg-amber-900/40"
+                      onClick={() => onAddDiscoveredContact(activeContact.email!)}
+                    >
+                      <UserPlus className="mr-1.5 h-3 w-3" />
+                      Add as Contact
+                    </Button>
+                  </div>
+                )}
 
               {/* Timeline for active contact */}
               {activeContact && <SingleContactTimeline tab={activeContact} />}
