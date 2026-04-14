@@ -3,6 +3,29 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Content Security Policy — defense-in-depth against XSS / data exfiltration.
+      'unsafe-inline' / 'unsafe-eval' are required by the inline analytics loaders
+      and by Vite's dev bundler; the real value of this CSP is the connect-src /
+      script-src allowlist limiting where script and data can come from/go to.
+      If an integration breaks, add its domain to the relevant directive below.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.gpteng.co https://*.googletagmanager.com https://www.googletagmanager.com https://*.google-analytics.com https://www.google-analytics.com https://cdn.us.heap-api.com https://*.heap-api.com https://static.hotjar.com https://script.hotjar.com https://*.hotjar.com https://snap.licdn.com https://*.linkedin.com https://cdn.brevo.com https://sdk.brevo.com https://*.brevo.com https://cdn.vector.co https://*.vector.co;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' data: https://fonts.gstatic.com;
+      img-src 'self' data: blob: https:;
+      media-src 'self' data: blob: https:;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.google-analytics.com https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com https://*.g.doubleclick.net https://cdn.us.heap-api.com https://*.heap-api.com https://heapanalytics.com https://*.hotjar.com wss://*.hotjar.com https://*.hotjar.io https://px.ads.linkedin.com https://*.linkedin.com https://sdk.brevo.com https://cdn.brevo.com https://*.brevo.com https://*.vector.co;
+      frame-src 'self' https://www.googletagmanager.com https://td.doubleclick.net https://vars.hotjar.com https://*.hotjar.com;
+      worker-src 'self' blob:;
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
+    " />
+
     <title>SourceCo Marketplace - Premium Business Acquisition Platform</title>
     <meta name="description" content="Curated marketplace for acquiring founder-led businesses. Verified financials, direct seller connections, success-based pricing. Join top PE firms sourcing quality deals.">
     <meta name="author" content="SourceCo" />

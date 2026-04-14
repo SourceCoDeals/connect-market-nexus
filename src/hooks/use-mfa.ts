@@ -186,3 +186,70 @@ export function useMFAChallengeRequired() {
 
   return { needsChallenge, isChecking };
 }
+
+export type AdminMFAStatus =
+  | 'loading'
+  | 'not_required'
+  | 'needs_enrollment'
+  | 'needs_challenge'
+  | 'verified';
+
+/**
+ * Gate hook for admin routes: admins must have a verified TOTP factor AND
+ * the current session must be AAL2 before protected admin content renders.
+ * `enabled` lets callers skip the check for non-admin users.
+ */
+export function useAdminMFAStatus(enabled: boolean): { status: AdminMFAStatus } {
+  const [status, setStatus] = useState<AdminMFAStatus>(enabled ? 'loading' : 'not_required');
+
+  useEffect(() => {
+    if (!enabled) {
+      setStatus('not_required');
+      return undefined;
+    }
+
+    let active = true;
+    setStatus('loading');
+
+    const check = async () => {
+      try {
+        const [factorsResult, aalResult] = await Promise.all([
+          supabase.auth.mfa.listFactors(),
+          supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+        ]);
+
+        if (!active) return;
+
+        if (factorsResult.error) throw factorsResult.error;
+        if (aalResult.error) throw aalResult.error;
+
+        const verifiedFactor =
+          factorsResult.data?.totp?.find((f) => f.status === 'verified') || null;
+
+        if (!verifiedFactor) {
+          setStatus('needs_enrollment');
+          return;
+        }
+
+        if (aalResult.data.currentLevel !== 'aal2') {
+          setStatus('needs_challenge');
+          return;
+        }
+
+        setStatus('verified');
+      } catch {
+        // Fail closed: if the check itself errors, treat as needs_enrollment
+        // so the admin is routed to the security settings page where the
+        // error surfaces clearly instead of silently granting access.
+        if (active) setStatus('needs_enrollment');
+      }
+    };
+
+    check();
+    return () => {
+      active = false;
+    };
+  }, [enabled]);
+
+  return { status };
+}

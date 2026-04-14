@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -14,14 +14,36 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
+// Exponential backoff schedule for repeated failed login attempts (ms).
+// Resets on any successful login. Defense in depth on top of Supabase's server-side limits.
+const LOGIN_BACKOFF_MS = [0, 0, 1000, 2000, 4000, 8000, 16000, 30000];
+const MAX_BACKOFF_MS = 30000;
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [, forceTick] = useState(0);
+  const failedAttemptsRef = useRef(0);
   const { user, isLoading, authChecked, login } = useAuth();
   const navigate = useNavigate();
+
+  // Tick the UI every 500ms while locked out so the countdown updates
+  useEffect(() => {
+    if (!lockoutUntil) return undefined;
+    const id = window.setInterval(() => {
+      if (Date.now() >= lockoutUntil) {
+        setLockoutUntil(null);
+        window.clearInterval(id);
+      } else {
+        forceTick((n) => n + 1);
+      }
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [lockoutUntil]);
 
   // Simple redirect if already logged in - route based on approval status
   useEffect(() => {
@@ -39,6 +61,13 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+      const secondsLeft = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      setError(`Too many failed attempts. Please wait ${secondsLeft}s before trying again.`);
+      return;
+    }
+
     setIsSubmitting(true);
 
     if (!email.trim() || !password) {
@@ -49,22 +78,35 @@ const Login = () => {
 
     try {
       await login(email, password);
+      failedAttemptsRef.current = 0;
+      setLockoutUntil(null);
       toast({
         title: 'Welcome back',
         description: 'You have successfully logged in.',
       });
     } catch (err: unknown) {
-      // Error logged by error handler
-      setError((err as Error).message || 'Failed to sign in');
+      failedAttemptsRef.current += 1;
+      const nextDelay =
+        LOGIN_BACKOFF_MS[Math.min(failedAttemptsRef.current, LOGIN_BACKOFF_MS.length - 1)] ??
+        MAX_BACKOFF_MS;
+      if (nextDelay > 0) {
+        setLockoutUntil(Date.now() + nextDelay);
+      }
+      const message = (err as Error).message || 'Failed to sign in';
+      setError(message);
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: (err as Error).message || 'Please check your credentials and try again',
+        description: message,
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const secondsRemaining =
+    lockoutUntil && Date.now() < lockoutUntil ? Math.ceil((lockoutUntil - Date.now()) / 1000) : 0;
+  const isLockedOut = secondsRemaining > 0;
 
   // Simple loading state
   if (!authChecked && isLoading) {
@@ -163,8 +205,17 @@ const Login = () => {
                     </button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full" size="sm" disabled={isSubmitting}>
-                  {isSubmitting ? 'Signing in...' : 'Sign in'}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="sm"
+                  disabled={isSubmitting || isLockedOut}
+                >
+                  {isSubmitting
+                    ? 'Signing in...'
+                    : isLockedOut
+                      ? `Wait ${secondsRemaining}s...`
+                      : 'Sign in'}
                 </Button>
               </form>
             </CardContent>
