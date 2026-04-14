@@ -129,13 +129,13 @@ export function useCapTargetData() {
     [setSearchParams],
   );
 
-  const hidePushed = searchParams.get('hidePushed') === '1';
+  const hidePushed = searchParams.get('hidePushed') !== '0'; // hidden by default
   const setHidePushed = useCallback(
     (v: boolean) => {
       setSearchParams(
         (p) => {
           const n = new URLSearchParams(p);
-          if (v) n.set('hidePushed', '1');
+          if (!v) n.set('hidePushed', '0');
           else n.delete('hidePushed');
           n.delete('cp');
           return n;

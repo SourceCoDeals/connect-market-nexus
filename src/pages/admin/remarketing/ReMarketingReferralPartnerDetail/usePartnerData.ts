@@ -8,7 +8,7 @@ import { normalizeCompanyName } from './helpers';
 import { getDisplayLocation } from '@/lib/location-display';
 
 export function usePartnerData(partnerId: string | undefined) {
-  const [hidePushed, setHidePushed] = useState(false);
+  const [hidePushed, setHidePushed] = useState(true);
   const [hideNotFit, setHideNotFit] = useState(true);
   const [sortField, setSortField] = useState<SortField>(() => {
     const saved = sessionStorage.getItem(`referral-sort-${partnerId}`);
