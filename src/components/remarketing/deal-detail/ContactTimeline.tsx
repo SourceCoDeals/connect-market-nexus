@@ -6,16 +6,7 @@
  */
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import {
-  Mail,
-  Phone,
-  Linkedin,
-  ChevronDown,
-  CheckCircle,
-  Clock,
-  Mic,
-  User,
-} from 'lucide-react';
+import { Mail, Phone, Linkedin, ChevronDown, CheckCircle, Clock, Mic, User } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { type UnifiedActivityEntry } from '@/hooks/use-contact-combined-history';
 import {
@@ -329,11 +320,7 @@ export function LinkedInEntry({ entry }: { entry: UnifiedActivityEntry }) {
 
 // ── Per-contact timeline ──
 
-export function SingleContactTimeline({
-  tab,
-}: {
-  tab: ContactTab;
-}) {
+export function SingleContactTimeline({ tab }: { tab: ContactTab }) {
   if (tab.buyerId) {
     return (
       <ContactActivityTimeline
@@ -377,33 +364,47 @@ export function ContactTabSelector({
 }) {
   return (
     <div className="flex gap-2 flex-wrap mb-4">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onSelect(tab.id)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            activeTabId === tab.id
-              ? 'bg-primary text-primary-foreground shadow-sm'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-          }`}
-        >
-          <User className="h-3 w-3" />
-          <span className="truncate max-w-[120px]">{tab.label}</span>
-          {tab.type === 'primary' && (
-            <Badge variant="default" className="text-[8px] px-1 py-0 h-4 ml-1">
-              Primary
-            </Badge>
-          )}
-          {tab.type === 'buyer' && (
-            <Badge
-              variant="outline"
-              className="text-[8px] px-1 py-0 h-4 ml-1 border-blue-200 text-blue-700"
-            >
-              Buyer
-            </Badge>
-          )}
-        </button>
-      ))}
+      {tabs.map((tab) => {
+        const isActive = activeTabId === tab.id;
+        const isDiscovered = tab.type === 'discovered';
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onSelect(tab.id)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              isActive
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : isDiscovered
+                  ? 'border border-dashed border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/20 dark:text-amber-200 dark:border-amber-700'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            <User className="h-3 w-3" />
+            <span className="truncate max-w-[120px]">{tab.label}</span>
+            {tab.type === 'primary' && (
+              <Badge variant="default" className="text-[8px] px-1 py-0 h-4 ml-1">
+                Primary
+              </Badge>
+            )}
+            {tab.type === 'buyer' && (
+              <Badge
+                variant="outline"
+                className="text-[8px] px-1 py-0 h-4 ml-1 border-blue-200 text-blue-700"
+              >
+                Buyer
+              </Badge>
+            )}
+            {isDiscovered && (
+              <Badge
+                variant="outline"
+                className="text-[8px] px-1 py-0 h-4 ml-1 border-amber-400 text-amber-700 bg-amber-50 dark:text-amber-200 dark:bg-amber-950/30"
+              >
+                Auto-detected
+              </Badge>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
