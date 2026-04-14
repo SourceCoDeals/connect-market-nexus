@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronDown, ChevronUp, Download, FileText, Plus, Trash2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Download,
+  FileText,
+  Plus,
+  Sparkles,
+  Trash2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +21,7 @@ import {
   useDeleteIntelligenceDoc,
 } from '@/hooks/portal/use-portal-intelligence';
 import { AddIntelligenceDocDialog } from './AddIntelligenceDocDialog';
+import { ExtractThesisDialog } from './ExtractThesisDialog';
 import type { IntelligenceDocType, PortalIntelligenceDoc } from '@/types/portal';
 
 const INTEL_BUCKET = 'portal-intelligence-docs';
@@ -37,13 +46,23 @@ const DOC_TYPE_LABELS: Record<IntelligenceDocType, string> = {
   thesis_document: 'Thesis Document',
 };
 
-function DocCard({ doc, portalOrgId }: { doc: PortalIntelligenceDoc; portalOrgId: string }) {
+interface DocCardProps {
+  doc: PortalIntelligenceDoc;
+  portalOrgId: string;
+  onExtractThesis: (doc: PortalIntelligenceDoc) => void;
+}
+
+function DocCard({ doc, portalOrgId, onExtractThesis }: DocCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const deleteMutation = useDeleteIntelligenceDoc();
   const content = doc.content ?? '';
   const isLong = content.length > 200;
   const displayContent = expanded ? content : content.slice(0, 200);
+
+  // Only offer AI extraction when the doc has something extractable —
+  // either an uploaded file or at least a bit of inline text.
+  const canExtract = !!doc.file_url || (doc.content?.trim().length ?? 0) > 50;
 
   const handleDownload = async () => {
     if (!doc.file_url) return;
@@ -85,6 +104,18 @@ function DocCard({ doc, portalOrgId }: { doc: PortalIntelligenceDoc; portalOrgId
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
+            {canExtract && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[11px] gap-1"
+                onClick={() => onExtractThesis(doc)}
+                title="Use AI to extract thesis criteria from this document"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Extract to Thesis
+              </Button>
+            )}
             {doc.file_url && (
               <Button
                 size="icon"
@@ -145,6 +176,7 @@ function DocCard({ doc, portalOrgId }: { doc: PortalIntelligenceDoc; portalOrgId
 
 export function PortalIntelligenceTab({ portalOrgId }: PortalIntelligenceTabProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [extractDoc, setExtractDoc] = useState<PortalIntelligenceDoc | null>(null);
   const { data: docs, isLoading } = usePortalIntelligenceDocs(portalOrgId);
 
   return (
@@ -181,7 +213,12 @@ export function PortalIntelligenceTab({ portalOrgId }: PortalIntelligenceTabProp
       {!isLoading && docs && docs.length > 0 && (
         <div className="space-y-3">
           {docs.map((doc) => (
-            <DocCard key={doc.id} doc={doc} portalOrgId={portalOrgId} />
+            <DocCard
+              key={doc.id}
+              doc={doc}
+              portalOrgId={portalOrgId}
+              onExtractThesis={setExtractDoc}
+            />
           ))}
         </div>
       )}
@@ -189,6 +226,15 @@ export function PortalIntelligenceTab({ portalOrgId }: PortalIntelligenceTabProp
       <AddIntelligenceDocDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        portalOrgId={portalOrgId}
+      />
+
+      <ExtractThesisDialog
+        open={!!extractDoc}
+        onOpenChange={(open) => {
+          if (!open) setExtractDoc(null);
+        }}
+        doc={extractDoc}
         portalOrgId={portalOrgId}
       />
     </div>
