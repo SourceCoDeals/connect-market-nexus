@@ -46,6 +46,7 @@ import { useBuyerData } from './useBuyerData';
 import { useBuyerMutations } from './useBuyerMutations';
 import { useExtractionHandlers } from './useExtractionHandlers';
 import { ContactsTab } from './ContactsTab';
+import { DomainAliasPanel } from '@/components/admin/DomainAliasPanel';
 import { DealHistoryTab } from './DealHistoryTab';
 import { AddContactDialog } from './AddContactDialog';
 import { BuyerEngagementSummary } from '@/components/remarketing/buyer-detail/BuyerEngagementSummary';
@@ -240,9 +241,7 @@ const ReMarketingBuyerDetail = () => {
       {buyer?.id && <BuyerActiveDealsSummary buyerId={buyer.id} />}
 
       {/* Engagement Summary */}
-      {combinedHistory.length > 0 && (
-        <BuyerEngagementSummary entries={combinedHistory} />
-      )}
+      {combinedHistory.length > 0 && <BuyerEngagementSummary entries={combinedHistory} />}
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="intelligence" className="space-y-4">
@@ -446,7 +445,7 @@ const ReMarketingBuyerDetail = () => {
         </TabsContent>
 
         {/* Contacts Tab */}
-        <TabsContent value="contacts">
+        <TabsContent value="contacts" className="space-y-4">
           <ContactsTab
             contacts={contacts}
             onAddContact={() => setIsContactDialogOpen(true)}
@@ -477,6 +476,7 @@ const ReMarketingBuyerDetail = () => {
             }}
             isRetryingPhoneEnrichment={retryPhoneEnrichmentMutation.isPending}
           />
+          <DomainAliasPanel firmId={buyer?.marketplace_firm_id || null} />
         </TabsContent>
 
         {/* Agreements Tab */}
