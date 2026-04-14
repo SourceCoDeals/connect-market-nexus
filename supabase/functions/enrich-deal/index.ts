@@ -493,6 +493,10 @@ serve(async (req) => {
     let dataRoomDocsProcessed = 0;
     let dataRoomStatus: 'extracted' | 'skipped_empty' | 'skipped_timeout' | 'failed' =
       'skipped_empty';
+    // Surface DB fetch errors to the response so callers (UI, memo-gen) can
+    // distinguish "no documents" from "couldn't check for documents" — the
+    // original code logged and silently fell through to the website-only path.
+    let dataRoomError: string | null = null;
 
     // Need enough headroom for: DB fetch (~1s), per-doc extraction (up to
     // 30s each, but guarded individually below), + downstream AI call (~45s).
@@ -511,6 +515,7 @@ serve(async (req) => {
       if (drError) {
         console.warn('[DataRoom] Failed to fetch documents (non-fatal):', drError);
         dataRoomStatus = 'failed';
+        dataRoomError = drError.message || String(drError);
       } else if (dataRoomDocs && dataRoomDocs.length > 0) {
         // Cap doc count at 50 to avoid unbounded work
         const DOC_LIMIT = 50;
@@ -683,6 +688,7 @@ serve(async (req) => {
               status: dataRoomStatus,
               documentsProcessed: dataRoomDocsProcessed,
               contentLength: 0,
+              error: dataRoomError,
             },
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -694,7 +700,12 @@ serve(async (req) => {
           success: true,
           message: `No content available for AI extraction. Website: ${websiteSkipReason || 'unavailable'}. No data room documents. Deal marked as enriched with limited data.`,
           fieldsUpdated: [],
-          dataRoomReport: { status: dataRoomStatus, documentsProcessed: 0, contentLength: 0 },
+          dataRoomReport: {
+            status: dataRoomStatus,
+            documentsProcessed: 0,
+            contentLength: 0,
+            error: dataRoomError,
+          },
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
@@ -1204,6 +1215,7 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
           status: dataRoomStatus,
           documentsProcessed: dataRoomDocsProcessed,
           contentLength: dataRoomContent.length,
+          error: dataRoomError,
         },
         rejectedFields: rejected,
         rejectedFieldCount: rejected.length,

@@ -1,10 +1,15 @@
 /**
  * Source Priority System for Deal Enrichment
- * Implements field-level source tracking per Whispers spec:
- * Priority: Transcript (100) > Data Room (90) > Notes (80) > Website (60) > CSV (40) > Manual (20)
  *
- * Higher priority sources can overwrite lower priority sources.
- * Prevents low-quality data from corrupting high-quality extractions.
+ * Priority: Transcript (100) > Manual (95) > Data Room (90) > Notes (80) >
+ *           Website (60) > CSV (40)
+ *
+ * Manual sits above data room on purpose: a human who types a value into the
+ * admin UI has reviewed and corrected the data, and must NOT be silently
+ * overwritten by a later AI extraction from an uploaded CIM. Transcripts still
+ * win over manual because they can represent the seller's own words captured
+ * after the manual edit. Higher priority sources can overwrite equal-or-lower
+ * priority ones.
  */
 
 export type ExtractionSource = 'transcript' | 'data_room' | 'notes' | 'website' | 'csv' | 'manual';
@@ -20,14 +25,14 @@ export interface FieldSource {
 export type ExtractionSources = Record<string, FieldSource>;
 
 // Source priority scores (higher number = higher priority)
-// Whispers spec: transcript:100 > data_room:90 > notes:80 > website:60 > csv:40 > manual:20
+// Manual sits above data room so human edits survive subsequent CIM uploads.
 const SOURCE_PRIORITY: Record<ExtractionSource, number> = {
-  'transcript': 100, // Highest - call transcripts are most authoritative
-  'data_room': 90,   // Data room documents (CIMs, financials, legal docs)
-  'notes': 80,       // Broker notes and internal memos
-  'website': 60,     // Website scraping
-  'csv': 40,         // CSV imports
-  'manual': 20,      // Manual entry (lowest priority, can be overridden)
+  transcript: 100, // Highest - direct from seller on a recorded call
+  manual: 95, // Human admin edit - above any AI extraction below
+  data_room: 90, // Data room documents (CIMs, financials, legal docs)
+  notes: 80, // Broker notes and internal memos
+  website: 60, // Website scraping
+  csv: 40, // CSV imports
 };
 
 // Fields that should never be overwritten once set from transcripts
@@ -49,7 +54,7 @@ export function canOverwriteField(
   existingSource: ExtractionSource | null | undefined,
   newSource: ExtractionSource,
   existingValue: unknown,
-  isPlaceholderFn?: (v: unknown) => boolean
+  isPlaceholderFn?: (v: unknown) => boolean,
 ): boolean {
   // If no existing value, always allow
   if (existingValue === null || existingValue === undefined || existingValue === '') {
@@ -96,7 +101,7 @@ export function canOverwriteField(
  */
 export function getFieldSource(
   extractionSources: ExtractionSources | null | undefined,
-  fieldName: string
+  fieldName: string,
 ): FieldSource | null {
   if (!extractionSources || typeof extractionSources !== 'object') {
     return null;
@@ -115,7 +120,7 @@ export function createFieldSource(
   source: ExtractionSource,
   transcriptId?: string,
   confidence?: 'high' | 'medium' | 'low',
-  transcriptTitle?: string
+  transcriptTitle?: string,
 ): FieldSource {
   return {
     source,
@@ -131,7 +136,7 @@ export function createFieldSource(
  */
 export function updateExtractionSources(
   existing: ExtractionSources | null | undefined,
-  updates: Record<string, FieldSource>
+  updates: Record<string, FieldSource>,
 ): ExtractionSources {
   return {
     ...(existing || {}),
@@ -154,7 +159,7 @@ export function buildPriorityUpdates<T extends Record<string, unknown>>(
   newSource: ExtractionSource,
   transcriptId?: string,
   isPlaceholderFn?: (v: unknown) => boolean,
-  transcriptTitle?: string
+  transcriptTitle?: string,
 ): { updates: Partial<T>; sourceUpdates: ExtractionSources; rejected: string[] } {
   const updates: Partial<T> = {};
   const sourceUpdates: ExtractionSources = {};
@@ -174,14 +179,14 @@ export function buildPriorityUpdates<T extends Record<string, unknown>>(
         transcriptId,
         // Add confidence for financial fields if available
         key === 'revenue' || key === 'ebitda' ? 'high' : undefined,
-        transcriptTitle
+        transcriptTitle,
       );
     } else {
       // Track rejected updates for logging
       const existingPriority = SOURCE_PRIORITY[existingSourceType || 'manual'] || 0;
       const newPriority = SOURCE_PRIORITY[newSource];
       rejected.push(
-        `${key}: ${newSource}(${newPriority}) blocked by ${existingSourceType}(${existingPriority})`
+        `${key}: ${newSource}(${newPriority}) blocked by ${existingSourceType}(${existingPriority})`,
       );
     }
   }

@@ -176,84 +176,91 @@ Deno.serve(async (req: Request) => {
       dataRoomDocs.some(
         (d) => typeof d.text_content === 'string' && (d.text_content as string).trim().length > 0,
       );
+    // Track whether enrichment failed so we can surface a real error message
+    // to the frontend instead of "data room didn't have enough info".
+    let enrichmentErrorDetail: string | null = null;
     if (missingCritical.length > 0 && dataRoomHasText) {
       console.warn(
         `[generate-lead-memo] Deal ${deal_id} missing ${missingCritical.join(', ')} — ` +
           `auto-enriching from ${dataRoomDocs!.length} data room document(s)`,
       );
       try {
-        const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-        if (!anonKey) {
+        // Internal server-to-server call: use service role key.
+        // Bound the fetch with AbortSignal.timeout so a hung enrich-deal
+        // cannot drag this request past the edge-function hard cap.
+        const enrichResponse = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({ dealId: deal_id, skipExternalEnrichment: true }),
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!enrichResponse.ok) {
+          const body = await enrichResponse.text().catch(() => '');
           console.warn(
-            '[generate-lead-memo] SUPABASE_ANON_KEY not set — cannot invoke enrich-deal',
+            `[generate-lead-memo] enrich-deal responded ${enrichResponse.status}: ${body.substring(0, 300)}`,
           );
+          enrichmentErrorDetail = `enrich-deal HTTP ${enrichResponse.status}: ${body.substring(0, 200)}`;
         } else {
-          const enrichResponse = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${anonKey}`,
-            },
-            body: JSON.stringify({ dealId: deal_id, skipExternalEnrichment: true }),
-          });
-          if (!enrichResponse.ok) {
-            const body = await enrichResponse.text().catch(() => '');
+          console.warn('[generate-lead-memo] enrich-deal completed — re-fetching deal');
+          const { data: refreshedDeal, error: refreshError } = await supabaseAdmin
+            .from('listings')
+            .select('*')
+            .eq('id', deal_id)
+            .single();
+          if (refreshError || !refreshedDeal) {
             console.warn(
-              `[generate-lead-memo] enrich-deal responded ${enrichResponse.status}: ${body.substring(0, 300)}`,
+              '[generate-lead-memo] Failed to re-fetch deal after enrichment:',
+              refreshError,
             );
           } else {
-            console.warn('[generate-lead-memo] enrich-deal completed — re-fetching deal');
-            // Re-fetch the deal so the newly-extracted fields are visible
-            const { data: refreshedDeal, error: refreshError } = await supabaseAdmin
-              .from('listings')
-              .select('*')
-              .eq('id', deal_id)
-              .single();
-            if (refreshError || !refreshedDeal) {
-              console.warn(
-                '[generate-lead-memo] Failed to re-fetch deal after enrichment:',
-                refreshError,
-              );
-            } else {
-              deal = refreshedDeal;
-            }
-            // Re-fetch transcripts in case enrich-deal created new ones
-            const { data: refreshedTranscripts } = await supabaseAdmin
-              .from('deal_transcripts')
-              .select('transcript_text, extracted_data, call_date, title, extraction_status')
-              .eq('listing_id', deal_id)
-              .not('extraction_status', 'eq', 'failed')
-              .order('call_date', { ascending: false })
-              .limit(10);
-            transcripts = refreshedTranscripts;
-            // Re-fetch data room docs in case text extraction populated more
-            const { data: refreshedDocs } = await supabaseAdmin
-              .from('data_room_documents')
-              .select('file_name, text_content')
-              .eq('deal_id', deal_id)
-              .eq('document_category', 'data_room')
-              .eq('status', 'active')
-              .not('text_content', 'is', null)
-              .order('created_at', { ascending: false });
-            dataRoomDocs = refreshedDocs;
-
-            missingCritical = computeMissingCritical(deal, transcripts);
-            console.warn(
-              `[generate-lead-memo] After auto-enrichment, still missing: ${
-                missingCritical.length === 0 ? 'none' : missingCritical.join(', ')
-              }`,
-            );
+            deal = refreshedDeal;
           }
+          const { data: refreshedTranscripts } = await supabaseAdmin
+            .from('deal_transcripts')
+            .select('transcript_text, extracted_data, call_date, title, extraction_status')
+            .eq('listing_id', deal_id)
+            .not('extraction_status', 'eq', 'failed')
+            .order('call_date', { ascending: false })
+            .limit(10);
+          transcripts = refreshedTranscripts;
+          const { data: refreshedDocs } = await supabaseAdmin
+            .from('data_room_documents')
+            .select('file_name, text_content')
+            .eq('deal_id', deal_id)
+            .eq('document_category', 'data_room')
+            .eq('status', 'active')
+            .not('text_content', 'is', null)
+            .order('created_at', { ascending: false });
+          dataRoomDocs = refreshedDocs;
+
+          missingCritical = computeMissingCritical(deal, transcripts);
+          console.warn(
+            `[generate-lead-memo] After auto-enrichment, still missing: ${
+              missingCritical.length === 0 ? 'none' : missingCritical.join(', ')
+            }`,
+          );
         }
       } catch (enrichError) {
+        // AbortError from our 60s timeout still surfaces through the outer
+        // missing-field gate below — it's intentionally non-fatal.
         console.warn('[generate-lead-memo] Auto-enrichment threw (non-fatal):', enrichError);
+        const detail = enrichError instanceof Error ? enrichError.message : String(enrichError);
+        enrichmentErrorDetail =
+          detail.includes('timeout') || detail.includes('abort')
+            ? 'enrich-deal timed out after 60s'
+            : `enrich-deal failed: ${detail.substring(0, 200)}`;
       }
     }
 
     if (missingCritical.length > 0) {
-      const hint = dataRoomHasText
-        ? ' The data room documents did not contain enough structured information to populate these fields — please fill them in manually or add a transcript.'
-        : ' Please populate these fields, add a transcript, or upload documents to the data room before generating memos.';
+      const hint = enrichmentErrorDetail
+        ? ` Auto-enrichment from the data room failed (${enrichmentErrorDetail}). Please retry, fill these fields manually, or add a transcript.`
+        : dataRoomHasText
+          ? ' The data room documents did not contain enough structured information to populate these fields — please fill them in manually or add a transcript.'
+          : ' Please populate these fields, add a transcript, or upload documents to the data room before generating memos.';
       return new Response(
         JSON.stringify({
           error: `Listing is missing critical data for memo generation: ${missingCritical.join(', ')}.${hint}`,

@@ -223,26 +223,63 @@ Deno.serve(async (req: Request) => {
           // Fire-and-forget enrichment so the new doc text flows into the deal.
           // `skipExternalEnrichment: true` keeps it fast by skipping LinkedIn /
           // Google Reviews lookups — the data room documents are the signal here.
-          const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-          if (!anonKey) {
-            console.warn(
-              '[data-room-upload] SUPABASE_ANON_KEY not set — skipping enrich-deal chain',
-            );
-            return;
-          }
-          fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${anonKey}`,
-            },
-            body: JSON.stringify({ dealId, skipExternalEnrichment: true }),
-          }).catch((err) => {
-            console.error(
-              '[data-room-upload] Background enrich-deal call failed (non-blocking):',
-              err,
-            );
-          });
+          // Use service role key for the internal server-to-server call.
+          //
+          // Retry on 409 `concurrent_modification`: if three files upload in
+          // quick succession, the second/third enrich-deal calls will race the
+          // first one's optimistic lock on `enriched_at` and get rejected. By
+          // retrying with a short backoff, the later call re-queries the data
+          // room AFTER the first run finishes, picking up every uploaded doc.
+          const callEnrich = async (): Promise<void> => {
+            const MAX_ATTEMPTS = 3;
+            for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+              let response: Response;
+              try {
+                response = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${serviceRoleKey}`,
+                  },
+                  body: JSON.stringify({ dealId, skipExternalEnrichment: true }),
+                  signal: AbortSignal.timeout(120_000),
+                });
+              } catch (err) {
+                console.error(
+                  `[data-room-upload] Background enrich-deal fetch error (attempt ${attempt}/${MAX_ATTEMPTS}):`,
+                  err,
+                );
+                return;
+              }
+              if (response.ok) return;
+              // Parse body to check for concurrent_modification; retry if so.
+              const bodyText = await response.text().catch(() => '');
+              const isConcurrent =
+                response.status === 409 || bodyText.includes('concurrent_modification');
+              if (isConcurrent && attempt < MAX_ATTEMPTS) {
+                const backoffMs = 2_000 * attempt;
+                console.warn(
+                  `[data-room-upload] enrich-deal concurrent_modification, retrying in ${backoffMs}ms (attempt ${attempt}/${MAX_ATTEMPTS})`,
+                );
+                await new Promise((r) => setTimeout(r, backoffMs));
+                continue;
+              }
+              console.error(
+                `[data-room-upload] enrich-deal failed (${response.status}): ${bodyText.substring(0, 300)}`,
+              );
+              return;
+            }
+          };
+          const enrichPromise = callEnrich();
+          // Keep the background task alive past the HTTP response so Deno's
+          // edge runtime doesn't cancel it when we return. Falls back to a
+          // no-op if EdgeRuntime isn't available (local dev).
+          const edgeRuntime = (
+            globalThis as unknown as {
+              EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void };
+            }
+          ).EdgeRuntime;
+          edgeRuntime?.waitUntil?.(enrichPromise);
         })
         .catch((err) => {
           console.error('Background text extraction failed (non-blocking):', err);

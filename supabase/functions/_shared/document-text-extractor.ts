@@ -114,20 +114,44 @@ export function extractDocxText(xml: string): string {
   if (!xml) return '';
 
   const paragraphs: string[] = [];
-  // Match <w:p>...</w:p> blocks (paragraphs)
   const paragraphRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
   let match: RegExpExecArray | null;
   while ((match = paragraphRegex.exec(xml)) !== null) {
-    const inner = match[1];
-    // Extract all <w:t>...</w:t> inside the paragraph
-    const textRegex = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
-    const runs: string[] = [];
-    let textMatch: RegExpExecArray | null;
-    while ((textMatch = textRegex.exec(inner)) !== null) {
-      runs.push(stripXmlTags(textMatch[1]));
+    // Pre-convert whitespace-bearing empty tags inside this paragraph into
+    // unique marker characters (U+0001 / U+0002). Using literal \t / \n
+    // would collide with the indentation whitespace between XML elements,
+    // causing the tokenizer to emit spurious newlines around every run.
+    //
+    // Without the substitution, a paragraph like
+    //   <w:t>Revenue</w:t><w:tab/><w:t>$5.25M</w:t>
+    // collapses to "Revenue$5.25M" and the downstream extractor can't
+    // find the number next to the label.
+    const TAB_MARK = '\u0001';
+    const BR_MARK = '\u0002';
+    const inner = match[1]
+      .replace(/<w:tab\s*\/>/g, TAB_MARK)
+      .replace(/<w:br\s*\/>/g, BR_MARK)
+      .replace(/<w:cr\s*\/>/g, BR_MARK);
+
+    // Tokenize: pick up either a <w:t>...</w:t> run OR one of the marker
+    // characters we just substituted in. The two capture groups are
+    // mutually exclusive per match, preserving original in-document order.
+    // eslint-disable-next-line no-control-regex -- private-use markers chosen to avoid real text collision
+    const tokenRegex = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>|([\u0001\u0002])/g;
+    const tokens: string[] = [];
+    let tokenMatch: RegExpExecArray | null;
+    while ((tokenMatch = tokenRegex.exec(inner)) !== null) {
+      if (tokenMatch[1] !== undefined) {
+        tokens.push(stripXmlTags(tokenMatch[1]));
+      } else if (tokenMatch[2] === TAB_MARK) {
+        tokens.push('\t');
+      } else if (tokenMatch[2] === BR_MARK) {
+        tokens.push('\n');
+      }
     }
-    // Paragraphs with <w:tab/> should show as tabs
-    const paragraph = runs.join('').trim();
+    // Preserve inline tab/newline characters; only trim leading/trailing
+    // ordinary whitespace.
+    const paragraph = tokens.join('').replace(/^[ \xA0]+|[ \xA0]+$/g, '');
     if (paragraph.length > 0) {
       paragraphs.push(paragraph);
     }
@@ -176,6 +200,10 @@ export function extractXlsxSharedStrings(xml: string): string[] {
  *
  * Returns rows as arrays of cell strings, separated by newline.
  */
+// Hard cap on rows returned per sheet — protects against pathological
+// spreadsheets (1M+ rows) eating CPU and memory during extraction.
+const MAX_XLSX_ROWS_PER_SHEET = 10_000;
+
 export function extractXlsxSheetRows(xml: string, sharedStrings: string[]): string[][] {
   if (!xml) return [];
 
@@ -183,6 +211,12 @@ export function extractXlsxSheetRows(xml: string, sharedStrings: string[]): stri
   const rowRegex = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
   let rowMatch: RegExpExecArray | null;
   while ((rowMatch = rowRegex.exec(xml)) !== null) {
+    if (rows.length >= MAX_XLSX_ROWS_PER_SHEET) {
+      console.warn(
+        `[extractXlsxSheetRows] Row cap hit (${MAX_XLSX_ROWS_PER_SHEET}) — truncating sheet`,
+      );
+      break;
+    }
     const rowContent = rowMatch[1];
     const cells: string[] = [];
     const cellRegex = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;

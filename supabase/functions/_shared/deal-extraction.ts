@@ -489,11 +489,17 @@ const DATA_ROOM_PLACEHOLDER_STRINGS = new Set([
   'not specified',
   'not provided',
   'not available',
-  'tbd',
-  'undefined',
+  'not applicable',
   'not disclosed',
   'not stated',
+  'not reported',
+  'tbd',
+  'to be determined',
+  'undefined',
   'unclear',
+  'pending',
+  'in progress',
+  'refer to exhibit',
   '—',
   '-',
 ]);
@@ -529,11 +535,16 @@ export function sanitizeDataRoomExtraction(raw: Record<string, unknown>): Record
       continue;
     }
 
-    // Boolean fields
+    // Boolean fields — accept real booleans, digit strings, and word strings
     if (key.endsWith('_is_inferred')) {
-      if (typeof value === 'boolean') clean[key] = value;
-      else if (value === 'true' || value === 1) clean[key] = true;
-      else if (value === 'false' || value === 0) clean[key] = false;
+      if (typeof value === 'boolean') {
+        clean[key] = value;
+      } else if (value === 'true' || value === '1' || value === 1) {
+        clean[key] = true;
+      } else if (value === 'false' || value === '0' || value === 0) {
+        clean[key] = false;
+      }
+      // else: drop silently, mismatched type
       continue;
     }
 
@@ -553,7 +564,10 @@ export function sanitizeDataRoomExtraction(raw: Record<string, unknown>): Record
     if (typeof value === 'string') {
       const trimmed = value.trim();
       if (trimmed.length === 0) continue;
-      if (DATA_ROOM_PLACEHOLDER_STRINGS.has(trimmed.toLowerCase())) continue;
+      // Strip trailing punctuation before placeholder lookup so "Unknown.",
+      // "N/A,", "TBD;" all match the placeholder set.
+      const placeholderKey = trimmed.replace(/[.,:;!?]+$/, '').toLowerCase();
+      if (DATA_ROOM_PLACEHOLDER_STRINGS.has(placeholderKey)) continue;
       // Strip wrapper placeholders like "<unknown>"
       if (
         /^<.+>$/.test(trimmed) &&
@@ -571,13 +585,21 @@ export function sanitizeDataRoomExtraction(raw: Record<string, unknown>): Record
   return clean;
 }
 
+/** Fields that accept percentage input as a ratio (e.g. "18%" → 0.18). */
+const PERCENT_FIELDS = new Set(['ebitda_margin', 'customer_concentration']);
+
 /**
  * Coerce a data room numeric value. Handles:
  *   - Pure numbers: 5250000 → 5250000
- *   - Strings with unit suffixes: "5.25M" → 5250000, "$2.1M" → 2100000
- *   - Percentages (for margin fields): "18.3%" → 0.183
- *   - Thousands/millions/billions: "500K", "2.5B"
+ *   - Strings with unit suffixes: "5.25M" → 5250000, "+$2.1M" → 2100000
+ *   - Leading + or - signs: "+5.25M" and "-$500K" both parse correctly
+ *   - Percentages (for margin/concentration fields only): "18.3%" → 0.183
+ *   - For non-percent fields, a "%" suffix is REJECTED (returns null) because
+ *     a dollar amount expressed as a percent is a hallucination, not a value.
+ *   - Thousands/millions/billions/trillions: "500K", "2.5B", "1.2T"
  *   - Currency symbols and commas: "$1,234,567" → 1234567
+ *   - Scientific notation: "5.25e6" → 5250000
+ *   - Rejects NaN, Infinity, malformed numbers ("5.25.25" → null)
  */
 function coerceDataRoomNumeric(value: unknown, field: string): number | null {
   if (typeof value === 'number') {
@@ -585,22 +607,26 @@ function coerceDataRoomNumeric(value: unknown, field: string): number | null {
   }
   if (typeof value !== 'string') return null;
 
-  const s = value.trim().replace(/[$,\s]/g, '');
+  // Strip currency, commas, whitespace. Keep +/- sign, digits, dot, unit, %.
+  let s = value.trim().replace(/[$,\s]/g, '');
   if (s.length === 0) return null;
   if (DATA_ROOM_PLACEHOLDER_STRINGS.has(s.toLowerCase())) return null;
+  // Strip a leading + that would otherwise break the sign-aware regex.
+  if (s.startsWith('+')) s = s.slice(1);
 
-  // Percentage handling — only apply if field is a margin/rate
+  // Percentage handling — ONLY allowed for margin/rate fields. For any other
+  // field, a "%"-suffixed string means the AI hallucinated a ratio into a
+  // dollar column; reject it rather than silently writing a wrong value.
   if (s.endsWith('%')) {
+    if (!PERCENT_FIELDS.has(field)) return null;
     const n = parseFloat(s.slice(0, -1));
     if (!Number.isFinite(n)) return null;
-    if (field === 'ebitda_margin' || field === 'customer_concentration') {
-      return n / 100;
-    }
-    return n;
+    return n / 100;
   }
 
-  // Unit suffix handling
-  const match = s.match(/^(-?\d+(?:\.\d+)?)\s*([kmbtKMBT])?$/);
+  // Unit suffix handling — require the entire string to be a signed number
+  // followed by an optional single-letter unit. No mid-string text allowed.
+  const match = s.match(/^(-?\d+(?:\.\d+)?)([kmbtKMBT])?$/);
   if (match) {
     const base = parseFloat(match[1]);
     if (!Number.isFinite(base)) return null;
@@ -615,7 +641,10 @@ function coerceDataRoomNumeric(value: unknown, field: string): number | null {
     return base * multiplier[unit];
   }
 
-  // Plain number parse as fallback
+  // Scientific notation fallback — strict: must be a pure numeric literal.
+  // Rejects "5.25.25" (parseFloat would silently truncate) because the regex
+  // anchors require exactly one optional decimal + optional exponent.
+  if (!/^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(s)) return null;
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : null;
 }

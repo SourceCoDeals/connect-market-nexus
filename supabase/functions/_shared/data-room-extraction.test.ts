@@ -56,14 +56,22 @@ const DATA_ROOM_PLACEHOLDER_STRINGS = new Set([
   'not specified',
   'not provided',
   'not available',
-  'tbd',
-  'undefined',
+  'not applicable',
   'not disclosed',
   'not stated',
+  'not reported',
+  'tbd',
+  'to be determined',
+  'undefined',
   'unclear',
+  'pending',
+  'in progress',
+  'refer to exhibit',
   '—',
   '-',
 ]);
+
+const PERCENT_FIELDS = new Set(['ebitda_margin', 'customer_concentration']);
 
 function coerceDataRoomNumeric(value: unknown, field: string): number | null {
   if (typeof value === 'number') {
@@ -71,20 +79,19 @@ function coerceDataRoomNumeric(value: unknown, field: string): number | null {
   }
   if (typeof value !== 'string') return null;
 
-  const s = value.trim().replace(/[$,\s]/g, '');
+  let s = value.trim().replace(/[$,\s]/g, '');
   if (s.length === 0) return null;
   if (DATA_ROOM_PLACEHOLDER_STRINGS.has(s.toLowerCase())) return null;
+  if (s.startsWith('+')) s = s.slice(1);
 
   if (s.endsWith('%')) {
+    if (!PERCENT_FIELDS.has(field)) return null;
     const n = parseFloat(s.slice(0, -1));
     if (!Number.isFinite(n)) return null;
-    if (field === 'ebitda_margin' || field === 'customer_concentration') {
-      return n / 100;
-    }
-    return n;
+    return n / 100;
   }
 
-  const match = s.match(/^(-?\d+(?:\.\d+)?)\s*([kmbtKMBT])?$/);
+  const match = s.match(/^(-?\d+(?:\.\d+)?)([kmbtKMBT])?$/);
   if (match) {
     const base = parseFloat(match[1]);
     if (!Number.isFinite(base)) return null;
@@ -99,6 +106,7 @@ function coerceDataRoomNumeric(value: unknown, field: string): number | null {
     return base * multiplier[unit];
   }
 
+  if (!/^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(s)) return null;
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : null;
 }
@@ -119,9 +127,13 @@ function sanitizeDataRoomExtraction(raw: Record<string, unknown>): Record<string
     }
 
     if (key.endsWith('_is_inferred')) {
-      if (typeof value === 'boolean') clean[key] = value;
-      else if (value === 'true' || value === 1) clean[key] = true;
-      else if (value === 'false' || value === 0) clean[key] = false;
+      if (typeof value === 'boolean') {
+        clean[key] = value;
+      } else if (value === 'true' || value === '1' || value === 1) {
+        clean[key] = true;
+      } else if (value === 'false' || value === '0' || value === 0) {
+        clean[key] = false;
+      }
       continue;
     }
 
@@ -139,7 +151,8 @@ function sanitizeDataRoomExtraction(raw: Record<string, unknown>): Record<string
     if (typeof value === 'string') {
       const trimmed = value.trim();
       if (trimmed.length === 0) continue;
-      if (DATA_ROOM_PLACEHOLDER_STRINGS.has(trimmed.toLowerCase())) continue;
+      const placeholderKey = trimmed.replace(/[.,:;!?]+$/, '').toLowerCase();
+      if (DATA_ROOM_PLACEHOLDER_STRINGS.has(placeholderKey)) continue;
       if (
         /^<.+>$/.test(trimmed) &&
         DATA_ROOM_PLACEHOLDER_STRINGS.has(trimmed.slice(1, -1).toLowerCase())
@@ -231,18 +244,26 @@ function stripXmlTags(xml: string): string {
 
 function extractDocxText(xml: string): string {
   if (!xml) return '';
+  const TAB_MARK = '\u0001';
+  const BR_MARK = '\u0002';
   const paragraphs: string[] = [];
   const paragraphRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
   let match: RegExpExecArray | null;
   while ((match = paragraphRegex.exec(xml)) !== null) {
-    const inner = match[1];
-    const textRegex = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g;
-    const runs: string[] = [];
-    let textMatch: RegExpExecArray | null;
-    while ((textMatch = textRegex.exec(inner)) !== null) {
-      runs.push(stripXmlTags(textMatch[1]));
+    const inner = match[1]
+      .replace(/<w:tab\s*\/>/g, TAB_MARK)
+      .replace(/<w:br\s*\/>/g, BR_MARK)
+      .replace(/<w:cr\s*\/>/g, BR_MARK);
+    // eslint-disable-next-line no-control-regex
+    const tokenRegex = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>|([\u0001\u0002])/g;
+    const tokens: string[] = [];
+    let tokenMatch: RegExpExecArray | null;
+    while ((tokenMatch = tokenRegex.exec(inner)) !== null) {
+      if (tokenMatch[1] !== undefined) tokens.push(stripXmlTags(tokenMatch[1]));
+      else if (tokenMatch[2] === TAB_MARK) tokens.push('\t');
+      else if (tokenMatch[2] === BR_MARK) tokens.push('\n');
     }
-    const paragraph = runs.join('').trim();
+    const paragraph = tokens.join('').replace(/^[ \xA0]+|[ \xA0]+$/g, '');
     if (paragraph.length > 0) paragraphs.push(paragraph);
   }
   return paragraphs.join('\n');
@@ -266,12 +287,15 @@ function extractXlsxSharedStrings(xml: string): string[] {
   return strings;
 }
 
+const MAX_XLSX_ROWS_PER_SHEET = 10_000;
+
 function extractXlsxSheetRows(xml: string, sharedStrings: string[]): string[][] {
   if (!xml) return [];
   const rows: string[][] = [];
   const rowRegex = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
   let rowMatch: RegExpExecArray | null;
   while ((rowMatch = rowRegex.exec(xml)) !== null) {
+    if (rows.length >= MAX_XLSX_ROWS_PER_SHEET) break;
     const rowContent = rowMatch[1];
     const cells: string[] = [];
     const cellRegex = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;
@@ -473,8 +497,12 @@ describe('coerceDataRoomNumeric', () => {
     expect(coerceDataRoomNumeric('25%', 'customer_concentration')).toBeCloseTo(0.25);
   });
 
-  it('returns percentage as-is for non-margin fields', () => {
-    expect(coerceDataRoomNumeric('50%', 'number_of_locations')).toBe(50);
+  it('rejects percentage on non-margin fields (was: returned raw number)', () => {
+    // Audit 2026-04-11: a "%" suffix on revenue/locations/etc is always an
+    // AI hallucination — the value must be rejected, not silently returned
+    // as a decimal that will then be written to a dollar column.
+    expect(coerceDataRoomNumeric('50%', 'number_of_locations')).toBe(null);
+    expect(coerceDataRoomNumeric('18.3%', 'revenue')).toBe(null);
   });
 
   it('returns null for placeholder strings', () => {
@@ -1068,5 +1096,164 @@ describe('PPTX round-trip', () => {
     expect(slide1Text).toContain('Q4 Revenue: $5.25M');
     expect(slide2Text).toContain('Growth Drivers');
     expect(slide2Text).toContain('New customer acquisition up 35%');
+  });
+});
+
+// ============================================================================
+// April 2026 audit regression tests
+//
+// These cover the 7 blockers found in the post-merge audit of commit 036d478b8:
+//   1. Sanitizer: "%" on dollar fields must return null, not the raw number
+//   2. Sanitizer: "+" prefix must parse (not fall through to plain parseFloat)
+//   3. Sanitizer: "0"/"1" string booleans must coerce correctly
+//   4. Sanitizer: expanded placeholder set (not applicable, pending, etc.)
+//   5. Sanitizer: trailing punctuation on placeholders ("N/A." → drop)
+//   6. Sanitizer: scientific notation must not accept "5.25.25"
+//   7. DOCX: w:tab → \t and w:br → \n before XML strip
+//   8. XLSX: row cap at 10_000
+// ============================================================================
+
+describe('Audit 2026-04-11: sanitizer hardening', () => {
+  it('rejects "%" on non-margin fields to block AI hallucinations', () => {
+    // BUG: previously "18.3%" on `revenue` returned 18.3 (the raw percentage
+    // as a dollar amount). That's a hallucination — revenue in dollars cannot
+    // be expressed as a percent. Drop it.
+    expect(coerceDataRoomNumeric('18.3%', 'revenue')).toBeNull();
+    expect(coerceDataRoomNumeric('45%', 'asking_price')).toBeNull();
+    expect(coerceDataRoomNumeric('10%', 'ebitda')).toBeNull();
+    expect(coerceDataRoomNumeric('5%', 'full_time_employees')).toBeNull();
+  });
+
+  it('accepts "%" only on ebitda_margin and customer_concentration', () => {
+    expect(coerceDataRoomNumeric('18%', 'ebitda_margin')).toBe(0.18);
+    expect(coerceDataRoomNumeric('45%', 'customer_concentration')).toBe(0.45);
+    expect(coerceDataRoomNumeric('-5.5%', 'ebitda_margin')).toBeCloseTo(-0.055);
+  });
+
+  it('handles "+" prefix without dropping the unit multiplier', () => {
+    // BUG: previously "+5.25M" fell through to plain parseFloat (5.25) and
+    // lost the M multiplier because the regex didn't allow the leading +.
+    expect(coerceDataRoomNumeric('+5.25M', 'revenue')).toBe(5_250_000);
+    expect(coerceDataRoomNumeric('+$2.1B', 'asking_price')).toBe(2_100_000_000);
+    expect(coerceDataRoomNumeric('+500K', 'ebitda')).toBe(500_000);
+  });
+
+  it('coerces "0"/"1" string booleans on _is_inferred fields', () => {
+    // BUG: previously {revenue_is_inferred: "0"} was dropped silently
+    // because the check only accepted 'true'/'false' strings.
+    const result = sanitizeDataRoomExtraction({
+      revenue_is_inferred: '1',
+      ebitda_is_inferred: '0',
+    });
+    expect(result.revenue_is_inferred).toBe(true);
+    expect(result.ebitda_is_inferred).toBe(false);
+  });
+
+  it('drops the expanded placeholder set', () => {
+    // BUG: previously "Not applicable" / "Pending" / "In progress" were
+    // all treated as valid string values and stored on the listing.
+    const placeholders = [
+      'Not applicable',
+      'not reported',
+      'To be determined',
+      'Pending',
+      'in progress',
+      'Refer to exhibit',
+    ];
+    for (const placeholder of placeholders) {
+      const out = sanitizeDataRoomExtraction({ industry: placeholder });
+      expect(out.industry, `should drop "${placeholder}"`).toBeUndefined();
+    }
+  });
+
+  it('strips trailing punctuation before placeholder check', () => {
+    // BUG: "N/A." was stored because the placeholder lookup only matched
+    // the exact trimmed string. AI extractions routinely append punctuation.
+    expect(sanitizeDataRoomExtraction({ industry: 'N/A.' }).industry).toBeUndefined();
+    expect(sanitizeDataRoomExtraction({ industry: 'Unknown,' }).industry).toBeUndefined();
+    expect(sanitizeDataRoomExtraction({ industry: 'TBD;' }).industry).toBeUndefined();
+    expect(sanitizeDataRoomExtraction({ industry: 'Not specified!' }).industry).toBeUndefined();
+    // Real punctuated values still survive
+    expect(sanitizeDataRoomExtraction({ industry: 'Landscaping, LLC.' }).industry).toBe(
+      'Landscaping, LLC.',
+    );
+  });
+
+  it('rejects malformed scientific-notation strings like "5.25.25"', () => {
+    // BUG: previously parseFloat("5.25.25") returned 5.25 silently.
+    // The strict regex must catch this and return null.
+    expect(coerceDataRoomNumeric('5.25.25', 'revenue')).toBeNull();
+    expect(coerceDataRoomNumeric('1.2.3M', 'revenue')).toBeNull();
+    expect(coerceDataRoomNumeric('abc123', 'revenue')).toBeNull();
+    // Real scientific notation still works
+    expect(coerceDataRoomNumeric('5.25e6', 'revenue')).toBe(5_250_000);
+    expect(coerceDataRoomNumeric('1.5e-3', 'ebitda_margin')).toBe(0.0015);
+  });
+
+  it('preserves plain valid numeric strings', () => {
+    expect(coerceDataRoomNumeric('5250000', 'revenue')).toBe(5_250_000);
+    expect(coerceDataRoomNumeric('$5,250,000', 'revenue')).toBe(5_250_000);
+    expect(coerceDataRoomNumeric('5.25M', 'revenue')).toBe(5_250_000);
+    expect(coerceDataRoomNumeric('-1.2M', 'ebitda')).toBe(-1_200_000);
+  });
+});
+
+describe('Audit 2026-04-11: DOCX whitespace handling', () => {
+  it('converts w:tab → \\t so label/value pairs stay separated', () => {
+    // BUG: "<w:t>Revenue</w:t><w:tab/><w:t>$5.25M</w:t>" was collapsing to
+    // "Revenue$5.25M" — the downstream AI extractor could no longer find
+    // the value next to its label.
+    const xml = `<w:p>
+      <w:r><w:t>Revenue</w:t></w:r>
+      <w:r><w:tab/></w:r>
+      <w:r><w:t xml:space="preserve">$5.25M</w:t></w:r>
+    </w:p>`;
+    const text = extractDocxText(xml);
+    expect(text).toBe('Revenue\t$5.25M');
+  });
+
+  it('converts w:br → \\n so soft line breaks are preserved', () => {
+    const xml = `<w:p>
+      <w:r><w:t>Line 1</w:t></w:r>
+      <w:r><w:br/></w:r>
+      <w:r><w:t>Line 2</w:t></w:r>
+    </w:p>`;
+    const text = extractDocxText(xml);
+    expect(text).toBe('Line 1\nLine 2');
+  });
+
+  it('handles multiple tabs and breaks in one paragraph', () => {
+    const xml = `<w:p>
+      <w:r><w:t>Q1</w:t></w:r><w:r><w:tab/></w:r>
+      <w:r><w:t>$1M</w:t></w:r><w:r><w:tab/></w:r>
+      <w:r><w:t>30%</w:t></w:r>
+    </w:p>`;
+    const text = extractDocxText(xml);
+    expect(text).toBe('Q1\t$1M\t30%');
+  });
+});
+
+describe('Audit 2026-04-11: XLSX row cap', () => {
+  it('caps sheet rows at MAX_XLSX_ROWS_PER_SHEET to prevent runaway extraction', () => {
+    // Build a synthetic sheet with 12_000 rows. The cap should stop at 10_000.
+    const rowXmls: string[] = [];
+    for (let i = 1; i <= 12_000; i++) {
+      rowXmls.push(`<row r="${i}"><c r="A${i}" t="inlineStr"><is><t>row${i}</t></is></c></row>`);
+    }
+    const sheetXml = `<worksheet><sheetData>${rowXmls.join('')}</sheetData></worksheet>`;
+    const rows = extractXlsxSheetRows(sheetXml, []);
+    expect(rows.length).toBe(10_000);
+    expect(rows[0][0]).toBe('row1');
+    expect(rows[9_999][0]).toBe('row10000');
+  });
+
+  it('returns all rows when under the cap', () => {
+    const rowXmls: string[] = [];
+    for (let i = 1; i <= 50; i++) {
+      rowXmls.push(`<row r="${i}"><c r="A${i}" t="inlineStr"><is><t>row${i}</t></is></c></row>`);
+    }
+    const sheetXml = `<worksheet><sheetData>${rowXmls.join('')}</sheetData></worksheet>`;
+    const rows = extractXlsxSheetRows(sheetXml, []);
+    expect(rows.length).toBe(50);
   });
 });
