@@ -279,7 +279,7 @@ export interface Listing {
   custom_metric_label?: string | null;
   custom_metric_value?: string | null;
   custom_metric_subtitle?: string | null;
-  metric_3_type?: 'employees' | 'custom';
+  metric_3_type?: 'custom';
   metric_3_custom_label?: string | null;
   metric_3_custom_value?: string | null;
   metric_3_custom_subtitle?: string | null;

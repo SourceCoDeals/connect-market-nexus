@@ -80,7 +80,7 @@ export function useConnectionRequestsMutation() {
             ...listingData,
             // Add computed properties
             status: listingData.status as ListingStatus, // Cast status to ListingStatus
-            metric_3_type: (listingData.metric_3_type as 'employees' | 'custom') || 'employees',
+            metric_3_type: 'custom' as const,
             ownerNotes: listingData.owner_notes || '',
             createdAt: listingData.created_at,
             updatedAt: listingData.updated_at,
