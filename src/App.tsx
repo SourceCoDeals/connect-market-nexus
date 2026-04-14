@@ -106,7 +106,7 @@ const AdminLayout = lazyWithRetry(() => import('@/components/admin/AdminLayout')
 
 // Admin pages
 const AdminDashboard = lazyWithRetry(() => import('@/pages/admin/AdminDashboard'));
-const MarketplaceUsersPage = lazyWithRetry(() => import('@/pages/admin/AdminUsers'));
+const MarketplaceUsersPage = lazyWithRetry(() => import('@/pages/admin/MarketplaceUsersPage'));
 const InternalTeamPage = lazyWithRetry(() => import('@/pages/admin/InternalTeamPage'));
 const BuyerContactsPage = lazyWithRetry(() => import('@/pages/admin/BuyerContactsPage'));
 const ContactListsPage = lazyWithRetry(() => import('@/pages/admin/ContactListsPage'));
@@ -451,6 +451,7 @@ function App() {
                 <Route path="smartlead/:inboxId" element={<SmartleadResponseDetail />} />
               </Route>
               <Route path="marketplace/users" element={<MarketplaceUsersPage />} />
+              <Route path="marketplace/owner-leads" element={<OwnerLeadsPage />} />
 
               {/* REMARKETING (GlobalActivityStatusBar lives in ReMarketingLayout wrapper) */}
               <Route

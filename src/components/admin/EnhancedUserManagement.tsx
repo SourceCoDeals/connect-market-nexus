@@ -34,21 +34,36 @@ export function EnhancedUserManagement({
 }: EnhancedUserManagementProps) {
   // URL-persisted filter state (survives browser Back navigation)
   const [searchParams, setSearchParams] = useSearchParams();
-  const searchQuery = searchParams.get('q') ?? '';
-  const setSearchQuery = useCallback(
-    (v: string) => {
+
+  // Search input: kept in local state so typing never triggers a router update
+  // on every keystroke. The URL (?q=…) is synced with a short debounce, which
+  // prevents the input from losing focus and keeps sidebar navigation responsive.
+  const urlSearchQuery = searchParams.get('q') ?? '';
+  const [searchInput, setSearchInput] = useState(urlSearchQuery);
+
+  // Sync URL → local state for back/forward navigation or external changes
+  useEffect(() => {
+    setSearchInput((prev) => (prev === urlSearchQuery ? prev : urlSearchQuery));
+  }, [urlSearchQuery]);
+
+  // Debounce local → URL sync so typing never writes to the router synchronously
+  useEffect(() => {
+    if (searchInput === urlSearchQuery) return;
+    const id = window.setTimeout(() => {
       setSearchParams(
         (p) => {
           const n = new URLSearchParams(p);
-          if (v) n.set('q', v);
+          if (searchInput) n.set('q', searchInput);
           else n.delete('q');
           return n;
         },
         { replace: true },
       );
-    },
-    [setSearchParams],
-  );
+    }, 250);
+    return () => window.clearTimeout(id);
+  }, [searchInput, urlSearchQuery, setSearchParams]);
+
+  const searchQuery = searchInput;
   const statusFilter = searchParams.get('status') ?? 'all';
   const setStatusFilter = useCallback(
     (v: string) => {
@@ -408,8 +423,8 @@ export function EnhancedUserManagement({
                 <Input
                   id="search"
                   placeholder="Search by name, email, or company..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="pl-10 h-10 border-border/60 focus:border-primary/40 transition-colors"
                 />
               </div>

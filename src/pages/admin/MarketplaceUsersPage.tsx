@@ -1,4 +1,4 @@
-import { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import { useState, useEffect, useMemo, Component, ErrorInfo, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdmin } from '@/hooks/use-admin';
 import { AlertCircle, RefreshCw, Loader2, Users, Zap } from 'lucide-react';
@@ -14,6 +14,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useRealtimeAdmin } from '@/hooks/use-realtime-admin';
 import { EnhancedUserManagement } from '@/components/admin/EnhancedUserManagement';
 import { useMarkUsersViewed } from '@/hooks/admin/use-mark-users-viewed';
+import { useBulkUserFirms } from '@/hooks/admin/use-bulk-user-firms';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
@@ -67,6 +68,10 @@ const MarketplaceUsersPage = () => {
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const { markAsViewed } = useMarkUsersViewed();
   const [isBulkScoring, setIsBulkScoring] = useState(false);
+
+  // Batch-fetch firm data for all users in a single query (avoids N per-row requests)
+  const userIds = useMemo(() => usersData.map((u) => u.id), [usersData]);
+  const { data: firmDataMap } = useBulkUserFirms(userIds);
 
   const handleBulkScoreUnscored = async () => {
     const unscoredIds = usersData
@@ -242,6 +247,7 @@ const MarketplaceUsersPage = () => {
                   onRevokeAdmin={revokeAdmin}
                   onDelete={deleteUser}
                   isLoading={isLoading}
+                  firmDataMap={firmDataMap ?? new Map()}
                 />
               </TableErrorBoundary>
             </div>
