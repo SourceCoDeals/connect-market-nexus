@@ -25,6 +25,17 @@
 -- Safety:
 --   - Trigger only fires when `NEW.deal_id IS NOT NULL` via a WHEN guard,
 --     matching the edge function's previous `if (contact.deal_id)` check.
+--   - Trigger ALSO skips rows whose `microsoft_message_id` starts with
+--     `platform_sent_` (the placeholder id scheme used by
+--     `outlook-send-email` for emails the user sends through the platform).
+--     Those rows are already logged to `deal_activities` by
+--     `outlook-send-email` via an explicit `log_deal_activity` RPC call, so
+--     firing the trigger here too would create a duplicate timeline entry
+--     for every sent email. The later "upgrade" path in `outlook-sync-emails`
+--     that replaces the placeholder id with the real Graph id is an UPDATE
+--     (not an INSERT), so the AFTER INSERT trigger doesn't fire for that
+--     either — the single RPC call in send-email remains the sole source of
+--     timeline coverage for platform-sent emails.
 --   - The body wraps its INSERT in an EXCEPTION block so an activity log
 --     failure cannot roll back the email row itself (matches the old RPC's
 --     swallow-on-error behavior, just recorded via RAISE NOTICE).
@@ -98,7 +109,10 @@ DROP TRIGGER IF EXISTS trg_email_messages_log_activity ON public.email_messages;
 CREATE TRIGGER trg_email_messages_log_activity
   AFTER INSERT ON public.email_messages
   FOR EACH ROW
-  WHEN (NEW.deal_id IS NOT NULL)
+  WHEN (
+    NEW.deal_id IS NOT NULL
+    AND NEW.microsoft_message_id NOT LIKE 'platform_sent\_%' ESCAPE '\'
+  )
   EXECUTE FUNCTION public.trg_email_messages_log_activity();
 
 -- Execute permission: the trigger runs as SECURITY DEFINER so it doesn't

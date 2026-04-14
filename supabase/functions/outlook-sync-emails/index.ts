@@ -631,8 +631,26 @@ async function syncEmails(
   };
 
   do {
+    // Snapshot the cursor used to FETCH this page so we can rewind to it if
+    // the batch pipeline below fails to persist. Without the rewind a
+    // downstream Supabase error (which is surfaced via `errors[]`, not a
+    // throw) would be logged but the subsequent `nextLink = result.nextLink`
+    // reassignment + `writeCheckpoint(nextLink)` at the bottom of the loop
+    // would still advance past the failed page — and the next Resume
+    // invocation would silently skip the page we never successfully
+    // persisted, losing every message on it. Audit regression: the old
+    // pre-batch code had a narrower failure surface (one per-row error ==
+    // one per-row skip) so this rewind wasn't needed; batching makes the
+    // blast radius of a single bulk-upsert error the whole page.
+    const pagePriorCursor = nextLink;
+    // Flag set by any recoverable failure inside the batch pipeline (bulk
+    // upsert Supabase error, unexpected throw). When false at the end of a
+    // page we rewind `nextLink` to `pagePriorCursor`, flush a checkpoint at
+    // the failed page's cursor, and break — so Resume retries that exact
+    // page instead of skipping it.
+    let pageBatchOk = true;
     try {
-      const result = await fetchMessages(accessToken, since, nextLink);
+      const result = await fetchMessages(accessToken, since, pagePriorCursor);
       nextLink = result.nextLink;
 
       // Update the earliest-seen watermark for progress calculation. Pages
@@ -720,6 +738,9 @@ async function syncEmails(
 
             if (platformSentErr) {
               errors.push(`Platform-sent lookup failed: ${platformSentErr.message}`);
+              // Recoverable: rewind & retry on resume so we don't miss
+              // upgrading any placeholder rows for this page.
+              pageBatchOk = false;
             } else if (platformSentRows && platformSentRows.length > 0) {
               // Match each outbound candidate to at most one platform_sent
               // row (±60s around the reported sentDateTime). We mark
@@ -772,6 +793,13 @@ async function syncEmails(
                     errors.push(
                       `Platform-sent upgrade failed for ${upgrades[i].realId}: ${r.error.message}`,
                     );
+                    // Don't rewind the whole page for a single upgrade
+                    // miss — the placeholder still exists and the normal
+                    // matched-row upsert below will dedupe against it via
+                    // the `(microsoft_message_id, contact_id)` unique index.
+                    // Worst case the placeholder stays as-is and a new row
+                    // lands for the real message; the old per-row code had
+                    // the same behavior.
                   } else {
                     skipped++;
                   }
@@ -895,6 +923,7 @@ async function syncEmails(
                   .select('id');
                 if (error) {
                   errors.push(`Bulk unmatched upsert failed: ${error.message}`);
+                  pageBatchOk = false;
                   return;
                 }
                 const inserted = data?.length ?? 0;
@@ -915,6 +944,7 @@ async function syncEmails(
                   .select('id');
                 if (error) {
                   errors.push(`Bulk matched upsert failed: ${error.message}`);
+                  pageBatchOk = false;
                   return;
                 }
                 const inserted = data?.length ?? 0;
@@ -925,12 +955,24 @@ async function syncEmails(
 
         await Promise.all([unmatchedTask, matchedTask]);
       } catch (err) {
-        // Errors thrown *outside* the inner per-message try/catch (e.g. the
-        // Graph page itself failing mid-iteration) bubble up into the outer
-        // page-fetch catch below. We only land here for unexpected runtime
-        // failures inside the batch pipeline — record them so the operator
-        // sees them in the sync result.
+        // Errors thrown *outside* the inner per-message try/catch (e.g. an
+        // unexpected runtime failure in the batch pipeline itself) land
+        // here. Record the error and flag the page so the outer loop
+        // rewinds the checkpoint and resume retries this page.
         errors.push(`Page batch processing error: ${(err as Error).message}`);
+        pageBatchOk = false;
+      }
+
+      if (!pageBatchOk) {
+        // Rewind the cursor so the checkpoint persists the page we FAILED
+        // to process (not the one after it), and flush the checkpoint so
+        // resume has a valid retry cursor. `break` exits the sync loop
+        // cleanly — the outer `outlook-backfill-history` finalizer will
+        // see `backfill_next_link != null` and mark the run `failed` with
+        // the Resume button enabled.
+        nextLink = pagePriorCursor;
+        await writeCheckpoint(nextLink);
+        break;
       }
 
       pageCount++;
@@ -945,9 +987,13 @@ async function syncEmails(
       await writeCheckpoint(nextLink);
     } catch (err) {
       errors.push(`Page fetch error: ${(err as Error).message}`);
-      // Flush the checkpoint so the caller knows where we got to even though
-      // this run is aborting. `nextLink` still points at the page that just
-      // failed, so the resume path re-attempts exactly that page.
+      // `fetchMessages` threw, so the `nextLink = result.nextLink`
+      // reassignment above never ran — `nextLink` still holds
+      // `pagePriorCursor` (the URL for the page we were trying to fetch).
+      // Explicitly restore it anyway to defend against future refactors
+      // that might move throwing operations below the reassignment, and
+      // flush a checkpoint so the Resume path has a cursor to pick up from.
+      nextLink = pagePriorCursor;
       await writeCheckpoint(nextLink);
       break;
     }
