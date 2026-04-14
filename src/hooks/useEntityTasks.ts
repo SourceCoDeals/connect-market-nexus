@@ -13,7 +13,8 @@ import type { DailyStandupTaskWithRelations, TaskEntityType } from '@/types/dail
 const ENTITY_TASKS_KEY = 'entity-tasks';
 
 interface UseEntityTasksOptions {
-  entityType: TaskEntityType;
+  /** Accepts a single entity type or an array to query multiple types at once. */
+  entityType: TaskEntityType | TaskEntityType[];
   entityId: string;
   includeCompleted?: boolean;
 }
@@ -23,8 +24,9 @@ export function useEntityTasks({
   entityId,
   includeCompleted = false,
 }: UseEntityTasksOptions) {
+  const entityTypes = Array.isArray(entityType) ? entityType : [entityType];
   return useQuery({
-    queryKey: [ENTITY_TASKS_KEY, entityType, entityId, includeCompleted],
+    queryKey: [ENTITY_TASKS_KEY, entityTypes.slice().sort().join(','), entityId, includeCompleted],
     enabled: !!entityId,
     queryFn: async () => {
       let query = supabase
@@ -37,7 +39,7 @@ export function useEntityTasks({
           source_meeting:standup_meetings(id, meeting_title, meeting_date, transcript_url)
         `,
         )
-        .eq('entity_type', entityType)
+        .in('entity_type', entityTypes)
         .eq('entity_id', entityId)
         .order('priority_rank', { ascending: true, nullsFirst: false })
         .order('priority_score', { ascending: false })

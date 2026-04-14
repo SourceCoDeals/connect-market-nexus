@@ -14,7 +14,6 @@ import {
   Building2,
   Eye,
   Activity,
-  Mail,
   UserPlus,
   FolderOpen,
   ListChecks,
@@ -32,13 +31,11 @@ import { SalesforceInfoCard } from './SalesforceInfoCard';
 import { DealHeader } from './DealHeader';
 import { OverviewTab } from './OverviewTab';
 import { DataRoomTab } from './DataRoomTab';
-import { DealCallActivityTab } from './DealCallActivityTab';
 import { DealContactHistoryTab } from '@/components/remarketing/deal-detail';
 import { CallScoreCard } from '@/components/remarketing/deal-detail/CallScoreCard';
 import { ListingNotesLog } from '@/components/remarketing/deal-detail/ListingNotesLog';
 import { BuyerIntroductionPage } from '@/components/admin/deals/buyer-introductions/BuyerIntroductionPage';
 import { ValuationTab } from './ValuationTab';
-import { DealEmailActivity } from '@/components/email';
 import { UnifiedDealTimeline } from '@/components/remarketing/deal-detail/UnifiedDealTimeline';
 import { LogManualCallDialog } from '@/components/remarketing/deal-detail/LogManualCallDialog';
 import { DealSearchDialog } from '@/components/remarketing/deal-detail/DealSearchDialog';
@@ -207,14 +204,14 @@ const ReMarketingDealDetail = () => {
       />
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className={cn('grid w-full', isValuationDeal ? 'grid-cols-10' : 'grid-cols-9')}>
+        <TabsList className={cn('grid w-full', isValuationDeal ? 'grid-cols-7' : 'grid-cols-6')}>
           <TabsTrigger value="overview" className="text-sm">
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="activity" className="text-sm">
+          <TabsTrigger value="contact-activity" className="text-sm">
             <Activity className="mr-1.5 h-3.5 w-3.5" />
-            Activity
+            Contact Activity
           </TabsTrigger>
           {isValuationDeal && (
             <TabsTrigger value="valuation" className="text-sm">
@@ -222,10 +219,6 @@ const ReMarketingDealDetail = () => {
               Valuation
             </TabsTrigger>
           )}
-          <TabsTrigger value="contact-history" className="text-sm">
-            <Activity className="mr-1.5 h-3.5 w-3.5" />
-            Contact History
-          </TabsTrigger>
           <TabsTrigger value="buyer-introductions" className="text-sm">
             <UserPlus className="mr-1.5 h-3.5 w-3.5" />
             Buyer Introductions
@@ -234,17 +227,9 @@ const ReMarketingDealDetail = () => {
             <Send className="mr-1.5 h-3.5 w-3.5" />
             Buyer Outreach
           </TabsTrigger>
-          <TabsTrigger value="listing-tasks" className="text-sm">
-            <ListChecks className="mr-1.5 h-3.5 w-3.5" />
-            Listing Tasks
-          </TabsTrigger>
           <TabsTrigger value="tasks" className="text-sm">
             <ListChecks className="mr-1.5 h-3.5 w-3.5" />
-            Deal Tasks
-          </TabsTrigger>
-          <TabsTrigger value="email-activity" className="text-sm">
-            <Mail className="mr-1.5 h-3.5 w-3.5" />
-            Email
+            Tasks
           </TabsTrigger>
           <TabsTrigger value="data-room" className="text-sm">
             <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -277,14 +262,29 @@ const ReMarketingDealDetail = () => {
           />
         </TabsContent>
 
-        <TabsContent value="activity" className="space-y-6">
+        {/*
+          Contact Activity — merged "Activity" + "Contact History" tabs.
+          The UnifiedDealTimeline already includes calls (PhoneBurner),
+          emails (Outlook + SmartLead), LinkedIn (HeyReach), transcripts,
+          and deal activity events, so it replaces the old standalone
+          Email tab as well. DealContactHistoryTab is kept below for the
+          per-contact breakdown (each contact's history in its own sub-tab).
+        */}
+        <TabsContent value="contact-activity" className="space-y-6">
           <div className="flex justify-end">
             <Button variant="outline" size="sm" onClick={() => setLogCallOpen(true)}>
               <Phone className="h-3.5 w-3.5 mr-1.5" />
               Log Call
             </Button>
           </div>
+          <CallScoreCard listingId={dealId!} />
           <UnifiedDealTimeline dealId={dealId!} listingId={dealId!} />
+          <DealContactHistoryTab
+            listingId={dealId!}
+            primaryContactEmail={deal.main_contact_email}
+            primaryContactName={deal.main_contact_name}
+          />
+          <ListingNotesLog listingId={dealId!} />
           <LogManualCallDialog
             open={logCallOpen}
             onOpenChange={setLogCallOpen}
@@ -301,17 +301,6 @@ const ReMarketingDealDetail = () => {
           </TabsContent>
         )}
 
-        <TabsContent value="contact-history" className="space-y-6">
-          <DealContactHistoryTab
-            listingId={dealId!}
-            primaryContactEmail={deal.main_contact_email}
-            primaryContactName={deal.main_contact_name}
-          />
-          <CallScoreCard listingId={dealId!} />
-          <DealCallActivityTab listingId={dealId!} />
-          <ListingNotesLog listingId={dealId!} />
-        </TabsContent>
-
         <TabsContent value="buyer-introductions" className="space-y-6">
           <BuyerIntroductionPage
             listingId={dealId!}
@@ -325,18 +314,17 @@ const ReMarketingDealDetail = () => {
           <BuyerOutreachTab dealId={dealId!} dealName={displayName} />
         </TabsContent>
 
-        <TabsContent value="email-activity" className="space-y-6">
-          <DealEmailActivity dealId={dealId!} dealTitle={displayName} />
-        </TabsContent>
-
-        <TabsContent value="listing-tasks" className="space-y-6">
-          <EntityTasksTab entityType="listing" entityId={dealId!} entityName={displayName} />
-        </TabsContent>
-
+        {/*
+          Tasks — merged "Listing Tasks" + "Deal Tasks" into one tab.
+          Database-wise these were the same: the same daily_standup_tasks
+          rows filtered by entity_type='listing' vs 'deal' but both keyed
+          on the same dealId. EntityTasksTab now accepts an array so we
+          pull both in one query.
+        */}
         <TabsContent value="tasks" className="space-y-6">
           <DealSignalsPanel dealId={dealId!} />
           <EntityTasksTab
-            entityType="deal"
+            entityType={['deal', 'listing']}
             entityId={dealId!}
             entityName={displayName}
             dealId={dealId!}

@@ -64,16 +64,23 @@ export function DealSignalsPanel({ listingId, dealId }: DealSignalsPanelProps) {
     );
   }
 
+  // Hide the panel entirely when there are no signals — previously this
+  // rendered a placeholder that visually swallowed the task list on the
+  // Deal Tasks tab. Signals are a supplementary feature, not a primary
+  // empty-state the user needs to see.
   if (!signals || signals.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground py-4 text-center">
-        No signals detected yet. Signals are extracted from call transcripts.
-      </p>
-    );
+    return null;
   }
 
   return (
-    <div className="space-y-2">
+    <div className="rounded-lg border bg-card p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Zap className="h-4 w-4 text-amber-600" />
+        <h4 className="text-sm font-semibold">Deal Signals</h4>
+        <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+          {signals.length}
+        </Badge>
+      </div>
       {signals.map((signal) => {
         const config = SIGNAL_CONFIG[signal.signal_type];
         const Icon = config.icon;

@@ -50,7 +50,13 @@ import { TaskTemplateDialog } from './TaskTemplateDialog';
 import type { DailyStandupTaskWithRelations, TaskEntityType } from '@/types/daily-tasks';
 
 interface EntityTasksTabProps {
-  entityType: TaskEntityType;
+  /**
+   * Single entity type or array to show tasks across multiple types
+   * (e.g. ['listing', 'deal'] for a unified Tasks tab on the deal detail page).
+   * When an array is passed, the first entry determines the primary type used
+   * when creating new tasks from this tab.
+   */
+  entityType: TaskEntityType | TaskEntityType[];
   entityId: string;
   entityName?: string;
   teamMembers?: { id: string; name: string }[];
@@ -68,6 +74,9 @@ export function EntityTasksTab({
   const { teamRole } = useAuth();
   const { toast } = useToast();
   const isLeadership = teamRole === 'owner' || teamRole === 'admin';
+  // When multiple entity types are provided, use the first as the "primary" type
+  // for creating new tasks and for empty-state messaging.
+  const primaryEntityType: TaskEntityType = Array.isArray(entityType) ? entityType[0] : entityType;
 
   const [showCompleted, setShowCompleted] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -206,7 +215,7 @@ export function EntityTasksTab({
             <Filter className="h-3 w-3 mr-1" />
             {showCompleted ? 'Hide Completed' : 'Show Completed'}
           </Button>
-          {entityType === 'deal' && (
+          {primaryEntityType === 'deal' && (
             <Button
               variant="outline"
               size="sm"
@@ -260,7 +269,9 @@ export function EntityTasksTab({
         <Card>
           <CardContent className="py-8 text-center">
             <Clock className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-40" />
-            <p className="text-sm text-muted-foreground">No open tasks for this {entityType}.</p>
+            <p className="text-sm text-muted-foreground">
+              No open tasks for this {primaryEntityType}.
+            </p>
             <Button
               variant="outline"
               size="sm"
@@ -400,7 +411,7 @@ export function EntityTasksTab({
       <EntityAddTaskDialog
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
-        entityType={entityType}
+        entityType={primaryEntityType}
         entityId={entityId}
         entityName={entityName}
         teamMembers={teamMembers}
@@ -410,7 +421,7 @@ export function EntityTasksTab({
         task={editTask}
         open={!!editTask}
         onOpenChange={(open) => !open && setEditTask(null)}
-        entityType={entityType}
+        entityType={primaryEntityType}
       />
       <ReassignDialog
         task={reassignTask}
@@ -425,14 +436,14 @@ export function EntityTasksTab({
       />
 
       {/* Template dialog */}
-      {entityType === 'deal' && (
+      {primaryEntityType === 'deal' && (
         <TaskTemplateDialog
           open={templateDialogOpen}
           onOpenChange={setTemplateDialogOpen}
           listingId={entityId}
           listingName={entityName}
           teamMembers={teamMembers}
-          entityType={entityType}
+          entityType={primaryEntityType}
           dealId={dealId || entityId}
         />
       )}
