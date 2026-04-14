@@ -61,160 +61,184 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsPreflightResponse(req);
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method !== 'POST') {
-    return errorResponse('Method not allowed', 405, corsHeaders);
-  }
-
-  const auth = await requireAuth(req);
-  if (!auth.authenticated || !auth.userId) {
-    return errorResponse(auth.error || 'Authentication required', 401, corsHeaders);
-  }
-
-  let body: { daysBack?: number } = {};
+  // CRITICAL: everything below must run inside the outer try/catch. Before
+  // this guard landed, an unhandled throw from `requireAuth`, `createClient`,
+  // the `is_admin` RPC, or the `email_connections` SELECT crashed the isolate.
+  // Deno Deploy then serves a platform 500 with NO CORS headers, which the
+  // browser rejects — and `supabase.functions.invoke` surfaces that as
+  // `FunctionsFetchError: "Failed to send a request to the Edge Function"`,
+  // the error seen on the Outlook settings page.
   try {
-    body = await req.json();
-  } catch {
-    // Empty body is fine — use defaults.
-  }
+    if (req.method !== 'POST') {
+      return errorResponse('Method not allowed', 405, corsHeaders);
+    }
 
-  const daysBack = Math.max(1, Math.min(Number(body.daysBack) || DEFAULT_DAYS_BACK, MAX_DAYS_BACK));
+    const auth = await requireAuth(req);
+    if (!auth.authenticated || !auth.userId) {
+      return errorResponse(auth.error || 'Authentication required', 401, corsHeaders);
+    }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
+    let body: { daysBack?: number } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // Empty body is fine — use defaults.
+    }
 
-  // Admin gate — this endpoint can rewrite email history for every team member,
-  // so it MUST be admin-only.
-  const { data: isAdmin, error: adminErr } = await supabase.rpc('is_admin', {
-    user_id: auth.userId,
-  });
-  if (adminErr) {
-    console.error('[outlook-bulk-backfill-all] is_admin lookup failed:', adminErr);
-    return errorResponse('Failed to verify admin status', 500, corsHeaders);
-  }
-  if (!isAdmin) {
-    return errorResponse('Only admins can bulk-backfill all mailboxes', 403, corsHeaders);
-  }
+    const daysBack = Math.max(
+      1,
+      Math.min(Number(body.daysBack) || DEFAULT_DAYS_BACK, MAX_DAYS_BACK),
+    );
 
-  const { data: connections, error: connErr } = await supabase
-    .from('email_connections')
-    .select('sourceco_user_id, email_address')
-    .eq('status', 'active');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('[outlook-bulk-backfill-all] missing SUPABASE_URL or SERVICE_ROLE_KEY env');
+      return errorResponse('Bulk backfill not configured on the server', 500, corsHeaders);
+    }
 
-  if (connErr) {
-    console.error('[outlook-bulk-backfill-all] failed to load connections:', connErr);
-    return errorResponse('Failed to load email connections', 500, corsHeaders);
-  }
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  if (!connections || connections.length === 0) {
+    // Admin gate — this endpoint can rewrite email history for every team member,
+    // so it MUST be admin-only.
+    const { data: isAdmin, error: adminErr } = await supabase.rpc('is_admin', {
+      user_id: auth.userId,
+    });
+    if (adminErr) {
+      console.error('[outlook-bulk-backfill-all] is_admin lookup failed:', adminErr);
+      return errorResponse('Failed to verify admin status', 500, corsHeaders);
+    }
+    if (!isAdmin) {
+      return errorResponse('Only admins can bulk-backfill all mailboxes', 403, corsHeaders);
+    }
+
+    const { data: connections, error: connErr } = await supabase
+      .from('email_connections')
+      .select('sourceco_user_id, email_address')
+      .eq('status', 'active');
+
+    if (connErr) {
+      console.error('[outlook-bulk-backfill-all] failed to load connections:', connErr);
+      return errorResponse('Failed to load email connections', 500, corsHeaders);
+    }
+
+    if (!connections || connections.length === 0) {
+      return successResponse(
+        {
+          daysBack,
+          mailboxesProcessed: 0,
+          totalSynced: 0,
+          totalSkipped: 0,
+          totalQueued: 0,
+          totalRematched: 0,
+          results: [],
+        },
+        corsHeaders,
+      );
+    }
+
+    // Build the queued list up front so we can tell the caller which mailboxes
+    // are scheduled for processing. Actual sync results are not available
+    // synchronously — the work runs in the background after we return 202.
+    const queuedMailboxes: PerMailboxResult[] = connections.map((conn) => ({
+      userId: conn.sourceco_user_id,
+      emailAddress: conn.email_address,
+      ok: true,
+    }));
+
+    const bulkBackfillPromise = (async () => {
+      // Process sequentially to avoid tripping Microsoft Graph rate limits.
+      for (const conn of connections) {
+        try {
+          const syncResp = await fetch(`${supabaseUrl}/functions/v1/outlook-sync-emails`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({
+              userId: conn.sourceco_user_id,
+              isInitialSync: true,
+              initialLookbackDays: daysBack,
+            }),
+          });
+
+          if (!syncResp.ok) {
+            let errBody: unknown = null;
+            try {
+              errBody = await syncResp.json();
+            } catch {
+              // non-JSON body
+            }
+            console.error(
+              `[outlook-bulk-backfill-all] background sync failed for ${conn.email_address}:`,
+              syncResp.status,
+              errBody,
+            );
+          }
+        } catch (e) {
+          const msg = (e as Error).message || 'Unknown error';
+          console.error(
+            `[outlook-bulk-backfill-all] background exception for ${conn.email_address}:`,
+            msg,
+          );
+        }
+      }
+
+      // Final rematch pass so any queued-unmatched rows from this bulk run get
+      // promoted against the current contact set in one shot.
+      try {
+        await supabase.rpc('rematch_unmatched_outlook_emails', {
+          p_contact_ids: null,
+        });
+      } catch (e) {
+        console.error('[outlook-bulk-backfill-all] background final rematch failed:', e);
+      }
+    })();
+
+    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
+      (globalThis as any).EdgeRuntime.waitUntil(bulkBackfillPromise);
+    } else {
+      // Local dev / non-Deno-Deploy runtime — detach the promise so we don't
+      // block the response, but swallow the rejection so we don't trip an
+      // unhandled-rejection warning.
+      bulkBackfillPromise.catch(() => {});
+    }
+
+    // Return 202 Accepted immediately. Per-mailbox synced/skipped/queued
+    // counts are intentionally zero because the real numbers won't be known
+    // until the background task finishes — admins should refresh after a
+    // couple of minutes to see results.
     return successResponse(
       {
         daysBack,
-        mailboxesProcessed: 0,
+        status: 'started',
+        message: `Bulk backfill started in the background for ${queuedMailboxes.length} mailbox${
+          queuedMailboxes.length === 1 ? '' : 'es'
+        }. Refresh this page in a couple of minutes to see results.`,
+        mailboxesProcessed: queuedMailboxes.length,
+        mailboxesSucceeded: queuedMailboxes.length,
+        mailboxesFailed: 0,
         totalSynced: 0,
         totalSkipped: 0,
         totalQueued: 0,
         totalRematched: 0,
-        results: [],
+        results: queuedMailboxes,
       },
+      corsHeaders,
+      undefined,
+      202,
+    );
+  } catch (err) {
+    // Guarantee a CORS-safe response for any unhandled throw. Without this,
+    // the platform's fallback 500 has no Access-Control-Allow-Origin header,
+    // and the browser surfaces the request as FunctionsFetchError: "Failed
+    // to send a request to the Edge Function".
+    console.error('[outlook-bulk-backfill-all] unhandled error:', err);
+    return errorResponse(
+      err instanceof Error ? err.message : 'Bulk backfill failed (internal error)',
+      500,
       corsHeaders,
     );
   }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-  // Build the queued list up front so we can tell the caller which mailboxes
-  // are scheduled for processing. Actual sync results are not available
-  // synchronously — the work runs in the background after we return 202.
-  const queuedMailboxes: PerMailboxResult[] = connections.map((conn) => ({
-    userId: conn.sourceco_user_id,
-    emailAddress: conn.email_address,
-    ok: true,
-  }));
-
-  const bulkBackfillPromise = (async () => {
-    // Process sequentially to avoid tripping Microsoft Graph rate limits.
-    for (const conn of connections) {
-      try {
-        const syncResp = await fetch(`${supabaseUrl}/functions/v1/outlook-sync-emails`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${serviceRoleKey}`,
-          },
-          body: JSON.stringify({
-            userId: conn.sourceco_user_id,
-            isInitialSync: true,
-            initialLookbackDays: daysBack,
-          }),
-        });
-
-        if (!syncResp.ok) {
-          let errBody: unknown = null;
-          try {
-            errBody = await syncResp.json();
-          } catch {
-            // non-JSON body
-          }
-          console.error(
-            `[outlook-bulk-backfill-all] background sync failed for ${conn.email_address}:`,
-            syncResp.status,
-            errBody,
-          );
-        }
-      } catch (e) {
-        const msg = (e as Error).message || 'Unknown error';
-        console.error(
-          `[outlook-bulk-backfill-all] background exception for ${conn.email_address}:`,
-          msg,
-        );
-      }
-    }
-
-    // Final rematch pass so any queued-unmatched rows from this bulk run get
-    // promoted against the current contact set in one shot.
-    try {
-      await supabase.rpc('rematch_unmatched_outlook_emails', {
-        p_contact_ids: null,
-      });
-    } catch (e) {
-      console.error('[outlook-bulk-backfill-all] background final rematch failed:', e);
-    }
-  })();
-
-  if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
-    (globalThis as any).EdgeRuntime.waitUntil(bulkBackfillPromise);
-  } else {
-    // Local dev / non-Deno-Deploy runtime — detach the promise so we don't
-    // block the response, but swallow the rejection so we don't trip an
-    // unhandled-rejection warning.
-    bulkBackfillPromise.catch(() => {});
-  }
-
-  // Return 202 Accepted immediately. Per-mailbox synced/skipped/queued
-  // counts are intentionally zero because the real numbers won't be known
-  // until the background task finishes — admins should refresh after a
-  // couple of minutes to see results.
-  return successResponse(
-    {
-      daysBack,
-      status: 'started',
-      message: `Bulk backfill started in the background for ${queuedMailboxes.length} mailbox${
-        queuedMailboxes.length === 1 ? '' : 'es'
-      }. Refresh this page in a couple of minutes to see results.`,
-      mailboxesProcessed: queuedMailboxes.length,
-      mailboxesSucceeded: queuedMailboxes.length,
-      mailboxesFailed: 0,
-      totalSynced: 0,
-      totalSkipped: 0,
-      totalQueued: 0,
-      totalRematched: 0,
-      results: queuedMailboxes,
-    },
-    corsHeaders,
-    undefined,
-    202,
-  );
 });
