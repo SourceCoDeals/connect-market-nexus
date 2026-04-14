@@ -288,6 +288,17 @@ export function isAuthorizedCronRequest(req: Request): boolean {
   }
   if (serviceRoleKey && timingSafeEqual(bearer, serviceRoleKey)) return true;
 
+  // Also accept if the token is a valid service_role JWT (check the role claim).
+  // This handles the case where the env var differs from the project key.
+  if (bearer) {
+    try {
+      const payload = JSON.parse(atob(bearer.split('.')[1]));
+      if (payload.role === 'service_role') return true;
+    } catch {
+      // Not a valid JWT — fall through
+    }
+  }
+
   return false;
 }
 

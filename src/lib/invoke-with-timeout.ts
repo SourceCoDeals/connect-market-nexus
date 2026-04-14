@@ -19,16 +19,19 @@ interface InvokeResult<T = unknown> {
  * can never hang the entire request flow (known Supabase auth deadlock risk).
  */
 async function getAccessTokenWithTimeout(): Promise<string | null> {
-  console.log('[invoke-with-timeout] Starting session lookup…');
+  // Debug logging removed for production
   try {
     const result = await Promise.race([
       supabase.auth.getSession(),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Session retrieval timed out after 5 s')), SESSION_TIMEOUT_MS),
+        setTimeout(
+          () => reject(new Error('Session retrieval timed out after 5 s')),
+          SESSION_TIMEOUT_MS,
+        ),
       ),
     ]);
     const token = result.data?.session?.access_token ?? null;
-    console.log('[invoke-with-timeout] Session lookup done, token present:', !!token);
+    // console.log('[invoke-with-timeout] Session lookup done, token present:', !!token);
     return token;
   } catch (err) {
     console.error('[invoke-with-timeout] Session lookup failed:', err);
@@ -42,14 +45,16 @@ async function getAccessTokenWithTimeout(): Promise<string | null> {
  */
 function getCachedAccessToken(): string | null {
   try {
-    const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    const storageKey = Object.keys(localStorage).find(
+      (k) => k.startsWith('sb-') && k.endsWith('-auth-token'),
+    );
     if (!storageKey) return null;
     const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     const token = parsed?.access_token ?? parsed?.currentSession?.access_token ?? null;
     if (token) {
-      console.log('[invoke-with-timeout] Using cached token from localStorage');
+      // console.log('[invoke-with-timeout] Using cached token from localStorage');
     }
     return token;
   } catch {
@@ -72,7 +77,7 @@ function getCachedAccessToken(): string | null {
  */
 export async function invokeWithTimeout<T = unknown>(
   functionName: string,
-  options: InvokeOptions = {}
+  options: InvokeOptions = {},
 ): Promise<InvokeResult<T>> {
   const { body, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
 
@@ -89,9 +94,8 @@ export async function invokeWithTimeout<T = unknown>(
       console.warn('[invoke-with-timeout] getSession() failed, trying cached token…');
       accessToken = getCachedAccessToken();
       if (!accessToken) {
-        const error = sessionErr instanceof Error
-          ? sessionErr
-          : new Error('Session retrieval failed');
+        const error =
+          sessionErr instanceof Error ? sessionErr : new Error('Session retrieval failed');
         console.error('[invoke-with-timeout] No cached token available either');
         return { data: null, error };
       }
@@ -102,14 +106,14 @@ export async function invokeWithTimeout<T = unknown>(
     }
 
     const url = `${SUPABASE_URL}/functions/v1/${functionName}`;
-    console.log('[invoke-with-timeout] Starting fetch to', functionName);
+    // console.log('[invoke-with-timeout] Starting fetch to', functionName);
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${accessToken}`,
+        apikey: SUPABASE_PUBLISHABLE_KEY,
       },
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
@@ -157,7 +161,7 @@ export async function invokeWithTimeout<T = unknown>(
         data: null,
         error: new Error(
           `Network error calling "${functionName}": ${(err as Error).message}. ` +
-          'This may indicate the edge function is not deployed, or a CORS/network issue.'
+            'This may indicate the edge function is not deployed, or a CORS/network issue.',
         ),
       };
     }
