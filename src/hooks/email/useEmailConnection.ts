@@ -83,6 +83,14 @@ export function useEmailConnection() {
     },
     enabled: !!user?.id,
     staleTime: 30_000,
+    // Poll every 2.5s while a backfill is actively running so the progress
+    // bar + ETA on the Outlook settings page stay in sync with the
+    // `backfill_*` columns written by the sync engine after each Graph page.
+    // When nothing is running this collapses back to 30s staleTime semantics.
+    refetchInterval: (query) => {
+      const conn = query.state.data as EmailConnection | null | undefined;
+      return conn?.backfill_status === 'running' ? 2_500 : false;
+    },
   });
 
   const connectMutation = useMutation({
@@ -153,7 +161,22 @@ export function useEmailConnection() {
   });
 
   const backfillMutation = useMutation({
-    mutationFn: async ({ daysBack, targetUserId }: { daysBack: number; targetUserId?: string }) => {
+    mutationFn: async ({
+      daysBack,
+      targetUserId,
+      resume,
+    }: {
+      daysBack: number;
+      targetUserId?: string;
+      /**
+       * When true, resume an existing failed/running backfill from its
+       * stored `backfill_next_link` checkpoint instead of starting a fresh
+       * pull. The edge function carries forward the original `daysBack` and
+       * `backfillSince` window from the row, so this param is informational
+       * in the resume path.
+       */
+      resume?: boolean;
+    }) => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -161,7 +184,11 @@ export function useEmailConnection() {
 
       const resp = await supabase.functions.invoke('outlook-backfill-history', {
         headers: { Authorization: `Bearer ${session.access_token}` },
-        body: { daysBack, ...(targetUserId ? { targetUserId } : {}) },
+        body: {
+          daysBack,
+          ...(targetUserId ? { targetUserId } : {}),
+          ...(resume ? { resume: true } : {}),
+        },
       });
 
       if (resp.error) {
@@ -169,12 +196,14 @@ export function useEmailConnection() {
       }
       // NOTE: `syncResult` is intentionally null here now that the sync runs
       // as a background task server-side — the real counts aren't known until
-      // well after the HTTP response returns. We still include the legacy
-      // field on the type for existing consumers.
+      // well after the HTTP response returns. The frontend picks up live
+      // progress by polling `email_connections.backfill_*` via the
+      // `connectionQuery` above (refetchInterval=2.5s while running).
       return resp.data?.data as {
         targetUserId: string;
         emailAddress: string;
         daysBack: number;
+        resumed?: boolean;
         status?: 'started';
         message?: string;
         rematchedFromUnmatchedQueue: number;
@@ -187,10 +216,10 @@ export function useEmailConnection() {
       queryClient.invalidateQueries({ queryKey: ['email', 'threads'] });
       queryClient.invalidateQueries({ queryKey: ['email', 'deal-outlook'] });
       toast({
-        title: 'Backfill Started',
+        title: data?.resumed ? 'Backfill Resumed' : 'Backfill Started',
         description:
           data?.message ||
-          `Importing up to ${data?.daysBack ?? ''} days of Outlook history in the background. Refresh this page in a couple of minutes to see the imported emails.`,
+          `Importing up to ${data?.daysBack ?? ''} days of Outlook history in the background. Progress will update live on this page.`,
       });
     },
     onError: (error: Error) => {
