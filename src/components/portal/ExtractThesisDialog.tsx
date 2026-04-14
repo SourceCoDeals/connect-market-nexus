@@ -69,6 +69,34 @@ function confidenceColor(confidence: number): string {
 }
 
 /**
+ * Check a candidate against the `portal_thesis_criteria` CHECK constraints so
+ * we can block save before Postgres rejects the whole batch. Returns `null` if
+ * the row is valid, otherwise a human-readable reason.
+ *
+ * DB constraints we enforce here:
+ *   - industry_label NOT NULL (we also reject empty string)
+ *   - cardinality(industry_keywords) > 0
+ *   - ebitda_min <= ebitda_max when both set
+ *   - revenue_min <= revenue_max when both set
+ *   - employee_min <= employee_max when both set
+ */
+function validateCandidate(c: ExtractedThesisCandidate): string | null {
+  if (!c.industry_label.trim()) return 'Industry label is required.';
+  if (c.industry_keywords.length === 0) return 'At least one industry keyword is required.';
+  const pairs: Array<[number | null, number | null, string]> = [
+    [c.ebitda_min, c.ebitda_max, 'EBITDA'],
+    [c.revenue_min, c.revenue_max, 'Revenue'],
+    [c.employee_min, c.employee_max, 'Employee'],
+  ];
+  for (const [min, max, label] of pairs) {
+    if (min != null && max != null && min > max) {
+      return `${label} min cannot be greater than max.`;
+    }
+  }
+  return null;
+}
+
+/**
  * Review dialog for AI-extracted thesis rows from a portal intelligence doc.
  *
  * Flow:
@@ -129,6 +157,21 @@ export function ExtractThesisDialog({
 
   const selectedCount = useMemo(() => candidates.filter((c) => c._selected).length, [candidates]);
 
+  // Per-row validation errors (only shown on selected rows).
+  const validationErrors = useMemo(() => {
+    const errs = new Map<string, string>();
+    for (const c of candidates) {
+      const err = validateCandidate(c);
+      if (err) errs.set(c._key, err);
+    }
+    return errs;
+  }, [candidates]);
+
+  const selectedInvalidCount = useMemo(
+    () => candidates.filter((c) => c._selected && validationErrors.has(c._key)).length,
+    [candidates, validationErrors],
+  );
+
   const updateCandidate = (key: string, patch: Partial<EditableCandidate>) => {
     setCandidates((prev) => prev.map((c) => (c._key === key ? { ...c, ...patch } : c)));
   };
@@ -136,10 +179,13 @@ export function ExtractThesisDialog({
   const handleSave = async () => {
     const selected = candidates.filter((c) => c._selected);
     if (selected.length === 0) return;
+    // Belt-and-braces: the save button is disabled when invalid rows exist,
+    // but double-check here too in case state updates race.
+    if (selected.some((c) => validationErrors.has(c._key))) return;
 
     const payload: CreateThesisCriteriaInput[] = selected.map((c) => ({
       portal_org_id: portalOrgId,
-      industry_label: c.industry_label,
+      industry_label: c.industry_label.trim(),
       industry_keywords: c.industry_keywords,
       ebitda_min: c.ebitda_min,
       ebitda_max: c.ebitda_max,
@@ -228,9 +274,10 @@ export function ExtractThesisDialog({
                   type="button"
                   className="text-primary hover:underline"
                   onClick={() =>
-                    setCandidates((prev) =>
-                      prev.map((c) => ({ ...c, _selected: !candidates.every((x) => x._selected) })),
-                    )
+                    setCandidates((prev) => {
+                      const allSelected = prev.every((x) => x._selected);
+                      return prev.map((c) => ({ ...c, _selected: !allSelected }));
+                    })
                   }
                 >
                   {candidates.every((c) => c._selected) ? 'Deselect all' : 'Select all'}
@@ -245,11 +292,18 @@ export function ExtractThesisDialog({
 
               <ScrollArea className="flex-1 pr-3">
                 <div className="space-y-3">
-                  {candidates.map((c) => (
+                  {candidates.map((c) => {
+                    const rowError = validationErrors.get(c._key);
+                    const showError = c._selected && !!rowError;
+                    return (
                     <div
                       key={c._key}
                       className={`rounded-lg border p-3 space-y-3 transition-colors ${
-                        c._selected ? 'border-primary/40 bg-primary/[0.02]' : 'border-border'
+                        showError
+                          ? 'border-destructive/50 bg-destructive/[0.03]'
+                          : c._selected
+                            ? 'border-primary/40 bg-primary/[0.02]'
+                            : 'border-border'
                       }`}
                     >
                       {/* Row header: checkbox + label + confidence */}
@@ -414,15 +468,31 @@ export function ExtractThesisDialog({
                           placeholder="Context, exclusions, deal preferences..."
                         />
                       </div>
+
+                      {/* Validation error (only shown on selected rows) */}
+                      {showError && (
+                        <div className="flex items-start gap-1.5 text-[11px] text-destructive">
+                          <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                          <span>{rowError}</span>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </div>
           )}
         </div>
 
-        <DialogFooter className="border-t pt-3">
+        <DialogFooter className="border-t pt-3 gap-2 sm:gap-2 flex-col sm:flex-row sm:items-center sm:justify-end">
+          {selectedInvalidCount > 0 && (
+            <p className="text-[11px] text-destructive flex items-center gap-1 sm:mr-auto">
+              <AlertCircle className="h-3 w-3" />
+              {selectedInvalidCount} selected{' '}
+              {selectedInvalidCount === 1 ? 'row has' : 'rows have'} validation errors
+            </p>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -434,7 +504,9 @@ export function ExtractThesisDialog({
           <Button
             type="button"
             onClick={handleSave}
-            disabled={selectedCount === 0 || isSaving || isExtracting}
+            disabled={
+              selectedCount === 0 || selectedInvalidCount > 0 || isSaving || isExtracting
+            }
           >
             {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Add {selectedCount} to Thesis

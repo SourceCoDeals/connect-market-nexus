@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, untypedFrom } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { extractFunctionError } from '@/hooks/email/useEmailConnection';
 import type { CreateThesisCriteriaInput } from '@/types/portal';
 
 /**
@@ -40,6 +41,9 @@ export interface ExtractThesisResponse {
  *
  * This mutation intentionally does NOT invalidate the thesis cache — persistence
  * is the job of `useSaveExtractedTheses` below, which runs after admin approval.
+ *
+ * Errors are shown inline in the dialog (via `mutation.error`) rather than as a
+ * toast, so there's no duplicate notification for the user.
  */
 export function useExtractPortalThesis() {
   return useMutation({
@@ -52,15 +56,16 @@ export function useExtractPortalThesis() {
       );
 
       if (error) {
-        throw new Error(error.message || 'Failed to extract thesis from document');
+        // `supabase.functions.invoke` flattens FunctionsHttpError.message to
+        // "Edge Function returned a non-2xx status code" — dig the real error
+        // string out of the response body instead.
+        const msg = await extractFunctionError(error, 'Failed to extract thesis from document');
+        throw new Error(msg);
       }
       if (!data?.success) {
         throw new Error(data?.error || 'Extraction returned no data');
       }
       return data;
-    },
-    onError: (err: Error) => {
-      toast.error('Thesis extraction failed', { description: err.message });
     },
   });
 }

@@ -332,7 +332,8 @@ async function runExtraction(
 
 /**
  * Normalize and clamp the AI output so it always matches the portal_thesis_criteria
- * schema. This is the last line of defense against hallucinated field shapes.
+ * schema — including the DB CHECK constraints for min <= max on all range pairs.
+ * This is the last line of defense against hallucinated field shapes.
  */
 function normalizeThesis(raw: Partial<ExtractedThesis> & Record<string, unknown>): ExtractedThesis {
   const toInt = (v: unknown): number | null => {
@@ -345,6 +346,19 @@ function normalizeThesis(raw: Partial<ExtractedThesis> & Record<string, unknown>
     return v
       .map((item) => (typeof item === 'string' ? item.trim() : ''))
       .filter((item) => item.length > 0);
+  };
+
+  /**
+   * Fix inverted ranges by swapping. If the AI returns min=$5M, max=$1M, the DB
+   * CHECK constraint (`min <= max`) would reject the insert. Silently swapping
+   * is better than 500-ing the reviewer — they can still edit in the dialog.
+   */
+  const fixRange = (
+    min: number | null,
+    max: number | null,
+  ): [number | null, number | null] => {
+    if (min != null && max != null && min > max) return [max, min];
+    return [min, max];
   };
 
   const states = toStringArray(raw.target_states)
@@ -361,15 +375,19 @@ function normalizeThesis(raw: Partial<ExtractedThesis> & Record<string, unknown>
     ? Math.min(100, Math.max(0, Math.round(confidenceRaw)))
     : 50;
 
+  const [ebitdaMin, ebitdaMax] = fixRange(toInt(raw.ebitda_min), toInt(raw.ebitda_max));
+  const [revenueMin, revenueMax] = fixRange(toInt(raw.revenue_min), toInt(raw.revenue_max));
+  const [employeeMin, employeeMax] = fixRange(toInt(raw.employee_min), toInt(raw.employee_max));
+
   return {
     industry_label: String(raw.industry_label ?? '').trim() || 'Untitled thesis',
     industry_keywords: toStringArray(raw.industry_keywords),
-    ebitda_min: toInt(raw.ebitda_min),
-    ebitda_max: toInt(raw.ebitda_max),
-    revenue_min: toInt(raw.revenue_min),
-    revenue_max: toInt(raw.revenue_max),
-    employee_min: toInt(raw.employee_min),
-    employee_max: toInt(raw.employee_max),
+    ebitda_min: ebitdaMin,
+    ebitda_max: ebitdaMax,
+    revenue_min: revenueMin,
+    revenue_max: revenueMax,
+    employee_min: employeeMin,
+    employee_max: employeeMax,
     target_states: states,
     priority,
     notes: raw.notes ? String(raw.notes).slice(0, 1000) : null,
