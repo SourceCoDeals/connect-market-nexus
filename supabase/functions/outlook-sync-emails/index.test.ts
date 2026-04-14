@@ -58,11 +58,23 @@ describe('outlook-sync-emails — checkpoint placement', () => {
     // reflects the page we just processed, and after all the inner upserts
     // so `backfill_next_link` points at the NEXT page (never at one whose
     // messages haven't been persisted yet).
-    const pageCountIdx = SRC.indexOf('pageCount++;');
-    const checkpointCallIdx = SRC.indexOf('await writeCheckpoint(nextLink);');
+    //
+    // NOTE: the source now contains TWO `writeCheckpoint(nextLink)` calls
+    // inside the do/while body — one inside the `if (!pageBatchOk)` rewind
+    // block (before `pageCount++`) and one on the success path (after
+    // `pageCount++`). The success-path call is always the LAST
+    // `writeCheckpoint(nextLink)` string occurrence BEFORE the outer
+    // `catch (err)` handler, so locate it via `lastIndexOf` scoped to the
+    // try-body substring. The old single-occurrence `indexOf` pattern was
+    // valid before the batch-failure rewind was added.
+    const outerCatchIdx = SRC.indexOf('errors.push(`Page fetch error');
+    expect(outerCatchIdx, 'outer catch anchor not found').toBeGreaterThan(-1);
+    const tryBody = SRC.slice(0, outerCatchIdx);
+    const pageCountIdx = tryBody.lastIndexOf('pageCount++;');
+    const successCheckpointIdx = tryBody.lastIndexOf('await writeCheckpoint(nextLink);');
     expect(pageCountIdx).toBeGreaterThan(-1);
-    expect(checkpointCallIdx).toBeGreaterThan(-1);
-    expect(pageCountIdx).toBeLessThan(checkpointCallIdx);
+    expect(successCheckpointIdx).toBeGreaterThan(-1);
+    expect(pageCountIdx).toBeLessThan(successCheckpointIdx);
   });
 
   it('also flushes a checkpoint on page-fetch error before breaking the loop', () => {
@@ -122,6 +134,159 @@ describe('outlook-sync-emails — checkpoint placement', () => {
     expect(helperBody).toMatch(/try\s*\{/);
     expect(helperBody).toMatch(/\}\s*catch/);
     expect(helperBody).toContain("console.error('[outlook-sync] checkpoint write failed");
+  });
+});
+
+describe('outlook-sync-emails — batch-failure rewind semantics', () => {
+  // These tests lock down the fix for a regression introduced when the page
+  // loop was rewritten to batch DB writes (commit d5381b0 + follow-up).
+  //
+  // Pre-fix behavior: if a bulk upsert on page N failed, the error was
+  // pushed into `errors[]` but `pageCount++` and `writeCheckpoint(nextLink)`
+  // still ran afterwards, advancing the persisted cursor past the page we
+  // never successfully persisted. Resume would then silently skip that
+  // page, losing every message on it.
+  //
+  // Post-fix behavior: the loop captures `pagePriorCursor = nextLink` at
+  // the top of every iteration, tracks a `pageBatchOk` flag that every
+  // error site inside the batch pipeline sets to false, and rewinds
+  // `nextLink = pagePriorCursor` + flushes a checkpoint + `break`s when
+  // the flag is false.
+  it('captures pagePriorCursor at the top of every do/while iteration', () => {
+    // The snapshot must live INSIDE the `do { ... }` block (not outside
+    // it) so every iteration gets a fresh value after the previous page's
+    // `nextLink = result.nextLink` reassignment.
+    expect(SRC).toMatch(/do\s*\{[\s\S]*?const\s+pagePriorCursor\s*=\s*nextLink/);
+  });
+
+  it('declares a pageBatchOk flag that defaults to true per iteration', () => {
+    expect(SRC).toMatch(/let\s+pageBatchOk\s*=\s*true/);
+  });
+
+  it('sets pageBatchOk = false at the matched-upsert error site', () => {
+    // The matched email_messages bulk upsert is the critical failure site
+    // — if this error doesn't flag the page we lose every matched email.
+    const matchedTaskMatch = SRC.match(/Bulk matched upsert failed[\s\S]*?pageBatchOk\s*=\s*false/);
+    expect(matchedTaskMatch, 'matched upsert error must set pageBatchOk = false').not.toBeNull();
+  });
+
+  it('sets pageBatchOk = false at the unmatched-upsert error site', () => {
+    const unmatchedTaskMatch = SRC.match(
+      /Bulk unmatched upsert failed[\s\S]*?pageBatchOk\s*=\s*false/,
+    );
+    expect(
+      unmatchedTaskMatch,
+      'unmatched upsert error must set pageBatchOk = false',
+    ).not.toBeNull();
+  });
+
+  it('sets pageBatchOk = false on unexpected runtime throws inside the batch pipeline', () => {
+    // The try/catch at the bottom of the batch pipeline catches anything
+    // the inner per-message try/catches didn't, and must flag the page.
+    const catchMatch = SRC.match(/Page batch processing error[\s\S]*?pageBatchOk\s*=\s*false/);
+    expect(catchMatch, 'batch-pipeline catch must set pageBatchOk = false').not.toBeNull();
+  });
+
+  it('rewinds nextLink to pagePriorCursor and breaks when pageBatchOk is false', () => {
+    // After the batch pipeline, the loop must check the flag, rewind the
+    // cursor, flush a checkpoint, and break — in that order. Any refactor
+    // that hoists `pageCount++` or the final `writeCheckpoint(nextLink)`
+    // above the flag check re-introduces the lost-page regression.
+    const rewindMatch = SRC.match(
+      /if\s*\(\s*!pageBatchOk\s*\)\s*\{[\s\S]*?nextLink\s*=\s*pagePriorCursor[\s\S]*?writeCheckpoint\(nextLink\)[\s\S]*?break;/,
+    );
+    expect(
+      rewindMatch,
+      'rewind + checkpoint + break sequence on failed page not found',
+    ).not.toBeNull();
+  });
+
+  it('places the pageBatchOk check BEFORE pageCount++ and the success checkpoint', () => {
+    // Ordering invariant: the rewind/break must short-circuit the
+    // success-path checkpoint, otherwise the failing page still advances.
+    const flagCheckIdx = SRC.indexOf('if (!pageBatchOk)');
+    const pageCountIdx = SRC.indexOf('pageCount++;');
+    expect(flagCheckIdx).toBeGreaterThan(-1);
+    expect(pageCountIdx).toBeGreaterThan(-1);
+    expect(flagCheckIdx).toBeLessThan(pageCountIdx);
+  });
+
+  it('outer page-fetch catch also rewinds nextLink to pagePriorCursor', () => {
+    // Defense-in-depth: the outer catch (fetchMessages throw) used to rely
+    // on the implicit invariant "nextLink wasn't reassigned yet". Any
+    // future refactor that moves a throwing op below the reassignment
+    // would silently break that invariant — the explicit rewind keeps the
+    // contract visible in the code instead of in a comment.
+    const anchor = SRC.indexOf('errors.push(`Page fetch error');
+    expect(anchor).toBeGreaterThan(-1);
+    const catchOpen = SRC.lastIndexOf('catch', anchor);
+    const openBrace = SRC.indexOf('{', catchOpen);
+    let depth = 1;
+    let i = openBrace + 1;
+    while (i < SRC.length && depth > 0) {
+      if (SRC[i] === '{') depth++;
+      else if (SRC[i] === '}') depth--;
+      if (depth === 0) break;
+      i++;
+    }
+    const catchBody = SRC.slice(openBrace + 1, i);
+    expect(catchBody).toContain('nextLink = pagePriorCursor');
+  });
+});
+
+describe('outlook-sync-emails — attachment-failure visibility', () => {
+  // These tests lock down the fix for a latent bug surfaced by the
+  // post-refactor audit: `fetchAttachmentMetadata` used to swallow all
+  // errors to `[]`, so a Microsoft Graph throttle or network hiccup was
+  // indistinguishable from "really has no attachments". The row got
+  // persisted with `attachment_metadata: []` and the unique dedup index
+  // on `(microsoft_message_id, contact_id)` made it impossible to fix
+  // without a manual re-fetch. The fix makes the fetcher return `null`
+  // on failure and the batch version returns a `failedIds` set that
+  // flags the whole page for resume.
+  it('fetchAttachmentMetadata returns null on failure instead of empty array', () => {
+    // The helper must type-signal failure — searching for `| null` in
+    // its return type ensures a future refactor that silently removes
+    // the null branch trips the test.
+    expect(SRC).toMatch(
+      /async function fetchAttachmentMetadata\([\s\S]*?\):\s*Promise<[^>]*AttachmentMeta\[\]\s*\|\s*null>/,
+    );
+    // And both failure sites must return null, not an empty array.
+    const fnMatch = SRC.match(/async function fetchAttachmentMetadata[\s\S]*?\n\}\n/);
+    expect(fnMatch, 'fetchAttachmentMetadata body not found').not.toBeNull();
+    const body = fnMatch![0];
+    expect(body).toMatch(/if\s*\(!resp\.ok\)\s*return\s+null/);
+    expect(body).toMatch(/catch[\s\S]*?return\s+null/);
+    // The old bug pattern was `return \[\]` in either error branch.
+    // The success path still returns an array via .map, which is fine.
+    const errorReturns = body.match(/return\s+\[\]/g) || [];
+    expect(errorReturns.length, 'no bare `return []` allowed in error branches').toBe(0);
+  });
+
+  it('fetchAttachmentMetadataBatch returns both results and failedIds', () => {
+    // The batch wrapper must expose which messages couldn't be fetched so
+    // the sync loop can exclude them from the persisted rows and flag the
+    // page for resume.
+    expect(SRC).toMatch(
+      /fetchAttachmentMetadataBatch[\s\S]*?Promise<\s*\{\s*results:[\s\S]*?failedIds:\s*Set<string>/,
+    );
+  });
+
+  it('flags pageBatchOk = false when attachment fetches fail', () => {
+    // Regression for "persist email rows with empty attachment metadata
+    // when Graph throttled the fetch": the sync loop must treat any
+    // attachment fetch failure as a recoverable page-level failure so
+    // resume re-fetches with a fresh access token.
+    const match = SRC.match(/attachmentFailedIds\.size\s*>\s*0[\s\S]*?pageBatchOk\s*=\s*false/);
+    expect(match, 'attachment fetch failures must flag pageBatchOk = false').not.toBeNull();
+  });
+
+  it('skips messages with failed attachment fetches during row accumulation', () => {
+    // Messages whose attachments we couldn't fetch MUST be excluded from
+    // the matched/unmatched row batches, otherwise the dedup unique index
+    // on `(microsoft_message_id, contact_id)` locks in the empty
+    // `attachment_metadata: []` state forever.
+    expect(SRC).toMatch(/if\s*\(\s*attachmentFailedIds\.has\(msg\.id\)\s*\)\s*continue;/);
   });
 });
 
