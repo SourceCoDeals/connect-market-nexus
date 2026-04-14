@@ -39,8 +39,11 @@ async function fetchTier12RequestCounts(listingIds: string[]): Promise<Record<st
   return counts;
 }
 
-async function fetchListings(state: PaginationState, buyerTier?: number | null, buyerType?: string | null) {
-
+async function fetchListings(
+  state: PaginationState,
+  buyerTier?: number | null,
+  buyerType?: string | null,
+) {
   let query = supabase
     .from('listings')
     .select(MARKETPLACE_SAFE_COLUMNS_STRING, { count: 'exact' })
@@ -116,7 +119,7 @@ async function fetchListings(state: PaginationState, buyerTier?: number | null, 
   const listings = ((data || []) as unknown as ListingRow[]).map((listing) => ({
     ...listing,
     status: listing.status as ListingStatus,
-    metric_3_type: (listing.metric_3_type as 'employees' | 'custom') || 'employees',
+    metric_3_type: 'custom' as const,
     ownerNotes: listing.owner_notes || '',
     createdAt: listing.created_at,
     updatedAt: listing.updated_at,
@@ -182,7 +185,11 @@ async function fetchMetadata() {
   return { categories, locations };
 }
 
-export function useSimpleListings(state: PaginationState, buyerTier?: number | null, buyerType?: string | null) {
+export function useSimpleListings(
+  state: PaginationState,
+  buyerTier?: number | null,
+  buyerType?: string | null,
+) {
   return useQuery({
     queryKey: [
       'simple-listings',

@@ -32,8 +32,6 @@ import { InternalCompanyInfoDisplay } from '@/components/admin/InternalCompanyIn
 import { BuyerDataRoom } from '@/components/marketplace/BuyerDataRoom';
 import { MFAGate } from '@/components/auth/MFAGate';
 
-
-
 import { useAgreementStatusSync } from '@/hooks/use-agreement-status-sync';
 import { useMyAgreementStatus } from '@/hooks/use-agreement-status';
 import { ListingSidebarActions } from '@/components/listing-detail/ListingSidebarActions';
@@ -48,7 +46,7 @@ const ListingDetail = () => {
   // Click tracking for engagement analytics
   const { getClickData, resetTracking } = useClickTracking(true);
   const { sessionId } = useSessionContext();
-  
+
   const hasFlushOnUnmountRef = useRef(false);
 
   const { useListing, useRequestConnection, useConnectionStatus } = useMarketplace();
@@ -180,7 +178,6 @@ const ListingDetail = () => {
         </Link>
       </div>
 
-
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 lg:gap-10">
@@ -207,57 +204,60 @@ const ListingDetail = () => {
             )}
 
             {/* Enhanced Financial Grid — only visible to approved connections and admins */}
-            {(isAdmin || (connectionExists && connectionStatusValue === 'approved')) && <div className="mt-6">
-              <EnhancedFinancialGrid
-                metrics={[
-                  {
-                    label: `${new Date().getFullYear() - 1} Revenue`,
-                    value: formatCurrency(listing.revenue),
-                    subtitle: listing.revenue_metric_subtitle || listing.category,
-                    tooltip:
-                      'Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process.',
-                  },
-                  {
-                    label: 'EBITDA',
-                    value: formatCurrency(listing.ebitda),
-                    subtitle:
-                      listing.ebitda_metric_subtitle ||
-                      `~${listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0'}% margin profile`,
-                    tooltip:
-                      'Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process.',
-                  },
-                  // Metric 3: Employees or Custom
-                  ...(listing.metric_3_type === 'custom' && listing.metric_3_custom_label
-                    ? [{
-                        label: listing.metric_3_custom_label,
-                        value: listing.metric_3_custom_value || '',
-                        subtitle: listing.metric_3_custom_subtitle ?? undefined,
-                      }]
-                    : ((listing.full_time_employees || 0) + (listing.part_time_employees || 0)) > 0
-                      ? [{
-                          label: 'Team Size',
-                          value: `${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`,
-                          subtitle: `${listing.full_time_employees || 0} FT, ${listing.part_time_employees || 0} PT`,
-                        }]
+            {(isAdmin || (connectionExists && connectionStatusValue === 'approved')) && (
+              <div className="mt-6">
+                <EnhancedFinancialGrid
+                  metrics={[
+                    {
+                      label: `${new Date().getFullYear() - 1} Revenue`,
+                      value: formatCurrency(listing.revenue),
+                      subtitle: listing.revenue_metric_subtitle || listing.category,
+                      tooltip:
+                        'Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process.',
+                    },
+                    {
+                      label: 'EBITDA',
+                      value: formatCurrency(listing.ebitda),
+                      subtitle:
+                        listing.ebitda_metric_subtitle ||
+                        `~${listing.revenue > 0 ? ((listing.ebitda / listing.revenue) * 100).toFixed(1) : '0'}% margin profile`,
+                      tooltip:
+                        'Financials range from owner estimates to verified documentation. Verification level varies by owner readiness and will be confirmed in your intro call and due diligence process.',
+                    },
+                    // Metric 3: Custom (when set by admin)
+                    ...(listing.metric_3_type === 'custom' && listing.metric_3_custom_label
+                      ? [
+                          {
+                            label: listing.metric_3_custom_label,
+                            value: listing.metric_3_custom_value || '',
+                            subtitle: listing.metric_3_custom_subtitle ?? undefined,
+                          },
+                        ]
                       : []),
-                  // Metric 4: EBITDA Margin (default) or Custom
-                  ...(listing.metric_4_type === 'custom' && listing.metric_4_custom_label
-                    ? [{
-                        label: listing.metric_4_custom_label,
-                        value: listing.metric_4_custom_value || '',
-                        subtitle: listing.metric_4_custom_subtitle ?? undefined,
-                      }]
-                    : [{
-                        label: 'EBITDA Margin',
-                        value:
-                          listing.revenue > 0
-                            ? `${((listing.ebitda / listing.revenue) * 100).toFixed(1)}%`
-                            : '—',
-                        subtitle: listing.metric_4_custom_subtitle || listing.category || undefined,
-                      }]),
-                ]}
-              />
-            </div>}
+                    // Metric 4: EBITDA Margin (default) or Custom
+                    ...(listing.metric_4_type === 'custom' && listing.metric_4_custom_label
+                      ? [
+                          {
+                            label: listing.metric_4_custom_label,
+                            value: listing.metric_4_custom_value || '',
+                            subtitle: listing.metric_4_custom_subtitle ?? undefined,
+                          },
+                        ]
+                      : [
+                          {
+                            label: 'EBITDA Margin',
+                            value:
+                              listing.revenue > 0
+                                ? `${((listing.ebitda / listing.revenue) * 100).toFixed(1)}%`
+                                : '—',
+                            subtitle:
+                              listing.metric_4_custom_subtitle || listing.category || undefined,
+                          },
+                        ]),
+                  ]}
+                />
+              </div>
+            )}
 
             {/* Business Details removed - all content now in body description */}
 
@@ -309,7 +309,11 @@ const ListingDetail = () => {
               <Dialog open={dataRoomOpen} onOpenChange={setDataRoomOpen}>
                 <DialogContent className="max-w-[calc(100vw-16px)] sm:max-w-3xl max-h-[calc(100vh-32px)] sm:max-h-[85vh] p-0 gap-0 overflow-hidden border-border/30 bg-background [&>button]:hidden">
                   <MFAGate loadingText="Verifying identity for data room access...">
-                    <BuyerDataRoom dealId={id!} connectionApproved={connectionStatusValue === 'approved'} onClose={() => setDataRoomOpen(false)} />
+                    <BuyerDataRoom
+                      dealId={id!}
+                      connectionApproved={connectionStatusValue === 'approved'}
+                      onClose={() => setDataRoomOpen(false)}
+                    />
                   </MFAGate>
                 </DialogContent>
               </Dialog>

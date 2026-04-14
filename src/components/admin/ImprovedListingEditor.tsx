@@ -8,7 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { parseCurrency } from '@/lib/currency-utils';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Save, Target, ExternalLink, Globe, ShieldCheck, ShieldAlert, Sparkles } from 'lucide-react';
+import {
+  Loader2,
+  Save,
+  Target,
+  ExternalLink,
+  Globe,
+  ShieldCheck,
+  ShieldAlert,
+  Sparkles,
+} from 'lucide-react';
 import { toast as sonnerToast } from 'sonner';
 import { usePublishListing } from '@/hooks/admin/listings/use-publish-listing';
 import { Badge } from '@/components/ui/badge';
@@ -75,7 +84,7 @@ const listingFormSchema = z.object({
   custom_metric_label: z.string().nullable().optional(),
   custom_metric_value: z.string().nullable().optional(),
   custom_metric_subtitle: z.string().nullable().optional(),
-  metric_3_type: z.enum(['employees', 'custom']).default('employees'),
+  metric_3_type: z.enum(['custom']).default('custom'),
   metric_3_custom_label: z.string().nullable().optional(),
   metric_3_custom_value: z.string().nullable().optional(),
   metric_3_custom_subtitle: z.string().nullable().optional(),
@@ -126,7 +135,7 @@ type ListingFormInput = {
   custom_metric_label?: string;
   custom_metric_value?: string;
   custom_metric_subtitle?: string;
-  metric_3_type?: 'employees' | 'custom';
+  metric_3_type?: 'custom';
   metric_3_custom_label?: string;
   metric_3_custom_value?: string;
   metric_3_custom_subtitle?: string;
@@ -186,7 +195,8 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     custom_metric_label: listing?.custom_metric_label || '',
     custom_metric_value: listing?.custom_metric_value || '',
     custom_metric_subtitle: listing?.custom_metric_subtitle || '',
-    metric_3_type: listing?.metric_3_type || 'employees',
+    // Legacy 'employees' metric type is deprecated — coerce all rows to 'custom'
+    metric_3_type: 'custom' as const,
     metric_3_custom_label: listing?.metric_3_custom_label || '',
     metric_3_custom_value: listing?.metric_3_custom_value || '',
     metric_3_custom_subtitle: listing?.metric_3_custom_subtitle || '',
@@ -254,7 +264,9 @@ function PublishStatusBanner({ listing }: { listing: AdminListing }) {
           <span className="text-sm font-medium text-amber-800">
             {listing.is_internal_deal === false ? 'Unpublished Draft' : 'Internal Deal'}
           </span>
-          <Badge variant="secondary" className="ml-2 text-xs">Not Live</Badge>
+          <Badge variant="secondary" className="ml-2 text-xs">
+            Not Live
+          </Badge>
         </div>
       </div>
       <Button
@@ -312,7 +324,8 @@ export function ImprovedListingEditor({
       if (!data?.success) throw new Error(data?.error || 'Generation failed');
 
       if (data.title) form.setValue('title', data.title, { shouldDirty: true });
-      if (data.hero_description) form.setValue('hero_description', data.hero_description, { shouldDirty: true });
+      if (data.hero_description)
+        form.setValue('hero_description', data.hero_description, { shouldDirty: true });
       if (data.description_html) {
         form.setValue('description_html', data.description_html, { shouldDirty: true });
         form.setValue('description', data.description_markdown || '', { shouldDirty: true });
@@ -320,18 +333,30 @@ export function ImprovedListingEditor({
       if (data.location) form.setValue('location', [data.location], { shouldDirty: true });
 
       // Apply metric subtitles and smart metrics from AI
-      if (data.revenue_metric_subtitle) form.setValue('revenue_metric_subtitle', data.revenue_metric_subtitle, { shouldDirty: true });
-      if (data.ebitda_metric_subtitle) form.setValue('ebitda_metric_subtitle', data.ebitda_metric_subtitle, { shouldDirty: true });
-      if (data.metric_3_type) {
-        form.setValue('metric_3_type', data.metric_3_type, { shouldDirty: true });
-        if (data.metric_3_type === 'custom') {
-          if (data.metric_3_custom_label) form.setValue('metric_3_custom_label', data.metric_3_custom_label, { shouldDirty: true });
-          if (data.metric_3_custom_value) form.setValue('metric_3_custom_value', data.metric_3_custom_value, { shouldDirty: true });
-          if (data.metric_3_custom_subtitle) form.setValue('metric_3_custom_subtitle', data.metric_3_custom_subtitle, { shouldDirty: true });
-        }
+      if (data.revenue_metric_subtitle)
+        form.setValue('revenue_metric_subtitle', data.revenue_metric_subtitle, {
+          shouldDirty: true,
+        });
+      if (data.ebitda_metric_subtitle)
+        form.setValue('ebitda_metric_subtitle', data.ebitda_metric_subtitle, { shouldDirty: true });
+      // metric_3 is now custom-only. Legacy 'employees' type from the generator is ignored.
+      if (data.metric_3_type === 'custom') {
+        form.setValue('metric_3_type', 'custom', { shouldDirty: true });
+        if (data.metric_3_custom_label)
+          form.setValue('metric_3_custom_label', data.metric_3_custom_label, { shouldDirty: true });
+        if (data.metric_3_custom_value)
+          form.setValue('metric_3_custom_value', data.metric_3_custom_value, { shouldDirty: true });
+        if (data.metric_3_custom_subtitle)
+          form.setValue('metric_3_custom_subtitle', data.metric_3_custom_subtitle, {
+            shouldDirty: true,
+          });
       }
-      if (data.metric_4_type) form.setValue('metric_4_type', data.metric_4_type, { shouldDirty: true });
-      if (data.metric_4_custom_subtitle) form.setValue('metric_4_custom_subtitle', data.metric_4_custom_subtitle, { shouldDirty: true });
+      if (data.metric_4_type)
+        form.setValue('metric_4_type', data.metric_4_type, { shouldDirty: true });
+      if (data.metric_4_custom_subtitle)
+        form.setValue('metric_4_custom_subtitle', data.metric_4_custom_subtitle, {
+          shouldDirty: true,
+        });
 
       sonnerToast.success('All listing content generated. Review and edit before publishing.');
     } catch (err) {
@@ -433,29 +458,32 @@ export function ImprovedListingEditor({
     setImageError(null);
   };
 
-  const handleFormSubmit = form.handleSubmit(async (formData) => {
-    // formData has Zod transforms applied (numbers parsed, location as string)
-    // Explicitly merge description_html/json which are set via setValue() without a FormField
-    const rawValues = form.getValues();
-    const enrichedData = {
-      ...formData,
-      description_html: rawValues.description_html,
-      description_json: rawValues.description_json,
-    };
-    await handleSubmit(enrichedData as unknown as ListingFormValues);
-  }, (errors) => {
-    const errorFields = Object.keys(errors)
-      .map((key) => {
-        const error = errors[key as keyof typeof errors];
-        return `${key}: ${(error as { message?: string })?.message || 'Invalid'}`;
-      })
-      .join(', ');
-    toast({
-      variant: 'destructive',
-      title: 'Please fix the following errors',
-      description: errorFields || 'Form validation failed',
-    });
-  });
+  const handleFormSubmit = form.handleSubmit(
+    async (formData) => {
+      // formData has Zod transforms applied (numbers parsed, location as string)
+      // Explicitly merge description_html/json which are set via setValue() without a FormField
+      const rawValues = form.getValues();
+      const enrichedData = {
+        ...formData,
+        description_html: rawValues.description_html,
+        description_json: rawValues.description_json,
+      };
+      await handleSubmit(enrichedData as unknown as ListingFormValues);
+    },
+    (errors) => {
+      const errorFields = Object.keys(errors)
+        .map((key) => {
+          const error = errors[key as keyof typeof errors];
+          return `${key}: ${(error as { message?: string })?.message || 'Invalid'}`;
+        })
+        .join(', ');
+      toast({
+        variant: 'destructive',
+        title: 'Please fix the following errors',
+        description: errorFields || 'Form validation failed',
+      });
+    },
+  );
 
   const handleSubmit = async (formData: ListingFormValues) => {
     try {
@@ -499,7 +527,7 @@ export function ImprovedListingEditor({
         custom_metric_label: formData.custom_metric_label || null,
         custom_metric_value: formData.custom_metric_value || null,
         custom_metric_subtitle: formData.custom_metric_subtitle || null,
-        metric_3_type: formData.metric_3_type || 'employees',
+        metric_3_type: 'custom',
         metric_3_custom_label: formData.metric_3_custom_label || null,
         metric_3_custom_value: formData.metric_3_custom_value || null,
         metric_3_custom_subtitle: formData.metric_3_custom_subtitle || null,
@@ -553,7 +581,8 @@ export function ImprovedListingEditor({
             {!listing && (
               <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm font-medium text-foreground/70">
                 <Target className="h-4 w-4 shrink-0" />
-                This listing will be created as a draft. Use the Publish button to make it live on the marketplace.
+                This listing will be created as a draft. Use the Publish button to make it live on
+                the marketplace.
               </div>
             )}
 
@@ -573,7 +602,7 @@ export function ImprovedListingEditor({
                   Preview Landing Page
                 </a>
               </div>
-             )}
+            )}
 
             {/* AI Generate All Content */}
             {effectiveDealId && (
@@ -619,7 +648,11 @@ export function ImprovedListingEditor({
             />
 
             {/* 4. Financial Metrics */}
-            <EditorFinancialCard form={formForSections} isReadOnly={isDealSourced} sourceDealId={effectiveDealId} />
+            <EditorFinancialCard
+              form={formForSections}
+              isReadOnly={isDealSourced}
+              sourceDealId={effectiveDealId}
+            />
 
             {/* 5. Body Description (rich text - THE main content area) */}
             <EditorDescriptionSection
@@ -632,10 +665,7 @@ export function ImprovedListingEditor({
             />
 
             {/* 6. Internal Admin Fields (collapsed) */}
-            <EditorInternalCard
-              form={formForSections}
-              dealIdentifier={listing?.deal_identifier}
-            />
+            <EditorInternalCard form={formForSections} dealIdentifier={listing?.deal_identifier} />
 
             {/* 7. Documents Overview */}
             {listing?.id && (

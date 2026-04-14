@@ -565,16 +565,12 @@ async function callAIAndRespond(
   const revSubtitle = primaryCategory || undefined;
   const ebitdaSubtitle = marginStr || undefined;
 
-  // Metric 3: pick best available data
+  // Metric 3: pick best available data (custom only — employees metric is deprecated)
   let metric3: Record<string, unknown> = {};
-  const ftEmployees = (deal.full_time_employees || 0) as number;
-  const ptEmployees = (deal.part_time_employees || 0) as number;
   const numLocations = (deal.number_of_locations || 0) as number;
   const foundedYear = (deal.founded_year || 0) as number;
 
-  if (ftEmployees + ptEmployees > 0) {
-    metric3 = { metric_3_type: 'employees' };
-  } else if (numLocations > 0) {
+  if (numLocations > 0) {
     metric3 = {
       metric_3_type: 'custom',
       metric_3_custom_label: 'Locations',

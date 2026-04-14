@@ -85,8 +85,6 @@ export function ClientPreviewDialog({ listingId, open, onOpenChange }: ClientPre
             'tags',
             'created_at',
             'acquisition_type',
-            'full_time_employees',
-            'part_time_employees',
             'revenue_metric_subtitle',
             'ebitda_metric_subtitle',
             'metric_3_type',
@@ -454,62 +452,65 @@ function MarketplacePreview({ listing }: { listing: any }) {
       </div>
 
       {/* Financial Grid */}
-      <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">
-          Financials (visible after connection approved)
-        </p>
-        <Card className="border-dashed">
-          <CardContent className="pt-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8">
-              <FinancialMetric
-                label={`${new Date().getFullYear() - 1} Revenue`}
-                value={formatCurrency(listing.revenue)}
-                subtitle={listing.revenue_metric_subtitle || listing.category}
-              />
-              <FinancialMetric
-                label="EBITDA"
-                value={formatCurrency(listing.ebitda)}
-                subtitle={
-                  listing.ebitda_metric_subtitle ||
-                  (listing.revenue > 0
-                    ? `~${((listing.ebitda / listing.revenue) * 100).toFixed(1)}% margin profile`
-                    : undefined)
-                }
-              />
-              {listing.metric_3_type === 'custom' && listing.metric_3_custom_label ? (
-                <FinancialMetric
-                  label={listing.metric_3_custom_label}
-                  value={listing.metric_3_custom_value || ''}
-                  subtitle={listing.metric_3_custom_subtitle ?? undefined}
-                />
-              ) : (listing.full_time_employees || 0) + (listing.part_time_employees || 0) > 0 ? (
-                <FinancialMetric
-                  label="Team Size"
-                  value={`${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`}
-                  subtitle={`${listing.full_time_employees || 0} FT, ${listing.part_time_employees || 0} PT`}
-                />
-              ) : null}
-              {listing.metric_4_type === 'custom' && listing.metric_4_custom_label ? (
-                <FinancialMetric
-                  label={listing.metric_4_custom_label}
-                  value={listing.metric_4_custom_value || ''}
-                  subtitle={listing.metric_4_custom_subtitle ?? undefined}
-                />
-              ) : (
-                <FinancialMetric
-                  label="EBITDA Margin"
-                  value={
-                    listing.revenue > 0
-                      ? `${((listing.ebitda / listing.revenue) * 100).toFixed(1)}%`
-                      : '—'
-                  }
-                  subtitle={listing.metric_4_custom_subtitle || listing.category || undefined}
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {(() => {
+        const hasCustomMetric3 =
+          listing.metric_3_type === 'custom' && listing.metric_3_custom_label;
+        const metricCount = 3 + (hasCustomMetric3 ? 1 : 0);
+        const colClass =
+          metricCount >= 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3';
+        return (
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-medium">
+              Financials (visible after connection approved)
+            </p>
+            <Card className="border-dashed">
+              <CardContent className="pt-4">
+                <div className={`grid ${colClass} gap-4 sm:gap-8`}>
+                  <FinancialMetric
+                    label={`${new Date().getFullYear() - 1} Revenue`}
+                    value={formatCurrency(listing.revenue)}
+                    subtitle={listing.revenue_metric_subtitle || listing.category}
+                  />
+                  <FinancialMetric
+                    label="EBITDA"
+                    value={formatCurrency(listing.ebitda)}
+                    subtitle={
+                      listing.ebitda_metric_subtitle ||
+                      (listing.revenue > 0
+                        ? `~${((listing.ebitda / listing.revenue) * 100).toFixed(1)}% margin profile`
+                        : undefined)
+                    }
+                  />
+                  {hasCustomMetric3 && (
+                    <FinancialMetric
+                      label={listing.metric_3_custom_label as string}
+                      value={listing.metric_3_custom_value || ''}
+                      subtitle={listing.metric_3_custom_subtitle ?? undefined}
+                    />
+                  )}
+                  {listing.metric_4_type === 'custom' && listing.metric_4_custom_label ? (
+                    <FinancialMetric
+                      label={listing.metric_4_custom_label}
+                      value={listing.metric_4_custom_value || ''}
+                      subtitle={listing.metric_4_custom_subtitle ?? undefined}
+                    />
+                  ) : (
+                    <FinancialMetric
+                      label="EBITDA Margin"
+                      value={
+                        listing.revenue > 0
+                          ? `${((listing.ebitda / listing.revenue) * 100).toFixed(1)}%`
+                          : '—'
+                      }
+                      subtitle={listing.metric_4_custom_subtitle || listing.category || undefined}
+                    />
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* Business Overview */}
       <div className="py-6 border-t border-slate-100">
