@@ -175,8 +175,6 @@ const ListingCard = memo(function ListingCard({
                 ebitda={listing.ebitda}
                 description={listing.description}
                 formatCurrency={formatCurrency}
-                fullTimeEmployees={listing.full_time_employees}
-                partTimeEmployees={listing.part_time_employees}
                 viewType={viewType}
               />
 
