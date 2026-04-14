@@ -94,6 +94,12 @@ export function useEntityTaskCounts(entityType: TaskEntityType, entityIds: strin
   });
 }
 
+interface UseSecondaryEntityTasksOptions {
+  entityType: TaskEntityType;
+  entityId: string;
+  includeCompleted?: boolean;
+}
+
 /**
  * Fetch tasks where the entity is the secondary entity (e.g. tasks for a
  * buyer that are linked to deals but have the buyer as secondary_entity).
@@ -102,7 +108,7 @@ export function useSecondaryEntityTasks({
   entityType,
   entityId,
   includeCompleted = false,
-}: UseEntityTasksOptions) {
+}: UseSecondaryEntityTasksOptions) {
   return useQuery({
     queryKey: [ENTITY_TASKS_KEY, 'secondary', entityType, entityId, includeCompleted],
     enabled: !!entityId,
