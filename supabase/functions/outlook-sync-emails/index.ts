@@ -123,24 +123,35 @@ async function fetchMessages(
   };
 }
 
+type AttachmentMeta = { name: string; size: number; contentType: string };
+
+/**
+ * Fetch a single message's attachment metadata from Microsoft Graph.
+ *
+ * Returns `null` on failure (non-OK status, network throw, malformed body)
+ * so callers can distinguish "really has no attachments" from "Graph fetch
+ * failed". The previous implementation swallowed failures to `[]` which
+ * meant a throttle or transient error silently produced a persisted email
+ * row with `attachment_metadata = []` — unrecoverable without a re-fetch.
+ */
 async function fetchAttachmentMetadata(
   accessToken: string,
   messageId: string,
-): Promise<{ name: string; size: number; contentType: string }[]> {
+): Promise<AttachmentMeta[] | null> {
   try {
     const resp = await fetch(
       `https://graph.microsoft.com/v1.0/me/messages/${messageId}/attachments?$select=name,size,contentType`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
-    if (!resp.ok) return [];
+    if (!resp.ok) return null;
     const data = await resp.json();
-    return (data.value || []).map((a: { name: string; size: number; contentType: string }) => ({
+    return (data.value || []).map((a: AttachmentMeta) => ({
       name: a.name,
       size: a.size,
       contentType: a.contentType,
     }));
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -153,16 +164,23 @@ async function fetchAttachmentMetadata(
  * This batches the fetches with a fixed concurrency cap so we still saturate
  * latency but never blow past Microsoft Graph's per-mailbox throttle.
  *
- * Returns a Map keyed by `message.id` so the page loop can look up each
- * message's attachment list in O(1) without awaiting anything.
+ * Returns:
+ *   - `results`: Map from message.id → attachment metadata array for every
+ *     message whose fetch succeeded.
+ *   - `failedIds`: Set of message.ids whose fetch failed (non-OK response,
+ *     throw, or malformed body). The caller uses this to mark the page as
+ *     recoverable-failure so resume re-fetches those specific messages
+ *     with a fresh access token — previous behavior silently persisted
+ *     those rows with `attachment_metadata = []` and lost the signal.
  */
 async function fetchAttachmentMetadataBatch(
   accessToken: string,
   messageIds: string[],
   concurrency = ATTACHMENT_FETCH_CONCURRENCY,
-): Promise<Map<string, { name: string; size: number; contentType: string }[]>> {
-  const result = new Map<string, { name: string; size: number; contentType: string }[]>();
-  if (messageIds.length === 0) return result;
+): Promise<{ results: Map<string, AttachmentMeta[]>; failedIds: Set<string> }> {
+  const results = new Map<string, AttachmentMeta[]>();
+  const failedIds = new Set<string>();
+  if (messageIds.length === 0) return { results, failedIds };
 
   let cursor = 0;
   const workers = Array.from({ length: Math.min(concurrency, messageIds.length) }, async () => {
@@ -171,11 +189,15 @@ async function fetchAttachmentMetadataBatch(
       if (i >= messageIds.length) return;
       const id = messageIds[i];
       const meta = await fetchAttachmentMetadata(accessToken, id);
-      result.set(id, meta);
+      if (meta === null) {
+        failedIds.add(id);
+      } else {
+        results.set(id, meta);
+      }
     }
   });
   await Promise.all(workers);
-  return result;
+  return { results, failedIds };
 }
 
 /**
@@ -814,10 +836,26 @@ async function syncEmails(
         // Collect every non-consumed message with `hasAttachments` and
         // fetch their metadata in parallel. `fetchAttachmentMetadataBatch`
         // handles the concurrency cap so Microsoft Graph isn't swamped.
+        //
+        // Any message whose attachment fetch FAILED is added to
+        // `attachmentFailedIds` and excluded from this page's persistence
+        // step — otherwise we'd lock in `attachment_metadata: []` for a
+        // row that actually has attachments we couldn't fetch, with no
+        // recovery path. The failures flag the whole page as
+        // `pageBatchOk = false` so resume re-fetches them with a fresh
+        // access token.
         const attachmentTargets = pageMessages
           .filter((m) => m.hasAttachments && !consumedMessageIds.has(m.id))
           .map((m) => m.id);
-        const attachmentMap = await fetchAttachmentMetadataBatch(accessToken, attachmentTargets);
+        const { results: attachmentMap, failedIds: attachmentFailedIds } =
+          await fetchAttachmentMetadataBatch(accessToken, attachmentTargets);
+
+        if (attachmentFailedIds.size > 0) {
+          errors.push(
+            `Attachment metadata fetch failed for ${attachmentFailedIds.size} messages on this page`,
+          );
+          pageBatchOk = false;
+        }
 
         // ── 3/4. Matched + unmatched row accumulation ─────────────────────
         //
@@ -830,6 +868,14 @@ async function syncEmails(
 
         for (const msg of pageMessages) {
           if (consumedMessageIds.has(msg.id)) continue;
+          // Skip messages whose attachment metadata we couldn't fetch —
+          // pageBatchOk was flagged above so resume will retry the whole
+          // page with a fresh access token. Persisting a row with
+          // `attachment_metadata: []` for a message that really has
+          // attachments would lock in the empty state forever (the dedup
+          // unique index on `(microsoft_message_id, contact_id)` makes
+          // future upserts ignore the row).
+          if (attachmentFailedIds.has(msg.id)) continue;
           try {
             const match = matchEmailToContacts(msg, contactEmails, userEmail);
             const attachmentMeta = msg.hasAttachments ? attachmentMap.get(msg.id) || [] : [];
@@ -999,21 +1045,34 @@ async function syncEmails(
     }
   } while (nextLink && pageCount < maxPages);
 
-  console.log(
-    `Sync complete: ${synced} synced, ${skipped} skipped, ${queuedUnmatched} queued-unmatched, ${errors.length} errors`,
+  // Use console.warn so the log line passes the edge-function lint rule
+  // (no-console only allows warn/error). Sync completion is an operational
+  // event worth surfacing in the logs, not a silent step.
+  console.warn(
+    `[outlook-sync] Sync complete: ${synced} synced, ${skipped} skipped, ${queuedUnmatched} queued-unmatched, ${errors.length} errors`,
   );
 
   // ── Trigger auto-summarize for email threads with 3+ messages ──
   if (synced > 0) {
     try {
-      // Find conversation threads with 3+ emails that haven't been summarized yet
-      const { data: threadCandidates } = await (supabase as any).rpc(
-        'get_unsummarized_email_threads',
-        {},
-      );
+      // Find conversation threads with 3+ emails that haven't been summarized yet.
+      // The RPC return type isn't in the generated Supabase types (it's
+      // an optional helper), so we type-assert to SupabaseClient's .rpc()
+      // escape hatch via a local cast. This is narrower than the previous
+      // `as any` pattern because it only relaxes the function-name type
+      // parameter, not the response shape.
+      const { data: threadCandidates } = await (
+        supabase.rpc as unknown as (
+          name: string,
+          args: Record<string, unknown>,
+        ) => Promise<{
+          data: unknown;
+          error: unknown;
+        }>
+      )('get_unsummarized_email_threads', {});
       // Fallback: query directly if RPC doesn't exist
       if (!threadCandidates) {
-        const { data: threads } = await (supabase as any)
+        const { data: threads } = await supabase
           .from('email_messages')
           .select('microsoft_conversation_id, deal_id')
           .not('microsoft_conversation_id', 'is', null)

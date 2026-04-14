@@ -234,6 +234,62 @@ describe('outlook-sync-emails — batch-failure rewind semantics', () => {
   });
 });
 
+describe('outlook-sync-emails — attachment-failure visibility', () => {
+  // These tests lock down the fix for a latent bug surfaced by the
+  // post-refactor audit: `fetchAttachmentMetadata` used to swallow all
+  // errors to `[]`, so a Microsoft Graph throttle or network hiccup was
+  // indistinguishable from "really has no attachments". The row got
+  // persisted with `attachment_metadata: []` and the unique dedup index
+  // on `(microsoft_message_id, contact_id)` made it impossible to fix
+  // without a manual re-fetch. The fix makes the fetcher return `null`
+  // on failure and the batch version returns a `failedIds` set that
+  // flags the whole page for resume.
+  it('fetchAttachmentMetadata returns null on failure instead of empty array', () => {
+    // The helper must type-signal failure — searching for `| null` in
+    // its return type ensures a future refactor that silently removes
+    // the null branch trips the test.
+    expect(SRC).toMatch(
+      /async function fetchAttachmentMetadata\([\s\S]*?\):\s*Promise<[^>]*AttachmentMeta\[\]\s*\|\s*null>/,
+    );
+    // And both failure sites must return null, not an empty array.
+    const fnMatch = SRC.match(/async function fetchAttachmentMetadata[\s\S]*?\n\}\n/);
+    expect(fnMatch, 'fetchAttachmentMetadata body not found').not.toBeNull();
+    const body = fnMatch![0];
+    expect(body).toMatch(/if\s*\(!resp\.ok\)\s*return\s+null/);
+    expect(body).toMatch(/catch[\s\S]*?return\s+null/);
+    // The old bug pattern was `return \[\]` in either error branch.
+    // The success path still returns an array via .map, which is fine.
+    const errorReturns = body.match(/return\s+\[\]/g) || [];
+    expect(errorReturns.length, 'no bare `return []` allowed in error branches').toBe(0);
+  });
+
+  it('fetchAttachmentMetadataBatch returns both results and failedIds', () => {
+    // The batch wrapper must expose which messages couldn't be fetched so
+    // the sync loop can exclude them from the persisted rows and flag the
+    // page for resume.
+    expect(SRC).toMatch(
+      /fetchAttachmentMetadataBatch[\s\S]*?Promise<\s*\{\s*results:[\s\S]*?failedIds:\s*Set<string>/,
+    );
+  });
+
+  it('flags pageBatchOk = false when attachment fetches fail', () => {
+    // Regression for "persist email rows with empty attachment metadata
+    // when Graph throttled the fetch": the sync loop must treat any
+    // attachment fetch failure as a recoverable page-level failure so
+    // resume re-fetches with a fresh access token.
+    const match = SRC.match(/attachmentFailedIds\.size\s*>\s*0[\s\S]*?pageBatchOk\s*=\s*false/);
+    expect(match, 'attachment fetch failures must flag pageBatchOk = false').not.toBeNull();
+  });
+
+  it('skips messages with failed attachment fetches during row accumulation', () => {
+    // Messages whose attachments we couldn't fetch MUST be excluded from
+    // the matched/unmatched row batches, otherwise the dedup unique index
+    // on `(microsoft_message_id, contact_id)` locks in the empty
+    // `attachment_metadata: []` state forever.
+    expect(SRC).toMatch(/if\s*\(\s*attachmentFailedIds\.has\(msg\.id\)\s*\)\s*continue;/);
+  });
+});
+
 describe('outlook-sync-emails — earliest-seen watermark', () => {
   it('tracks earliest sentDateTime seen so far as the progress-bar driver', () => {
     // The watermark exists and is declared before the loop so both the
