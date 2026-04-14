@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,11 +15,13 @@ import {
   Pencil,
   PhoneCall,
   Search,
+  Send,
   Sparkles,
   Store,
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UniverseAssignmentButton } from '@/components/remarketing/deal-detail';
+import { PushToPortalDialog } from '@/components/portal/PushToPortalDialog';
 
 interface DealForWebsiteActions {
   needs_owner_contact?: boolean | null;
@@ -37,6 +40,8 @@ interface DealForWebsiteActions {
   description?: string | null;
   main_contact_name?: string | null;
   main_contact_email?: string | null;
+  title?: string | null;
+  internal_company_name?: string | null;
 }
 
 interface WebsiteActionsCardProps {
@@ -233,6 +238,8 @@ export function WebsiteActionsCard({
           </TooltipProvider>
           {/* Push to Marketplace Queue Button */}
           <PushToMarketplaceButton deal={deal} dealId={dealId} />
+          {/* Push to Client Portal Button */}
+          <PushToPortalButton deal={deal} dealId={dealId} />
         </div>
         {isEnriching && (
           <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -357,5 +364,44 @@ function PushToMarketplaceButton({
         </span>
       )}
     </div>
+  );
+}
+
+function PushToPortalButton({
+  deal,
+  dealId,
+}: {
+  deal: DealForWebsiteActions;
+  dealId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const listingTitle = deal?.title || deal?.internal_company_name || undefined;
+
+  return (
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              className="gap-2 border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-500"
+              onClick={() => setOpen(true)}
+            >
+              <Send className="h-4 w-4" />
+              Push to Portal
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            Push this deal to a client portal so the client can review it.
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <PushToPortalDialog
+        open={open}
+        onOpenChange={setOpen}
+        listingId={dealId}
+        listingTitle={listingTitle}
+      />
+    </>
   );
 }
