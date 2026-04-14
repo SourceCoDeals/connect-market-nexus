@@ -39,6 +39,8 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "warn",
       "react-hooks/exhaustive-deps": "warn",
       "consistent-return": "warn",
+      // Disable due to ESLint 9.39 + @typescript-eslint incompatibility
+      "@typescript-eslint/no-unused-expressions": "off",
     },
   },
 );

@@ -14,6 +14,8 @@ import {
   useContactCombinedHistoryByEmail,
   type UnifiedActivityEntry,
 } from '@/hooks/use-contact-combined-history';
+import { computeActivityStats } from '@/hooks/use-activity-stats';
+export type { ActivityStats as OverviewStats } from '@/hooks/use-activity-stats';
 
 // ── Types ──
 
@@ -34,29 +36,6 @@ export interface ContactTab {
   email?: string | null;
   buyerId?: string | null;
   type: 'primary' | 'buyer' | 'seller';
-}
-
-export interface OverviewStats {
-  totalEmails: number;
-  totalCalls: number;
-  totalLinkedIn: number;
-  emailsOpened: number;
-  emailsReplied: number;
-  callsConnected: number;
-  linkedInReplied: number;
-  daysSinceLastContact: number | null;
-  lastContactDate: string | null;
-  lastContactChannel: string | null;
-  nextBestAction: {
-    action: string;
-    icon: 'mail' | 'phone' | 'linkedin';
-    reason: string;
-    timing: string;
-  };
-  engagementStatus: 'active' | 'warm' | 'cold' | 'none';
-  emailEntries: UnifiedActivityEntry[];
-  callEntries: UnifiedActivityEntry[];
-  linkedInEntries: UnifiedActivityEntry[];
 }
 
 // ── Helpers ──
@@ -90,116 +69,8 @@ export function filterByDateRange(
   return entries.filter((e) => new Date(e.timestamp) >= cutoff);
 }
 
-/** Compute overview stats from activity entries */
-export function computeOverview(entries: UnifiedActivityEntry[]): OverviewStats {
-  let totalEmails = 0;
-  let totalCalls = 0;
-  let totalLinkedIn = 0;
-  let emailsOpened = 0;
-  let emailsReplied = 0;
-  let callsConnected = 0;
-  let linkedInReplied = 0;
-
-  const emailEntries: UnifiedActivityEntry[] = [];
-  const callEntries: UnifiedActivityEntry[] = [];
-  const linkedInEntries: UnifiedActivityEntry[] = [];
-
-  for (const e of entries) {
-    if (e.channel === 'email') {
-      totalEmails++;
-      emailEntries.push(e);
-      if (['EMAIL_OPENED', 'OPENED'].includes(e.event_type)) emailsOpened++;
-      if (['EMAIL_REPLIED', 'REPLIED'].includes(e.event_type)) emailsReplied++;
-    } else if (e.channel === 'linkedin') {
-      totalLinkedIn++;
-      linkedInEntries.push(e);
-      if (['MESSAGE_RECEIVED', 'INMAIL_RECEIVED', 'LEAD_REPLIED'].includes(e.event_type))
-        linkedInReplied++;
-    } else {
-      totalCalls++;
-      callEntries.push(e);
-      if (e.event_type === 'call_completed') callsConnected++;
-    }
-  }
-
-  const lastEntry = entries.length > 0 ? entries[0] : null;
-  const daysSinceLastContact = lastEntry
-    ? Math.floor((Date.now() - new Date(lastEntry.timestamp).getTime()) / (1000 * 60 * 60 * 24))
-    : null;
-
-  // Determine next best action
-  let nextBestAction: OverviewStats['nextBestAction'] = {
-    action: 'Send Email',
-    icon: 'mail',
-    reason: 'No contact history found. Start with an introductory email.',
-    timing: 'as soon as possible',
-  };
-
-  if (lastEntry) {
-    if (emailsOpened > 0 && emailsReplied === 0 && callsConnected === 0) {
-      nextBestAction = {
-        action: 'Schedule Call',
-        icon: 'phone',
-        reason: `Email opened ${emailsOpened}x with no reply. Engagement is high\u2014time to connect directly.`,
-        timing: 'within 2 days',
-      };
-    } else if (totalEmails > 3 && emailsOpened === 0) {
-      nextBestAction = {
-        action: 'Try LinkedIn',
-        icon: 'linkedin',
-        reason: 'Multiple emails sent with no opens. Try a different channel to break through.',
-        timing: 'within 3 days',
-      };
-    } else if (callsConnected > 0 && emailsReplied === 0) {
-      nextBestAction = {
-        action: 'Send Follow-up Email',
-        icon: 'mail',
-        reason: 'Had a call but no email reply yet. Send a follow-up to keep momentum.',
-        timing: 'within 1 day',
-      };
-    } else if (linkedInReplied > 0) {
-      nextBestAction = {
-        action: 'Schedule Call',
-        icon: 'phone',
-        reason: 'Positive LinkedIn engagement. Convert to a phone conversation.',
-        timing: 'within 2 days',
-      };
-    } else if (daysSinceLastContact !== null && daysSinceLastContact > 14) {
-      nextBestAction = {
-        action: 'Re-engage',
-        icon: 'mail',
-        reason: `No contact in ${daysSinceLastContact} days. Time to re-engage before they go cold.`,
-        timing: 'today',
-      };
-    }
-  }
-
-  // Engagement status
-  let engagementStatus: OverviewStats['engagementStatus'] = 'none';
-  if (daysSinceLastContact !== null) {
-    if (daysSinceLastContact <= 7) engagementStatus = 'active';
-    else if (daysSinceLastContact <= 30) engagementStatus = 'warm';
-    else engagementStatus = 'cold';
-  }
-
-  return {
-    totalEmails,
-    totalCalls,
-    totalLinkedIn,
-    emailsOpened,
-    emailsReplied,
-    callsConnected,
-    linkedInReplied,
-    daysSinceLastContact,
-    lastContactDate: lastEntry?.timestamp || null,
-    lastContactChannel: lastEntry?.channel || null,
-    nextBestAction,
-    engagementStatus,
-    emailEntries,
-    callEntries,
-    linkedInEntries,
-  };
-}
+/** Compute overview stats from activity entries — delegates to shared impl */
+export const computeOverview = computeActivityStats;
 
 // ── Main hook ──
 

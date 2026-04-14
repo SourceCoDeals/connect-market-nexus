@@ -11,10 +11,10 @@ interface BuyerEngagementSummaryProps {
 
 export function BuyerEngagementSummary({ entries, activeDealCount }: BuyerEngagementSummaryProps) {
   const stats = useMemo(() => {
-    const calls = entries.filter(e => e.channel === 'call' && e.event_type !== 'meeting_recorded');
-    const meetings = entries.filter(e => e.event_type === 'meeting_recorded');
-    const emails = entries.filter(e => e.channel === 'email');
-    const linkedin = entries.filter(e => e.channel === 'linkedin');
+    const calls = entries.filter((e) => e.channel === 'call');
+    const meetings = entries.filter((e) => e.channel === 'meeting');
+    const emails = entries.filter((e) => e.channel === 'email');
+    const linkedin = entries.filter((e) => e.channel === 'linkedin');
     const lastEntry = entries[0] || null;
     const daysSince = lastEntry
       ? Math.floor((Date.now() - new Date(lastEntry.timestamp).getTime()) / 86400000)
@@ -34,10 +34,13 @@ export function BuyerEngagementSummary({ entries, activeDealCount }: BuyerEngage
   if (entries.length === 0) return null;
 
   const urgencyColor =
-    stats.daysSinceContact === null ? 'text-muted-foreground' :
-    stats.daysSinceContact <= 7 ? 'text-green-600' :
-    stats.daysSinceContact <= 14 ? 'text-yellow-600' :
-    'text-red-600';
+    stats.daysSinceContact === null
+      ? 'text-muted-foreground'
+      : stats.daysSinceContact <= 7
+        ? 'text-green-600'
+        : stats.daysSinceContact <= 14
+          ? 'text-yellow-600'
+          : 'text-red-600';
 
   return (
     <Card className="bg-muted/30">
@@ -77,7 +80,9 @@ export function BuyerEngagementSummary({ entries, activeDealCount }: BuyerEngage
             </span>
           </span>
           {activeDealCount != null && activeDealCount > 1 && (
-            <Badge variant="outline" className="text-xs">Active on {activeDealCount} deals</Badge>
+            <Badge variant="outline" className="text-xs">
+              Active on {activeDealCount} deals
+            </Badge>
           )}
         </div>
       </CardContent>

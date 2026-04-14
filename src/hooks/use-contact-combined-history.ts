@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { untypedFrom } from '@/integrations/supabase/client';
 
 /**
  * Unified activity entry combining SmartLead emails, PhoneBurner calls,
- * and HeyReach LinkedIn outreach into a single chronological timeline.
+ * HeyReach LinkedIn outreach, Outlook emails, and Fireflies meetings
+ * into a single chronological timeline.
  */
 export interface UnifiedActivityEntry {
   id: string;
   timestamp: string;
-  channel: 'email' | 'call' | 'linkedin';
+  channel: 'email' | 'call' | 'linkedin' | 'meeting';
   /** e.g. EMAIL_SENT, EMAIL_OPENED, call_completed, CONNECTION_REQUEST_SENT */
   event_type: string;
   /** Human-readable label */
@@ -36,6 +37,12 @@ export interface UnifiedActivityEntry {
     contact_notes?: string | null;
     callback_scheduled_date?: string | null;
     user_name?: string | null;
+    // Meeting fields
+    duration_minutes?: number | null;
+    participants?: unknown;
+    transcript_url?: string | null;
+    key_points?: unknown;
+    action_items?: unknown;
   };
 }
 
@@ -47,12 +54,14 @@ const EMAIL_EVENT_LABELS: Record<string, string> = {
   CLICKED: 'Link Clicked',
   EMAIL_REPLIED: 'Email Replied',
   REPLIED: 'Email Replied',
+  EMAIL_RECEIVED: 'Email Received',
   EMAIL_BOUNCED: 'Email Bounced',
   BOUNCED: 'Email Bounced',
   UNSUBSCRIBED: 'Unsubscribed',
   INTERESTED: 'Marked Interested',
   NOT_INTERESTED: 'Not Interested',
   MANUAL_STEP_REACHED: 'Manual Step',
+  SENT: 'Email Sent',
 };
 
 const LINKEDIN_EVENT_LABELS: Record<string, string> = {
@@ -70,10 +79,100 @@ const LINKEDIN_EVENT_LABELS: Record<string, string> = {
   LEAD_NOT_INTERESTED: 'Not Interested',
 };
 
+const MEETING_EVENT_LABELS: Record<string, string> = {
+  MEETING_RECORDED: 'Meeting Recorded (Fireflies)',
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TimelineRow = Record<string, any>;
+
+function mapRowToEntry(row: TimelineRow): UnifiedActivityEntry {
+  const channel = (row.channel || 'call') as UnifiedActivityEntry['channel'];
+  const eventType = (row.event_type || '').toUpperCase();
+  const meta = row.metadata || {};
+  const source = row.source || '';
+
+  // Build human-readable label
+  let label: string;
+  if (channel === 'email') {
+    label = EMAIL_EVENT_LABELS[eventType] || eventType.replace(/_/g, ' ');
+    if (source === 'outlook' && !label.includes('Outlook')) {
+      label += ' (Outlook)';
+    }
+  } else if (channel === 'linkedin') {
+    label = LINKEDIN_EVENT_LABELS[eventType] || eventType.replace(/_/g, ' ');
+  } else if (channel === 'meeting') {
+    label = MEETING_EVENT_LABELS[eventType] || 'Meeting';
+  } else {
+    // call
+    label = (row.event_type || 'Call')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c: string) => c.toUpperCase());
+  }
+
+  // Build context string
+  let context: string | null = null;
+  if (row.campaign_name) {
+    context = `Campaign: ${row.campaign_name}`;
+  } else if (channel === 'call' && meta.user_name) {
+    context = `Called by ${meta.user_name}`;
+  } else if (row.title && channel !== 'call') {
+    context = row.title;
+  } else if (channel === 'meeting') {
+    context = row.title || 'Meeting';
+  }
+
+  // Build details from metadata JSONB
+  const details: UnifiedActivityEntry['details'] = {
+    campaign_name: row.campaign_name || null,
+    lead_email: meta.lead_email || meta.from_address || row.contact_email || null,
+    lead_linkedin_url: meta.linkedin_url || null,
+  };
+
+  if (channel === 'call') {
+    details.call_outcome = meta.call_outcome || null;
+    details.disposition_code = meta.disposition_code || null;
+    details.disposition_label = meta.disposition_label || null;
+    details.disposition_notes = meta.disposition_notes || null;
+    details.call_duration_seconds = meta.duration_seconds || null;
+    details.talk_time_seconds = meta.talk_time_seconds || null;
+    details.recording_url = meta.recording_url || null;
+    details.recording_url_public = meta.recording_url_public || null;
+    details.call_transcript = meta.call_transcript || null;
+    details.call_connected = meta.call_connected || null;
+    details.call_direction = meta.call_direction || row.direction || null;
+    details.phoneburner_status = meta.phoneburner_status || null;
+    details.contact_notes = meta.contact_notes || null;
+    details.callback_scheduled_date = meta.callback_scheduled_date || null;
+    details.user_name = meta.user_name || null;
+  } else if (channel === 'meeting') {
+    details.duration_minutes = meta.duration_minutes || null;
+    details.participants = meta.participants || null;
+    details.transcript_url = meta.transcript_url || null;
+    details.key_points = meta.key_points || null;
+    details.action_items = meta.action_items || null;
+    // Map duration for compatibility with call stats
+    if (meta.duration_minutes) {
+      details.call_duration_seconds = meta.duration_minutes * 60;
+    }
+    details.call_outcome = row.body_preview || null;
+  }
+
+  return {
+    id: `${source}-${row.id}`,
+    timestamp: row.event_at || row.created_at || new Date().toISOString(),
+    channel,
+    event_type: row.event_type || '',
+    label,
+    context,
+    details,
+  };
+}
+
 /**
- * Fetches combined SmartLead email + PhoneBurner call history for a given
- * buyer (remarketing_buyer_id). Returns a unified, reverse-chronological
- * timeline of all communication activity.
+ * Fetches combined communication history for a buyer or contact email.
+ * Uses the unified_contact_timeline Postgres view — single query replaces
+ * the previous 6+ parallel queries.
  */
 export function useContactCombinedHistory(buyerId: string | null) {
   return useQuery<UnifiedActivityEntry[]>({
@@ -81,416 +180,18 @@ export function useContactCombinedHistory(buyerId: string | null) {
     queryFn: async () => {
       if (!buyerId) return [];
 
-      const entries: UnifiedActivityEntry[] = [];
-
-      // ── 1. PhoneBurner Call Activities ──
-      // Get contacts belonging to this buyer from unified contacts table
-      const { data: contacts } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('remarketing_buyer_id', buyerId)
-        .eq('archived', false);
-
-      const contactIds = (contacts || []).map((c) => c.id);
-
-      if (contactIds.length > 0) {
-        const { data: callActivities } = await supabase
-          .from('contact_activities')
-          .select('*')
-          .in('contact_id', contactIds)
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        for (const a of callActivities || []) {
-          entries.push({
-            id: `call-${a.id}`,
-            timestamp: a.call_started_at || a.created_at,
-            channel: 'call',
-            event_type: a.activity_type,
-            label: a.activity_type
-              .replace(/_/g, ' ')
-              .replace(/\b\w/g, (c: string) => c.toUpperCase()),
-            context: a.user_name ? `Called by ${a.user_name}` : null,
-            details: {
-              call_outcome: a.call_outcome,
-              disposition_code: a.disposition_code,
-              disposition_label: a.disposition_label,
-              disposition_notes: a.disposition_notes,
-              call_duration_seconds: a.call_duration_seconds,
-              talk_time_seconds: a.talk_time_seconds,
-              recording_url: a.recording_url,
-              recording_url_public: a.recording_url_public,
-              call_transcript: a.call_transcript,
-              call_connected: a.call_connected,
-              call_direction: a.call_direction,
-              phoneburner_status: a.phoneburner_status,
-              contact_notes: a.contact_notes,
-              callback_scheduled_date: a.callback_scheduled_date,
-              user_name: a.user_name,
-            },
-          });
-        }
-      }
-
-      // Also check contact_activities directly linked by remarketing_buyer_id
-      const { data: directCallActivities } = await supabase
-        .from('contact_activities')
+      const { data, error } = await untypedFrom('unified_contact_timeline')
         .select('*')
         .eq('remarketing_buyer_id', buyerId)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .order('event_at', { ascending: false })
+        .limit(500);
 
-      const existingCallIds = new Set(entries.map((e) => e.id));
-      for (const a of directCallActivities || []) {
-        const entryId = `call-${a.id}`;
-        if (existingCallIds.has(entryId)) continue;
-        entries.push({
-          id: entryId,
-          timestamp: a.call_started_at || a.created_at,
-          channel: 'call',
-          event_type: a.activity_type,
-          label: a.activity_type
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, (c: string) => c.toUpperCase()),
-          context: a.user_name ? `Called by ${a.user_name}` : null,
-          details: {
-            call_outcome: a.call_outcome,
-            disposition_code: a.disposition_code,
-            disposition_label: a.disposition_label,
-            disposition_notes: a.disposition_notes,
-            call_duration_seconds: a.call_duration_seconds,
-            talk_time_seconds: a.talk_time_seconds,
-            recording_url: a.recording_url,
-            recording_url_public: a.recording_url_public,
-            call_transcript: a.call_transcript,
-            call_connected: a.call_connected,
-            call_direction: a.call_direction,
-            phoneburner_status: a.phoneburner_status,
-            contact_notes: a.contact_notes,
-            callback_scheduled_date: a.callback_scheduled_date,
-            user_name: a.user_name,
-          },
-        });
+      if (error) {
+        console.warn('[useContactCombinedHistory] query error:', error.message);
+        return [];
       }
 
-      // ── 2. SmartLead Email Events ──
-      const { data: campaignLeads } = await supabase
-        .from('smartlead_campaign_leads')
-        .select('id, campaign_id, email, lead_status, lead_category, last_activity_at, created_at')
-        .eq('remarketing_buyer_id', buyerId)
-        .order('created_at', { ascending: false });
-
-      // Get emails for webhook event lookup
-      const emails = [...new Set((campaignLeads || []).map((c) => c.email).filter(Boolean))];
-
-      if (emails.length > 0) {
-        const { data: webhookEvents } = await supabase
-          .from('smartlead_webhook_events')
-          .select('id, event_type, lead_email, smartlead_campaign_id, payload, created_at')
-          .in('lead_email', emails)
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        // Build smartlead_campaign_id -> name map
-        const slCampaignIds = [
-          ...new Set((webhookEvents || []).map((e) => e.smartlead_campaign_id).filter(Boolean)),
-        ] as number[];
-
-        let slCampaignNameMap = new Map<number, string>();
-        if (slCampaignIds.length > 0) {
-          const { data: slCampaigns } = await supabase
-            .from('smartlead_campaigns')
-            .select('id, name, smartlead_campaign_id')
-            .in('smartlead_campaign_id', slCampaignIds);
-          if (slCampaigns) {
-            slCampaignNameMap = new Map(slCampaigns.map((c) => [c.smartlead_campaign_id, c.name]));
-          }
-        }
-
-        for (const e of webhookEvents || []) {
-          const campaignName = e.smartlead_campaign_id
-            ? slCampaignNameMap.get(e.smartlead_campaign_id) || null
-            : null;
-
-          entries.push({
-            id: `email-${e.id}`,
-            timestamp: e.created_at || new Date().toISOString(),
-            channel: 'email',
-            event_type: e.event_type,
-            label: EMAIL_EVENT_LABELS[e.event_type] || e.event_type.replace(/_/g, ' '),
-            context: campaignName ? `Campaign: ${campaignName}` : null,
-            details: {
-              campaign_name: campaignName,
-              lead_email: e.lead_email,
-            },
-          });
-        }
-      }
-
-      // ── 3. HeyReach LinkedIn Events ──
-      const { data: hrCampaignLeads } = await supabase
-        .from('heyreach_campaign_leads')
-        .select(
-          'id, campaign_id, linkedin_url, email, lead_status, lead_category, last_activity_at, created_at',
-        )
-        .eq('remarketing_buyer_id', buyerId)
-        .order('created_at', { ascending: false });
-
-      const hrLinkedInUrls = [
-        ...new Set((hrCampaignLeads || []).map((c) => c.linkedin_url).filter(Boolean)),
-      ];
-      const hrEmails = [
-        ...new Set((hrCampaignLeads || []).map((c) => c.email).filter(Boolean)),
-      ] as string[];
-
-      if (hrLinkedInUrls.length > 0 || hrEmails.length > 0) {
-        let hrWebhookEvents: Array<Record<string, unknown>> = [];
-
-        if (hrLinkedInUrls.length > 0) {
-          const { data: urlEvents } = await supabase
-            .from('heyreach_webhook_events')
-            .select(
-              'id, event_type, lead_linkedin_url, lead_email, heyreach_campaign_id, payload, created_at',
-            )
-            .in('lead_linkedin_url', hrLinkedInUrls)
-            .order('created_at', { ascending: false })
-            .limit(100);
-          hrWebhookEvents = (urlEvents || []) as Array<Record<string, unknown>>;
-        }
-
-        if (hrEmails.length > 0) {
-          const existingHrIds = new Set(hrWebhookEvents.map((e) => e.id));
-          const { data: emailEvents } = await supabase
-            .from('heyreach_webhook_events')
-            .select(
-              'id, event_type, lead_linkedin_url, lead_email, heyreach_campaign_id, payload, created_at',
-            )
-            .in('lead_email', hrEmails)
-            .order('created_at', { ascending: false })
-            .limit(100);
-          for (const e of emailEvents || []) {
-            if (!existingHrIds.has(e.id)) {
-              hrWebhookEvents.push(e as Record<string, unknown>);
-            }
-          }
-        }
-
-        const hrCampaignIds = [
-          ...new Set(hrWebhookEvents.map((e) => e.heyreach_campaign_id).filter(Boolean)),
-        ] as number[];
-
-        let hrCampaignNameMap = new Map<number, string>();
-        if (hrCampaignIds.length > 0) {
-          const { data: hrCampaigns } = await supabase
-            .from('heyreach_campaigns')
-            .select('id, name, heyreach_campaign_id')
-            .in('heyreach_campaign_id', hrCampaignIds);
-          if (hrCampaigns) {
-            hrCampaignNameMap = new Map(hrCampaigns.map((c) => [c.heyreach_campaign_id, c.name]));
-          }
-        }
-
-        for (const e of hrWebhookEvents) {
-          const campaignName = e.heyreach_campaign_id
-            ? hrCampaignNameMap.get(e.heyreach_campaign_id as number) || null
-            : null;
-
-          entries.push({
-            id: `linkedin-${e.id}`,
-            timestamp: (e.created_at as string) || new Date().toISOString(),
-            channel: 'linkedin',
-            event_type: e.event_type as string,
-            label:
-              LINKEDIN_EVENT_LABELS[e.event_type as string] ||
-              (e.event_type as string).replace(/_/g, ' '),
-            context: campaignName ? `Campaign: ${campaignName}` : null,
-            details: {
-              campaign_name: campaignName,
-              lead_linkedin_url: e.lead_linkedin_url as string | null,
-              lead_email: e.lead_email as string | null,
-            },
-          });
-        }
-      }
-
-      // ── 4. Outlook Emails ──
-      const { data: buyerContacts } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('remarketing_buyer_id', buyerId)
-        .eq('archived', false);
-      const emailContactIds = (buyerContacts || []).map((c: { id: string }) => c.id);
-
-      if (emailContactIds.length > 0) {
-        const { data: outlookEmails } = await (supabase as any)
-          .from('email_messages')
-          .select('id, direction, from_address, to_addresses, subject, sent_at, has_attachments')
-          .in('contact_id', emailContactIds)
-          .order('sent_at', { ascending: false })
-          .limit(100);
-
-        for (const e of outlookEmails || []) {
-          entries.push({
-            id: `outlook-${e.id}`,
-            timestamp: e.sent_at,
-            channel: 'email' as const,
-            event_type: e.direction === 'outbound' ? 'EMAIL_SENT' : 'EMAIL_RECEIVED',
-            label: e.direction === 'outbound' ? 'Email Sent (Outlook)' : 'Email Received (Outlook)',
-            context: e.subject || null,
-            details: { lead_email: e.from_address },
-          });
-        }
-      }
-
-      // ── 5. Fireflies Meetings ──
-      const { data: buyerMeetings } = await (supabase as any)
-        .from('buyer_transcripts')
-        .select('id, title, call_date, duration_minutes, summary, fireflies_transcript_id')
-        .eq('buyer_id', buyerId)
-        .order('call_date', { ascending: false })
-        .limit(50);
-
-      for (const t of buyerMeetings || []) {
-        entries.push({
-          id: `meeting-${t.id}`,
-          timestamp: t.call_date || new Date().toISOString(),
-          channel: 'call' as const,
-          event_type: 'meeting_recorded',
-          label: 'Meeting Recorded (Fireflies)',
-          context: t.title || 'Meeting',
-          details: {
-            call_duration_seconds: t.duration_minutes ? t.duration_minutes * 60 : null,
-            call_outcome: t.summary || null,
-          },
-        });
-      }
-
-      // ── 6. SmartLead Messages (new per-message table) ──
-      // Scoped by remarketing_buyer_id — the anchor on every buyer outreach row.
-      // This complements section 2 (webhook events table) with the fully parsed
-      // per-message records including body, sequence, and direction.
-      if (emailContactIds.length > 0 || buyerId) {
-        const { data: smartleadMsgs } = await (supabase as any)
-          .from('smartlead_messages')
-          .select(
-            'id, smartlead_campaign_id, event_type, direction, subject, body_text, sent_at, sequence_number, from_address',
-          )
-          .eq('remarketing_buyer_id', buyerId)
-          .order('sent_at', { ascending: false })
-          .limit(100);
-
-        // Resolve campaign names for display
-        const slMsgCampaignIds = [
-          ...new Set(
-            (smartleadMsgs || [])
-              .map((m: { smartlead_campaign_id: number }) => m.smartlead_campaign_id)
-              .filter(Boolean),
-          ),
-        ] as number[];
-        let slMsgCampaignNames = new Map<number, string>();
-        if (slMsgCampaignIds.length > 0) {
-          const { data: slmc } = await supabase
-            .from('smartlead_campaigns')
-            .select('name, smartlead_campaign_id')
-            .in('smartlead_campaign_id', slMsgCampaignIds);
-          slMsgCampaignNames = new Map(
-            (slmc || []).map((c: { smartlead_campaign_id: number; name: string }) => [
-              c.smartlead_campaign_id,
-              c.name,
-            ]),
-          );
-        }
-
-        for (const m of smartleadMsgs || []) {
-          const campaignName = m.smartlead_campaign_id
-            ? slMsgCampaignNames.get(m.smartlead_campaign_id) || null
-            : null;
-          entries.push({
-            id: `sl-msg-${m.id}`,
-            timestamp: m.sent_at,
-            channel: 'email',
-            event_type: m.event_type,
-            label:
-              EMAIL_EVENT_LABELS[m.event_type?.toUpperCase?.() ?? ''] || `Email ${m.event_type}`,
-            context: m.subject || (campaignName ? `Campaign: ${campaignName}` : null),
-            details: {
-              campaign_name: campaignName,
-              lead_email: m.from_address,
-            },
-          });
-        }
-      }
-
-      // ── 7. HeyReach Messages (new per-message table) ──
-      if (buyerId) {
-        const { data: heyreachMsgs } = await (supabase as any)
-          .from('heyreach_messages')
-          .select(
-            'id, heyreach_campaign_id, event_type, direction, message_type, subject, body_text, sent_at, from_linkedin_url, to_linkedin_url',
-          )
-          .eq('remarketing_buyer_id', buyerId)
-          .order('sent_at', { ascending: false })
-          .limit(100);
-
-        const hrMsgCampaignIds = [
-          ...new Set(
-            (heyreachMsgs || [])
-              .map((m: { heyreach_campaign_id: number }) => m.heyreach_campaign_id)
-              .filter(Boolean),
-          ),
-        ] as number[];
-        let hrMsgCampaignNames = new Map<number, string>();
-        if (hrMsgCampaignIds.length > 0) {
-          const { data: hrmc } = await supabase
-            .from('heyreach_campaigns')
-            .select('name, heyreach_campaign_id')
-            .in('heyreach_campaign_id', hrMsgCampaignIds);
-          hrMsgCampaignNames = new Map(
-            (hrmc || []).map((c: { heyreach_campaign_id: number; name: string }) => [
-              c.heyreach_campaign_id,
-              c.name,
-            ]),
-          );
-        }
-
-        for (const m of heyreachMsgs || []) {
-          const campaignName = m.heyreach_campaign_id
-            ? hrMsgCampaignNames.get(m.heyreach_campaign_id) || null
-            : null;
-          const labelKey = (m.event_type || '').toUpperCase();
-          entries.push({
-            id: `hr-msg-${m.id}`,
-            timestamp: m.sent_at,
-            channel: 'linkedin',
-            event_type: m.event_type,
-            label:
-              LINKEDIN_EVENT_LABELS[labelKey] ||
-              (m.event_type || 'LinkedIn Event').replace(/_/g, ' '),
-            context: m.subject || (campaignName ? `Campaign: ${campaignName}` : null),
-            details: {
-              campaign_name: campaignName,
-              lead_linkedin_url:
-                m.direction === 'outbound' ? m.to_linkedin_url : m.from_linkedin_url,
-            },
-          });
-        }
-      }
-
-      // De-duplicate by id across sections (webhook events + message tables
-      // may describe the same underlying event)
-      const seen = new Set<string>();
-      const deduped: UnifiedActivityEntry[] = [];
-      for (const e of entries) {
-        if (!seen.has(e.id)) {
-          seen.add(e.id);
-          deduped.push(e);
-        }
-      }
-
-      // Sort by timestamp descending (newest first)
-      deduped.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-      return deduped;
+      return (data || []).map(mapRowToEntry);
     },
     enabled: !!buyerId,
     staleTime: 60_000,
@@ -507,222 +208,18 @@ export function useContactCombinedHistoryByEmail(email: string | null) {
     queryFn: async () => {
       if (!email) return [];
 
-      const entries: UnifiedActivityEntry[] = [];
-
-      // ── 1. PhoneBurner Calls by email ──
-      const { data: callActivities } = await supabase
-        .from('contact_activities')
+      const { data, error } = await untypedFrom('unified_contact_timeline')
         .select('*')
-        .eq('contact_email', email)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .ilike('contact_email', email)
+        .order('event_at', { ascending: false })
+        .limit(500);
 
-      for (const a of callActivities || []) {
-        entries.push({
-          id: `call-${a.id}`,
-          timestamp: a.call_started_at || a.created_at,
-          channel: 'call',
-          event_type: a.activity_type,
-          label: a.activity_type
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, (c: string) => c.toUpperCase()),
-          context: a.user_name ? `Called by ${a.user_name}` : null,
-          details: {
-            call_outcome: a.call_outcome,
-            disposition_code: a.disposition_code,
-            disposition_label: a.disposition_label,
-            disposition_notes: a.disposition_notes,
-            call_duration_seconds: a.call_duration_seconds,
-            talk_time_seconds: a.talk_time_seconds,
-            recording_url: a.recording_url,
-            recording_url_public: a.recording_url_public,
-            call_transcript: a.call_transcript,
-            call_connected: a.call_connected,
-            call_direction: a.call_direction,
-            phoneburner_status: a.phoneburner_status,
-            contact_notes: a.contact_notes,
-            callback_scheduled_date: a.callback_scheduled_date,
-            user_name: a.user_name,
-          },
-        });
+      if (error) {
+        console.warn('[useContactCombinedHistoryByEmail] query error:', error.message);
+        return [];
       }
 
-      // ── 2. SmartLead Email Events by email ──
-      const { data: webhookEvents } = await supabase
-        .from('smartlead_webhook_events')
-        .select('id, event_type, lead_email, smartlead_campaign_id, payload, created_at')
-        .eq('lead_email', email)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      const slCampaignIds = [
-        ...new Set((webhookEvents || []).map((e) => e.smartlead_campaign_id).filter(Boolean)),
-      ] as number[];
-
-      let slCampaignNameMap = new Map<number, string>();
-      if (slCampaignIds.length > 0) {
-        const { data: slCampaigns } = await supabase
-          .from('smartlead_campaigns')
-          .select('id, name, smartlead_campaign_id')
-          .in('smartlead_campaign_id', slCampaignIds);
-        if (slCampaigns) {
-          slCampaignNameMap = new Map(slCampaigns.map((c) => [c.smartlead_campaign_id, c.name]));
-        }
-      }
-
-      for (const e of webhookEvents || []) {
-        const campaignName = e.smartlead_campaign_id
-          ? slCampaignNameMap.get(e.smartlead_campaign_id) || null
-          : null;
-
-        entries.push({
-          id: `email-${e.id}`,
-          timestamp: e.created_at || new Date().toISOString(),
-          channel: 'email',
-          event_type: e.event_type,
-          label: EMAIL_EVENT_LABELS[e.event_type] || e.event_type.replace(/_/g, ' '),
-          context: campaignName ? `Campaign: ${campaignName}` : null,
-          details: {
-            campaign_name: campaignName,
-            lead_email: e.lead_email,
-          },
-        });
-      }
-
-      // ── 3. HeyReach LinkedIn Events by email ──
-      const { data: hrWebhookEvents } = await supabase
-        .from('heyreach_webhook_events')
-        .select(
-          'id, event_type, lead_linkedin_url, lead_email, heyreach_campaign_id, payload, created_at',
-        )
-        .eq('lead_email', email)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      // Also check by LinkedIn URLs from heyreach_campaign_leads with matching email
-      const { data: hrCampaignLeadsByEmail } = await supabase
-        .from('heyreach_campaign_leads')
-        .select('linkedin_url')
-        .eq('email', email);
-
-      const hrLinkedInUrls = [
-        ...new Set((hrCampaignLeadsByEmail || []).map((l) => l.linkedin_url).filter(Boolean)),
-      ];
-      const hrExistingIds = new Set((hrWebhookEvents || []).map((e) => e.id));
-
-      if (hrLinkedInUrls.length > 0) {
-        const { data: urlEvents } = await supabase
-          .from('heyreach_webhook_events')
-          .select(
-            'id, event_type, lead_linkedin_url, lead_email, heyreach_campaign_id, payload, created_at',
-          )
-          .in('lead_linkedin_url', hrLinkedInUrls)
-          .order('created_at', { ascending: false })
-          .limit(100);
-
-        for (const e of urlEvents || []) {
-          if (!hrExistingIds.has(e.id)) {
-            (hrWebhookEvents || []).push(e);
-          }
-        }
-      }
-
-      const hrCampaignIds = [
-        ...new Set((hrWebhookEvents || []).map((e) => e.heyreach_campaign_id).filter(Boolean)),
-      ] as number[];
-
-      let hrCampaignNameMap = new Map<number, string>();
-      if (hrCampaignIds.length > 0) {
-        const { data: hrCampaigns } = await supabase
-          .from('heyreach_campaigns')
-          .select('id, name, heyreach_campaign_id')
-          .in('heyreach_campaign_id', hrCampaignIds);
-        if (hrCampaigns) {
-          hrCampaignNameMap = new Map(hrCampaigns.map((c) => [c.heyreach_campaign_id, c.name]));
-        }
-      }
-
-      for (const e of hrWebhookEvents || []) {
-        const campaignName = e.heyreach_campaign_id
-          ? hrCampaignNameMap.get(e.heyreach_campaign_id) || null
-          : null;
-
-        entries.push({
-          id: `linkedin-${e.id}`,
-          timestamp: e.created_at || new Date().toISOString(),
-          channel: 'linkedin',
-          event_type: e.event_type,
-          label: LINKEDIN_EVENT_LABELS[e.event_type] || e.event_type.replace(/_/g, ' '),
-          context: campaignName ? `Campaign: ${campaignName}` : null,
-          details: {
-            campaign_name: campaignName,
-            lead_linkedin_url: e.lead_linkedin_url,
-            lead_email: e.lead_email,
-          },
-        });
-      }
-
-      // ── 4. Outlook Emails by email address ──
-      const { data: emailContacts } = await supabase
-        .from('contacts')
-        .select('id, remarketing_buyer_id')
-        .eq('email', email)
-        .eq('archived', false);
-      const outlookContactIds = (emailContacts || []).map((c: any) => c.id);
-
-      if (outlookContactIds.length > 0) {
-        const { data: outlookEmails } = await (supabase as any)
-          .from('email_messages')
-          .select('id, direction, from_address, to_addresses, subject, sent_at, has_attachments')
-          .in('contact_id', outlookContactIds)
-          .order('sent_at', { ascending: false })
-          .limit(100);
-
-        for (const e of outlookEmails || []) {
-          entries.push({
-            id: `outlook-${e.id}`,
-            timestamp: e.sent_at,
-            channel: 'email' as const,
-            event_type: e.direction === 'outbound' ? 'EMAIL_SENT' : 'EMAIL_RECEIVED',
-            label: e.direction === 'outbound' ? 'Email Sent (Outlook)' : 'Email Received (Outlook)',
-            context: e.subject || null,
-            details: { lead_email: e.from_address },
-          });
-        }
-      }
-
-      // ── 5. Fireflies Meetings (via contact → buyer resolution) ──
-      const buyerIdsFromContacts = [
-        ...new Set((emailContacts || []).map((c: any) => c.remarketing_buyer_id).filter(Boolean)),
-      ] as string[];
-      if (buyerIdsFromContacts.length > 0) {
-        const { data: emailBuyerMeetings } = await (supabase as any)
-          .from('buyer_transcripts')
-          .select('id, title, call_date, duration_minutes, summary, fireflies_transcript_id')
-          .in('buyer_id', buyerIdsFromContacts)
-          .order('call_date', { ascending: false })
-          .limit(50);
-
-        for (const t of emailBuyerMeetings || []) {
-          entries.push({
-            id: `meeting-${t.id}`,
-            timestamp: t.call_date || new Date().toISOString(),
-            channel: 'call' as const,
-            event_type: 'meeting_recorded',
-            label: 'Meeting Recorded (Fireflies)',
-            context: t.title || 'Meeting',
-            details: {
-              call_duration_seconds: t.duration_minutes ? t.duration_minutes * 60 : null,
-              call_outcome: t.summary || null,
-            },
-          });
-        }
-      }
-
-      // Sort newest first
-      entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-      return entries;
+      return (data || []).map(mapRowToEntry);
     },
     enabled: !!email,
     staleTime: 60_000,

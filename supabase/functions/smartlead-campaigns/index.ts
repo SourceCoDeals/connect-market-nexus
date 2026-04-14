@@ -54,25 +54,31 @@ Deno.serve(async (req) => {
     });
   }
 
-  const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
   const token = authHeader.replace('Bearer ', '');
-  const {
-    data: { user },
-    error: authError,
-  } = await anonClient.auth.getUser(token);
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), {
-      status: 401,
-      headers: jsonHeaders,
-    });
-  }
 
-  const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id });
-  if (!isAdmin) {
-    return new Response(JSON.stringify({ error: 'Admin access required' }), {
-      status: 403,
-      headers: jsonHeaders,
-    });
+  // Allow service role key for internal/cron calls
+  const isServiceRole = token === serviceRoleKey;
+
+  if (!isServiceRole) {
+    const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
+    const {
+      data: { user },
+      error: authError,
+    } = await anonClient.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: jsonHeaders,
+      });
+    }
+
+    const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403,
+        headers: jsonHeaders,
+      });
+    }
   }
 
   // ─── Route by action ──────────────────────────────────────────────────

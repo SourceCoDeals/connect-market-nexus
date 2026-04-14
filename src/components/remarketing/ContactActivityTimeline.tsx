@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -27,6 +28,7 @@ import {
   ChevronDown,
   FileText,
   CalendarClock,
+  Video,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
@@ -34,6 +36,11 @@ import {
   useContactCombinedHistoryByEmail,
   type UnifiedActivityEntry,
 } from '@/hooks/use-contact-combined-history';
+import { useActivityStats } from '@/hooks/use-activity-stats';
+import {
+  filterByDateRange,
+  type DateRangeValue,
+} from '@/components/remarketing/deal-detail/useContactHistory';
 
 // ── Icon + color config for email events ──
 
@@ -87,57 +94,7 @@ function formatDuration(seconds: number | null) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// ── Summary stats ──
-
-interface ActivityStats {
-  totalEmails: number;
-  totalCalls: number;
-  totalLinkedIn: number;
-  emailsOpened: number;
-  emailsReplied: number;
-  callsConnected: number;
-  linkedInConnected: number;
-  linkedInReplied: number;
-  lastTouch: string | null;
-}
-
-function computeStats(entries: UnifiedActivityEntry[]): ActivityStats {
-  let totalEmails = 0;
-  let totalCalls = 0;
-  let totalLinkedIn = 0;
-  let emailsOpened = 0;
-  let emailsReplied = 0;
-  let callsConnected = 0;
-  let linkedInConnected = 0;
-  let linkedInReplied = 0;
-
-  for (const e of entries) {
-    if (e.channel === 'email') {
-      totalEmails++;
-      if (['EMAIL_OPENED', 'OPENED'].includes(e.event_type)) emailsOpened++;
-      if (['EMAIL_REPLIED', 'REPLIED'].includes(e.event_type)) emailsReplied++;
-    } else if (e.channel === 'linkedin') {
-      totalLinkedIn++;
-      if (e.event_type === 'CONNECTION_REQUEST_ACCEPTED') linkedInConnected++;
-      if (['MESSAGE_RECEIVED', 'INMAIL_RECEIVED', 'LEAD_REPLIED'].includes(e.event_type)) linkedInReplied++;
-    } else {
-      totalCalls++;
-      if (e.event_type === 'call_completed') callsConnected++;
-    }
-  }
-
-  return {
-    totalEmails,
-    totalCalls,
-    totalLinkedIn,
-    emailsOpened,
-    emailsReplied,
-    callsConnected,
-    linkedInConnected,
-    linkedInReplied,
-    lastTouch: entries.length > 0 ? entries[0].timestamp : null,
-  };
-}
+// Stats computation now uses shared useActivityStats hook
 
 // ── Individual timeline entry ──
 
@@ -146,21 +103,30 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
   const isEmail = entry.channel === 'email';
   const isLinkedIn = entry.channel === 'linkedin';
   const isCall = entry.channel === 'call';
+  const isMeeting = entry.channel === 'meeting';
 
-  const iconConfig = isLinkedIn
-    ? LINKEDIN_ICON_MAP[entry.event_type] || { icon: Linkedin, color: 'text-blue-700 bg-blue-50' }
-    : isEmail
-      ? EMAIL_ICON_MAP[entry.event_type] || { icon: Mail, color: 'text-muted-foreground bg-muted' }
-      : getCallIcon(entry.event_type, entry.details.call_outcome || null);
+  const iconConfig = isMeeting
+    ? { icon: Video, color: 'text-purple-600 bg-purple-50' }
+    : isLinkedIn
+      ? LINKEDIN_ICON_MAP[entry.event_type] || { icon: Linkedin, color: 'text-blue-700 bg-blue-50' }
+      : isEmail
+        ? EMAIL_ICON_MAP[entry.event_type] || {
+            icon: Mail,
+            color: 'text-muted-foreground bg-muted',
+          }
+        : getCallIcon(entry.event_type, entry.details.call_outcome || null);
 
   const Icon = iconConfig.icon;
 
-  const hasExpandableContent = isCall && (entry.details.call_transcript || entry.details.contact_notes);
+  const hasExpandableContent =
+    isCall && (entry.details.call_transcript || entry.details.contact_notes);
 
   return (
     <div className="flex items-start gap-3 py-2.5 px-2 rounded-md hover:bg-muted/50 transition-colors">
       {/* Icon */}
-      <div className={`flex items-center justify-center h-8 w-8 rounded-full shrink-0 ${iconConfig.color}`}>
+      <div
+        className={`flex items-center justify-center h-8 w-8 rounded-full shrink-0 ${iconConfig.color}`}
+      >
         <Icon className="h-4 w-4" />
       </div>
 
@@ -168,7 +134,10 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
       <div className="flex-1 min-w-0 space-y-0.5">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">{entry.label}</span>
-          <Badge variant="outline" className={`text-[10px] ${isLinkedIn ? 'border-blue-300 text-blue-800' : isEmail ? 'border-blue-200 text-blue-700' : 'border-green-200 text-green-700'}`}>
+          <Badge
+            variant="outline"
+            className={`text-[10px] ${isLinkedIn ? 'border-blue-300 text-blue-800' : isEmail ? 'border-blue-200 text-blue-700' : 'border-green-200 text-green-700'}`}
+          >
             {isLinkedIn ? 'LinkedIn' : isEmail ? 'Email' : 'Call'}
           </Badge>
           {/* Call disposition */}
@@ -197,7 +166,9 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
               {formatDuration(entry.details.call_duration_seconds)}
-              {entry.details.talk_time_seconds ? ` (talk: ${formatDuration(entry.details.talk_time_seconds)})` : ''}
+              {entry.details.talk_time_seconds
+                ? ` (talk: ${formatDuration(entry.details.talk_time_seconds)})`
+                : ''}
             </span>
           ) : null}
           {/* Recording */}
@@ -228,9 +199,7 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
           )}
         </div>
         {/* Context (campaign name, caller) */}
-        {entry.context && (
-          <p className="text-xs text-muted-foreground">{entry.context}</p>
-        )}
+        {entry.context && <p className="text-xs text-muted-foreground">{entry.context}</p>}
         {/* Disposition notes */}
         {entry.details.disposition_notes && (
           <p className="text-xs text-muted-foreground line-clamp-2 italic">
@@ -241,7 +210,9 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
         {hasExpandableContent && (
           <Collapsible open={expanded} onOpenChange={setExpanded}>
             <CollapsibleTrigger className="text-xs text-primary hover:underline flex items-center gap-1 mt-1">
-              <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`}
+              />
               {expanded ? 'Hide details' : 'Show transcript & notes'}
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 space-y-2">
@@ -262,9 +233,7 @@ function TimelineEntry({ entry }: { entry: UnifiedActivityEntry }) {
         )}
         {/* Timestamp */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>
-            {format(new Date(entry.timestamp), 'MMM d, yyyy h:mm a')}
-          </span>
+          <span>{format(new Date(entry.timestamp), 'MMM d, yyyy h:mm a')}</span>
           <span className="text-muted-foreground/50">·</span>
           <span>{formatDistanceToNow(new Date(entry.timestamp), { addSuffix: true })}</span>
         </div>
@@ -280,6 +249,7 @@ interface ContactActivityTimelineProps {
   title?: string;
   maxHeight?: number;
   compact?: boolean;
+  showDateFilter?: boolean;
 }
 
 export function ContactActivityTimeline({
@@ -287,6 +257,7 @@ export function ContactActivityTimeline({
   title = 'Contact Activity Timeline',
   maxHeight = 500,
   compact = false,
+  showDateFilter = false,
 }: ContactActivityTimelineProps) {
   const { data: entries = [], isLoading } = useContactCombinedHistory(buyerId);
   return (
@@ -296,6 +267,7 @@ export function ContactActivityTimeline({
       title={title}
       maxHeight={maxHeight}
       compact={compact}
+      showDateFilter={showDateFilter}
     />
   );
 }
@@ -307,6 +279,7 @@ interface ContactActivityTimelineByEmailProps {
   title?: string;
   maxHeight?: number;
   compact?: boolean;
+  showDateFilter?: boolean;
 }
 
 export function ContactActivityTimelineByEmail({
@@ -314,6 +287,7 @@ export function ContactActivityTimelineByEmail({
   title = 'Contact Activity Timeline',
   maxHeight = 500,
   compact = false,
+  showDateFilter = false,
 }: ContactActivityTimelineByEmailProps) {
   const { data: entries = [], isLoading } = useContactCombinedHistoryByEmail(email);
   return (
@@ -323,11 +297,19 @@ export function ContactActivityTimelineByEmail({
       title={title}
       maxHeight={maxHeight}
       compact={compact}
+      showDateFilter={showDateFilter}
     />
   );
 }
 
 // ── Shared card renderer ──
+
+const DATE_RANGE_OPTIONS: { value: DateRangeValue; label: string }[] = [
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+  { value: 'all', label: 'All' },
+];
 
 function TimelineCard({
   entries,
@@ -335,13 +317,19 @@ function TimelineCard({
   title,
   maxHeight,
   compact,
+  showDateFilter = false,
 }: {
   entries: UnifiedActivityEntry[];
   isLoading: boolean;
   title: string;
   maxHeight: number;
   compact: boolean;
+  showDateFilter?: boolean;
 }) {
+  const [dateRange, setDateRange] = useState<DateRangeValue>('all');
+  const filtered = showDateFilter ? filterByDateRange(entries, dateRange) : entries;
+  const stats = useActivityStats(filtered);
+
   if (isLoading) {
     return (
       <Card>
@@ -360,8 +348,6 @@ function TimelineCard({
     );
   }
 
-  const stats = computeStats(entries);
-
   if (entries.length === 0) {
     return (
       <Card>
@@ -376,7 +362,7 @@ function TimelineCard({
             <Activity className="h-8 w-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">No communication activity recorded yet</p>
             <p className="text-xs mt-1">
-              Email, call, and LinkedIn history from SmartLead, PhoneBurner, and HeyReach will appear here
+              Email, call, LinkedIn, and meeting history will appear here
             </p>
           </div>
         </CardContent>
@@ -393,6 +379,21 @@ function TimelineCard({
             {title}
           </CardTitle>
           <div className="flex items-center gap-2">
+            {showDateFilter && (
+              <div className="flex items-center gap-0.5 mr-2">
+                {DATE_RANGE_OPTIONS.map((opt) => (
+                  <Button
+                    key={opt.value}
+                    variant={dateRange === opt.value ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setDateRange(opt.value)}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            )}
             {stats.totalEmails > 0 && (
               <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
                 <Mail className="h-3 w-3 mr-1" />
@@ -411,9 +412,15 @@ function TimelineCard({
                 {stats.totalLinkedIn} LinkedIn
               </Badge>
             )}
+            {stats.totalMeetings > 0 && (
+              <Badge variant="outline" className="text-xs border-purple-200 text-purple-700">
+                <Video className="h-3 w-3 mr-1" />
+                {stats.totalMeetings} meeting{stats.totalMeetings !== 1 ? 's' : ''}
+              </Badge>
+            )}
           </div>
         </div>
-        {/* Summary stats row (HubSpot-style) */}
+        {/* Summary stats row */}
         {!compact && (
           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
             {stats.emailsOpened > 0 && (
@@ -446,9 +453,10 @@ function TimelineCard({
                 {stats.linkedInReplied} LI replied
               </span>
             )}
-            {stats.lastTouch && (
+            {stats.lastContactDate && (
               <span className="ml-auto">
-                Last touch: {formatDistanceToNow(new Date(stats.lastTouch), { addSuffix: true })}
+                Last touch:{' '}
+                {formatDistanceToNow(new Date(stats.lastContactDate), { addSuffix: true })}
               </span>
             )}
           </div>
@@ -459,7 +467,7 @@ function TimelineCard({
           className="overflow-y-auto divide-y divide-border"
           style={{ maxHeight: maxHeight - 140 }}
         >
-          {entries.map((entry) => (
+          {filtered.map((entry) => (
             <TimelineEntry key={entry.id} entry={entry} />
           ))}
         </div>
