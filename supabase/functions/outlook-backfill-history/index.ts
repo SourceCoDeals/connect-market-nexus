@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
     // engine itself is fine. We forward our service-role Authorization header
     // so the sync function's `requireServiceRole` check passes.
     const backfillPromise = (async () => {
-      let succeeded = false;
+      let syncCallOk = false;
       let errorMessage: string | null = null;
       try {
         const syncResp = await fetch(`${supabaseUrl}/functions/v1/outlook-sync-emails`, {
@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
           return;
         }
 
-        succeeded = true;
+        syncCallOk = true;
 
         // After the pull, promote any rows the sync engine placed in the
         // unmatched queue so they land against today's contact set immediately.
@@ -264,21 +264,39 @@ Deno.serve(async (req) => {
         errorMessage = (e as Error).message || 'Background task threw';
         console.error('[outlook-backfill-history] background task threw:', e);
       } finally {
-        // Finalize the progress state. On success: status='completed',
-        // clear the nextLink (we're done walking). On failure: status='failed'
-        // and LEAVE the nextLink in place so the Resume button can pick it up.
+        // Finalize the progress state. The DB row is the source of truth:
+        //   - `backfill_next_link` is NULL  → sync reached the cutoff, mark completed
+        //   - `backfill_next_link` is SET   → sync stopped early (page-fetch error
+        //     inside the engine's loop writes a checkpoint with the failed-page
+        //     cursor and `break`s; the handler still returns HTTP 200, so we
+        //     can't trust `syncResp.ok` alone to decide completed vs failed).
+        //     We preserve the cursor so Resume picks up exactly where it stopped.
         try {
+          const { data: postSync } = await supabase
+            .from('email_connections')
+            .select('backfill_next_link, backfill_pages_processed')
+            .eq('sourceco_user_id', targetUserId)
+            .maybeSingle();
+
+          const cursorRemaining =
+            postSync?.backfill_next_link !== null && postSync?.backfill_next_link !== undefined;
+          const actuallySucceeded = syncCallOk && !cursorRemaining;
+
           const finalState: Record<string, unknown> = {
             backfill_completed_at: new Date().toISOString(),
             backfill_heartbeat_at: new Date().toISOString(),
           };
-          if (succeeded) {
+          if (actuallySucceeded) {
             finalState.backfill_status = 'completed';
             finalState.backfill_next_link = null;
             finalState.backfill_error_message = null;
           } else {
             finalState.backfill_status = 'failed';
-            finalState.backfill_error_message = errorMessage || 'Unknown error';
+            finalState.backfill_error_message =
+              errorMessage ||
+              (cursorRemaining
+                ? 'Sync stopped before reaching the cutoff. Click Resume to continue from the last checkpoint.'
+                : 'Unknown error');
             // backfill_next_link is intentionally NOT cleared — it's the
             // resume cursor the operator needs to pick up from.
           }

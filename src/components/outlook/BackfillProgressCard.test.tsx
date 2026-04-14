@@ -94,6 +94,53 @@ describe('deriveBackfillState — progress percentage', () => {
     expect(d.progressPct!).toBeLessThan(52);
   });
 
+  it('forces progress to 100% on completed status even with null earliest_seen', () => {
+    // Regression: on a completed backfill with a mailbox that had zero
+    // messages in the lookback window, `earliest_seen_at` is never written
+    // (the sync engine only updates the watermark when it sees messages).
+    // Without the terminal-state override the UI would stay stuck on the
+    // "Preparing…" indeterminate state forever.
+    const started = Date.parse('2026-04-14T12:00:00Z');
+    const since = started - 365 * DAY_MS;
+    const d = deriveBackfillState(
+      conn({
+        backfill_status: 'completed',
+        backfill_started_at: new Date(started).toISOString(),
+        backfill_completed_at: new Date(started + 5000).toISOString(),
+        backfill_since: new Date(since).toISOString(),
+        backfill_days_back: 365,
+        backfill_earliest_seen_at: null, // sync never saw a single message
+      }),
+      started + 10_000,
+    );
+    expect(d.progressPct).toBe(100);
+    expect(d.status).toBe('completed');
+    expect(d.isStalled).toBe(false);
+  });
+
+  it('leaves progress null on failed status with no earliest_seen (first-page crash)', () => {
+    // If the very first Graph fetch crashed before writing a checkpoint,
+    // `earliest_seen_at` stays null and the row transitions to `failed`. We
+    // intentionally do NOT force progress to 0/100 for failed — the UI
+    // renders the red panel with the error message and the Resume button
+    // regardless of the progress bar state.
+    const started = Date.parse('2026-04-14T12:00:00Z');
+    const since = started - 365 * DAY_MS;
+    const d = deriveBackfillState(
+      conn({
+        backfill_status: 'failed',
+        backfill_started_at: new Date(started).toISOString(),
+        backfill_since: new Date(since).toISOString(),
+        backfill_days_back: 365,
+        backfill_earliest_seen_at: null,
+        backfill_error_message: 'Graph API returned 500',
+      }),
+      started + 60_000,
+    );
+    expect(d.progressPct).toBeNull();
+    expect(d.status).toBe('failed');
+  });
+
   it('clamps runaway earliest_seen values to [0, 100]', () => {
     const started = Date.parse('2026-04-14T12:00:00Z');
     const since = started - 365 * DAY_MS;

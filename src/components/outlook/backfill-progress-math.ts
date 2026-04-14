@@ -61,8 +61,17 @@ export function deriveBackfillState(
   //   0% when earliest == startedAt (we've only processed "now")
   // 100% when earliest == since     (we've reached the cutoff)
   // The sync walks newest-first, so earliest monotonically decreases over time.
+  //
+  // Terminal-state override: when the row has already transitioned to
+  // `completed`, we force progress to 100% even if `earliest_seen_at` is
+  // still null — that happens when the backfill succeeded but the mailbox
+  // had zero messages in the lookback window (so no watermark was ever
+  // written). Without this override the completed panel would indefinitely
+  // display "Preparing — waiting for the first page of history to land…".
   let progressPct: number | null = null;
-  if (earliestTs !== null && sinceTs !== null && startedAt > sinceTs) {
+  if (status === 'completed') {
+    progressPct = 100;
+  } else if (earliestTs !== null && sinceTs !== null && startedAt > sinceTs) {
     const windowMs = startedAt - sinceTs;
     const coveredMs = startedAt - earliestTs;
     progressPct = Math.max(0, Math.min(1, coveredMs / windowMs)) * 100;

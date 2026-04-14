@@ -163,6 +163,72 @@ describe.each(HANDLERS)('$name handler CORS-safety invariants', ({ name, source 
   });
 });
 
+describe('outlook-backfill-history progress + resume invariants', () => {
+  it('initialises the progress row BEFORE kicking off the background task', () => {
+    // The frontend polls `email_connections.backfill_*` to render the
+    // progress bar, so the row MUST be written with status='running' before
+    // the HTTP 202 response returns. Otherwise the UI would show a stale
+    // previous state until the first checkpoint landed.
+    const initIdx = BACKFILL_HISTORY.indexOf("backfill_status: 'running'");
+    const bgTaskIdx = BACKFILL_HISTORY.indexOf('backfillPromise = (async');
+    expect(initIdx).toBeGreaterThan(-1);
+    expect(bgTaskIdx).toBeGreaterThan(-1);
+    expect(initIdx).toBeLessThan(bgTaskIdx);
+  });
+
+  it('forwards trackBackfillProgress + resume cursor to the sync engine', () => {
+    expect(BACKFILL_HISTORY).toContain('trackBackfillProgress: true');
+    expect(BACKFILL_HISTORY).toContain('resumeFromNextLink: resumeNextLink');
+    expect(BACKFILL_HISTORY).toContain('backfillSince: effectiveSince');
+  });
+
+  it('refuses to stomp a currently-running row unless resume is explicit', () => {
+    // The 409 guard prevents two concurrent backfills from writing to the
+    // same progress row. Explicit `resume:true` or `resume:false` bypass it.
+    expect(BACKFILL_HISTORY).toContain("backfill_status === 'running'");
+    expect(BACKFILL_HISTORY).toMatch(/409/);
+    expect(BACKFILL_HISTORY).toMatch(/already running for this mailbox/);
+  });
+
+  it('finalises via the DB row source-of-truth (re-reads backfill_next_link)', () => {
+    // Regression for BUG #2: the sync engine returns HTTP 200 even when its
+    // loop aborted mid-way on a page-fetch error (the inner catch writes a
+    // checkpoint with the failed-page cursor and breaks). The orchestrator
+    // must NOT trust syncResp.ok alone — it must re-read the row and check
+    // whether `backfill_next_link` is still populated. If it is, the sync
+    // stopped early and we finalise as 'failed' with the cursor preserved so
+    // the Resume button can pick it up. If it's null, we finalise as
+    // 'completed'.
+    expect(BACKFILL_HISTORY).toMatch(/select\([^)]*backfill_next_link/);
+    // The completion decision MUST combine syncCallOk with !cursorRemaining —
+    // either alone is insufficient. This exact shape is what catches the
+    // aborted-mid-pull regression (syncResp returns 200 even though the sync
+    // aborted, and the row still has a non-null next_link cursor).
+    expect(BACKFILL_HISTORY).toMatch(
+      /const\s+cursorRemaining\s*=\s*postSync\?\.backfill_next_link\s*!==\s*null/,
+    );
+    expect(BACKFILL_HISTORY).toMatch(
+      /const\s+actuallySucceeded\s*=\s*syncCallOk\s*&&\s*!cursorRemaining/,
+    );
+    // And the failure-message fallback explicitly mentions the Resume path
+    // so the operator knows what to do.
+    expect(BACKFILL_HISTORY).toMatch(/Click Resume to continue/);
+  });
+
+  it('preserves backfill_next_link on failure so Resume has a cursor', () => {
+    // If we're finalising as failed, we MUST NOT clear backfill_next_link —
+    // that's the cursor the Resume path reads. The success branch clears it.
+    expect(BACKFILL_HISTORY).toMatch(/backfill_next_link is intentionally NOT cleared/);
+  });
+
+  it('uses a try/catch/finally so the final row write always runs', () => {
+    // If the background task throws before the finally, we'd leave the row
+    // stuck in 'running' forever. The finally block guarantees finalisation
+    // even on unhandled throws.
+    expect(BACKFILL_HISTORY).toMatch(/\}\s*finally\s*\{/);
+  });
+});
+
 describe('outlook-backfill-history request-scope env reads', () => {
   it('does not use `!`-asserted Deno.env.get for SUPABASE_URL / SERVICE_ROLE_KEY', () => {
     // Non-null assertions on env reads were the root cause of one of the
