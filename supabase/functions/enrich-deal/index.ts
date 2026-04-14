@@ -47,6 +47,8 @@ import {
   DEAL_SYSTEM_PROMPT,
   buildDealUserPrompt,
   DEAL_TOOL_SCHEMA,
+  DEAL_DATA_ROOM_TOOL_SCHEMA,
+  sanitizeDataRoomExtraction,
   // Validators
   validateDealExtraction,
   isPlaceholder,
@@ -492,7 +494,11 @@ serve(async (req) => {
     let dataRoomStatus: 'extracted' | 'skipped_empty' | 'skipped_timeout' | 'failed' =
       'skipped_empty';
 
-    if (hasTimeBudget(70_000)) {
+    // Need enough headroom for: DB fetch (~1s), per-doc extraction (up to
+    // 30s each, but guarded individually below), + downstream AI call (~45s).
+    // 5s is a generous floor — if we have less, the whole function is about
+    // to time out anyway.
+    if (hasTimeBudget(5_000)) {
       // Fetch data room documents with text content
       const { data: dataRoomDocs, error: drError } = await supabase
         .from('data_room_documents')
@@ -506,16 +512,26 @@ serve(async (req) => {
         console.warn('[DataRoom] Failed to fetch documents (non-fatal):', drError);
         dataRoomStatus = 'failed';
       } else if (dataRoomDocs && dataRoomDocs.length > 0) {
-        console.log(`[DataRoom] Found ${dataRoomDocs.length} data room documents`);
+        // Cap doc count at 50 to avoid unbounded work
+        const DOC_LIMIT = 50;
+        const docsToProcess = dataRoomDocs.slice(0, DOC_LIMIT);
+        if (dataRoomDocs.length > DOC_LIMIT) {
+          console.warn(
+            `[DataRoom] Capping ${dataRoomDocs.length} docs to ${DOC_LIMIT} for this run`,
+          );
+        }
+        console.log(`[DataRoom] Found ${docsToProcess.length} data room documents`);
 
         // Process documents that need text extraction first
-        for (const doc of dataRoomDocs) {
+        for (const doc of docsToProcess) {
           if (
             !doc.text_content &&
             doc.file_type &&
             isExtractableType(doc.file_type) &&
             geminiApiKey &&
-            hasTimeBudget(65_000)
+            // 35s per-doc guard: DOCX/XLSX/PPTX are fast (jszip, local),
+            // PDF can take up to 30s via Gemini. We leave ~5s buffer.
+            hasTimeBudget(35_000)
           ) {
             console.log(`[DataRoom] Extracting text from ${doc.file_name}...`);
             await extractAndStoreDocumentText(
@@ -537,15 +553,24 @@ serve(async (req) => {
           }
         }
 
-        // Collect text content from all documents
+        // Collect text content, capping per-doc and total
+        const PER_DOC_CAP = 25_000;
+        const TOTAL_CAP = 180_000;
         const textParts: string[] = [];
-        for (const doc of dataRoomDocs) {
-          if (doc.text_content) {
-            // Cap each document at 25K chars to stay within token limits
-            const content = doc.text_content.substring(0, 25_000);
-            textParts.push(`--- Document: ${doc.file_name} ---\n${content}`);
-            dataRoomDocsProcessed++;
+        let totalChars = 0;
+        for (const doc of docsToProcess) {
+          if (!doc.text_content) continue;
+          const content = doc.text_content.substring(0, PER_DOC_CAP);
+          const part = `--- Document: ${doc.file_name} ---\n${content}`;
+          if (totalChars + part.length > TOTAL_CAP) {
+            console.warn(
+              `[DataRoom] Hit total content cap (${TOTAL_CAP} chars), truncating after ${dataRoomDocsProcessed} docs`,
+            );
+            break;
           }
+          textParts.push(part);
+          totalChars += part.length;
+          dataRoomDocsProcessed++;
         }
 
         if (textParts.length > 0) {
@@ -749,6 +774,16 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
       userPrompt = buildDealUserPrompt(deal.title, websiteContent);
     }
 
+    // Select the tool schema based on content source.
+    // Website-only extraction: use DEAL_TOOL_SCHEMA (no financials).
+    // Data-room extraction (with or without website): use the expanded schema
+    // that includes revenue, ebitda, ownership, management, etc. Without this,
+    // Gemini has no place to put financial fields and silently drops them.
+    const toolSchema = hasDataRoomContent ? DEAL_DATA_ROOM_TOOL_SCHEMA : DEAL_TOOL_SCHEMA;
+    const toolName = hasDataRoomContent
+      ? 'extract_deal_intelligence_from_data_room'
+      : 'extract_deal_intelligence';
+
     const MAX_AI_RETRIES = DEAL_AI_RETRY_CONFIG.maxRetries;
     const AI_RETRY_DELAYS = DEAL_AI_RETRY_CONFIG.delays;
 
@@ -775,8 +810,8 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
               { role: 'system', content: DEAL_SYSTEM_PROMPT },
               { role: 'user', content: userPrompt },
             ],
-            tools: [DEAL_TOOL_SCHEMA],
-            tool_choice: { type: 'function', function: { name: 'extract_deal_intelligence' } },
+            tools: [toolSchema],
+            tool_choice: { type: 'function', function: { name: toolName } },
           }),
           signal: AbortSignal.timeout(DEAL_AI_TIMEOUT_MS),
         });
@@ -895,6 +930,15 @@ Extract all available business information using the provided tool. Be EXHAUSTIV
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+    }
+
+    // Sanitize data room extractions: coerce numeric strings ("5.25M" → 5250000),
+    // clamp to plausible ranges, drop placeholders. No-op for website extractions.
+    if (hasDataRoomContent) {
+      const beforeCount = Object.keys(extracted).length;
+      extracted = sanitizeDataRoomExtraction(extracted);
+      const afterCount = Object.keys(extracted).length;
+      console.log(`[enrich-deal] Data room sanitizer kept ${afterCount}/${beforeCount} fields`);
     }
 
     console.log('Extracted data:', extracted);
