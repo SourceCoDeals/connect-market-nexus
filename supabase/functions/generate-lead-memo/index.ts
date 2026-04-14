@@ -111,21 +111,19 @@ Deno.serve(async (req: Request) => {
     }
 
     // Fetch all deal data
-    const { data: deal, error: dealError } = await supabaseAdmin
-      .from('listings')
-      .select('*')
-      .eq('id', deal_id)
-      .single();
+    const dealFetch = await supabaseAdmin.from('listings').select('*').eq('id', deal_id).single();
 
-    if (dealError || !deal) {
+    if (dealFetch.error || !dealFetch.data) {
       return new Response(JSON.stringify({ error: 'Deal not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    // `deal` is reassigned below after auto-enrichment, hence `let`.
+    let deal = dealFetch.data;
 
     // Fetch transcripts
-    const { data: transcripts } = await supabaseAdmin
+    let { data: transcripts } = await supabaseAdmin
       .from('deal_transcripts')
       .select('transcript_text, extracted_data, call_date, title, extraction_status')
       .eq('listing_id', deal_id)
@@ -141,7 +139,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     // Fetch data room documents with extracted text
-    const { data: dataRoomDocs } = await supabaseAdmin
+    let { data: dataRoomDocs } = await supabaseAdmin
       .from('data_room_documents')
       .select('file_name, text_content')
       .eq('deal_id', deal_id)
@@ -152,17 +150,113 @@ Deno.serve(async (req: Request) => {
 
     // Listing completeness check: require minimum data before generating memos
     // (Audit P1: prevent blank-context memo generation)
-    const missingCritical: string[] = [];
-    if (!deal.industry && !deal.category) missingCritical.push('industry/category');
-    if (deal.ebitda == null) missingCritical.push('EBITDA');
-    if (deal.revenue == null) missingCritical.push('revenue');
-    if (!deal.executive_summary && !(transcripts && transcripts.length > 0)) {
-      missingCritical.push('executive summary or transcripts');
+    const computeMissingCritical = (
+      d: Record<string, unknown>,
+      t: { transcript_text?: string | null }[] | null | undefined,
+    ): string[] => {
+      const missing: string[] = [];
+      if (!d.industry && !d.category) missing.push('industry/category');
+      if (d.ebitda == null) missing.push('EBITDA');
+      if (d.revenue == null) missing.push('revenue');
+      if (!d.executive_summary && !(t && t.length > 0)) {
+        missing.push('executive summary or transcripts');
+      }
+      return missing;
+    };
+    let missingCritical = computeMissingCritical(deal, transcripts);
+
+    // Auto-enrichment fallback: if critical fields are missing but the data
+    // room already contains extracted document text, synchronously invoke
+    // `enrich-deal` to pull industry/revenue/EBITDA/etc. out of those docs
+    // and write them back to the listing. This handles the common case
+    // where users upload due-diligence material and expect the listing
+    // profile (and downstream memo generation) to reflect it automatically.
+    const dataRoomHasText =
+      Array.isArray(dataRoomDocs) &&
+      dataRoomDocs.some(
+        (d) => typeof d.text_content === 'string' && (d.text_content as string).trim().length > 0,
+      );
+    if (missingCritical.length > 0 && dataRoomHasText) {
+      console.warn(
+        `[generate-lead-memo] Deal ${deal_id} missing ${missingCritical.join(', ')} — ` +
+          `auto-enriching from ${dataRoomDocs!.length} data room document(s)`,
+      );
+      try {
+        const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+        if (!anonKey) {
+          console.warn(
+            '[generate-lead-memo] SUPABASE_ANON_KEY not set — cannot invoke enrich-deal',
+          );
+        } else {
+          const enrichResponse = await fetch(`${supabaseUrl}/functions/v1/enrich-deal`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${anonKey}`,
+            },
+            body: JSON.stringify({ dealId: deal_id, skipExternalEnrichment: true }),
+          });
+          if (!enrichResponse.ok) {
+            const body = await enrichResponse.text().catch(() => '');
+            console.warn(
+              `[generate-lead-memo] enrich-deal responded ${enrichResponse.status}: ${body.substring(0, 300)}`,
+            );
+          } else {
+            console.warn('[generate-lead-memo] enrich-deal completed — re-fetching deal');
+            // Re-fetch the deal so the newly-extracted fields are visible
+            const { data: refreshedDeal, error: refreshError } = await supabaseAdmin
+              .from('listings')
+              .select('*')
+              .eq('id', deal_id)
+              .single();
+            if (refreshError || !refreshedDeal) {
+              console.warn(
+                '[generate-lead-memo] Failed to re-fetch deal after enrichment:',
+                refreshError,
+              );
+            } else {
+              deal = refreshedDeal;
+            }
+            // Re-fetch transcripts in case enrich-deal created new ones
+            const { data: refreshedTranscripts } = await supabaseAdmin
+              .from('deal_transcripts')
+              .select('transcript_text, extracted_data, call_date, title, extraction_status')
+              .eq('listing_id', deal_id)
+              .not('extraction_status', 'eq', 'failed')
+              .order('call_date', { ascending: false })
+              .limit(10);
+            transcripts = refreshedTranscripts;
+            // Re-fetch data room docs in case text extraction populated more
+            const { data: refreshedDocs } = await supabaseAdmin
+              .from('data_room_documents')
+              .select('file_name, text_content')
+              .eq('deal_id', deal_id)
+              .eq('document_category', 'data_room')
+              .eq('status', 'active')
+              .not('text_content', 'is', null)
+              .order('created_at', { ascending: false });
+            dataRoomDocs = refreshedDocs;
+
+            missingCritical = computeMissingCritical(deal, transcripts);
+            console.warn(
+              `[generate-lead-memo] After auto-enrichment, still missing: ${
+                missingCritical.length === 0 ? 'none' : missingCritical.join(', ')
+              }`,
+            );
+          }
+        }
+      } catch (enrichError) {
+        console.warn('[generate-lead-memo] Auto-enrichment threw (non-fatal):', enrichError);
+      }
     }
+
     if (missingCritical.length > 0) {
+      const hint = dataRoomHasText
+        ? ' The data room documents did not contain enough structured information to populate these fields — please fill them in manually or add a transcript.'
+        : ' Please populate these fields, add a transcript, or upload documents to the data room before generating memos.';
       return new Response(
         JSON.stringify({
-          error: `Listing is missing critical data for memo generation: ${missingCritical.join(', ')}. Please populate these fields before generating memos.`,
+          error: `Listing is missing critical data for memo generation: ${missingCritical.join(', ')}.${hint}`,
           missing_fields: missingCritical,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
