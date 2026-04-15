@@ -134,7 +134,16 @@ Deno.serve(async (req: Request) => {
           ? 'memos'
           : 'data-room';
 
-    // Sanitize folder name for path safety
+    // CTO audit: reject path traversal characters outright instead of
+    // silently stripping them. A folder name like "../.." would strip to
+    // "" after the original regex and fall back to "General" — correct
+    // result, but the attempt itself should be visible. Explicit reject.
+    if (folderName.includes('..') || folderName.includes('/') || folderName.includes('\\')) {
+      return new Response(
+        JSON.stringify({ error: 'folder_name cannot contain path separators or ".."' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
     const safeFolderName = folderName.replace(/[^a-zA-Z0-9-_ ]/g, '').trim() || 'General';
 
     // Generate unique storage path

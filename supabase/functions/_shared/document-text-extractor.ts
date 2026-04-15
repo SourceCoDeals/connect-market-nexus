@@ -87,14 +87,22 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
  * and uses a small set of entities.
  */
 export function stripXmlTags(xml: string): string {
-  return xml
-    .replace(/<[^>]+>/g, '') // drop all tags
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)));
+  return (
+    xml
+      .replace(/<[^>]+>/g, '') // drop all tags
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      // Decode both decimal (&#65;) and hex (&#x41;) XML numeric entities.
+      // Previously only decimal was handled, so DOCX authored by non-MS
+      // tools or edited XMLs with hex entities would leak raw "&#x41;"
+      // sequences into the extracted text.
+      .replace(/&#(x?)([0-9a-fA-F]+);/g, (_, hex, n) =>
+        String.fromCharCode(parseInt(n, hex ? 16 : 10)),
+      )
+  );
 }
 
 /**
