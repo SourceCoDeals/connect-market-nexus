@@ -78,7 +78,10 @@ async function getClassificationPrompt(supabaseClient: any): Promise<string> {
       return data.value;
     }
   } catch (err) {
-    console.warn('[smartlead-inbox-webhook] Failed to read classification prompt from app_settings:', err);
+    console.warn(
+      '[smartlead-inbox-webhook] Failed to read classification prompt from app_settings:',
+      err,
+    );
   }
   return DEFAULT_SYSTEM_PROMPT;
 }
@@ -110,62 +113,59 @@ async function classifyReply(replyText: string, supabaseClient: any): Promise<AI
   const systemPrompt = await getClassificationPrompt(supabaseClient);
 
   try {
-    const response = await fetch(
-      GEMINI_API_URL,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: DEFAULT_GEMINI_MODEL,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Classify this email reply:\n\n${sanitized}` },
-          ],
-          tools: [
-            {
-              type: 'function',
-              function: {
-                name: 'classify_reply',
-                description: 'Classify an email reply with category, sentiment, and reasoning.',
-                parameters: {
-                  type: 'object',
-                  properties: {
-                    category: {
-                      type: 'string',
-                      enum: [
-                        'meeting_request',
-                        'interested',
-                        'question',
-                        'referral',
-                        'not_now',
-                        'not_interested',
-                        'unsubscribe',
-                        'out_of_office',
-                        'negative_hostile',
-                        'neutral',
-                      ],
-                    },
-                    sentiment: {
-                      type: 'string',
-                      enum: ['positive', 'activated', 'negative', 'neutral'],
-                    },
-                    is_positive: { type: 'boolean' },
-                    confidence: { type: 'number' },
-                    reasoning: { type: 'string' },
+    const response = await fetch(GEMINI_API_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: DEFAULT_GEMINI_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Classify this email reply:\n\n${sanitized}` },
+        ],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'classify_reply',
+              description: 'Classify an email reply with category, sentiment, and reasoning.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  category: {
+                    type: 'string',
+                    enum: [
+                      'meeting_request',
+                      'interested',
+                      'question',
+                      'referral',
+                      'not_now',
+                      'not_interested',
+                      'unsubscribe',
+                      'out_of_office',
+                      'negative_hostile',
+                      'neutral',
+                    ],
                   },
-                  required: ['category', 'sentiment', 'is_positive', 'confidence', 'reasoning'],
-                  additionalProperties: false,
+                  sentiment: {
+                    type: 'string',
+                    enum: ['positive', 'activated', 'negative', 'neutral'],
+                  },
+                  is_positive: { type: 'boolean' },
+                  confidence: { type: 'number' },
+                  reasoning: { type: 'string' },
                 },
+                required: ['category', 'sentiment', 'is_positive', 'confidence', 'reasoning'],
+                additionalProperties: false,
               },
             },
-          ],
-          tool_choice: { type: 'function', function: { name: 'classify_reply' } },
-        }),
-      },
-    );
+          },
+        ],
+        tool_choice: { type: 'function', function: { name: 'classify_reply' } },
+      }),
+    });
 
     if (!response.ok) {
       const errText = await response.text();
@@ -229,8 +229,8 @@ Deno.serve(async (req) => {
   // ─── Verify webhook secret ──────────────────────────────────────────
   const webhookSecret = Deno.env.get('SMARTLEAD_WEBHOOK_SECRET');
   if (webhookSecret) {
-    const providedSecret =
-      req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+    // CTO audit: header-only; query params leak via access logs.
+    const providedSecret = req.headers.get('x-webhook-secret');
 
     if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
       console.warn('[smartlead-inbox-webhook] Invalid webhook secret');
@@ -474,9 +474,18 @@ Deno.serve(async (req) => {
     let gpDealId: string | null = null;
     try {
       const campaignNameLower = (record.campaign_name || '').toLowerCase();
-      const ACTIVATED_CATEGORIES = ['meeting_request', 'interested', 'question', 'referral', 'not_now'];
+      const ACTIVATED_CATEGORIES = [
+        'meeting_request',
+        'interested',
+        'question',
+        'referral',
+        'not_now',
+      ];
       const isGPCampaign = campaignNameLower.includes('gp');
-      const isActivated = ACTIVATED_CATEGORIES.includes(classification.category) || classification.sentiment === 'positive' || classification.sentiment === 'activated';
+      const isActivated =
+        ACTIVATED_CATEGORIES.includes(classification.category) ||
+        classification.sentiment === 'positive' ||
+        classification.sentiment === 'activated';
 
       if (isGPCampaign && isActivated) {
         // Re-read the enriched record to get lead details
@@ -736,8 +745,18 @@ Deno.serve(async (req) => {
           }
 
           // Auto-create follow-up task for positive buyer responses
-           const activatedCategories = ['meeting_request', 'interested', 'question', 'referral', 'not_now'];
-           if (activatedCategories.includes(classification.category) || classification.sentiment === 'positive' || classification.sentiment === 'activated') {
+          const activatedCategories = [
+            'meeting_request',
+            'interested',
+            'question',
+            'referral',
+            'not_now',
+          ];
+          if (
+            activatedCategories.includes(classification.category) ||
+            classification.sentiment === 'positive' ||
+            classification.sentiment === 'activated'
+          ) {
             try {
               const taskTitleMap: Record<string, string> = {
                 meeting_request: `Schedule meeting with ${fromName || fromEmail}`,

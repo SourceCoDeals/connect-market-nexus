@@ -24,8 +24,8 @@ serve(async (req: Request) => {
     // 0. Verify webhook secret
     const webhookSecret = Deno.env.get('CLAY_WEBHOOK_SECRET');
     if (webhookSecret) {
-      const providedSecret =
-        req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+      // CTO audit: header-only; query params leak via access logs.
+      const providedSecret = req.headers.get('x-webhook-secret');
       if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
         console.warn('[clay-webhook-linkedin] Invalid webhook secret');
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -154,7 +154,11 @@ serve(async (req: Request) => {
             p_identity: { email: resultEmail },
             p_fields: { email: resultEmail },
             p_source: 'clay_linkedin',
-            p_enrichment: { provider: 'clay_linkedin', confidence: 'high', source_query: `clay_linkedin:${request.linkedin_url}` },
+            p_enrichment: {
+              provider: 'clay_linkedin',
+              confidence: 'high',
+              source_query: `clay_linkedin:${request.linkedin_url}`,
+            },
           });
 
           if (contactUpdateErr) {

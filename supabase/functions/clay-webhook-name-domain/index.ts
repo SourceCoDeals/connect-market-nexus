@@ -24,8 +24,8 @@ serve(async (req: Request) => {
     // 0. Verify webhook secret
     const webhookSecret = Deno.env.get('CLAY_WEBHOOK_SECRET');
     if (webhookSecret) {
-      const providedSecret =
-        req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+      // CTO audit: header-only; query params leak via access logs.
+      const providedSecret = req.headers.get('x-webhook-secret');
       if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
         console.warn('[clay-webhook-name-domain] Invalid webhook secret');
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -129,7 +129,8 @@ serve(async (req: Request) => {
       if (request.source_entity_id) {
         if (request.source_function === 'find-valuation-lead-contacts') {
           // Valuation lead enrichment — Clay may return LinkedIn URL alongside email
-          const resultLinkedIn = (payload.linkedin_url as string) || (payload.linkedinUrl as string) || null;
+          const resultLinkedIn =
+            (payload.linkedin_url as string) || (payload.linkedinUrl as string) || null;
           const leadUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
           if (resultLinkedIn) leadUpdates.linkedin_url = resultLinkedIn;
           // Save enriched email as work_email (don't overwrite submission email)
@@ -157,7 +158,11 @@ serve(async (req: Request) => {
             p_identity: { email: resultEmail },
             p_fields: { email: resultEmail },
             p_source: 'clay_name_domain',
-            p_enrichment: { provider: 'clay_name_domain', confidence: 'medium', source_query: `clay:${request.first_name} ${request.last_name}@${request.domain}` },
+            p_enrichment: {
+              provider: 'clay_name_domain',
+              confidence: 'medium',
+              source_query: `clay:${request.first_name} ${request.last_name}@${request.domain}`,
+            },
           });
 
           if (contactUpdateErr) {

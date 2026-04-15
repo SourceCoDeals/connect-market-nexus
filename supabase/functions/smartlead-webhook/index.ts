@@ -37,8 +37,11 @@ Deno.serve(async (req) => {
     });
   }
 
-  const providedSecret =
-    req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+  // CTO audit: accept the secret ONLY from the header, never the query
+  // param. Query params get logged in access logs and browser history,
+  // leaking the shared secret. Header-only is the canonical webhook auth
+  // convention.
+  const providedSecret = req.headers.get('x-webhook-secret');
 
   if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
     console.warn('[smartlead-webhook] Invalid webhook secret');

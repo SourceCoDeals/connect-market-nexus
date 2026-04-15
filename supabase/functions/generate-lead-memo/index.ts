@@ -24,6 +24,30 @@ import { STATE_CODE_TO_NAME, STATE_CODE_TO_REGION } from '../_shared/geography.t
 import { logAICallCost } from '../_shared/cost-tracker.ts';
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+/**
+ * Sanitize an error message before returning it to the client. Strips
+ * Postgres error codes, stack frames, file paths, and common schema
+ * leakage patterns. The full message is still logged server-side for
+ * debugging — this only affects what's echoed in the HTTP response.
+ */
+function sanitizeClientErrorMessage(raw: string): string {
+  if (!raw) return 'Unknown error';
+  let msg = String(raw);
+  // Drop Postgres error codes like "(code: 23505)" or "PGRST116"
+  msg = msg.replace(/\(code:\s*[A-Z0-9]+\)/gi, '');
+  msg = msg.replace(/PGRST\d+/g, '');
+  // Drop "at Function.serve (...)" style stack frames
+  msg = msg.replace(/\s+at\s+[^\s]+\s*\([^)]*\)/g, '');
+  // Drop absolute filesystem / deno module paths
+  msg = msg.replace(/\/[^\s]+\.(ts|js|tsx|jsx|sql)(:\d+(:\d+)?)?/gi, '[file]');
+  // Cap length — long Postgres errors include query text that reveals
+  // schema internals.
+  if (msg.length > 300) {
+    msg = msg.slice(0, 300) + '…';
+  }
+  return msg.trim() || 'Unknown error';
+}
+
 // Memo section structure
 interface MemoSection {
   key: string;
@@ -484,15 +508,16 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error: unknown) {
     console.error('Generate memo error:', error);
-    // Surface the underlying error message so callers (and their toasts)
-    // can show something more actionable than "non-2xx status code".
-    // We keep the shape stable (`error` string) so `extractFunctionError`
-    // picks it up on the frontend.
-    const detail =
+    // CTO audit: sanitize the error before echoing it. The full message is
+    // logged server-side for debugging, but the client only sees a version
+    // with SQL errors, stack traces, and PostgREST internals stripped so we
+    // don't leak database schema hints or identifiers back to the caller.
+    const rawDetail =
       error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
+    const sanitizedDetail = sanitizeClientErrorMessage(rawDetail);
     return new Response(
       JSON.stringify({
-        error: `Failed to generate memo: ${detail}`,
+        error: `Failed to generate memo: ${sanitizedDetail}`,
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

@@ -37,8 +37,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  const providedSecret =
-    req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
+  // CTO audit: header-only; query params leak via access logs.
+  const providedSecret = req.headers.get('x-webhook-secret');
 
   if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
     console.warn('[heyreach-webhook] Invalid webhook secret');
