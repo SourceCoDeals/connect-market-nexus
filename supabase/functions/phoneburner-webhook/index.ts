@@ -101,50 +101,64 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Failed to read request body' }, 400, corsHeaders);
   }
 
-  let signatureValid = true; // default: no auth required — always accepted
-
-  // Optional HMAC signature validation
+  // CTO audit H12: fail closed when PHONEBURNER_WEBHOOK_SECRET is unset.
+  // Previously this webhook accepted ALL unauthenticated POSTs whenever
+  // the env var was missing, which made a single misconfiguration (env
+  // rollback, secret rotation mid-deploy) a full open-mic exposure of
+  // the event-ingest pipeline. Require the env var to be configured.
   const webhookSecret = Deno.env.get('PHONEBURNER_WEBHOOK_SECRET');
-  if (webhookSecret) {
-    const signature =
-      req.headers.get('x-phoneburner-signature') || req.headers.get('x-webhook-signature');
-    if (signature) {
-      const encoder = new TextEncoder();
-      const key = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(webhookSecret),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['verify'],
-      );
-
-      const expectedSig = signature.replace('sha256=', '');
-
-      try {
-        const sigBuffer = new Uint8Array(
-          expectedSig.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
-        );
-        const valid = await crypto.subtle.verify('HMAC', key, sigBuffer, encoder.encode(rawBody));
-
-        if (!valid) {
-          signatureValid = false;
-          console.warn('PhoneBurner webhook HMAC validation failed');
-          return new Response(JSON.stringify({ error: 'Invalid signature' }), {
-            status: 401,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-      } catch (e) {
-        console.warn('PhoneBurner HMAC validation error (allowing through):', e);
-        // Don't block if signature format is unexpected — fall through
-      }
-    }
-    // If secret is set but no signature header, log warning but allow through
-    // (PhoneBurner may not send signature on all event types)
+  if (!webhookSecret) {
+    console.error(
+      '[phoneburner-webhook] PHONEBURNER_WEBHOOK_SECRET is not set — rejecting webhook request',
+    );
+    return new Response(JSON.stringify({ error: 'Webhook not configured' }), {
+      status: 503,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
+  // HMAC signature validation (mandatory now that we fail closed above).
+  const signature =
+    req.headers.get('x-phoneburner-signature') || req.headers.get('x-webhook-signature');
+  if (signature) {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(webhookSecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    );
+
+    const expectedSig = signature.replace('sha256=', '');
+
+    try {
+      const sigBuffer = new Uint8Array(
+        expectedSig.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
+      );
+      const valid = await crypto.subtle.verify('HMAC', key, sigBuffer, encoder.encode(rawBody));
+
+      if (!valid) {
+        console.warn('PhoneBurner webhook HMAC validation failed');
+        return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } catch (e) {
+      console.warn('PhoneBurner HMAC validation error:', e);
+      return new Response(JSON.stringify({ error: 'Invalid signature format' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+  }
+  // If secret is set but no signature header, PhoneBurner is sending an
+  // unsigned event type. Log it but allow through — same behavior as
+  // before, just no longer the default path when env is missing.
+
   console.log(
-    `[phoneburner-webhook] Received${webhookSecret ? ' (HMAC enabled)' : ' (no auth required)'}, body length: ${rawBody.length}`,
+    `[phoneburner-webhook] Received (HMAC ${signature ? 'verified' : 'absent — event may be unsigned'}), body length: ${rawBody.length}`,
   );
 
   let payload: Record<string, unknown>;
@@ -1115,7 +1129,8 @@ async function processEvent(
           contact_email: resolvedContactEmail,
           user_name: userName,
           user_email: userEmail,
-          matching_status: (!resolvedListingId && !resolvedBuyerId && !resolvedContactId) ? 'unmatched' : 'matched',
+          matching_status:
+            !resolvedListingId && !resolvedBuyerId && !resolvedContactId ? 'unmatched' : 'matched',
         })
         .select('id')
         .single();
@@ -1175,7 +1190,9 @@ async function processEvent(
               await supabase.functions.invoke('auto-summarize-transcript', {
                 body: { transcript_id: dtRow.id },
               });
-              console.log(`[phoneburner-webhook] Triggered auto-summarize for transcript ${dtRow.id}`);
+              console.log(
+                `[phoneburner-webhook] Triggered auto-summarize for transcript ${dtRow.id}`,
+              );
             }
           } catch (e) {
             console.error('[phoneburner-webhook] Failed to trigger auto-summarize:', e);
@@ -1192,149 +1209,154 @@ async function processEvent(
         try {
           // Use listing_id as deal_id (the remarketing UI queries deal_activities by listing_id)
           try {
-              await supabase.rpc('log_deal_activity', {
-                p_deal_id: resolvedListingId,
-                p_activity_type: 'call_completed',
-                p_title: `${connected ? 'Connected call' : 'Call attempt'}: ${contactName || resolvedContactEmail || 'Unknown'}${userName ? ` (by ${userName})` : ''}`,
-                p_description: [
+            await supabase.rpc('log_deal_activity', {
+              p_deal_id: resolvedListingId,
+              p_activity_type: 'call_completed',
+              p_title: `${connected ? 'Connected call' : 'Call attempt'}: ${contactName || resolvedContactEmail || 'Unknown'}${userName ? ` (by ${userName})` : ''}`,
+              p_description:
+                [
                   dispositionLabel ? `Disposition: ${dispositionLabel}` : null,
                   duration ? `Duration: ${Math.floor(duration / 60)}m ${duration % 60}s` : null,
                   talkTime ? `Talk time: ${Math.floor(talkTime / 60)}m ${talkTime % 60}s` : null,
                   notes ? `Notes: ${notes.substring(0, 200)}` : null,
-                  (recordingUrl || recordingUrlPublic) ? 'Recording available' : null,
+                  recordingUrl || recordingUrlPublic ? 'Recording available' : null,
                   topLevelTranscript ? `Transcript (${topLevelTranscript.length} chars)` : null,
-                ].filter(Boolean).join(' | ') || null,
-                p_admin_id: null,
-                p_metadata: {
-                  // Identification
-                  phoneburner_call_id: pbCallId,
-                  contact_activity_id: data?.id || null,
-                  match_source: matchSource,
+                ]
+                  .filter(Boolean)
+                  .join(' | ') || null,
+              p_admin_id: null,
+              p_metadata: {
+                // Identification
+                phoneburner_call_id: pbCallId,
+                contact_activity_id: data?.id || null,
+                match_source: matchSource,
 
-                  // People
-                  contact_name: contactName,
-                  contact_email: resolvedContactEmail,
-                  contact_phone: contactPhone,
-                  caller_name: userName,
-                  caller_email: userEmail,
+                // People
+                contact_name: contactName,
+                contact_email: resolvedContactEmail,
+                contact_phone: contactPhone,
+                caller_name: userName,
+                caller_email: userEmail,
 
-                  // Call details
-                  connected,
-                  call_direction: (payload.direction || 'outbound') as string,
-                  duration_seconds: duration,
-                  talk_time_seconds: talkTime,
-                  call_started_at: callStartedAt,
-                  call_ended_at: callEndedAt,
+                // Call details
+                connected,
+                call_direction: (payload.direction || 'outbound') as string,
+                duration_seconds: duration,
+                talk_time_seconds: talkTime,
+                call_started_at: callStartedAt,
+                call_ended_at: callEndedAt,
 
-                  // Disposition
-                  disposition_code: dispositionCode || null,
-                  disposition_label: dispositionLabel || null,
-                  disposition_notes: notes || null,
-                  phoneburner_status: topLevelStatus || null,
+                // Disposition
+                disposition_code: dispositionCode || null,
+                disposition_label: dispositionLabel || null,
+                disposition_notes: notes || null,
+                phoneburner_status: topLevelStatus || null,
 
-                  // Media
-                  recording_url: recordingUrl || null,
-                  recording_url_public: recordingUrlPublic || null,
-                  recording_duration_seconds: recordingDuration,
-                  has_transcript: !!(topLevelTranscript && topLevelTranscript.trim().length > 0),
-                  transcript_preview: topLevelTranscript ? topLevelTranscript.substring(0, 500) : null,
+                // Media
+                recording_url: recordingUrl || null,
+                recording_url_public: recordingUrlPublic || null,
+                recording_duration_seconds: recordingDuration,
+                has_transcript: !!(topLevelTranscript && topLevelTranscript.trim().length > 0),
+                transcript_preview: topLevelTranscript
+                  ? topLevelTranscript.substring(0, 500)
+                  : null,
 
-                  // Context
-                  contact_notes: contactNotes || null,
-                },
-              });
-            } catch (e) {
-              console.error('[phoneburner-webhook] Failed to log deal activity:', e);
+                // Context
+                contact_notes: contactNotes || null,
+              },
+            });
+          } catch (e) {
+            console.error('[phoneburner-webhook] Failed to log deal activity:', e);
+          }
+
+          // ── Auto-create follow-up task based on disposition ──
+          if (dispositionLabel) {
+            const dispositionLower = dispositionLabel.toLowerCase();
+            let taskTitle: string | null = null;
+            let taskType = 'follow_up_with_buyer';
+            let dueDays = 3;
+
+            if (dispositionLower.includes('callback') || dispositionLower.includes('call back')) {
+              taskTitle = `Callback: ${contactName || resolvedContactEmail || 'contact'}`;
+              taskType = 'schedule_call';
+              dueDays = 1;
+            } else if (
+              dispositionLower.includes('interested') ||
+              dispositionLower.includes('send info') ||
+              dispositionLower.includes('send more')
+            ) {
+              taskTitle = `Send materials to ${contactName || resolvedContactEmail || 'contact'}`;
+              taskType = 'send_materials';
+              dueDays = 1;
+            } else if (
+              dispositionLower.includes('voicemail') ||
+              dispositionLower.includes('no answer')
+            ) {
+              taskTitle = `Follow up (voicemail): ${contactName || resolvedContactEmail || 'contact'}`;
+              taskType = 'follow_up_with_buyer';
+              dueDays = 3;
+            } else if (
+              connected &&
+              !dispositionLower.includes('not interested') &&
+              !dispositionLower.includes('do not call') &&
+              !dispositionLower.includes('wrong number')
+            ) {
+              taskTitle = `Follow up after call: ${contactName || resolvedContactEmail || 'contact'}`;
+              taskType = 'follow_up_with_buyer';
+              dueDays = 5;
             }
 
-            // ── Auto-create follow-up task based on disposition ──
-            if (dispositionLabel) {
-              const dispositionLower = dispositionLabel.toLowerCase();
-              let taskTitle: string | null = null;
-              let taskType = 'follow_up_with_buyer';
-              let dueDays = 3;
+            if (taskTitle) {
+              try {
+                const dueDate = new Date();
+                dueDate.setDate(dueDate.getDate() + dueDays);
 
-              if (dispositionLower.includes('callback') || dispositionLower.includes('call back')) {
-                taskTitle = `Callback: ${contactName || resolvedContactEmail || 'contact'}`;
-                taskType = 'schedule_call';
-                dueDays = 1;
-              } else if (
-                dispositionLower.includes('interested') ||
-                dispositionLower.includes('send info') ||
-                dispositionLower.includes('send more')
-              ) {
-                taskTitle = `Send materials to ${contactName || resolvedContactEmail || 'contact'}`;
-                taskType = 'send_materials';
-                dueDays = 1;
-              } else if (
-                dispositionLower.includes('voicemail') ||
-                dispositionLower.includes('no answer')
-              ) {
-                taskTitle = `Follow up (voicemail): ${contactName || resolvedContactEmail || 'contact'}`;
-                taskType = 'follow_up_with_buyer';
-                dueDays = 3;
-              } else if (
-                connected &&
-                !dispositionLower.includes('not interested') &&
-                !dispositionLower.includes('do not call') &&
-                !dispositionLower.includes('wrong number')
-              ) {
-                taskTitle = `Follow up after call: ${contactName || resolvedContactEmail || 'contact'}`;
-                taskType = 'follow_up_with_buyer';
-                dueDays = 5;
-              }
+                await supabase.from('daily_standup_tasks').insert({
+                  title: taskTitle,
+                  task_type: taskType,
+                  status: 'pending',
+                  priority: connected ? 'high' : 'medium',
+                  priority_score: connected ? 80 : 50,
+                  due_date: dueDate.toISOString().split('T')[0],
+                  entity_type: 'deal',
+                  entity_id: resolvedListingId,
+                  deal_id: resolvedListingId,
+                  auto_generated: true,
+                  generation_source: 'call_disposition',
+                  source: 'system',
+                  description: [
+                    `Auto-created from PhoneBurner call.`,
+                    `Contact: ${contactName || 'Unknown'}${resolvedContactEmail ? ` (${resolvedContactEmail})` : ''}`,
+                    `Disposition: ${dispositionLabel}`,
+                    duration ? `Duration: ${Math.round(duration / 60)} min` : null,
+                    recordingUrl ? `Recording: ${recordingUrl}` : null,
+                    topLevelTranscript
+                      ? `\nCall excerpt:\n${topLevelTranscript.substring(0, 300)}${topLevelTranscript.length > 300 ? '...' : ''}`
+                      : null,
+                    `\n---\nAdd your call notes below:`,
+                  ]
+                    .filter(Boolean)
+                    .join('\n'),
+                });
 
-              if (taskTitle) {
-                try {
-                  const dueDate = new Date();
-                  dueDate.setDate(dueDate.getDate() + dueDays);
-
-                  await supabase.from('daily_standup_tasks').insert({
-                    title: taskTitle,
+                // Also log the auto-task creation to deal_activities
+                await supabase.rpc('log_deal_activity', {
+                  p_deal_id: resolvedListingId,
+                  p_activity_type: 'auto_followup_created',
+                  p_title: `Auto follow-up: ${taskTitle}`,
+                  p_description: `Created from call disposition: ${dispositionLabel}`,
+                  p_admin_id: null,
+                  p_metadata: {
                     task_type: taskType,
-                    status: 'pending',
-                    priority: connected ? 'high' : 'medium',
-                    priority_score: connected ? 80 : 50,
-                    due_date: dueDate.toISOString().split('T')[0],
-                    entity_type: 'deal',
-                    entity_id: resolvedListingId,
-                    deal_id: resolvedListingId,
-                    auto_generated: true,
-                    generation_source: 'call_disposition',
-                    source: 'system',
-                    description: [
-                      `Auto-created from PhoneBurner call.`,
-                      `Contact: ${contactName || 'Unknown'}${resolvedContactEmail ? ` (${resolvedContactEmail})` : ''}`,
-                      `Disposition: ${dispositionLabel}`,
-                      duration ? `Duration: ${Math.round(duration / 60)} min` : null,
-                      recordingUrl ? `Recording: ${recordingUrl}` : null,
-                      topLevelTranscript
-                        ? `\nCall excerpt:\n${topLevelTranscript.substring(0, 300)}${topLevelTranscript.length > 300 ? '...' : ''}`
-                        : null,
-                      `\n---\nAdd your call notes below:`,
-                    ]
-                      .filter(Boolean)
-                      .join('\n'),
-                  });
-
-                  // Also log the auto-task creation to deal_activities
-                  await supabase.rpc('log_deal_activity', {
-                    p_deal_id: resolvedListingId,
-                    p_activity_type: 'auto_followup_created',
-                    p_title: `Auto follow-up: ${taskTitle}`,
-                    p_description: `Created from call disposition: ${dispositionLabel}`,
-                    p_admin_id: null,
-                    p_metadata: {
-                      task_type: taskType,
-                      due_days: dueDays,
-                      disposition: dispositionLabel,
-                    },
-                  });
-                } catch (e) {
-                  console.error('[phoneburner-webhook] Failed to create auto follow-up task:', e);
-                }
+                    due_days: dueDays,
+                    disposition: dispositionLabel,
+                  },
+                });
+              } catch (e) {
+                console.error('[phoneburner-webhook] Failed to create auto follow-up task:', e);
               }
             }
+          }
         } catch (e) {
           console.error('[phoneburner-webhook] Failed to log deal activity:', e);
         }
@@ -1396,20 +1418,20 @@ async function processEvent(
       // Log to deal_activities for deal timeline visibility
       if (resolvedListingId) {
         try {
-            const cbDate = (callback.scheduled_for || payload.callback_date || null) as string | null;
-            await supabase.rpc('log_deal_activity', {
-              p_deal_id: resolvedListingId,
-              p_activity_type: 'meeting_scheduled',
-              p_title: `Callback scheduled: ${contactName || resolvedContactEmail || 'contact'}${cbDate ? ` for ${cbDate}` : ''}`,
-              p_description: (callback.notes || payload.callback_notes || null) as string | null,
-              p_admin_id: null,
-              p_metadata: {
-                contact_name: contactName,
-                contact_email: resolvedContactEmail,
-                caller_name: userName,
-                callback_date: cbDate,
-              },
-            });
+          const cbDate = (callback.scheduled_for || payload.callback_date || null) as string | null;
+          await supabase.rpc('log_deal_activity', {
+            p_deal_id: resolvedListingId,
+            p_activity_type: 'meeting_scheduled',
+            p_title: `Callback scheduled: ${contactName || resolvedContactEmail || 'contact'}${cbDate ? ` for ${cbDate}` : ''}`,
+            p_description: (callback.notes || payload.callback_notes || null) as string | null,
+            p_admin_id: null,
+            p_metadata: {
+              contact_name: contactName,
+              contact_email: resolvedContactEmail,
+              caller_name: userName,
+              callback_date: cbDate,
+            },
+          });
         } catch (e) {
           console.error('[phoneburner-webhook] Failed to log callback deal activity:', e);
         }
