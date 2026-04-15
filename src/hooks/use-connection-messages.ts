@@ -162,21 +162,29 @@ export function useSendMessage() {
             if (staticProfile?.name) adminFullName = staticProfile.name;
           }
 
-          // Get buyer name and deal title from connection request
+          // Get buyer name and deal title from connection request.
+          // Lead-only requests (landing page / webflow submissions) have
+          // user_id = NULL, so fall back to the lead_name / lead_email
+          // columns instead of querying profiles.
           const { data: connReq } = await supabase
             .from('connection_requests')
-            .select('user_id, listing_id')
+            .select('user_id, listing_id, lead_name, lead_email')
             .eq('id', params.connection_request_id)
             .single();
           if (connReq) {
-            const { data: buyerProfile } = await supabase
-              .from('profiles')
-              .select('first_name, last_name, email')
-              .eq('id', connReq.user_id as string)
-              .single();
-            if (buyerProfile) {
-              const bName = `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim();
-              buyerName = bName || buyerProfile.email || 'Buyer';
+            if (connReq.user_id) {
+              const { data: buyerProfile } = await supabase
+                .from('profiles')
+                .select('first_name, last_name, email')
+                .eq('id', connReq.user_id)
+                .single();
+              if (buyerProfile) {
+                const bName =
+                  `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim();
+                buyerName = bName || buyerProfile.email || 'Buyer';
+              }
+            } else if (connReq.lead_email || connReq.lead_name) {
+              buyerName = connReq.lead_name || connReq.lead_email || 'Buyer';
             }
             if (connReq.listing_id) {
               const { data: listing } = await supabase
@@ -346,11 +354,19 @@ export function useUnreadBuyerMessageCounts() {
         .eq('user_id', user.id);
 
       const requestIds = (requests || []).map((r) => r.id);
-      if (requestIds.length === 0) return { byRequest: {} as Record<string, number>, total: 0, dealTotal: 0, messagesTotal: 0 };
+      if (requestIds.length === 0)
+        return {
+          byRequest: {} as Record<string, number>,
+          total: 0,
+          dealTotal: 0,
+          messagesTotal: 0,
+        };
 
       // Build a map of request_id -> listing_id
       const requestListingMap: Record<string, string | null> = {};
-      (requests || []).forEach((r) => { requestListingMap[r.id] = r.listing_id; });
+      (requests || []).forEach((r) => {
+        requestListingMap[r.id] = r.listing_id;
+      });
 
       const { data, error } = await supabase
         .from('connection_messages' as never)
