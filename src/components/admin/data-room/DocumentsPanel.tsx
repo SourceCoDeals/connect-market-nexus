@@ -15,10 +15,28 @@ import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import {
-  Upload, FileText, File, FileSpreadsheet, FileImage,
-  Trash2, Download, Eye, Loader2, EyeOff,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
+  Upload,
+  FileText,
+  File,
+  FileSpreadsheet,
+  FileImage,
+  Trash2,
+  Download,
+  Eye,
+  Loader2,
+  EyeOff,
 } from 'lucide-react';
 import {
   useDataRoomDocuments,
@@ -42,22 +60,25 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Only show data room files — memo PDFs are managed by the MemosTab
-  const dataRoomDocs = documents.filter(d => d.document_category === 'data_room');
+  const dataRoomDocs = documents.filter((d) => d.document_category === 'data_room');
 
-  const handleFileUpload = useCallback(async (files: FileList | File[]) => {
-    for (const file of Array.from(files)) {
-      await uploadMutation.mutateAsync({
-        file,
-        dealId,
-        folderName: 'General',
-        documentCategory: 'data_room',
-      });
-    }
+  const handleFileUpload = useCallback(
+    async (files: FileList | File[]) => {
+      for (const file of Array.from(files)) {
+        await uploadMutation.mutateAsync({
+          file,
+          dealId,
+          folderName: 'General',
+          documentCategory: 'data_room',
+        });
+      }
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }, [dealId, uploadMutation]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    },
+    [dealId, uploadMutation],
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -68,13 +89,16 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    if (e.dataTransfer.files.length > 0) {
-      handleFileUpload(e.dataTransfer.files);
-    }
-  }, [handleFileUpload]);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      if (e.dataTransfer.files.length > 0) {
+        handleFileUpload(e.dataTransfer.files);
+      }
+    },
+    [handleFileUpload],
+  );
 
   const handleViewDocument = async (doc: DataRoomDocument) => {
     const result = await documentUrlMutation.mutateAsync({
@@ -95,7 +119,8 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
   const getFileIcon = (fileType: string | null) => {
     if (!fileType) return <File className="h-5 w-5 text-gray-400" />;
     if (fileType.includes('pdf')) return <FileText className="h-5 w-5 text-red-500" />;
-    if (fileType.includes('spreadsheet') || fileType.includes('csv')) return <FileSpreadsheet className="h-5 w-5 text-green-500" />;
+    if (fileType.includes('spreadsheet') || fileType.includes('csv'))
+      return <FileSpreadsheet className="h-5 w-5 text-green-500" />;
     if (fileType.includes('image')) return <FileImage className="h-5 w-5 text-blue-500" />;
     if (fileType.includes('presentation')) return <FileText className="h-5 w-5 text-orange-500" />;
     return <File className="h-5 w-5 text-gray-400" />;
@@ -126,7 +151,8 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Data Room Files</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Supporting documents for due diligence. Uploaded files are used to enrich the company profile and generate lead memos.
+            Supporting documents for due diligence. Uploaded files are used to enrich the company
+            profile and generate lead memos.
           </p>
         </CardHeader>
         <CardContent>
@@ -180,12 +206,14 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Documents
-              <Badge variant="secondary" className="ml-1">{dataRoomDocs.length}</Badge>
+              <Badge variant="secondary" className="ml-1">
+                {dataRoomDocs.length}
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="divide-y">
-              {dataRoomDocs.map(doc => (
+              {dataRoomDocs.map((doc) => (
                 <div key={doc.id} className="flex items-center gap-3 py-2 group">
                   {getFileIcon(doc.file_type)}
                   <div className="flex-1 min-w-0">
@@ -195,11 +223,35 @@ export function DocumentsPanel({ dealId }: DocumentsPanelProps) {
                       {' · '}
                       {new Date(doc.created_at).toLocaleDateString()}
                     </p>
+                    {/* CTO audit: surface text-extraction failures so admins
+                        know when a doc uploaded cleanly but couldn't be
+                        parsed for AI enrichment. Previously this column
+                        was written server-side but never displayed. */}
+                    {(doc as { text_extraction_error?: string | null }).text_extraction_error && (
+                      <p
+                        className="text-xs text-destructive mt-0.5 truncate"
+                        title={
+                          (doc as { text_extraction_error?: string }).text_extraction_error || ''
+                        }
+                      >
+                        Text extraction failed:{' '}
+                        {(doc as { text_extraction_error?: string }).text_extraction_error}
+                      </p>
+                    )}
                   </div>
                   {!doc.allow_download && (
                     <Badge variant="outline" className="text-xs">
                       <EyeOff className="h-3 w-3 mr-1" />
                       View only
+                    </Badge>
+                  )}
+                  {(doc as { text_extraction_error?: string | null }).text_extraction_error && (
+                    <Badge
+                      variant="outline"
+                      className="text-xs border-destructive text-destructive"
+                      title="Text could not be extracted from this document. AI enrichment will skip it."
+                    >
+                      Extraction failed
                     </Badge>
                   )}
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

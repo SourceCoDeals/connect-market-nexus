@@ -347,7 +347,20 @@ Deno.serve(async (req: Request) => {
         supabaseAdmin,
       );
 
-      // Save to lead_memos
+      // CTO audit: delete any existing draft memo of the same type+branding
+      // for this deal before inserting the new one. Previously regenerating
+      // a memo produced a new row every time, leaving the table full of
+      // orphaned drafts and ambiguous "most recent" state. We only delete
+      // DRAFT rows — approved / published memos must be archived manually,
+      // never silently replaced.
+      await supabaseAdmin
+        .from('lead_memos')
+        .delete()
+        .eq('deal_id', deal_id)
+        .eq('memo_type', 'anonymous_teaser')
+        .eq('branding', branding)
+        .eq('status', 'draft');
+
       const { data: teaser, error: teaserError } = await supabaseAdmin
         .from('lead_memos')
         .insert({
@@ -462,6 +475,16 @@ Deno.serve(async (req: Request) => {
         resolvedProjectName,
         supabaseAdmin,
       );
+
+      // CTO audit: same dedup as the teaser above — delete prior DRAFT
+      // rows for this deal+type+branding before inserting the new version.
+      await supabaseAdmin
+        .from('lead_memos')
+        .delete()
+        .eq('deal_id', deal_id)
+        .eq('memo_type', 'full_memo')
+        .eq('branding', branding)
+        .eq('status', 'draft');
 
       const { data: fullMemo, error: fullError } = await supabaseAdmin
         .from('lead_memos')
@@ -738,6 +761,14 @@ async function buildHeroFromMemo(
   const industry = (deal.industry || deal.category || 'Services') as string;
   const state = (deal.address_state || '') as string;
 
+  // CTO audit: pre-process state → regional descriptor before passing to
+  // the AI. Previously the prompt said "convert to regional descriptor —
+  // never use state name", which relied on the model obeying instructions.
+  // If the model ignored the instruction the state name leaked through.
+  // Pre-processing removes the temptation entirely by never giving the
+  // model the raw state name in the first place.
+  const region = state ? STATE_CODE_TO_REGION[state.toUpperCase().trim()] || 'Central region' : '';
+
   const metricsLines = [
     revenue
       ? `Revenue: ~$${((revenue * 0.9) / 1_000_000).toFixed(1)}M-$${((revenue * 1.1) / 1_000_000).toFixed(1)}M`
@@ -746,7 +777,7 @@ async function buildHeroFromMemo(
       ? `EBITDA: ~$${((ebitda * 0.9) / 1_000).toFixed(0)}K-$${((ebitda * 1.1) / 1_000).toFixed(0)}K`
       : null,
     `Industry: ${industry}`,
-    state ? `Geography: ${state} (convert to regional descriptor — never use state name)` : null,
+    region ? `Geography: ${region}` : null,
   ]
     .filter(Boolean)
     .join('\n');

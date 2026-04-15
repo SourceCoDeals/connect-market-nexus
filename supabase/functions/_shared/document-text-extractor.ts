@@ -368,15 +368,37 @@ export async function extractOfficeFileText(
         return { text: null, error: 'PPTX contains no slides' };
       }
 
+      // Speaker notes live at ppt/notesSlides/notesSlideN.xml and use the
+      // same a:p / a:t structure as slide text, so extractPptxSlideText
+      // works for them as well. CTO audit: CIMs routinely put speaker
+      // notes on the AI-narration slide with financial detail that isn't
+      // repeated in the slide body — if we skipped notes we lost it.
+      const notesByIndex = new Map<string, string>();
+      for (const name of Object.keys(zip.files)) {
+        const match = name.match(/^ppt\/notesSlides\/notesSlide(\d+)\.xml$/);
+        if (!match) continue;
+        const notesFile = zip.file(name);
+        if (!notesFile) continue;
+        const notesXml = await notesFile.async('string');
+        const notesText = extractPptxSlideText(notesXml);
+        if (notesText.length > 0) {
+          notesByIndex.set(match[1], notesText);
+        }
+      }
+
       const slideTexts: string[] = [];
       for (const slideName of slideFiles) {
         const slideFile = zip.file(slideName);
         if (!slideFile) continue;
         const slideXml = await slideFile.async('string');
         const slideText = extractPptxSlideText(slideXml);
+        const slideIdx = slideName.match(/slide(\d+)/)?.[1] || '?';
         if (slideText.length > 0) {
-          const slideIdx = slideName.match(/slide(\d+)/)?.[1] || '?';
           slideTexts.push(`--- Slide ${slideIdx} ---\n${slideText}`);
+        }
+        const notes = notesByIndex.get(slideIdx);
+        if (notes) {
+          slideTexts.push(`--- Slide ${slideIdx} Speaker Notes ---\n${notes}`);
         }
       }
 
