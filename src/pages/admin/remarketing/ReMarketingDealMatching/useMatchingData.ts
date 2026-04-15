@@ -105,13 +105,16 @@ export function useMatchingData(listingId: string | undefined) {
     }
   }, [linkedUniverses, selectedUniverse]);
 
-  // CTO audit H2: cap the score query at 250 rows. Previously this fetched
-  // every score for the listing + full nested buyer + contacts, producing
-  // 2-5MB payloads and freezing the page at 500+ buyers. 250 is more than
-  // the matching list can comfortably render in one view; virtual scroll +
-  // pagination is tracked as a follow-up. Sort order puts the highest
-  // composite_score first so the cut is "the top 250 matches" not random.
-  const MATCHING_SCORE_ROW_CAP = 250;
+  // CTO audit H2: cap the score query at 2000 rows. The initial fix capped
+  // at 250 for memory safety, but the match list is now virtualized via
+  // @tanstack/react-virtual (see ReMarketingDealMatching/index.tsx), so
+  // only the visible rows + overscan buffer are actually mounted. 2000 is
+  // a pragmatic ceiling on the query payload — enough to cover every buyer
+  // in a large universe, bounded enough to avoid pathological response
+  // sizes. Virtualization handles the render cost; this cap handles the
+  // network cost. Rows are ordered by composite_score DESC so any cut is
+  // "the top N matches", not random.
+  const MATCHING_SCORE_ROW_CAP = 2000;
   const { data: allScores, isLoading: scoresLoading } = useQuery({
     queryKey: ['remarketing', 'scores', listingId],
     queryFn: async () => {

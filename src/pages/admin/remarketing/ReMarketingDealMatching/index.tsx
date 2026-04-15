@@ -1,4 +1,6 @@
 import { useParams } from 'react-router-dom';
+import { useRef } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Sparkles, AlertTriangle, Activity, Loader2 } from 'lucide-react';
@@ -30,6 +32,22 @@ export default function ReMarketingDealMatching() {
     setCustomInstructions: data.setCustomInstructions,
     refetchOutreach: data.refetchOutreach,
     listing: data.listing,
+  });
+
+  // H2 follow-up: window virtualizer for the match list. Only the visible
+  // buyer cards + a small buffer are rendered, so the page stays smooth
+  // even with thousands of scores. Uses `useWindowVirtualizer` because the
+  // page already scrolls as a whole (no fixed-height parent), and
+  // `measureElement` to handle variable row heights — BuyerMatchCard
+  // expands on click and has variable-length buyer blurbs. `estimateSize`
+  // is tuned for a collapsed card; actual heights are measured after mount.
+  const virtualListRef = useRef<HTMLDivElement | null>(null);
+  const virtualizer = useWindowVirtualizer({
+    count: data.filteredScores.length,
+    estimateSize: () => 240,
+    overscan: 4,
+    scrollMargin: virtualListRef.current?.offsetTop ?? 0,
+    getItemKey: (index) => data.filteredScores[index]?.id ?? index,
   });
 
   return (
@@ -177,54 +195,85 @@ export default function ReMarketingDealMatching() {
           </CardHeader>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {data.filteredScores.map((score) => {
-            const outreach = data.outreachRecords?.find((o) => o.score_id === score.id);
-            const feeAgreement = data.feeAgreementLookup.get(score.id);
-            const buyerIdForTouchpoints = (score.buyer as { id?: string } | null | undefined)?.id;
-            const firmTouchpoints = buyerIdForTouchpoints
-              ? data.firmTouchpointByBuyer.get(buyerIdForTouchpoints)
-              : undefined;
-            return (
-              <BuyerMatchCard
-                key={score.id}
-                score={score as unknown as React.ComponentProps<typeof BuyerMatchCard>['score']}
-                listingId={listingId}
-                outreach={outreach as React.ComponentProps<typeof BuyerMatchCard>['outreach']}
-                firmFeeAgreement={
-                  feeAgreement
-                    ? {
-                        signed: feeAgreement.signed || false,
-                        signedAt: feeAgreement.signedAt || null,
-                      }
-                    : undefined
-                }
-                firmTouchpointCount={firmTouchpoints?.count ?? 0}
-                firmDomainCount={firmTouchpoints?.domainCount ?? 0}
-                isSelected={actions.selectedIds.has(score.id)}
-                isHighlighted={actions.highlightedBuyerIds?.includes(score.buyer_id)}
-                onSelect={actions.handleSelect}
-                onApprove={(id) => actions.handleApprove(id, score)}
-                onPass={(id) =>
-                  actions.handleOpenPassDialog(
-                    id,
-                    (score.buyer as { company_name?: string } | undefined)?.company_name ||
-                      'Unknown',
-                    score,
-                  )
-                }
-                onToggleInterested={(id, interested) =>
-                  actions.handleToggleInterested(id, interested, score)
-                }
-                onOutreachUpdate={actions.handleOutreachUpdate}
-                onViewed={actions.handleScoreViewed}
-                onMoveToPipeline={actions.handleMoveToPipeline}
-                pipelineDealId={
-                  score.buyer_id ? data.pipelineDealByBuyer.get(score.buyer_id) : undefined
-                }
-              />
-            );
-          })}
+        <div>
+          {/* Virtualized match list. The outer ref-backed div provides the
+              position:relative container for absolute-positioned rows; its
+              height is set to the virtualizer's total measured height so
+              the page scroll bar reflects the full list length. Only rows
+              in the visible window (+ overscan) are actually mounted. */}
+          <div
+            ref={virtualListRef}
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const score = data.filteredScores[virtualRow.index];
+              if (!score) return null;
+              const outreach = data.outreachRecords?.find((o) => o.score_id === score.id);
+              const feeAgreement = data.feeAgreementLookup.get(score.id);
+              const buyerIdForTouchpoints = (score.buyer as { id?: string } | null | undefined)?.id;
+              const firmTouchpoints = buyerIdForTouchpoints
+                ? data.firmTouchpointByBuyer.get(buyerIdForTouchpoints)
+                : undefined;
+              return (
+                <div
+                  key={virtualRow.key}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${
+                      virtualRow.start - virtualizer.options.scrollMargin
+                    }px)`,
+                    paddingBottom: '12px', // replaces space-y-3 gap
+                  }}
+                >
+                  <BuyerMatchCard
+                    score={score as unknown as React.ComponentProps<typeof BuyerMatchCard>['score']}
+                    listingId={listingId}
+                    outreach={outreach as React.ComponentProps<typeof BuyerMatchCard>['outreach']}
+                    firmFeeAgreement={
+                      feeAgreement
+                        ? {
+                            signed: feeAgreement.signed || false,
+                            signedAt: feeAgreement.signedAt || null,
+                          }
+                        : undefined
+                    }
+                    firmTouchpointCount={firmTouchpoints?.count ?? 0}
+                    firmDomainCount={firmTouchpoints?.domainCount ?? 0}
+                    isSelected={actions.selectedIds.has(score.id)}
+                    isHighlighted={actions.highlightedBuyerIds?.includes(score.buyer_id)}
+                    onSelect={actions.handleSelect}
+                    onApprove={(id) => actions.handleApprove(id, score)}
+                    onPass={(id) =>
+                      actions.handleOpenPassDialog(
+                        id,
+                        (score.buyer as { company_name?: string } | undefined)?.company_name ||
+                          'Unknown',
+                        score,
+                      )
+                    }
+                    onToggleInterested={(id, interested) =>
+                      actions.handleToggleInterested(id, interested, score)
+                    }
+                    onOutreachUpdate={actions.handleOutreachUpdate}
+                    onViewed={actions.handleScoreViewed}
+                    onMoveToPipeline={actions.handleMoveToPipeline}
+                    pipelineDealId={
+                      score.buyer_id ? data.pipelineDealByBuyer.get(score.buyer_id) : undefined
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
 
           {/* Summary footer */}
           <div className="text-center text-sm text-muted-foreground py-4">
