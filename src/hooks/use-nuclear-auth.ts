@@ -109,7 +109,10 @@ export function useNuclearAuth() {
           if (isMounted) loadProfile(session.user.id);
         }, 0);
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        // Silently refresh profile on token refresh
+        // CTO audit H9: the MFA gate (useAdminMFAStatus) subscribes to the
+        // same auth state changes and re-runs getAuthenticatorAssuranceLevel
+        // on TOKEN_REFRESHED, so a silent AAL1 downgrade no longer slips
+        // past the admin route. Here we just refresh the profile like before.
         setTimeout(() => {
           if (isMounted) loadProfile(session.user.id);
         }, 0);
@@ -132,8 +135,34 @@ export function useNuclearAuth() {
           setUser(null);
         }
       } catch (error) {
+        // CTO audit H10: distinguish "no session" from "revoked / expired
+        // refresh token". Previously a REFRESH_TOKEN_FAILED or INVALID_GRANT
+        // silently left the user in a stale authenticated state. Now we
+        // recognize those specific codes, clear any leftover local auth
+        // state, and redirect to login with a hint so the user understands
+        // why they were bounced.
         console.error('Session check error:', error);
         if (isMounted) setUser(null);
+        const code =
+          (error as { code?: string; message?: string } | null)?.code ||
+          (error as { message?: string } | null)?.message ||
+          '';
+        const refreshFailed =
+          code === 'refresh_token_not_found' ||
+          code === 'refresh_token_already_used' ||
+          code === 'invalid_grant' ||
+          /refresh.*token/i.test(code);
+        if (refreshFailed && typeof window !== 'undefined') {
+          try {
+            const { cleanupAuthState } = await import('@/lib/auth-cleanup');
+            cleanupAuthState();
+          } catch {
+            /* best-effort */
+          }
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login?session_expired=1';
+          }
+        }
       } finally {
         if (isMounted) {
           setIsLoading(false);

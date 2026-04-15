@@ -246,8 +246,29 @@ export function useAdminMFAStatus(enabled: boolean): { status: AdminMFAStatus } 
     };
 
     check();
+
+    // CTO audit H9: re-run the check whenever Supabase emits auth state
+    // changes. Without this subscription, a TOKEN_REFRESHED that drops the
+    // session out of AAL2 (e.g. after an idle period longer than the AAL2
+    // lifetime) leaves the component stuck on 'verified' — admin content
+    // stays rendered even though the session no longer holds AAL2.
+    const { data: subscription } = supabase.auth.onAuthStateChange((event) => {
+      if (!active) return;
+      if (
+        event === 'TOKEN_REFRESHED' ||
+        event === 'MFA_CHALLENGE_VERIFIED' ||
+        event === 'SIGNED_IN'
+      ) {
+        setStatus('loading');
+        check();
+      } else if (event === 'SIGNED_OUT') {
+        setStatus('not_required');
+      }
+    });
+
     return () => {
       active = false;
+      subscription.subscription.unsubscribe();
     };
   }, [enabled]);
 

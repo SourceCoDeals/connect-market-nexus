@@ -19,15 +19,56 @@ import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 const LOGIN_BACKOFF_MS = [0, 0, 1000, 2000, 4000, 8000, 16000, 30000];
 const MAX_BACKOFF_MS = 30000;
 
+// CTO audit C1: persist the lockout to localStorage so opening a new tab
+// or reloading the page doesn't reset the counter. Keys are scoped to the
+// origin so cross-site brute force attempts can't share state.
+const LOCKOUT_KEY = 'sourceco_login_lockout_until';
+const FAILED_ATTEMPTS_KEY = 'sourceco_login_failed_attempts';
+
+function readLockoutState(): { lockoutUntil: number | null; failedAttempts: number } {
+  if (typeof window === 'undefined') return { lockoutUntil: null, failedAttempts: 0 };
+  try {
+    const lockRaw = window.localStorage.getItem(LOCKOUT_KEY);
+    const failedRaw = window.localStorage.getItem(FAILED_ATTEMPTS_KEY);
+    const lock = lockRaw ? parseInt(lockRaw, 10) : null;
+    const failed = failedRaw ? parseInt(failedRaw, 10) : 0;
+    return {
+      lockoutUntil: lock && lock > Date.now() ? lock : null,
+      failedAttempts: Number.isFinite(failed) && failed > 0 ? failed : 0,
+    };
+  } catch {
+    return { lockoutUntil: null, failedAttempts: 0 };
+  }
+}
+
+function writeLockoutState(lockoutUntil: number | null, failedAttempts: number) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (lockoutUntil) {
+      window.localStorage.setItem(LOCKOUT_KEY, String(lockoutUntil));
+    } else {
+      window.localStorage.removeItem(LOCKOUT_KEY);
+    }
+    if (failedAttempts > 0) {
+      window.localStorage.setItem(FAILED_ATTEMPTS_KEY, String(failedAttempts));
+    } else {
+      window.localStorage.removeItem(FAILED_ATTEMPTS_KEY);
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const initialLockoutState = readLockoutState();
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(initialLockoutState.lockoutUntil);
   const [, forceTick] = useState(0);
-  const failedAttemptsRef = useRef(0);
+  const failedAttemptsRef = useRef(initialLockoutState.failedAttempts);
   const { user, isLoading, authChecked, login } = useAuth();
   const navigate = useNavigate();
 
@@ -37,6 +78,7 @@ const Login = () => {
     const id = window.setInterval(() => {
       if (Date.now() >= lockoutUntil) {
         setLockoutUntil(null);
+        writeLockoutState(null, failedAttemptsRef.current);
         window.clearInterval(id);
       } else {
         forceTick((n) => n + 1);
@@ -80,6 +122,7 @@ const Login = () => {
       await login(email, password);
       failedAttemptsRef.current = 0;
       setLockoutUntil(null);
+      writeLockoutState(null, 0);
       toast({
         title: 'Welcome back',
         description: 'You have successfully logged in.',
@@ -89,9 +132,11 @@ const Login = () => {
       const nextDelay =
         LOGIN_BACKOFF_MS[Math.min(failedAttemptsRef.current, LOGIN_BACKOFF_MS.length - 1)] ??
         MAX_BACKOFF_MS;
-      if (nextDelay > 0) {
-        setLockoutUntil(Date.now() + nextDelay);
+      const nextLockout = nextDelay > 0 ? Date.now() + nextDelay : null;
+      if (nextLockout) {
+        setLockoutUntil(nextLockout);
       }
+      writeLockoutState(nextLockout, failedAttemptsRef.current);
       const message = (err as Error).message || 'Failed to sign in';
       setError(message);
       toast({
