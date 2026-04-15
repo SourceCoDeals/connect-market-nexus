@@ -1,7 +1,8 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useSearchParamState } from '@/hooks/use-search-param-state';
 
 export type LeadSource = 'captarget' | 'gp_partner' | 'sourceco' | 'valuation' | 'referral';
 
@@ -23,7 +24,12 @@ export interface MasterLead {
   linkedinEmployeeRange: string | null;
   googleReviewCount: number | null;
   pushedToActiveDeals: boolean;
-  dateAdded: string | null;
+  /**
+   * Day of the response — the captarget_contact_date for outreach leads,
+   * falling back to created_at when no outreach response date exists
+   * (e.g. valuation form submissions, manually-added referrals).
+   */
+  responseDate: string | null;
   /** Path to navigate to for the detail page */
   detailPath: string;
 }
@@ -41,7 +47,7 @@ export type SortColumn =
   | 'linkedinEmployeeRange'
   | 'googleReviewCount'
   | 'pushedToActiveDeals'
-  | 'dateAdded';
+  | 'responseDate';
 
 type SortDirection = 'asc' | 'desc';
 
@@ -68,7 +74,7 @@ export function useMasterLeads() {
     [setSearchParams],
   );
 
-  const sortColumn = (searchParams.get('sort') as SortColumn) ?? 'dateAdded';
+  const sortColumn = (searchParams.get('sort') as SortColumn) ?? 'responseDate';
   const sortDirection = (searchParams.get('dir') as SortDirection) ?? 'desc';
   const hidePushed = searchParams.get('hidePushed') !== '0'; // hidden by default
   const setHidePushed = useCallback(
@@ -102,7 +108,10 @@ export function useMasterLeads() {
     [setSearchParams],
   );
 
-  const [search, setSearch] = useState('');
+  // Search is URL-bound with a debounced write-back so typing stays instant
+  // and we don't trigger a router navigation on every keystroke (which used to
+  // disrupt focus / re-render cascades).
+  const [search, setSearch] = useSearchParamState('q');
 
   // ── Fetch listings-based leads (captarget + gp_partner + sourceco) ──
   const { data: listingLeads, isLoading: listingsLoading } = useQuery({
@@ -121,7 +130,7 @@ export function useMasterLeads() {
             `id, title, internal_company_name, website, main_contact_name, main_contact_email,
              industry, category, location, revenue, ebitda, deal_total_score,
              linkedin_employee_count, linkedin_employee_range, google_review_count,
-             pushed_to_all_deals, deal_source, created_at`,
+             pushed_to_all_deals, deal_source, created_at, captarget_contact_date`,
           )
           .in('deal_source', ['captarget', 'gp_partner', 'sourceco'])
           .order('created_at', { ascending: false })
@@ -150,11 +159,13 @@ export function useMasterLeads() {
               ebitda: row.ebitda != null ? Number(row.ebitda) : null,
               valuationEstimate: null,
               score: row.deal_total_score != null ? Number(row.deal_total_score) : null,
-              linkedinEmployeeCount: row.linkedin_employee_count != null ? Number(row.linkedin_employee_count) : null,
+              linkedinEmployeeCount:
+                row.linkedin_employee_count != null ? Number(row.linkedin_employee_count) : null,
               linkedinEmployeeRange: row.linkedin_employee_range || null,
-              googleReviewCount: row.google_review_count != null ? Number(row.google_review_count) : null,
+              googleReviewCount:
+                row.google_review_count != null ? Number(row.google_review_count) : null,
               pushedToActiveDeals: !!row.pushed_to_all_deals,
-              dateAdded: row.created_at,
+              responseDate: row.captarget_contact_date ?? row.created_at,
               detailPath: `/admin/remarketing/leads/${sourcePathMap[source] ?? source}/${row.id}`,
             });
           }
@@ -211,7 +222,7 @@ export function useMasterLeads() {
               linkedinEmployeeRange: null,
               googleReviewCount: null,
               pushedToActiveDeals: !!row.pushed_to_all_deals,
-              dateAdded: row.created_at,
+              responseDate: row.created_at,
               detailPath: '/admin/remarketing/leads/valuation',
             });
           }
@@ -255,7 +266,7 @@ export function useMasterLeads() {
           linkedinEmployeeRange: null,
           googleReviewCount: null,
           pushedToActiveDeals: false,
-          dateAdded: row.created_at,
+          responseDate: row.created_at,
           detailPath: `/admin/remarketing/leads/referrals/${row.id}`,
         }),
       );
@@ -266,11 +277,7 @@ export function useMasterLeads() {
 
   // ── Combine all leads ──
   const allLeads = useMemo(() => {
-    return [
-      ...(listingLeads ?? []),
-      ...(valuationLeads ?? []),
-      ...(referralLeads ?? []),
-    ];
+    return [...(listingLeads ?? []), ...(valuationLeads ?? []), ...(referralLeads ?? [])];
   }, [listingLeads, valuationLeads, referralLeads]);
 
   // ── Source counts ──
@@ -310,8 +317,10 @@ export function useMasterLeads() {
         (l) =>
           l.companyName.toLowerCase().includes(q) ||
           (l.contactName && l.contactName.toLowerCase().includes(q)) ||
+          (l.contactEmail && l.contactEmail.toLowerCase().includes(q)) ||
           (l.industry && l.industry.toLowerCase().includes(q)) ||
-          (l.location && l.location.toLowerCase().includes(q)),
+          (l.location && l.location.toLowerCase().includes(q)) ||
+          (l.website && l.website.toLowerCase().includes(q)),
       );
     }
 
@@ -370,9 +379,9 @@ export function useMasterLeads() {
           valA = a.pushedToActiveDeals ? 1 : 0;
           valB = b.pushedToActiveDeals ? 1 : 0;
           break;
-        case 'dateAdded':
-          valA = a.dateAdded || '';
-          valB = b.dateAdded || '';
+        case 'responseDate':
+          valA = a.responseDate || '';
+          valB = b.responseDate || '';
           break;
         default:
           return 0;
@@ -406,10 +415,13 @@ export function useMasterLeads() {
     return filteredLeads.slice(start, start + PAGE_SIZE);
   }, [filteredLeads, safePage]);
 
-  // Reset page on filter change
+  // Reset page on filter change. We only call setCurrentPage when we're not
+  // already on page 1 — calling it unconditionally would trigger a router
+  // navigation on every keystroke (since `search` is a dep), which made the
+  // input feel unresponsive and could blow away focus.
   useEffect(() => {
-    setCurrentPage(1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (currentPage > 1) setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSource, search, sortColumn, sortDirection, hidePushed]);
 
   const handleSort = useCallback(

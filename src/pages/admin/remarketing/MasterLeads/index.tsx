@@ -168,7 +168,7 @@ export default function MasterLeads() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search company, contact, industry, location..."
+            placeholder="Search company, contact, email, industry, location, website..."
             value={hook.search}
             onChange={(e) => hook.setSearch(e.target.value)}
             className="pl-9"
@@ -296,12 +296,12 @@ export default function MasterLeads() {
                 Status
               </SortableHeader>
               <SortableHeader
-                column="dateAdded"
+                column="responseDate"
                 currentSort={hook.sortColumn}
                 currentDir={hook.sortDirection}
                 onSort={hook.handleSort}
               >
-                Date Added
+                Response Day
               </SortableHeader>
             </TableRow>
           </TableHeader>
@@ -392,7 +392,9 @@ export default function MasterLeads() {
 
                     {/* LI Employees */}
                     <TableCell className="text-right text-sm text-muted-foreground">
-                      {lead.linkedinEmployeeCount != null ? lead.linkedinEmployeeCount.toLocaleString() : '-'}
+                      {lead.linkedinEmployeeCount != null
+                        ? lead.linkedinEmployeeCount.toLocaleString()
+                        : '-'}
                     </TableCell>
 
                     {/* LI Range */}
@@ -402,7 +404,9 @@ export default function MasterLeads() {
 
                     {/* Google Reviews */}
                     <TableCell className="text-right text-sm text-muted-foreground">
-                      {lead.googleReviewCount != null ? lead.googleReviewCount.toLocaleString() : '-'}
+                      {lead.googleReviewCount != null
+                        ? lead.googleReviewCount.toLocaleString()
+                        : '-'}
                     </TableCell>
 
                     {/* Status */}
@@ -418,11 +422,9 @@ export default function MasterLeads() {
                       )}
                     </TableCell>
 
-                    {/* Date Added */}
+                    {/* Response Day */}
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {lead.dateAdded
-                        ? format(new Date(lead.dateAdded), 'MMM d, yyyy')
-                        : '-'}
+                      {lead.responseDate ? format(new Date(lead.responseDate), 'MMM d, yyyy') : '-'}
                     </TableCell>
                   </TableRow>
                 );
