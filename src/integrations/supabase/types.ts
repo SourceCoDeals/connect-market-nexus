@@ -14004,6 +14004,19 @@ export type Database = {
           pipeline_stage_id: string
         }[]
       }
+      get_captarget_filter_options: {
+        Args: never
+        Returns: Json
+      }
+      get_captarget_page_stats: {
+        Args: {
+          p_date_from?: string
+          p_date_to?: string
+          p_hide_pushed?: boolean
+          p_hide_not_fit?: boolean
+        }
+        Returns: Json
+      }
       get_connection_request_analytics: {
         Args: { time_range?: string }
         Returns: {
