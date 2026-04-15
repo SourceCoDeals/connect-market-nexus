@@ -127,6 +127,9 @@ export function useMatchingActions({
   });
 
   // Bulk approve mutation
+  // CTO audit H4/H5/H8: track per-buyer outcomes through the fan-out so
+  // we can surface partial failures instead of toasting "Approved N"
+  // when half of the side-effects silently failed.
   const bulkApproveMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const { error } = await supabase
@@ -136,66 +139,106 @@ export function useMatchingActions({
 
       if (error) throw error;
 
-      // Log learning history + create outreach + discover contacts for each
+      const stats = {
+        total: ids.length,
+        outreachFailed: 0,
+        introFailed: 0,
+        contactDiscoveryFailed: 0,
+        contactDiscoveryEmpty: 0,
+      };
+      const contactDiscoveryPromises: Promise<void>[] = [];
+
       for (const id of ids) {
         const scoreData = scores?.find((s) => s.id === id);
-        if (scoreData) {
-          await logLearningHistory(scoreData, 'approved');
+        if (!scoreData) continue;
 
-          // Auto-create outreach record
+        await logLearningHistory(scoreData, 'approved');
+
+        // Auto-create outreach record
+        const { error: outreachErr } = await supabase.from('remarketing_outreach').upsert(
+          {
+            score_id: id,
+            listing_id: listingId!,
+            buyer_id: scoreData.buyer_id,
+            status: 'pending',
+            created_by: user?.id,
+          },
+          { onConflict: 'score_id' },
+        );
+        if (outreachErr) stats.outreachFailed += 1;
+
+        // Auto-create buyer introduction at first Kanban stage. Race guard
+        // H8: the creator helper is idempotent on (buyer_id, listing_id),
+        // so concurrent admins won't create duplicates — but we still
+        // track failures so the toast tells the truth.
+        if (scoreData.buyer_id && listingId && user?.id) {
           try {
-            await supabase.from('remarketing_outreach').upsert(
-              {
-                score_id: id,
-                listing_id: listingId!,
-                buyer_id: scoreData.buyer_id,
-                status: 'pending',
-                created_by: user?.id,
-              },
-              { onConflict: 'score_id' },
-            );
-          } catch (err) {
-            // Failed to create outreach record — non-blocking
+            await createBuyerIntroductionFromApproval({
+              buyerId: scoreData.buyer_id,
+              listingId: listingId,
+              userId: user.id,
+            });
+          } catch {
+            stats.introFailed += 1;
           }
+        }
 
-          // Auto-create buyer introduction at first Kanban stage
-          if (scoreData.buyer_id && listingId && user?.id) {
-            try {
-              await createBuyerIntroductionFromApproval({
-                buyerId: scoreData.buyer_id,
-                listingId: listingId,
-                userId: user.id,
-              });
-            } catch {
-              /* buyer introduction creation failure is non-blocking */
-            }
-          }
-
-          // Fire-and-forget: auto-discover contacts via Serper + Clay + Prospeo pipeline
-          if (scoreData.buyer_id) {
+        // Contact discovery: we DO want to await these now so the final
+        // toast reflects reality. Kept non-blocking relative to the user's
+        // click by collecting promises in an array and awaiting them after
+        // the loop — same wall-clock cost, accurate accounting.
+        if (scoreData.buyer_id) {
+          contactDiscoveryPromises.push(
             findIntroductionContacts(scoreData.buyer_id, 'bulk_approval')
               .then((result) => {
                 if (result && result.total_saved > 0) {
                   queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts'] });
-                } else if (result && result.total_saved === 0 && !result.message) {
-                  console.warn(
-                    `[bulk-approve] No contacts found for buyer ${scoreData.buyer_id} (${result.firmName})`,
-                  );
+                } else if (result && result.total_saved === 0) {
+                  stats.contactDiscoveryEmpty += 1;
                 }
               })
               .catch((err) => {
-                console.error('[useMatchingActions] Contact discovery failed:', err);
-              });
-          }
+                stats.contactDiscoveryFailed += 1;
+                console.error(
+                  '[useMatchingActions] Contact discovery failed for buyer',
+                  scoreData.buyer_id,
+                  err,
+                );
+              }),
+          );
         }
       }
+
+      await Promise.all(contactDiscoveryPromises);
+      return stats;
     },
-    onSuccess: () => {
+    onSuccess: (stats) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
       queryClient.invalidateQueries({ queryKey: ['buyer-introductions', listingId] });
       refetchOutreach();
       setSelectedIds(new Set());
-      toast.success(`Approved ${selectedIds.size} buyers — outreach tracking started`);
+
+      const hasFailures =
+        stats.outreachFailed > 0 || stats.introFailed > 0 || stats.contactDiscoveryFailed > 0;
+      if (hasFailures) {
+        const parts: string[] = [];
+        if (stats.outreachFailed) parts.push(`${stats.outreachFailed} outreach`);
+        if (stats.introFailed) parts.push(`${stats.introFailed} intro`);
+        if (stats.contactDiscoveryFailed)
+          parts.push(`${stats.contactDiscoveryFailed} contact lookup`);
+        toast.warning(
+          `Approved ${stats.total} buyers, but ${parts.join(', ')} failed — check Contacts tab to retry`,
+          { duration: 10000 },
+        );
+      } else {
+        toast.success(
+          `Approved ${stats.total} buyers — outreach tracking started${
+            stats.contactDiscoveryEmpty > 0
+              ? ` (no new contacts found for ${stats.contactDiscoveryEmpty})`
+              : ''
+          }`,
+        );
+      }
     },
     onError: () => {
       toast.error('Failed to bulk approve');
@@ -386,6 +429,9 @@ export function useMatchingActions({
   };
 
   // Handle bulk pass
+  // CTO audit H5: surface learning-history write failures. Previously the
+  // update succeeded but partial logging failures were swallowed, leaving
+  // the audit trail silently incomplete.
   const handleBulkPass = async (reason: string, category: string) => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
@@ -396,16 +442,30 @@ export function useMatchingActions({
 
     if (error) throw error;
 
-    // Log learning history for each
+    // Log learning history for each. Track failures and warn the user if
+    // any rows couldn't be written — the status update already landed, so
+    // we can't roll back, but the admin needs to know the audit trail has
+    // gaps for those rows.
+    let learningFailures = 0;
     for (const id of ids) {
       const scoreData = scores?.find((s) => s.id === id);
-      if (scoreData) {
+      if (!scoreData) continue;
+      try {
         await logLearningHistory(scoreData, 'passed', reason, category);
+      } catch (err) {
+        learningFailures += 1;
+        console.error('[useMatchingActions] Learning history write failed:', id, err);
       }
     }
 
     queryClient.invalidateQueries({ queryKey: ['remarketing', 'scores', listingId] });
     setSelectedIds(new Set());
+    if (learningFailures > 0) {
+      toast.warning(
+        `Passed ${ids.length} buyers, but ${learningFailures} learning-history entries failed to write`,
+        { duration: 10000 },
+      );
+    }
   };
 
   // Handle export CSV

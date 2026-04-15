@@ -105,7 +105,13 @@ export function useMatchingData(listingId: string | undefined) {
     }
   }, [linkedUniverses, selectedUniverse]);
 
-  // Fetch ALL existing scores for this listing (from all universes)
+  // CTO audit H2: cap the score query at 250 rows. Previously this fetched
+  // every score for the listing + full nested buyer + contacts, producing
+  // 2-5MB payloads and freezing the page at 500+ buyers. 250 is more than
+  // the matching list can comfortably render in one view; virtual scroll +
+  // pagination is tracked as a follow-up. Sort order puts the highest
+  // composite_score first so the cut is "the top 250 matches" not random.
+  const MATCHING_SCORE_ROW_CAP = 250;
   const { data: allScores, isLoading: scoresLoading } = useQuery({
     queryKey: ['remarketing', 'scores', listingId],
     queryFn: async () => {
@@ -122,7 +128,8 @@ export function useMatchingData(listingId: string | undefined) {
         `,
         )
         .eq('listing_id', listingId!)
-        .order('composite_score', { ascending: false });
+        .order('composite_score', { ascending: false })
+        .limit(MATCHING_SCORE_ROW_CAP);
 
       if (error) throw error;
       return data || [];
@@ -191,6 +198,14 @@ export function useMatchingData(listingId: string | undefined) {
         if (!match && buyer.pe_firm_name) {
           const peName = buyer.pe_firm_name.toLowerCase().replace(/[^a-z0-9]/g, '');
           match = byName.get(peName);
+        }
+        // CTO audit: match by parent PE firm name. Portfolio companies
+        // whose parent signed a fee agreement previously appeared as
+        // "No Fee" because the lookup only checked buyer.pe_firm_name.
+        if (!match && buyer.parent_pe_firm_name) {
+          const parentName = buyer.parent_pe_firm_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          match = byName.get(parentName);
+          if (!match) match = byName.get(buyer.parent_pe_firm_name.toLowerCase());
         }
 
         if (match) {
@@ -412,12 +427,17 @@ export function useMatchingData(listingId: string | undefined) {
           comparison = (a.geography_score || 0) - (b.geography_score || 0);
           break;
         case 'score_geo': {
-          // Use actual geography weight ratio instead of hardcoded 60/40
+          // CTO audit: honor the universe's actual geography_weight rather
+          // than clamping to 50%. The old Math.min(0.5, ...) made the sort
+          // order diverge from the composite_score ranking for universes
+          // that configured geography_weight > 50, which was confusing.
           const activeUniverse =
             selectedUniverse !== 'all'
               ? linkedUniverses?.find((u) => u.id === selectedUniverse)
               : linkedUniverses?.[0];
-          const geoRatio = Math.min(0.5, (activeUniverse?.geography_weight || 20) / 100);
+          const rawGeoWeight = (activeUniverse?.geography_weight ?? 20) / 100;
+          // Clamp to [0, 1] only to guard against malformed weight config.
+          const geoRatio = Math.max(0, Math.min(1, rawGeoWeight));
           const scoreRatio = 1 - geoRatio;
           const aWeighted =
             (a.composite_score || 0) * scoreRatio + (a.geography_score || 0) * geoRatio;
