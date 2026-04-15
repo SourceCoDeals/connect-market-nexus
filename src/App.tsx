@@ -187,7 +187,7 @@ const ReMarketingLayout = lazyWithRetry(() =>
   import('@/components/remarketing').then((m) => ({ default: m.ReMarketingLayout })),
 );
 const ReMarketingDashboard = lazyWithRetry(
-  () => import('@/pages/admin/remarketing/ReMarketingDashboard'),
+  () => import('@/pages/admin/remarketing/ReMarketingDashboardV2'),
 );
 const ReMarketingUniverses = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingUniverses'),
