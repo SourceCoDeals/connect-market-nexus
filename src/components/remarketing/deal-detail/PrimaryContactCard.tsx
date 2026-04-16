@@ -52,7 +52,8 @@ export const PrimaryContactCard = ({
       setIsEditOpen(false);
       toast.success('Contact updated');
     } catch (error) {
-      toast.error('Failed to save');
+      const message = error instanceof Error ? error.message : 'Failed to save';
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
