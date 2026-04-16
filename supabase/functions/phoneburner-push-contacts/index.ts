@@ -493,12 +493,56 @@ async function resolveFromContactListMembers(
   const { data: members } = await supabase
     .from('contact_list_members')
     .select(
-      'id, contact_name, contact_email, contact_phone, contact_company, contact_role, entity_type, entity_id',
+      'id, contact_id, contact_name, contact_email, contact_phone, contact_company, contact_role, entity_type, entity_id',
     )
     .in('id', memberIds)
     .is('removed_at', null);
 
   if (!members?.length) return [];
+
+  // Pull fresh structured phone fields from contacts for members linked by
+  // contact_id. contact_list_members.contact_phone is a snapshot captured at
+  // add-time and goes stale whenever the underlying contact is enriched;
+  // without this join the push would send the stale snapshot even when the
+  // "With Phone" stat on the UI (which reads fresh fields) shows a number.
+  const contactIds = [
+    ...new Set(
+      members
+        .map((m: { contact_id: string | null }) => m.contact_id)
+        .filter((id: string | null): id is string => !!id),
+    ),
+  ];
+  let contactPhoneMap = new Map<
+    string,
+    {
+      phone: string | null;
+      mobile_phone_1: string | null;
+      mobile_phone_2: string | null;
+      mobile_phone_3: string | null;
+      office_phone: string | null;
+      updated_at: string | null;
+    }
+  >();
+  if (contactIds.length) {
+    const { data: contacts } = await supabase
+      .from('contacts')
+      .select('id, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, updated_at')
+      .in('id', contactIds)
+      .eq('archived', false);
+    contactPhoneMap = new Map(
+      (contacts || []).map(
+        (c: {
+          id: string;
+          phone: string | null;
+          mobile_phone_1: string | null;
+          mobile_phone_2: string | null;
+          mobile_phone_3: string | null;
+          office_phone: string | null;
+          updated_at: string | null;
+        }) => [c.id, c],
+      ),
+    );
+  }
 
   // Collect listing IDs from deal-type members for deal data enrichment
   const LISTING_ENTITY_TYPES = ['sourceco_deal', 'gp_partner_deal', 'referral_deal', 'listing'];
@@ -523,6 +567,7 @@ async function resolveFromContactListMembers(
   return members.map(
     (m: {
       id: string;
+      contact_id: string | null;
       contact_name: string | null;
       contact_email: string;
       contact_phone: string | null;
@@ -544,20 +589,24 @@ async function resolveFromContactListMembers(
         customFields.push(...buildDealCustomFields(listing));
       }
 
+      const fresh = m.contact_id ? contactPhoneMap.get(m.contact_id) : undefined;
+
       return {
         id: m.id,
         name: m.contact_name || 'Unknown',
-        phone: m.contact_phone,
-        mobile_phone_1: null,
-        mobile_phone_2: null,
-        mobile_phone_3: null,
-        office_phone: null,
+        // Fall back to the snapshot only when no linked contact row is
+        // available (inbound leads, lists built from deal-only entities, etc.).
+        phone: fresh?.phone ?? m.contact_phone,
+        mobile_phone_1: fresh?.mobile_phone_1 ?? null,
+        mobile_phone_2: fresh?.mobile_phone_2 ?? null,
+        mobile_phone_3: fresh?.mobile_phone_3 ?? null,
+        office_phone: fresh?.office_phone ?? null,
         email: m.contact_email,
         title: m.contact_role,
         company: m.contact_company,
         source_entity: `contact_list:${m.entity_type}`,
-        last_contacted_date: null,
-        contact_id: null,
+        last_contacted_date: fresh?.updated_at ?? null,
+        contact_id: m.contact_id,
         listing_id: LISTING_ENTITY_TYPES.includes(m.entity_type) ? m.entity_id : null,
         remarketing_buyer_id: null,
         extra_context: customFields,
