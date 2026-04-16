@@ -119,6 +119,21 @@ interface OverviewTabProps {
     mutateAsync: (updates: Record<string, unknown>) => Promise<void>;
     isPending: boolean;
   };
+  savePrimaryContactMutation: {
+    mutateAsync: (data: {
+      name: string;
+      email: string;
+      phone: string;
+      additionalPhones?: string[];
+    }) => Promise<void>;
+    isPending: boolean;
+  };
+  primarySellerContact: {
+    id: string;
+    mobile_phone_1: string | null;
+    mobile_phone_2: string | null;
+    mobile_phone_3: string | null;
+  } | null;
   toggleContactOwnerMutation: { mutate: (v: boolean) => void; isPending: boolean };
   toggleBuyerSearchMutation: { mutate: (v: boolean) => void; isPending: boolean };
   toggleUniverseFlagMutation: { mutate: (v: boolean) => void; isPending: boolean };
@@ -142,6 +157,8 @@ export function OverviewTab({
   handleEnrichFromWebsite,
   handleAnalyzeNotes,
   updateDealMutation,
+  savePrimaryContactMutation,
+  primarySellerContact,
   toggleContactOwnerMutation,
   toggleBuyerSearchMutation,
   toggleUniverseFlagMutation,
@@ -344,13 +361,13 @@ export function OverviewTab({
         name={deal.main_contact_name}
         email={deal.main_contact_email}
         phone={deal.main_contact_phone}
+        additionalPhones={[
+          primarySellerContact?.mobile_phone_2,
+          primarySellerContact?.mobile_phone_3,
+        ].filter((p): p is string => !!p && p.trim() !== '')}
         dealId={dealId}
         onSave={async (data) => {
-          await updateDealMutation.mutateAsync({
-            main_contact_name: data.name,
-            main_contact_email: data.email,
-            main_contact_phone: data.phone,
-          });
+          await savePrimaryContactMutation.mutateAsync(data);
         }}
       />
 
