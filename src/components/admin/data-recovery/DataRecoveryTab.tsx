@@ -5,14 +5,14 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { User } from '@/types';
-import { 
-  Database, 
-  AlertTriangle, 
+import {
+  Database,
+  AlertTriangle,
   Clock,
   TrendingUp,
   Mail,
   Users,
-  CheckCircle2
+  CheckCircle2,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,30 +55,35 @@ The Team`);
       familyOffice: ['fund_size', 'aum'],
       searchFund: ['is_funded', 'target_company_size'],
       individual: ['funding_source', 'needs_loan', 'ideal_target'],
-      independentSponsor: ['investment_size', 'geographic_focus', 'industry_expertise', 'deal_structure_preference']
+      independentSponsor: [
+        'investment_size',
+        'geographic_focus',
+        'industry_expertise',
+        'deal_structure_preference',
+      ],
     };
 
     const usersWithMissingData: MissingDataUser[] = [];
 
-    users.forEach(user => {
+    users.forEach((user) => {
       if (!user.buyer_type) return;
 
       const requiredFields = fieldsByType[user.buyer_type] || [];
-      const missingFields = requiredFields.filter(field => {
+      const missingFields = requiredFields.filter((field) => {
         const value = user[field as keyof User];
         return !value || value === '';
       });
 
       if (missingFields.length > 0) {
         const daysSinceSignup = Math.floor(
-          (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24)
+          (new Date().getTime() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24),
         );
 
         usersWithMissingData.push({
           user,
           missingFields,
           criticalMissing: missingFields.length >= requiredFields.length / 2,
-          daysSinceSignup
+          daysSinceSignup,
         });
       }
     });
@@ -92,20 +97,23 @@ The Team`);
   }, [users]);
 
   const analytics = useMemo(() => {
-    const recentSignups = missingDataAnalysis.filter(({ daysSinceSignup }) => daysSinceSignup <= 30);
+    const recentSignups = missingDataAnalysis.filter(
+      ({ daysSinceSignup }) => daysSinceSignup <= 30,
+    );
     const criticalMissing = missingDataAnalysis.filter(({ criticalMissing }) => criticalMissing);
 
     return {
       totalAffected: missingDataAnalysis.length,
       criticalMissing: criticalMissing.length,
       recentSignups: recentSignups.length,
-      recoveryPotential: Math.round(((recentSignups.length * 0.7) + (criticalMissing.length * 0.3)) * 100) / 100
+      recoveryPotential:
+        Math.round((recentSignups.length * 0.7 + criticalMissing.length * 0.3) * 100) / 100,
     };
   }, [missingDataAnalysis]);
 
   const handleSelectSegment = (segment: 'all' | 'critical' | 'recent') => {
     let usersToSelect: string[] = [];
-    
+
     switch (segment) {
       case 'all':
         usersToSelect = missingDataAnalysis.map(({ user }) => user.id);
@@ -130,10 +138,8 @@ The Team`);
   };
 
   const handleToggleUser = (userId: string) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
+    setSelectedUsers((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
     );
   };
 
@@ -142,7 +148,7 @@ The Team`);
       toast({
         variant: 'destructive',
         title: 'No users selected',
-        description: 'Please select users to send recovery emails to.'
+        description: 'Please select users to send recovery emails to.',
       });
       return;
     }
@@ -151,15 +157,15 @@ The Team`);
       const { data, error } = await supabase.functions.invoke('send-data-recovery-email', {
         body: {
           userIds: selectedUsers,
-          template: emailTemplate
-        }
+          template: emailTemplate,
+        },
       });
 
       if (error) throw error;
 
       toast({
         title: 'Recovery emails sent',
-        description: `Successfully sent ${data?.successCount || selectedUsers.length} emails.`
+        description: `Successfully sent ${data?.successCount || selectedUsers.length} emails.`,
       });
 
       setSelectedUsers([]);
@@ -167,7 +173,7 @@ The Team`);
       toast({
         variant: 'destructive',
         title: 'Failed to send emails',
-        description: 'There was an error sending the recovery emails. Please try again.'
+        description: 'There was an error sending the recovery emails. Please try again.',
       });
     }
   };
@@ -185,7 +191,7 @@ The Team`);
       ideal_target: 'Ideal Target Description',
       geographic_focus: 'Geographic Focus',
       industry_expertise: 'Industry Expertise',
-      deal_structure_preference: 'Deal Structure Preference'
+      deal_structure_preference: 'Deal Structure Preference',
     };
     return fieldMap[field] || field;
   };
@@ -234,33 +240,27 @@ The Team`);
       <Card>
         <CardHeader>
           <CardTitle>Affected Users</CardTitle>
-          <CardDescription>
-            Select user segments for your recovery campaign
-          </CardDescription>
+          <CardDescription>Select user segments for your recovery campaign</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => handleSelectSegment('critical')}
               className="gap-2"
             >
               <AlertTriangle className="h-4 w-4 text-warning" />
               Critical Missing ({analytics.criticalMissing})
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => handleSelectSegment('recent')}
               className="gap-2"
             >
               <Clock className="h-4 w-4 text-info" />
               Recent Signups ({analytics.recentSignups})
             </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => handleSelectSegment('all')}
-              className="gap-2"
-            >
+            <Button variant="outline" onClick={() => handleSelectSegment('all')} className="gap-2">
               <Users className="h-4 w-4" />
               All Affected ({analytics.totalAffected})
             </Button>
@@ -275,11 +275,7 @@ The Team`);
                     {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
                   </span>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setSelectedUsers([])}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setSelectedUsers([])}>
                   Clear
                 </Button>
               </div>
@@ -287,48 +283,55 @@ The Team`);
           )}
 
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {missingDataAnalysis.map(({ user, missingFields, criticalMissing, daysSinceSignup }) => (
-              <div 
-                key={user.id} 
-                className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                  selectedUsers.includes(user.id) 
-                    ? 'bg-primary/5 border-primary shadow-sm' 
-                    : 'hover:bg-muted/50'
-                }`}
-                onClick={() => handleToggleUser(user.id)}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium">{user.first_name} {user.last_name}</p>
-                      <Badge variant={criticalMissing ? 'destructive' : 'secondary'} className="text-xs">
-                        {user.buyer_type?.replace(/([A-Z])/g, ' $1')}
-                      </Badge>
-                      {daysSinceSignup <= 7 && (
-                        <Badge variant="outline" className="text-xs border-success text-success">
-                          New · {daysSinceSignup}d ago
+            {missingDataAnalysis.map(
+              ({ user, missingFields, criticalMissing, daysSinceSignup }) => (
+                <div
+                  key={user.id}
+                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                    selectedUsers.includes(user.id)
+                      ? 'bg-primary/5 border-primary shadow-sm'
+                      : 'hover:bg-muted/50'
+                  }`}
+                  onClick={() => handleToggleUser(user.id)}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <Badge
+                          variant={criticalMissing ? 'destructive' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {user.buyer_type?.replace(/([A-Z])/g, ' $1')}
                         </Badge>
+                        {daysSinceSignup <= 7 && (
+                          <Badge variant="outline" className="text-xs border-success text-success">
+                            New · {daysSinceSignup}d ago
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{user.email}</p>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">Missing:</span>
+                        <span className="text-muted-foreground">
+                          {missingFields.map(formatFieldName).join(', ')}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {missingFields.length} field{missingFields.length !== 1 ? 's' : ''}
+                      </p>
+                      {criticalMissing && (
+                        <AlertTriangle className="h-4 w-4 text-warning ml-auto mt-1" />
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium">Missing:</span>
-                      <span className="text-muted-foreground">
-                        {missingFields.map(formatFieldName).join(', ')}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {missingFields.length} field{missingFields.length !== 1 ? 's' : ''}
-                    </p>
-                    {criticalMissing && (
-                      <AlertTriangle className="h-4 w-4 text-warning ml-auto mt-1" />
-                    )}
                   </div>
                 </div>
-              </div>
-            ))}
+              ),
+            )}
           </div>
         </CardContent>
       </Card>
@@ -337,9 +340,7 @@ The Team`);
       <Card>
         <CardHeader>
           <CardTitle>Recovery Email Campaign</CardTitle>
-          <CardDescription>
-            Customize your recovery email template
-          </CardDescription>
+          <CardDescription>Customize your recovery email template</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -353,15 +354,18 @@ The Team`);
               placeholder="Enter your email template..."
             />
             <p className="text-xs text-muted-foreground">
-              Available placeholders: {`{{firstName}}, {{buyerType}}, {{missingFields}}, {{profileLink}}`}
+              Available placeholders:{' '}
+              {`{{firstName}}, {{buyerType}}, {{missingFields}}, {{profileLink}}`}
             </p>
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t">
             <p className="text-sm text-muted-foreground">
-              Ready to send to <span className="font-semibold text-foreground">{selectedUsers.length}</span> user{selectedUsers.length !== 1 ? 's' : ''}
+              Ready to send to{' '}
+              <span className="font-semibold text-foreground">{selectedUsers.length}</span> user
+              {selectedUsers.length !== 1 ? 's' : ''}
             </p>
-            <Button 
+            <Button
               onClick={handleSendRecoveryEmail}
               disabled={selectedUsers.length === 0}
               className="gap-2"
@@ -373,93 +377,23 @@ The Team`);
         </CardContent>
       </Card>
 
-      {/* Recovery Tracking */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recovery Campaign History</CardTitle>
-          <CardDescription>
-            Track the success of your data recovery efforts
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[
-              {
-                date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-                recipients: 45,
-                opened: 32,
-                clicked: 18,
-                completed: 12,
-              },
-              {
-                date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-                recipients: 38,
-                opened: 28,
-                clicked: 15,
-                completed: 9,
-              },
-              {
-                date: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000),
-                recipients: 52,
-                opened: 41,
-                clicked: 24,
-                completed: 16,
-              },
-            ].map((campaign) => {
-              const openRate = Math.round((campaign.opened / campaign.recipients) * 100);
-              const clickRate = Math.round((campaign.clicked / campaign.recipients) * 100);
-              const conversionRate = Math.round((campaign.completed / campaign.recipients) * 100);
+      {/* Recovery Tracking — removed until real campaign tracking exists.
+          Previously this rendered three hardcoded stub campaigns, which
+          misrepresented open/click/conversion metrics to operators. When a
+          real data_recovery_campaigns table is wired up, re-introduce this
+          card backed by a query instead of a literal array. */}
 
-              return (
-                <div key={campaign.date.toISOString()} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">
-                        {campaign.date.toLocaleDateString('en-US', { 
-                          month: 'long', 
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Sent to {campaign.recipients} users
-                      </p>
-                    </div>
-                    <Badge variant={conversionRate >= 20 ? 'default' : 'secondary'}>
-                      {conversionRate}% converted
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4 pt-3 border-t text-center">
-                    <div>
-                      <p className="text-2xl font-bold tabular-nums">{openRate}%</p>
-                      <p className="text-xs text-muted-foreground">Opened</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold tabular-nums">{clickRate}%</p>
-                      <p className="text-xs text-muted-foreground">Clicked</p>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold tabular-nums text-success">{campaign.completed}</p>
-                      <p className="text-xs text-muted-foreground">Completed</p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {missingDataAnalysis.length === 0 && (
-              <div className="text-center py-12">
-                <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-4" />
-                <p className="text-lg font-semibold">All Profiles Complete!</p>
-                <p className="text-muted-foreground mt-1">
-                  No users with missing data. Great work!
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {missingDataAnalysis.length === 0 && (
+        <Card>
+          <CardContent>
+            <div className="text-center py-12">
+              <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-4" />
+              <p className="text-lg font-semibold">All Profiles Complete!</p>
+              <p className="text-muted-foreground mt-1">No users with missing data. Great work!</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

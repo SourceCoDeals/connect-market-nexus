@@ -107,6 +107,27 @@ export const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manual',
 };
 
+// Drilldown path for each deal source on the dashboard. Returning null means
+// the source has no dedicated page and the row should render as plain text.
+export function sourceHref(src: string): string | null {
+  switch (src) {
+    case 'captarget':
+      return '/admin/remarketing/leads/captarget';
+    case 'gp_partners':
+      return '/admin/remarketing/leads/gp-partners';
+    case 'sourceco':
+      return '/admin/remarketing/leads/sourceco';
+    case 'valuation_calculator':
+      return '/admin/remarketing/leads/valuation';
+    case 'referral':
+      return '/admin/remarketing/leads/referrals';
+    case 'marketplace':
+    case 'manual':
+    default:
+      return null;
+  }
+}
+
 // ─── Timeframe options ───
 
 export const TF_OPTIONS: { key: Timeframe; label: string }[] = [
@@ -124,7 +145,13 @@ export function useDashboardData(timeframe: Timeframe) {
   const fromDate = getFromDate(timeframe);
 
   // Single RPC call replaces 8+ sequential batch fetches
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsIsError,
+    error: statsError,
+    refetch: refetchStats,
+  } = useQuery({
     queryKey: ['dashboard', 'remarketing-stats', fromDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_remarketing_dashboard_stats', {
@@ -191,7 +218,12 @@ export function useDashboardData(timeframe: Timeframe) {
     created_at: string;
   };
 
-  const { data: callActivityRows, isLoading: callActivityLoading } = useQuery({
+  const {
+    data: callActivityRows,
+    isLoading: callActivityLoading,
+    isError: callActivityIsError,
+    error: callActivityErrorObj,
+  } = useQuery({
     queryKey: ['dashboard', 'call-activity', fromDate],
     queryFn: async (): Promise<CallActivityRow[]> => {
       let query = (supabase as any)
@@ -333,6 +365,8 @@ export function useDashboardData(timeframe: Timeframe) {
   return {
     loading: statsLoading,
     universesLoading,
+    statsError: statsIsError ? (statsError as Error | null) : null,
+    refetchStats,
     cards,
     newBySource,
     allBySource,
@@ -344,6 +378,7 @@ export function useDashboardData(timeframe: Timeframe) {
     universeMetrics,
     callActivity,
     callActivityLoading,
+    callActivityError: callActivityIsError ? (callActivityErrorObj as Error | null) : null,
     adminActivity,
   };
 }

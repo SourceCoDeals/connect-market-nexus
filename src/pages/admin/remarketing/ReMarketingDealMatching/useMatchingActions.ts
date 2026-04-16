@@ -145,6 +145,11 @@ export function useMatchingActions({
         introFailed: 0,
         contactDiscoveryFailed: 0,
         contactDiscoveryEmpty: 0,
+        // Collect buyer IDs that hit any kind of follow-up failure, so the
+        // post-approval toast can deep-link straight to just those rows
+        // instead of making the operator eyeball N buyers to find the K that
+        // failed.
+        failedBuyerIds: [] as string[],
       };
       const contactDiscoveryPromises: Promise<void>[] = [];
 
@@ -165,7 +170,10 @@ export function useMatchingActions({
           },
           { onConflict: 'score_id' },
         );
-        if (outreachErr) stats.outreachFailed += 1;
+        if (outreachErr) {
+          stats.outreachFailed += 1;
+          if (scoreData.buyer_id) stats.failedBuyerIds.push(scoreData.buyer_id);
+        }
 
         // Auto-create buyer introduction at first Kanban stage. Race guard
         // H8: the creator helper is idempotent on (buyer_id, listing_id),
@@ -180,6 +188,7 @@ export function useMatchingActions({
             });
           } catch {
             stats.introFailed += 1;
+            stats.failedBuyerIds.push(scoreData.buyer_id);
           }
         }
 
@@ -188,8 +197,9 @@ export function useMatchingActions({
         // click by collecting promises in an array and awaiting them after
         // the loop — same wall-clock cost, accurate accounting.
         if (scoreData.buyer_id) {
+          const buyerId = scoreData.buyer_id;
           contactDiscoveryPromises.push(
-            findIntroductionContacts(scoreData.buyer_id, 'bulk_approval')
+            findIntroductionContacts(buyerId, 'bulk_approval')
               .then((result) => {
                 if (result && result.total_saved > 0) {
                   queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts'] });
@@ -199,9 +209,10 @@ export function useMatchingActions({
               })
               .catch((err) => {
                 stats.contactDiscoveryFailed += 1;
+                stats.failedBuyerIds.push(buyerId);
                 console.error(
                   '[useMatchingActions] Contact discovery failed for buyer',
-                  scoreData.buyer_id,
+                  buyerId,
                   err,
                 );
               }),
@@ -226,10 +237,23 @@ export function useMatchingActions({
         if (stats.introFailed) parts.push(`${stats.introFailed} intro`);
         if (stats.contactDiscoveryFailed)
           parts.push(`${stats.contactDiscoveryFailed} contact lookup`);
-        toast.warning(
-          `Approved ${stats.total} buyers, but ${parts.join(', ')} failed — check Contacts tab to retry`,
-          { duration: 10000 },
-        );
+
+        // Deduplicate — the same buyer can contribute to multiple buckets.
+        const uniqueFailedIds = Array.from(new Set(stats.failedBuyerIds));
+        const hasFailedIds = uniqueFailedIds.length > 0;
+
+        toast.warning(`Approved ${stats.total} buyers, but ${parts.join(', ')} failed`, {
+          duration: 10000,
+          description: hasFailedIds
+            ? `Click "Show failed" to filter just the ${uniqueFailedIds.length} buyer${uniqueFailedIds.length === 1 ? '' : 's'} that hit errors.`
+            : undefined,
+          action: hasFailedIds
+            ? {
+                label: 'Show failed',
+                onClick: () => setHighlightedBuyerIds(uniqueFailedIds),
+              }
+            : undefined,
+        });
       } else {
         toast.success(
           `Approved ${stats.total} buyers — outreach tracking started${

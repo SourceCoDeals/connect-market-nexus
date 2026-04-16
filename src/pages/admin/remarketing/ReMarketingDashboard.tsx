@@ -9,12 +9,22 @@
  */
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { DealSourceBadge } from '@/components/remarketing/DealSourceBadge';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { formatDistanceToNow } from 'date-fns';
-import { BarChart3, ArrowUpRight, Zap, Clock, Phone, CheckCircle2 } from 'lucide-react';
+import {
+  BarChart3,
+  ArrowUpRight,
+  Zap,
+  Clock,
+  Phone,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+} from 'lucide-react';
 
 import { DashboardFilters } from './DashboardFilters';
 import { WeeklyChart } from './DashboardCharts';
@@ -25,6 +35,7 @@ import {
   initials,
   SOURCE_COLORS,
   SOURCE_LABELS,
+  sourceHref,
   type Timeframe,
 } from './useDashboardData';
 
@@ -35,6 +46,8 @@ const ReMarketingDashboard = () => {
   const {
     loading,
     universesLoading,
+    statsError,
+    refetchStats,
     cards,
     newBySource,
     allBySource,
@@ -46,6 +59,7 @@ const ReMarketingDashboard = () => {
     universeMetrics,
     callActivity,
     callActivityLoading,
+    callActivityError,
     adminActivity,
   } = useDashboardData(timeframe);
 
@@ -68,8 +82,29 @@ const ReMarketingDashboard = () => {
         <DashboardFilters timeframe={timeframe} onTimeframeChange={setTimeframe} />
       </div>
 
+      {statsError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-800">Couldn't load dashboard stats</p>
+            <p className="text-xs text-red-700 mt-1 break-words">
+              {statsError.message || 'The get_remarketing_dashboard_stats RPC failed.'}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchStats()}
+            className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* ROW 1: Headline Metric Cards */}
-      {loading ? (
+      {loading && !statsError ? (
         <div className="grid gap-3 md:grid-cols-5">
           {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
@@ -83,8 +118,18 @@ const ReMarketingDashboard = () => {
                 Active Opportunities
               </p>
               <p className="text-2xl font-bold mt-1">{cards.all_visible}</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                +{cards.all_new_in_period} in period
+              <p
+                className="text-[11px] text-gray-400 mt-0.5 cursor-help"
+                title={
+                  // Note the asymmetric definition: captarget / GP Partners /
+                  // SourceCo are counted by pushed_to_all_deals_at (when they
+                  // landed in the active-deals list), everything else by
+                  // created_at. Marketplace Metrics uses created_at throughout,
+                  // so expect the two numbers to diverge — this is by design.
+                  '"In period" counts captarget/GP/SourceCo from the date pushed to Active Deals, and every other source from created_at. Marketplace Metrics counts created_at uniformly.'
+                }
+              >
+                +{cards.all_new_in_period} in period ⓘ
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white px-4 py-3.5">
@@ -122,11 +167,15 @@ const ReMarketingDashboard = () => {
       )}
 
       {/* ROW 1b: Call Activity metrics (WF-14) */}
-      {callActivityLoading ? (
+      {callActivityLoading && !callActivityError ? (
         <div className="grid gap-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />
           ))}
+        </div>
+      ) : callActivityError ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Couldn&apos;t load call activity: {callActivityError.message || 'unknown error'}
         </div>
       ) : (
         callActivity && (
@@ -305,23 +354,39 @@ const ReMarketingDashboard = () => {
                     ))}
                   </div>
                   <div className="space-y-2">
-                    {entries.map(([src, count]) => (
-                      <div key={src} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: SOURCE_COLORS[src] || '#94a3b8' }}
-                          />
-                          <span className="text-gray-700">{SOURCE_LABELS[src] || src}</span>
+                    {entries.map(([src, count]) => {
+                      const href = sourceHref(src);
+                      const inner = (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: SOURCE_COLORS[src] || '#94a3b8' }}
+                            />
+                            <span className="text-gray-700">{SOURCE_LABELS[src] || src}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 text-xs">
+                              {Math.round((count / total) * 100)}%
+                            </span>
+                            <span className="font-medium w-8 text-right">{count}</span>
+                          </div>
+                        </>
+                      );
+                      return href ? (
+                        <Link
+                          key={src}
+                          to={href}
+                          className="flex items-center justify-between text-sm rounded-md -mx-1 px-1 py-0.5 hover:bg-gray-50"
+                        >
+                          {inner}
+                        </Link>
+                      ) : (
+                        <div key={src} className="flex items-center justify-between text-sm">
+                          {inner}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 text-xs">
-                            {Math.round((count / total) * 100)}%
-                          </span>
-                          <span className="font-medium w-8 text-right">{count}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -641,29 +706,43 @@ const ReMarketingDashboard = () => {
               return (
                 <div>
                   <div className="space-y-2.5">
-                    {entries.map(([src, count]) => (
-                      <div key={src}>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="w-2 h-2 rounded-full shrink-0"
-                              style={{ backgroundColor: SOURCE_COLORS[src] || '#94a3b8' }}
-                            />
-                            <span className="text-gray-700">{SOURCE_LABELS[src] || src}</span>
+                    {entries.map(([src, count]) => {
+                      const href = sourceHref(src);
+                      const body = (
+                        <>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: SOURCE_COLORS[src] || '#94a3b8' }}
+                              />
+                              <span className="text-gray-700">{SOURCE_LABELS[src] || src}</span>
+                            </div>
+                            <span className="font-medium">{count}</span>
                           </div>
-                          <span className="font-medium">{count}</span>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${(count / maxCount) * 100}%`,
-                              backgroundColor: SOURCE_COLORS[src] || '#94a3b8',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                          <div className="h-1.5 bg-gray-100 rounded-full">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${(count / maxCount) * 100}%`,
+                                backgroundColor: SOURCE_COLORS[src] || '#94a3b8',
+                              }}
+                            />
+                          </div>
+                        </>
+                      );
+                      return href ? (
+                        <Link
+                          key={src}
+                          to={href}
+                          className="block rounded-md -mx-1 px-1 py-0.5 hover:bg-gray-50"
+                        >
+                          {body}
+                        </Link>
+                      ) : (
+                        <div key={src}>{body}</div>
+                      );
+                    })}
                   </div>
                   {/* Enrichment sub-section */}
                   <div className="border-t mt-4 pt-3">

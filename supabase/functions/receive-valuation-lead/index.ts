@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
+import { timingSafeEqual } from '../_shared/security.ts';
 
 /** Safely read a nested .value from calculator_inputs objects. */
 function inputVal(inputs: Record<string, unknown>, key: string): unknown {
@@ -45,6 +46,23 @@ serve(async (req: Request) => {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
+
+  // Optional shared-secret check. When VALUATION_WEBHOOK_SECRET is configured,
+  // the caller must present it in the x-webhook-secret header. When it is not
+  // set, the endpoint stays open for backwards compatibility with the existing
+  // calculator form — operators should set this ASAP. Matches the clay /
+  // phoneburner webhook pattern.
+  const webhookSecret = Deno.env.get('VALUATION_WEBHOOK_SECRET');
+  if (webhookSecret) {
+    const provided = req.headers.get('x-webhook-secret');
+    if (!provided || !timingSafeEqual(provided, webhookSecret)) {
+      console.warn('[receive-valuation-lead] Invalid webhook secret');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   try {
