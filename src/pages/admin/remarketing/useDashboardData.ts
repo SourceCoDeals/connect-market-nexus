@@ -107,6 +107,27 @@ export const SOURCE_LABELS: Record<string, string> = {
   manual: 'Manual',
 };
 
+// Drilldown path for each deal source on the dashboard. Returning null means
+// the source has no dedicated page and the row should render as plain text.
+export function sourceHref(src: string): string | null {
+  switch (src) {
+    case 'captarget':
+      return '/admin/remarketing/leads/captarget';
+    case 'gp_partners':
+      return '/admin/remarketing/leads/gp-partners';
+    case 'sourceco':
+      return '/admin/remarketing/leads/sourceco';
+    case 'valuation_calculator':
+      return '/admin/remarketing/leads/valuation';
+    case 'referral':
+      return '/admin/remarketing/leads/referrals';
+    case 'marketplace':
+    case 'manual':
+    default:
+      return null;
+  }
+}
+
 // ─── Timeframe options ───
 
 export const TF_OPTIONS: { key: Timeframe; label: string }[] = [

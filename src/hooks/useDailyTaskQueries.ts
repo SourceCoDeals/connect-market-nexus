@@ -2,7 +2,8 @@
  * Daily Tasks query hooks
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
@@ -36,12 +37,37 @@ interface UseDailyTasksOptions {
 
 export function useDailyTasks(options: UseDailyTasksOptions) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Don't run the 'my' view query until the user is loaded — otherwise the
   // filter `.eq('assignee_id', user.id)` can't be applied and the query
   // either returns all tasks (leaking data) or returns nothing once the
   // correct key is set.
   const isMyView = options.view === 'my';
+
+  // Real-time subscription — when any row in daily_standup_tasks changes,
+  // invalidate the local cache so the UI reflects teammates' completions,
+  // approvals, and reassignments within ~1s instead of waiting up to an hour
+  // for the poll interval to tick. RLS already restricts events to rows the
+  // viewer can see.
+  useEffect(() => {
+    if (isMyView && !user?.id) return;
+
+    const channel = supabase
+      .channel(`daily-standup-tasks-${isMyView ? (user?.id ?? 'anon') : 'all'}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'daily_standup_tasks' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: [DAILY_TASKS_QUERY_KEY] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isMyView, user?.id, queryClient]);
 
   return useQuery({
     queryKey: [DAILY_TASKS_QUERY_KEY, options, user?.id],

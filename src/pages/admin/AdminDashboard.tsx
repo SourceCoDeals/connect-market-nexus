@@ -6,9 +6,7 @@ import {
   RefreshCw,
   Settings,
   Users,
-  Database,
   Bell,
-  HelpCircle,
   Loader2,
   Store,
   Target,
@@ -190,34 +188,21 @@ const AdminDashboard = () => {
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50">
-                        <Settings className="h-3.5 w-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      {canManagePermissions && (
-                        <>
-                          <DropdownMenuItem onClick={handleManagePermissions}>
-                            <Users className="mr-2 h-4 w-4" />
-                            Manage Permissions
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                        </>
-                      )}
-                      <DropdownMenuItem disabled>
-                        <Database className="mr-2 h-4 w-4" />
-                        Export Data
-                        <span className="ml-auto text-xs text-muted-foreground">Soon</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled>
-                        <HelpCircle className="mr-2 h-4 w-4" />
-                        Help & Support
-                        <span className="ml-auto text-xs text-muted-foreground">Soon</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {canManagePermissions && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50">
+                          <Settings className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={handleManagePermissions}>
+                          <Users className="mr-2 h-4 w-4" />
+                          Manage Permissions
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
 
