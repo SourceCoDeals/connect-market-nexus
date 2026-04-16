@@ -131,6 +131,104 @@ export function useDealDetail() {
     },
   });
 
+  // Primary seller contact — source of truth for structured phone fields
+  // (mobile_phone_1/2/3). listings.main_contact_phone only holds a single
+  // number, so the "+ Add Phone Number" UI needs the contact row to
+  // persist additional phones. Column selection is cast because the
+  // generated supabase types don't yet include the structured-phone
+  // columns added in 20260701000020_structured_phone_fields.sql — same
+  // pattern as ReMarketingBuyerDetail/useBuyerData.ts.
+  const { data: primarySellerContact } = useQuery({
+    queryKey: ['remarketing', 'primary-seller-contact', dealId],
+    queryFn: async (): Promise<{
+      id: string;
+      mobile_phone_1: string | null;
+      mobile_phone_2: string | null;
+      mobile_phone_3: string | null;
+    } | null> => {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('id, mobile_phone_1, mobile_phone_2, mobile_phone_3')
+        .eq('listing_id', dealId!)
+        .eq('contact_type', 'seller')
+        .eq('is_primary_seller_contact', true)
+        .eq('archived', false)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const row = data as unknown as {
+        id: string;
+        mobile_phone_1: string | null;
+        mobile_phone_2: string | null;
+        mobile_phone_3: string | null;
+      };
+      return {
+        id: row.id,
+        mobile_phone_1: row.mobile_phone_1 ?? null,
+        mobile_phone_2: row.mobile_phone_2 ?? null,
+        mobile_phone_3: row.mobile_phone_3 ?? null,
+      };
+    },
+    enabled: !!dealId,
+  });
+
+  // Save primary contact — writes main_contact_* on the listing AND
+  // mobile_phone_1/2/3 on the primary seller contact row. The listing
+  // update fires trg_sync_listing_to_contacts which will create a contact
+  // row if none exists yet, so we re-query for it before writing the
+  // structured phones.
+  const savePrimaryContactMutation = useMutation({
+    mutationFn: async (data: {
+      name: string;
+      email: string;
+      phone: string;
+      additionalPhones?: string[];
+    }) => {
+      const { error: listingError } = await supabase
+        .from('listings')
+        .update({
+          main_contact_name: data.name,
+          main_contact_email: data.email,
+          main_contact_phone: data.phone,
+        })
+        .eq('id', dealId!);
+      if (listingError) throw listingError;
+
+      const additional = (data.additionalPhones ?? []).map((p) => p.trim()).filter(Boolean);
+
+      const { data: contact, error: fetchError } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('listing_id', dealId!)
+        .eq('contact_type', 'seller')
+        .eq('is_primary_seller_contact', true)
+        .eq('archived', false)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+
+      if (contact?.id) {
+        const phoneUpdate = {
+          mobile_phone_1: data.phone.trim() || null,
+          mobile_phone_2: additional[0] ?? null,
+          mobile_phone_3: additional[1] ?? null,
+          phone_source: 'manual',
+        } as unknown as Record<string, string | null>;
+        const { error: contactError } = await supabase
+          .from('contacts')
+          .update(phoneUpdate)
+          .eq('id', contact.id);
+        if (contactError) throw contactError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });
+      queryClient.invalidateQueries({ queryKey: ['remarketing', 'deals'] });
+      queryClient.invalidateQueries({
+        queryKey: ['remarketing', 'primary-seller-contact', dealId],
+      });
+    },
+  });
+
   // Toggle universe build flag
   const toggleUniverseFlagMutation = useMutation({
     mutationFn: async (flagged: boolean) => {
@@ -310,10 +408,13 @@ export function useDealDetail() {
     dealOwnerName,
     // Mutations
     updateDealMutation,
+    savePrimaryContactMutation,
     toggleUniverseFlagMutation,
     toggleContactOwnerMutation,
     toggleBuyerSearchMutation,
     updateNameMutation,
+    // Primary seller contact (mobile_phone_2/3 source for the "+ Add Phone Number" UI)
+    primarySellerContact,
     // UI state
     isEnriching,
     isAnalyzingNotes,
