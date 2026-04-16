@@ -148,11 +148,14 @@ async function resolveFromBuyerContacts(
   supabase: ReturnType<typeof createClient>,
   ids: string[],
 ): Promise<ResolvedContact[]> {
-  // Read from unified contacts table instead of legacy buyer_contacts
+  // Read from unified contacts table instead of legacy buyer_contacts.
+  // last_call_attempt_at is the actual dial history used by the skipRecent
+  // filter — not updated_at, which advances on any contact edit and would
+  // suppress freshly-enriched rows from being pushed.
   const { data: contacts } = await supabase
     .from('contacts')
     .select(
-      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, updated_at',
+      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, last_call_attempt_at',
     )
     .in('id', ids)
     .eq('archived', false);
@@ -199,7 +202,7 @@ async function resolveFromBuyerContacts(
       title: string | null;
       remarketing_buyer_id: string | null;
       listing_id: string | null;
-      updated_at: string | null;
+      last_call_attempt_at: string | null;
     }) => {
       const buyer = c.remarketing_buyer_id ? buyerMap.get(c.remarketing_buyer_id) : null;
       const listing = c.listing_id ? listingMap.get(c.listing_id) : null;
@@ -240,7 +243,7 @@ async function resolveFromBuyerContacts(
         title: c.title,
         company: buyer?.company_name || null,
         source_entity: 'buyer_contact',
-        last_contacted_date: c.updated_at,
+        last_contacted_date: c.last_call_attempt_at,
         contact_id: c.id,
         listing_id: c.listing_id,
         remarketing_buyer_id: c.remarketing_buyer_id,
@@ -254,11 +257,12 @@ async function resolveFromBuyers(
   supabase: ReturnType<typeof createClient>,
   buyerIds: string[],
 ): Promise<ResolvedContact[]> {
-  // Read from unified contacts table
+  // Read from unified contacts table. See resolveFromBuyerContacts for why
+  // last_call_attempt_at (not updated_at) backs the skipRecent filter.
   const { data: allContacts } = await supabase
     .from('contacts')
     .select(
-      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, is_primary_at_firm, updated_at',
+      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, is_primary_at_firm, last_call_attempt_at',
     )
     .in('remarketing_buyer_id', buyerIds)
     .eq('archived', false);
@@ -304,7 +308,7 @@ async function resolveFromBuyers(
     remarketing_buyer_id: string | null;
     listing_id: string | null;
     is_primary_at_firm: boolean | null;
-    updated_at: string | null;
+    last_call_attempt_at: string | null;
   }
 
   const typedContacts = (allContacts || []) as BuyerContactRow[];
@@ -351,7 +355,7 @@ async function resolveFromBuyers(
       title: c.title,
       company: buyer?.company_name || null,
       source_entity: 'buyer_contact',
-      last_contacted_date: c.updated_at,
+      last_contacted_date: c.last_call_attempt_at,
       contact_id: c.id,
       listing_id: c.listing_id,
       remarketing_buyer_id: c.remarketing_buyer_id,
@@ -520,13 +524,15 @@ async function resolveFromContactListMembers(
       mobile_phone_2: string | null;
       mobile_phone_3: string | null;
       office_phone: string | null;
-      updated_at: string | null;
+      last_call_attempt_at: string | null;
     }
   >();
   if (contactIds.length) {
     const { data: contacts } = await supabase
       .from('contacts')
-      .select('id, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, updated_at')
+      .select(
+        'id, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, last_call_attempt_at',
+      )
       .in('id', contactIds)
       .eq('archived', false);
     contactPhoneMap = new Map(
@@ -538,7 +544,7 @@ async function resolveFromContactListMembers(
           mobile_phone_2: string | null;
           mobile_phone_3: string | null;
           office_phone: string | null;
-          updated_at: string | null;
+          last_call_attempt_at: string | null;
         }) => [c.id, c],
       ),
     );
@@ -605,7 +611,7 @@ async function resolveFromContactListMembers(
         title: m.contact_role,
         company: m.contact_company,
         source_entity: `contact_list:${m.entity_type}`,
-        last_contacted_date: fresh?.updated_at ?? null,
+        last_contacted_date: fresh?.last_call_attempt_at ?? null,
         contact_id: m.contact_id,
         listing_id: LISTING_ENTITY_TYPES.includes(m.entity_type) ? m.entity_id : null,
         remarketing_buyer_id: null,
