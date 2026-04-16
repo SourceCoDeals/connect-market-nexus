@@ -13,9 +13,7 @@ interface FormMetrics {
   totalSignups: number;
   completedSignups: number;
   completionRate: number;
-  avgCompletionTime: number;
   fieldCompletionRates: Record<string, number>;
-  validationErrors: Array<{ field: string; errorCount: number; errorType: string }>;
   buyerTypeDistribution: Record<string, number>;
 }
 
@@ -53,20 +51,11 @@ export function FormMonitoringTab() {
       buyerTypeDistribution[type] = (buyerTypeDistribution[type] || 0) + 1;
     });
 
-    // M-15 FIX: Replaced synthetic/estimated validation error counts with a note
-    // that real tracking is not yet implemented. Previously showed fabricated numbers
-    // (e.g., 2% email errors, 5% website errors) which created false confidence.
-    const validationErrors: Array<{ field: string; errorCount: number; errorType: string }> = [];
-    // TODO: Implement actual form validation error tracking via user_activity table
-    // to populate real error counts instead of synthetic estimates.
-
     return {
       totalSignups,
       completedSignups,
       completionRate,
-      avgCompletionTime: 0, // M-15 FIX: Was hardcoded to 8.5, now shows 0 until real tracking
       fieldCompletionRates,
-      validationErrors,
       buyerTypeDistribution,
     };
   };

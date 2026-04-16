@@ -51,7 +51,7 @@ export function useDailyTasks(options: UseDailyTasksOptions) {
   // for the poll interval to tick. RLS already restricts events to rows the
   // viewer can see.
   useEffect(() => {
-    if (isMyView && !user?.id) return;
+    if (isMyView && !user?.id) return undefined;
 
     const channel = supabase
       .channel(`daily-standup-tasks-${isMyView ? (user?.id ?? 'anon') : 'all'}`)
