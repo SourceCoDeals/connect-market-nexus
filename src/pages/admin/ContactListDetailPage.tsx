@@ -44,7 +44,7 @@ import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { PushToHeyreachModal } from '@/components/remarketing/PushToHeyreachModal';
 import { ContactCSVImport } from '@/components/admin/ContactCSVImport';
-import type { ContactListMember } from '@/types/contact-list';
+import { memberHasDialerPhone, type ContactListMember } from '@/types/contact-list';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { ContactMemberDrawer } from '@/components/admin/lists/ContactMemberDrawer';
@@ -142,7 +142,7 @@ const ContactListDetailPage = () => {
   }, [activeMembers, searchQuery]);
 
   const selectedMembers = filteredMembers.filter((m) => selectedIds.has(m.id));
-  const selectedWithPhone = selectedMembers.filter((m) => m.contact_phone);
+  const selectedWithPhone = selectedMembers.filter(memberHasDialerPhone);
 
   const orderedIds = useMemo(() => filteredMembers.map((m) => m.id), [filteredMembers]);
   const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
@@ -208,7 +208,7 @@ const ContactListDetailPage = () => {
   // For dialer push, use member IDs (not entity_ids) so the edge function
   // can resolve directly from contact_list_members regardless of entity_type
   const dialerContactIds = (
-    selectedWithPhone.length > 0 ? selectedWithPhone : activeMembers.filter((m) => m.contact_phone)
+    selectedWithPhone.length > 0 ? selectedWithPhone : activeMembers.filter(memberHasDialerPhone)
   ).map((m) => m.id);
 
   const handleBulkRemove = () => {
