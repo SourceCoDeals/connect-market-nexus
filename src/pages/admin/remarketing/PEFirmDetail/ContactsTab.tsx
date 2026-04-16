@@ -1,6 +1,6 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -8,8 +8,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Users, Mail, Linkedin, Plus, Trash2, Building2 } from "lucide-react";
+} from '@/components/ui/table';
+import { Users, Mail, Linkedin, Plus, Trash2, Building2 } from 'lucide-react';
 import { ClickToDialPhone } from '@/components/shared/ClickToDialPhone';
 
 interface ContactsTabProps {
@@ -44,9 +44,7 @@ export const ContactsTab = ({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Firm Contacts</CardTitle>
-              <CardDescription>
-                Partners, VPs, and deal team members at {firmName}
-              </CardDescription>
+              <CardDescription>Partners, VPs, and deal team members at {firmName}</CardDescription>
             </div>
             <Button size="sm" onClick={onAddContact}>
               <Plus className="mr-2 h-4 w-4" />
@@ -83,7 +81,7 @@ export const ContactsTab = ({
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>{contact.role || "\u2014"}</TableCell>
+                    <TableCell>{contact.role || '\u2014'}</TableCell>
                     <TableCell>
                       {contact.email ? (
                         <a
@@ -94,7 +92,7 @@ export const ContactsTab = ({
                           {contact.email}
                         </a>
                       ) : (
-                        "\u2014"
+                        '\u2014'
                       )}
                     </TableCell>
                     <TableCell>
@@ -122,13 +120,26 @@ export const ContactsTab = ({
                             size="sm"
                           />
                         )}
+                        {contact.mobile_phone_3 && (
+                          <ClickToDialPhone
+                            phone={contact.mobile_phone_3}
+                            name={contact.name || undefined}
+                            email={contact.email || undefined}
+                            size="sm"
+                          />
+                        )}
                         {contact.office_phone && (
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Building2 className="h-3 w-3" />
                             {contact.office_phone}
                           </span>
                         )}
-                        {!contact.mobile_phone_1 && !contact.phone && !contact.office_phone && "\u2014"}
+                        {!contact.mobile_phone_1 &&
+                          !contact.mobile_phone_2 &&
+                          !contact.mobile_phone_3 &&
+                          !contact.phone &&
+                          !contact.office_phone &&
+                          '\u2014'}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -143,7 +154,7 @@ export const ContactsTab = ({
                           Profile
                         </a>
                       ) : (
-                        "\u2014"
+                        '\u2014'
                       )}
                     </TableCell>
                     <TableCell>
@@ -152,7 +163,7 @@ export const ContactsTab = ({
                         size="icon"
                         className="h-8 w-8 text-destructive"
                         onClick={() => {
-                          if (confirm("Delete this contact?")) {
+                          if (confirm('Delete this contact?')) {
                             onDeleteContact(contact.id);
                           }
                         }}

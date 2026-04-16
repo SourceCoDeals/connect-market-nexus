@@ -134,10 +134,14 @@ export function useDealDetail() {
   // Primary seller contact — source of truth for structured phone fields
   // (mobile_phone_1/2/3). listings.main_contact_phone only holds a single
   // number, so the "+ Add Phone Number" UI needs the contact row to
-  // persist additional phones. Column selection is cast because the
-  // generated supabase types don't yet include the structured-phone
-  // columns added in 20260701000020_structured_phone_fields.sql — same
-  // pattern as ReMarketingBuyerDetail/useBuyerData.ts.
+  // persist additional phones. The filter intentionally doesn't require
+  // is_primary_seller_contact=true because the listing-sync trigger's
+  // ON CONFLICT DO NOTHING can leave a pre-existing seller contact
+  // un-flagged — save_primary_seller_contact() corrects the flag on write,
+  // so reads need to tolerate both states to avoid showing an empty form
+  // on the first open. Column selection is cast because the generated
+  // supabase types don't yet include the structured-phone columns added
+  // in 20260701000020_structured_phone_fields.sql.
   const { data: primarySellerContact } = useQuery({
     queryKey: ['remarketing', 'primary-seller-contact', dealId],
     queryFn: async (): Promise<{
@@ -151,8 +155,10 @@ export function useDealDetail() {
         .select('id, mobile_phone_1, mobile_phone_2, mobile_phone_3')
         .eq('listing_id', dealId!)
         .eq('contact_type', 'seller')
-        .eq('is_primary_seller_contact', true)
         .eq('archived', false)
+        .order('is_primary_seller_contact', { ascending: false })
+        .order('created_at', { ascending: true })
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
@@ -172,11 +178,17 @@ export function useDealDetail() {
     enabled: !!dealId,
   });
 
-  // Save primary contact — writes main_contact_* on the listing AND
-  // mobile_phone_1/2/3 on the primary seller contact row. The listing
-  // update fires trg_sync_listing_to_contacts which will create a contact
-  // row if none exists yet, so we re-query for it before writing the
-  // structured phones.
+  // Save primary contact — updates the listing's main_contact_* fields and
+  // then atomically upserts the seller contact row via the
+  // save_primary_seller_contact RPC. The RPC handles three failure modes
+  // that the previous direct-UPDATE path hit:
+  //   1. Pre-existing seller contacts with is_primary_seller_contact=false
+  //      (sync trigger's ON CONFLICT DO NOTHING never flipped the flag).
+  //   2. Direct UPDATE on contacts is REVOKEd for the authenticated role
+  //      (see 20260625000008) — the RPC is SECURITY DEFINER.
+  //   3. Missing contact rows when the listing had no main_contact_name at
+  //      the time the trigger first fired — the RPC creates one.
+  // Passing '' for a phone clears it; omitting (null) keeps the existing value.
   const savePrimaryContactMutation = useMutation({
     mutationFn: async (data: {
       name: string;
@@ -194,31 +206,19 @@ export function useDealDetail() {
         .eq('id', dealId!);
       if (listingError) throw listingError;
 
-      const additional = (data.additionalPhones ?? []).map((p) => p.trim()).filter(Boolean);
+      // Normalize additional phones — trim each slot but preserve position so
+      // an empty slot becomes '' (explicit clear) rather than shifting left.
+      const additional = (data.additionalPhones ?? []).map((p) => p.trim());
 
-      const { data: contact, error: fetchError } = await supabase
-        .from('contacts')
-        .select('id')
-        .eq('listing_id', dealId!)
-        .eq('contact_type', 'seller')
-        .eq('is_primary_seller_contact', true)
-        .eq('archived', false)
-        .maybeSingle();
-      if (fetchError) throw fetchError;
-
-      if (contact?.id) {
-        const phoneUpdate = {
-          mobile_phone_1: data.phone.trim() || null,
-          mobile_phone_2: additional[0] ?? null,
-          mobile_phone_3: additional[1] ?? null,
-          phone_source: 'manual',
-        } as unknown as Record<string, string | null>;
-        const { error: contactError } = await supabase
-          .from('contacts')
-          .update(phoneUpdate)
-          .eq('id', contact.id);
-        if (contactError) throw contactError;
-      }
+      const { error: rpcError } = await (supabase.rpc as any)('save_primary_seller_contact', {
+        p_listing_id: dealId!,
+        p_name: data.name,
+        p_email: data.email,
+        p_phone: data.phone,
+        p_mobile_phone_2: additional[0] ?? '',
+        p_mobile_phone_3: additional[1] ?? '',
+      });
+      if (rpcError) throw rpcError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'deal', dealId] });

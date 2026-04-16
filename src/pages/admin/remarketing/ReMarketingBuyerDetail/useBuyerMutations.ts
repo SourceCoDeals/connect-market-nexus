@@ -256,6 +256,10 @@ export function useBuyerMutations(
       const firstName = nameParts[0] || 'Unknown';
       const lastName = nameParts.slice(1).join(' ') || '';
 
+      // Pass '' (not null) when a phone field is empty so update_buyer_contact's
+      // CASE WHEN IS NOT NULL branch runs its NULLIF(TRIM, '') → NULL step and
+      // actually clears the column. `|| null` collapsed '' to null, which the
+      // RPC interprets as "don't touch" and kept the previous value forever.
       const { error } = await (supabase.rpc as any)('update_buyer_contact', {
         p_contact_id: contact.id,
         p_first_name: firstName,
@@ -264,10 +268,10 @@ export function useBuyerMutations(
         p_phone: contact.mobile_phone_1 || contact.phone || null,
         p_title: contact.role || null,
         p_linkedin_url: contact.linkedin_url || null,
-        p_mobile_phone_1: contact.mobile_phone_1 || null,
-        p_mobile_phone_2: contact.mobile_phone_2 || null,
-        p_mobile_phone_3: contact.mobile_phone_3 || null,
-        p_office_phone: contact.office_phone || null,
+        p_mobile_phone_1: contact.mobile_phone_1 ?? '',
+        p_mobile_phone_2: contact.mobile_phone_2 ?? '',
+        p_mobile_phone_3: contact.mobile_phone_3 ?? '',
+        p_office_phone: contact.office_phone ?? '',
         p_phone_source: 'manual',
       });
       if (error) throw error;
@@ -456,7 +460,8 @@ export function useBuyerMutations(
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
-      const phonesFound = data?.results?.filter((r: { phone: string | null }) => r.phone).length || 0;
+      const phonesFound =
+        data?.results?.filter((r: { phone: string | null }) => r.phone).length || 0;
       toast.success(
         `Phone enrichment complete: ${phonesFound} phone${phonesFound !== 1 ? 's' : ''} found`,
       );

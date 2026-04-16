@@ -148,11 +148,14 @@ async function resolveFromBuyerContacts(
   supabase: ReturnType<typeof createClient>,
   ids: string[],
 ): Promise<ResolvedContact[]> {
-  // Read from unified contacts table instead of legacy buyer_contacts
+  // Read from unified contacts table instead of legacy buyer_contacts.
+  // last_call_attempt_at is the actual dial history used by the skipRecent
+  // filter — not updated_at, which advances on any contact edit and would
+  // suppress freshly-enriched rows from being pushed.
   const { data: contacts } = await supabase
     .from('contacts')
     .select(
-      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, updated_at',
+      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, last_call_attempt_at',
     )
     .in('id', ids)
     .eq('archived', false);
@@ -199,7 +202,7 @@ async function resolveFromBuyerContacts(
       title: string | null;
       remarketing_buyer_id: string | null;
       listing_id: string | null;
-      updated_at: string | null;
+      last_call_attempt_at: string | null;
     }) => {
       const buyer = c.remarketing_buyer_id ? buyerMap.get(c.remarketing_buyer_id) : null;
       const listing = c.listing_id ? listingMap.get(c.listing_id) : null;
@@ -240,7 +243,7 @@ async function resolveFromBuyerContacts(
         title: c.title,
         company: buyer?.company_name || null,
         source_entity: 'buyer_contact',
-        last_contacted_date: c.updated_at,
+        last_contacted_date: c.last_call_attempt_at,
         contact_id: c.id,
         listing_id: c.listing_id,
         remarketing_buyer_id: c.remarketing_buyer_id,
@@ -254,11 +257,12 @@ async function resolveFromBuyers(
   supabase: ReturnType<typeof createClient>,
   buyerIds: string[],
 ): Promise<ResolvedContact[]> {
-  // Read from unified contacts table
+  // Read from unified contacts table. See resolveFromBuyerContacts for why
+  // last_call_attempt_at (not updated_at) backs the skipRecent filter.
   const { data: allContacts } = await supabase
     .from('contacts')
     .select(
-      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, is_primary_at_firm, updated_at',
+      'id, first_name, last_name, email, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, title, remarketing_buyer_id, listing_id, is_primary_at_firm, last_call_attempt_at',
     )
     .in('remarketing_buyer_id', buyerIds)
     .eq('archived', false);
@@ -304,7 +308,7 @@ async function resolveFromBuyers(
     remarketing_buyer_id: string | null;
     listing_id: string | null;
     is_primary_at_firm: boolean | null;
-    updated_at: string | null;
+    last_call_attempt_at: string | null;
   }
 
   const typedContacts = (allContacts || []) as BuyerContactRow[];
@@ -351,7 +355,7 @@ async function resolveFromBuyers(
       title: c.title,
       company: buyer?.company_name || null,
       source_entity: 'buyer_contact',
-      last_contacted_date: c.updated_at,
+      last_contacted_date: c.last_call_attempt_at,
       contact_id: c.id,
       listing_id: c.listing_id,
       remarketing_buyer_id: c.remarketing_buyer_id,
@@ -493,12 +497,58 @@ async function resolveFromContactListMembers(
   const { data: members } = await supabase
     .from('contact_list_members')
     .select(
-      'id, contact_name, contact_email, contact_phone, contact_company, contact_role, entity_type, entity_id',
+      'id, contact_id, contact_name, contact_email, contact_phone, contact_company, contact_role, entity_type, entity_id',
     )
     .in('id', memberIds)
     .is('removed_at', null);
 
   if (!members?.length) return [];
+
+  // Pull fresh structured phone fields from contacts for members linked by
+  // contact_id. contact_list_members.contact_phone is a snapshot captured at
+  // add-time and goes stale whenever the underlying contact is enriched;
+  // without this join the push would send the stale snapshot even when the
+  // "With Phone" stat on the UI (which reads fresh fields) shows a number.
+  const contactIds = [
+    ...new Set(
+      members
+        .map((m: { contact_id: string | null }) => m.contact_id)
+        .filter((id: string | null): id is string => !!id),
+    ),
+  ];
+  let contactPhoneMap = new Map<
+    string,
+    {
+      phone: string | null;
+      mobile_phone_1: string | null;
+      mobile_phone_2: string | null;
+      mobile_phone_3: string | null;
+      office_phone: string | null;
+      last_call_attempt_at: string | null;
+    }
+  >();
+  if (contactIds.length) {
+    const { data: contacts } = await supabase
+      .from('contacts')
+      .select(
+        'id, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, last_call_attempt_at',
+      )
+      .in('id', contactIds)
+      .eq('archived', false);
+    contactPhoneMap = new Map(
+      (contacts || []).map(
+        (c: {
+          id: string;
+          phone: string | null;
+          mobile_phone_1: string | null;
+          mobile_phone_2: string | null;
+          mobile_phone_3: string | null;
+          office_phone: string | null;
+          last_call_attempt_at: string | null;
+        }) => [c.id, c],
+      ),
+    );
+  }
 
   // Collect listing IDs from deal-type members for deal data enrichment
   const LISTING_ENTITY_TYPES = ['sourceco_deal', 'gp_partner_deal', 'referral_deal', 'listing'];
@@ -523,6 +573,7 @@ async function resolveFromContactListMembers(
   return members.map(
     (m: {
       id: string;
+      contact_id: string | null;
       contact_name: string | null;
       contact_email: string;
       contact_phone: string | null;
@@ -544,20 +595,24 @@ async function resolveFromContactListMembers(
         customFields.push(...buildDealCustomFields(listing));
       }
 
+      const fresh = m.contact_id ? contactPhoneMap.get(m.contact_id) : undefined;
+
       return {
         id: m.id,
         name: m.contact_name || 'Unknown',
-        phone: m.contact_phone,
-        mobile_phone_1: null,
-        mobile_phone_2: null,
-        mobile_phone_3: null,
-        office_phone: null,
+        // Fall back to the snapshot only when no linked contact row is
+        // available (inbound leads, lists built from deal-only entities, etc.).
+        phone: fresh?.phone ?? m.contact_phone,
+        mobile_phone_1: fresh?.mobile_phone_1 ?? null,
+        mobile_phone_2: fresh?.mobile_phone_2 ?? null,
+        mobile_phone_3: fresh?.mobile_phone_3 ?? null,
+        office_phone: fresh?.office_phone ?? null,
         email: m.contact_email,
         title: m.contact_role,
         company: m.contact_company,
         source_entity: `contact_list:${m.entity_type}`,
-        last_contacted_date: null,
-        contact_id: null,
+        last_contacted_date: fresh?.last_call_attempt_at ?? null,
+        contact_id: m.contact_id,
         listing_id: LISTING_ENTITY_TYPES.includes(m.entity_type) ? m.entity_id : null,
         remarketing_buyer_id: null,
         extra_context: customFields,

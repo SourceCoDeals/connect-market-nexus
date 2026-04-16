@@ -186,6 +186,14 @@ export const ContactsTab = ({
                             size="sm"
                           />
                         )}
+                        {contact.mobile_phone_3 && (
+                          <ClickToDialPhone
+                            phone={contact.mobile_phone_3}
+                            name={contact.name || undefined}
+                            email={contact.email || undefined}
+                            size="sm"
+                          />
+                        )}
                         {contact.office_phone && (
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Building2 className="h-3 w-3" />
@@ -193,6 +201,8 @@ export const ContactsTab = ({
                           </span>
                         )}
                         {!contact.mobile_phone_1 &&
+                          !contact.mobile_phone_2 &&
+                          !contact.mobile_phone_3 &&
                           !contact.phone &&
                           !contact.office_phone &&
                           '\u2014'}

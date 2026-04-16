@@ -63,6 +63,10 @@ export function collectPhones(contact: {
 /**
  * Pick the best phone numbers for PhoneBurner's 3 phone fields.
  * Returns [phone, phone2, phone3] with mobile numbers prioritized.
+ * Results are always normalized (digits only) so the PhoneBurner payload and
+ * our own webhook-match cache use the same format — previously phone2/phone3
+ * leaked the raw formatted values and could drift from the normalized
+ * `phones` array stored for matching.
  */
 export function pickDialerPhones(contact: {
   mobile_phone_1?: string | null;
@@ -86,7 +90,7 @@ export function pickDialerPhones(contact: {
     const normalized = normalizePhone(raw);
     if (normalized && !seen.has(normalized)) {
       seen.add(normalized);
-      unique.push(raw!);
+      unique.push(normalized);
     }
   }
 
