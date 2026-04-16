@@ -38,15 +38,40 @@ interface CaptargetPageStats {
 
 // Full columns for display rows
 const DEAL_SELECT = [
-  'id', 'title', 'internal_company_name', 'captarget_client_name',
-  'captarget_contact_date', 'captarget_outreach_channel', 'captarget_interest_type',
-  'main_contact_name', 'main_contact_email', 'main_contact_title', 'main_contact_phone',
-  'captarget_sheet_tab', 'website', 'description', 'owner_response',
-  'pushed_to_all_deals', 'pushed_to_all_deals_at', 'deal_source', 'status', 'created_at',
-  'enriched_at', 'deal_total_score', 'linkedin_employee_count', 'linkedin_employee_range',
-  'google_rating', 'google_review_count', 'captarget_status', 'is_priority_target',
-  'needs_buyer_search', 'needs_owner_contact',
-  'category', 'executive_summary', 'industry', 'remarketing_status',
+  'id',
+  'title',
+  'internal_company_name',
+  'captarget_client_name',
+  'captarget_contact_date',
+  'captarget_outreach_channel',
+  'captarget_interest_type',
+  'main_contact_name',
+  'main_contact_email',
+  'main_contact_title',
+  'main_contact_phone',
+  'captarget_sheet_tab',
+  'website',
+  'description',
+  'owner_response',
+  'pushed_to_all_deals',
+  'pushed_to_all_deals_at',
+  'deal_source',
+  'status',
+  'created_at',
+  'enriched_at',
+  'deal_total_score',
+  'linkedin_employee_count',
+  'linkedin_employee_range',
+  'google_rating',
+  'google_review_count',
+  'captarget_status',
+  'is_priority_target',
+  'needs_buyer_search',
+  'needs_owner_contact',
+  'category',
+  'executive_summary',
+  'industry',
+  'remarketing_status',
 ].join(', ');
 
 // Map UI sort columns to DB column names
@@ -316,7 +341,7 @@ export function useCapTargetData() {
     ],
     staleTime: 30_000,
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const countBase = () =>
         untypedFrom('listings')
           .select('id', { count: 'exact', head: true })
@@ -436,10 +461,7 @@ export function useCapTargetData() {
   //  • Server mode (no advanced filters): fetches only one page + count from DB
   //  • Client mode (advanced filters active): fetches all base-filtered rows,
   //    then runs the filter engine client-side
-  const {
-    data: queryResult,
-    isLoading,
-  } = useQuery({
+  const { data: queryResult, isLoading } = useQuery({
     queryKey: [
       'remarketing',
       'captarget-deals',
@@ -492,9 +514,7 @@ export function useCapTargetData() {
         let hasMore = true;
 
         while (hasMore) {
-          let query = untypedFrom('listings')
-            .select(DEAL_SELECT)
-            .eq('deal_source', 'captarget');
+          let query = untypedFrom('listings').select(DEAL_SELECT).eq('deal_source', 'captarget');
 
           query = applyBaseFilters(query, baseFilterOpts);
           query = query
@@ -542,10 +562,7 @@ export function useCapTargetData() {
 
   // ─── Filter engine (for state management + client mode filtering) ───
 
-  const engineInput = useMemo(
-    () => (queryResult?.deals ?? []) as CapTargetDeal[],
-    [queryResult],
-  );
+  const engineInput = useMemo(() => (queryResult?.deals ?? []) as CapTargetDeal[], [queryResult]);
 
   const {
     filteredItems: engineFiltered,
@@ -608,11 +625,11 @@ export function useCapTargetData() {
   const orderedIds = useMemo(() => paginatedDeals.map((d) => d.id), [paginatedDeals]);
   const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
 
-  // ─── Stats from RPC ───────────────────────────────────────────────────
+  // ─── Stats ────────────────────────────────────────────────────────────
   //
-  // All three buckets (summary / kpi / tabs) come from a single
-  // get_captarget_page_stats call so counters are accurate regardless of
-  // table size and we never trip the PostgREST `max_rows = 1000` cap.
+  // Summary/KPI/tab counts come from the parallel direct count queries
+  // assembled above; `avg_score` is the only field still sourced from the
+  // RPC. Count headers bypass the PostgREST `max_rows = 1000` cap.
 
   const kpiStats = useMemo(
     () => ({
