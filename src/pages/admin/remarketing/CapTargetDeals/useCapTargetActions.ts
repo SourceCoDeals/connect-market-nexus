@@ -130,20 +130,34 @@ export function useCapTargetActions(
   // ─── Bulk Enrich ────────────────────────────────────────────────────
   const handleBulkEnrich = useCallback(
     async (mode: 'unenriched' | 'all') => {
-      // Query DB directly for target IDs (don't rely on client-side page data)
-      let query = supabase
-        .from('listings')
-        .select('id')
-        .eq('deal_source', 'captarget');
-      if (mode === 'unenriched') {
-        query = query.is('enriched_at', null);
+      // Query DB directly for target IDs (don't rely on client-side page data).
+      // Paginated to defeat the project-wide PostgREST `max_rows = 1000` cap —
+      // a single unpaginated `.select('id')` would silently stop at 1,000 rows
+      // and queue only the first thousand captarget listings for enrichment.
+      const targets: { id: string }[] = [];
+      const FETCH_BATCH = 1000;
+      let offset = 0;
+      while (true) {
+        let query = supabase
+          .from('listings')
+          .select('id')
+          .eq('deal_source', 'captarget');
+        if (mode === 'unenriched') {
+          query = query.is('enriched_at', null);
+        }
+        const { data, error: fetchError } = await query
+          .order('id', { ascending: true })
+          .range(offset, offset + FETCH_BATCH - 1);
+        if (fetchError) {
+          sonnerToast.error('Failed to fetch deals');
+          return;
+        }
+        if (!data || data.length === 0) break;
+        targets.push(...data);
+        if (data.length < FETCH_BATCH) break;
+        offset += FETCH_BATCH;
       }
-      const { data: targets, error: fetchError } = await query;
-      if (fetchError) {
-        sonnerToast.error('Failed to fetch deals');
-        return;
-      }
-      if (!targets?.length) {
+      if (!targets.length) {
         sonnerToast.info('No deals to enrich');
         return;
       }

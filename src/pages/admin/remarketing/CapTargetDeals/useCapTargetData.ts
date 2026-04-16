@@ -38,15 +38,40 @@ interface CaptargetPageStats {
 
 // Full columns for display rows
 const DEAL_SELECT = [
-  'id', 'title', 'internal_company_name', 'captarget_client_name',
-  'captarget_contact_date', 'captarget_outreach_channel', 'captarget_interest_type',
-  'main_contact_name', 'main_contact_email', 'main_contact_title', 'main_contact_phone',
-  'captarget_sheet_tab', 'website', 'description', 'owner_response',
-  'pushed_to_all_deals', 'pushed_to_all_deals_at', 'deal_source', 'status', 'created_at',
-  'enriched_at', 'deal_total_score', 'linkedin_employee_count', 'linkedin_employee_range',
-  'google_rating', 'google_review_count', 'captarget_status', 'is_priority_target',
-  'needs_buyer_search', 'needs_owner_contact',
-  'category', 'executive_summary', 'industry', 'remarketing_status',
+  'id',
+  'title',
+  'internal_company_name',
+  'captarget_client_name',
+  'captarget_contact_date',
+  'captarget_outreach_channel',
+  'captarget_interest_type',
+  'main_contact_name',
+  'main_contact_email',
+  'main_contact_title',
+  'main_contact_phone',
+  'captarget_sheet_tab',
+  'website',
+  'description',
+  'owner_response',
+  'pushed_to_all_deals',
+  'pushed_to_all_deals_at',
+  'deal_source',
+  'status',
+  'created_at',
+  'enriched_at',
+  'deal_total_score',
+  'linkedin_employee_count',
+  'linkedin_employee_range',
+  'google_rating',
+  'google_review_count',
+  'captarget_status',
+  'is_priority_target',
+  'needs_buyer_search',
+  'needs_owner_contact',
+  'category',
+  'executive_summary',
+  'industry',
+  'remarketing_status',
 ].join(', ');
 
 // Map UI sort columns to DB column names
@@ -283,10 +308,17 @@ export function useCapTargetData() {
 
   // ─── Data fetching ───────────────────────────────────────────────────
 
-  // Aggregate counters (summary / KPI / status-tab) — computed server-side
-  // via the `get_captarget_page_stats` RPC so we never ship thousands of rows
-  // to the browser just to `.length` them. Date range + hide toggles are
-  // passed as arguments so counts re-compute when they change.
+  // Aggregate counters (summary / KPI / status-tab).
+  //
+  // We issue direct PostgREST `count: 'exact', head: true` queries rather than
+  // relying solely on the `get_captarget_page_stats` RPC. The count is returned
+  // in the Content-Range HTTP header and is *not* subject to the project-wide
+  // `max_rows = 1000` cap that silently truncated the earlier client-side
+  // aggregation. Queries run in parallel, so wall-clock latency is one round-trip.
+  //
+  // `avg_score` is the one metric that can't be expressed as a count query;
+  // we still fetch it from the RPC but failure of that single call only wipes
+  // the avg-score KPI — every other counter remains correct.
   const pageStatsArgs = useMemo(
     () => ({
       p_date_from: dateRange.from ? dateRange.from.toISOString() : undefined,
@@ -309,12 +341,101 @@ export function useCapTargetData() {
     ],
     staleTime: 30_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc(
-        'get_captarget_page_stats',
-        pageStatsArgs,
-      );
-      if (error) throw error;
-      return data as unknown as CaptargetPageStats;
+       
+      const countBase = () =>
+        untypedFrom('listings')
+          .select('id', { count: 'exact', head: true })
+          .eq('deal_source', 'captarget');
+
+      // Timeframe predicate (mirrors the original COALESCE(captarget_contact_date,
+      // created_at) semantics via a PostgREST .or() expression).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const applyTimeframe = (q: any) => {
+        if (dateRange.from) {
+          const f = dateRange.from.toISOString();
+          q = q.or(
+            `and(captarget_contact_date.not.is.null,captarget_contact_date.gte.${f}),and(captarget_contact_date.is.null,created_at.gte.${f})`,
+          );
+        }
+        if (dateRange.to) {
+          const t = dateRange.to.toISOString();
+          q = q.or(
+            `and(captarget_contact_date.not.is.null,captarget_contact_date.lte.${t}),and(captarget_contact_date.is.null,created_at.lte.${t})`,
+          );
+        }
+        return q;
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const applyTabBase = (q: any) => {
+        if (hidePushed) {
+          q = q.or('pushed_to_all_deals.is.null,pushed_to_all_deals.eq.false');
+        }
+        if (hideNotFit) {
+          q = q.or('remarketing_status.is.null,remarketing_status.neq.not_a_fit');
+        }
+        return applyTimeframe(q);
+      };
+
+      const [
+        totalRes,
+        unpushedRes,
+        interestRes,
+        enrichedRes,
+        scoredRes,
+        kpiTotalRes,
+        kpiPriorityRes,
+        kpiNeedsScoringRes,
+        tabsFilteredRes,
+        tabsActiveRes,
+        tabsInactiveRes,
+        rpcRes,
+      ] = await Promise.all([
+        countBase(),
+        countBase().or('pushed_to_all_deals.is.null,pushed_to_all_deals.eq.false'),
+        countBase().eq('captarget_interest_type', 'interest'),
+        countBase().not('enriched_at', 'is', null),
+        countBase().not('deal_total_score', 'is', null),
+        applyTimeframe(countBase()),
+        applyTimeframe(countBase()).eq('is_priority_target', true),
+        applyTimeframe(countBase()).is('deal_total_score', null),
+        applyTabBase(countBase()),
+        applyTabBase(countBase()).eq('captarget_status', 'active'),
+        applyTabBase(countBase()).eq('captarget_status', 'inactive'),
+        supabase
+          .rpc('get_captarget_page_stats', pageStatsArgs)
+          .then((r) => r)
+          // Non-blocking: if the RPC isn't deployed or errors, avg_score just
+          // falls back to 0 below. All other counters come from direct queries.
+          .catch(() => ({ data: null })),
+      ]);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const n = (r: any) => (r?.count as number | null) ?? 0;
+      const rpcKpi =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ((rpcRes as any)?.data as CaptargetPageStats | null)?.kpi ?? null;
+
+      return {
+        summary: {
+          total_deals: n(totalRes),
+          unpushed_count: n(unpushedRes),
+          interest_count: n(interestRes),
+          enriched_count: n(enrichedRes),
+          scored_count: n(scoredRes),
+        },
+        kpi: {
+          total_deals: n(kpiTotalRes),
+          priority_deals: n(kpiPriorityRes),
+          avg_score: rpcKpi?.avg_score ?? 0,
+          needs_scoring: n(kpiNeedsScoringRes),
+        },
+        tabs: {
+          filtered_total: n(tabsFilteredRes),
+          active_count: n(tabsActiveRes),
+          inactive_count: n(tabsInactiveRes),
+        },
+      } satisfies CaptargetPageStats;
     },
   });
 
@@ -340,10 +461,7 @@ export function useCapTargetData() {
   //  • Server mode (no advanced filters): fetches only one page + count from DB
   //  • Client mode (advanced filters active): fetches all base-filtered rows,
   //    then runs the filter engine client-side
-  const {
-    data: queryResult,
-    isLoading,
-  } = useQuery({
+  const { data: queryResult, isLoading } = useQuery({
     queryKey: [
       'remarketing',
       'captarget-deals',
@@ -396,9 +514,7 @@ export function useCapTargetData() {
         let hasMore = true;
 
         while (hasMore) {
-          let query = untypedFrom('listings')
-            .select(DEAL_SELECT)
-            .eq('deal_source', 'captarget');
+          let query = untypedFrom('listings').select(DEAL_SELECT).eq('deal_source', 'captarget');
 
           query = applyBaseFilters(query, baseFilterOpts);
           query = query
@@ -446,10 +562,7 @@ export function useCapTargetData() {
 
   // ─── Filter engine (for state management + client mode filtering) ───
 
-  const engineInput = useMemo(
-    () => (queryResult?.deals ?? []) as CapTargetDeal[],
-    [queryResult],
-  );
+  const engineInput = useMemo(() => (queryResult?.deals ?? []) as CapTargetDeal[], [queryResult]);
 
   const {
     filteredItems: engineFiltered,
@@ -512,11 +625,11 @@ export function useCapTargetData() {
   const orderedIds = useMemo(() => paginatedDeals.map((d) => d.id), [paginatedDeals]);
   const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
 
-  // ─── Stats from RPC ───────────────────────────────────────────────────
+  // ─── Stats ────────────────────────────────────────────────────────────
   //
-  // All three buckets (summary / kpi / tabs) come from a single
-  // get_captarget_page_stats call so counters are accurate regardless of
-  // table size and we never trip the PostgREST `max_rows = 1000` cap.
+  // Summary/KPI/tab counts come from the parallel direct count queries
+  // assembled above; `avg_score` is the only field still sourced from the
+  // RPC. Count headers bypass the PostgREST `max_rows = 1000` cap.
 
   const kpiStats = useMemo(
     () => ({
