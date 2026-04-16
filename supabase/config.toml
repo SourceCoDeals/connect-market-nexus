@@ -186,6 +186,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.data-room-access]
 verify_jwt = false
+[functions.data-room-delete]
+verify_jwt = false
 [functions.generate-lead-memo]
 verify_jwt = false
 [functions.generate-listing-content]
