@@ -58,6 +58,7 @@ const ReMarketingDashboard = () => {
     universeMetrics,
     callActivity,
     callActivityLoading,
+    callActivityError,
     adminActivity,
   } = useDashboardData(timeframe);
 
@@ -155,11 +156,15 @@ const ReMarketingDashboard = () => {
       )}
 
       {/* ROW 1b: Call Activity metrics (WF-14) */}
-      {callActivityLoading ? (
+      {callActivityLoading && !callActivityError ? (
         <div className="grid gap-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />
           ))}
+        </div>
+      ) : callActivityError ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Couldn&apos;t load call activity: {callActivityError.message || 'unknown error'}
         </div>
       ) : (
         callActivity && (

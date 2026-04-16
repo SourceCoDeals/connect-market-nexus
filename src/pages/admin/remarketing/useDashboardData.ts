@@ -197,7 +197,12 @@ export function useDashboardData(timeframe: Timeframe) {
     created_at: string;
   };
 
-  const { data: callActivityRows, isLoading: callActivityLoading } = useQuery({
+  const {
+    data: callActivityRows,
+    isLoading: callActivityLoading,
+    isError: callActivityIsError,
+    error: callActivityErrorObj,
+  } = useQuery({
     queryKey: ['dashboard', 'call-activity', fromDate],
     queryFn: async (): Promise<CallActivityRow[]> => {
       let query = (supabase as any)
@@ -352,6 +357,7 @@ export function useDashboardData(timeframe: Timeframe) {
     universeMetrics,
     callActivity,
     callActivityLoading,
+    callActivityError: callActivityIsError ? (callActivityErrorObj as Error | null) : null,
     adminActivity,
   };
 }
