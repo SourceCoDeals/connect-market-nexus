@@ -9,12 +9,22 @@
  */
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import { DealSourceBadge } from '@/components/remarketing/DealSourceBadge';
 import { useAdminProfiles } from '@/hooks/admin/use-admin-profiles';
 import { formatDistanceToNow } from 'date-fns';
-import { BarChart3, ArrowUpRight, Zap, Clock, Phone, CheckCircle2 } from 'lucide-react';
+import {
+  BarChart3,
+  ArrowUpRight,
+  Zap,
+  Clock,
+  Phone,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+} from 'lucide-react';
 
 import { DashboardFilters } from './DashboardFilters';
 import { WeeklyChart } from './DashboardCharts';
@@ -35,6 +45,8 @@ const ReMarketingDashboard = () => {
   const {
     loading,
     universesLoading,
+    statsError,
+    refetchStats,
     cards,
     newBySource,
     allBySource,
@@ -68,8 +80,29 @@ const ReMarketingDashboard = () => {
         <DashboardFilters timeframe={timeframe} onTimeframeChange={setTimeframe} />
       </div>
 
+      {statsError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-800">Couldn't load dashboard stats</p>
+            <p className="text-xs text-red-700 mt-1 break-words">
+              {statsError.message || 'The get_remarketing_dashboard_stats RPC failed.'}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchStats()}
+            className="shrink-0 border-red-300 text-red-700 hover:bg-red-100"
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* ROW 1: Headline Metric Cards */}
-      {loading ? (
+      {loading && !statsError ? (
         <div className="grid gap-3 md:grid-cols-5">
           {[1, 2, 3, 4, 5].map((i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />

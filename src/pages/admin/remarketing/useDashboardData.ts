@@ -124,7 +124,13 @@ export function useDashboardData(timeframe: Timeframe) {
   const fromDate = getFromDate(timeframe);
 
   // Single RPC call replaces 8+ sequential batch fetches
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsIsError,
+    error: statsError,
+    refetch: refetchStats,
+  } = useQuery({
     queryKey: ['dashboard', 'remarketing-stats', fromDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_remarketing_dashboard_stats', {
@@ -333,6 +339,8 @@ export function useDashboardData(timeframe: Timeframe) {
   return {
     loading: statsLoading,
     universesLoading,
+    statsError: statsIsError ? (statsError as Error | null) : null,
+    refetchStats,
     cards,
     newBySource,
     allBySource,
