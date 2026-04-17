@@ -1,13 +1,13 @@
 -- =============================================================================
--- DNC propagation: contacts.do_not_contact → smartlead_campaign_leads
+-- DNC propagation: contacts.do_not_call → smartlead_campaign_leads
 -- =============================================================================
--- When PhoneBurner webhook or a user toggles contacts.do_not_contact=true, the
+-- When PhoneBurner webhook or a user toggles contacts.do_not_call=true, the
 -- contact should stop receiving automated outreach. Previously the flag was
 -- written to contacts but never reflected in the outreach integrations, so the
 -- next Smartlead send would still fire.
 --
 -- This trigger closes the local loop by marking every smartlead_campaign_leads
--- row for that email as do_not_contact. The Smartlead-API-side pause is a
+-- row for that email as do_not_call. The Smartlead-API-side pause is a
 -- separate step (requires an HTTP call from an edge function with Smartlead
 -- credentials) — done by queueing a row in dnc_propagation_queue so a future
 -- sync worker can pick it up. Keeping the queue explicit means the trigger
@@ -63,7 +63,11 @@ BEGIN
 
   -- smartlead_campaign_leads is matched on email (smartlead's own PK is
   -- smartlead_lead_id which we don't always have). Updating every row for
-  -- this email is idempotent.
+  -- this email is idempotent. The status VALUE is 'do_not_contact' —
+  -- Smartlead's local vocabulary for their DNC category — even though the
+  -- contacts column is do_not_call. Keeping these intentionally separate:
+  -- the boolean on contacts tracks the CRM-side flag, the string on
+  -- smartlead_campaign_leads tracks Smartlead's category.
   UPDATE smartlead_campaign_leads
     SET lead_status = 'do_not_contact',
         lead_category = 'do_not_contact',
@@ -88,11 +92,11 @@ RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  -- Only fire when do_not_contact transitioned FROM false/NULL TO true.
+  -- Only fire when do_not_call transitioned FROM false/NULL TO true.
   -- (Turning it back to false doesn't auto-reinstate — that has to be
   -- explicit because un-doing a DNC should be deliberate.)
-  IF NEW.do_not_contact = TRUE
-     AND (OLD.do_not_contact IS DISTINCT FROM TRUE) THEN
+  IF NEW.do_not_call = TRUE
+     AND (OLD.do_not_call IS DISTINCT FROM TRUE) THEN
     BEGIN
       PERFORM public.propagate_dnc_local(NEW.id);
     EXCEPTION WHEN OTHERS THEN
@@ -114,10 +118,10 @@ $$;
 
 DROP TRIGGER IF EXISTS contacts_dnc_propagate ON public.contacts;
 CREATE TRIGGER contacts_dnc_propagate
-  AFTER UPDATE OF do_not_contact ON public.contacts
+  AFTER UPDATE OF do_not_call ON public.contacts
   FOR EACH ROW
   EXECUTE FUNCTION public.trg_contact_dnc_propagate();
 
 COMMENT ON TRIGGER contacts_dnc_propagate ON public.contacts IS
-  'When a contact is marked do_not_contact=true, mirror to local tracking '
+  'When a contact is marked do_not_call=true, mirror to local tracking '
   'tables and queue upstream integration pauses.';

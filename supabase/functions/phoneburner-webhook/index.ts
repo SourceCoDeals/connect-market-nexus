@@ -1189,7 +1189,10 @@ async function processEvent(
           );
           if (resolvedContactId && (mapping.mark_do_not_call || mapping.mark_phone_invalid)) {
             const updates: Record<string, unknown> = {};
-            if (mapping.mark_do_not_call) updates.do_not_contact = true;
+            // Canonical column name on contacts is do_not_call (not
+            // do_not_contact). The RPC's whitelist accepts either spelling
+            // for back-compat, but we pass the canonical name.
+            if (mapping.mark_do_not_call) updates.do_not_call = true;
             if (mapping.mark_phone_invalid) updates.phone_invalid = true;
             // See comment above — route through the webhook flag RPC.
             await supabase.rpc('contacts_apply_webhook_flags', {

@@ -28,14 +28,16 @@ AS $$
 DECLARE
   -- Whitelist of keys webhooks are allowed to set via this RPC. Any key in
   -- p_updates that isn't in this list causes the call to fail — forces the
-  -- caller to use a dedicated RPC for broader updates.
+  -- caller to use a dedicated RPC for broader updates. `do_not_contact` is
+  -- accepted as a legacy alias for `do_not_call` (the canonical column).
   allowed_keys TEXT[] := ARRAY[
+    'do_not_call',
     'do_not_contact',
     'phone_invalid',
     'updated_at'
   ];
   k TEXT;
-  v_do_not_contact BOOLEAN;
+  v_do_not_call    BOOLEAN;
   v_phone_invalid  BOOLEAN;
   v_touch_updated  BOOLEAN := FALSE;
 BEGIN
@@ -55,8 +57,10 @@ BEGIN
   END LOOP;
 
   -- Extract allowed values (NULL when key absent).
-  IF p_updates ? 'do_not_contact' THEN
-    v_do_not_contact := (p_updates ->> 'do_not_contact')::boolean;
+  IF p_updates ? 'do_not_call' THEN
+    v_do_not_call := (p_updates ->> 'do_not_call')::boolean;
+  ELSIF p_updates ? 'do_not_contact' THEN
+    v_do_not_call := (p_updates ->> 'do_not_contact')::boolean;
   END IF;
   IF p_updates ? 'phone_invalid' THEN
     v_phone_invalid := (p_updates ->> 'phone_invalid')::boolean;
@@ -69,23 +73,23 @@ BEGIN
   -- keys preserve their current values without needing a separate branch.
   UPDATE contacts
     SET
-      do_not_contact = CASE WHEN p_updates ? 'do_not_contact'
-                            THEN v_do_not_contact
-                            ELSE do_not_contact END,
-      phone_invalid  = CASE WHEN p_updates ? 'phone_invalid'
-                            THEN v_phone_invalid
-                            ELSE phone_invalid END,
-      updated_at     = CASE WHEN v_touch_updated THEN now() ELSE updated_at END
+      do_not_call = CASE WHEN p_updates ? 'do_not_call' OR p_updates ? 'do_not_contact'
+                         THEN v_do_not_call
+                         ELSE do_not_call END,
+      phone_invalid = CASE WHEN p_updates ? 'phone_invalid'
+                           THEN v_phone_invalid
+                           ELSE phone_invalid END,
+      updated_at = CASE WHEN v_touch_updated THEN now() ELSE updated_at END
     WHERE id = p_contact_id;
 END;
 $$;
 
 COMMENT ON FUNCTION public.contacts_apply_webhook_flags(UUID, JSONB) IS
-  'Webhook-safe narrow updater for contacts flag columns (do_not_contact, '
-  'phone_invalid, updated_at). Rejects any JSON key not in the whitelist. '
-  'Use this from edge-function webhooks instead of a direct UPDATE so the '
-  'contact consolidation lint stays satisfied and flag-write surface area '
-  'is tracked in one place.';
+  'Webhook-safe narrow updater for contacts flag columns (do_not_call, '
+  'phone_invalid, updated_at). Accepts the legacy do_not_contact key as an '
+  'alias. Rejects any JSON key not in the whitelist. Use this from edge-'
+  'function webhooks instead of a direct UPDATE so the contact consolidation '
+  'lint stays satisfied and flag-write surface area is tracked in one place.';
 
 GRANT EXECUTE ON FUNCTION public.contacts_apply_webhook_flags(UUID, JSONB)
   TO authenticated, service_role;
