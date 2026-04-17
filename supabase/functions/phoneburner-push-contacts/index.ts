@@ -405,6 +405,52 @@ async function resolveFromListings(
 
   if (!listings?.length) return [];
 
+  // Pull the structured phone fields from each listing's primary seller
+  // contact. listings.main_contact_phone only ever holds one number, so
+  // without this join the dialer push drops mobile_phone_2/3 entered via
+  // the "+ Add Phone Number" UI and click-to-dial on the 2nd/3rd phone
+  // silently falls back to the first. Matches the fix already applied to
+  // resolveFromContactListMembers.
+  const { data: sellerContacts } = await supabase
+    .from('contacts')
+    .select(
+      'id, listing_id, phone, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone, is_primary_seller_contact, created_at, last_call_attempt_at',
+    )
+    .in('listing_id', listingIds)
+    .eq('contact_type', 'seller')
+    .eq('archived', false);
+
+  interface SellerContactRow {
+    id: string;
+    listing_id: string;
+    phone: string | null;
+    mobile_phone_1: string | null;
+    mobile_phone_2: string | null;
+    mobile_phone_3: string | null;
+    office_phone: string | null;
+    is_primary_seller_contact: boolean | null;
+    created_at: string | null;
+    last_call_attempt_at: string | null;
+  }
+
+  // Pick one seller contact per listing, preferring the flagged primary and
+  // otherwise the oldest — mirrors save_primary_seller_contact's resolution
+  // order so reads and writes converge on the same row.
+  const sellerByListing = new Map<string, SellerContactRow>();
+  for (const c of (sellerContacts || []) as SellerContactRow[]) {
+    const existing = sellerByListing.get(c.listing_id);
+    if (!existing) {
+      sellerByListing.set(c.listing_id, c);
+      continue;
+    }
+    const existingScore =
+      (existing.is_primary_seller_contact ? 1 : 0) * 1e18 -
+      new Date(existing.created_at || 0).getTime();
+    const candidateScore =
+      (c.is_primary_seller_contact ? 1 : 0) * 1e18 - new Date(c.created_at || 0).getTime();
+    if (candidateScore > existingScore) sellerByListing.set(c.listing_id, c);
+  }
+
   return listings
     .filter((l: { main_contact_name?: string }) => l.main_contact_name)
     .map(
@@ -429,20 +475,22 @@ async function resolveFromListings(
 
         customFields.push(...buildDealCustomFields(l));
 
+        const seller = sellerByListing.get(l.id);
+
         return {
           id: `listing-${l.id}`,
           name: l.main_contact_name!,
-          phone: l.main_contact_phone || null,
-          mobile_phone_1: null,
-          mobile_phone_2: null,
-          mobile_phone_3: null,
-          office_phone: null,
+          phone: seller?.phone ?? l.main_contact_phone ?? null,
+          mobile_phone_1: seller?.mobile_phone_1 ?? null,
+          mobile_phone_2: seller?.mobile_phone_2 ?? null,
+          mobile_phone_3: seller?.mobile_phone_3 ?? null,
+          office_phone: seller?.office_phone ?? null,
           email: l.main_contact_email || null,
           title: l.main_contact_title || null,
           company: l.internal_company_name || l.title || null,
           source_entity: `listing:${l.deal_source || 'unknown'}`,
-          last_contacted_date: null,
-          contact_id: null,
+          last_contacted_date: seller?.last_call_attempt_at ?? null,
+          contact_id: seller?.id ?? null,
           listing_id: l.id,
           remarketing_buyer_id: null,
           extra_context: customFields,
