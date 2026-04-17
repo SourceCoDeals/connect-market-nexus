@@ -307,3 +307,210 @@ describe('PhoneBurner Push — Buyer Contact Fallback', () => {
     expect(key).toBe('john@example.com-+1555012');
   });
 });
+
+// ============================================================================
+// resolveFromListings — seller-contact resolution order
+// ============================================================================
+//
+// Re-implements the per-listing seller picker so we can regression-test the
+// resolution rule without pulling in Deno / Supabase. The real edge function
+// at supabase/functions/phoneburner-push-contacts/index.ts uses the same
+// score formula and the same input columns. Keeping these tests in lock-step
+// with save_primary_seller_contact's "ORDER BY is_primary_seller_contact DESC,
+// created_at ASC LIMIT 1" catches drift between the two.
+
+interface SellerContactRow {
+  id: string;
+  listing_id: string;
+  phone: string | null;
+  mobile_phone_1: string | null;
+  mobile_phone_2: string | null;
+  mobile_phone_3: string | null;
+  office_phone: string | null;
+  is_primary_seller_contact: boolean | null;
+  created_at: string | null;
+  last_call_attempt_at: string | null;
+}
+
+function pickSellerByListing(rows: SellerContactRow[]): Map<string, SellerContactRow> {
+  const out = new Map<string, SellerContactRow>();
+  for (const c of rows) {
+    const existing = out.get(c.listing_id);
+    if (!existing) {
+      out.set(c.listing_id, c);
+      continue;
+    }
+    const existingScore =
+      (existing.is_primary_seller_contact ? 1 : 0) * 1e18 -
+      new Date(existing.created_at || 0).getTime();
+    const candidateScore =
+      (c.is_primary_seller_contact ? 1 : 0) * 1e18 - new Date(c.created_at || 0).getTime();
+    if (candidateScore > existingScore) out.set(c.listing_id, c);
+  }
+  return out;
+}
+
+function seller(
+  partial: Partial<SellerContactRow> & { id: string; listing_id: string },
+): SellerContactRow {
+  return {
+    phone: null,
+    mobile_phone_1: null,
+    mobile_phone_2: null,
+    mobile_phone_3: null,
+    office_phone: null,
+    is_primary_seller_contact: false,
+    created_at: null,
+    last_call_attempt_at: null,
+    ...partial,
+  };
+}
+
+describe('PhoneBurner Push — seller contact resolution for listings', () => {
+  it('returns null when no seller contacts exist', () => {
+    const picked = pickSellerByListing([]);
+    expect(picked.get('listing-1')).toBeUndefined();
+  });
+
+  it('prefers is_primary_seller_contact=true even when another seller is older', () => {
+    const older = seller({
+      id: 'c-old',
+      listing_id: 'L1',
+      created_at: '2024-01-01T00:00:00Z',
+      is_primary_seller_contact: false,
+    });
+    const primary = seller({
+      id: 'c-primary',
+      listing_id: 'L1',
+      created_at: '2025-06-01T00:00:00Z',
+      is_primary_seller_contact: true,
+    });
+    const picked = pickSellerByListing([older, primary]);
+    expect(picked.get('L1')?.id).toBe('c-primary');
+  });
+
+  it('falls back to oldest seller when none is flagged primary', () => {
+    const a = seller({
+      id: 'c-a',
+      listing_id: 'L1',
+      created_at: '2025-06-01T00:00:00Z',
+    });
+    const b = seller({
+      id: 'c-b',
+      listing_id: 'L1',
+      created_at: '2024-01-01T00:00:00Z',
+    });
+    const picked = pickSellerByListing([a, b]);
+    expect(picked.get('L1')?.id).toBe('c-b');
+  });
+
+  it('resolves different listings independently', () => {
+    const picked = pickSellerByListing([
+      seller({ id: 'a', listing_id: 'L1', is_primary_seller_contact: true }),
+      seller({ id: 'b', listing_id: 'L2', is_primary_seller_contact: true }),
+    ]);
+    expect(picked.get('L1')?.id).toBe('a');
+    expect(picked.get('L2')?.id).toBe('b');
+  });
+
+  it('handles null created_at by treating it as epoch (oldest)', () => {
+    const noDate = seller({ id: 'c-nodate', listing_id: 'L1', created_at: null });
+    const dated = seller({
+      id: 'c-dated',
+      listing_id: 'L1',
+      created_at: '2025-01-01T00:00:00Z',
+    });
+    // null → new Date(0) → oldest wins
+    const picked = pickSellerByListing([dated, noDate]);
+    expect(picked.get('L1')?.id).toBe('c-nodate');
+  });
+});
+
+describe('PhoneBurner Push — listing ResolvedContact phone assembly', () => {
+  // Mirrors the final mapping in resolveFromListings: once a seller is picked,
+  // the ResolvedContact carries mobile_phone_1/2/3 + office_phone from the
+  // seller and falls back to main_contact_phone only when the seller row is
+  // missing or has no phone at all.
+  function buildListingResolvedPhones(opts: {
+    listingMainContactPhone: string | null;
+    seller: SellerContactRow | undefined;
+  }) {
+    const s = opts.seller;
+    return {
+      phone: s?.phone ?? opts.listingMainContactPhone ?? null,
+      mobile_phone_1: s?.mobile_phone_1 ?? null,
+      mobile_phone_2: s?.mobile_phone_2 ?? null,
+      mobile_phone_3: s?.mobile_phone_3 ?? null,
+      office_phone: s?.office_phone ?? null,
+      contact_id: s?.id ?? null,
+      last_contacted_date: s?.last_call_attempt_at ?? null,
+    };
+  }
+
+  it('pulls all structured phones from the resolved seller contact', () => {
+    const result = buildListingResolvedPhones({
+      listingMainContactPhone: '555-stale',
+      seller: seller({
+        id: 'c1',
+        listing_id: 'L1',
+        phone: '555-1111',
+        mobile_phone_1: '555-1111',
+        mobile_phone_2: '555-2222',
+        mobile_phone_3: '555-3333',
+        office_phone: '555-office',
+        last_call_attempt_at: '2025-05-01T10:00:00Z',
+      }),
+    });
+    expect(result.mobile_phone_1).toBe('555-1111');
+    expect(result.mobile_phone_2).toBe('555-2222');
+    expect(result.mobile_phone_3).toBe('555-3333');
+    expect(result.office_phone).toBe('555-office');
+    expect(result.contact_id).toBe('c1');
+    expect(result.last_contacted_date).toBe('2025-05-01T10:00:00Z');
+  });
+
+  it('prefers seller.phone over stale listings.main_contact_phone', () => {
+    // Regression: resolveFromListings previously only read main_contact_phone,
+    // which drifts from the seller contact whenever phones are edited via
+    // the "+ Add Phone Number" flow (which writes to contacts, not listings).
+    const result = buildListingResolvedPhones({
+      listingMainContactPhone: '555-stale',
+      seller: seller({ id: 'c1', listing_id: 'L1', phone: '555-fresh' }),
+    });
+    expect(result.phone).toBe('555-fresh');
+  });
+
+  it('falls back to main_contact_phone when no seller contact exists', () => {
+    const result = buildListingResolvedPhones({
+      listingMainContactPhone: '555-only',
+      seller: undefined,
+    });
+    expect(result.phone).toBe('555-only');
+    expect(result.mobile_phone_1).toBeNull();
+    expect(result.mobile_phone_2).toBeNull();
+    expect(result.contact_id).toBeNull();
+  });
+
+  it('falls back to main_contact_phone when seller has null phone but main_contact does', () => {
+    const result = buildListingResolvedPhones({
+      listingMainContactPhone: '555-listing',
+      seller: seller({ id: 'c1', listing_id: 'L1', phone: null, mobile_phone_2: '555-2222' }),
+    });
+    // seller.phone is null → fall through to main_contact_phone for the
+    // primary `phone` field. mobile_phone_2 is still preserved separately.
+    expect(result.phone).toBe('555-listing');
+    expect(result.mobile_phone_2).toBe('555-2222');
+  });
+
+  it('returns all nulls when neither seller nor listing has any phone', () => {
+    const result = buildListingResolvedPhones({
+      listingMainContactPhone: null,
+      seller: undefined,
+    });
+    expect(result.phone).toBeNull();
+    expect(result.mobile_phone_1).toBeNull();
+    expect(result.mobile_phone_2).toBeNull();
+    expect(result.mobile_phone_3).toBeNull();
+    expect(result.office_phone).toBeNull();
+  });
+});
