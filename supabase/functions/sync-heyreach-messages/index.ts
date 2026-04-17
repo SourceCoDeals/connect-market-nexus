@@ -22,7 +22,6 @@
  * shared `resolveOutreachContact` helper which normalizes URLs and respects
  * the buyer/seller contact_type distinction.
  */
- 
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getConversations } from '../_shared/heyreach-client.ts';
@@ -249,7 +248,6 @@ async function syncCampaign(
   let offset = 0;
   let latestActivityAt = lastSyncedAt;
 
-   
   while (true) {
     const resp = await getConversations({
       campaignIds: [campaign.heyreach_campaign_id],
@@ -322,7 +320,20 @@ async function syncCampaign(
     offset += PAGE_SIZE;
   }
 
-  // See sync-smartlead-messages for why we guard latestActivityAt.
+  // See sync-smartlead-messages for the watermark semantics. In short:
+  // advance last_synced_at on any successful completion — to the activity
+  // high-water mark if we saw activity, or to (sync_start - 5min) on first
+  // successful run with zero activity, so monitoring can distinguish "never
+  // ran" from "ran and found nothing".
+  const bufferMs = 5 * 60 * 1000;
+  const completionWatermark = new Date(startedAt - bufferMs);
+  let newWatermark: Date | null = null;
+  if (latestActivityAt && (!lastSyncedAt || latestActivityAt > lastSyncedAt)) {
+    newWatermark = latestActivityAt;
+  } else if (!lastSyncedAt) {
+    newWatermark = completionWatermark;
+  }
+
   const syncStateUpdate: Record<string, unknown> = {
     channel: 'heyreach',
     external_campaign_id: campaign.heyreach_campaign_id,
@@ -333,8 +344,8 @@ async function syncCampaign(
       ((stateRow as { messages_synced_total?: number } | null)?.messages_synced_total || 0) +
       result.messages_upserted,
   };
-  if (latestActivityAt && (!lastSyncedAt || latestActivityAt > lastSyncedAt)) {
-    syncStateUpdate.last_synced_at = latestActivityAt.toISOString();
+  if (newWatermark) {
+    syncStateUpdate.last_synced_at = newWatermark.toISOString();
   }
   await supabase
     .from('outreach_sync_state')
