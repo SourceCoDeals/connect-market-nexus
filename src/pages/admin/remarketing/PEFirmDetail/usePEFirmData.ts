@@ -98,7 +98,9 @@ export const usePEFirmData = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contacts')
-        .select('id, first_name, last_name, email, phone, linkedin_url, title, is_primary_at_firm, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone')
+        .select(
+          'id, first_name, last_name, email, phone, linkedin_url, title, is_primary_at_firm, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone',
+        )
         .eq('remarketing_buyer_id', id!)
         .eq('contact_type', 'buyer')
         .eq('archived', false)
@@ -264,8 +266,9 @@ export const usePEFirmData = () => {
         office_phone: '',
       });
     },
-    onError: () => {
-      toast.error('Failed to add contact');
+    onError: (error: Error) => {
+      const message = error?.message?.trim() || 'Failed to add contact';
+      toast.error(`Failed to add contact: ${message}`);
     },
   });
 

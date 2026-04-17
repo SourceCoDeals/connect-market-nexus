@@ -234,8 +234,14 @@ export function useBuyerMutations(
         office_phone: '',
       });
     },
-    onError: () => {
-      toast.error('Failed to add contact');
+    onError: (error: Error) => {
+      // Surface the actual RPC error so broken writes (NOT NULL violations,
+      // permission errors, unique-index conflicts, etc.) stop hiding behind
+      // a generic "Failed to add contact" toast. Same pattern the
+      // PrimaryContactCard save path adopted in 79e1b19 after the silent
+      // "Failed to save" bug concealed three compounding issues for weeks.
+      const message = error?.message?.trim() || 'Failed to add contact';
+      toast.error(`Failed to add contact: ${message}`);
     },
   });
 
@@ -280,8 +286,9 @@ export function useBuyerMutations(
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
       toast.success('Contact updated');
     },
-    onError: () => {
-      toast.error('Failed to update contact');
+    onError: (error: Error) => {
+      const message = error?.message?.trim() || 'Failed to update contact';
+      toast.error(`Failed to update contact: ${message}`);
     },
   });
 

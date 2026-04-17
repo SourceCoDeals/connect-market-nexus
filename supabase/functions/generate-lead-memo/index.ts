@@ -115,13 +115,17 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // GUARD: Anonymous Teaser requires a Final PDF of the Full Lead Memo
+    // GUARD: Anonymous Teaser requires a Final PDF of the Full Lead Memo.
+    // Filter by status='active' so a soft-deleted full_memo row (which the
+    // rest of this function already excludes at line ~170) doesn't
+    // accidentally unlock the teaser and produce output against stale data.
     if (memo_type === 'anonymous_teaser' || memo_type === 'both') {
       const { data: fullMemoPdf } = await supabaseAdmin
         .from('data_room_documents')
         .select('id')
         .eq('deal_id', deal_id)
         .eq('document_category', 'full_memo')
+        .eq('status', 'active')
         .limit(1);
       if (!fullMemoPdf?.length) {
         return new Response(
@@ -422,7 +426,8 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (marketplaceListing) {
-        // Build ONE unified description from all sections
+        // Build ONE unified description from all sections — these are
+        // pure-text transforms, so we can run them inline cheaply.
         const unifiedDescription = contentSections
           .map((s: MemoSection) => `**${s.title}**\n\n${s.content}`)
           .join('\n\n---\n\n');
@@ -434,29 +439,63 @@ Deno.serve(async (req: Request) => {
           })
           .join('');
 
-        const listingUpdate: Record<string, unknown> = {
-          custom_sections: customSections,
-          description: unifiedDescription,
-          description_html: `<div class="unified-memo">${unifiedHtml}</div>`,
-        };
-
-        // Generate a compelling hero_description from the memo content via AI.
-        // The hero is the first thing buyers see on cards and landing pages —
-        // it must be a concise 2-3 sentence elevator pitch, fully anonymized,
-        // free of transcript language, with financials as approximate ranges.
-        listingUpdate.hero_description = await buildHeroFromMemo(
-          anthropicApiKey,
-          teaserContent.sections,
-          deal,
-          supabaseAdmin,
-        );
-
+        // Run the description/HTML update synchronously — pure text, fast.
+        // hero_description generation is a separate Claude call and is the
+        // single biggest tail-latency contributor for this function. Run
+        // it in the background via EdgeRuntime.waitUntil so the client
+        // gets the teaser response back inside the 150s wall-clock budget
+        // even when Anthropic is slow, then the marketplace listing card
+        // picks up the hero once the background task finishes. If
+        // waitUntil isn't available (local Deno, test harness), we
+        // gracefully fall back to an awaited call.
         const { error: syncError } = await supabaseAdmin
           .from('listings')
-          .update(listingUpdate)
+          .update({
+            custom_sections: customSections,
+            description: unifiedDescription,
+            description_html: `<div class="unified-memo">${unifiedHtml}</div>`,
+          })
           .eq('id', marketplaceListing.id);
         if (syncError) {
           console.error('Failed to sync teaser sections to marketplace listing:', syncError);
+        }
+
+        const heroSyncTask = (async () => {
+          try {
+            const hero = await buildHeroFromMemo(
+              anthropicApiKey,
+              teaserContent.sections,
+              deal,
+              supabaseAdmin,
+            );
+            if (hero) {
+              const { error: heroSyncError } = await supabaseAdmin
+                .from('listings')
+                .update({ hero_description: hero })
+                .eq('id', marketplaceListing.id);
+              if (heroSyncError) {
+                console.error(
+                  'Failed to sync hero_description to marketplace listing:',
+                  heroSyncError,
+                );
+              }
+            }
+          } catch (heroErr) {
+            console.error('Background hero generation failed:', heroErr);
+          }
+        })();
+
+        const edgeRuntime = (
+          globalThis as {
+            EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void };
+          }
+        ).EdgeRuntime;
+        if (typeof edgeRuntime?.waitUntil === 'function') {
+          edgeRuntime.waitUntil(heroSyncTask);
+        } else {
+          // Local / test environment without EdgeRuntime — await inline so
+          // the sync still happens, just at the cost of latency.
+          await heroSyncTask;
         }
       } else {
         console.warn(
@@ -806,6 +845,10 @@ ${sectionText}
 Return ONLY the hero description text. No preamble, no quotes, no explanation.`;
 
   try {
+    // Cap hero generation at 30s — it's a small call (512 tokens) and runs
+    // after the main teaser/memo generate, so the wall-clock budget that
+    // remains is thin. If it overruns we fall back to the deterministic
+    // buildHeroFallback so the outer teaser save still succeeds.
     const response = await fetchWithAutoRetry(
       ANTHROPIC_API_URL,
       {
@@ -817,8 +860,9 @@ Return ONLY the hero description text. No preamble, no quotes, no explanation.`;
           temperature: 0.2,
           max_tokens: 512,
         }),
+        signal: AbortSignal.timeout(30_000),
       },
-      { callerName: 'generate-lead-memo:hero', maxRetries: 1 },
+      { callerName: 'generate-lead-memo:hero', maxRetries: 0 },
     );
 
     if (!response.ok) {
@@ -1517,10 +1561,15 @@ BLOCK 2 — INTERNAL ANALYST NOTES (never shared with investors):
 Wrap analyst notes between the markers ANALYST_NOTES_START and ANALYST_NOTES_END (each on its own line). Include a bulleted list of any data discrepancies, unverified figures, source conflicts, or missing data that would strengthen the memo. Reference the specific sources (e.g., "Call 2 states $5.2M revenue; enrichment shows $4.8M"). If FINANCIAL FOLLOW-UP QUESTIONS are provided in the data, incorporate each as a known data gap that should be resolved. If there are no discrepancies, write "None."`;
 
   // Regeneration loop: up to 3 retries for blocking validation failures
+  // See the matching comment in the anonymous_teaser branch for why the
+  // outer validation retry is capped at 2 and each fetch carries its own
+  // AbortSignal.timeout. Full memos tend to run longer than teasers
+  // because the prompt + max_tokens is larger, so the per-call cap is
+  // slightly higher (90s) than the teaser's 60s.
   let bestSections: MemoSection[] = [];
   let retryAppendix = '';
 
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     const promptToSend = retryAppendix ? `${userPrompt}\n\n${retryAppendix}` : userPrompt;
 
     const response = await fetchWithAutoRetry(
@@ -1535,8 +1584,9 @@ Wrap analyst notes between the markers ANALYST_NOTES_START and ANALYST_NOTES_END
           temperature: 0.2,
           max_tokens: 4096,
         }),
+        signal: AbortSignal.timeout(90_000),
       },
-      { callerName: 'generate-lead-memo-full', maxRetries: 2 },
+      { callerName: 'generate-lead-memo-full', maxRetries: 1 },
     );
 
     if (!response.ok) {
@@ -1891,11 +1941,18 @@ Return as markdown with ## headers. Must exactly match: BUSINESS OVERVIEW, DEAL 
 
 FINAL ANONYMITY CHECK: Before returning, re-read every sentence. Confirm no combination of details could identify the business.`;
 
-  // Regeneration loop: up to 3 retries for blocking validation failures
+  // Regeneration loop: bounded validation retries. The cap is 2 attempts
+  // (down from 4) because each Claude call can run 30-90s and Supabase
+  // edge functions have a 150s wall-clock limit — four attempts plus the
+  // downstream buildHeroFromMemo call reliably tripped the limit, and the
+  // client saw the platform's raw "non-2xx" error with no JSON body for
+  // extractFunctionError to unwrap. The per-call AbortSignal.timeout below
+  // caps each attempt individually so a single hung fetch can't swallow
+  // the entire budget.
   let bestSections: MemoSection[] = [];
   let retryAppendix = '';
 
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     const promptToSend = retryAppendix ? `${userPrompt}\n\n${retryAppendix}` : userPrompt;
 
     const response = await fetchWithAutoRetry(
@@ -1910,8 +1967,9 @@ FINAL ANONYMITY CHECK: Before returning, re-read every sentence. Confirm no comb
           temperature: 0.2,
           max_tokens: 4096,
         }),
+        signal: AbortSignal.timeout(60_000),
       },
-      { callerName: 'generate-lead-memo-teaser', maxRetries: 2 },
+      { callerName: 'generate-lead-memo-teaser', maxRetries: 1 },
     );
 
     if (!response.ok) {
