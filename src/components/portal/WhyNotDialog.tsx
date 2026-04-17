@@ -200,9 +200,33 @@ export function WhyNotDialog({
 
                       {reasons.length > 0 ? (
                         <ul className="text-xs text-muted-foreground space-y-0.5">
-                          {reasons.map((r, i) => (
-                            <li key={i}>• {r}</li>
-                          ))}
+                          {reasons.map((r, i) => {
+                            const isPrimary = r.startsWith('[primary]');
+                            const isSecondary = r.startsWith('[secondary]');
+                            const cleaned = r.replace(/^\[(primary|secondary)\]\s*/, '');
+                            return (
+                              <li key={i} className="flex items-center gap-1.5">
+                                <span>•</span>
+                                {isPrimary && (
+                                  <Badge
+                                    variant="outline"
+                                    className="h-4 text-[9px] px-1 bg-green-50 text-green-700 border-green-200"
+                                  >
+                                    primary
+                                  </Badge>
+                                )}
+                                {isSecondary && (
+                                  <Badge
+                                    variant="outline"
+                                    className="h-4 text-[9px] px-1 bg-amber-50 text-amber-700 border-amber-200"
+                                  >
+                                    secondary
+                                  </Badge>
+                                )}
+                                <span>{cleaned}</span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       ) : (
                         <p className="text-xs text-muted-foreground italic">

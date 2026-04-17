@@ -11,6 +11,8 @@ export interface ThesisCriteria {
   portal_org_id: string;
   industry_label: string;
   industry_keywords: string[];
+  /** Negative-match keywords — any match forces score=0 regardless of industry hit. */
+  excluded_keywords?: string[];
   ebitda_min: number | null;
   ebitda_max: number | null;
   revenue_min: number | null;
@@ -74,26 +76,66 @@ export function scoreListingAgainstCriteria(
     return { score: 0, reasons: [], category: 'weak' };
   }
 
-  const listingText = [
+  // Primary industry signal: structured taxonomy fields that SourceCo curates.
+  // These are short, canonical labels ("HVAC", "Auto Body Repair") so a keyword
+  // match here is high confidence.
+  const primaryText = [
     listing.industry,
     listing.category,
     ...(Array.isArray(listing.categories) ? listing.categories : []),
     ...(Array.isArray(listing.services) ? listing.services : []),
-    listing.service_mix,
-    listing.executive_summary,
   ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
 
-  const industryMatch = criteria.industry_keywords.some((kw) => keywordMatches(listingText, kw));
+  // Secondary signal: long-form prose (executive summary, service mix).
+  // Broad keywords like "mechanical" or "cooling" trigger false positives here
+  // — an auto body shop's summary says "mechanical repair" and "cooling
+  // systems", which would wrongly match an HVAC thesis. We only accept a
+  // secondary match when the primary industry field is MISSING; when a primary
+  // industry is present but doesn't match, summary matches are ignored.
+  const secondaryText = [listing.service_mix, listing.executive_summary]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
 
-  if (!industryMatch) {
+  const primaryMatch = criteria.industry_keywords.some((kw) => keywordMatches(primaryText, kw));
+  const hasPrimaryIndustry =
+    !!(listing.industry && String(listing.industry).trim()) ||
+    !!(listing.category && String(listing.category).trim()) ||
+    (Array.isArray(listing.categories) && listing.categories.length > 0);
+  const secondaryMatch =
+    !primaryMatch &&
+    !hasPrimaryIndustry &&
+    criteria.industry_keywords.some((kw) => keywordMatches(secondaryText, kw));
+
+  if (!primaryMatch && !secondaryMatch) {
     return { score: 0, reasons: [], category: 'weak' };
   }
 
-  score += 40;
-  reasons.push(`${criteria.industry_label} match`);
+  // ── EXCLUDED KEYWORDS (hard negative gate) ──
+  // If ANY excluded keyword appears in primary or secondary text, bail out.
+  // Lets a reviewer say "HVAC thesis — but never roll-up a listing that
+  // mentions 'auto body'" to kill the class of Alpine-style false positives.
+  const excluded = criteria.excluded_keywords ?? [];
+  if (excluded.length > 0) {
+    const haystack = `${primaryText} ${secondaryText}`;
+    const hit = excluded.find((kw) => keywordMatches(haystack, kw));
+    if (hit) {
+      return { score: 0, reasons: [`excluded keyword "${hit}"`], category: 'weak' };
+    }
+  }
+
+  if (primaryMatch) {
+    score += 40;
+    reasons.push(`[primary] ${criteria.industry_label} match`);
+  } else {
+    // Weaker evidence — listing has no structured industry, so we fell back to
+    // prose. Score lower and flag the reviewer so they know to verify.
+    score += 20;
+    reasons.push(`[secondary] ${criteria.industry_label} keyword in summary (weak)`);
+  }
 
   // ── GEOGRAPHY MATCH (0-25) ──
   const targetStates = criteria.target_states || [];

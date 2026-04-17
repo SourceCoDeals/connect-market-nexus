@@ -126,7 +126,7 @@ describe('planRecommendationWrites — updates', () => {
       portal_org_id: 'org-a',
       listing_id: 'listing-1',
       match_score: 65,
-      match_reasons: ['Commercial HVAC match', 'National geography'],
+      match_reasons: ['[primary] Commercial HVAC match', 'National geography'],
       status: 'pending',
     };
     const plan = planRecommendationWrites(
@@ -135,7 +135,7 @@ describe('planRecommendationWrites — updates', () => {
       [existing],
     );
     expect(plan.toUpdate).toHaveLength(1);
-    expect(plan.toUpdate[0].patch.match_reasons).toContain('HVAC match');
+    expect(plan.toUpdate[0].patch.match_reasons).toContain('[primary] HVAC match');
   });
 
   it('no-op when score and reasons are identical', () => {
@@ -144,7 +144,7 @@ describe('planRecommendationWrites — updates', () => {
       portal_org_id: 'org-a',
       listing_id: 'listing-1',
       match_score: 65, // 40 industry + 25 national
-      match_reasons: ['HVAC match', 'National geography'],
+      match_reasons: ['[primary] HVAC match', 'National geography'],
       status: 'pending',
     };
     const plan = planRecommendationWrites([makeListing()], [makeCriterion()], [existing]);
@@ -229,7 +229,7 @@ describe('planRecommendationWrites — reaping', () => {
       portal_org_id: 'org-a',
       listing_id: 'listing-1',
       match_score: 65,
-      match_reasons: ['HVAC match', 'National geography'],
+      match_reasons: ['[primary] HVAC match', 'National geography'],
       status: 'pending',
     };
     const orgBExisting: ExistingRecommendation = {
@@ -237,7 +237,7 @@ describe('planRecommendationWrites — reaping', () => {
       portal_org_id: 'org-b',
       listing_id: 'listing-1',
       match_score: 65,
-      match_reasons: ['HVAC match', 'National geography'],
+      match_reasons: ['[primary] HVAC match', 'National geography'],
       status: 'pending',
     };
     const plan = planRecommendationWrites(
