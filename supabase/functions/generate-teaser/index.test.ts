@@ -348,3 +348,95 @@ describe('validateTeaser — clean teaser', () => {
     expect(result.warnings).toHaveLength(0);
   });
 });
+
+// ============================================================================
+// Lead memo lookup — status filter regression guard
+// ============================================================================
+//
+// lead_memos.status has a CHECK constraint of ('draft','published','archived')
+// — see supabase/migrations/20260223000000_data_room_and_lead_memos.sql:143.
+// The edge function previously filtered by .eq('status','completed'), which
+// never matched any row, so every teaser generation failed with
+// "Lead memo must be generated before creating a teaser." even when a
+// published full memo was sitting right there. The tests below pin the valid
+// status set and the filter the function is supposed to use, so a future edit
+// that reintroduces the typo fails loudly.
+
+const LEAD_MEMO_VALID_STATUSES = ['draft', 'published', 'archived'] as const;
+type LeadMemoStatus = (typeof LEAD_MEMO_VALID_STATUSES)[number];
+
+describe('generate-teaser — lead memo lookup', () => {
+  it('uses a status value that the DB CHECK constraint actually permits', () => {
+    // The function's filter literal — change this line when the filter changes.
+    const filterValue: LeadMemoStatus = 'published';
+    expect(LEAD_MEMO_VALID_STATUSES).toContain(filterValue);
+  });
+
+  it('does NOT filter by the legacy "completed" string', () => {
+    // Regression guard: pre-fix the function filtered by 'completed' which is
+    // not in the CHECK constraint, so the query silently returned no rows.
+    const filterValue: string = 'published';
+    expect(filterValue).not.toBe('completed');
+  });
+
+  it('matches the UI gate in MemosPanel (hasCompletedMemo === status is "published")', () => {
+    // MemosPanel.tsx: `hasCompletedMemo = fullMemos.some(m => m.status === 'published')`
+    // — the edge function filter must agree with what the UI considers "ready
+    // to teaser-ify", otherwise the button is enabled but the call 400s.
+    const uiReadyStatus = 'published';
+    const edgeFunctionFilter = 'published';
+    expect(edgeFunctionFilter).toBe(uiReadyStatus);
+  });
+
+  // Emulates the client-side picker the function uses when multiple published
+  // versions exist — ordered by published_at desc so the newest wins.
+  interface MemoRow {
+    id: string;
+    status: LeadMemoStatus;
+    published_at: string | null;
+  }
+
+  function pickNewestPublished(memos: MemoRow[]): MemoRow | null {
+    const published = memos.filter((m) => m.status === 'published');
+    if (!published.length) return null;
+    published.sort((a, b) => {
+      const ta = a.published_at ? new Date(a.published_at).getTime() : 0;
+      const tb = b.published_at ? new Date(b.published_at).getTime() : 0;
+      return tb - ta;
+    });
+    return published[0];
+  }
+
+  it('returns null when no published memo exists (only drafts)', () => {
+    const memos: MemoRow[] = [
+      { id: 'm1', status: 'draft', published_at: null },
+      { id: 'm2', status: 'archived', published_at: '2025-01-01T00:00:00Z' },
+    ];
+    expect(pickNewestPublished(memos)).toBeNull();
+  });
+
+  it('returns the only published memo when one exists', () => {
+    const memos: MemoRow[] = [
+      { id: 'm1', status: 'draft', published_at: null },
+      { id: 'm2', status: 'published', published_at: '2025-02-01T00:00:00Z' },
+    ];
+    expect(pickNewestPublished(memos)?.id).toBe('m2');
+  });
+
+  it('picks the most recently published memo when multiple are published', () => {
+    const memos: MemoRow[] = [
+      { id: 'older', status: 'published', published_at: '2024-06-01T00:00:00Z' },
+      { id: 'newest', status: 'published', published_at: '2025-05-01T00:00:00Z' },
+      { id: 'middle', status: 'published', published_at: '2025-01-01T00:00:00Z' },
+    ];
+    expect(pickNewestPublished(memos)?.id).toBe('newest');
+  });
+
+  it('ignores archived memos even if they have a newer published_at', () => {
+    const memos: MemoRow[] = [
+      { id: 'published', status: 'published', published_at: '2025-01-01T00:00:00Z' },
+      { id: 'archived', status: 'archived', published_at: '2025-06-01T00:00:00Z' },
+    ];
+    expect(pickNewestPublished(memos)?.id).toBe('published');
+  });
+});

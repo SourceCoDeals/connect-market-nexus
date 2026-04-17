@@ -304,19 +304,28 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Step 1: Fetch the completed lead memo — the teaser's ONLY input
+    // Step 1: Fetch the published lead memo — the teaser's ONLY input.
+    // lead_memos.status has a CHECK constraint of ('draft','published','archived')
+    // so the old .eq('status','completed') filter never matched any row and
+    // every teaser generation failed with "Lead memo must be generated before
+    // creating a teaser." even when a published memo was sitting right there.
+    // The MemosPanel UI already gates the Generate Teaser button on the
+    // presence of a published full memo, so 'published' is the expected state.
     const { data: leadMemo } = await supabaseAdmin
       .from('lead_memos')
       .select('content')
       .eq('deal_id', dealId)
       .eq('memo_type', 'full_memo')
-      .eq('status', 'completed')
-      .single();
+      .eq('status', 'published')
+      .order('published_at', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
 
     if (!leadMemo) {
       return new Response(
         JSON.stringify({
-          error: 'Lead memo must be generated before creating a teaser.',
+          error:
+            'Publish the full lead memo before creating a teaser — no published full_memo found for this deal.',
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
