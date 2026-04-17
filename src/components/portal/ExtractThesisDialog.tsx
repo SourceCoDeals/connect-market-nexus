@@ -12,9 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle, Loader2, Sparkles, FileText } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw, Sparkles, FileText } from 'lucide-react';
 import {
   useExtractPortalThesis,
   useSaveExtractedTheses,
@@ -38,7 +37,8 @@ interface EditableCandidate extends ExtractedThesisCandidate {
 
 function formatDollar(value: number | null): string {
   if (value == null) return '—';
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (value >= 1_000_000)
+    return `$${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`;
   if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
   return `$${value.toLocaleString()}`;
 }
@@ -167,6 +167,31 @@ export function ExtractThesisDialog({
     setCandidates((prev) => prev.map((c) => (c._key === key ? { ...c, ...patch } : c)));
   };
 
+  const handleReextract = async () => {
+    if (!doc) return;
+    setCandidates([]);
+    setExtractionNotes(null);
+    setOverallConfidence(null);
+    setHasRun(false);
+    lastExtractedDocId.current = null;
+    try {
+      const res = await extractMutation.mutateAsync(doc.id);
+      setCandidates(
+        res.theses.map((t, i) => ({
+          ...t,
+          _key: `thesis-${i}-${Date.now()}`,
+          _selected: t.confidence >= 60,
+        })),
+      );
+      setExtractionNotes(res.extraction_notes);
+      setOverallConfidence(res.overall_confidence);
+      setHasRun(true);
+      lastExtractedDocId.current = doc.id;
+    } catch {
+      setHasRun(true);
+    }
+  };
+
   const handleSave = async () => {
     const selected = candidates.filter((c) => c._selected);
     if (selected.length === 0) return;
@@ -211,7 +236,9 @@ export function ExtractThesisDialog({
           </DialogTitle>
           <DialogDescription>
             {doc ? (
-              <>Reviewing AI-extracted thesis rows from <strong>{doc.title}</strong>.</>
+              <>
+                Reviewing AI-extracted thesis rows from <strong>{doc.title}</strong>.
+              </>
             ) : (
               'Loading document...'
             )}
@@ -268,18 +295,30 @@ export function ExtractThesisDialog({
                   {candidates.length === 1 ? 'row' : 'rows'}
                   {overallConfidence != null && <> · overall confidence {overallConfidence}%</>}
                 </span>
-                <button
-                  type="button"
-                  className="text-primary hover:underline"
-                  onClick={() =>
-                    setCandidates((prev) => {
-                      const allSelected = prev.every((x) => x._selected);
-                      return prev.map((c) => ({ ...c, _selected: !allSelected }));
-                    })
-                  }
-                >
-                  {candidates.every((c) => c._selected) ? 'Deselect all' : 'Select all'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    className="text-primary hover:underline flex items-center gap-1"
+                    onClick={handleReextract}
+                    disabled={isExtracting}
+                    title="Run the AI extraction again on this document"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isExtracting ? 'animate-spin' : ''}`} />
+                    Re-extract
+                  </button>
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() =>
+                      setCandidates((prev) => {
+                        const allSelected = prev.every((x) => x._selected);
+                        return prev.map((c) => ({ ...c, _selected: !allSelected }));
+                      })
+                    }
+                  >
+                    {candidates.every((c) => c._selected) ? 'Deselect all' : 'Select all'}
+                  </button>
+                </div>
               </div>
 
               {extractionNotes && (
@@ -288,197 +327,203 @@ export function ExtractThesisDialog({
                 </div>
               )}
 
-              <ScrollArea className="flex-1 min-h-0 pr-3">
+              <div className="flex-1 min-h-0 overflow-y-auto pr-3">
                 <div className="space-y-3">
                   {candidates.map((c) => {
                     const rowError = validationErrors.get(c._key);
                     const showError = c._selected && !!rowError;
                     return (
-                    <div
-                      key={c._key}
-                      className={`rounded-lg border p-3 space-y-3 transition-colors ${
-                        showError
-                          ? 'border-destructive/50 bg-destructive/[0.03]'
-                          : c._selected
-                            ? 'border-primary/40 bg-primary/[0.02]'
-                            : 'border-border'
-                      }`}
-                    >
-                      {/* Row header: checkbox + label + confidence */}
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={c._selected}
-                          onCheckedChange={(v) =>
-                            updateCandidate(c._key, { _selected: v === true })
-                          }
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <Input
-                            value={c.industry_label}
-                            onChange={(e) =>
-                              updateCandidate(c._key, { industry_label: e.target.value })
+                      <div
+                        key={c._key}
+                        className={`rounded-lg border p-3 space-y-3 transition-colors ${
+                          showError
+                            ? 'border-destructive/50 bg-destructive/[0.03]'
+                            : c._selected
+                              ? 'border-primary/40 bg-primary/[0.02]'
+                              : 'border-border'
+                        }`}
+                      >
+                        {/* Row header: checkbox + label + confidence */}
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            checked={c._selected}
+                            onCheckedChange={(v) =>
+                              updateCandidate(c._key, { _selected: v === true })
                             }
-                            placeholder="Industry label"
-                            className="font-semibold h-8"
+                            className="mt-1"
                           />
+                          <div className="flex-1 min-w-0">
+                            <Input
+                              value={c.industry_label}
+                              onChange={(e) =>
+                                updateCandidate(c._key, { industry_label: e.target.value })
+                              }
+                              placeholder="Industry label"
+                              className="font-semibold h-8"
+                            />
+                          </div>
+                          <Badge
+                            className={`text-[10px] shrink-0 ${confidenceColor(c.confidence)}`}
+                          >
+                            {c.confidence}% conf
+                          </Badge>
                         </div>
-                        <Badge className={`text-[10px] shrink-0 ${confidenceColor(c.confidence)}`}>
-                          {c.confidence}% conf
-                        </Badge>
-                      </div>
 
-                      {/* Keywords (comma-separated, editable) */}
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">
-                          Industry keywords
-                        </Label>
-                        <Input
-                          value={c.industry_keywords.join(', ')}
-                          onChange={(e) =>
-                            updateCandidate(c._key, {
-                              industry_keywords: parseCommaList(e.target.value),
-                            })
-                          }
-                          placeholder="hvac, plumbing, electrical"
-                          className="h-8 text-xs"
-                        />
-                      </div>
-
-                      {/* Financial ranges */}
-                      <div className="grid grid-cols-2 gap-2">
+                        {/* Keywords (comma-separated, editable) */}
                         <div className="space-y-1">
                           <Label className="text-[11px] text-muted-foreground">
-                            EBITDA range ($)
+                            Industry keywords
                           </Label>
-                          <div className="flex items-center gap-1">
+                          <Input
+                            value={c.industry_keywords.join(', ')}
+                            onChange={(e) =>
+                              updateCandidate(c._key, {
+                                industry_keywords: parseCommaList(e.target.value),
+                              })
+                            }
+                            placeholder="hvac, plumbing, electrical"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+
+                        {/* Financial ranges */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">
+                              EBITDA range ($)
+                            </Label>
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                placeholder="min"
+                                value={c.ebitda_min ?? ''}
+                                onChange={(e) =>
+                                  updateCandidate(c._key, {
+                                    ebitda_min: toIntOrNull(e.target.value),
+                                  })
+                                }
+                                className="h-8 text-xs"
+                              />
+                              <span className="text-xs text-muted-foreground">–</span>
+                              <Input
+                                type="number"
+                                placeholder="max"
+                                value={c.ebitda_max ?? ''}
+                                onChange={(e) =>
+                                  updateCandidate(c._key, {
+                                    ebitda_max: toIntOrNull(e.target.value),
+                                  })
+                                }
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatRange(c.ebitda_min, c.ebitda_max)}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">
+                              Revenue range ($)
+                            </Label>
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                placeholder="min"
+                                value={c.revenue_min ?? ''}
+                                onChange={(e) =>
+                                  updateCandidate(c._key, {
+                                    revenue_min: toIntOrNull(e.target.value),
+                                  })
+                                }
+                                className="h-8 text-xs"
+                              />
+                              <span className="text-xs text-muted-foreground">–</span>
+                              <Input
+                                type="number"
+                                placeholder="max"
+                                value={c.revenue_max ?? ''}
+                                onChange={(e) =>
+                                  updateCandidate(c._key, {
+                                    revenue_max: toIntOrNull(e.target.value),
+                                  })
+                                }
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatRange(c.revenue_min, c.revenue_max)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* States + priority */}
+                        <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">
+                              Target states (comma-separated, blank = national)
+                            </Label>
                             <Input
-                              type="number"
-                              placeholder="min"
-                              value={c.ebitda_min ?? ''}
+                              value={c.target_states.join(', ')}
                               onChange={(e) =>
-                                updateCandidate(c._key, { ebitda_min: toIntOrNull(e.target.value) })
+                                updateCandidate(c._key, {
+                                  target_states: parseCommaList(e.target.value).map((s) =>
+                                    s.toUpperCase(),
+                                  ),
+                                })
                               }
-                              className="h-8 text-xs"
-                            />
-                            <span className="text-xs text-muted-foreground">–</span>
-                            <Input
-                              type="number"
-                              placeholder="max"
-                              value={c.ebitda_max ?? ''}
-                              onChange={(e) =>
-                                updateCandidate(c._key, { ebitda_max: toIntOrNull(e.target.value) })
-                              }
+                              placeholder="OH, PA, NY"
                               className="h-8 text-xs"
                             />
                           </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {formatRange(c.ebitda_min, c.ebitda_max)}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">
-                            Revenue range ($)
-                          </Label>
-                          <div className="flex items-center gap-1">
+                          <div className="space-y-1 w-20">
+                            <Label className="text-[11px] text-muted-foreground">Priority</Label>
                             <Input
                               type="number"
-                              placeholder="min"
-                              value={c.revenue_min ?? ''}
+                              min={1}
+                              max={5}
+                              value={c.priority}
                               onChange={(e) =>
                                 updateCandidate(c._key, {
-                                  revenue_min: toIntOrNull(e.target.value),
+                                  priority: Math.min(5, Math.max(1, Number(e.target.value) || 3)),
                                 })
                               }
                               className="h-8 text-xs"
                             />
-                            <span className="text-xs text-muted-foreground">–</span>
-                            <Input
-                              type="number"
-                              placeholder="max"
-                              value={c.revenue_max ?? ''}
-                              onChange={(e) =>
-                                updateCandidate(c._key, {
-                                  revenue_max: toIntOrNull(e.target.value),
-                                })
-                              }
-                              className="h-8 text-xs"
-                            />
                           </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            {formatRange(c.revenue_min, c.revenue_max)}
-                          </p>
                         </div>
-                      </div>
 
-                      {/* States + priority */}
-                      <div className="grid grid-cols-[1fr_auto] gap-2">
+                        {c.source_excerpt && (
+                          <div className="rounded-md bg-muted/40 px-2 py-1.5 text-[11px] italic text-muted-foreground border-l-2 border-muted-foreground/30">
+                            &ldquo;{c.source_excerpt}&rdquo;
+                          </div>
+                        )}
+
+                        {/* Notes */}
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">
-                            Target states (comma-separated, blank = national)
-                          </Label>
-                          <Input
-                            value={c.target_states.join(', ')}
+                          <Label className="text-[11px] text-muted-foreground">Notes</Label>
+                          <Textarea
+                            value={c.notes ?? ''}
                             onChange={(e) =>
-                              updateCandidate(c._key, {
-                                target_states: parseCommaList(e.target.value).map((s) =>
-                                  s.toUpperCase(),
-                                ),
-                              })
+                              updateCandidate(c._key, { notes: e.target.value || null })
                             }
-                            placeholder="OH, PA, NY"
-                            className="h-8 text-xs"
+                            rows={2}
+                            className="text-xs resize-none"
+                            placeholder="Context, exclusions, deal preferences..."
                           />
                         </div>
-                        <div className="space-y-1 w-20">
-                          <Label className="text-[11px] text-muted-foreground">Priority</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={5}
-                            value={c.priority}
-                            onChange={(e) =>
-                              updateCandidate(c._key, {
-                                priority: Math.min(5, Math.max(1, Number(e.target.value) || 3)),
-                              })
-                            }
-                            className="h-8 text-xs"
-                          />
-                        </div>
+
+                        {/* Validation error (only shown on selected rows) */}
+                        {showError && (
+                          <div className="flex items-start gap-1.5 text-[11px] text-destructive">
+                            <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                            <span>{rowError}</span>
+                          </div>
+                        )}
                       </div>
-
-                      {c.source_excerpt && (
-                        <div className="rounded-md bg-muted/40 px-2 py-1.5 text-[11px] italic text-muted-foreground border-l-2 border-muted-foreground/30">
-                          &ldquo;{c.source_excerpt}&rdquo;
-                        </div>
-                      )}
-
-                      {/* Notes */}
-                      <div className="space-y-1">
-                        <Label className="text-[11px] text-muted-foreground">Notes</Label>
-                        <Textarea
-                          value={c.notes ?? ''}
-                          onChange={(e) =>
-                            updateCandidate(c._key, { notes: e.target.value || null })
-                          }
-                          rows={2}
-                          className="text-xs resize-none"
-                          placeholder="Context, exclusions, deal preferences..."
-                        />
-                      </div>
-
-                      {/* Validation error (only shown on selected rows) */}
-                      {showError && (
-                        <div className="flex items-start gap-1.5 text-[11px] text-destructive">
-                          <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
-                          <span>{rowError}</span>
-                        </div>
-                      )}
-                    </div>
                     );
                   })}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
         </div>
@@ -487,8 +532,8 @@ export function ExtractThesisDialog({
           {selectedInvalidCount > 0 && (
             <p className="text-[11px] text-destructive flex items-center gap-1 sm:mr-auto">
               <AlertCircle className="h-3 w-3" />
-              {selectedInvalidCount} selected{' '}
-              {selectedInvalidCount === 1 ? 'row has' : 'rows have'} validation errors
+              {selectedInvalidCount} selected {selectedInvalidCount === 1 ? 'row has' : 'rows have'}{' '}
+              validation errors
             </p>
           )}
           <Button
@@ -502,9 +547,7 @@ export function ExtractThesisDialog({
           <Button
             type="button"
             onClick={handleSave}
-            disabled={
-              selectedCount === 0 || selectedInvalidCount > 0 || isSaving || isExtracting
-            }
+            disabled={selectedCount === 0 || selectedInvalidCount > 0 || isSaving || isExtracting}
           >
             {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Add {selectedCount} to Thesis

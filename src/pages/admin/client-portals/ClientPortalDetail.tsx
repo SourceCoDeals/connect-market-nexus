@@ -56,6 +56,7 @@ import {
 } from '@/hooks/portal/use-portal-deals';
 
 import { PortalDealChat } from '@/components/portal/PortalDealChat';
+import { sanitizeHtml } from '@/lib/sanitize';
 import {
   usePortalActivity,
   usePortalAnalytics,
@@ -135,11 +136,16 @@ export default function ClientPortalDetail() {
   const [expandedPushId, setExpandedPushId] = useState<string | null>(null);
   const [memoExpandedPushId, setMemoExpandedPushId] = useState<string | null>(null);
 
-  // Auto-refresh snapshots that are missing memo data
+  // Auto-refresh snapshots that are missing memo data. Capped at 3 refreshes
+  // per mount so a portal full of memo-less pushes doesn't hammer the
+  // regeneration RPC on every admin page-open.
   const refreshedRef = useRef<Set<string>>(new Set());
+  const MAX_AUTO_REFRESH = 3;
   useEffect(() => {
     if (!pushes) return;
+    let fired = 0;
     for (const push of pushes) {
+      if (fired >= MAX_AUTO_REFRESH) break;
       const snap = push.deal_snapshot;
       const hasMemoData = !!(
         snap?.memo_html ||
@@ -149,6 +155,7 @@ export default function ClientPortalDetail() {
       if (!hasMemoData && !refreshedRef.current.has(push.id)) {
         refreshedRef.current.add(push.id);
         refreshSnapshot.mutate({ pushId: push.id, listingId: push.listing_id });
+        fired++;
       }
     }
   }, [pushes]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -568,7 +575,7 @@ export default function ClientPortalDetail() {
                                   prose-headings:text-foreground prose-p:text-muted-foreground
                                   prose-strong:text-foreground prose-li:text-muted-foreground"
                                     dangerouslySetInnerHTML={{
-                                      __html: push.deal_snapshot.memo_html,
+                                      __html: sanitizeHtml(push.deal_snapshot.memo_html),
                                     }}
                                   />
                                 ) : push.deal_snapshot?.teaser_sections?.length ? (
@@ -764,8 +771,17 @@ export default function ClientPortalDetail() {
                             Active
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="bg-gray-50 text-gray-500 text-xs">
-                            Inactive
+                          <Badge
+                            variant="outline"
+                            className="bg-gray-50 text-gray-500 text-xs"
+                            title={
+                              u.deactivated_at
+                                ? `Deactivated on ${formatDate(u.deactivated_at)}`
+                                : 'Deactivated'
+                            }
+                          >
+                            Deactivated
+                            {u.deactivated_at && ` · ${formatDate(u.deactivated_at)}`}
                           </Badge>
                         )}
                       </TableCell>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ChevronLeft, ChevronRight, HelpCircle, Inbox, Sparkles, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, HelpCircle, Inbox, RefreshCw, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   usePortalRecommendations,
   useDismissRecommendation,
@@ -41,6 +44,8 @@ export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsT
   const [pushTarget, setPushTarget] = useState<PortalDealRecommendationWithListing | null>(null);
   const [bulkQueue, setBulkQueue] = useState<PortalDealRecommendationWithListing[] | null>(null);
   const [whyNotOpen, setWhyNotOpen] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
+  const qc = useQueryClient();
 
   // Reset to page 0 when the filter changes.
   useEffect(() => {
@@ -71,13 +76,22 @@ export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsT
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portalOrgId, unseenStrong]);
 
-  const approvedRecs = useMemo(
-    () => (recommendations ?? []).filter((r) => r.status === 'approved'),
-    [recommendations],
-  );
-
   const handleApproveAndPush = (reco: PortalDealRecommendationWithListing) => {
     setPushTarget(reco);
+  };
+
+  const handleReprocess = async () => {
+    setReprocessing(true);
+    const { data, error } = await supabase.rpc('enqueue_portal_listings', {
+      p_portal_org_id: portalOrgId,
+    });
+    setReprocessing(false);
+    if (error) {
+      toast.error('Reprocess failed', { description: error.message });
+      return;
+    }
+    toast.success(`Queued ${data ?? 0} listings — results in ~5 min when cron runs`);
+    qc.invalidateQueries({ queryKey: ['portal-recommendations'] });
   };
 
   const handleDismissClick = (reco: PortalDealRecommendationWithListing) => {
@@ -96,12 +110,6 @@ export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsT
   const handleDismissCancel = () => {
     setDismissingId(null);
     setDismissReason('');
-  };
-
-  const handleBulkPush = () => {
-    if (approvedRecs.length === 0) return;
-    setBulkQueue(approvedRecs);
-    setPushTarget(approvedRecs[0]);
   };
 
   // When a single push succeeds, advance to the next item in the bulk queue
@@ -153,7 +161,6 @@ export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsT
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="pushed">Pushed</SelectItem>
               <SelectItem value="dismissed">Dismissed</SelectItem>
               <SelectItem value="stale">Stale</SelectItem>
@@ -178,18 +185,22 @@ export function PortalRecommendationsTab({ portalOrgId }: PortalRecommendationsT
           <Button
             size="sm"
             variant="outline"
+            onClick={handleReprocess}
+            disabled={reprocessing}
+            title="Re-score every active listing against this portal's thesis criteria (runs on next cron tick)"
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${reprocessing ? 'animate-spin' : ''}`} />
+            Reprocess
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => setWhyNotOpen(true)}
             title="Score any deal against every thesis (including below threshold)"
           >
             <HelpCircle className="h-4 w-4 mr-1" />
             Why Not?
           </Button>
-          {statusFilter === 'approved' && approvedRecs.length > 0 && (
-            <Button size="sm" onClick={handleBulkPush}>
-              <Upload className="h-4 w-4 mr-1" />
-              Push All Approved ({approvedRecs.length})
-            </Button>
-          )}
         </div>
       </div>
 
