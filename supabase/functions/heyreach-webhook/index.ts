@@ -366,6 +366,23 @@ Deno.serve(async (req) => {
       `[heyreach-webhook] Processed ${eventType} for campaign ${campaignId}, lead ${leadLinkedInUrl}`,
     );
 
+    // Real-time sync: trigger sync-heyreach-messages for this one campaign so
+    // the new event lands in heyreach_messages within ~1 minute, not up to 20
+    // minutes behind the cron. Fire-and-forget — failures are recovered by the
+    // regular cron pass.
+    if (campaignId) {
+      fetch(`${supabaseUrl}/functions/v1/sync-heyreach-messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ campaign_id: Number(campaignId), source: 'webhook-trigger' }),
+      }).catch((err) => {
+        console.warn('[heyreach-webhook] sync trigger failed (non-fatal):', err);
+      });
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       headers: jsonHeaders,
     });

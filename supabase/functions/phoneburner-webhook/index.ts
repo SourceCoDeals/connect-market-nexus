@@ -118,6 +118,13 @@ Deno.serve(async (req) => {
   }
 
   // HMAC signature validation (mandatory now that we fail closed above).
+  // signatureValid is the truth we persist to phoneburner_webhooks_log.
+  // Starts false and flips to true only when HMAC actually verifies.
+  // Previously this variable wasn't declared at all; the reference on
+  // the insert below evaluated to undefined which the JSON serializer
+  // dropped, and the column's default (TRUE) silently marked every
+  // webhook "verified" regardless of whether a signature was even sent.
+  let signatureValid = false;
   const signature =
     req.headers.get('x-phoneburner-signature') || req.headers.get('x-webhook-signature');
   if (signature) {
@@ -145,6 +152,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      signatureValid = true;
     } catch (e) {
       console.warn('PhoneBurner HMAC validation error:', e);
       return new Response(JSON.stringify({ error: 'Invalid signature format' }), {
@@ -154,8 +162,8 @@ Deno.serve(async (req) => {
     }
   }
   // If secret is set but no signature header, PhoneBurner is sending an
-  // unsigned event type. Log it but allow through — same behavior as
-  // before, just no longer the default path when env is missing.
+  // unsigned event type. Log it with signatureValid=false so audit queries
+  // can distinguish signed-and-verified from present-but-unsigned.
 
   console.log(
     `[phoneburner-webhook] Received (HMAC ${signature ? 'verified' : 'absent — event may be unsigned'}), body length: ${rawBody.length}`,

@@ -155,6 +155,27 @@ Deno.serve(async (req) => {
       `[smartlead-webhook] Processed ${eventType} for campaign ${campaignId}, lead ${leadEmail}`,
     );
 
+    // Real-time sync: kick off sync-smartlead-messages for this one campaign so
+    // the new event lands in smartlead_messages within ~1 minute instead of
+    // waiting up to 20 min for the next cron run. Fire-and-forget — we don't
+    // block the webhook response on it, and failures are self-healing (the
+    // regular cron picks up missed events on its next pass).
+    if (campaignId) {
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (serviceRoleKey) {
+        fetch(`${supabaseUrl}/functions/v1/sync-smartlead-messages`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ campaign_id: Number(campaignId), source: 'webhook-trigger' }),
+        }).catch((err) => {
+          console.warn('[smartlead-webhook] sync trigger failed (non-fatal):', err);
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ success: true }), {
       headers: jsonHeaders,
     });
