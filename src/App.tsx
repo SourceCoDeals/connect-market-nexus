@@ -160,6 +160,11 @@ const PhoneBurnerSettingsPage = lazyWithRetry(
   () => import('@/pages/admin/PhoneBurnerSettingsPage'),
 );
 
+// Cross-integration: unmatched activity triage (PhoneBurner + Smartlead + HeyReach)
+const UnmatchedActivitiesPage = lazyWithRetry(
+  () => import('@/pages/admin/UnmatchedActivitiesPage'),
+);
+
 // Fireflies pages
 const FirefliesIntegrationPage = lazyWithRetry(
   () => import('@/pages/admin/FirefliesIntegrationPage'),
@@ -187,7 +192,7 @@ const ReMarketingLayout = lazyWithRetry(() =>
   import('@/components/remarketing').then((m) => ({ default: m.ReMarketingLayout })),
 );
 const ReMarketingDashboard = lazyWithRetry(
-  () => import('@/pages/admin/remarketing/ReMarketingDashboard'),
+  () => import('@/pages/admin/remarketing/ReMarketingDashboardV2'),
 );
 const ReMarketingUniverses = lazyWithRetry(
   () => import('@/pages/admin/remarketing/ReMarketingUniverses'),
@@ -713,6 +718,18 @@ function App() {
                 element={
                   <RoleGate min="admin">
                     <PhoneBurnerSettingsPage />
+                  </RoleGate>
+                }
+              />
+
+              {/* Cross-integration unmatched-activity triage. Admin-only so
+                  arbitrary moderators can't reshape contact_activities /
+                  outreach queues. */}
+              <Route
+                path="unmatched-activities"
+                element={
+                  <RoleGate min="admin">
+                    <UnmatchedActivitiesPage />
                   </RoleGate>
                 }
               />

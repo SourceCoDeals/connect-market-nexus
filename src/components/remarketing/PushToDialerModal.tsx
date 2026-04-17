@@ -184,13 +184,22 @@ export function PushToDialerModal({
         );
 
         if (totalAdded > 0) {
+          const redirectCount = results.filter((r) => r.result.redirect_url).length;
           toast.success(
             `${totalAdded} contacts pushed across ${results.length} PhoneBurner accounts`,
           );
-          // Open first redirect URL for multi-user push
+          // Auto-open the first rep's dialer (popup blockers prevent opening
+          // multiple tabs programmatically in one gesture). The rest of the
+          // redirect URLs are rendered as per-rep "Open dialer" buttons in
+          // the multi-user results UI below so no rep's session goes missing.
           const firstRedirect = results.find((r) => r.result.redirect_url)?.result.redirect_url;
           if (firstRedirect) {
             window.open(firstRedirect, '_blank');
+          }
+          if (redirectCount > 1) {
+            toast.info(
+              `Opened dialer for 1 account. ${redirectCount - 1} more in the results panel — click "Open dialer" for each rep.`,
+            );
           }
         }
         if (totalFailed > 0) {
@@ -386,19 +395,34 @@ export function PushToDialerModal({
                 {multiResults.map(({ user, result: r }) => (
                   <div
                     key={user.user_id}
-                    className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50 text-sm"
+                    className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50 text-sm gap-2"
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       {r.success && r.contacts_added > 0 ? (
                         <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                       ) : (
                         <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                       )}
-                      <span className="font-medium">{user.label}</span>
+                      <span className="font-medium truncate">{user.label}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {r.contacts_added > 0 ? `${r.contacts_added} added` : r.error || '0 added'}
-                      {r.contacts_excluded > 0 && `, ${r.contacts_excluded} excluded`}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-muted-foreground">
+                        {r.contacts_added > 0 ? `${r.contacts_added} added` : r.error || '0 added'}
+                        {r.contacts_excluded > 0 && `, ${r.contacts_excluded} excluded`}
+                      </span>
+                      {/* Per-rep dialer link so no redirect URL is silently dropped.
+                          Each rep clicks their own button — needed because browsers
+                          block multiple programmatic window.open() calls. */}
+                      {r.redirect_url && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(r.redirect_url, '_blank')}
+                        >
+                          <Phone className="h-3.5 w-3.5 mr-1" />
+                          Open dialer
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}

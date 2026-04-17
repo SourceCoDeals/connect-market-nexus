@@ -327,8 +327,20 @@ function TimelineCard({
   showDateFilter?: boolean;
 }) {
   const [dateRange, setDateRange] = useState<DateRangeValue>('all');
-  const filtered = showDateFilter ? filterByDateRange(entries, dateRange) : entries;
-  const stats = useActivityStats(filtered);
+  // Optional channel filter. Clicking a badge toggles to that channel;
+  // clicking the same badge again clears back to "all". Stats are always
+  // computed against the date-filtered set so counts on badges stay accurate
+  // after a channel filter is active.
+  const [channelFilter, setChannelFilter] = useState<
+    'email' | 'call' | 'linkedin' | 'meeting' | null
+  >(null);
+  const dateFiltered = showDateFilter ? filterByDateRange(entries, dateRange) : entries;
+  const stats = useActivityStats(dateFiltered);
+  const filtered = channelFilter
+    ? dateFiltered.filter((e) => e.channel === channelFilter)
+    : dateFiltered;
+  const toggleChannel = (c: 'email' | 'call' | 'linkedin' | 'meeting') =>
+    setChannelFilter((prev) => (prev === c ? null : c));
 
   if (isLoading) {
     return (
@@ -394,29 +406,58 @@ function TimelineCard({
                 ))}
               </div>
             )}
+            {/* Badges double as channel filters — click to toggle. The
+                outlined variant highlights the active filter so it's obvious
+                which channel is selected. */}
             {stats.totalEmails > 0 && (
-              <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
+              <Badge
+                variant={channelFilter === 'email' ? 'default' : 'outline'}
+                className="text-xs border-blue-200 text-blue-700 cursor-pointer"
+                onClick={() => toggleChannel('email')}
+              >
                 <Mail className="h-3 w-3 mr-1" />
                 {stats.totalEmails} email{stats.totalEmails !== 1 ? 's' : ''}
               </Badge>
             )}
             {stats.totalCalls > 0 && (
-              <Badge variant="outline" className="text-xs border-green-200 text-green-700">
+              <Badge
+                variant={channelFilter === 'call' ? 'default' : 'outline'}
+                className="text-xs border-green-200 text-green-700 cursor-pointer"
+                onClick={() => toggleChannel('call')}
+              >
                 <Phone className="h-3 w-3 mr-1" />
                 {stats.totalCalls} call{stats.totalCalls !== 1 ? 's' : ''}
               </Badge>
             )}
             {stats.totalLinkedIn > 0 && (
-              <Badge variant="outline" className="text-xs border-blue-300 text-blue-800">
+              <Badge
+                variant={channelFilter === 'linkedin' ? 'default' : 'outline'}
+                className="text-xs border-blue-300 text-blue-800 cursor-pointer"
+                onClick={() => toggleChannel('linkedin')}
+              >
                 <Linkedin className="h-3 w-3 mr-1" />
                 {stats.totalLinkedIn} LinkedIn
               </Badge>
             )}
             {stats.totalMeetings > 0 && (
-              <Badge variant="outline" className="text-xs border-purple-200 text-purple-700">
+              <Badge
+                variant={channelFilter === 'meeting' ? 'default' : 'outline'}
+                className="text-xs border-purple-200 text-purple-700 cursor-pointer"
+                onClick={() => toggleChannel('meeting')}
+              >
                 <Video className="h-3 w-3 mr-1" />
                 {stats.totalMeetings} meeting{stats.totalMeetings !== 1 ? 's' : ''}
               </Badge>
+            )}
+            {channelFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setChannelFilter(null)}
+              >
+                Clear
+              </Button>
             )}
           </div>
         </div>

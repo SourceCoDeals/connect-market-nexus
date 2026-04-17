@@ -68,9 +68,11 @@ const MarketplaceMetricsTab = lazy(() =>
   })),
 );
 
-// Lazy-load remarketing dashboard content
+// Lazy-load remarketing dashboard content (V2 — phase 1 rebuild).
+// V1 (ReMarketingDashboard.tsx) is kept on disk for rollback; swap this import
+// back if V2 has a blocking bug.
 const ReMarketingDashboardContent = lazy(
-  () => import('@/pages/admin/remarketing/ReMarketingDashboard'),
+  () => import('@/pages/admin/remarketing/ReMarketingDashboardV2'),
 );
 
 // Lazy-load daily tasks dashboard content

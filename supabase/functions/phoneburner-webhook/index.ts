@@ -118,6 +118,13 @@ Deno.serve(async (req) => {
   }
 
   // HMAC signature validation (mandatory now that we fail closed above).
+  // signatureValid is the truth we persist to phoneburner_webhooks_log.
+  // Starts false and flips to true only when HMAC actually verifies.
+  // Previously this variable wasn't declared at all; the reference on
+  // the insert below evaluated to undefined which the JSON serializer
+  // dropped, and the column's default (TRUE) silently marked every
+  // webhook "verified" regardless of whether a signature was even sent.
+  let signatureValid = false;
   const signature =
     req.headers.get('x-phoneburner-signature') || req.headers.get('x-webhook-signature');
   if (signature) {
@@ -145,6 +152,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      signatureValid = true;
     } catch (e) {
       console.warn('PhoneBurner HMAC validation error:', e);
       return new Response(JSON.stringify({ error: 'Invalid signature format' }), {
@@ -154,8 +162,8 @@ Deno.serve(async (req) => {
     }
   }
   // If secret is set but no signature header, PhoneBurner is sending an
-  // unsigned event type. Log it but allow through — same behavior as
-  // before, just no longer the default path when env is missing.
+  // unsigned event type. Log it with signatureValid=false so audit queries
+  // can distinguish signed-and-verified from present-but-unsigned.
 
   console.log(
     `[phoneburner-webhook] Received (HMAC ${signature ? 'verified' : 'absent — event may be unsigned'}), body length: ${rawBody.length}`,
@@ -264,6 +272,29 @@ Deno.serve(async (req) => {
         contact_activity_id: activityId,
       })
       .eq('id', logEntry.id);
+
+    // Fire-and-forget recording archive. PhoneBurner's recording URLs expire
+    // per their retention window, so we copy into call-recordings storage on
+    // completion events. Non-blocking — the webhook response shouldn't wait
+    // on MB-sized audio downloads.
+    if (
+      activityId &&
+      (eventType === 'call_end' || eventType === 'call.ended' || eventType === 'disposition.set')
+    ) {
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (serviceRoleKey) {
+        fetch(`${supabaseUrl}/functions/v1/archive-call-recording`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ activity_id: activityId }),
+        }).catch((err) => {
+          console.warn('[phoneburner-webhook] recording archive trigger failed:', err);
+        });
+      }
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Error processing ${eventType}:`, message);
@@ -1136,10 +1167,14 @@ async function processEvent(
         .single();
 
       if (resolvedContactId) {
-        await supabase
-          .from('contacts')
-          .update({ updated_at: new Date().toISOString() })
-          .eq('id', resolvedContactId);
+        // Go through the contacts_apply_webhook_flags RPC instead of a direct
+        // UPDATE — contact consolidation lint (DATABASE_DUPLICATES_AUDIT_
+        // 2026-04-09.md §3) forbids edge functions from writing `contacts`
+        // directly. The RPC whitelists which columns webhooks may touch.
+        await supabase.rpc('contacts_apply_webhook_flags', {
+          p_contact_id: resolvedContactId,
+          p_updates: { updated_at: new Date().toISOString() },
+        });
       }
 
       if (dispositionCode) {
@@ -1156,7 +1191,11 @@ async function processEvent(
             const updates: Record<string, unknown> = {};
             if (mapping.mark_do_not_call) updates.do_not_contact = true;
             if (mapping.mark_phone_invalid) updates.phone_invalid = true;
-            await supabase.from('contacts').update(updates).eq('id', resolvedContactId);
+            // See comment above — route through the webhook flag RPC.
+            await supabase.rpc('contacts_apply_webhook_flags', {
+              p_contact_id: resolvedContactId,
+              p_updates: updates,
+            });
           }
         }
       }

@@ -14,15 +14,36 @@ import { supabase } from '@/integrations/supabase/client';
 
 export type Timeframe = 'today' | '7d' | '14d' | '30d' | '90d' | 'all';
 
+export interface OutreachStats {
+  emails_sent: number;
+  emails_opened: number;
+  emails_replied: number;
+  linkedin_sent: number;
+  linkedin_replied: number;
+  calls_made: number;
+  calls_connected: number;
+}
+
+export interface IndustryRow {
+  category: string;
+  cnt: number;
+}
+
 export interface DashboardStats {
   cards: Record<string, number>;
   new_by_source: Record<string, number>;
   all_by_source: Record<string, number>;
+  /** Total EBITDA per source — new in V2 RPC. */
+  ebitda_by_source?: Record<string, number>;
+  /** Top 10 industries by deal count — new in V2 RPC. */
+  industry_breakdown?: IndustryRow[];
   team: Array<Record<string, unknown>>;
   score_dist: Record<string, number>;
   top_deals: Array<Record<string, unknown>>;
   weekly: Record<string, number>;
   recent_activity: Array<Record<string, unknown>>;
+  /** Outreach aggregates across SmartLead/HeyReach/PhoneBurner — new in V2 RPC. */
+  outreach_stats?: OutreachStats;
 }
 
 export interface UniverseMetric {
@@ -262,11 +283,14 @@ export function useDashboardData(timeframe: Timeframe) {
   const cards = stats?.cards;
   const newBySource = stats?.new_by_source || {};
   const allBySource = stats?.all_by_source || {};
+  const ebitdaBySource = stats?.ebitda_by_source || {};
+  const industryBreakdown = stats?.industry_breakdown || [];
   const teamData = stats?.team || [];
   const scoreDist = stats?.score_dist;
   const topDeals = stats?.top_deals || [];
   const weeklyData = stats?.weekly || {};
   const recentActivity = stats?.recent_activity || [];
+  const outreachStats = stats?.outreach_stats;
 
   // Universe metrics
   const universeMetrics = useMemo<UniverseMetric[] | null>(() => {
@@ -370,6 +394,8 @@ export function useDashboardData(timeframe: Timeframe) {
     cards,
     newBySource,
     allBySource,
+    ebitdaBySource,
+    industryBreakdown,
     teamData,
     topDeals,
     weeklyData,
@@ -380,5 +406,6 @@ export function useDashboardData(timeframe: Timeframe) {
     callActivityLoading,
     callActivityError: callActivityIsError ? (callActivityErrorObj as Error | null) : null,
     adminActivity,
+    outreachStats,
   };
 }

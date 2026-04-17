@@ -15,7 +15,6 @@
  *   - { start_offset: <n> } → resume from a specific conversation offset
  *   - No body → backfill all active campaigns from scratch
  */
- 
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getConversations } from '../_shared/heyreach-client.ts';
@@ -179,7 +178,6 @@ async function backfillCampaign(
   let offset = startOffset;
   let latestActivityAt: Date | null = null;
 
-   
   while (true) {
     const resp = await getConversations({
       campaignIds: [campaign.heyreach_campaign_id],
@@ -359,7 +357,14 @@ async function upsertMessage(
   const sentAt = sentRaw ? new Date(sentRaw as string).toISOString() : new Date().toISOString();
   const { event_type, message_type, direction } = classifyMessage(msg);
   const body = msg.body || msg.text || msg.message || msg.content || null;
+  const fromUrl = normalizeLinkedInUrl(msg.senderLinkedInUrl || msg.sender_linkedin_url);
+  const toUrl = normalizeLinkedInUrl(msg.recipientLinkedInUrl || msg.recipient_linkedin_url);
+  const leadUrl = normalizeLinkedInUrl(
+    conv.leadLinkedInUrl || conv.lead_linkedin_url || conv.leadProfileUrl || conv.linkedInUrl,
+  );
 
+  // Prod heyreach_messages uses email-style columns (from_address / to_addresses /
+  // linkedin_url / no message_type) — see sync-heyreach-messages for the rationale.
   const row = {
     heyreach_message_id: messageId,
     heyreach_lead_id: (conv.id || conv.conversationId) ?? null,
@@ -369,17 +374,15 @@ async function upsertMessage(
     remarketing_buyer_id: anchor.remarketing_buyer_id,
     listing_id: anchor.listing_id,
     direction,
-    from_linkedin_url:
-      normalizeLinkedInUrl(msg.senderLinkedInUrl || msg.sender_linkedin_url) || null,
-    to_linkedin_url:
-      normalizeLinkedInUrl(msg.recipientLinkedInUrl || msg.recipient_linkedin_url) || null,
-    message_type,
+    from_address: fromUrl,
+    to_addresses: toUrl ? [toUrl] : [],
+    linkedin_url: leadUrl,
     subject: msg.subject || null,
     body_text: body,
     sent_at: sentAt,
     synced_at: new Date().toISOString(),
     event_type,
-    raw_payload: msg as unknown as Record<string, unknown>,
+    raw_payload: { ...(msg as unknown as Record<string, unknown>), message_type },
   };
 
   const { error } = await supabase.from('heyreach_messages').upsert([row], {
@@ -418,6 +421,8 @@ async function insertUnmatched(
 
   const sentRaw = msg.sentAt || msg.sent_at || msg.timestamp || msg.createdAt;
   const { event_type, message_type, direction } = classifyMessage(msg);
+  const fromUrl = normalizeLinkedInUrl(msg.senderLinkedInUrl || msg.sender_linkedin_url);
+  const toUrl = normalizeLinkedInUrl(msg.recipientLinkedInUrl || msg.recipient_linkedin_url);
 
   const row = {
     heyreach_message_id: messageId,
@@ -429,22 +434,19 @@ async function insertUnmatched(
     lead_last_name: conv.leadLastName || conv.last_name || null,
     lead_company_name: conv.companyName || conv.company_name || null,
     direction,
-    from_linkedin_url: msg.senderLinkedInUrl || msg.sender_linkedin_url || null,
-    to_linkedin_url: msg.recipientLinkedInUrl || msg.recipient_linkedin_url || null,
-    message_type,
+    from_address: fromUrl,
+    to_addresses: toUrl ? [toUrl] : [],
     subject: msg.subject || null,
     body_text: msg.body || msg.text || msg.message || msg.content || null,
     sent_at: sentRaw ? new Date(sentRaw as string).toISOString() : null,
     event_type,
-    raw_payload: msg as unknown as Record<string, unknown>,
+    raw_payload: { ...(msg as unknown as Record<string, unknown>), message_type },
     reason,
     last_attempted_at: new Date().toISOString(),
   };
 
-  await supabase
-    .from('heyreach_unmatched_messages')
-    .upsert([row], {
-      onConflict: 'heyreach_message_id,lead_linkedin_url',
-      ignoreDuplicates: false,
-    });
+  await supabase.from('heyreach_unmatched_messages').upsert([row], {
+    onConflict: 'heyreach_message_id,lead_linkedin_url',
+    ignoreDuplicates: false,
+  });
 }
