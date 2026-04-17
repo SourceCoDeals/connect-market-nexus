@@ -6,7 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Users, Mail, Phone, Activity, User, ExternalLink, Globe, Linkedin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Users,
+  Mail,
+  Phone,
+  Activity,
+  User,
+  ExternalLink,
+  Globe,
+  Linkedin,
+  Download,
+} from 'lucide-react';
 import {
   ContactActivityTimeline,
   ContactActivityTimelineByEmail,
@@ -258,6 +269,65 @@ export function DealContactHistoryTab({
 
   const defaultTab = tabs.length > 0 ? tabs[0].id : 'all';
 
+  // Export every firm-level activity row as CSV. Uses the same firmActivity
+  // query the summary badges are built from, so "export" reflects exactly
+  // what the user sees. Rows are flattened to one-per-event with the most
+  // useful columns for analysts (source, channel, event type, direction,
+  // who/when/what). Caveat: the underlying hook caps at 500 entries — this
+  // is fine for the 99th percentile deal but compliance-grade exports that
+  // need more will need a server-side edge fn.
+  const handleExportCsv = () => {
+    if (firmActivity.length === 0) return;
+
+    const header = [
+      'event_at',
+      'source',
+      'channel',
+      'event_type',
+      'direction',
+      'contact_email',
+      'title',
+      'campaign_name',
+      'body_preview',
+    ];
+    const escape = (v: unknown): string => {
+      if (v == null) return '';
+      const s = String(v).replace(/\r?\n/g, ' ').trim();
+      // RFC 4180: wrap in quotes and double any embedded quotes if the cell
+      // contains a comma, quote, or whitespace-only quirk.
+      if (/[",]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const lines = [header.join(',')];
+    for (const e of firmActivity) {
+      lines.push(
+        [
+          escape(e.event_at),
+          escape(e.source),
+          escape(e.channel),
+          escape(e.event_type),
+          escape(e.direction),
+          escape(e.contact_email),
+          escape(e.title),
+          escape(e.campaign_name),
+          escape(e.body_preview),
+        ].join(','),
+      );
+    }
+
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = `deal-activity-${listingId}-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -266,9 +336,23 @@ export function DealContactHistoryTab({
             <Activity className="h-5 w-5" />
             Contact Communication History
           </CardTitle>
-          <Badge variant="secondary" className="text-xs">
-            {totalContacts} contact{totalContacts !== 1 ? 's' : ''}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-xs">
+              {totalContacts} contact{totalContacts !== 1 ? 's' : ''}
+            </Badge>
+            {firmActivity.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={handleExportCsv}
+                title={`Export ${firmActivity.length} activity rows as CSV`}
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                Export CSV
+              </Button>
+            )}
+          </div>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
           Unified email (SmartLead), call (PhoneBurner), and LinkedIn (HeyReach) history for all

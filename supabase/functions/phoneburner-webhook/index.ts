@@ -272,6 +272,29 @@ Deno.serve(async (req) => {
         contact_activity_id: activityId,
       })
       .eq('id', logEntry.id);
+
+    // Fire-and-forget recording archive. PhoneBurner's recording URLs expire
+    // per their retention window, so we copy into call-recordings storage on
+    // completion events. Non-blocking — the webhook response shouldn't wait
+    // on MB-sized audio downloads.
+    if (
+      activityId &&
+      (eventType === 'call_end' || eventType === 'call.ended' || eventType === 'disposition.set')
+    ) {
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (serviceRoleKey) {
+        fetch(`${supabaseUrl}/functions/v1/archive-call-recording`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ activity_id: activityId }),
+        }).catch((err) => {
+          console.warn('[phoneburner-webhook] recording archive trigger failed:', err);
+        });
+      }
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Error processing ${eventType}:`, message);
@@ -1144,10 +1167,14 @@ async function processEvent(
         .single();
 
       if (resolvedContactId) {
-        await supabase
-          .from('contacts')
-          .update({ updated_at: new Date().toISOString() })
-          .eq('id', resolvedContactId);
+        // Go through the contacts_apply_webhook_flags RPC instead of a direct
+        // UPDATE — contact consolidation lint (DATABASE_DUPLICATES_AUDIT_
+        // 2026-04-09.md §3) forbids edge functions from writing `contacts`
+        // directly. The RPC whitelists which columns webhooks may touch.
+        await supabase.rpc('contacts_apply_webhook_flags', {
+          p_contact_id: resolvedContactId,
+          p_updates: { updated_at: new Date().toISOString() },
+        });
       }
 
       if (dispositionCode) {
@@ -1164,7 +1191,11 @@ async function processEvent(
             const updates: Record<string, unknown> = {};
             if (mapping.mark_do_not_call) updates.do_not_contact = true;
             if (mapping.mark_phone_invalid) updates.phone_invalid = true;
-            await supabase.from('contacts').update(updates).eq('id', resolvedContactId);
+            // See comment above — route through the webhook flag RPC.
+            await supabase.rpc('contacts_apply_webhook_flags', {
+              p_contact_id: resolvedContactId,
+              p_updates: updates,
+            });
           }
         }
       }
