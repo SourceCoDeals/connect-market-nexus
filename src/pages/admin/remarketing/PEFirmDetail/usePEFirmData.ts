@@ -274,18 +274,23 @@ export const usePEFirmData = () => {
 
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
-      const { error } = await supabase
-        .from('contacts')
-        .update({ archived: true, updated_at: new Date().toISOString() })
-        .eq('id', contactId);
+      // See ReMarketingBuyerDetail/useBuyerMutations.ts — direct UPDATE
+      // on contacts is REVOKEd for the authenticated role, so we route
+      // through contacts_soft_delete which stamps both archived=true
+      // and deleted_at=now() to keep the two soft-delete conventions in
+      // sync with the LinkedIn unique index.
+      const { error } = await (supabase.rpc as any)('contacts_soft_delete', {
+        p_contact_id: contactId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
       toast.success('Contact deleted');
     },
-    onError: () => {
-      toast.error('Failed to delete contact');
+    onError: (error: Error) => {
+      const message = error?.message?.trim() || 'Failed to delete contact';
+      toast.error(`Failed to delete contact: ${message}`);
     },
   });
 

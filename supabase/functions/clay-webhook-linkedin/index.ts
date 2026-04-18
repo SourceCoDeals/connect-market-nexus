@@ -120,7 +120,7 @@ serve(async (req: Request) => {
         p_source: 'clay_linkedin',
         p_enrichment: {
           provider: 'clay_linkedin',
-          confidence: 'high',
+          confidence: 'verified', // Clay "high" → canonical 'verified' (see _shared/contact-confidence.ts CHECK map)
           source_query: `clay_linkedin:${request.linkedin_url}`,
         },
       });
@@ -156,7 +156,7 @@ serve(async (req: Request) => {
             p_source: 'clay_linkedin',
             p_enrichment: {
               provider: 'clay_linkedin',
-              confidence: 'high',
+              confidence: 'verified', // Clay "high" → canonical 'verified' (see _shared/contact-confidence.ts CHECK map)
               source_query: `clay_linkedin:${request.linkedin_url}`,
             },
           });

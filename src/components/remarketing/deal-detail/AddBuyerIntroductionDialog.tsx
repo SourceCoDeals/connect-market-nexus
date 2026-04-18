@@ -104,7 +104,9 @@ export function AddBuyerIntroductionDialog({
 
       // Build comprehensive search terms including target criteria
       const targetServices = Array.isArray(b.target_services) ? b.target_services.join(' ') : '';
-      const targetIndustries = Array.isArray(b.target_industries) ? b.target_industries.join(' ') : '';
+      const targetIndustries = Array.isArray(b.target_industries)
+        ? b.target_industries.join(' ')
+        : '';
 
       return {
         value: b.id,
@@ -177,22 +179,34 @@ export function AddBuyerIntroductionDialog({
     const email = emailVal || null;
 
     try {
-      const { data: newContact } = await supabase
-        .from('contacts')
-        .insert({
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          company_name: peFirmName,
-          contact_type: 'buyer' as const,
-          source: 'buyer_introduction',
-          remarketing_buyer_id: remarkBuyerId || null,
-        })
-        .select('id')
-        .single();
-      if (newContact) contactId = newContact.id;
+      // Direct contacts writes are revoked for authenticated users since
+      // 20260625000008 — route through contacts_upsert instead.
+      // The RPC requires email OR linkedin_url; skip the contact-save
+      // step if neither is present (the introduction itself still gets
+      // created; contact linkage is best-effort).
+      if (email) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: contactUuid, error: upsertError } = await (supabase.rpc as any)(
+          'contacts_upsert',
+          {
+            p_identity: { email },
+            p_fields: {
+              first_name: firstName || 'Unknown',
+              last_name: lastName,
+              email,
+              contact_type: 'buyer',
+              remarketing_buyer_id: remarkBuyerId || null,
+            },
+            p_source: 'buyer_introduction',
+          },
+        );
+        if (!upsertError && typeof contactUuid === 'string') {
+          contactId = contactUuid;
+        }
+      }
     } catch {
-      // Non-fatal — contact may already exist (duplicate email)
+      // Non-fatal — the introduction itself still gets created below
+      // and will be relinked to a contact on the next enrichment pass.
     }
 
     createIntroduction(

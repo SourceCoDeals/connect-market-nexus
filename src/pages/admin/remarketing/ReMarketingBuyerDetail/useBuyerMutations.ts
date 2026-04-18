@@ -294,19 +294,25 @@ export function useBuyerMutations(
 
   const deleteContactMutation = useMutation({
     mutationFn: async (contactId: string) => {
-      // Soft-delete by archiving instead of hard delete
-      const { error } = await supabase
-        .from('contacts')
-        .update({ archived: true, updated_at: new Date().toISOString() })
-        .eq('id', contactId);
+      // Soft-delete via the contacts_soft_delete RPC. Direct
+      // .update({archived:true}) silently fails for authenticated users
+      // after 20260625000008 revoked INSERT/UPDATE on contacts — the RPC
+      // is SECURITY DEFINER so it bypasses the REVOKE, and it also
+      // stamps deleted_at=now() so the row disappears from the LinkedIn
+      // unique index (otherwise re-adding the same person later hits a
+      // duplicate-key error).
+      const { error } = await (supabase.rpc as any)('contacts_soft_delete', {
+        p_contact_id: contactId,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['remarketing', 'contacts', id] });
       toast.success('Contact deleted');
     },
-    onError: () => {
-      toast.error('Failed to delete contact');
+    onError: (error: Error) => {
+      const message = error?.message?.trim() || 'Failed to delete contact';
+      toast.error(`Failed to delete contact: ${message}`);
     },
   });
 

@@ -93,6 +93,29 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // Wall-clock budget tracking: edge functions die at ~150s and Supabase's
+  // platform response is a non-JSON 504 that the client surfaces as the
+  // generic "Edge Function returned a non-2xx status code" toast. We log
+  // a structured line at every exit so Supabase's log aggregation can be
+  // filtered for slow / failing generations even when no exception fires.
+  const requestStartedAt = Date.now();
+  const logExit = (
+    outcome: 'success' | 'validation_error' | 'gate_denied' | 'error',
+    extra: Record<string, unknown> = {},
+  ) => {
+    // Structured telemetry line consumed by Supabase log aggregation —
+    // intentionally info-level so it's separable from warn/error noise.
+    // eslint-disable-next-line no-console
+    console.log(
+      JSON.stringify({
+        edge_fn: 'generate-lead-memo',
+        outcome,
+        duration_ms: Date.now() - requestStartedAt,
+        ...extra,
+      }),
+    );
+  };
+
   try {
     const {
       deal_id,
@@ -102,6 +125,7 @@ Deno.serve(async (req: Request) => {
     } = await req.json();
 
     if (!deal_id) {
+      logExit('validation_error', { reason: 'missing_deal_id' });
       return new Response(JSON.stringify({ error: 'deal_id is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -109,6 +133,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!['anonymous_teaser', 'full_memo', 'both'].includes(memo_type)) {
+      logExit('validation_error', { reason: 'invalid_memo_type', memo_type });
       return new Response(
         JSON.stringify({ error: 'memo_type must be anonymous_teaser, full_memo, or both' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
@@ -166,7 +191,13 @@ Deno.serve(async (req: Request) => {
       .eq('pushed_listing_id', deal_id)
       .maybeSingle();
 
-    // Fetch data room documents with extracted text
+    // Fetch data room documents with extracted text.
+    //
+    // Cap at 20 docs so deals with heavy due-diligence uploads (one seller
+    // recently had 80+ PDFs) don't blow the Claude prompt budget. Per-doc
+    // char-cap already exists downstream in buildDataContext; the count-cap
+    // guards the multiplicative explosion (20 × 25K chars = 500K chars ≈
+    // 125K tokens, still fits Sonnet's 200K window).
     let { data: dataRoomDocs } = await supabaseAdmin
       .from('data_room_documents')
       .select('file_name, text_content')
@@ -174,7 +205,8 @@ Deno.serve(async (req: Request) => {
       .eq('document_category', 'data_room')
       .eq('status', 'active')
       .not('text_content', 'is', null)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(20);
 
     // Listing completeness check: require minimum data before generating memos
     // (Audit P1: prevent blank-context memo generation)
@@ -261,7 +293,8 @@ Deno.serve(async (req: Request) => {
             .eq('document_category', 'data_room')
             .eq('status', 'active')
             .not('text_content', 'is', null)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(20);
           dataRoomDocs = refreshedDocs;
 
           missingCritical = computeMissingCritical(deal, transcripts);
@@ -351,6 +384,24 @@ Deno.serve(async (req: Request) => {
         supabaseAdmin,
       );
 
+      // Empty-content guard: if Claude hallucinated non-section output the
+      // validator retry loop eventually gives up and returns an empty
+      // sections array. We MUST NOT persist an empty draft — it produces
+      // "No preview available" in the UI, wastes the admin's click, and
+      // has to be manually cleaned up from the table. Prefer a 502 the
+      // user can retry.
+      if (
+        !teaserContent ||
+        !Array.isArray((teaserContent as { sections?: MemoSection[] }).sections) ||
+        (teaserContent as { sections: MemoSection[] }).sections.length === 0
+      ) {
+        throw new Error(
+          'Teaser generation returned no parseable sections — AI output was ' +
+            'likely malformed. Retry in a few seconds; if it persists, ' +
+            'check the Anthropic status page.',
+        );
+      }
+
       // CTO audit: delete any existing draft memo of the same type+branding
       // for this deal before inserting the new one. Previously regenerating
       // a memo produced a new row every time, leaving the table full of
@@ -417,12 +468,16 @@ Deno.serve(async (req: Request) => {
         console.error('Failed to sync custom_sections to deal:', dealSyncError);
       }
 
-      // Check if a marketplace listing (child row) exists for this deal
+      // Check if a marketplace listing (child row) exists for this deal.
+      // Filter out archived rows — silently re-populating description /
+      // hero_description on an archived listing would re-surface it on
+      // dashboards that key off those fields.
       const { data: marketplaceListing } = await supabaseAdmin
         .from('listings')
-        .select('id')
+        .select('id, status')
         .eq('source_deal_id', deal_id)
         .eq('is_internal_deal', false)
+        .neq('status', 'archived')
         .maybeSingle();
 
       if (marketplaceListing) {
@@ -460,7 +515,15 @@ Deno.serve(async (req: Request) => {
           console.error('Failed to sync teaser sections to marketplace listing:', syncError);
         }
 
+        // Race-condition guard: a second teaser generation started after
+        // this one can insert its own row while our hero task is still
+        // pending. Capture the memo_id we just wrote and check that it
+        // is still the newest draft for this deal at hero-write time —
+        // otherwise we would stomp a fresher hero with stale content.
+        const stampedMemoId = (teaser as { id?: string } | null)?.id ?? null;
+
         const heroSyncTask = (async () => {
+          const heroStartedAt = Date.now();
           try {
             const hero = await buildHeroFromMemo(
               anthropicApiKey,
@@ -468,17 +531,42 @@ Deno.serve(async (req: Request) => {
               deal,
               supabaseAdmin,
             );
-            if (hero) {
-              const { error: heroSyncError } = await supabaseAdmin
-                .from('listings')
-                .update({ hero_description: hero })
-                .eq('id', marketplaceListing.id);
-              if (heroSyncError) {
-                console.error(
-                  'Failed to sync hero_description to marketplace listing:',
-                  heroSyncError,
+            if (!hero) return;
+
+            if (stampedMemoId) {
+              const { data: newest } = await supabaseAdmin
+                .from('lead_memos')
+                .select('id')
+                .eq('deal_id', deal_id)
+                .eq('memo_type', 'anonymous_teaser')
+                .eq('branding', branding)
+                .eq('status', 'draft')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              if (newest && (newest as { id?: string }).id !== stampedMemoId) {
+                console.warn(
+                  `[generate-lead-memo:hero-bg] Newer draft (${(newest as { id?: string }).id}) ` +
+                    `superseded ${stampedMemoId} during hero generation — skipping hero write.`,
                 );
+                return;
               }
+            }
+
+            const { error: heroSyncError } = await supabaseAdmin
+              .from('listings')
+              .update({ hero_description: hero })
+              .eq('id', marketplaceListing.id);
+            if (heroSyncError) {
+              console.error(
+                'Failed to sync hero_description to marketplace listing:',
+                heroSyncError,
+              );
+            } else {
+              // eslint-disable-next-line no-console
+              console.log(
+                `[generate-lead-memo:hero-bg] synced hero (${Date.now() - heroStartedAt}ms)`,
+              );
             }
           } catch (heroErr) {
             console.error('Background hero generation failed:', heroErr);
@@ -514,6 +602,19 @@ Deno.serve(async (req: Request) => {
         resolvedProjectName,
         supabaseAdmin,
       );
+
+      // Same empty-content guard as the teaser branch — don't persist an
+      // empty full-memo draft.
+      if (
+        !fullContent ||
+        !Array.isArray((fullContent as { sections?: MemoSection[] }).sections) ||
+        (fullContent as { sections: MemoSection[] }).sections.length === 0
+      ) {
+        throw new Error(
+          'Full memo generation returned no parseable sections — AI output ' +
+            'was likely malformed. Retry in a few seconds.',
+        );
+      }
 
       // CTO audit: same dedup as the teaser above — delete prior DRAFT
       // rows for this deal+type+branding before inserting the new version.
@@ -565,6 +666,12 @@ Deno.serve(async (req: Request) => {
       console.error('Audit log failed (non-blocking):', auditError);
     }
 
+    logExit('success', {
+      deal_id,
+      memo_type,
+      memo_ids: Object.values(results).map((r) => (r as { id?: string } | undefined)?.id),
+    });
+
     return new Response(JSON.stringify({ success: true, memos: results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -577,11 +684,29 @@ Deno.serve(async (req: Request) => {
     const rawDetail =
       error instanceof Error ? error.message : typeof error === 'string' ? error : 'Unknown error';
     const sanitizedDetail = sanitizeClientErrorMessage(rawDetail);
+    // Duck-typed timeout detection: AbortSignal.timeout() raises a
+    // DOMException which does NOT uniformly inherit from Error across
+    // runtimes, so we key off the .name rather than `instanceof`. Covers
+    // both TimeoutError (AbortSignal.timeout) and AbortError (manual
+    // .abort()).
+    const errObj = error as { name?: string } | null;
+    const isTimeout = !!errObj && (errObj.name === 'TimeoutError' || errObj.name === 'AbortError');
+    logExit('error', {
+      error_class: error instanceof Error ? error.name : typeof error,
+      timeout: isTimeout,
+      raw_message_first_line: rawDetail.split('\n')[0].slice(0, 300),
+    });
     return new Response(
       JSON.stringify({
         error: `Failed to generate memo: ${sanitizedDetail}`,
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      {
+        // Surface 504 rather than 500 for timeout cases so the client's
+        // extractFunctionError can distinguish "try again with less data"
+        // from a true server bug.
+        status: isTimeout ? 504 : 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
     );
   }
 });

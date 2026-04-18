@@ -19,23 +19,45 @@ export async function deleteUniverseWithRelated(
     if (buyers && buyers.length > 0) {
       const buyerIds = buyers.map((b) => b.id);
 
-      // Archive contacts linked to these buyers in the unified contacts table
-      const { error: contactsError } = await supabase
+      // Archive contacts linked to these buyers via the soft-delete RPC.
+      // Direct .update({archived:true}) is REVOKEd for authenticated
+      // since 20260625000008, so we first fetch the candidate ids and
+      // call contacts_soft_delete per id. The N+1 cost is acceptable
+      // here because universe cascades are admin-initiated and rare.
+      const { data: contactRows, error: contactsFetchError } = await supabase
         .from('contacts')
-        .update({ archived: true })
-        .in('remarketing_buyer_id', buyerIds);
-      if (contactsError) throw contactsError;
+        .select('id')
+        .in('remarketing_buyer_id', buyerIds)
+        .eq('archived', false);
+      if (contactsFetchError) throw contactsFetchError;
+      if (contactRows && contactRows.length > 0) {
+        await Promise.all(
+          contactRows.map((r) =>
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (supabase.rpc as any)('contacts_soft_delete', { p_contact_id: r.id }),
+          ),
+        );
+      }
 
       // Delete buyer_transcripts
-      const { error: transcriptsError } = await supabase.from('buyer_transcripts').delete().in('buyer_id', buyerIds);
+      const { error: transcriptsError } = await supabase
+        .from('buyer_transcripts')
+        .delete()
+        .in('buyer_id', buyerIds);
       if (transcriptsError) throw transcriptsError;
 
       // Delete remarketing_scores for all buyers
-      const { error: scoresError } = await supabase.from('remarketing_scores').delete().in('buyer_id', buyerIds);
+      const { error: scoresError } = await supabase
+        .from('remarketing_scores')
+        .delete()
+        .in('buyer_id', buyerIds);
       if (scoresError) throw scoresError;
 
       // Delete call_intelligence for all buyers
-      const { error: callIntelError } = await supabase.from('call_intelligence').delete().in('buyer_id', buyerIds);
+      const { error: callIntelError } = await supabase
+        .from('call_intelligence')
+        .delete()
+        .in('buyer_id', buyerIds);
       if (callIntelError) throw callIntelError;
     }
 
@@ -46,7 +68,10 @@ export async function deleteUniverseWithRelated(
       .eq('universe_id', universeId);
 
     // Delete remarketing_scores for this universe
-    const { error: universeScoresError } = await supabase.from('remarketing_scores').delete().eq('universe_id', universeId);
+    const { error: universeScoresError } = await supabase
+      .from('remarketing_scores')
+      .delete()
+      .eq('universe_id', universeId);
     if (universeScoresError) throw universeScoresError;
 
     // Finally delete the universe

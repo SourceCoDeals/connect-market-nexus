@@ -331,20 +331,31 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
       if (introsNeedingContacts.length > 0) {
         for (const intro of introsNeedingContacts) {
           const nameParts = intro.buyer_name.trim().split(/\s+/);
+          // Direct contacts writes are revoked for authenticated
+          // (20260625000008). Route through contacts_upsert so the write
+          // actually lands AND resolves by email/linkedin/phone instead
+          // of blind-inserting duplicates. Requires first_name +
+          // email OR linkedin_url — skip rows that lack both.
+          const email = intro.buyer_email?.toLowerCase().trim() || null;
+          const linkedin = intro.buyer_linkedin_url || null;
+          if (!email && !linkedin) continue;
           try {
-            await supabase.from('contacts').insert({
-              first_name: nameParts[0] || '',
-              last_name: nameParts.slice(1).join(' ') || '',
-              email: intro.buyer_email?.toLowerCase().trim() || null,
-              phone: intro.buyer_phone || null,
-              linkedin_url: intro.buyer_linkedin_url || null,
-              company_name: intro.buyer_firm_name,
-              contact_type: 'buyer',
-              source: 'buyer_introduction',
-              remarketing_buyer_id: intro.remarketing_buyer_id || null,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase.rpc as any)('contacts_upsert', {
+              p_identity: { email, linkedin_url: linkedin },
+              p_fields: {
+                first_name: nameParts[0] || 'Unknown',
+                last_name: nameParts.slice(1).join(' ') || '',
+                email,
+                phone: intro.buyer_phone || null,
+                linkedin_url: linkedin,
+                contact_type: 'buyer',
+                remarketing_buyer_id: intro.remarketing_buyer_id || null,
+              },
+              p_source: 'buyer_introduction',
             });
           } catch {
-            // Skip duplicates
+            // dedupe failures are acceptable — the RPC already merges
           }
         }
 
@@ -513,10 +524,26 @@ export function BuyerOutreachTab({ dealId, dealName }: BuyerOutreachTabProps) {
 
   const handleRemoveFromList = async () => {
     const ids = Array.from(selectedIds);
-    const { error } = await supabase.from('contacts').update({ archived: true }).in('id', ids);
+    // Direct .update({archived:true}) on contacts is REVOKEd for the
+    // authenticated role since 20260625000008 — route through
+    // contacts_soft_delete which also stamps deleted_at so the LinkedIn
+    // unique index releases the slot and subsequent re-adds don't hit
+    // a phantom duplicate-key error.
+    const results = await Promise.all(
+      ids.map((id) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase.rpc as any)('contacts_soft_delete', { p_contact_id: id }),
+      ),
+    );
+    const firstError = results.find((r) => r.error)?.error;
 
-    if (error) {
-      toast({ title: 'Failed to remove contacts', variant: 'destructive' });
+    if (firstError) {
+      const message = firstError?.message || 'Unknown error';
+      toast({
+        title: 'Failed to remove contacts',
+        description: message,
+        variant: 'destructive',
+      });
     } else {
       toast({ title: `${ids.length} contact(s) removed from list` });
       setSelectedIds(new Set());
