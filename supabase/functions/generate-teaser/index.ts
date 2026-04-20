@@ -539,10 +539,11 @@ Verify before returning: search your output for any proper noun that is not the 
     const teaserSections = parseMarkdownToSections(teaserText);
 
     // Step 7: Save the result
+    const branding = requestBranding || 'sourceco';
     const teaserContent: MemoContent = {
       sections: teaserSections,
       memo_type: 'anonymous_teaser',
-      branding: requestBranding || 'sourceco',
+      branding,
       generated_at: new Date().toISOString(),
       company_name: projectName,
       company_address: '',
@@ -550,15 +551,35 @@ Verify before returning: search your output for any proper noun that is not the 
       company_phone: '',
     };
 
+    // Match generate-lead-memo's dedup pattern — delete prior draft teasers
+    // for this deal+branding so regenerating does not accumulate orphan rows.
+    await supabaseAdmin
+      .from('lead_memos')
+      .delete()
+      .eq('deal_id', dealId)
+      .eq('memo_type', 'anonymous_teaser')
+      .eq('branding', branding)
+      .eq('status', 'draft');
+
+    // lead_memos.status is CHECK-constrained to ('draft','published','archived')
+    // and has no validation_result / project_name columns. The old insert used
+    // 'completed' | 'failed_validation' and referenced those missing columns,
+    // which threw 23514 / 42703 and surfaced as "Edge Function returned a
+    // non-2xx status code" in the Generate Draft toast. Write as a draft and
+    // stash validation + codename in the generated_from JSONB.
     const { data: teaser, error: teaserError } = await supabaseAdmin
       .from('lead_memos')
       .insert({
         deal_id: dealId,
         memo_type: 'anonymous_teaser',
+        branding,
         content: teaserContent,
-        status: validationResult.pass ? 'completed' : 'failed_validation',
-        validation_result: validationResult,
-        project_name: projectName,
+        status: 'draft',
+        generated_from: {
+          project_name: projectName,
+          validation: validationResult,
+          generated_at: new Date().toISOString(),
+        },
         created_by: auth.userId,
       })
       .select()

@@ -1,14 +1,10 @@
-import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, FileText, Sparkles, Loader2, Save } from "lucide-react";
-import { toast } from "sonner";
+import { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, ChevronUp, FileText, Sparkles, Loader2, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface GeneralNotesSectionProps {
   notes: string | null;
@@ -21,17 +17,17 @@ export const GeneralNotesSection = ({
   notes,
   onSave,
   onAnalyze,
-  isAnalyzing = false
+  isAnalyzing = false,
 }: GeneralNotesSectionProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [editedNotes, setEditedNotes] = useState(notes || "");
+  const [editedNotes, setEditedNotes] = useState(notes || '');
   const [isSaving, setIsSaving] = useState(false);
-  const lastSavedNotes = useRef(notes || "");
+  const lastSavedNotes = useRef(notes || '');
 
   // Sync editedNotes when the prop changes externally (e.g. after save/refetch)
   // but only if the user hasn't made local edits since the last known value
   useEffect(() => {
-    const incoming = notes || "";
+    const incoming = notes || '';
     if (incoming !== lastSavedNotes.current) {
       // Prop changed externally — update if there are no unsaved local edits
       if (editedNotes === lastSavedNotes.current) {
@@ -41,16 +37,17 @@ export const GeneralNotesSection = ({
     }
   }, [notes, editedNotes]);
 
-  const hasChanges = editedNotes !== (notes || "");
+  const hasChanges = editedNotes !== (notes || '');
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
       await onSave(editedNotes);
       lastSavedNotes.current = editedNotes;
-      toast.success("Notes saved successfully");
+      toast.success('Notes saved successfully');
     } catch (error) {
-      toast.error("Failed to save notes");
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save notes: ${message}`);
     } finally {
       setIsSaving(false);
     }
@@ -61,7 +58,7 @@ export const GeneralNotesSection = ({
       try {
         await onAnalyze(editedNotes);
       } catch (error) {
-        toast.error("Failed to enrich notes");
+        toast.error('Failed to enrich notes');
       }
     }
   };
@@ -93,11 +90,7 @@ export const GeneralNotesSection = ({
               className="min-h-[150px] resize-y"
             />
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleSave}
-                disabled={!hasChanges || isSaving}
-              >
+              <Button variant="outline" onClick={handleSave} disabled={!hasChanges || isSaving}>
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
@@ -123,7 +116,9 @@ export const GeneralNotesSection = ({
             {isAnalyzing && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Analyzing notes and extracting deal intelligence... This may take a minute.</span>
+                <span>
+                  Analyzing notes and extracting deal intelligence... This may take a minute.
+                </span>
               </div>
             )}
             <p className="text-xs text-muted-foreground">

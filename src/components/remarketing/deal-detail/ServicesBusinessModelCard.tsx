@@ -1,17 +1,17 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Pencil, Loader2, Briefcase } from "lucide-react";
-import { toast } from "sonner";
+} from '@/components/ui/dialog';
+import { Pencil, Loader2, Briefcase } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ServicesBusinessModelCardProps {
   serviceMix: string | null;
@@ -20,10 +20,10 @@ interface ServicesBusinessModelCardProps {
 
 export const ServicesBusinessModelCard = ({
   serviceMix,
-  onSave
+  onSave,
 }: ServicesBusinessModelCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editedServiceMix, setEditedServiceMix] = useState(serviceMix || "");
+  const [editedServiceMix, setEditedServiceMix] = useState(serviceMix || '');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -31,16 +31,17 @@ export const ServicesBusinessModelCard = ({
     try {
       await onSave({ serviceMix: editedServiceMix });
       setIsEditOpen(false);
-      toast.success("Service mix updated");
+      toast.success('Service mix updated');
     } catch (error) {
-      toast.error("Failed to save");
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save: ${message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const openEdit = () => {
-    setEditedServiceMix(serviceMix || "");
+    setEditedServiceMix(serviceMix || '');
     setIsEditOpen(true);
   };
 
@@ -53,12 +54,7 @@ export const ServicesBusinessModelCard = ({
               <Briefcase className="h-5 w-5" />
               Services
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={openEdit}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={openEdit}>
               <Pencil className="h-4 w-4" />
             </Button>
           </div>

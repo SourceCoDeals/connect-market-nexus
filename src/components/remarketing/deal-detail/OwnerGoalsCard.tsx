@@ -1,59 +1,57 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Pencil, Loader2, Target } from "lucide-react";
-import { toast } from "sonner";
+} from '@/components/ui/dialog';
+import { Pencil, Loader2, Target } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface OwnerGoalsCardProps {
   ownerGoals: string | null;
   ownershipStructure: string | null;
   specialRequirements: string | null;
-  onSave: (data: { 
-    ownerGoals: string; 
-    specialRequirements: string 
-  }) => Promise<void>;
+  onSave: (data: { ownerGoals: string; specialRequirements: string }) => Promise<void>;
 }
 
-export const OwnerGoalsCard = ({ 
-  ownerGoals, 
+export const OwnerGoalsCard = ({
+  ownerGoals,
   ownershipStructure,
   specialRequirements,
-  onSave 
+  onSave,
 }: OwnerGoalsCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editedGoals, setEditedGoals] = useState(ownerGoals || "");
-  const [editedRequirements, setEditedRequirements] = useState(specialRequirements || "");
+  const [editedGoals, setEditedGoals] = useState(ownerGoals || '');
+  const [editedRequirements, setEditedRequirements] = useState(specialRequirements || '');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave({ 
-        ownerGoals: editedGoals, 
-        specialRequirements: editedRequirements 
+      await onSave({
+        ownerGoals: editedGoals,
+        specialRequirements: editedRequirements,
       });
       setIsEditOpen(false);
-      toast.success("Owner goals updated");
+      toast.success('Owner goals updated');
     } catch (error) {
-      toast.error("Failed to save");
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save: ${message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const openEdit = () => {
-    setEditedGoals(ownerGoals || "");
-    setEditedRequirements(specialRequirements || "");
+    setEditedGoals(ownerGoals || '');
+    setEditedRequirements(specialRequirements || '');
     setIsEditOpen(true);
   };
 
@@ -66,12 +64,7 @@ export const OwnerGoalsCard = ({
               <Target className="h-5 w-5" />
               Owner Goals & Transition
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={openEdit}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={openEdit}>
               <Pencil className="h-4 w-4" />
             </Button>
           </div>
@@ -91,7 +84,9 @@ export const OwnerGoalsCard = ({
               Ownership Structure
             </p>
             <p className="text-sm">
-              {ownershipStructure || <span className="text-muted-foreground italic">Not specified</span>}
+              {ownershipStructure || (
+                <span className="text-muted-foreground italic">Not specified</span>
+              )}
             </p>
           </div>
           <Separator />
@@ -100,7 +95,9 @@ export const OwnerGoalsCard = ({
               Special Requirements
             </p>
             <p className="text-sm">
-              {specialRequirements || <span className="text-muted-foreground italic">Not specified</span>}
+              {specialRequirements || (
+                <span className="text-muted-foreground italic">Not specified</span>
+              )}
             </p>
           </div>
         </CardContent>

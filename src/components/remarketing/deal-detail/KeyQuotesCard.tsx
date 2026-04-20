@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Quote, ChevronDown, Pencil, Plus, X, Loader2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { useState } from 'react';
+import { Quote, ChevronDown, Pencil, Plus, X, Loader2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -10,34 +10,31 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { toast } from "sonner";
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 interface KeyQuotesCardProps {
   quotes?: string[] | null;
   onSave?: (quotes: string[]) => Promise<void>;
 }
 
-export const KeyQuotesCard = ({
-  quotes,
-  onSave,
-}: KeyQuotesCardProps) => {
+export const KeyQuotesCard = ({ quotes, onSave }: KeyQuotesCardProps) => {
   const [showAll, setShowAll] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editedQuotes, setEditedQuotes] = useState<string[]>([]);
-  const [newQuote, setNewQuote] = useState("");
+  const [newQuote, setNewQuote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const openEdit = () => {
     setEditedQuotes(quotes || []);
-    setNewQuote("");
+    setNewQuote('');
     setIsEditOpen(true);
   };
 
   const handleAddQuote = () => {
     if (newQuote.trim()) {
       setEditedQuotes([...editedQuotes, newQuote.trim()]);
-      setNewQuote("");
+      setNewQuote('');
     }
   };
 
@@ -51,15 +48,16 @@ export const KeyQuotesCard = ({
     try {
       await onSave(editedQuotes);
       setIsEditOpen(false);
-      toast.success("Quotes updated");
+      toast.success('Quotes updated');
     } catch (error) {
-      toast.error("Failed to save quotes");
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save quotes: ${message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const displayQuotes = showAll ? (quotes || []) : (quotes || []).slice(0, 3);
+  const displayQuotes = showAll ? quotes || [] : (quotes || []).slice(0, 3);
   const remainingCount = (quotes?.length || 0) - 3;
 
   // Show add button even when empty
@@ -91,7 +89,8 @@ export const KeyQuotesCard = ({
             <DialogHeader>
               <DialogTitle>Manage Key Quotes</DialogTitle>
               <DialogDescription>
-                Add verbatim quotes from the seller that reveal important information about their goals, concerns, or business.
+                Add verbatim quotes from the seller that reveal important information about their
+                goals, concerns, or business.
               </DialogDescription>
             </DialogHeader>
 
@@ -165,10 +164,7 @@ export const KeyQuotesCard = ({
       </CardHeader>
       <CardContent className="space-y-3">
         {displayQuotes.map((quote) => (
-          <div
-            key={quote}
-            className="pl-4 border-l-4 border-amber-400 py-1"
-          >
+          <div key={quote} className="pl-4 border-l-4 border-amber-400 py-1">
             <p className="text-sm text-muted-foreground italic">"{quote}"</p>
           </div>
         ))}
@@ -200,7 +196,8 @@ export const KeyQuotesCard = ({
           <DialogHeader>
             <DialogTitle>Manage Key Quotes</DialogTitle>
             <DialogDescription>
-              Add verbatim quotes from the seller that reveal important information about their goals, concerns, or business.
+              Add verbatim quotes from the seller that reveal important information about their
+              goals, concerns, or business.
             </DialogDescription>
           </DialogHeader>
 
@@ -229,9 +226,9 @@ export const KeyQuotesCard = ({
                 onChange={(e) => setNewQuote(e.target.value)}
                 className="min-h-[80px]"
               />
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleAddQuote}
                 disabled={!newQuote.trim()}
               >

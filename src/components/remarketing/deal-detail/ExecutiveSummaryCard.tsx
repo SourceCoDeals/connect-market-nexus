@@ -1,16 +1,16 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Pencil, Sparkles, Loader2, FileText } from "lucide-react";
-import { toast } from "sonner";
+} from '@/components/ui/dialog';
+import { Pencil, Sparkles, Loader2, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ExecutiveSummaryCardProps {
   summary: string | null;
@@ -18,13 +18,13 @@ interface ExecutiveSummaryCardProps {
   onGenerate?: () => Promise<string | null>;
 }
 
-export const ExecutiveSummaryCard = ({ 
-  summary, 
+export const ExecutiveSummaryCard = ({
+  summary,
   onSave,
-  onGenerate 
+  onGenerate,
 }: ExecutiveSummaryCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editedSummary, setEditedSummary] = useState(summary || "");
+  const [editedSummary, setEditedSummary] = useState(summary || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -33,9 +33,10 @@ export const ExecutiveSummaryCard = ({
     try {
       await onSave(editedSummary);
       setIsEditOpen(false);
-      toast.success("Executive summary updated");
+      toast.success('Executive summary updated');
     } catch (error) {
-      toast.error("Failed to save summary");
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save summary: ${message}`);
     } finally {
       setIsSaving(false);
     }
@@ -48,10 +49,10 @@ export const ExecutiveSummaryCard = ({
       const generated = await onGenerate();
       if (generated) {
         setEditedSummary(generated);
-        toast.success("Summary generated - review and save");
+        toast.success('Summary generated - review and save');
       }
     } catch (error) {
-      toast.error("Failed to generate summary");
+      toast.error('Failed to generate summary');
     } finally {
       setIsGenerating(false);
     }
@@ -66,12 +67,12 @@ export const ExecutiveSummaryCard = ({
               <FileText className="h-5 w-5" />
               Executive Summary
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-8 w-8"
               onClick={() => {
-                setEditedSummary(summary || "");
+                setEditedSummary(summary || '');
                 setIsEditOpen(true);
               }}
             >
@@ -81,16 +82,14 @@ export const ExecutiveSummaryCard = ({
         </CardHeader>
         <CardContent>
           {summary ? (
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-              {summary}
-            </p>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{summary}</p>
           ) : (
             <div className="text-center py-6 text-muted-foreground">
               <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No executive summary yet</p>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="mt-2"
                 onClick={() => setIsEditOpen(true)}
               >
@@ -115,11 +114,7 @@ export const ExecutiveSummaryCard = ({
               className="min-h-[200px]"
             />
             {onGenerate && (
-              <Button 
-                variant="secondary" 
-                onClick={handleGenerate}
-                disabled={isGenerating}
-              >
+              <Button variant="secondary" onClick={handleGenerate} disabled={isGenerating}>
                 {isGenerating ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
