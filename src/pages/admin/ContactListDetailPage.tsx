@@ -31,9 +31,6 @@ import {
   PhoneCall,
   X,
   Copy,
-  ShieldAlert,
-  AlertTriangle,
-  Archive,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useContactList, useRemoveListMember } from '@/hooks/admin/use-contact-lists';
@@ -44,7 +41,7 @@ import { PushToDialerModal } from '@/components/remarketing/PushToDialerModal';
 import { PushToSmartleadModal } from '@/components/remarketing/PushToSmartleadModal';
 import { PushToHeyreachModal } from '@/components/remarketing/PushToHeyreachModal';
 import { ContactCSVImport } from '@/components/admin/ContactCSVImport';
-import { memberHasDialerPhone, type ContactListMember } from '@/types/contact-list';
+import type { ContactListMember } from '@/types/contact-list';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { ContactMemberDrawer } from '@/components/admin/lists/ContactMemberDrawer';
@@ -54,12 +51,7 @@ const ContactListDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // data === undefined => still loading (React Query hasn't resolved yet).
-  // data === null      => query succeeded with zero rows (truly not found,
-  //                       or RLS-hidden — both look identical to the client).
-  // error is set       => genuine failure (network, permission denied,
-  //                       malformed query, etc).
-  const { data: list, isLoading, error } = useContactList(id);
+  const { data: list, isLoading, isError, error } = useContactList(id);
   const removeMember = useRemoveListMember();
   const cloneList = useCloneList();
 
@@ -142,7 +134,7 @@ const ContactListDetailPage = () => {
   }, [activeMembers, searchQuery]);
 
   const selectedMembers = filteredMembers.filter((m) => selectedIds.has(m.id));
-  const selectedWithPhone = selectedMembers.filter(memberHasDialerPhone);
+  const selectedWithPhone = selectedMembers.filter((m) => m.contact_phone);
 
   const orderedIds = useMemo(() => filteredMembers.map((m) => m.id), [filteredMembers]);
   const { handleToggle: toggleSelect } = useShiftSelect(orderedIds, selectedIds, setSelectedIds);
@@ -208,7 +200,7 @@ const ContactListDetailPage = () => {
   // For dialer push, use member IDs (not entity_ids) so the edge function
   // can resolve directly from contact_list_members regardless of entity_type
   const dialerContactIds = (
-    selectedWithPhone.length > 0 ? selectedWithPhone : activeMembers.filter(memberHasDialerPhone)
+    selectedWithPhone.length > 0 ? selectedWithPhone : activeMembers.filter((m) => m.contact_phone)
   ).map((m) => m.id);
 
   const handleBulkRemove = () => {
@@ -227,66 +219,22 @@ const ContactListDetailPage = () => {
     );
   }
 
-  // Genuine query error — network / RLS insufficient_privilege / malformed query.
-  // Surface distinct messages so support can triage without reading the console.
-  if (error) {
-    // PostgREST codes: 42501 = insufficient_privilege (RLS denial after auth),
-    // PGRST301     = JWT invalid. Anything else is treated as a generic error.
-    const pgCode = (error as { code?: string }).code;
-    const isPermissionError = pgCode === '42501' || pgCode === 'PGRST301';
+  if (isError) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <div className="max-w-md text-center space-y-4">
-          <ShieldAlert className="h-12 w-12 mx-auto text-destructive/70" />
-          <h2 className="text-lg font-semibold">
-            {isPermissionError ? 'You don’t have access to this list' : 'Couldn’t load this list'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {isPermissionError
-              ? 'Your account doesn’t have permission to view this list. Ask a workspace owner to grant you the Moderator, Admin, or Owner role.'
-              : error.message || 'An unexpected error occurred while loading this list.'}
-          </p>
-          <div className="flex gap-2 justify-center">
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/admin/lists">
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back to Lists
-              </Link>
-            </Button>
-            {!isPermissionError && (
-              <Button
-                size="sm"
-                onClick={() =>
-                  queryClient.invalidateQueries({ queryKey: ['admin', 'contact-lists', id] })
-                }
-              >
-                Retry
-              </Button>
-            )}
-          </div>
-        </div>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3">
+        <p className="text-destructive text-sm">Failed to load list</p>
+        <p className="text-xs text-muted-foreground">{(error as Error)?.message}</p>
+        <Button variant="outline" size="sm" onClick={() => navigate('/admin/lists')}>
+          Back to Lists
+        </Button>
       </div>
     );
   }
 
-  // No error, no data — the list truly doesn't exist (was deleted, or the id
-  // in the URL is stale / hand-crafted). Distinct from the error path above.
   if (!list) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-6">
-        <div className="max-w-md text-center space-y-4">
-          <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground/50" />
-          <h2 className="text-lg font-semibold">List not found</h2>
-          <p className="text-sm text-muted-foreground">
-            This list may have been deleted, or the URL is incorrect.
-          </p>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/admin/lists">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to Lists
-            </Link>
-          </Button>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">List not found</p>
       </div>
     );
   }
@@ -304,18 +252,6 @@ const ContactListDetailPage = () => {
               </Button>
             </Link>
           </div>
-          {/* Archived lists don't appear in the /admin/lists overview but are
-              still deep-linkable — surface an explicit banner so a stale
-              bookmark is self-explanatory instead of looking broken. */}
-          {list.is_archived && (
-            <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-              <Archive className="h-4 w-4 flex-shrink-0" />
-              <span>
-                This list is <strong>archived</strong>. It no longer appears in the lists overview.
-                You can still view and export it, but new contacts can’t be added.
-              </span>
-            </div>
-          )}
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-3">

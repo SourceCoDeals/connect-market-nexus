@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useSearchParamState } from '@/hooks/use-search-param-state';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -41,7 +40,6 @@ import {
   Minus,
   X,
   Zap,
-  ShieldAlert,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
@@ -55,22 +53,10 @@ import type { ListOperation } from '@/components/admin/lists/ListCombineDialog';
 import { CreateSmartListDialog } from '@/components/admin/lists/CreateSmartListDialog';
 import { useAICommandCenterContext } from '@/components/ai-command-center/AICommandCenterProvider';
 import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
-import { useAuth } from '@/contexts/AuthContext';
 
 const ContactListsPage = () => {
   const navigate = useNavigate();
-  const { data: lists = [], isLoading, error } = useContactLists();
-  // `profiles.is_admin` (the source for useAuth().isAdmin) and `user_roles`
-  // (the source for RLS via is_admin()) can drift: a user can pass the
-  // admin-panel gate but still have every contact_lists SELECT return zero
-  // rows under RLS. Detect that case here so affected users see a clear
-  // message instead of a silently-empty "No lists yet" screen.
-  //
-  // We only surface the banner once the list query has resolved AND returned
-  // zero rows — otherwise we'd flash a false-positive during the brief window
-  // before the get_my_role() RPC in use-nuclear-auth lands.
-  const { isAdmin, teamRole } = useAuth();
-  const mightBeDrift = !isLoading && isAdmin && teamRole === null && lists.length === 0;
+  const { data: lists = [], isLoading } = useContactLists();
   const deleteMutation = useDeleteContactList();
   const createList = useCreateContactList();
   const cloneList = useCloneList();
@@ -90,9 +76,23 @@ const ContactListsPage = () => {
 
   useAIUIActionHandler({ table: 'contacts' });
 
-  // URL-persisted search — local state + debounced URL sync so typing doesn't
-  // fire a router navigation on every keystroke.
-  const [searchQuery, setSearchQuery] = useSearchParamState('q');
+  // URL-persisted search
+  const [searchParams, setSearchParams] = useSearchParams();
+  const searchQuery = searchParams.get('q') ?? '';
+  const setSearchQuery = useCallback(
+    (v: string) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v) n.set('q', v);
+          else n.delete('q');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
 
   const filteredLists = lists.filter((list) => {
     if (!searchQuery) return true;
@@ -197,24 +197,6 @@ const ContactListsPage = () => {
       </div>
 
       <div className="px-4 md:px-8 py-6 space-y-6">
-        {/* Permission-denied / drift banner — see note in the component body. */}
-        {(error || mightBeDrift) && (
-          <div className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
-            <ShieldAlert className="h-5 w-5 flex-shrink-0 text-destructive/80 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-medium text-destructive">
-                {error ? 'Couldn’t load lists' : 'Your account can’t access lists'}
-              </p>
-              <p className="text-muted-foreground">
-                {error
-                  ? (error as Error).message ||
-                    'An unexpected error occurred while loading lists. Try refreshing the page.'
-                  : 'Your account has admin-panel access, but no workspace role has been assigned yet. Ask a workspace owner to grant you the Moderator, Admin, or Owner role so you can view and manage lists.'}
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Search */}
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />

@@ -53,37 +53,38 @@ export function useContactList(listId: string | undefined) {
   return useQuery({
     queryKey: [...QUERY_KEY, listId],
     enabled: !!listId,
+    retry: 1,
     queryFn: async () => {
-      // NOTE: maybeSingle() returns null (no error) on 0 rows, letting the UI
-      // distinguish "list truly not found / RLS-hidden" (data === null) from
-      // "real error" (listError is set). single() throws PGRST116 on 0 rows,
-      // which the caller used to swallow as a generic "List not found".
+      // --- Core data: list + members (must succeed) ---
       const { data: list, error: listError } = await supabase
         .from('contact_lists')
         .select('*')
         .eq('id', listId!)
-        .maybeSingle();
+        .single();
 
       if (listError) throw listError;
-      if (!list) return null;
 
-      // Fetch creator name separately
       let creatorName: string | null = null;
-      if (list.created_by) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('first_name, last_name')
-          .eq('id', list.created_by)
-          .single();
-        if (profile) {
-          creatorName = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
+      try {
+        if (list.created_by) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', list.created_by)
+            .single();
+          if (profile) {
+            creatorName = `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim();
+          }
         }
+      } catch {
+        // creator name is non-critical
       }
 
-      const { data: members, error: membersError } = await supabase
-        .from('contact_list_members')
+      const { data: members, error: membersError } = await (
+        supabase.from('contact_list_members') as any
+      )
         .select(
-          '*, contact:contacts(first_name, last_name, email, phone, title, company_name, linkedin_url, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone)',
+          '*, contact:contacts(first_name, last_name, email, phone, title, company_name, linkedin_url)',
         )
         .eq('list_id', listId!)
         .is('removed_at', null)
@@ -91,37 +92,43 @@ export function useContactList(listId: string | undefined) {
 
       if (membersError) throw membersError;
 
-      // Fetch call tracking data for these contacts
-      const emails = (members ?? []).map((m) => m.contact_email).filter(Boolean);
+      const memberRows = (members ?? []) as any[];
+
+      // --- Enrichment: call tracking (non-critical) ---
+      const emails = memberRows.map((m: any) => m.contact_email).filter(Boolean) as string[];
       const callData: Record<
         string,
         { last_call: string | null; total_calls: number; last_disposition: string | null }
       > = {};
 
-      if (emails.length > 0) {
-        const { data: activities } = await supabase
-          .from('contact_activities')
-          .select('contact_email, call_started_at, disposition_label')
-          .in('contact_email', emails)
-          .order('call_started_at', { ascending: false });
+      try {
+        if (emails.length > 0) {
+          const { data: activities } = await supabase
+            .from('contact_activities')
+            .select('contact_email, call_started_at, disposition_label')
+            .in('contact_email', emails)
+            .order('call_started_at', { ascending: false });
 
-        if (activities) {
-          for (const a of activities) {
-            const email = a.contact_email;
-            if (!email) continue;
-            if (!callData[email]) {
-              callData[email] = {
-                last_call: a.call_started_at,
-                total_calls: 0,
-                last_disposition: a.disposition_label,
-              };
+          if (activities) {
+            for (const a of activities) {
+              const email = a.contact_email;
+              if (!email) continue;
+              if (!callData[email]) {
+                callData[email] = {
+                  last_call: a.call_started_at,
+                  total_calls: 0,
+                  last_disposition: a.disposition_label,
+                };
+              }
+              callData[email].total_calls++;
             }
-            callData[email].total_calls++;
           }
         }
+      } catch (e) {
+        console.warn('[useContactList] Call tracking enrichment failed, degrading gracefully:', e);
       }
 
-      // Fetch deal owners for all deal-type members
+      // --- Enrichment: deal owners (non-critical) ---
       const DEAL_ENTITY_TYPES = [
         'deal',
         'listing',
@@ -129,131 +136,120 @@ export function useContactList(listId: string | undefined) {
         'gp_partner_deal',
         'referral_deal',
       ];
-      const dealMembers = (members ?? []).filter((m) => DEAL_ENTITY_TYPES.includes(m.entity_type));
+      const dealMembers = memberRows.filter((m: any) => DEAL_ENTITY_TYPES.includes(m.entity_type));
       const dealOwnerMap: Record<string, { name: string; id: string }> = {};
 
-      if (dealMembers.length > 0) {
-        // Collect ALL entity IDs — they could be listing IDs or deal_pipeline IDs
-        const allEntityIds = dealMembers.map((m) => m.entity_id).filter(Boolean);
-        const uniqueEntityIds = [...new Set(allEntityIds)];
+      try {
+        if (dealMembers.length > 0) {
+          const allEntityIds = dealMembers.map((m: any) => m.entity_id).filter(Boolean);
+          const uniqueEntityIds = [...new Set(allEntityIds)];
 
-        const allOwnerIds = new Set<string>();
+          const allOwnerIds = new Set<string>();
 
-        // First, try to resolve from listings table (covers all entity types including 'deal')
-        if (uniqueEntityIds.length > 0) {
-          const { data: listingRows } = await supabase
-            .from('listings')
-            .select('id, deal_owner_id, primary_owner_id')
-            .in('id', uniqueEntityIds);
+          if (uniqueEntityIds.length > 0) {
+            const { data: listingRows } = await supabase
+              .from('listings')
+              .select('id, deal_owner_id, primary_owner_id')
+              .in('id', uniqueEntityIds);
 
-          const resolvedIds = new Set<string>();
-          const unownedListingIds: string[] = [];
+            const resolvedIds = new Set<string>();
+            const unownedListingIds: string[] = [];
 
-          for (const l of listingRows ?? []) {
-            resolvedIds.add(l.id);
-            const ownerId = l.deal_owner_id || l.primary_owner_id;
-            if (ownerId) {
-              allOwnerIds.add(ownerId);
-              dealOwnerMap[l.id] = { name: '', id: ownerId };
-            } else {
-              unownedListingIds.push(l.id);
+            for (const l of listingRows ?? []) {
+              resolvedIds.add(l.id);
+              const ownerId = l.deal_owner_id || l.primary_owner_id;
+              if (ownerId) {
+                allOwnerIds.add(ownerId);
+                dealOwnerMap[l.id] = { name: '', id: ownerId };
+              } else {
+                unownedListingIds.push(l.id);
+              }
             }
-          }
 
-          // For IDs not found in listings, try deal_pipeline (true pipeline IDs)
-          const unresolvedIds = uniqueEntityIds.filter((id) => !resolvedIds.has(id));
-          if (unresolvedIds.length > 0) {
-            const { data: dealRows } = await supabase
-              .from('deal_pipeline')
-              .select('id, assigned_to')
-              .in('id', unresolvedIds);
-            for (const d of dealRows ?? []) {
-              if (d.assigned_to) {
-                allOwnerIds.add(d.assigned_to);
-                dealOwnerMap[d.id] = { name: '', id: d.assigned_to };
+            const unresolvedIds = uniqueEntityIds.filter(
+              (entityId: string) => !resolvedIds.has(entityId),
+            );
+            if (unresolvedIds.length > 0) {
+              const { data: dealRows } = await supabase
+                .from('deal_pipeline')
+                .select('id, assigned_to')
+                .in('id', unresolvedIds);
+              for (const d of dealRows ?? []) {
+                if (d.assigned_to) {
+                  allOwnerIds.add(d.assigned_to);
+                  dealOwnerMap[d.id] = { name: '', id: d.assigned_to };
+                }
+              }
+            }
+
+            if (unownedListingIds.length > 0) {
+              const { data: pipelineForListings } = await supabase
+                .from('deal_pipeline')
+                .select('listing_id, assigned_to')
+                .in('listing_id', unownedListingIds)
+                .not('assigned_to', 'is', null)
+                .is('deleted_at', null)
+                .order('updated_at', { ascending: false });
+
+              for (const dp of pipelineForListings ?? []) {
+                if (dp.listing_id && dp.assigned_to && !dealOwnerMap[dp.listing_id]) {
+                  allOwnerIds.add(dp.assigned_to);
+                  dealOwnerMap[dp.listing_id] = { name: '', id: dp.assigned_to };
+                }
               }
             }
           }
 
-          // Fallback: check deal_pipeline.assigned_to for listings without a direct owner
-          if (unownedListingIds.length > 0) {
-            const { data: pipelineForListings } = await supabase
-              .from('deal_pipeline')
-              .select('listing_id, assigned_to')
-              .in('listing_id', unownedListingIds)
-              .not('assigned_to', 'is', null)
-              .is('deleted_at', null)
-              .order('updated_at', { ascending: false });
-
-            for (const dp of pipelineForListings ?? []) {
-              if (dp.listing_id && dp.assigned_to && !dealOwnerMap[dp.listing_id]) {
-                allOwnerIds.add(dp.assigned_to);
-                dealOwnerMap[dp.listing_id] = { name: '', id: dp.assigned_to };
-              }
+          const ownerIdArray = [...allOwnerIds];
+          if (ownerIdArray.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('id, first_name, last_name')
+              .in('id', ownerIdArray);
+            const ownerNames: Record<string, string> = {};
+            for (const p of profiles ?? []) {
+              ownerNames[p.id] = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
+            }
+            for (const key of Object.keys(dealOwnerMap)) {
+              const entry = dealOwnerMap[key];
+              entry.name = ownerNames[entry.id] || '';
             }
           }
         }
-
-        // Resolve owner names
-        const ownerIdArray = [...allOwnerIds];
-        if (ownerIdArray.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name')
-            .in('id', ownerIdArray);
-          const ownerNames: Record<string, string> = {};
-          for (const p of profiles ?? []) {
-            ownerNames[p.id] = `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim();
-          }
-          for (const key of Object.keys(dealOwnerMap)) {
-            const entry = dealOwnerMap[key];
-            entry.name = ownerNames[entry.id] || '';
-          }
-        }
+      } catch (e) {
+        console.warn('[useContactList] Deal owner enrichment failed, degrading gracefully:', e);
       }
 
-      // Enrich members missing contact_id by looking up contacts table by email
-      const membersWithoutContact = (members ?? []).filter((m) => !m.contact_id && m.contact_email);
-      const missingEmails = membersWithoutContact.map((m) => m.contact_email);
-      const contactByEmail: Record<
-        string,
-        {
-          first_name: string | null;
-          last_name: string | null;
-          email: string | null;
-          phone: string | null;
-          title: string | null;
-          company_name: string | null;
-          linkedin_url: string | null;
-          mobile_phone_1: string | null;
-          mobile_phone_2: string | null;
-          mobile_phone_3: string | null;
-          office_phone: string | null;
-        }
-      > = {};
+      // --- Enrichment: contact fallback lookup (non-critical) ---
+      const contactByEmail: Record<string, any> = {};
 
-      if (missingEmails.length > 0) {
-        const { data: lookedUp } = await supabase
-          .from('contacts')
-          .select(
-            'first_name, last_name, email, phone, title, company_name, linkedin_url, mobile_phone_1, mobile_phone_2, mobile_phone_3, office_phone',
-          )
-          .in('email', missingEmails);
-        for (const c of lookedUp ?? []) {
-          if (c.email) contactByEmail[c.email] = c;
+      try {
+        const membersWithoutContact = memberRows.filter(
+          (m: any) => !m.contact_id && m.contact_email,
+        );
+        const missingEmails = membersWithoutContact.map((m: any) => m.contact_email) as string[];
+
+        if (missingEmails.length > 0) {
+          const { data: lookedUp } = await (supabase.from('contacts') as any)
+            .select('first_name, last_name, email, phone, title, company_name, linkedin_url')
+            .in('email', missingEmails);
+          for (const c of (lookedUp ?? []) as any[]) {
+            if (c.email) contactByEmail[c.email] = c;
+          }
         }
+      } catch (e) {
+        console.warn('[useContactList] Contact fallback lookup failed, degrading gracefully:', e);
       }
 
-      const enrichedMembers: ContactListMember[] = (members ?? []).map((m) => ({
+      const enrichedMembers = memberRows.map((m: any) => ({
         ...m,
-        // If FK join returned no contact data, use email-based lookup
         contact: m.contact ?? contactByEmail[m.contact_email] ?? null,
         last_call_date: callData[m.contact_email]?.last_call ?? null,
         total_calls: callData[m.contact_email]?.total_calls ?? 0,
         last_disposition: callData[m.contact_email]?.last_disposition ?? null,
         deal_owner_name: dealOwnerMap[m.entity_id]?.name ?? null,
         deal_owner_id: dealOwnerMap[m.entity_id]?.id ?? null,
-      }));
+      })) as ContactListMember[];
 
       return {
         ...list,
