@@ -29,6 +29,9 @@ export const useDataQualityMonitor = () => {
   const [metrics, setMetrics] = useState<DataQualityMetrics | null>(null);
   const [alerts, setAlerts] = useState<DataQualityAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Surface the load error so the dashboard can render a banner instead of
+  // spinning forever on the "Loading data quality metrics…" card.
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (isAdmin) {
@@ -43,6 +46,7 @@ export const useDataQualityMonitor = () => {
 
     try {
       setIsLoading(true);
+      setError(null);
 
       // Get all profiles for analysis
       const { data: profiles, error: profilesError } = await supabase
@@ -75,8 +79,9 @@ export const useDataQualityMonitor = () => {
 
       const generatedAlerts = generateAlerts(calculatedMetrics);
       setAlerts(generatedAlerts);
-    } catch (error) {
-      console.error('Error loading data quality metrics:', error);
+    } catch (err) {
+      console.error('Error loading data quality metrics:', err);
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
@@ -242,6 +247,7 @@ export const useDataQualityMonitor = () => {
     metrics,
     alerts,
     isLoading,
+    error,
     dismissAlert,
     triggerDataRecoveryCampaign,
     refreshMetrics: loadDataQualityMetrics,

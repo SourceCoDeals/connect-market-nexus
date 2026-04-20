@@ -5,17 +5,43 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Mail, CheckCircle, XCircle, AlertTriangle, Eye, Search, BookOpen, Users } from 'lucide-react';
+import {
+  Mail,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Eye,
+  Search,
+  BookOpen,
+  Users,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { EmailCatalog } from '@/components/admin/emails/EmailCatalog';
 import { AdminEmailRouting } from '@/components/admin/emails/AdminEmailRouting';
+import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 type TimeRange = '24h' | '7d' | '30d' | 'all';
 
-const STATUS_BADGES: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
+const STATUS_BADGES: Record<
+  string,
+  { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }
+> = {
   queued: { variant: 'outline', label: 'Queued' },
   accepted: { variant: 'secondary', label: 'Accepted' },
   delivered: { variant: 'default', label: 'Delivered' },
@@ -42,7 +68,12 @@ export default function EmailDashboardPage() {
   const [templateFilter, setTemplateFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: emails = [], isLoading } = useQuery({
+  const {
+    data: emails = [],
+    isLoading,
+    error: emailsError,
+    refetch: refetchEmails,
+  } = useQuery({
     queryKey: ['admin-emails', timeRange],
     queryFn: async () => {
       let query = supabase
@@ -96,8 +127,10 @@ export default function EmailDashboardPage() {
     const s = { total: filtered.length, delivered: 0, failed: 0, opened: 0, accepted: 0 };
     for (const e of filtered) {
       if (e.status === 'delivered') s.delivered++;
-      else if (e.status === 'opened' || e.status === 'clicked') { s.opened++; s.delivered++; }
-      else if (['failed', 'bounced', 'blocked', 'spam'].includes(e.status)) s.failed++;
+      else if (e.status === 'opened' || e.status === 'clicked') {
+        s.opened++;
+        s.delivered++;
+      } else if (['failed', 'bounced', 'blocked', 'spam'].includes(e.status)) s.failed++;
       else if (e.status === 'accepted') s.accepted++;
     }
     return s;
@@ -107,7 +140,9 @@ export default function EmailDashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Email Dashboard</h1>
-        <p className="text-muted-foreground">Monitor all platform email delivery across every function</p>
+        <p className="text-muted-foreground">
+          Monitor all platform email delivery across every function
+        </p>
       </div>
 
       <Tabs defaultValue="delivery" className="space-y-6">
@@ -124,6 +159,13 @@ export default function EmailDashboardPage() {
         </TabsList>
 
         <TabsContent value="delivery" className="space-y-6 mt-0">
+          {emailsError && (
+            <DashboardErrorBanner
+              title="Couldn't load outbound emails"
+              error={emailsError as Error}
+              onRetry={() => refetchEmails()}
+            />
+          )}
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Card>
@@ -176,14 +218,21 @@ export default function EmailDashboardPage() {
           {/* Filters */}
           <div className="flex flex-wrap gap-3">
             <div className="flex gap-1">
-              {(['24h', '7d', '30d', 'all'] as TimeRange[]).map(r => (
-                <Button key={r} size="sm" variant={timeRange === r ? 'default' : 'outline'} onClick={() => setTimeRange(r)}>
+              {(['24h', '7d', '30d', 'all'] as TimeRange[]).map((r) => (
+                <Button
+                  key={r}
+                  size="sm"
+                  variant={timeRange === r ? 'default' : 'outline'}
+                  onClick={() => setTimeRange(r)}
+                >
                   {r === '24h' ? '24h' : r === '7d' ? '7 days' : r === '30d' ? '30 days' : 'All'}
                 </Button>
               ))}
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="delivered">Delivered</SelectItem>
@@ -194,15 +243,26 @@ export default function EmailDashboardPage() {
               </SelectContent>
             </Select>
             <Select value={templateFilter} onValueChange={setTemplateFilter}>
-              <SelectTrigger className="w-[200px]"><SelectValue placeholder="Template" /></SelectTrigger>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Template" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All templates</SelectItem>
-                {templates.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                {templates.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search recipient or subject..." className="pl-8" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+              <Input
+                placeholder="Search recipient or subject..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
           </div>
 
@@ -222,22 +282,41 @@ export default function EmailDashboardPage() {
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        Loading...
+                      </TableCell>
+                    </TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No emails found</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        No emails found
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     filtered.slice(0, 100).map((email: any) => {
-                      const badge = STATUS_BADGES[email.status] || { variant: 'outline' as const, label: email.status };
+                      const badge = STATUS_BADGES[email.status] || {
+                        variant: 'outline' as const,
+                        label: email.status,
+                      };
                       return (
                         <TableRow key={email.id}>
                           <TableCell className="font-mono text-xs">{email.template_name}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">{email.recipient_email}</TableCell>
-                          <TableCell className="max-w-[250px] truncate">{email.subject}</TableCell>
-                          <TableCell><Badge variant={badge.variant}>{badge.label}</Badge></TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {email.created_at ? format(new Date(email.created_at), 'MMM d, HH:mm') : '-'}
+                          <TableCell className="max-w-[200px] truncate">
+                            {email.recipient_email}
                           </TableCell>
-                          <TableCell className="max-w-[200px] truncate text-xs text-destructive">{email.last_error || '-'}</TableCell>
+                          <TableCell className="max-w-[250px] truncate">{email.subject}</TableCell>
+                          <TableCell>
+                            <Badge variant={badge.variant}>{badge.label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {email.created_at
+                              ? format(new Date(email.created_at), 'MMM d, HH:mm')
+                              : '-'}
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate text-xs text-destructive">
+                            {email.last_error || '-'}
+                          </TableCell>
                         </TableRow>
                       );
                     })

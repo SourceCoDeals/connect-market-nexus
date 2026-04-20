@@ -3,27 +3,44 @@ import { StripeStatsSection } from '@/components/admin/analytics/StripeStatsSect
 import { EnhancedDealCard } from './EnhancedDealCard';
 import { DealPriorityBanner } from './DealPriorityBanner';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 // No icon imports needed
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function MyDealsTab() {
-  const { data: deals, isLoading: dealsLoading } = useMyDeals();
-  const { data: stats, isLoading: statsLoading } = useMyDealStats();
+  const {
+    data: deals,
+    isLoading: dealsLoading,
+    error: dealsError,
+    refetch: refetchDeals,
+  } = useMyDeals();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+  } = useMyDealStats();
   const navigate = useNavigate();
-  
+
   const [filter, setFilter] = useState<string>('active');
   const [sortBy, setSortBy] = useState<string>('recent');
 
   // Filter and sort deals
   const filteredAndSortedDeals = useMemo(() => {
     if (!deals) return [];
-    
+
     let filtered = [...deals];
     const terminalStages = ['Closed Won', 'Closed Lost'];
-    
+
     const getStageName = (stage: unknown): string | null => {
       if (!stage) return null;
       if (Array.isArray(stage)) return stage[0]?.name ?? null;
@@ -34,14 +51,14 @@ export function MyDealsTab() {
     switch (filter) {
       case 'active':
         // Show only non-closed deals
-        filtered = filtered.filter(d => {
+        filtered = filtered.filter((d) => {
           const stageName = getStageName(d.stage);
           const isTerminal = stageName && terminalStages.includes(stageName);
           return !isTerminal;
         });
         break;
       case 'needs-follow-up':
-        filtered = filtered.filter(d => {
+        filtered = filtered.filter((d) => {
           const stageName = getStageName(d.stage);
           const isTerminal = stageName && terminalStages.includes(stageName);
           return !isTerminal && !d.followed_up;
@@ -50,7 +67,7 @@ export function MyDealsTab() {
       case 'stale': {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
-        filtered = filtered.filter(d => {
+        filtered = filtered.filter((d) => {
           const stageName = getStageName(d.stage);
           const isTerminal = stageName && terminalStages.includes(stageName);
           return !isTerminal && new Date(d.stage_entered_at ?? 0) < weekAgo;
@@ -59,7 +76,7 @@ export function MyDealsTab() {
       }
       case 'closed':
         // Show only closed deals
-        filtered = filtered.filter(d => {
+        filtered = filtered.filter((d) => {
           const stageName = getStageName(d.stage);
           return stageName && terminalStages.includes(stageName);
         });
@@ -69,7 +86,9 @@ export function MyDealsTab() {
     // Apply sorting
     switch (sortBy) {
       case 'recent':
-        filtered.sort((a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime());
+        filtered.sort(
+          (a, b) => new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime(),
+        );
         break;
       case 'value':
         filtered.sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
@@ -86,14 +105,28 @@ export function MyDealsTab() {
           const bStale = !bIsTerminal && new Date(b.stage_entered_at ?? 0) < weekAgoUrgency ? 1 : 0;
           const aFollowUp = !a.followed_up ? 1 : 0;
           const bFollowUp = !b.followed_up ? 1 : 0;
-          return (bStale + bFollowUp) - (aStale + aFollowUp);
+          return bStale + bFollowUp - (aStale + aFollowUp);
         });
         break;
       }
     }
-    
+
     return filtered;
   }, [deals, filter, sortBy]);
+
+  const combinedError = (statsError || dealsError) as Error | null | undefined;
+  if (combinedError) {
+    return (
+      <DashboardErrorBanner
+        title="Couldn't load My Deals"
+        error={combinedError}
+        onRetry={() => {
+          refetchStats();
+          refetchDeals();
+        }}
+      />
+    );
+  }
 
   if (statsLoading) {
     return (
@@ -177,7 +210,7 @@ export function MyDealsTab() {
           </Select>
         </div>
 
-        <Button 
+        <Button
           size="sm"
           onClick={() => navigate('/admin/deals/pipeline')}
           className="h-9 bg-foreground text-background hover:bg-foreground/90"
@@ -197,21 +230,17 @@ export function MyDealsTab() {
         <div className="text-center py-16 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900">
           <div className="h-12 w-12 mx-auto mb-4 rounded-full bg-slate-100 dark:bg-slate-800" />
           <h3 className="text-lg font-medium mb-2 text-slate-900 dark:text-slate-100">
-            {filter === 'active' && deals && deals.length > 0 
-              ? 'All caught up' 
-              : 'No deals found'
-            }
+            {filter === 'active' && deals && deals.length > 0 ? 'All caught up' : 'No deals found'}
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto mb-6">
             {filter === 'active' && deals && deals.length > 0
-              ? "No active deals need your attention right now. Great work!"
+              ? 'No active deals need your attention right now. Great work!'
               : filter === 'all' && (!deals || deals.length === 0)
-              ? "No deals assigned yet. Deals from the pipeline will appear here."
-              : `No ${filter === 'closed' ? 'closed' : filter.replace('-', ' ')} deals found. Try a different filter.`
-            }
+                ? 'No deals assigned yet. Deals from the pipeline will appear here.'
+                : `No ${filter === 'closed' ? 'closed' : filter.replace('-', ' ')} deals found. Try a different filter.`}
           </p>
           {(!deals || deals.length === 0) && (
-            <Button 
+            <Button
               onClick={() => navigate('/admin/deals/pipeline')}
               className="bg-foreground text-background hover:bg-foreground/90"
             >

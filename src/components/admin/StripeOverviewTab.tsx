@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useState, useMemo } from 'react';
 import { ActivityDetailsDropdown } from './ActivityDetailsDropdown';
 import UserDetailsSidePanel from './UserDetailsSidePanel';
+import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 interface GroupedUserActivity {
   user_id: string;
@@ -46,8 +47,17 @@ interface GroupedUserActivity {
 
 export function StripeOverviewTab() {
   const { useStats } = useAdmin();
-  const { data: stats, isLoading: isLoadingStats } = useStats();
-  const { data: activities = [], isLoading: isLoadingActivities } = useRecentUserActivity();
+  const {
+    data: stats,
+    isLoading: isLoadingStats,
+    error: statsError,
+    refetch: refetchStats,
+  } = useStats();
+  const {
+    data: activities = [],
+    isLoading: isLoadingActivities,
+    error: activitiesError,
+  } = useRecentUserActivity();
   const [activityFilter, setActivityFilter] = useState<string>('all');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
@@ -276,6 +286,17 @@ export function StripeOverviewTab() {
     }
     return true;
   });
+
+  const overviewError = (statsError || activitiesError) as Error | null | undefined;
+  if (overviewError) {
+    return (
+      <DashboardErrorBanner
+        title="Couldn't load marketplace overview"
+        error={overviewError}
+        onRetry={() => refetchStats()}
+      />
+    );
+  }
 
   if (isLoadingStats) {
     return (

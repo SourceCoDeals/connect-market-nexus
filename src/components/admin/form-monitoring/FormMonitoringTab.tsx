@@ -8,6 +8,7 @@ import { CheckCircle2, AlertTriangle, Activity, Users, TrendingUp } from 'lucide
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { HeroStatsSection } from '../analytics/HeroStatsSection';
+import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 interface FormMetrics {
   totalSignups: number;
@@ -20,6 +21,10 @@ interface FormMetrics {
 export function FormMonitoringTab() {
   const [metrics, setMetrics] = useState<FormMetrics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Surface query errors instead of leaving `isLoading || !metrics` spinning
+  // forever — on failure the skeleton would never go away because metrics
+  // stayed null.
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('7d');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
@@ -62,6 +67,7 @@ export function FormMonitoringTab() {
 
   const loadMetrics = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const startDate = new Date();
 
@@ -87,7 +93,9 @@ export function FormMonitoringTab() {
 
       const processedMetrics = processMetrics(profilesData || []);
       setMetrics(processedMetrics);
-    } catch (error) {
+    } catch (err) {
+      const asError = err instanceof Error ? err : new Error(String(err));
+      setLoadError(asError);
       toast({
         variant: 'destructive',
         title: 'Error loading metrics',
@@ -114,6 +122,16 @@ export function FormMonitoringTab() {
     if (rate >= 70) return { label: 'Good', variant: 'secondary' as const, color: 'text-warning' };
     return { label: 'Needs Attention', variant: 'destructive' as const, color: 'text-destructive' };
   };
+
+  if (loadError) {
+    return (
+      <DashboardErrorBanner
+        title="Couldn't load form monitoring data"
+        error={loadError}
+        onRetry={() => loadMetrics()}
+      />
+    );
+  }
 
   if (isLoading || !metrics) {
     return (
@@ -303,8 +321,13 @@ export function FormMonitoringTab() {
                 effort: 'Low',
               },
               {
+                // Per-field validation events aren't tracked yet — the previous
+                // template referenced an undefined `totalErrors`, failing
+                // typecheck. Keep the card as a generic recommendation until
+                // we wire a real validation-error counter.
                 title: 'Improve Field Validation',
-                description: `${totalErrors} validation errors detected. Provide real-time feedback as users type.`,
+                description:
+                  'Provide real-time feedback as users type to reduce invalid submissions.',
                 impact: 'High',
                 effort: 'Medium',
               },
