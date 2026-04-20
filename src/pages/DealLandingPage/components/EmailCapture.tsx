@@ -73,6 +73,25 @@ export default function EmailCapture({ listingId }: EmailCaptureProps) {
         .maybeSingle();
 
       if (!existing) {
+        // Extract UTM params from current page URL
+        const utmParams: Record<string, string> = {};
+        try {
+          const searchParams = new URLSearchParams(window.location.search);
+          const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+          for (const key of keys) {
+            const val = searchParams.get(key);
+            if (val) utmParams[key] = val;
+          }
+        } catch {
+          /* ignore */
+        }
+
+        const sourceMetadata: Record<string, unknown> = {
+          page_url: window.location.href,
+          referrer: document.referrer || null,
+          ...utmParams,
+        };
+
         await supabase.from('connection_requests').insert({
           listing_id: listingId,
           status: 'pending',
@@ -81,7 +100,8 @@ export default function EmailCapture({ listingId }: EmailCaptureProps) {
           lead_role: 'Email Capture',
           user_message: 'Signed up for deal alerts via landing page email capture',
           source: 'landing_page_email_capture',
-        });
+          source_metadata: sourceMetadata as Record<string, unknown>,
+        } as Record<string, unknown>);
       }
       setIsSubmitted(true);
       try {

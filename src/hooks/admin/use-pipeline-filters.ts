@@ -14,6 +14,19 @@ export type BuyerTypeFilter =
 export type NdaFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type FeeAgreementFilter = 'all' | 'signed' | 'not_signed' | 'sent';
 export type DateRangeFilter = 'all' | '7d' | '30d' | '90d' | '6m' | '1y';
+export type SourceFilter =
+  | 'all'
+  | 'marketplace'
+  | 'webflow'
+  | 'website'
+  | 'referral'
+  | 'cold_outreach'
+  | 'networking'
+  | 'linkedin'
+  | 'email'
+  | 'manual'
+  | 'import'
+  | 'api';
 export type SortOption =
   | 'newest'
   | 'oldest'
@@ -111,6 +124,22 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
     [setSearchParams],
   );
 
+  const sourceFilter = (searchParams.get('source') as SourceFilter) ?? 'all';
+  const setSourceFilter = useCallback(
+    (v: SourceFilter) => {
+      setSearchParams(
+        (p) => {
+          const n = new URLSearchParams(p);
+          if (v !== 'all') n.set('source', v);
+          else n.delete('source');
+          return n;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
   const sortOption = (searchParams.get('sortBy') as SortOption) ?? 'newest';
   const setSortOption = useCallback(
     (v: SortOption) => {
@@ -150,7 +179,9 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
   // Helper: get display name for a request's buyer
   const getBuyerName = (request: AdminConnectionRequest): string => {
     if (request.user) {
-      return `${request.user.first_name || ''} ${request.user.last_name || ''}`.trim().toLowerCase();
+      return `${request.user.first_name || ''} ${request.user.last_name || ''}`
+        .trim()
+        .toLowerCase();
     }
     return (request.lead_name || '').toLowerCase();
   };
@@ -218,9 +249,12 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
         '1y': 365 * 24 * 60 * 60 * 1000,
       };
       const cutoff = now - (msMap[dateRangeFilter] || 0);
-      filtered = filtered.filter(
-        (request) => new Date(request.created_at).getTime() >= cutoff,
-      );
+      filtered = filtered.filter((request) => new Date(request.created_at).getTime() >= cutoff);
+    }
+
+    // Apply source filter
+    if (sourceFilter !== 'all') {
+      filtered = filtered.filter((request) => request.source === sourceFilter);
     }
 
     // Apply sorting
@@ -291,17 +325,21 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
         case 'score_highest': {
-          const scoreA = ((a.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? -1;
-          const scoreB = ((b.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? -1;
+          const scoreA =
+            ((a.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? -1;
+          const scoreB =
+            ((b.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? -1;
           if (scoreB !== scoreA) return scoreB - scoreA;
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         }
 
         case 'score_lowest': {
           const scoreA =
-            ((a.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? Infinity;
+            ((a.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ??
+            Infinity;
           const scoreB =
-            ((b.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ?? Infinity;
+            ((b.user as unknown as Record<string, unknown>)?.buyer_quality_score as number) ??
+            Infinity;
           if (scoreA !== scoreB) return scoreA - scoreB;
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         }
@@ -312,7 +350,16 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
     });
 
     return sorted;
-  }, [requests, statusFilter, buyerTypeFilter, ndaFilter, feeAgreementFilter, dateRangeFilter, sortOption]);
+  }, [
+    requests,
+    statusFilter,
+    buyerTypeFilter,
+    ndaFilter,
+    feeAgreementFilter,
+    dateRangeFilter,
+    sourceFilter,
+    sortOption,
+  ]);
 
   return {
     statusFilter,
@@ -320,6 +367,7 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
     ndaFilter,
     feeAgreementFilter,
     dateRangeFilter,
+    sourceFilter,
     sortOption,
     filteredAndSortedRequests,
     setStatusFilter,
@@ -327,6 +375,7 @@ export function usePipelineFilters(requests: AdminConnectionRequest[]) {
     setNdaFilter,
     setFeeAgreementFilter,
     setDateRangeFilter,
+    setSourceFilter,
     setSortOption,
   };
 }

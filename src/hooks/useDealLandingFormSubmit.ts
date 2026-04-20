@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 interface FormData {
   name: string;
@@ -66,6 +67,35 @@ export function useDealLandingFormSubmit(listingId: string) {
         return;
       }
 
+      // Extract UTM params from current page URL
+      const utmParams: Record<string, string> = {};
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+        for (const key of keys) {
+          const val = searchParams.get(key);
+          if (val) utmParams[key] = val;
+        }
+      } catch {
+        /* ignore */
+      }
+
+      // Read first-touch attribution from localStorage
+      let firstTouch: Record<string, unknown> | null = null;
+      try {
+        const stored = localStorage.getItem('sourceco_first_touch');
+        if (stored) firstTouch = JSON.parse(stored);
+      } catch {
+        /* ignore */
+      }
+
+      const sourceMetadata: Record<string, unknown> = {
+        page_url: window.location.href,
+        referrer: document.referrer || null,
+        ...utmParams,
+        ...(firstTouch && { first_touch: firstTouch }),
+      };
+
       const { error: insertError } = await supabase.from('connection_requests').insert({
         listing_id: listingId,
         status: 'pending',
@@ -76,6 +106,7 @@ export function useDealLandingFormSubmit(listingId: string) {
         lead_role: formData.role,
         user_message: formData.message,
         source: 'landing_page',
+        source_metadata: sourceMetadata as unknown as Json,
       });
 
       if (insertError) throw insertError;
