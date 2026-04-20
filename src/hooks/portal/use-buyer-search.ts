@@ -7,7 +7,8 @@ interface BuyerSearchRow {
   id: string;
   company_name: string | null;
   buyer_type: string | null;
-  headquarters: string | null;
+  hq_city: string | null;
+  hq_state: string | null;
 }
 
 /**
@@ -32,17 +33,12 @@ export function useBuyerSearch(query: string, limit = 20) {
   const q = useQuery({
     queryKey: ['buyer-search', debounced, limit],
     queryFn: async (): Promise<BuyerSearchRow[]> => {
-      // Always return a first page of rows, even for an empty query,
-      // so clicking the combobox without typing shows something.
-      let builder = supabase
-        .from('buyers')
-        .select('id, company_name, buyer_type, headquarters')
+      let builder = (supabase.from('buyers') as any)
+        .select('id, company_name, buyer_type, hq_city, hq_state')
         .order('company_name', { ascending: true })
         .limit(limit);
 
       if (debounced.trim().length > 0) {
-        // Supabase Postgrest `.ilike` on the company_name column. Using
-        // the % wildcards on both sides for substring matching.
         builder = builder.ilike('company_name', `%${debounced.trim()}%`);
       }
 
@@ -56,7 +52,12 @@ export function useBuyerSearch(query: string, limit = 20) {
   const options: AsyncComboboxOption[] = (q.data ?? []).map((row) => ({
     value: row.id,
     label: row.company_name ?? '(Unnamed)',
-    description: [row.buyer_type?.replace(/_/g, ' '), row.headquarters].filter(Boolean).join(' • '),
+    description: [
+      row.buyer_type?.replace(/_/g, ' '),
+      [row.hq_city, row.hq_state].filter(Boolean).join(', '),
+    ]
+      .filter(Boolean)
+      .join(' • '),
   }));
 
   return {

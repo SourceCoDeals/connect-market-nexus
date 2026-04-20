@@ -86,40 +86,16 @@ export function useSaveExtractedTheses() {
       theses: CreateThesisCriteriaInput[];
     }) => {
       if (theses.length === 0) return { portalOrgId, count: 0 };
-
-      // Dedupe against existing criteria by lower(industry_label) so the new
-      // unique constraint doesn't bubble a Postgres error up to the user.
-      const { data: existing } = await untypedFrom('portal_thesis_criteria')
-        .select('industry_label')
-        .eq('portal_org_id', portalOrgId);
-      const taken = new Set(
-        ((existing ?? []) as { industry_label: string }[]).map((r) =>
-          r.industry_label.trim().toLowerCase(),
-        ),
-      );
-
-      const rows = theses
-        .filter((t) => !taken.has(t.industry_label.trim().toLowerCase()))
-        .map((t) => ({ ...t, portal_org_id: portalOrgId, is_active: true }));
-
-      const skipped = theses.length - rows.length;
-
-      if (rows.length === 0) {
-        return { portalOrgId, count: 0, skipped };
-      }
-
+      const rows = theses.map((t) => ({ ...t, portal_org_id: portalOrgId, is_active: true }));
       const { error } = await untypedFrom('portal_thesis_criteria').insert(rows);
       if (error) throw error;
-      return { portalOrgId, count: rows.length, skipped };
+      return { portalOrgId, count: rows.length };
     },
-    onSuccess: ({ portalOrgId, count, skipped }) => {
+    onSuccess: ({ portalOrgId, count }) => {
       qc.invalidateQueries({ queryKey: ['portal-thesis-criteria', portalOrgId] });
       if (count > 0) {
-        const base = `Added ${count} thesis ${count === 1 ? 'criterion' : 'criteria'} from document`;
-        toast.success(skipped && skipped > 0 ? `${base} (${skipped} skipped as duplicates)` : base);
-      } else if (skipped && skipped > 0) {
-        toast.info(
-          `${skipped} thesis ${skipped === 1 ? 'criterion' : 'criteria'} already existed — nothing added`,
+        toast.success(
+          `Added ${count} thesis ${count === 1 ? 'criterion' : 'criteria'} from document`,
         );
       }
     },
