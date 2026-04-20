@@ -1,0 +1,1 @@
+ALTER TABLE public.valuation_leads ADD COLUMN IF NOT EXISTS work_email TEXT;
