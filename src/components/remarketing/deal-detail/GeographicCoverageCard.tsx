@@ -1,18 +1,18 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Pencil, Loader2, MapPin, X, Plus } from "lucide-react";
-import { toast } from "sonner";
+} from '@/components/ui/dialog';
+import { Pencil, Loader2, MapPin, X, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface GeographicCoverageCardProps {
   states: string[] | null;
@@ -20,17 +20,62 @@ interface GeographicCoverageCardProps {
 }
 
 const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+  'AL',
+  'AK',
+  'AZ',
+  'AR',
+  'CA',
+  'CO',
+  'CT',
+  'DE',
+  'FL',
+  'GA',
+  'HI',
+  'ID',
+  'IL',
+  'IN',
+  'IA',
+  'KS',
+  'KY',
+  'LA',
+  'ME',
+  'MD',
+  'MA',
+  'MI',
+  'MN',
+  'MS',
+  'MO',
+  'MT',
+  'NE',
+  'NV',
+  'NH',
+  'NJ',
+  'NM',
+  'NY',
+  'NC',
+  'ND',
+  'OH',
+  'OK',
+  'OR',
+  'PA',
+  'RI',
+  'SC',
+  'SD',
+  'TN',
+  'TX',
+  'UT',
+  'VT',
+  'VA',
+  'WA',
+  'WV',
+  'WI',
+  'WY',
 ];
 
 export const GeographicCoverageCard = ({ states, onSave }: GeographicCoverageCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editedStates, setEditedStates] = useState<string[]>(states || []);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -38,9 +83,10 @@ export const GeographicCoverageCard = ({ states, onSave }: GeographicCoverageCar
     try {
       await onSave(editedStates);
       setIsEditOpen(false);
-      toast.success("Geographic coverage updated");
+      toast.success('Geographic coverage updated');
     } catch (error) {
-      toast.error("Failed to save");
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save: ${message}`);
     } finally {
       setIsSaving(false);
     }
@@ -50,11 +96,11 @@ export const GeographicCoverageCard = ({ states, onSave }: GeographicCoverageCar
     if (!editedStates.includes(state)) {
       setEditedStates([...editedStates, state]);
     }
-    setSearchQuery("");
+    setSearchQuery('');
   };
 
   const removeState = (state: string) => {
-    setEditedStates(editedStates.filter(s => s !== state));
+    setEditedStates(editedStates.filter((s) => s !== state));
   };
 
   const openEdit = () => {
@@ -63,7 +109,7 @@ export const GeographicCoverageCard = ({ states, onSave }: GeographicCoverageCar
   };
 
   const filteredStates = US_STATES.filter(
-    s => s.toLowerCase().includes(searchQuery.toLowerCase()) && !editedStates.includes(s)
+    (s) => s.toLowerCase().includes(searchQuery.toLowerCase()) && !editedStates.includes(s),
   );
 
   return (
@@ -75,12 +121,7 @@ export const GeographicCoverageCard = ({ states, onSave }: GeographicCoverageCar
               <MapPin className="h-5 w-5" />
               Geographic Coverage
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={openEdit}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={openEdit}>
               <Pencil className="h-4 w-4" />
             </Button>
           </div>
@@ -88,16 +129,14 @@ export const GeographicCoverageCard = ({ states, onSave }: GeographicCoverageCar
         <CardContent>
           {states && states.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {states.map(state => (
+              {states.map((state) => (
                 <Badge key={state} variant="secondary" className="text-sm">
                   {state}
                 </Badge>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground italic">
-              No states specified
-            </p>
+            <p className="text-sm text-muted-foreground italic">No states specified</p>
           )}
         </CardContent>
       </Card>
@@ -112,10 +151,10 @@ export const GeographicCoverageCard = ({ states, onSave }: GeographicCoverageCar
               <Label>Selected States</Label>
               <div className="flex flex-wrap gap-2 mt-2 min-h-[40px] p-2 border rounded-md bg-muted/30">
                 {editedStates.length > 0 ? (
-                  editedStates.map(state => (
+                  editedStates.map((state) => (
                     <Badge key={state} variant="secondary" className="gap-1">
                       {state}
-                      <button 
+                      <button
                         onClick={() => removeState(state)}
                         className="ml-1 hover:text-destructive"
                       >
@@ -138,13 +177,8 @@ export const GeographicCoverageCard = ({ states, onSave }: GeographicCoverageCar
               />
               {searchQuery && (
                 <div className="flex flex-wrap gap-1 mt-2 max-h-[120px] overflow-auto">
-                  {filteredStates.map(state => (
-                    <Button
-                      key={state}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addState(state)}
-                    >
+                  {filteredStates.map((state) => (
+                    <Button key={state} variant="outline" size="sm" onClick={() => addState(state)}>
                       <Plus className="h-3 w-3 mr-1" />
                       {state}
                     </Button>

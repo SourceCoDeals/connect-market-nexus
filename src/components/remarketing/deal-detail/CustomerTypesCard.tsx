@@ -1,40 +1,40 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Pencil, Loader2, Users } from "lucide-react";
-import { toast } from "sonner";
+} from '@/components/ui/dialog';
+import { Pencil, Loader2, Users } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CustomerTypesCardProps {
   customerTypes: string | null;
   customerConcentration?: string | null;
   customerGeography?: string | null;
-  onSave: (data: { 
-    customerTypes: string; 
+  onSave: (data: {
+    customerTypes: string;
     customerConcentration?: string;
     customerGeography?: string;
   }) => Promise<void>;
 }
 
-export const CustomerTypesCard = ({ 
+export const CustomerTypesCard = ({
   customerTypes,
   customerConcentration,
   customerGeography,
-  onSave 
+  onSave,
 }: CustomerTypesCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [editedTypes, setEditedTypes] = useState(customerTypes || "");
-  const [editedConcentration, setEditedConcentration] = useState(customerConcentration || "");
-  const [editedGeography, setEditedGeography] = useState(customerGeography || "");
+  const [editedTypes, setEditedTypes] = useState(customerTypes || '');
+  const [editedConcentration, setEditedConcentration] = useState(customerConcentration || '');
+  const [editedGeography, setEditedGeography] = useState(customerGeography || '');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -46,21 +46,21 @@ export const CustomerTypesCard = ({
         customerGeography: editedGeography,
       });
       setIsEditOpen(false);
-      toast.success("Customer information updated");
+      toast.success('Customer information updated');
     } catch (error) {
-      toast.error("Failed to save");
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save: ${message}`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const openEdit = () => {
-    setEditedTypes(customerTypes || "");
-    setEditedConcentration(customerConcentration || "");
-    setEditedGeography(customerGeography || "");
+    setEditedTypes(customerTypes || '');
+    setEditedConcentration(customerConcentration || '');
+    setEditedGeography(customerGeography || '');
     setIsEditOpen(true);
   };
-
 
   return (
     <>
@@ -71,12 +71,7 @@ export const CustomerTypesCard = ({
               <Users className="h-5 w-5" />
               End Market / Customers
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={openEdit}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={openEdit}>
               <Pencil className="h-4 w-4" />
             </Button>
           </div>
@@ -88,12 +83,10 @@ export const CustomerTypesCard = ({
               Customer Types / Segments
             </p>
             <p className="text-sm">
-              {customerTypes || (
-                <span className="text-muted-foreground italic">Not specified</span>
-              )}
+              {customerTypes || <span className="text-muted-foreground italic">Not specified</span>}
             </p>
           </div>
-          
+
           {/* Customer Concentration */}
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
@@ -105,7 +98,7 @@ export const CustomerTypesCard = ({
               )}
             </p>
           </div>
-          
+
           {/* Customer Geography */}
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">

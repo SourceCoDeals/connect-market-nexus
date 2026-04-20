@@ -1,36 +1,30 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, MessageSquareText, Loader2, Save } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, ChevronUp, MessageSquareText, Loader2, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface OwnerResponseSectionProps {
   ownerResponse: string | null;
   onSave: (response: string) => Promise<void>;
 }
 
-export const OwnerResponseSection = ({
-  ownerResponse,
-  onSave,
-}: OwnerResponseSectionProps) => {
+export const OwnerResponseSection = ({ ownerResponse, onSave }: OwnerResponseSectionProps) => {
   const [isOpen, setIsOpen] = useState(!!ownerResponse);
-  const [editedResponse, setEditedResponse] = useState(ownerResponse || "");
+  const [editedResponse, setEditedResponse] = useState(ownerResponse || '');
   const [isSaving, setIsSaving] = useState(false);
-  const hasChanges = editedResponse !== (ownerResponse || "");
+  const hasChanges = editedResponse !== (ownerResponse || '');
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
       await onSave(editedResponse);
-      toast.success("Owner response saved");
-    } catch {
-      toast.error("Failed to save owner response");
+      toast.success('Owner response saved');
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save owner response: ${message}`);
     } finally {
       setIsSaving(false);
     }
@@ -67,11 +61,7 @@ export const OwnerResponseSection = ({
               onChange={(e) => setEditedResponse(e.target.value)}
               className="min-h-[120px] resize-y"
             />
-            <Button
-              variant="outline"
-              onClick={handleSave}
-              disabled={!hasChanges || isSaving}
-            >
+            <Button variant="outline" onClick={handleSave} disabled={!hasChanges || isSaving}>
               {isSaving ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
