@@ -14,7 +14,13 @@ export interface ContactCallStats {
 }
 
 /**
- * Fetches aggregated call stats for a buyer's contacts.
+ * Fetches aggregated call stats for a buyer.
+ *
+ * Queries contact_activities directly by remarketing_buyer_id so that calls
+ * resolved to a buyer without a matched contact_id (PhoneBurner's waterfall
+ * can match on phone/custom_fields without a contact row) are still counted.
+ * Falls back to OR-ing contact_id IN (...) so legacy rows keyed only to a
+ * contact still appear.
  */
 export function useContactCallStats(buyerId: string | null) {
   return useQuery<ContactCallStats>({
@@ -22,7 +28,6 @@ export function useContactCallStats(buyerId: string | null) {
     queryFn: async () => {
       if (!buyerId) return emptyStats();
 
-      // Get contacts for this buyer from unified contacts table
       const { data: contacts } = await supabase
         .from('contacts')
         .select('id')
@@ -30,14 +35,19 @@ export function useContactCallStats(buyerId: string | null) {
         .eq('archived', false);
 
       const contactIds = (contacts || []).map((c: { id: string }) => c.id);
-      if (contactIds.length === 0) return emptyStats();
+
+      const selectCols =
+        'activity_type, call_outcome, call_connected, call_duration_seconds, talk_time_seconds, call_started_at, disposition_label, disposition_code, user_name, callback_scheduled_date, phoneburner_status';
+
+      const orClauses: string[] = [`remarketing_buyer_id.eq.${buyerId}`];
+      if (contactIds.length > 0) {
+        orClauses.push(`contact_id.in.(${contactIds.join(',')})`);
+      }
 
       const { data: activities } = await supabase
         .from('contact_activities')
-        .select(
-          'activity_type, call_outcome, call_connected, call_duration_seconds, talk_time_seconds, call_started_at, disposition_label, disposition_code, user_name, callback_scheduled_date, phoneburner_status',
-        )
-        .in('contact_id', contactIds)
+        .select(selectCols)
+        .or(orClauses.join(','))
         .eq('source_system', 'phoneburner')
         .order('call_started_at', { ascending: false });
 
@@ -65,8 +75,8 @@ export function useContactCallStats(buyerId: string | null) {
             lastDisposition = a.disposition_label || a.phoneburner_status;
           }
 
-          const dispo = a.disposition_label || a.phoneburner_status || 'Unknown';
-          if (a.activity_type === 'call_completed') {
+          const dispo = a.disposition_label || a.phoneburner_status;
+          if (a.activity_type === 'call_completed' && dispo) {
             dispositionBreakdown[dispo] = (dispositionBreakdown[dispo] || 0) + 1;
           }
 
@@ -136,8 +146,8 @@ export function useContactCallStatsByIds(contactIds: string[]) {
           if (!lastDisposition && (a.disposition_label || a.phoneburner_status)) {
             lastDisposition = a.disposition_label || a.phoneburner_status;
           }
-          const dispo = a.disposition_label || a.phoneburner_status || 'Unknown';
-          if (a.activity_type === 'call_completed') {
+          const dispo = a.disposition_label || a.phoneburner_status;
+          if (a.activity_type === 'call_completed' && dispo) {
             dispositionBreakdown[dispo] = (dispositionBreakdown[dispo] || 0) + 1;
           }
           if (a.user_name) callsByRep[a.user_name] = (callsByRep[a.user_name] || 0) + 1;
