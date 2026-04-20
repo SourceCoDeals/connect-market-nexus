@@ -364,11 +364,17 @@ export function useUniversesData() {
   // Create universe mutation
   const createMutation = useMutation({
     mutationFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       const { data, error } = await supabase
         .from('buyer_universes')
         .insert({
           name: newName,
           description: newDescription || null,
+          created_by: user?.id ?? null,
+          owner_id: user?.id ?? null,
         })
         .select()
         .single();
