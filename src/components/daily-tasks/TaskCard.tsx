@@ -32,6 +32,10 @@ import {
   AlarmClock,
   Mail,
   User,
+  Ban,
+  Link2,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import type { DailyStandupTaskWithRelations } from '@/types/daily-tasks';
 import {
@@ -57,6 +61,13 @@ interface TaskCardProps {
   onReassign?: (task: DailyStandupTaskWithRelations) => void;
   onPin?: (task: DailyStandupTaskWithRelations) => void;
   onDelete?: (task: DailyStandupTaskWithRelations) => void;
+  /**
+   * When true, the task has at least one prerequisite (depends_on) that is
+   * not yet completed. Parent lists compute this because only they know
+   * about sibling completion state; detail popup augments with per-dep
+   * status fetched independently.
+   */
+  blocked?: boolean;
 }
 
 /** Minimal deal list for the deal picker */
@@ -87,6 +98,7 @@ export function TaskCard({
   onReassign,
   onPin,
   onDelete,
+  blocked,
 }: TaskCardProps) {
   const toggleComplete = useToggleTaskComplete();
   const reassignTask = useReassignTask();
@@ -102,6 +114,36 @@ export function TaskCard({
   const isContactOwner = task.task_type === 'contact_owner';
   const resolvedListingId =
     task.entity_type === 'listing' ? task.entity_id : (task.deal?.listing_id ?? null);
+
+  // Parse the comma-separated depends_on into individual UUIDs.
+  const dependsOnIds = useMemo(() => {
+    if (!task.depends_on) return [] as string[];
+    return task.depends_on
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [task.depends_on]);
+
+  // Fetch the prerequisite tasks only when the detail dialog is open and
+  // there are actually dependencies to resolve. Keeps the compact row cheap.
+  const { data: dependsOnTasks } = useQuery({
+    queryKey: ['task-depends-on', task.id, dependsOnIds.join(',')],
+    enabled: detailOpen && dependsOnIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('daily_standup_tasks' as never)
+        .select('id, title, status, due_date')
+        .in('id', dependsOnIds);
+      if (error) throw error;
+      return (data || []) as Array<{
+        id: string;
+        title: string;
+        status: string;
+        due_date: string | null;
+      }>;
+    },
+    staleTime: 30_000,
+  });
 
   const { data: sellerContact } = useQuery({
     queryKey: ['seller-contact-for-task', resolvedListingId],
@@ -280,6 +322,18 @@ export function TaskCard({
           >
             {dueDateLabel}
           </span>
+        )}
+
+        {/* Blocked badge — when an unresolved prerequisite exists */}
+        {blocked && !isCompleted && (
+          <Badge
+            variant="outline"
+            className="text-[10px] h-5 shrink-0 bg-amber-50 text-amber-800 border-amber-200 gap-1"
+            title="Blocked by an incomplete prerequisite task"
+          >
+            <Ban className="h-2.5 w-2.5" />
+            Blocked
+          </Badge>
         )}
 
         {/* Assignee initial */}
@@ -534,6 +588,67 @@ export function TaskCard({
                 </div>
               )}
             </div>
+
+            {/* Depends on — prerequisite tasks with completion state */}
+            {dependsOnIds.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <Link2 className="h-3 w-3" />
+                  Depends on {dependsOnIds.length} task{dependsOnIds.length === 1 ? '' : 's'}
+                </p>
+                <div className="space-y-1">
+                  {(dependsOnTasks ?? []).map((dep) => {
+                    const depDone = dep.status === 'completed';
+                    return (
+                      <div
+                        key={dep.id}
+                        className={cn(
+                          'flex items-center gap-2 rounded border px-2 py-1 text-xs',
+                          depDone
+                            ? 'border-green-200 bg-green-50/30'
+                            : 'border-amber-200 bg-amber-50/40',
+                        )}
+                      >
+                        {depDone ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                        ) : (
+                          <Circle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        )}
+                        <span
+                          className={cn(
+                            'flex-1 truncate',
+                            depDone && 'line-through text-muted-foreground',
+                          )}
+                        >
+                          {dep.title}
+                        </span>
+                        {dep.due_date && (
+                          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                            {dep.due_date}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {/* Missing deps (IDs not resolvable — possibly deleted) */}
+                  {dependsOnTasks &&
+                    dependsOnTasks.length < dependsOnIds.length &&
+                    dependsOnIds
+                      .filter((id) => !dependsOnTasks.some((d) => d.id === id))
+                      .map((missingId) => (
+                        <div
+                          key={missingId}
+                          className="flex items-center gap-2 rounded border border-dashed px-2 py-1 text-xs text-muted-foreground"
+                        >
+                          <Circle className="h-3.5 w-3.5 shrink-0" />
+                          <span className="flex-1 italic">
+                            Unknown or deleted task ({missingId.slice(0, 8)}…)
+                          </span>
+                        </div>
+                      ))}
+                </div>
+              </div>
+            )}
 
             {/* Tags — shown in detail only */}
             {task.tags && task.tags.length > 0 && (

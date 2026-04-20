@@ -35,6 +35,8 @@ import {
 } from '@/types/daily-tasks';
 import type { TaskType, TaskPriority, TaskEntityType, RecurrenceRule } from '@/types/daily-tasks';
 import { TaskTemplateDialog } from './TaskTemplateDialog';
+import { DependencyPicker } from './DependencyPicker';
+import { Link2 } from 'lucide-react';
 
 interface EntityAddTaskDialogProps {
   open: boolean;
@@ -67,7 +69,11 @@ export function EntityAddTaskDialog({
   const [dueDate, setDueDate] = useState(getLocalDateString());
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [recurrenceRule, setRecurrenceRule] = useState<RecurrenceRule | 'none'>('none');
+  const [dependsOn, setDependsOn] = useState<string | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+
+  // depends_on only makes sense when we have a deal context to scope the picker.
+  const dependencyDealId = entityType === 'deal' ? entityId : (defaultDealId ?? null);
 
   const handleSubmit = async () => {
     if (!title.trim()) return;
@@ -85,6 +91,7 @@ export function EntityAddTaskDialog({
         deal_id: entityType === 'deal' ? entityId : defaultDealId || null,
         deal_reference: entityName || null,
         ...(recurrenceRule !== 'none' ? { recurrence_rule: recurrenceRule } : {}),
+        ...(dependsOn ? { depends_on: dependsOn } : {}),
       });
 
       // Reset form
@@ -95,6 +102,7 @@ export function EntityAddTaskDialog({
       setDueDate(getLocalDateString());
       setPriority('medium');
       setRecurrenceRule('none');
+      setDependsOn(null);
       onOpenChange(false);
     } catch (err) {
       toast({
@@ -243,6 +251,26 @@ export function EntityAddTaskDialog({
               </p>
             )}
           </div>
+
+          {/* Dependencies — deals only. Hidden on first task of a new deal. */}
+          {dependencyDealId && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Link2 className="h-3.5 w-3.5" />
+                Depends on
+              </Label>
+              <DependencyPicker
+                dealId={dependencyDealId}
+                value={dependsOn}
+                onChange={setDependsOn}
+              />
+              {dependsOn && (
+                <p className="text-[11px] text-muted-foreground">
+                  This task will be marked Blocked until its prerequisites are completed.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <DialogFooter>

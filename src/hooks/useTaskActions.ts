@@ -226,7 +226,8 @@ export function useApplyTaskTemplate() {
           priority: (task as any).priority || 'medium',
           status: 'pending',
           is_manual: false,
-          priority_score: (task as any).priority === 'high' ? 80 : (task as any).priority === 'low' ? 30 : 50,
+          priority_score:
+            (task as any).priority === 'high' ? 80 : (task as any).priority === 'low' ? 30 : 50,
           extraction_confidence: 'high',
           needs_review: false,
           created_by: user?.id,
@@ -285,6 +286,7 @@ export function useAddEntityTask() {
       deal_reference?: string | null;
       deal_id?: string | null;
       recurrence_rule?: string | null;
+      depends_on?: string | null;
     }) => {
       const priorityScore = task.priority === 'high' ? 80 : task.priority === 'low' ? 30 : 50;
       const { data, error } = await supabase
@@ -310,6 +312,7 @@ export function useAddEntityTask() {
           needs_review: false,
           created_by: user?.id,
           ...(task.recurrence_rule ? { recurrence_rule: task.recurrence_rule } : {}),
+          ...(task.depends_on ? { depends_on: task.depends_on } : {}),
         } as never)
         .select()
         .single();
