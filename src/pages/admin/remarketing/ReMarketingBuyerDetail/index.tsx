@@ -8,17 +8,18 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Activity,
   ArrowLeft,
   BarChart2,
+  ChevronDown,
   Clock,
   FileSignature,
   FolderOpen,
   ListChecks,
   Mail,
-  Phone,
-  PhoneCall,
   Users,
   Video,
 } from 'lucide-react';
@@ -263,13 +264,9 @@ const ReMarketingBuyerDetail = () => {
             <BarChart2 className="mr-1.5 h-3.5 w-3.5" />
             Intelligence
           </TabsTrigger>
-          <TabsTrigger value="call-history" className="text-sm">
-            <Phone className="mr-1.5 h-3.5 w-3.5" />
-            Call History
-          </TabsTrigger>
-          <TabsTrigger value="call-activity" className="text-sm">
-            <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
-            Call Activity
+          <TabsTrigger value="activity" className="text-sm">
+            <Activity className="mr-1.5 h-3.5 w-3.5" />
+            Activity
           </TabsTrigger>
           <TabsTrigger value="history" className="text-sm">
             <Clock className="mr-1.5 h-3.5 w-3.5" />
@@ -408,37 +405,44 @@ const ReMarketingBuyerDetail = () => {
           />
         </TabsContent>
 
-        {/* Call History Tab */}
-        <TabsContent value="call-history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Find Call Transcripts</CardTitle>
-              <CardDescription>
-                Search your Fireflies call history to link relevant conversations with this buyer
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FirefliesTranscriptSearch
-                buyerId={buyer?.id || ''}
-                companyName={buyer?.company_name || buyer?.pe_firm_name || ''}
-                peFirmName={buyer?.pe_firm_name}
-                platformWebsite={buyer?.platform_website || buyer?.company_website}
-                contacts={
-                  contacts
-                    ?.map((c: Contact) => ({ email: c.email! }))
-                    .filter((c): c is { email: string } => !!c.email) || []
-                }
-                onTranscriptLinked={() => {
-                  queryClient.invalidateQueries({ queryKey: ['remarketing', 'transcripts', id] });
-                }}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Call Activity Tab (PhoneBurner) */}
-        <TabsContent value="call-activity" className="space-y-4">
+        {/* Activity Tab — unified outreach across Outlook, SmartLead, HeyReach, PhoneBurner, Fireflies */}
+        <TabsContent value="activity" className="space-y-4">
           <CallActivityTab buyerId={buyer?.id || ''} />
+          <Collapsible>
+            <Card>
+              <CollapsibleTrigger className="w-full">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <div className="text-left">
+                    <CardTitle className="text-base">Link Fireflies Transcripts</CardTitle>
+                    <CardDescription>
+                      Search Fireflies call history and link relevant conversations to this buyer
+                    </CardDescription>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform data-[state=open]:rotate-180" />
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent>
+                  <FirefliesTranscriptSearch
+                    buyerId={buyer?.id || ''}
+                    companyName={buyer?.company_name || buyer?.pe_firm_name || ''}
+                    peFirmName={buyer?.pe_firm_name}
+                    platformWebsite={buyer?.platform_website || buyer?.company_website}
+                    contacts={
+                      contacts
+                        ?.map((c: Contact) => ({ email: c.email! }))
+                        .filter((c): c is { email: string } => !!c.email) || []
+                    }
+                    onTranscriptLinked={() => {
+                      queryClient.invalidateQueries({
+                        queryKey: ['remarketing', 'transcripts', id],
+                      });
+                    }}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         </TabsContent>
 
         {/* Deal History Tab */}
