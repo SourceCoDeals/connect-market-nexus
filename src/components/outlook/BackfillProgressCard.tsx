@@ -34,16 +34,7 @@ import type { EmailConnection } from '@/types/email';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  AlertTriangle,
-  CheckCircle2,
-  History,
-  Loader2,
-  RotateCcw,
-  Clock,
-  Info,
-} from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertTriangle, CheckCircle2, History, Loader2, RotateCcw, Clock } from 'lucide-react';
 import { deriveBackfillState, formatBackfillDuration } from './backfill-progress-math';
 
 interface BackfillProgressCardProps {
@@ -68,15 +59,7 @@ export function BackfillProgressCard({
 
   const messagesSynced = connection.backfill_messages_synced ?? 0;
   const messagesSkipped = connection.backfill_messages_skipped ?? 0;
-  // The sync engine stores "emails that couldn't be matched to any known
-  // contact on this mailbox" in `backfill_messages_queued`. The name is
-  // legacy — nothing is actually queued for later work. These rows are
-  // already persisted to `outlook_unmatched_emails` and will get retro-
-  // linked the moment a matching contact is created (via the
-  // `rematch_unmatched_outlook_emails` RPC and the trg_contacts_rematch_outlook
-  // trigger). Surface as "Unmatched" in the UI so operators don't confuse
-  // it with a backlog of work.
-  const messagesUnmatched = connection.backfill_messages_queued ?? 0;
+  const messagesQueued = connection.backfill_messages_queued ?? 0;
   const pagesProcessed = connection.backfill_pages_processed ?? 0;
 
   // Pick the visual skin based on the effective state. Stalled takes priority
@@ -168,23 +151,8 @@ export function BackfillProgressCard({
           </p>
         </div>
         <div className="rounded-md bg-background/50 p-2">
-          <TooltipProvider delayDuration={200}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p className="text-muted-foreground inline-flex items-center gap-1 cursor-help">
-                  Unmatched
-                  <Info className="h-3 w-3" />
-                </p>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="max-w-xs text-xs">
-                Emails from/to people who aren&apos;t in your contacts yet. They&apos;re already
-                saved — when you add a matching contact we retro-link the thread automatically.
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <p className="font-semibold text-sm text-foreground">
-            {messagesUnmatched.toLocaleString()}
-          </p>
+          <p className="text-muted-foreground">Queued</p>
+          <p className="font-semibold text-sm text-foreground">{messagesQueued.toLocaleString()}</p>
         </div>
         <div className="rounded-md bg-background/50 p-2">
           <p className="text-muted-foreground">Elapsed</p>
