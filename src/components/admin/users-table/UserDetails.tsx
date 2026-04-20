@@ -6,6 +6,7 @@ import { UserActivityTimeline } from '../UserActivityTimeline';
 import { BuyerQualityScorePanel } from '../BuyerQualityScorePanel';
 import { getFieldCategories, FIELD_LABELS } from '@/lib/buyer-type-fields';
 import { formatFieldValue } from '@/lib/field-formatting';
+import { LinkedBuyerSection } from './LinkedBuyerSection';
 
 // Helper function to render user detail with proper field filtering
 export const UserDetails = ({ user }: { user: User }) => {
@@ -118,9 +119,7 @@ export const UserDetails = ({ user }: { user: User }) => {
                       return (
                         <div key={fieldKey}>
                           <span className="text-muted-foreground">{fieldLabel}:</span>{' '}
-                          {phones && phones.length > 0
-                            ? phones.join(', ')
-                            : '\u2014'}
+                          {phones && phones.length > 0 ? phones.join(', ') : '\u2014'}
                         </div>
                       );
                     }
@@ -195,7 +194,10 @@ export const UserDetails = ({ user }: { user: User }) => {
                       );
                     }
 
-                    if (fieldKey === 'target_deal_size_min' || fieldKey === 'target_deal_size_max') {
+                    if (
+                      fieldKey === 'target_deal_size_min' ||
+                      fieldKey === 'target_deal_size_max'
+                    ) {
                       const numValue = Number(fieldValue);
                       return (
                         <div key={fieldKey}>
@@ -334,6 +336,13 @@ export const UserDetails = ({ user }: { user: User }) => {
               </div>
             );
           })}
+
+          {user.remarketing_buyer_id && (
+            <LinkedBuyerSection
+              buyerId={user.remarketing_buyer_id}
+              mandateBlurb={user.mandate_blurb}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="quality-score" className="mt-6">

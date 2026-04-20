@@ -161,6 +161,22 @@ export const useUpdateLeadNDAStatus = () => {
             p_milestone_time: new Date().toISOString(),
           });
         }
+
+        // Send confirmation email to lead (matching marketplace user behavior)
+        try {
+          const { data: req } = await supabase
+            .from('connection_requests')
+            .select('firm_id')
+            .eq('id', requestId)
+            .single();
+          if (req?.firm_id) {
+            await supabase.functions.invoke('notify-agreement-confirmed', {
+              body: { firmId: req.firm_id, agreementType: 'nda' },
+            });
+          }
+        } catch (e) {
+          console.error('[lead-nda] Failed to send confirmation email:', e);
+        }
       }
 
       toast({ title: 'Lead NDA status updated' });
@@ -361,6 +377,22 @@ export const useUpdateLeadFeeAgreementStatus = () => {
             p_milestone_key: 'fee_agreement_at',
             p_milestone_time: new Date().toISOString(),
           });
+        }
+
+        // Send confirmation email to lead (matching marketplace user behavior)
+        try {
+          const { data: req } = await supabase
+            .from('connection_requests')
+            .select('firm_id')
+            .eq('id', requestId)
+            .single();
+          if (req?.firm_id) {
+            await supabase.functions.invoke('notify-agreement-confirmed', {
+              body: { firmId: req.firm_id, agreementType: 'fee_agreement' },
+            });
+          }
+        } catch (e) {
+          console.error('[lead-fee] Failed to send confirmation email:', e);
         }
       }
 

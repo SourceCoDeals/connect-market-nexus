@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useVerificationSuccessEmail } from '@/hooks/auth/use-verification-success-email';
-import { selfHealProfile } from '@/lib/profile-self-heal';
+import { selfHealProfile, ensureMinimalProfile } from '@/lib/profile-self-heal';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 // CRITICAL: Capture URL fragments at MODULE LOAD TIME, before the Supabase
@@ -28,7 +28,6 @@ function getPKCECode(): string | null {
 
 export default function AuthCallback() {
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isConsumedLink, setIsConsumedLink] = useState(false);
   const navigate = useNavigate();
   const { sendVerificationSuccessEmail } = useVerificationSuccessEmail();
@@ -51,7 +50,11 @@ export default function AuthCallback() {
           return selfHealProfile(authUser, profileColumns);
         }
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('[auth/callback] Profile fetch error:', profileError.message);
+          // Don't throw — attempt repair instead
+          return selfHealProfile(authUser, profileColumns);
+        }
         return fetchedProfile as Record<string, unknown>;
       };
 
@@ -86,6 +89,18 @@ export default function AuthCallback() {
           const emailConfirmed = !!authUser.email_confirmed_at;
           let profile = await fetchProfile(authUser);
 
+          // If profile is STILL null after self-heal, try the minimal RPC as last resort
+          if (!profile) {
+            console.warn('[auth/callback] Profile null after self-heal, trying minimal RPC...');
+            await ensureMinimalProfile();
+            const { data: minProfile } = await supabase
+              .from('profiles')
+              .select(profileColumns)
+              .eq('id', authUser.id)
+              .single();
+            profile = minProfile as Record<string, unknown> | null;
+          }
+
           console.info('[auth/callback] Session resolved', {
             userId: authUser.id,
             emailConfirmed,
@@ -94,7 +109,6 @@ export default function AuthCallback() {
           });
 
           // Wait for DB trigger sync if auth says verified but profile hasn't caught up.
-          // Uses exponential backoff: 500ms, 1s, 1.5s, 2s, 2.5s, 3s, 3.5s, 4s = ~18s max wait.
           if (emailConfirmed && !profile?.email_verified) {
             console.info('[auth/callback] Profile not yet synced, retrying...');
             for (let attempt = 1; attempt <= 8; attempt += 1) {
@@ -108,14 +122,13 @@ export default function AuthCallback() {
 
             if (!profile?.email_verified) {
               console.warn(
-                '[auth/callback] Profile still not synced after 8 retries. Auth says verified, profile says false. Will proceed with auth-confirmed state.',
+                '[auth/callback] Profile still not synced after 8 retries. Will proceed with auth-confirmed state.',
               );
             }
           }
 
-          // Route decision
+          // Route decision — even if profile is null, route gracefully
           if (emailConfirmed && profile?.approval_status === 'approved') {
-            // Check if this is a portal magic link redirect
             const hashParams = new URLSearchParams(CAPTURED_HASH);
             const redirectTo =
               hashParams.get('redirect_to') ||
@@ -136,6 +149,7 @@ export default function AuthCallback() {
               navigate(profile.is_admin ? '/admin' : '/');
             }
           } else {
+            // Default: always route to pending-approval (safe fallback)
             navigate('/pending-approval');
           }
 
@@ -170,7 +184,27 @@ export default function AuthCallback() {
           return;
         }
       } catch (err: unknown) {
+        console.error('[auth/callback] Error:', err);
         const message = err instanceof Error ? err.message : 'Authentication failed';
+
+        // Always try to recover if a session exists — never show error screen
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session?.user) {
+            console.warn(
+              '[auth/callback] Error occurred but session exists, repairing and routing',
+            );
+            await ensureMinimalProfile();
+            navigate('/pending-approval');
+            return;
+          }
+        } catch {
+          // Can't recover session
+        }
+
+        // No session at all — show consumed/expired link screen (not a scary error)
         if (
           message.includes('expired') ||
           message.includes('invalid') ||
@@ -179,7 +213,9 @@ export default function AuthCallback() {
         ) {
           setIsConsumedLink(true);
         } else {
-          setError(message);
+          // Even for unknown errors with no session, show the consumed-link screen
+          // rather than a scary error message
+          setIsConsumedLink(true);
         }
       } finally {
         setIsLoading(false);
@@ -205,14 +241,8 @@ export default function AuthCallback() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <div className="text-red-500 mb-4">Authentication error: {error}</div>
-        <Button onClick={() => navigate('/login')}>Back to Login</Button>
-      </div>
-    );
-  }
+  // Error state removed — we never show error screens anymore.
+  // All errors either recover via session repair or fall through to consumed-link screen.
 
   if (isLoading) {
     return (

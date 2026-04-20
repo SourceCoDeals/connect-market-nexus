@@ -1,6 +1,8 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useUserDetails } from '@/hooks/use-user-details';
 import { useUserSessions } from '@/hooks/use-user-sessions';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   User,
@@ -27,6 +29,20 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
   const { data: sessions, isLoading: sessionsLoading } = useUserSessions(userId);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
+
+  const { data: inviteLink } = useQuery({
+    queryKey: ['invite-link-for-user', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data } = await supabase
+        .from('invite_links')
+        .select('label, token, used_at')
+        .eq('used_by', userId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!userId,
+  });
 
   const getShortReferrer = (url: string | null) => {
     if (!url) return 'Direct';
@@ -73,6 +89,14 @@ const UserDetailsSidePanel = ({ userId, open, onOpenChange }: UserDetailsSidePan
               </SheetTitle>
               {userDetails?.email && (
                 <p className="text-xs text-muted-foreground mt-0.5">{userDetails.email}</p>
+              )}
+              {inviteLink && (
+                <Badge
+                  variant="outline"
+                  className="mt-1 text-emerald-600 border-emerald-300 bg-emerald-50 text-[10px]"
+                >
+                  Invited{inviteLink.label ? `: ${inviteLink.label}` : ''}
+                </Badge>
               )}
             </div>
           </div>

@@ -40,24 +40,52 @@ export const useSignupForm = () => {
     if (prevBuyerTypeRef.current && prevBuyerTypeRef.current !== buyerType) {
       const typeSpecificFields: (keyof SignupFormData)[] = [
         // PE
-        'portfolioCompanyAddon', 'deployingCapitalNow',
+        'portfolioCompanyAddon',
+        'deployingCapitalNow',
         // Corporate
-        'owningBusinessUnit', 'dealSizeBand', 'integrationPlan', 'corpdevIntent',
+        'owningBusinessUnit',
+        'dealSizeBand',
+        'integrationPlan',
+        'corpdevIntent',
         // Family Office
-        'discretionType', 'permanentCapital', 'operatingCompanyTargets',
+        'discretionType',
+        'permanentCapital',
+        'operatingCompanyTargets',
         // Independent Sponsor
-        'committedEquityBand', 'equitySource', 'flexSubXmEbitda', 'backersSummary', 'deploymentTiming',
+        'committedEquityBand',
+        'equitySource',
+        'flexSubXmEbitda',
+        'backersSummary',
+        'deploymentTiming',
         // Search Fund
-        'searchType', 'acqEquityBand', 'financingPlan', 'flexSub2mEbitda', 'anchorInvestorsSummary', 'searchStage',
+        'searchType',
+        'acqEquityBand',
+        'financingPlan',
+        'flexSub2mEbitda',
+        'anchorInvestorsSummary',
+        'searchStage',
         // Advisor
-        'onBehalfOfBuyer', 'buyerRole', 'buyerOrgUrl', 'mandateBlurb',
+        'onBehalfOfBuyer',
+        'buyerRole',
+        'buyerOrgUrl',
+        'mandateBlurb',
         // Business Owner
-        'ownerIntent', 'ownerTimeline',
+        'ownerIntent',
+        'ownerTimeline',
         // Individual
-        'maxEquityTodayBand', 'usesBankFinance',
+        'maxEquityTodayBand',
+        'usesBankFinance',
         // Shared
-        'fundSize', 'investmentSize', 'aum', 'estimatedRevenue',
-        'isFunded', 'fundedBy', 'targetCompanySize', 'fundingSource', 'needsLoan', 'idealTarget',
+        'fundSize',
+        'investmentSize',
+        'aum',
+        'estimatedRevenue',
+        'isFunded',
+        'fundedBy',
+        'targetCompanySize',
+        'fundingSource',
+        'needsLoan',
+        'idealTarget',
       ];
       for (const field of typeSpecificFields) {
         setValue(field, undefined as never);
@@ -161,7 +189,14 @@ export const useSignupForm = () => {
       case 0:
         return watch('email') && watch('password');
       case 1:
-        return watch('firstName') && watch('lastName') && watch('company');
+        return (
+          watch('firstName') &&
+          watch('lastName') &&
+          watch('company') &&
+          watch('jobTitle') &&
+          watch('website') &&
+          watch('linkedinProfile')
+        );
       case 2: {
         const type = watch('buyerType');
         if (!type) return false;
@@ -173,35 +208,70 @@ export const useSignupForm = () => {
               watch('searchType') &&
               watch('acqEquityBand') &&
               (watch('financingPlan')?.length ?? 0) > 0 &&
-              watch('flexSub2mEbitda') !== undefined
+              watch('flexSub2mEbitda') !== undefined &&
+              watch('anchorInvestorsSummary') &&
+              watch('searchStage')
             );
           case 'privateEquity':
-            return watch('deployingCapitalNow');
+            return (
+              watch('deployingCapitalNow') &&
+              watch('fundSize') &&
+              watch('investmentSize') &&
+              watch('aum')
+            );
           case 'corporate':
-            return watch('dealSizeBand');
+            return (
+              watch('dealSizeBand') &&
+              watch('estimatedRevenue') &&
+              (watch('integrationPlan')?.length ?? 0) > 0 &&
+              watch('corpdevIntent')
+            );
           case 'familyOffice':
-            return watch('discretionType');
+            return (
+              watch('discretionType') &&
+              watch('fundSize') &&
+              watch('investmentSize') &&
+              watch('aum')
+            );
           case 'independentSponsor':
             return (
               watch('committedEquityBand') &&
               (watch('equitySource')?.length ?? 0) > 0 &&
-              watch('flexSubXmEbitda') !== undefined
+              watch('flexSubXmEbitda') !== undefined &&
+              watch('backersSummary') &&
+              watch('deploymentTiming')
             );
           case 'individual':
-            return watch('fundingSource') && watch('needsLoan') && watch('idealTarget') && watch('maxEquityTodayBand');
+            return (
+              watch('fundingSource') &&
+              watch('needsLoan') &&
+              watch('idealTarget') &&
+              watch('maxEquityTodayBand') &&
+              watch('usesBankFinance')
+            );
           case 'businessOwner':
             return watch('ownerIntent') && watch('ownerTimeline');
           case 'advisor': {
             const onBehalf = watch('onBehalfOfBuyer');
-            if (onBehalf === 'no') {
-              return !!watch('mandateBlurb');
+            if (!onBehalf) return false;
+            if (!watch('mandateBlurb')) return false;
+            if (onBehalf === 'yes') {
+              return !!watch('buyerRole') && !!watch('buyerOrgUrl');
             }
-            return !!onBehalf;
+            return true;
           }
           default:
             return true;
         }
       }
+      case 3:
+        return (
+          (watch('idealTargetDescription')?.length ?? 0) >= 20 &&
+          (watch('businessCategories')?.length ?? 0) > 0 &&
+          !!watch('targetLocations') &&
+          !!watch('specificBusinessSearch') &&
+          !!watch('dealIntent')
+        );
       default:
         return true;
     }

@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for handling currency formatting and parsing
  */
@@ -18,20 +17,20 @@ export function parseCurrency(value: string | number): number {
 
   // Remove all non-numeric characters except decimal points and letters (for M, K suffixes)
   let cleanValue = value.replace(/[$,\s]/g, '');
-  
+
   // Handle suffixes (M for million, K for thousand)
   const multipliers: { [key: string]: number } = {
-    'k': 1000,
-    'K': 1000,
-    'm': 1000000,
-    'M': 1000000,
-    'b': 1000000000,
-    'B': 1000000000,
+    k: 1000,
+    K: 1000,
+    m: 1000000,
+    M: 1000000,
+    b: 1000000000,
+    B: 1000000000,
   };
 
   let multiplier = 1;
   const lastChar = cleanValue.slice(-1);
-  
+
   if (multipliers[lastChar]) {
     multiplier = multipliers[lastChar];
     cleanValue = cleanValue.slice(0, -1);
@@ -39,7 +38,7 @@ export function parseCurrency(value: string | number): number {
 
   // Parse the numeric value
   const numericValue = parseFloat(cleanValue);
-  
+
   if (isNaN(numericValue)) {
     return 0;
   }
@@ -50,7 +49,10 @@ export function parseCurrency(value: string | number): number {
 /**
  * Format a number as currency with smart millions formatting
  */
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined || value === 0) {
+    return 'Undisclosed';
+  }
   // For large values, show in millions format
   if (value >= 1000000) {
     const millions = value / 1000000;
@@ -61,11 +63,11 @@ export function formatCurrency(value: number): string {
     }
     return `$${millions.toFixed(millions >= 100 ? 0 : millions >= 10 ? 0 : 1)}M`;
   }
-  
+
   // For smaller values, use standard formatting
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
@@ -75,7 +77,7 @@ export function formatCurrency(value: number): string {
  * Format a number with commas (no currency symbol)
  */
 export function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US").format(value);
+  return new Intl.NumberFormat('en-US').format(value);
 }
 
 /**
@@ -89,19 +91,19 @@ export function formatInvestmentSize(value: string): string {
 
   // Check if it's a range (contains dash or hyphen)
   if (value.includes('-') || value.includes('–')) {
-    const [min, max] = value.split(/[-–]/).map(part => part.trim());
-    
+    const [min, max] = value.split(/[-–]/).map((part) => part.trim());
+
     // Parse each part and assume millions if no suffix
     const minParsed = parseCurrency(min);
     const maxParsed = parseCurrency(max);
-    
+
     // If values are small (likely missing M suffix), multiply by million
     const minValue = minParsed < 1000 ? minParsed * 1000000 : minParsed;
     const maxValue = maxParsed < 1000 ? maxParsed * 1000000 : maxParsed;
-    
+
     return `${formatCurrency(minValue)}-${formatCurrency(maxValue)}`;
   }
-  
+
   // Single value
   const parsed = parseCurrency(value);
   const finalValue = parsed < 1000 ? parsed * 1000000 : parsed;
@@ -111,33 +113,37 @@ export function formatInvestmentSize(value: string): string {
 /**
  * Format revenue ranges with better readability in millions format
  */
-export function formatRevenueRange(min?: string | number | null, max?: string | number | null): string {
+export function formatRevenueRange(
+  min?: string | number | null,
+  max?: string | number | null,
+): string {
   if (!min && !max) return 'Not specified';
-  
+
   const formatSingleValue = (val: string | number | null | undefined): string => {
     if (!val) return 'Any';
-    const numericValue = typeof val === 'number' ? val : parseFloat(val.toString().replace(/,/g, ''));
+    const numericValue =
+      typeof val === 'number' ? val : parseFloat(val.toString().replace(/,/g, ''));
     if (isNaN(numericValue)) return 'Any';
-    
+
     // If the value is 1,000,000 or more, it's likely already the full amount - convert to millions
     if (numericValue >= 1000000) {
       const millions = numericValue / 1000000;
       return `$${millions.toFixed(millions % 1 === 0 ? 0 : 1)}M`;
     }
-    
+
     // If the value is less than 1000, assume it's in millions already
     if (numericValue < 1000) {
       return `$${numericValue.toFixed(numericValue % 1 === 0 ? 0 : 1)}M`;
     }
-    
+
     // For values between 1000-999999, treat as thousands and convert to millions
     const millions = numericValue / 1000;
     return `$${millions.toFixed(millions % 1 === 0 ? 0 : 1)}M`;
   };
-  
+
   const minFormatted = formatSingleValue(min);
   const maxFormatted = formatSingleValue(max);
-  
+
   if (min && max) {
     return `${minFormatted} - ${maxFormatted}`;
   } else if (min) {
@@ -145,7 +151,7 @@ export function formatRevenueRange(min?: string | number | null, max?: string | 
   } else if (max) {
     return `Up to ${maxFormatted}`;
   }
-  
+
   return 'Not specified';
 }
 

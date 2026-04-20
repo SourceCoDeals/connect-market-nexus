@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useSearchParamState } from '@/hooks/use-search-param-state';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import {
   Select,
   SelectContent,
@@ -33,12 +33,22 @@ export function EnhancedUserManagement({
   onApprove,
   onFilteredUsersChange,
 }: EnhancedUserManagementProps) {
-  // URL-persisted filter state (survives browser Back navigation)
+  // Local search state decoupled from URL to prevent focus loss on every keystroke
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // Search input uses local state + debounced URL sync so typing never triggers
-  // a router navigation on every keystroke (prevents focus loss and input lag).
-  const [searchQuery, setSearchQuery] = useSearchParamState('q');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
+  // Debounce URL sync so typing stays smooth
+  const debouncedSearch = useDebouncedValue(searchQuery, 400);
+  useEffect(() => {
+    setSearchParams(
+      (p) => {
+        const n = new URLSearchParams(p);
+        if (debouncedSearch) n.set('q', debouncedSearch);
+        else n.delete('q');
+        return n;
+      },
+      { replace: true },
+    );
+  }, [debouncedSearch, setSearchParams]);
   const statusFilter = searchParams.get('status') ?? 'all';
   const setStatusFilter = useCallback(
     (v: string) => {

@@ -21,10 +21,8 @@ import {
 import { Loader2 } from 'lucide-react';
 import { useEditTask } from '@/hooks/useDailyTasks';
 import { useExistingTags } from '@/hooks/useTaskTags';
-import { Link2 } from 'lucide-react';
 import { TASK_TYPE_OPTIONS, DEAL_TASK_TYPE_OPTIONS } from '@/types/daily-tasks';
 import { TagInput } from './TagInput';
-import { DependencyPicker } from './DependencyPicker';
 import type { DailyStandupTaskWithRelations, TaskType, TaskEntityType } from '@/types/daily-tasks';
 
 interface EditTaskDialogProps {
@@ -45,13 +43,6 @@ export function EditTaskDialog({ task, open, onOpenChange, entityType }: EditTas
   const [dueDate, setDueDate] = useState('');
   const [dealReference, setDealReference] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [dependsOn, setDependsOn] = useState<string | null>(null);
-
-  // Resolve the deal ID used to scope dependency candidates. Prefer the
-  // task's explicit deal linkage, falling back to entity_id when the task
-  // is a deal-scoped entity task.
-  const dependencyDealId =
-    task?.deal_id ?? (task?.entity_type === 'deal' ? task.entity_id : null) ?? null;
 
   useEffect(() => {
     if (task) {
@@ -61,7 +52,6 @@ export function EditTaskDialog({ task, open, onOpenChange, entityType }: EditTas
       setDueDate(task.due_date);
       setDealReference(task.deal_reference || '');
       setTags(task.tags || []);
-      setDependsOn(task.depends_on ?? null);
     }
   }, [task]);
 
@@ -78,7 +68,6 @@ export function EditTaskDialog({ task, open, onOpenChange, entityType }: EditTas
           due_date: dueDate,
           deal_reference: dealReference.trim() || null,
           tags,
-          depends_on: dependsOn,
         },
       });
       onOpenChange(false);
@@ -161,28 +150,6 @@ export function EditTaskDialog({ task, open, onOpenChange, entityType }: EditTas
               placeholder="e.g., Q1 push, board meeting prep"
             />
           </div>
-
-          {/* Dependencies — only for deal-scoped tasks. */}
-          {dependencyDealId && (
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
-                <Link2 className="h-3.5 w-3.5" />
-                Depends on
-              </Label>
-              <DependencyPicker
-                dealId={dependencyDealId}
-                value={dependsOn}
-                onChange={setDependsOn}
-                excludeTaskId={task?.id}
-              />
-              {dependsOn && (
-                <p className="text-[11px] text-muted-foreground">
-                  Blocked until the selected task{dependsOn.includes(',') ? 's are' : ' is'}{' '}
-                  completed.
-                </p>
-              )}
-            </div>
-          )}
         </div>
 
         <DialogFooter>

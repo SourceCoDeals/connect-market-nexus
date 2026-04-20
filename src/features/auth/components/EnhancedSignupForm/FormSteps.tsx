@@ -2,14 +2,17 @@ import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { type SignupFormData } from '@/features/auth';
-import {
-  BUYER_TYPE_OPTIONS,
-  DEAL_INTENT_OPTIONS
-} from '@/lib/signup-field-options';
+import { BUYER_TYPE_OPTIONS, DEAL_INTENT_OPTIONS } from '@/lib/signup-field-options';
 import { BuyerFields } from './BuyerFields';
 
 interface FormStepsProps {
@@ -21,7 +24,14 @@ interface FormStepsProps {
   buyerType: SignupFormData['buyerType'];
 }
 
-export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, setValue, errors, buyerType }) => {
+export const FormSteps: React.FC<FormStepsProps> = ({
+  currentStep,
+  form,
+  watch,
+  setValue,
+  errors,
+  buyerType,
+}) => {
   switch (currentStep) {
     case 0:
       return (
@@ -38,9 +48,7 @@ export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, 
             <p className="text-sm text-muted-foreground mt-1">
               Please use your work email address (personal emails are allowed)
             </p>
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
+            {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
           </div>
 
           <div>
@@ -98,21 +106,23 @@ export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, 
               {...form.register('company')}
               className={errors.company ? 'border-destructive' : ''}
             />
-            {errors.company && (
-              <p className="text-sm text-destructive">{errors.company.message}</p>
-            )}
+            {errors.company && <p className="text-sm text-destructive">{errors.company.message}</p>}
           </div>
 
           <div>
-            <Label htmlFor="jobTitle">Job Title (Optional)</Label>
+            <Label htmlFor="jobTitle">Job Title *</Label>
             <Input
               id="jobTitle"
               placeholder="Partner, Managing Director, etc."
               {...form.register('jobTitle')}
+              className={errors.jobTitle ? 'border-destructive' : ''}
             />
             <p className="text-sm text-muted-foreground mt-1">
               Helps with quick triage: Analyst/Associate vs Partner/M&A Director
             </p>
+            {errors.jobTitle && (
+              <p className="text-sm text-destructive">{errors.jobTitle.message}</p>
+            )}
           </div>
 
           <div>
@@ -125,23 +135,29 @@ export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, 
           </div>
 
           <div>
-            <Label htmlFor="website">Website</Label>
+            <Label htmlFor="website">Website *</Label>
             <Input
               id="website"
               type="url"
               placeholder="https://company.com"
               {...form.register('website')}
+              className={errors.website ? 'border-destructive' : ''}
             />
+            {errors.website && <p className="text-sm text-destructive">{errors.website.message}</p>}
           </div>
 
           <div>
-            <Label htmlFor="linkedinProfile">LinkedIn Profile</Label>
+            <Label htmlFor="linkedinProfile">LinkedIn Profile *</Label>
             <Input
               id="linkedinProfile"
               type="url"
               placeholder="https://linkedin.com/in/yourprofile"
               {...form.register('linkedinProfile')}
+              className={errors.linkedinProfile ? 'border-destructive' : ''}
             />
+            {errors.linkedinProfile && (
+              <p className="text-sm text-destructive">{errors.linkedinProfile.message}</p>
+            )}
           </div>
         </div>
       );
@@ -152,17 +168,20 @@ export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, 
           <div className="mb-4">
             <h3 className="text-lg font-medium">Tell us about your mandate</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              We use this to match you to relevant deals and prioritize your application. The more specific you are, the faster we can clear you.
+              We use this to match you to relevant deals and prioritize your application. The more
+              specific you are, the faster we can clear you.
             </p>
           </div>
           <div>
             <Label htmlFor="buyerType">Buyer Type *</Label>
-            <Select onValueChange={(value) => setValue('buyerType', value as SignupFormData['buyerType'])}>
+            <Select
+              onValueChange={(value) => setValue('buyerType', value as SignupFormData['buyerType'])}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select your buyer type" />
               </SelectTrigger>
               <SelectContent>
-                {BUYER_TYPE_OPTIONS.map(option => (
+                {BUYER_TYPE_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     <div>
                       <div className="font-medium">{option.label}</div>
@@ -180,7 +199,7 @@ export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, 
           {buyerType && (
             <div className="border-t pt-6">
               <h3 className="text-lg font-medium mb-4">
-                {BUYER_TYPE_OPTIONS.find(opt => opt.value === buyerType)?.label} Details
+                {BUYER_TYPE_OPTIONS.find((opt) => opt.value === buyerType)?.label} Details
               </h3>
               <BuyerFields form={form} watch={watch} setValue={setValue} buyerType={buyerType} />
             </div>
@@ -193,13 +212,13 @@ export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, 
         <div className="space-y-4">
           <Alert>
             <AlertDescription>
-              Complete your profile with investment criteria and target preferences.
-              All fields in this section are optional but help us show you more relevant deals.
+              Complete your profile with investment criteria and target preferences. These help us
+              match you to relevant deals and prioritize your application.
             </AlertDescription>
           </Alert>
 
           <div>
-            <Label htmlFor="idealTargetDescription">Ideal Target Description</Label>
+            <Label htmlFor="idealTargetDescription">Ideal Target Description *</Label>
             <Textarea
               id="idealTargetDescription"
               placeholder="Describe your ideal acquisition target..."
@@ -209,24 +228,21 @@ export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, 
           </div>
 
           <div>
-            <Label htmlFor="specificBusinessSearch">Specific Business Requirements</Label>
+            <Label htmlFor="specificBusinessSearch">Specific Business Requirements *</Label>
             <Textarea
               id="specificBusinessSearch"
               placeholder="1–2 must-haves only (e.g., non-union, 60% recurring)"
               rows={2}
               {...form.register('specificBusinessSearch')}
             />
-            <p className="text-sm text-muted-foreground mt-1">
-              Hint: "1–2 must-haves only (e.g., non-union, 60% recurring)."
-            </p>
           </div>
 
           {/* New Step 4 fields */}
 
           <div>
-            <Label htmlFor="dealIntent">Deal Intent</Label>
+            <Label htmlFor="dealIntent">Deal Intent *</Label>
             <div className="space-y-2">
-              {DEAL_INTENT_OPTIONS.map(option => (
+              {DEAL_INTENT_OPTIONS.map((option) => (
                 <div key={option.value} className="flex items-center space-x-2">
                   <input
                     type="radio"
@@ -253,22 +269,31 @@ export const FormSteps: React.FC<FormStepsProps> = ({ currentStep, form, watch, 
               placeholder="e.g., unionized, DTC, heavy CapEx"
               rows={2}
               value={watch('exclusions') ? watch('exclusions')?.join(', ') : ''}
-              onChange={(e) => setValue('exclusions', e.target.value.split(',').map(s => s.trim()).filter(s => s))}
+              onChange={(e) =>
+                setValue(
+                  'exclusions',
+                  e.target.value
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter((s) => s),
+                )
+              }
             />
-            <p className="text-sm text-muted-foreground mt-1">
-              e.g., unionized, DTC, heavy CapEx.
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">e.g., unionized, DTC, heavy CapEx.</p>
           </div>
 
           <div>
-            <Label htmlFor="includeKeywords">Keywords (optional)</Label>
+            <Label htmlFor="includeKeywords">Keywords</Label>
             <Textarea
               id="includeKeywords"
               placeholder="e.g., route-based, B2B services"
               rows={2}
               value={watch('includeKeywords') ? watch('includeKeywords')?.join(', ') : ''}
               onChange={(e) => {
-                const keywords = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                const keywords = e.target.value
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter((s) => s);
                 setValue('includeKeywords', keywords.slice(0, 5)); // max 5
               }}
             />

@@ -162,29 +162,22 @@ export function useSendMessage() {
             if (staticProfile?.name) adminFullName = staticProfile.name;
           }
 
-          // Get buyer name and deal title from connection request.
-          // Lead-only requests (landing page / webflow submissions) have
-          // user_id = NULL, so fall back to the lead_name / lead_email
-          // columns instead of querying profiles.
+          // Get buyer name and deal title from connection request
           const { data: connReq } = await supabase
             .from('connection_requests')
-            .select('user_id, listing_id, lead_name, lead_email')
+            .select('user_id, listing_id')
             .eq('id', params.connection_request_id)
             .single();
           if (connReq) {
-            if (connReq.user_id) {
-              const { data: buyerProfile } = await supabase
-                .from('profiles')
-                .select('first_name, last_name, email')
-                .eq('id', connReq.user_id)
-                .single();
-              if (buyerProfile) {
-                const bName =
-                  `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim();
-                buyerName = bName || buyerProfile.email || 'Buyer';
-              }
-            } else if (connReq.lead_email || connReq.lead_name) {
-              buyerName = connReq.lead_name || connReq.lead_email || 'Buyer';
+            const { data: buyerProfile } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', connReq.user_id as string)
+              .single();
+            if (buyerProfile) {
+              const bName =
+                `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim();
+              buyerName = bName || buyerProfile.email || 'Buyer';
             }
             if (connReq.listing_id) {
               const { data: listing } = await supabase

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Mail, ArrowRight, Clock, Shield } from 'lucide-react';
+import { CheckCircle, Mail, ArrowRight, Clock, Shield, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { CountdownTimer } from '@/components/ui/countdown-timer';
@@ -15,6 +15,7 @@ const SignupSuccess = () => {
   const [rateLimitRemaining, setRateLimitRemaining] = useState(0);
   const [attemptCount, setAttemptCount] = useState(0);
   const email = searchParams.get('email') || '';
+  const isInvited = searchParams.get('invited') === 'true';
 
   useEffect(() => {
     // Check if email is already verified (rare but possible)
@@ -60,7 +61,8 @@ const SignupSuccess = () => {
 
       toast({
         title: 'Email sent!',
-        description: "We've sent another verification email. If you don't receive it, your email may already be verified - try logging in.",
+        description:
+          "We've sent another verification email. If you don't receive it, your email may already be verified - try logging in.",
       });
     } catch (error: unknown) {
       console.error('Resend verification error:', error);
@@ -116,10 +118,12 @@ const SignupSuccess = () => {
             </div>
             <div>
               <CardTitle className="text-2xl font-bold text-center">
-                Account Created Successfully!
+                {isInvited ? 'Account Created and Pre-Approved' : 'Account Created Successfully!'}
               </CardTitle>
               <CardDescription className="text-center mt-2">
-                Welcome to the marketplace! Here's what happens next:
+                {isInvited
+                  ? 'You used an exclusive invitation link. Your account has been pre-approved for marketplace access.'
+                  : "Welcome to the marketplace! Here's what happens next:"}
               </CardDescription>
             </div>
           </CardHeader>
@@ -133,7 +137,7 @@ const SignupSuccess = () => {
                 </div>
                 <div>
                   <p className="font-medium text-sm">Account Created</p>
-                  <p className="text-xs text-muted-foreground">✓ Completed</p>
+                  <p className="text-xs text-muted-foreground">Completed</p>
                 </div>
               </div>
 
@@ -146,20 +150,34 @@ const SignupSuccess = () => {
                 <div>
                   <p className="font-medium text-sm">Email Verification</p>
                   <p className="text-xs text-muted-foreground">
-                    {emailVerified ? '✓ Verified' : 'Check your email inbox'}
+                    {emailVerified ? 'Verified' : 'Check your email inbox'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3">
-                <div className="rounded-full bg-muted p-1.5">
-                  <Shield className="h-4 w-4 text-muted-foreground" />
+              {isInvited ? (
+                <div className="flex items-center space-x-3">
+                  <div className="rounded-full bg-emerald-500/15 p-1.5">
+                    <Sparkles className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Pre-Approved</p>
+                    <p className="text-xs text-muted-foreground">
+                      Approval skipped via invitation link
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">Admin Approval</p>
-                  <p className="text-xs text-muted-foreground">Typically within 24 hours</p>
+              ) : (
+                <div className="flex items-center space-x-3">
+                  <div className="rounded-full bg-muted p-1.5">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Admin Approval</p>
+                    <p className="text-xs text-muted-foreground">Typically within 24 hours</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* What's Next Section */}
@@ -169,24 +187,37 @@ const SignupSuccess = () => {
                 <p className="font-medium text-sm">What happens next?</p>
               </div>
 
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  <strong>1. Check your email</strong> - Click the verification link we sent to{' '}
-                  {email}
-                </p>
-                <p>
-                  <strong>2. Admin review</strong> - Our team will approve your account (usually
-                  within 24 hours)
-                </p>
-                <p>
-                  <strong>3. Get notified</strong> - You'll receive an email when your account is
-                  approved
-                </p>
-                <p>
-                  <strong>4. Start browsing</strong> - Access thousands of business listings once
-                  approved
-                </p>
-              </div>
+              {isInvited ? (
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>
+                    <strong>1. Check your email</strong> - Click the verification link we sent to{' '}
+                    {email}
+                  </p>
+                  <p>
+                    <strong>2. Log in</strong> - Once verified, log in and access the marketplace
+                    immediately
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p>
+                    <strong>1. Check your email</strong> - Click the verification link we sent to{' '}
+                    {email}
+                  </p>
+                  <p>
+                    <strong>2. Admin review</strong> - Our team will approve your account (usually
+                    within 24 hours)
+                  </p>
+                  <p>
+                    <strong>3. Get notified</strong> - You'll receive an email when your account is
+                    approved
+                  </p>
+                  <p>
+                    <strong>4. Start browsing</strong> - Access thousands of business listings once
+                    approved
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -233,8 +264,8 @@ const SignupSuccess = () => {
 
                   {attemptCount > 1 && (
                     <div className="text-xs text-muted-foreground text-center p-2 bg-amber-50 dark:bg-amber-950/20 rounded-md">
-                      💡 <strong>Tip:</strong> Check your spam folder. If you still don't receive
-                      an email, your account may already be verified -{' '}
+                      <strong>Tip:</strong> Check your spam folder. If you still don't receive an
+                      email, your account may already be verified -{' '}
                       <Link to="/login" className="text-primary hover:underline">
                         try logging in
                       </Link>

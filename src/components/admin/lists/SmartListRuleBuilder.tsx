@@ -135,12 +135,12 @@ export function SmartListRuleBuilder({
                       const noValue = ['is_true', 'is_false', 'is_not_null', 'is_null'].includes(
                         newOp,
                       );
-                      const newValue = noValue
+                      const newValue: SmartListRule['value'] = noValue
                         ? true
                         : needsArray
-                          ? []
+                          ? ([] as string[])
                           : needsTuple
-                            ? [0, 100]
+                            ? ([0, 100] as [number, number])
                             : typeof rule.value === 'string' || typeof rule.value === 'number'
                               ? rule.value
                               : '';

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { BuyerType, User } from '@/types';
 import { processUrl, processLinkedInUrl } from '@/lib/url-utils';
@@ -146,11 +147,36 @@ export function useSignupSubmit(formData: SignupFormData) {
       /* ignore */
     }
 
-    toast({
-      title: 'Account created successfully!',
-      description: 'Please check your email to verify your account.',
-    });
-    navigate(`/signup-success?email=${encodeURIComponent(formData.email)}`);
+    // If there's an invite token, attempt to redeem it for instant approval
+    let inviteRedeemed = false;
+    if (formData.inviteToken) {
+      try {
+        const { data, error } = await supabase.functions.invoke('redeem-invite-link', {
+          body: { token: formData.inviteToken },
+        });
+        if (!error && data?.success) {
+          inviteRedeemed = true;
+        } else {
+          console.warn('Invite redemption failed:', error || data?.error);
+        }
+      } catch (e) {
+        console.warn('Invite redemption error:', e);
+      }
+    }
+
+    if (inviteRedeemed) {
+      toast({
+        title: 'Account created and pre-approved!',
+        description: 'Verify your email to access the marketplace.',
+      });
+      navigate(`/signup-success?email=${encodeURIComponent(formData.email)}&invited=true`);
+    } else {
+      toast({
+        title: 'Account created successfully!',
+        description: 'Please check your email to verify your account.',
+      });
+      navigate(`/signup-success?email=${encodeURIComponent(formData.email)}`);
+    }
   };
 
   return { handleSubmit };

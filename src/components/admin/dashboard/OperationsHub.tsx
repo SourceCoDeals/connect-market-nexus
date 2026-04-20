@@ -48,23 +48,11 @@ function CardLoading() {
   );
 }
 
-// When a card's query fails, render a compact error row so the user sees the
-// reason instead of a silent blank. Each card is independent — one broken RPC
-// doesn't take down the whole hub.
-function CardError({ error }: { error: Error }) {
-  return (
-    <div className="flex items-start gap-2 py-3 text-xs text-red-700">
-      <span className="mt-0.5">⚠</span>
-      <span className="break-words">{error.message || 'Query failed'}</span>
-    </div>
-  );
-}
-
 // ─── Document Signing Card ───
 
 function DocumentSigningCard() {
   const navigate = useNavigate();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['ops-hub-doc-requests'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -91,9 +79,7 @@ function DocumentSigningCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {error ? (
-          <CardError error={error as Error} />
-        ) : isLoading ? (
+        {isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -137,7 +123,7 @@ function DocumentSigningCard() {
 
 function UnreadMessagesCard() {
   const navigate = useNavigate();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['ops-hub-unread-messages'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -189,9 +175,7 @@ function UnreadMessagesCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {error ? (
-          <CardError error={error as Error} />
-        ) : isLoading ? (
+        {isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -233,7 +217,7 @@ function UnreadMessagesCard() {
 
 function ConnectionRequestsCard() {
   const navigate = useNavigate();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['ops-hub-pending-connections'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -260,9 +244,7 @@ function ConnectionRequestsCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {error ? (
-          <CardError error={error as Error} />
-        ) : isLoading ? (
+        {isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -306,7 +288,7 @@ function ConnectionRequestsCard() {
 
 function UserApprovalsCard() {
   const navigate = useNavigate();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['ops-hub-pending-users'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -331,9 +313,7 @@ function UserApprovalsCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {error ? (
-          <CardError error={error as Error} />
-        ) : isLoading ? (
+        {isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -373,7 +353,7 @@ function UserApprovalsCard() {
 // ─── Data Room Access Card ───
 
 function DataRoomAccessCard() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['ops-hub-data-room-access'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -398,9 +378,7 @@ function DataRoomAccessCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {error ? (
-          <CardError error={error as Error} />
-        ) : isLoading ? (
+        {isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -438,7 +416,7 @@ function DataRoomAccessCard() {
 // ─── Recent Data Room Activity Card ───
 
 function DataRoomActivityCard() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['ops-hub-data-room-activity'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -495,9 +473,7 @@ function DataRoomActivityCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {error ? (
-          <CardError error={error as Error} />
-        ) : isLoading ? (
+        {isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />

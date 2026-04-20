@@ -141,13 +141,17 @@ function useAllFirmsTracking() {
           .eq('new_status', 'signed')
           .order('created_at', { ascending: false }),
         untypedFrom('document_requests')
-          .select('id, firm_id, agreement_type, status, created_at, recipient_email, recipient_name, email_provider_message_id, last_email_error')
+          .select(
+            'id, firm_id, agreement_type, status, created_at, recipient_email, recipient_name, email_provider_message_id, last_email_error',
+          )
           .order('created_at', { ascending: false })
           .limit(500),
       ]);
 
       const auditEntries = auditRes.data;
-      const allDocRequests = (docReqRes.data || []) as Array<DocumentRequestRecord & { firm_id: string | null }>;
+      const allDocRequests = (docReqRes.data || []) as Array<
+        DocumentRequestRecord & { firm_id: string | null }
+      >;
 
       // Build doc requests per firm
       const docRequestsByFirm = new Map<string, DocumentRequestRecord[]>();
@@ -202,10 +206,9 @@ function useAllFirmsTracking() {
 
         const ndaRequestedAt = (firm.nda_requested_at as string) || null;
         const feeRequestedAt = (firm.fee_agreement_requested_at as string) || null;
-        const hasPendingRequest = (
+        const hasPendingRequest =
           (ndaRequestedAt && (firm.nda_status as string) !== 'signed') ||
-          (feeRequestedAt && (firm.fee_agreement_status as string) !== 'signed')
-        );
+          (feeRequestedAt && (firm.fee_agreement_status as string) !== 'signed');
 
         const adminAttribution = adminMap.get(firm.id as string);
 
@@ -303,7 +306,9 @@ function usePendingRequestQueue() {
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await untypedFrom('document_requests')
-        .select('id, user_id, agreement_type, status, created_at, recipient_email, recipient_name, firm_id, email_correlation_id, email_provider_message_id, last_email_error')
+        .select(
+          'id, user_id, agreement_type, status, created_at, recipient_email, recipient_name, firm_id, email_correlation_id, email_provider_message_id, last_email_error',
+        )
         .in('status', ['requested', 'email_sent'])
         .order('created_at', { ascending: false })
         .limit(50);
@@ -312,7 +317,9 @@ function usePendingRequestQueue() {
       const requests = (data || []) as Omit<PendingRequest, 'approval_status'>[];
 
       // Fetch approval status for all unique user_ids
-      const userIds = [...new Set(requests.map(r => r.user_id).filter((id): id is string => !!id))];
+      const userIds = [
+        ...new Set(requests.map((r) => r.user_id).filter((id): id is string => !!id)),
+      ];
       let approvalMap: Record<string, string> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -320,13 +327,13 @@ function usePendingRequestQueue() {
           .select('id, approval_status')
           .in('id', userIds);
         if (profiles) {
-          approvalMap = Object.fromEntries(profiles.map(p => [p.id, p.approval_status]));
+          approvalMap = Object.fromEntries(profiles.map((p) => [p.id, p.approval_status]));
         }
       }
 
-      return requests.map(r => ({
+      return requests.map((r) => ({
         ...r,
-        approval_status: r.user_id ? (approvalMap[r.user_id] || null) : null,
+        approval_status: r.user_id ? approvalMap[r.user_id] || null : null,
       }));
     },
   });
@@ -340,18 +347,20 @@ function useDeliveryEvents(providerMessageIds: string[]) {
     enabled: providerMessageIds.length > 0,
     queryFn: async () => {
       if (providerMessageIds.length === 0) return [];
-      const normalized = providerMessageIds.map(id => id.replace(/^<|>$/g, '').trim());
-      const withBrackets = normalized.map(id => `<${id}>`);
+      const normalized = providerMessageIds.map((id) => id.replace(/^<|>$/g, '').trim());
+      const withBrackets = normalized.map((id) => `<${id}>`);
       const allVariants = [...normalized, ...withBrackets];
 
       // Try new outbound_emails table first
       const { data: newData } = await untypedFrom('outbound_emails')
-        .select('recipient_email, status, provider_message_id, last_error, delivered_at, opened_at, failed_at')
+        .select(
+          'recipient_email, status, provider_message_id, last_error, delivered_at, opened_at, failed_at',
+        )
         .in('provider_message_id', allVariants)
         .order('created_at', { ascending: false });
 
       if (newData && newData.length > 0) {
-        return (newData as Array<Record<string, unknown>>).map(row => ({
+        return (newData as Array<Record<string, unknown>>).map((row) => ({
           email: row.recipient_email as string,
           status: row.status as string,
           correlation_id: (row.provider_message_id as string)?.replace(/^<|>$/g, '').trim() || null,
@@ -373,7 +382,6 @@ function useDeliveryEvents(providerMessageIds: string[]) {
     },
   });
 }
-
 
 function useRealtimeFirmAgreements() {
   const queryClient = useQueryClient();
@@ -399,8 +407,21 @@ function useRealtimeFirmAgreements() {
 
 // ─── Component ───────────────────────────────────────────────────────
 
-type FilterStatus = 'all' | 'signed' | 'sent' | 'not_started' | 'unsigned' | 'needs_attention' | 'pending_requests';
-type SortField = 'company' | 'nda_status' | 'fee_status' | 'members' | 'last_signed' | 'last_requested';
+type FilterStatus =
+  | 'all'
+  | 'signed'
+  | 'sent'
+  | 'not_started'
+  | 'unsigned'
+  | 'needs_attention'
+  | 'pending_requests';
+type SortField =
+  | 'company'
+  | 'nda_status'
+  | 'fee_status'
+  | 'members'
+  | 'last_signed'
+  | 'last_requested';
 
 export default function DocumentTrackingPage() {
   const { data: firms = [], isLoading, error } = useAllFirmsTracking();
@@ -408,11 +429,10 @@ export default function DocumentTrackingPage() {
   const { data: pendingRequests = [] } = usePendingRequestQueue();
 
   // Gather provider message IDs from pending requests for delivery event lookup
-  const providerMessageIds = useMemo(() =>
-    pendingRequests
-      .map(r => r.email_provider_message_id)
-      .filter((id): id is string => !!id),
-    [pendingRequests]
+  const providerMessageIds = useMemo(
+    () =>
+      pendingRequests.map((r) => r.email_provider_message_id).filter((id): id is string => !!id),
+    [pendingRequests],
   );
   const { data: deliveryEvents = [] } = useDeliveryEvents(providerMessageIds);
 
@@ -487,8 +507,8 @@ export default function DocumentTrackingPage() {
     let result = [...firms];
 
     if (marketplaceOnly) {
-      result = result.filter(f =>
-        f.members.some(m => m.member_type === 'marketplace_user' && m.user_id)
+      result = result.filter((f) =>
+        f.members.some((m) => m.member_type === 'marketplace_user' && m.user_id),
       );
     }
 
@@ -580,8 +600,7 @@ export default function DocumentTrackingPage() {
         else if (aDate === 0) cmp = 1;
         else if (bDate === 0) cmp = -1;
         else cmp = aDate - bDate;
-      }
-      else if (sortField === 'last_signed') {
+      } else if (sortField === 'last_signed') {
         const aDate = Math.max(
           a.nda_signed_at ? new Date(a.nda_signed_at).getTime() : 0,
           a.fee_agreement_signed_at ? new Date(a.fee_agreement_signed_at).getTime() : 0,
@@ -668,7 +687,7 @@ export default function DocumentTrackingPage() {
         />
         <StatCard
           label="Pending Requests"
-          value={firms.filter(f => f.hasPendingRequest).length}
+          value={firms.filter((f) => f.hasPendingRequest).length}
           color="amber"
           onClick={() => setFilterStatus('pending_requests')}
         />
@@ -731,23 +750,37 @@ export default function DocumentTrackingPage() {
 
       {/* Pending Request Queue */}
       {pendingRequests.length > 0 && (
-        <div className="border border-amber-200 rounded-xl bg-amber-50/50 overflow-hidden">
-          <div className="px-4 py-3 border-b border-amber-200 flex items-center justify-between">
+        <Collapsible
+          defaultOpen={false}
+          className="border border-amber-200 rounded-xl bg-amber-50/50 overflow-hidden"
+        >
+          <CollapsibleTrigger className="w-full px-4 py-3 border-b border-amber-200 flex items-center justify-between cursor-pointer hover:bg-amber-100/50 transition-colors group">
             <h3 className="text-sm font-semibold text-amber-900 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               Pending Requests ({pendingRequests.length})
             </h3>
-            <span className="text-xs text-amber-700">Check inbox at adam.haile@sourcecodeals.com</span>
-          </div>
-          <div className="divide-y divide-amber-200">
-            {pendingRequests.map((req) => {
-              const normalizedId = req.email_provider_message_id?.replace(/^<|>$/g, '').trim();
-              return (
-                <PendingRequestRow key={req.id} req={req} deliveryEvent={normalizedId ? deliveryMap.get(normalizedId) : undefined} />
-              );
-            })}
-          </div>
-        </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-amber-700">
+                Check inbox at adam.haile@sourcecodeals.com
+              </span>
+              <ChevronRight className="h-4 w-4 text-amber-700 transition-transform group-data-[state=open]:rotate-90" />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="divide-y divide-amber-200">
+              {pendingRequests.map((req) => {
+                const normalizedId = req.email_provider_message_id?.replace(/^<|>$/g, '').trim();
+                return (
+                  <PendingRequestRow
+                    key={req.id}
+                    req={req}
+                    deliveryEvent={normalizedId ? deliveryMap.get(normalizedId) : undefined}
+                  />
+                );
+              })}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -945,11 +978,19 @@ function FirmExpandableRow({
             onToggleSelect(!isSelected, e);
           }}
         >
-          <Checkbox checked={isSelected} onCheckedChange={() => {}} aria-label={`Select ${firm.primary_company_name}`} />
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => {}}
+            aria-label={`Select ${firm.primary_company_name}`}
+          />
         </td>
         <td className="px-4 py-3">
           <div className="flex items-center gap-1.5">
-            {expanded ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+            {expanded ? (
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            )}
             <span className="font-medium text-foreground">{firm.primary_company_name}</span>
             {firm.hasPendingRequest && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200">
@@ -959,57 +1000,98 @@ function FirmExpandableRow({
           </div>
         </td>
         <td className="px-4 py-3 text-muted-foreground text-xs">{firm.email_domain || '--'}</td>
-        <td className="px-4 py-3 text-center"><span className="text-muted-foreground">{firm.member_count}</span></td>
+        <td className="px-4 py-3 text-center">
+          <span className="text-muted-foreground">{firm.member_count}</span>
+        </td>
         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-          <AgreementStatusDropdown firm={firm.firmAgreement} members={firm.members} agreementType="nda" />
+          <AgreementStatusDropdown
+            firm={firm.firmAgreement}
+            members={firm.members}
+            agreementType="nda"
+          />
         </td>
         <td className="px-4 py-3 text-xs text-muted-foreground">
           {firm.nda_signed_at ? (
             <div>
-              <span className="text-emerald-600 font-medium">{format(new Date(firm.nda_signed_at), 'MMM d, yyyy')}</span>
+              <span className="text-emerald-600 font-medium">
+                {format(new Date(firm.nda_signed_at), 'MMM d, yyyy')}
+              </span>
               {firm.nda_signed_by_name && <p className="text-[10px]">{firm.nda_signed_by_name}</p>}
-              {firm.nda_marked_by_admin && <p className="text-[10px] text-muted-foreground/70">Marked by {firm.nda_marked_by_admin}</p>}
+              {firm.nda_marked_by_admin && (
+                <p className="text-[10px] text-muted-foreground/70">
+                  Marked by {firm.nda_marked_by_admin}
+                </p>
+              )}
             </div>
           ) : firm.nda_sent_at ? (
             <span>{formatDistanceToNow(new Date(firm.nda_sent_at), { addSuffix: true })}</span>
-          ) : '--'}
+          ) : (
+            '--'
+          )}
         </td>
         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-          <AgreementStatusDropdown firm={firm.firmAgreement} members={firm.members} agreementType="fee_agreement" />
+          <AgreementStatusDropdown
+            firm={firm.firmAgreement}
+            members={firm.members}
+            agreementType="fee_agreement"
+          />
         </td>
         <td className="px-4 py-3 text-xs text-muted-foreground">
           {firm.fee_agreement_signed_at ? (
             <div>
-              <span className="text-emerald-600 font-medium">{format(new Date(firm.fee_agreement_signed_at), 'MMM d, yyyy')}</span>
-              {firm.fee_agreement_signed_by_name && <p className="text-[10px]">{firm.fee_agreement_signed_by_name}</p>}
-              {firm.fee_marked_by_admin && <p className="text-[10px] text-muted-foreground/70">Marked by {firm.fee_marked_by_admin}</p>}
+              <span className="text-emerald-600 font-medium">
+                {format(new Date(firm.fee_agreement_signed_at), 'MMM d, yyyy')}
+              </span>
+              {firm.fee_agreement_signed_by_name && (
+                <p className="text-[10px]">{firm.fee_agreement_signed_by_name}</p>
+              )}
+              {firm.fee_marked_by_admin && (
+                <p className="text-[10px] text-muted-foreground/70">
+                  Marked by {firm.fee_marked_by_admin}
+                </p>
+              )}
             </div>
           ) : firm.fee_agreement_sent_at ? (
-            <span>{formatDistanceToNow(new Date(firm.fee_agreement_sent_at), { addSuffix: true })}</span>
-          ) : '--'}
+            <span>
+              {formatDistanceToNow(new Date(firm.fee_agreement_sent_at), { addSuffix: true })}
+            </span>
+          ) : (
+            '--'
+          )}
         </td>
         <td className="px-4 py-3 text-xs text-muted-foreground">
           {(() => {
-            const reqDate = firm.nda_requested_at || firm.fee_agreement_requested_at
-              ? new Date(Math.max(
-                  firm.nda_requested_at ? new Date(firm.nda_requested_at).getTime() : 0,
-                  firm.fee_agreement_requested_at ? new Date(firm.fee_agreement_requested_at).getTime() : 0,
-                )).toISOString()
-              : null;
+            const reqDate =
+              firm.nda_requested_at || firm.fee_agreement_requested_at
+                ? new Date(
+                    Math.max(
+                      firm.nda_requested_at ? new Date(firm.nda_requested_at).getTime() : 0,
+                      firm.fee_agreement_requested_at
+                        ? new Date(firm.fee_agreement_requested_at).getTime()
+                        : 0,
+                    ),
+                  ).toISOString()
+                : null;
             return reqDate ? (
               <span className={firm.hasPendingRequest ? 'text-amber-600 font-medium' : ''}>
                 {formatDistanceToNow(new Date(reqDate), { addSuffix: true })}
               </span>
-            ) : '--';
+            ) : (
+              '--'
+            );
           })()}
         </td>
         <td className="px-4 py-3">
           {firm.contactName || firm.contactEmail ? (
             <div>
               {firm.contactName && <p className="text-foreground text-xs">{firm.contactName}</p>}
-              {firm.contactEmail && <p className="text-[10px] text-muted-foreground">{firm.contactEmail}</p>}
+              {firm.contactEmail && (
+                <p className="text-[10px] text-muted-foreground">{firm.contactEmail}</p>
+              )}
             </div>
-          ) : <span className="text-muted-foreground">--</span>}
+          ) : (
+            <span className="text-muted-foreground">--</span>
+          )}
         </td>
       </tr>
 
@@ -1031,13 +1113,20 @@ function FirmExpandableRow({
                       const name = m.user
                         ? `${(m.user as Record<string, string>).first_name || ''} ${(m.user as Record<string, string>).last_name || ''}`.trim()
                         : m.lead_name || '--';
-                      const email = m.user ? (m.user as Record<string, string>).email : m.lead_email;
+                      const email = m.user
+                        ? (m.user as Record<string, string>).email
+                        : m.lead_email;
                       return (
-                        <div key={m.id} className="flex items-center justify-between text-xs bg-background rounded px-3 py-2 border border-border">
+                        <div
+                          key={m.id}
+                          className="flex items-center justify-between text-xs bg-background rounded px-3 py-2 border border-border"
+                        >
                           <div>
                             <span className="font-medium text-foreground">{name}</span>
                             {email && <span className="text-muted-foreground ml-2">{email}</span>}
-                            <span className="ml-2 text-[10px] text-muted-foreground/60">{m.member_type}</span>
+                            <span className="ml-2 text-[10px] text-muted-foreground/60">
+                              {m.member_type}
+                            </span>
                           </div>
                           <Button
                             variant="ghost"
@@ -1062,11 +1151,15 @@ function FirmExpandableRow({
               {(firm.documentRequests || []).length > 0 && (
                 <div>
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                    <FileSignature className="h-3.5 w-3.5" /> Document Requests ({(firm.documentRequests || []).length})
+                    <FileSignature className="h-3.5 w-3.5" /> Document Requests (
+                    {(firm.documentRequests || []).length})
                   </h4>
                   <div className="max-h-48 overflow-y-auto space-y-1">
                     {firm.documentRequests.map((dr) => (
-                      <div key={dr.id} className="flex items-center justify-between text-[11px] bg-background rounded px-3 py-1.5 border border-border">
+                      <div
+                        key={dr.id}
+                        className="flex items-center justify-between text-[11px] bg-background rounded px-3 py-1.5 border border-border"
+                      >
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-muted-foreground/60 whitespace-nowrap">
                             {format(new Date(dr.created_at), 'MMM d, yyyy')}
@@ -1079,19 +1172,32 @@ function FirmExpandableRow({
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
-                            dr.status === 'signed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                            dr.status === 'dismissed' ? 'bg-muted text-muted-foreground border-border' :
-                            dr.status === 'email_sent' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                            'bg-muted text-muted-foreground border-border'
-                          }`}>
-                            {dr.status === 'signed' ? 'Signed' :
-                             dr.status === 'dismissed' ? 'Dismissed' :
-                             dr.status === 'email_sent' ? 'Email Sent' :
-                             'Requested'}
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                              dr.status === 'signed'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : dr.status === 'dismissed'
+                                  ? 'bg-muted text-muted-foreground border-border'
+                                  : dr.status === 'email_sent'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-muted text-muted-foreground border-border'
+                            }`}
+                          >
+                            {dr.status === 'signed'
+                              ? 'Signed'
+                              : dr.status === 'dismissed'
+                                ? 'Dismissed'
+                                : dr.status === 'email_sent'
+                                  ? 'Email Sent'
+                                  : 'Requested'}
                           </span>
                           {dr.last_email_error && (
-                            <span className="text-[10px] text-destructive" title={dr.last_email_error}>Error</span>
+                            <span
+                              className="text-[10px] text-destructive"
+                              title={dr.last_email_error}
+                            >
+                              Error
+                            </span>
                           )}
                         </div>
                       </div>
@@ -1110,12 +1216,17 @@ function FirmExpandableRow({
                 ) : (
                   <div className="max-h-48 overflow-y-auto space-y-1">
                     {auditLog.slice(0, 20).map((entry) => (
-                      <div key={entry.id} className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                      <div
+                        key={entry.id}
+                        className="flex items-start gap-2 text-[11px] text-muted-foreground"
+                      >
                         <span className="text-[10px] text-muted-foreground/60 whitespace-nowrap mt-0.5">
                           {format(new Date(entry.created_at), 'MMM d, yyyy h:mm a')}
                         </span>
                         <span>
-                          <span className="font-medium text-foreground">{entry.agreement_type === 'nda' ? 'NDA' : 'Fee Agmt'}</span>
+                          <span className="font-medium text-foreground">
+                            {entry.agreement_type === 'nda' ? 'NDA' : 'Fee Agmt'}
+                          </span>
                           {' → '}
                           <span className="font-medium">{entry.new_status}</span>
                           {entry.changed_by_name && <span> by {entry.changed_by_name}</span>}
@@ -1136,7 +1247,13 @@ function FirmExpandableRow({
 
 // ─── Pending Request Row (with Mark Signed dialog) ───────────────────
 
-function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; deliveryEvent?: DeliveryEvent }) {
+function PendingRequestRow({
+  req,
+  deliveryEvent,
+}: {
+  req: PendingRequest;
+  deliveryEvent?: DeliveryEvent;
+}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1152,6 +1269,7 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
     const now = new Date().toISOString();
     setSubmitting(true);
     try {
+      // 1. Update document_requests record
       await untypedFrom('document_requests')
         .update({
           status: 'signed',
@@ -1161,46 +1279,45 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
         })
         .eq('id', req.id);
 
+      // 2. Route through the canonical RPC which updates firm_agreements
+      //    (the DB trigger then cascades to connection_requests + deal_pipeline)
       if (req.firm_id) {
-        const statusCol = req.agreement_type === 'nda' ? 'nda_status' : 'fee_agreement_status';
-        const signedAtCol = req.agreement_type === 'nda' ? 'nda_signed_at' : 'fee_agreement_signed_at';
-        const signedByCol = req.agreement_type === 'nda' ? 'nda_signed_by_name' : 'fee_agreement_signed_by_name';
-        const signedByIdCol = req.agreement_type === 'nda' ? 'nda_signed_by' : 'fee_agreement_signed_by';
-        await supabase
-          .from('firm_agreements')
-          .update({
-            [statusCol]: 'signed',
-            [signedAtCol]: now,
-            [signedByCol]: signedByName || req.recipient_name || adminName,
-            [signedByIdCol]: signedByUserId || null,
-          } as never)
-          .eq('id', req.firm_id);
+        const { error: rpcError } = await supabase.rpc('update_firm_agreement_status', {
+          p_firm_id: req.firm_id,
+          p_agreement_type: req.agreement_type === 'nda' ? 'nda' : 'fee_agreement',
+          p_new_status: 'signed',
+          p_signed_by_name: signedByName || req.recipient_name || adminName || undefined,
+          p_signed_by_user_id: signedByUserId || undefined,
+          p_source: source || 'manual',
+          p_notes: notes || `Marked signed via pending queue (source: ${source})`,
+        });
 
-        await supabase
-          .from('agreement_audit_log')
-          .insert({
-            firm_id: req.firm_id,
-            agreement_type: req.agreement_type === 'nda' ? 'nda' : 'fee_agreement',
-            old_status: 'sent',
-            new_status: 'signed',
-            changed_by: user?.id || null,
-            changed_by_name: adminName,
-            notes: notes || `Marked signed via pending queue (source: ${source})`,
-          });
+        if (rpcError) {
+          console.error('update_firm_agreement_status RPC failed:', rpcError);
+          throw rpcError;
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: ['admin-pending-request-queue'] });
       queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
       queryClient.invalidateQueries({ queryKey: ['admin-pending-doc-requests'] });
       queryClient.invalidateQueries({ queryKey: ['firm-agreements'] });
-      toast({ title: 'Marked as signed', description: `${req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'} marked as signed.` });
+      queryClient.invalidateQueries({ queryKey: ['connection-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['connection-request-details'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      toast({
+        title: 'Marked as signed',
+        description: `${req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'} marked as signed.`,
+      });
       setSignDialogOpen(false);
 
       // Fire-and-forget: notify firm members their agreement is confirmed
       if (req.firm_id) {
-        supabase.functions.invoke('notify-agreement-confirmed', {
-          body: { firmId: req.firm_id, agreementType: req.agreement_type },
-        }).catch((err) => console.error('notify-agreement-confirmed failed:', err));
+        supabase.functions
+          .invoke('notify-agreement-confirmed', {
+            body: { firmId: req.firm_id, agreementType: req.agreement_type },
+          })
+          .catch((err) => console.error('notify-agreement-confirmed failed:', err));
       }
     } catch {
       toast({ title: 'Failed to update', variant: 'destructive' });
@@ -1237,21 +1354,34 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
             <div className="flex items-center gap-1.5 mt-0.5">
               {req.last_email_error ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-destructive/10 text-destructive border border-destructive/20">
-                  ⚠ {req.last_email_error.length > 40 ? req.last_email_error.substring(0, 40) + '…' : req.last_email_error}
+                  ⚠{' '}
+                  {req.last_email_error.length > 40
+                    ? req.last_email_error.substring(0, 40) + '…'
+                    : req.last_email_error}
                 </span>
               ) : deliveryEvent ? (
-                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
-                  deliveryEvent.status === 'delivered' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                  deliveryEvent.status === 'opened' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                  deliveryEvent.status === 'bounced' || deliveryEvent.status === 'blocked' ? 'bg-destructive/10 text-destructive border-destructive/20' :
-                  'bg-muted text-muted-foreground border-border'
-                }`}>
-                  {deliveryEvent.status === 'delivered' ? '✓ Delivered' :
-                   deliveryEvent.status === 'opened' ? '👁 Opened' :
-                   deliveryEvent.status === 'bounced' ? '✕ Bounced' :
-                   deliveryEvent.status === 'blocked' ? '✕ Blocked' :
-                   deliveryEvent.status === 'spam_complaint' ? '⚠ Spam' :
-                   deliveryEvent.status}
+                <span
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                    deliveryEvent.status === 'delivered'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : deliveryEvent.status === 'opened'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : deliveryEvent.status === 'bounced' || deliveryEvent.status === 'blocked'
+                          ? 'bg-destructive/10 text-destructive border-destructive/20'
+                          : 'bg-muted text-muted-foreground border-border'
+                  }`}
+                >
+                  {deliveryEvent.status === 'delivered'
+                    ? '✓ Delivered'
+                    : deliveryEvent.status === 'opened'
+                      ? '👁 Opened'
+                      : deliveryEvent.status === 'bounced'
+                        ? '✕ Bounced'
+                        : deliveryEvent.status === 'blocked'
+                          ? '✕ Blocked'
+                          : deliveryEvent.status === 'spam_complaint'
+                            ? '⚠ Spam'
+                            : deliveryEvent.status}
                 </span>
               ) : req.status === 'email_sent' ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
@@ -1277,14 +1407,19 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
           >
             Mark Signed
           </Button>
-          <DismissButton requestId={req.id} label={req.recipient_name || req.recipient_email || 'request'} />
+          <DismissButton
+            requestId={req.id}
+            label={req.recipient_name || req.recipient_email || 'request'}
+          />
         </div>
       </div>
 
       <Dialog open={signDialogOpen} onOpenChange={setSignDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Mark {req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'} as Signed</DialogTitle>
+            <DialogTitle>
+              Mark {req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'} as Signed
+            </DialogTitle>
             <DialogDescription>
               Confirm signing details for {req.recipient_name || req.recipient_email}
             </DialogDescription>
@@ -1295,7 +1430,10 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
               <Label className="text-xs">Signer Name</Label>
               <Input
                 value={signedByName || ''}
-                onChange={(e) => { setSignedByName(e.target.value); setSignedByUserId(null); }}
+                onChange={(e) => {
+                  setSignedByName(e.target.value);
+                  setSignedByUserId(null);
+                }}
                 placeholder="Name of person who signed..."
                 className="h-9"
               />
@@ -1330,11 +1468,7 @@ function PendingRequestRow({ req, deliveryEvent }: { req: PendingRequest; delive
             <Button variant="outline" size="sm" onClick={() => setSignDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              size="sm"
-              onClick={handleMarkSigned}
-              disabled={submitting || !signedByName}
-            >
+            <Button size="sm" onClick={handleMarkSigned} disabled={submitting || !signedByName}>
               {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
               Confirm Signed
             </Button>
@@ -1367,7 +1501,12 @@ function DismissButton({ requestId, label }: { requestId: string; label: string 
       queryClient.invalidateQueries({ queryKey: ['admin-document-tracking'] });
       toast({ title: 'Request dismissed', description: `Dismissed request from ${label}` });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : typeof err === 'object' && err !== null && 'message' in err ? String((err as Record<string, unknown>).message) : 'Unknown error';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as Record<string, unknown>).message)
+            : 'Unknown error';
       console.error('[DismissButton] Failed to dismiss request:', err);
       toast({ title: 'Failed to dismiss', description: msg, variant: 'destructive' });
     } finally {
@@ -1384,7 +1523,11 @@ function DismissButton({ requestId, label }: { requestId: string; label: string 
       disabled={dismissing}
       title="Dismiss this request"
     >
-      {dismissing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+      {dismissing ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <X className="h-3.5 w-3.5" />
+      )}
     </Button>
   );
 }

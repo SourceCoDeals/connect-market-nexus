@@ -21,6 +21,16 @@ export {
   usePushToSmartleadDialog,
 } from './use-smartlead-leads';
 
+export {
+  useContactSmartleadHistory,
+  useContactSmartleadHistoryByEmail,
+} from './use-contact-smartlead-history';
+export type {
+  SmartleadContactActivity,
+  SmartleadContactEvent,
+  ContactSmartleadHistory,
+} from './use-contact-smartlead-history';
+
 export { useDraftReply } from './use-draft-reply';
 
 export {
@@ -38,4 +48,9 @@ export {
   useLinkInboxToDeal,
   useSmartleadInboxRealtime,
 } from './use-smartlead-inbox';
-export type { SmartleadInboxItem, InboxFilter, InboxStats } from './use-smartlead-inbox';
+export type {
+  SmartleadInboxItem,
+  InboxFilter,
+  InboxStats,
+  CampaignFilter,
+} from './use-smartlead-inbox';

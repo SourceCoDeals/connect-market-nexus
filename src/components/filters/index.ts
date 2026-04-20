@@ -1,9 +1,9 @@
-export { FilterBar } from "./FilterBar";
-export { TimeframeSelector } from "./TimeframeSelector";
-export { FieldPicker } from "./FieldPicker";
-export { FilterRow } from "./FilterRow";
-export { FilterPill } from "./FilterPill";
-export { SavedViewSelector } from "./SavedViewSelector";
+export { FilterBar } from './FilterBar';
+export { TimeframeSelector } from './TimeframeSelector';
+export { FieldPicker } from './FieldPicker';
+export { FilterRow } from './FilterRow';
+export { FilterPill } from './FilterPill';
+export { SavedViewSelector } from './SavedViewSelector';
 export {
   DEAL_LISTING_FIELDS,
   ADMIN_LISTING_FIELDS,
@@ -13,6 +13,7 @@ export {
   SOURCECO_FIELDS,
   VALUATION_LEAD_FIELDS,
   ACTIVITY_FIELDS,
+  MATCH_TOOL_LEAD_FIELDS,
   OPERATORS_BY_TYPE,
   EMPTY_FILTER_STATE,
   type FilterFieldDef,
@@ -20,4 +21,4 @@ export {
   type FilterState,
   type FieldType,
   type Operator,
-} from "./filter-definitions";
+} from './filter-definitions';

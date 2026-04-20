@@ -56,16 +56,3 @@ export const GENERIC_EMAIL_DOMAINS = new Set([
 export function isGenericEmailDomain(domain: string): boolean {
   return GENERIC_EMAIL_DOMAINS.has(domain.toLowerCase());
 }
-
-/**
- * Extract the domain portion of an email address, lowercased and trimmed.
- * Returns null for inputs that don't contain exactly one `@`.
- */
-export function extractEmailDomain(input: string | null | undefined): string | null {
-  if (!input) return null;
-  const trimmed = input.trim().toLowerCase();
-  const atIdx = trimmed.indexOf('@');
-  if (atIdx < 0 || atIdx !== trimmed.lastIndexOf('@')) return null;
-  const domain = trimmed.slice(atIdx + 1);
-  return domain.length > 0 ? domain : null;
-}

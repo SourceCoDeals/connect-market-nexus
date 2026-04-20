@@ -20,12 +20,11 @@ export function validateStep(currentStep: number, formData: SignupFormData): str
       if (!formData.firstName) errors.push('First name is required');
       if (!formData.lastName) errors.push('Last name is required');
       if (!formData.company) errors.push('Company name is required');
-      if (!formData.phoneNumber) errors.push('Phone number is required');
-      if (!formData.website && !formData.linkedinProfile)
-        errors.push('Please provide at least a website or LinkedIn profile so we can verify your credibility');
-      if (formData.website && !isValidUrlFormat(formData.website))
-        errors.push('Please enter a valid website URL');
-      if (formData.linkedinProfile && !isValidLinkedInFormat(formData.linkedinProfile))
+      if (!formData.jobTitle) errors.push('Job title is required');
+      if (!formData.website) errors.push('Website is required');
+      else if (!isValidUrlFormat(formData.website)) errors.push('Please enter a valid website URL');
+      if (!formData.linkedinProfile) errors.push('LinkedIn profile is required');
+      else if (!isValidLinkedInFormat(formData.linkedinProfile))
         errors.push('Please enter a valid LinkedIn URL');
       break;
     }
@@ -40,13 +39,22 @@ export function validateStep(currentStep: number, formData: SignupFormData): str
         case 'corporate':
           if (!formData.estimatedRevenue) errors.push('Estimated revenue is required');
           if (!formData.dealSizeBand) errors.push('Deal size (EV) is required');
+          if (!formData.integrationPlan || formData.integrationPlan.length === 0)
+            errors.push('At least one integration plan option is required');
+          if (!formData.corpdevIntent) errors.push('Speed/Intent is required');
           break;
         case 'privateEquity':
           if (!formData.fundSize) errors.push('Fund size is required');
+          if (!formData.investmentSize || formData.investmentSize.length === 0)
+            errors.push('Investment size is required');
+          if (!formData.aum) errors.push('Assets under management is required');
           if (!formData.deployingCapitalNow) errors.push('Deploying capital status is required');
           break;
         case 'familyOffice':
           if (!formData.fundSize) errors.push('Fund size is required');
+          if (!formData.investmentSize || formData.investmentSize.length === 0)
+            errors.push('Investment size is required');
+          if (!formData.aum) errors.push('Assets under management is required');
           if (!formData.discretionType) errors.push('Decision authority is required');
           break;
         case 'searchFund':
@@ -56,6 +64,9 @@ export function validateStep(currentStep: number, formData: SignupFormData): str
             errors.push('At least one financing plan option is required');
           if (formData.flexSub2mEbitda === undefined)
             errors.push("Please specify if you're flexible on size");
+          if (!formData.anchorInvestorsSummary)
+            errors.push('Anchor investors / backers is required');
+          if (!formData.searchStage) errors.push('Stage of search is required');
           break;
         case 'individual':
           if (!formData.fundingSource) errors.push('Funding source is required');
@@ -68,6 +79,8 @@ export function validateStep(currentStep: number, formData: SignupFormData): str
             errors.push('At least one equity source is required');
           if (formData.flexSubxmEbitda === undefined)
             errors.push("Please specify if you're flexible on size");
+          if (!formData.backersSummary) errors.push('Representative backers is required');
+          if (!formData.deploymentTiming) errors.push('Readiness window is required');
           break;
         case 'advisor':
           if (!formData.onBehalfOfBuyer)
@@ -78,10 +91,7 @@ export function validateStep(currentStep: number, formData: SignupFormData): str
             else if (!isValidUrlFormat(formData.buyerOrgUrl))
               errors.push('Please enter a valid buyer organization website');
           }
-          if (formData.onBehalfOfBuyer === 'no') {
-            if (!formData.mandateBlurb?.trim())
-              errors.push('Please describe your sourcing mandate');
-          }
+          if (!formData.mandateBlurb?.trim()) errors.push('Mandate description is required');
           break;
         case 'businessOwner':
           if (!formData.ownerIntent) errors.push("Please describe why you're here");
@@ -91,19 +101,16 @@ export function validateStep(currentStep: number, formData: SignupFormData): str
       break;
     }
     case 4: {
-      // Step 4 is fully optional — buyers can complete their profile after approval.
-      // Only validate fields that the user has started filling in.
-      const hasAnyProfileData =
-        formData.idealTargetDescription.trim() ||
-        formData.businessCategories.length > 0 ||
-        formData.targetLocations.length > 0;
-      if (!hasAnyProfileData) break; // Allow empty submission (skip)
-      if (formData.idealTargetDescription.trim() && formData.idealTargetDescription.length < 10)
-        errors.push('Please provide at least 10 characters describing your ideal targets');
-      if (formData.idealTargetDescription.trim() && formData.businessCategories.length === 0)
+      if (!formData.idealTargetDescription.trim() || formData.idealTargetDescription.length < 20)
+        errors.push('Please provide at least 20 characters describing your ideal targets');
+      if (formData.businessCategories.length === 0)
         errors.push('Please select at least one business category');
-      if (formData.idealTargetDescription.trim() && formData.targetLocations.length === 0)
+      if (!formData.targetLocations || formData.targetLocations.length === 0)
         errors.push('Please select at least one target location');
+      if (!formData.specificBusinessSearch?.trim())
+        errors.push('Specific business requirements is required');
+      if (!formData.dealIntent) errors.push('Deal intent is required');
+      // Revenue range validation (optional fields, but validate if both filled)
       if (formData.revenueRangeMin && formData.revenueRangeMax) {
         const minIdx = REVENUE_RANGES.findIndex((r) => r.value === formData.revenueRangeMin);
         const maxIdx = REVENUE_RANGES.findIndex((r) => r.value === formData.revenueRangeMax);

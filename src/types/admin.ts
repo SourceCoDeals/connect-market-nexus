@@ -61,7 +61,7 @@ export interface AdminListing {
   custom_metric_label?: string | null;
   custom_metric_value?: string | null;
   custom_metric_subtitle?: string | null;
-  metric_3_type?: 'custom';
+  metric_3_type?: 'employees' | 'custom';
   metric_3_custom_label?: string | null;
   metric_3_custom_value?: string | null;
   metric_3_custom_subtitle?: string | null;
@@ -170,7 +170,7 @@ export interface CreateListingData {
   custom_metric_label?: string | null;
   custom_metric_value?: string | null;
   custom_metric_subtitle?: string | null;
-  metric_3_type?: 'custom';
+  metric_3_type?: 'employees' | 'custom';
   metric_3_custom_label?: string | null;
   metric_3_custom_value?: string | null;
   metric_3_custom_subtitle?: string | null;
@@ -241,6 +241,13 @@ export interface AdminConnectionRequest {
   lead_fee_agreement_email_sent_at?: string | null;
   lead_fee_agreement_signed?: boolean;
   lead_fee_agreement_signed_at?: string | null;
+  // Agreement email dispatch tracking
+  lead_agreement_email_status?: string | null;
+  lead_agreement_email_sent_at?: string | null;
+  lead_agreement_sender_email?: string | null;
+  lead_agreement_outbound_id?: string | null;
+  // Firm linkage (set by DB trigger)
+  firm_id?: string | null;
   created_at: string;
   updated_at: string;
   decision_at?: string;

@@ -53,6 +53,10 @@ export interface AdminUser {
   referral_source_detail?: string;
   deal_sourcing_methods?: string[] | unknown;
   target_acquisition_volume?: string;
+  // Linked buyer (remarketing) fields
+  remarketing_buyer_id?: string | null;
+  mandate_blurb?: string | null;
+  portfolio_company_addon?: string | null;
 }
 
 export interface AdminConnectionRequest {

@@ -8,9 +8,10 @@ import type { SignupFormData } from './types';
 interface Props {
   formData: SignupFormData;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  inviteDomain?: string;
 }
 
-export function SignupStepAccount({ formData, onChange }: Props) {
+export function SignupStepAccount({ formData, onChange, inviteDomain }: Props) {
   const [domainMatch, setDomainMatch] = useState<{
     found: boolean;
     firm_name: string | null;
@@ -43,7 +44,7 @@ export function SignupStepAccount({ formData, onChange }: Props) {
     <div className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="email" className="text-xs text-muted-foreground">
-          Email
+          Email *
         </Label>
         <Input
           id="email"
@@ -55,6 +56,17 @@ export function SignupStepAccount({ formData, onChange }: Props) {
           onBlur={(e) => checkDomain(e.target.value)}
           required
         />
+        {inviteDomain &&
+          formData.email.includes('@') &&
+          formData.email.split('@')[1]?.toLowerCase() !== inviteDomain.toLowerCase() && (
+            <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-50 border border-amber-200 mt-1.5">
+              <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-700">
+                This invite link is restricted to <strong>@{inviteDomain}</strong> email addresses.
+                Using a different domain will require standard approval.
+              </p>
+            </div>
+          )}
         {domainMatch?.found && domainMatch.firm_name && (
           <div className="flex items-start gap-2 p-2.5 rounded-md bg-blue-50 border border-blue-200 mt-1.5">
             <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
@@ -67,7 +79,7 @@ export function SignupStepAccount({ formData, onChange }: Props) {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="password" className="text-xs text-muted-foreground">
-          Password
+          Password *
         </Label>
         <Input
           id="password"
@@ -78,10 +90,11 @@ export function SignupStepAccount({ formData, onChange }: Props) {
           onChange={onChange}
           required
         />
+        <p className="text-[11px] text-muted-foreground">Must be at least 8 characters</p>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="confirmPassword" className="text-xs text-muted-foreground">
-          Confirm Password
+          Confirm Password *
         </Label>
         <Input
           id="confirmPassword"
