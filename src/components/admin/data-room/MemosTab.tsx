@@ -85,10 +85,7 @@ function notifyListeners(key: string) {
   activeGenerations.get(key)?.listeners.forEach((fn) => fn());
 }
 
-function startTrackedGeneration(
-  key: string,
-  generationPromise: Promise<unknown>,
-) {
+function startTrackedGeneration(key: string, generationPromise: Promise<unknown>) {
   // If already generating, don't restart
   if (activeGenerations.has(key)) return activeGenerations.get(key)!;
 
@@ -205,8 +202,15 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
         .eq('id', dealId);
       if (error) throw error;
       toast({ title: 'Project name saved' });
-    } catch {
-      toast({ title: 'Failed to save project name', variant: 'destructive' });
+    } catch (err) {
+      // Include the Postgres / PostgREST error so RLS denials and constraint
+      // violations stop hiding behind a generic "Failed to save" toast.
+      const message = err instanceof Error && err.message ? err.message : 'Unknown error';
+      toast({
+        title: 'Failed to save project name',
+        description: message,
+        variant: 'destructive',
+      });
     } finally {
       setIsSavingProjectName(false);
     }
@@ -245,7 +249,10 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
         <CardContent className="pt-6">
           <div className="flex items-end gap-3">
             <div className="flex-1">
-              <Label htmlFor="project-name" className="text-sm font-medium flex items-center gap-1.5 mb-1.5">
+              <Label
+                htmlFor="project-name"
+                className="text-sm font-medium flex items-center gap-1.5 mb-1.5"
+              >
                 <Tag className="h-3.5 w-3.5" />
                 Project Name
               </Label>
@@ -276,28 +283,28 @@ export function MemosTab({ dealId, dealTitle, projectName }: MemosTabProps) {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
-      <MemoSlotCard
-        dealId={dealId}
-        dealTitle={dealTitle}
-        projectName={editableProjectName || projectName}
-        slotType="anonymous_teaser"
-        title="Anonymous Teaser"
-        description="One-page blind profile. No company name, no owner name, no identifying details. Used for initial interest gauging."
-        document={teaserDoc}
-        draft={teaserLocked ? undefined : teaserDraft}
-        locked={teaserLocked}
-        lockedMessage="Upload a Final PDF for the Full Lead Memo before drafting the Anonymous Teaser."
-      />
-      <MemoSlotCard
-        dealId={dealId}
-        dealTitle={dealTitle}
-        projectName={projectName}
-        slotType="full_memo"
-        title="Full Lead Memo"
-        description="Comprehensive investment memo. Includes company name, financials, operations detail. Sent after NDA execution."
-        document={fullMemoDoc}
-        draft={fullMemoDraft}
-      />
+        <MemoSlotCard
+          dealId={dealId}
+          dealTitle={dealTitle}
+          projectName={editableProjectName || projectName}
+          slotType="anonymous_teaser"
+          title="Anonymous Teaser"
+          description="One-page blind profile. No company name, no owner name, no identifying details. Used for initial interest gauging."
+          document={teaserDoc}
+          draft={teaserLocked ? undefined : teaserDraft}
+          locked={teaserLocked}
+          lockedMessage="Upload a Final PDF for the Full Lead Memo before drafting the Anonymous Teaser."
+        />
+        <MemoSlotCard
+          dealId={dealId}
+          dealTitle={dealTitle}
+          projectName={projectName}
+          slotType="full_memo"
+          title="Full Lead Memo"
+          description="Comprehensive investment memo. Includes company name, financials, operations detail. Sent after NDA execution."
+          document={fullMemoDoc}
+          draft={fullMemoDraft}
+        />
       </div>
     </div>
   );
@@ -471,7 +478,7 @@ function MemoSlotCard({
       await generateMemoDocx({
         sections,
         memoType: slotType,
-        dealTitle: slotType === 'anonymous_teaser' ? (projectName || 'Deal') : (dealTitle || 'Deal'),
+        dealTitle: slotType === 'anonymous_teaser' ? projectName || 'Deal' : dealTitle || 'Deal',
         branding: 'SourceCo',
         companyInfo: company,
       });
@@ -483,9 +490,8 @@ function MemoSlotCard({
   const handleDownloadDraftPdf = () => {
     const sections = getMemoSections();
     if (!sections) return;
-    const displayTitle = slotType === 'anonymous_teaser'
-      ? (projectName || 'Deal')
-      : (dealTitle || 'Deal');
+    const displayTitle =
+      slotType === 'anonymous_teaser' ? projectName || 'Deal' : dealTitle || 'Deal';
 
     const html = buildMemoPdfHtml({
       sections,
@@ -663,21 +669,32 @@ function MemoSlotCard({
 
                     {/* Analyst Notes — outside preview, in the card */}
                     {(() => {
-                      const analystNotes = (draft.content as { analyst_notes?: string })?.analyst_notes;
-                      if (!analystNotes || analystNotes === 'None.' || analystNotes.trim() === '') return null;
+                      const analystNotes = (draft.content as { analyst_notes?: string })
+                        ?.analyst_notes;
+                      if (!analystNotes || analystNotes === 'None.' || analystNotes.trim() === '')
+                        return null;
                       return (
                         <Collapsible open={notesOpen} onOpenChange={setNotesOpen}>
                           <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 px-3 rounded-md border border-amber-200 bg-amber-50/50 hover:bg-amber-50 transition-colors text-left">
-                            <ChevronDown className={`h-3.5 w-3.5 text-amber-600 transition-transform ${notesOpen ? 'rotate-0' : '-rotate-90'}`} />
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 text-amber-600 transition-transform ${notesOpen ? 'rotate-0' : '-rotate-90'}`}
+                            />
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                            <span className="text-xs font-medium text-amber-800">Analyst Notes</span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600 ml-auto">
+                            <span className="text-xs font-medium text-amber-800">
+                              Analyst Notes
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600 ml-auto"
+                            >
                               Internal only
                             </Badge>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
                             <div className="mt-1.5 px-3 py-2.5 rounded-md border border-amber-200 bg-amber-50/30">
-                              <p className="text-xs text-amber-800 whitespace-pre-wrap leading-relaxed">{analystNotes}</p>
+                              <p className="text-xs text-amber-800 whitespace-pre-wrap leading-relaxed">
+                                {analystNotes}
+                              </p>
                             </div>
                           </CollapsibleContent>
                         </Collapsible>
@@ -952,30 +969,28 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
       </div>
 
       {/* Company info block — anonymous teasers show only project codename */}
-      {isAnonymous ? (
-        company.company_name && (
-          <div className="pl-3 border-l-4 border-[#1a1a2e] bg-muted/30 py-2 px-3">
-            <p className="font-bold text-sm text-[#1a1a2e]">{company.company_name}</p>
-          </div>
-        )
-      ) : (
-        (company.company_name || company.company_address || company.company_website) && (
-          <div className="pl-3 border-l-4 border-[#1a1a2e] bg-muted/30 py-2 px-3">
-            {company.company_name && (
+      {isAnonymous
+        ? company.company_name && (
+            <div className="pl-3 border-l-4 border-[#1a1a2e] bg-muted/30 py-2 px-3">
               <p className="font-bold text-sm text-[#1a1a2e]">{company.company_name}</p>
-            )}
-            {company.company_address && (
-              <p className="text-xs text-muted-foreground">{company.company_address}</p>
-            )}
-            {company.company_website && (
-              <p className="text-xs text-muted-foreground">{company.company_website}</p>
-            )}
-            {company.company_phone && (
-              <p className="text-xs text-muted-foreground">{company.company_phone}</p>
-            )}
-          </div>
-        )
-      )}
+            </div>
+          )
+        : (company.company_name || company.company_address || company.company_website) && (
+            <div className="pl-3 border-l-4 border-[#1a1a2e] bg-muted/30 py-2 px-3">
+              {company.company_name && (
+                <p className="font-bold text-sm text-[#1a1a2e]">{company.company_name}</p>
+              )}
+              {company.company_address && (
+                <p className="text-xs text-muted-foreground">{company.company_address}</p>
+              )}
+              {company.company_website && (
+                <p className="text-xs text-muted-foreground">{company.company_website}</p>
+              )}
+              {company.company_phone && (
+                <p className="text-xs text-muted-foreground">{company.company_phone}</p>
+              )}
+            </div>
+          )}
 
       {/* Memo type */}
       <div className="text-center">
@@ -1014,7 +1029,6 @@ function DraftPreview({ draft }: { draft: LeadMemo }) {
             </div>
           );
         })}
-
     </div>
   );
 }

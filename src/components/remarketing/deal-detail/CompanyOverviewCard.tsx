@@ -13,33 +13,29 @@
  *   ReMarketing deal detail page (/admin/remarketing/deals/:id),
  *   Pipeline deal info tab (/admin/deals/pipeline/:id)
  */
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { NumericInput } from "@/components/ui/numeric-input";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { NumericInput } from '@/components/ui/numeric-input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+} from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Pencil,
   Loader2,
@@ -56,37 +52,79 @@ import {
   Linkedin,
   Target,
   Briefcase,
-} from "lucide-react";
-import { toast } from "sonner";
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 // US state codes for dropdown
 const US_STATES = [
-  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
-  { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
-  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'DC', name: 'Washington DC' },
-  { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' },
-  { code: 'ID', name: 'Idaho' }, { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
-  { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' },
-  { code: 'LA', name: 'Louisiana' }, { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
-  { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' },
-  { code: 'MS', name: 'Mississippi' }, { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
-  { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' },
-  { code: 'NJ', name: 'New Jersey' }, { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
-  { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' },
-  { code: 'OK', name: 'Oklahoma' }, { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
-  { code: 'PR', name: 'Puerto Rico' }, { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' },
-  { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' }, { code: 'TX', name: 'Texas' },
-  { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' },
-  { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' },
+  { code: 'AL', name: 'Alabama' },
+  { code: 'AK', name: 'Alaska' },
+  { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' },
+  { code: 'CA', name: 'California' },
+  { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' },
+  { code: 'DE', name: 'Delaware' },
+  { code: 'DC', name: 'Washington DC' },
+  { code: 'FL', name: 'Florida' },
+  { code: 'GA', name: 'Georgia' },
+  { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' },
+  { code: 'IL', name: 'Illinois' },
+  { code: 'IN', name: 'Indiana' },
+  { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' },
+  { code: 'KY', name: 'Kentucky' },
+  { code: 'LA', name: 'Louisiana' },
+  { code: 'ME', name: 'Maine' },
+  { code: 'MD', name: 'Maryland' },
+  { code: 'MA', name: 'Massachusetts' },
+  { code: 'MI', name: 'Michigan' },
+  { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' },
+  { code: 'MO', name: 'Missouri' },
+  { code: 'MT', name: 'Montana' },
+  { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' },
+  { code: 'NH', name: 'New Hampshire' },
+  { code: 'NJ', name: 'New Jersey' },
+  { code: 'NM', name: 'New Mexico' },
+  { code: 'NY', name: 'New York' },
+  { code: 'NC', name: 'North Carolina' },
+  { code: 'ND', name: 'North Dakota' },
+  { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' },
+  { code: 'OR', name: 'Oregon' },
+  { code: 'PA', name: 'Pennsylvania' },
+  { code: 'PR', name: 'Puerto Rico' },
+  { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' },
+  { code: 'SD', name: 'South Dakota' },
+  { code: 'TN', name: 'Tennessee' },
+  { code: 'TX', name: 'Texas' },
+  { code: 'UT', name: 'Utah' },
+  { code: 'VT', name: 'Vermont' },
+  { code: 'VA', name: 'Virginia' },
+  { code: 'WA', name: 'Washington' },
+  { code: 'WV', name: 'West Virginia' },
+  { code: 'WI', name: 'Wisconsin' },
   { code: 'WY', name: 'Wyoming' },
 ];
 
 // Canadian province codes
 const CA_PROVINCES = [
-  { code: 'AB', name: 'Alberta' }, { code: 'BC', name: 'British Columbia' }, { code: 'MB', name: 'Manitoba' },
-  { code: 'NB', name: 'New Brunswick' }, { code: 'NL', name: 'Newfoundland' }, { code: 'NS', name: 'Nova Scotia' },
-  { code: 'NT', name: 'Northwest Territories' }, { code: 'NU', name: 'Nunavut' }, { code: 'ON', name: 'Ontario' },
-  { code: 'PE', name: 'Prince Edward Island' }, { code: 'QC', name: 'Quebec' }, { code: 'SK', name: 'Saskatchewan' },
+  { code: 'AB', name: 'Alberta' },
+  { code: 'BC', name: 'British Columbia' },
+  { code: 'MB', name: 'Manitoba' },
+  { code: 'NB', name: 'New Brunswick' },
+  { code: 'NL', name: 'Newfoundland' },
+  { code: 'NS', name: 'Nova Scotia' },
+  { code: 'NT', name: 'Northwest Territories' },
+  { code: 'NU', name: 'Nunavut' },
+  { code: 'ON', name: 'Ontario' },
+  { code: 'PE', name: 'Prince Edward Island' },
+  { code: 'QC', name: 'Quebec' },
+  { code: 'SK', name: 'Saskatchewan' },
   { code: 'YT', name: 'Yukon' },
 ];
 
@@ -188,33 +226,33 @@ export const CompanyOverviewCard = ({
 }: CompanyOverviewCardProps) => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [scorePopoverOpen, setScorePopoverOpen] = useState(false);
-  const [editingScore, setEditingScore] = useState("");
+  const [editingScore, setEditingScore] = useState('');
   const [isSavingScore, setIsSavingScore] = useState(false);
   const [formData, setFormData] = useState({
-    companyName: companyName || "",
-    website: website || "",
-    address: address || "",
-    foundedYear: foundedYear?.toString() || "",
-    industry: industry || "",
-    numberOfLocations: numberOfLocations?.toString() || "",
-    locationRadiusRequirement: locationRadiusRequirement || "",
+    companyName: companyName || '',
+    website: website || '',
+    address: address || '',
+    foundedYear: foundedYear?.toString() || '',
+    industry: industry || '',
+    numberOfLocations: numberOfLocations?.toString() || '',
+    locationRadiusRequirement: locationRadiusRequirement || '',
     // Structured address
-    streetAddress: streetAddress || "",
-    addressCity: addressCity || "",
-    addressState: addressState || "",
-    addressZip: addressZip || "",
-    addressCountry: addressCountry || "US",
+    streetAddress: streetAddress || '',
+    addressCity: addressCity || '',
+    addressState: addressState || '',
+    addressZip: addressZip || '',
+    addressCountry: addressCountry || 'US',
     // LinkedIn
-    linkedinUrl: linkedinUrl || "",
-    linkedinEmployeeCount: linkedinEmployeeCount?.toString() || "",
-    linkedinEmployeeRange: linkedinEmployeeRange || "",
+    linkedinUrl: linkedinUrl || '',
+    linkedinEmployeeCount: linkedinEmployeeCount?.toString() || '',
+    linkedinEmployeeRange: linkedinEmployeeRange || '',
     // Employees
-    fullTimeEmployees: employees.fullTime?.toString() || "",
-    partTimeEmployees: employees.partTime?.toString() || "",
+    fullTimeEmployees: employees.fullTime?.toString() || '',
+    partTimeEmployees: employees.partTime?.toString() || '',
     // Google
-    googleRating: googleRating?.toString() || "",
-    googleReviewCount: googleReviewCount?.toString() || "",
-    googleMapsUrl: googleMapsUrl || "",
+    googleRating: googleRating?.toString() || '',
+    googleReviewCount: googleReviewCount?.toString() || '',
+    googleMapsUrl: googleMapsUrl || '',
     hiredBroker: !!hiredBroker,
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -223,16 +261,16 @@ export const CompanyOverviewCard = ({
     if (!onScoreChange) return;
     const num = parseInt(editingScore);
     if (isNaN(num) || num < 0 || num > 100) {
-      toast.error("Score must be between 0 and 100");
+      toast.error('Score must be between 0 and 100');
       return;
     }
     setIsSavingScore(true);
     try {
       await onScoreChange(num);
       setScorePopoverOpen(false);
-      toast.success("Quality score updated");
+      toast.success('Quality score updated');
     } catch {
-      toast.error("Failed to update score");
+      toast.error('Failed to update score');
     } finally {
       setIsSavingScore(false);
     }
@@ -255,7 +293,9 @@ export const CompanyOverviewCard = ({
         addressZip: formData.addressZip,
         addressCountry: formData.addressCountry,
         linkedinUrl: formData.linkedinUrl,
-        linkedinEmployeeCount: formData.linkedinEmployeeCount ? parseInt(formData.linkedinEmployeeCount) : null,
+        linkedinEmployeeCount: formData.linkedinEmployeeCount
+          ? parseInt(formData.linkedinEmployeeCount)
+          : null,
         linkedinEmployeeRange: formData.linkedinEmployeeRange,
         fullTimeEmployees: formData.fullTimeEmployees ? parseInt(formData.fullTimeEmployees) : null,
         partTimeEmployees: formData.partTimeEmployees ? parseInt(formData.partTimeEmployees) : null,
@@ -265,9 +305,13 @@ export const CompanyOverviewCard = ({
         hiredBroker: formData.hiredBroker,
       });
       setIsEditOpen(false);
-      toast.success("Company overview updated");
+      toast.success('Company overview updated');
     } catch (error) {
-      toast.error("Failed to save");
+      // Surface the underlying error (RLS denial, constraint violation,
+      // invalid column value). A generic "Failed to save" hides root causes
+      // and forces the admin back to DevTools to diagnose.
+      const message = error instanceof Error && error.message ? error.message : 'Unknown error';
+      toast.error(`Failed to save: ${message}`);
     } finally {
       setIsSaving(false);
     }
@@ -275,39 +319,39 @@ export const CompanyOverviewCard = ({
 
   const openEdit = () => {
     setFormData({
-      companyName: companyName || "",
-      website: website || "",
-      address: address || "",
-      foundedYear: foundedYear?.toString() || "",
-      industry: industry || "",
-      numberOfLocations: numberOfLocations?.toString() || "",
-      locationRadiusRequirement: locationRadiusRequirement || "",
-      streetAddress: streetAddress || "",
-      addressCity: addressCity || "",
-      addressState: addressState || "",
-      addressZip: addressZip || "",
-      addressCountry: addressCountry || "US",
-      linkedinUrl: linkedinUrl || "",
-      linkedinEmployeeCount: linkedinEmployeeCount?.toString() || "",
-      linkedinEmployeeRange: linkedinEmployeeRange || "",
-      fullTimeEmployees: employees.fullTime?.toString() || "",
-      partTimeEmployees: employees.partTime?.toString() || "",
-      googleRating: googleRating?.toString() || "",
-      googleReviewCount: googleReviewCount?.toString() || "",
-      googleMapsUrl: googleMapsUrl || "",
+      companyName: companyName || '',
+      website: website || '',
+      address: address || '',
+      foundedYear: foundedYear?.toString() || '',
+      industry: industry || '',
+      numberOfLocations: numberOfLocations?.toString() || '',
+      locationRadiusRequirement: locationRadiusRequirement || '',
+      streetAddress: streetAddress || '',
+      addressCity: addressCity || '',
+      addressState: addressState || '',
+      addressZip: addressZip || '',
+      addressCountry: addressCountry || 'US',
+      linkedinUrl: linkedinUrl || '',
+      linkedinEmployeeCount: linkedinEmployeeCount?.toString() || '',
+      linkedinEmployeeRange: linkedinEmployeeRange || '',
+      fullTimeEmployees: employees.fullTime?.toString() || '',
+      partTimeEmployees: employees.partTime?.toString() || '',
+      googleRating: googleRating?.toString() || '',
+      googleReviewCount: googleReviewCount?.toString() || '',
+      googleMapsUrl: googleMapsUrl || '',
       hiredBroker: !!hiredBroker,
     });
     setIsEditOpen(true);
   };
 
   const formatWebsiteDisplay = (url: string | null) => {
-    if (!url) return "Not specified";
-    return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+    if (!url) return 'Not specified';
+    return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
   };
 
   const getWebsiteHref = (url: string | null) => {
-    if (!url) return "#";
-    if (url.startsWith("http")) return url;
+    if (!url) return '#';
+    if (url.startsWith('http')) return url;
     return `https://${url}`;
   };
 
@@ -316,16 +360,16 @@ export const CompanyOverviewCard = ({
     if (addressCity && addressState) {
       return `${addressCity}, ${addressState}`;
     }
-    return location || "–";
+    return location || '–';
   };
 
   // Format full address display - include zip and country
   const getFullAddressDisplay = () => {
     const parts: string[] = [];
-    
+
     // Line 1: Street address
     if (streetAddress) parts.push(streetAddress);
-    
+
     // Line 2: City, State ZIP
     const cityStateZip: string[] = [];
     if (addressCity) cityStateZip.push(addressCity);
@@ -345,13 +389,18 @@ export const CompanyOverviewCard = ({
       }
     }
     if (cityStateZip.length > 0) parts.push(cityStateZip.join(''));
-    
+
     // Line 3: Country (if not US, or always show for completeness)
     if (addressCountry) {
-      const countryDisplay = addressCountry === 'US' ? 'United States' : addressCountry === 'CA' ? 'Canada' : addressCountry;
+      const countryDisplay =
+        addressCountry === 'US'
+          ? 'United States'
+          : addressCountry === 'CA'
+            ? 'Canada'
+            : addressCountry;
       parts.push(countryDisplay);
     }
-    
+
     if (parts.length > 0) return parts;
     if (address) return [address];
     return null;
@@ -359,14 +408,14 @@ export const CompanyOverviewCard = ({
 
   const fullAddress = getFullAddressDisplay();
 
-  const InfoRow = ({ 
-    icon: Icon, 
-    label, 
-    value, 
-  }: { 
-    icon: React.ElementType; 
-    label: string; 
-    value: React.ReactNode; 
+  const InfoRow = ({
+    icon: Icon,
+    label,
+    value,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    value: React.ReactNode;
   }) => (
     <div className="flex items-start gap-2 py-2">
       <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -374,9 +423,7 @@ export const CompanyOverviewCard = ({
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
           {label}
         </span>
-        <span className="font-medium text-sm mt-0.5 block truncate">
-          {value}
-        </span>
+        <span className="font-medium text-sm mt-0.5 block truncate">{value}</span>
       </div>
     </div>
   );
@@ -402,11 +449,7 @@ export const CompanyOverviewCard = ({
             {/* Column 1 */}
             <div className="space-y-1 lg:pr-6">
               {/* Company Name */}
-              <InfoRow
-                icon={Building2}
-                label="COMPANY NAME"
-                value={companyName || "–"}
-              />
+              <InfoRow icon={Building2} label="COMPANY NAME" value={companyName || '–'} />
 
               {/* Website */}
               <div className="flex items-start gap-2 py-2">
@@ -431,15 +474,11 @@ export const CompanyOverviewCard = ({
                 </div>
               </div>
 
-              <InfoRow 
-                icon={MapPin} 
-                label="HEADQUARTERS" 
-                value={getHeadquartersDisplay()} 
-              />
+              <InfoRow icon={MapPin} label="HEADQUARTERS" value={getHeadquartersDisplay()} />
 
-              <InfoRow 
-                icon={Home} 
-                label="ADDRESS" 
+              <InfoRow
+                icon={Home}
+                label="ADDRESS"
                 value={
                   fullAddress ? (
                     <div className="max-w-[180px]">
@@ -450,23 +489,19 @@ export const CompanyOverviewCard = ({
                   ) : (
                     <span className="text-muted-foreground">–</span>
                   )
-                } 
+                }
               />
 
-              <InfoRow 
-                icon={Calendar} 
-                label="FOUNDED" 
-                value={foundedYear || "–"} 
-              />
+              <InfoRow icon={Calendar} label="FOUNDED" value={foundedYear || '–'} />
 
-              <InfoRow 
-                icon={Users} 
-                label="EMPLOYEES" 
+              <InfoRow
+                icon={Users}
+                label="EMPLOYEES"
                 value={
                   employees.fullTime || employees.partTime
-                    ? `${employees.fullTime ? `${employees.fullTime} FT` : ""}${employees.fullTime && employees.partTime ? " + " : ""}${employees.partTime ? `${employees.partTime} PT` : ""}`
-                    : "–"
-                } 
+                    ? `${employees.fullTime ? `${employees.fullTime} FT` : ''}${employees.fullTime && employees.partTime ? ' + ' : ''}${employees.partTime ? `${employees.partTime} PT` : ''}`
+                    : '–'
+                }
               />
             </div>
 
@@ -478,16 +513,18 @@ export const CompanyOverviewCard = ({
                 value={
                   linkedinUrl ? (
                     <a
-                      href={linkedinUrl.startsWith("http") ? linkedinUrl : `https://${linkedinUrl}`}
+                      href={linkedinUrl.startsWith('http') ? linkedinUrl : `https://${linkedinUrl}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline flex items-center gap-1"
                     >
-                      {linkedinUrl.replace(/^https?:\/\/(www\.)?linkedin\.com\/company\//i, "").replace(/\/$/, "")}
+                      {linkedinUrl
+                        .replace(/^https?:\/\/(www\.)?linkedin\.com\/company\//i, '')
+                        .replace(/\/$/, '')}
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   ) : (
-                    "–"
+                    '–'
                   )
                 }
               />
@@ -495,29 +532,21 @@ export const CompanyOverviewCard = ({
               <InfoRow
                 icon={Users}
                 label="LINKEDIN EMPLOYEES"
-                value={linkedinEmployeeCount ? linkedinEmployeeCount.toLocaleString() : "–"}
+                value={linkedinEmployeeCount ? linkedinEmployeeCount.toLocaleString() : '–'}
               />
 
-              <InfoRow
-                icon={Users}
-                label="EMPLOYEE RANGE"
-                value={linkedinEmployeeRange || "–"}
-              />
+              <InfoRow icon={Users} label="EMPLOYEE RANGE" value={linkedinEmployeeRange || '–'} />
 
-              <InfoRow
-                icon={Building}
-                label="INDUSTRY"
-                value={industry || category || "–"}
-              />
+              <InfoRow icon={Building} label="INDUSTRY" value={industry || category || '–'} />
 
               <InfoRow
                 icon={Building2}
-                label="LOCATIONS" 
+                label="LOCATIONS"
                 value={
-                  numberOfLocations 
-                    ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ""}`
-                    : "–"
-                } 
+                  numberOfLocations
+                    ? `${numberOfLocations}${locationRadiusRequirement ? ` (${locationRadiusRequirement})` : ''}`
+                    : '–'
+                }
               />
             </div>
 
@@ -543,7 +572,7 @@ export const CompanyOverviewCard = ({
                       )}
                     </span>
                   ) : (
-                    "–"
+                    '–'
                   )
                 }
               />
@@ -554,7 +583,7 @@ export const CompanyOverviewCard = ({
                 value={
                   googleReviewCount !== null && googleReviewCount !== undefined
                     ? `${googleReviewCount.toLocaleString()} review${googleReviewCount !== 1 ? 's' : ''}`
-                    : "–"
+                    : '–'
                 }
               />
 
@@ -565,12 +594,12 @@ export const CompanyOverviewCard = ({
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
                     QUALITY SCORE
                   </span>
-                  <Popover 
-                    open={scorePopoverOpen} 
+                  <Popover
+                    open={scorePopoverOpen}
                     onOpenChange={(open) => {
                       setScorePopoverOpen(open);
                       if (open) {
-                        setEditingScore(dealQualityScore?.toString() || "");
+                        setEditingScore(dealQualityScore?.toString() || '');
                       }
                     }}
                   >
@@ -582,12 +611,17 @@ export const CompanyOverviewCard = ({
                       >
                         {dealQualityScore !== null && dealQualityScore !== undefined ? (
                           <>
-                            <span className={`text-lg font-bold ${
-                              dealQualityScore >= 80 ? 'text-green-600' :
-                              dealQualityScore >= 60 ? 'text-amber-600' :
-                              dealQualityScore >= 40 ? 'text-orange-500' :
-                              'text-red-500'
-                            }`}>
+                            <span
+                              className={`text-lg font-bold ${
+                                dealQualityScore >= 80
+                                  ? 'text-green-600'
+                                  : dealQualityScore >= 60
+                                    ? 'text-amber-600'
+                                    : dealQualityScore >= 40
+                                      ? 'text-orange-500'
+                                      : 'text-red-500'
+                              }`}
+                            >
                               {dealQualityScore}
                             </span>
                             <span className="text-xs text-muted-foreground">/100</span>
@@ -604,18 +638,25 @@ export const CompanyOverviewCard = ({
                         {aiCalculatedScore !== null && aiCalculatedScore !== undefined && (
                           <div className="flex items-center justify-between text-sm border-b pb-3">
                             <span className="text-muted-foreground font-medium">AI Calculated</span>
-                            <span className={`text-base font-bold ${
-                              aiCalculatedScore >= 80 ? 'text-green-600' :
-                              aiCalculatedScore >= 60 ? 'text-amber-600' :
-                              aiCalculatedScore >= 40 ? 'text-orange-500' :
-                              'text-red-500'
-                            }`}>
+                            <span
+                              className={`text-base font-bold ${
+                                aiCalculatedScore >= 80
+                                  ? 'text-green-600'
+                                  : aiCalculatedScore >= 60
+                                    ? 'text-amber-600'
+                                    : aiCalculatedScore >= 40
+                                      ? 'text-orange-500'
+                                      : 'text-red-500'
+                              }`}
+                            >
                               {aiCalculatedScore}/100
                             </span>
                           </div>
                         )}
                         <div>
-                          <Label htmlFor="quality-score" className="text-sm font-medium">Override Score (0-100)</Label>
+                          <Label htmlFor="quality-score" className="text-sm font-medium">
+                            Override Score (0-100)
+                          </Label>
                           <Input
                             id="quality-score"
                             type="number"
@@ -646,7 +687,7 @@ export const CompanyOverviewCard = ({
                             onClick={handleScoreSave}
                             disabled={isSavingScore}
                           >
-                            {isSavingScore ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                            {isSavingScore ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
                           </Button>
                         </div>
                       </div>
@@ -662,7 +703,10 @@ export const CompanyOverviewCard = ({
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
                     STATUS
                   </span>
-                  <Badge variant={status === "active" ? "default" : "secondary"} className="capitalize mt-0.5">
+                  <Badge
+                    variant={status === 'active' ? 'default' : 'secondary'}
+                    className="capitalize mt-0.5"
+                  >
                     {status}
                   </Badge>
                 </div>
@@ -683,9 +727,11 @@ export const CompanyOverviewCard = ({
                         if (onHiredBrokerChange) {
                           try {
                             await onHiredBrokerChange(!!checked);
-                            toast.success(checked ? "Marked as hired a broker" : "Broker flag removed");
+                            toast.success(
+                              checked ? 'Marked as hired a broker' : 'Broker flag removed',
+                            );
                           } catch {
-                            toast.error("Failed to update broker status");
+                            toast.error('Failed to update broker status');
                           }
                         }
                       }}
@@ -694,7 +740,7 @@ export const CompanyOverviewCard = ({
                       htmlFor="hired-broker"
                       className="text-sm font-medium cursor-pointer select-none"
                     >
-                      {hiredBroker ? "Yes" : "No"}
+                      {hiredBroker ? 'Yes' : 'No'}
                     </label>
                   </div>
                 </div>
@@ -735,9 +781,11 @@ export const CompanyOverviewCard = ({
             {/* Structured Address Section */}
             <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
               <Label className="text-sm font-medium">Headquarters Address</Label>
-              
+
               <div>
-                <Label htmlFor="streetAddress" className="text-xs text-muted-foreground">Street Address</Label>
+                <Label htmlFor="streetAddress" className="text-xs text-muted-foreground">
+                  Street Address
+                </Label>
                 <Input
                   id="streetAddress"
                   placeholder="123 Main Street, Suite 100"
@@ -749,7 +797,9 @@ export const CompanyOverviewCard = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="addressCity" className="text-xs text-muted-foreground">City</Label>
+                  <Label htmlFor="addressCity" className="text-xs text-muted-foreground">
+                    City
+                  </Label>
                   <Input
                     id="addressCity"
                     placeholder="Dallas"
@@ -759,7 +809,9 @@ export const CompanyOverviewCard = ({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="addressState" className="text-xs text-muted-foreground">State</Label>
+                  <Label htmlFor="addressState" className="text-xs text-muted-foreground">
+                    State
+                  </Label>
                   <Select
                     value={formData.addressState}
                     onValueChange={(value) => setFormData({ ...formData, addressState: value })}
@@ -780,7 +832,9 @@ export const CompanyOverviewCard = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="addressZip" className="text-xs text-muted-foreground">ZIP Code</Label>
+                  <Label htmlFor="addressZip" className="text-xs text-muted-foreground">
+                    ZIP Code
+                  </Label>
                   <Input
                     id="addressZip"
                     placeholder="75201"
@@ -790,7 +844,9 @@ export const CompanyOverviewCard = ({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="addressCountry" className="text-xs text-muted-foreground">Country</Label>
+                  <Label htmlFor="addressCountry" className="text-xs text-muted-foreground">
+                    Country
+                  </Label>
                   <Select
                     value={formData.addressCountry}
                     onValueChange={(value) => setFormData({ ...formData, addressCountry: value })}
@@ -858,7 +914,9 @@ export const CompanyOverviewCard = ({
               <Label className="text-sm font-medium">Employees</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="fullTimeEmployees" className="text-xs text-muted-foreground">Full-Time</Label>
+                  <Label htmlFor="fullTimeEmployees" className="text-xs text-muted-foreground">
+                    Full-Time
+                  </Label>
                   <NumericInput
                     id="fullTimeEmployees"
                     placeholder="25"
@@ -868,7 +926,9 @@ export const CompanyOverviewCard = ({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="partTimeEmployees" className="text-xs text-muted-foreground">Part-Time</Label>
+                  <Label htmlFor="partTimeEmployees" className="text-xs text-muted-foreground">
+                    Part-Time
+                  </Label>
                   <NumericInput
                     id="partTimeEmployees"
                     placeholder="5"
@@ -884,7 +944,9 @@ export const CompanyOverviewCard = ({
             <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
               <Label className="text-sm font-medium">LinkedIn</Label>
               <div>
-                <Label htmlFor="linkedinUrl" className="text-xs text-muted-foreground">LinkedIn URL</Label>
+                <Label htmlFor="linkedinUrl" className="text-xs text-muted-foreground">
+                  LinkedIn URL
+                </Label>
                 <Input
                   id="linkedinUrl"
                   placeholder="https://linkedin.com/company/..."
@@ -895,7 +957,9 @@ export const CompanyOverviewCard = ({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="linkedinEmployeeCount" className="text-xs text-muted-foreground">Employee Count</Label>
+                  <Label htmlFor="linkedinEmployeeCount" className="text-xs text-muted-foreground">
+                    Employee Count
+                  </Label>
                   <NumericInput
                     id="linkedinEmployeeCount"
                     placeholder="34"
@@ -905,12 +969,16 @@ export const CompanyOverviewCard = ({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="linkedinEmployeeRange" className="text-xs text-muted-foreground">Employee Range</Label>
+                  <Label htmlFor="linkedinEmployeeRange" className="text-xs text-muted-foreground">
+                    Employee Range
+                  </Label>
                   <Input
                     id="linkedinEmployeeRange"
                     placeholder="11-50 employees"
                     value={formData.linkedinEmployeeRange}
-                    onChange={(e) => setFormData({ ...formData, linkedinEmployeeRange: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, linkedinEmployeeRange: e.target.value })
+                    }
                     className="mt-1"
                   />
                 </div>
@@ -922,7 +990,9 @@ export const CompanyOverviewCard = ({
               <Label className="text-sm font-medium">Google</Label>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="googleRating" className="text-xs text-muted-foreground">Rating</Label>
+                  <Label htmlFor="googleRating" className="text-xs text-muted-foreground">
+                    Rating
+                  </Label>
                   <Input
                     id="googleRating"
                     type="number"
@@ -936,7 +1006,9 @@ export const CompanyOverviewCard = ({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="googleReviewCount" className="text-xs text-muted-foreground">Review Count</Label>
+                  <Label htmlFor="googleReviewCount" className="text-xs text-muted-foreground">
+                    Review Count
+                  </Label>
                   <NumericInput
                     id="googleReviewCount"
                     placeholder="17"
@@ -947,7 +1019,9 @@ export const CompanyOverviewCard = ({
                 </div>
               </div>
               <div>
-                <Label htmlFor="googleMapsUrl" className="text-xs text-muted-foreground">Google Maps URL</Label>
+                <Label htmlFor="googleMapsUrl" className="text-xs text-muted-foreground">
+                  Google Maps URL
+                </Label>
                 <Input
                   id="googleMapsUrl"
                   placeholder="https://maps.google.com/..."
@@ -965,7 +1039,10 @@ export const CompanyOverviewCard = ({
                 checked={formData.hiredBroker}
                 onCheckedChange={(checked) => setFormData({ ...formData, hiredBroker: !!checked })}
               />
-              <label htmlFor="edit-hired-broker" className="text-sm font-medium cursor-pointer select-none">
+              <label
+                htmlFor="edit-hired-broker"
+                className="text-sm font-medium cursor-pointer select-none"
+              >
                 Hired a Broker
               </label>
             </div>
