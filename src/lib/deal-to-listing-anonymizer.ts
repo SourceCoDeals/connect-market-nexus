@@ -85,7 +85,7 @@ export interface AnonymizedListingData {
   internal_notes: string;
   company_website: string;
   // Custom metrics (GAP 6)
-  metric_3_type: 'custom';
+  metric_3_type: 'employees' | 'custom';
   metric_3_custom_label: string;
   metric_3_custom_value: string;
   metric_3_custom_subtitle: string;
@@ -883,36 +883,6 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
     });
   }
 
-  // Metric 3 (custom-only as of 2026-04-14 — employees metric is deprecated).
-  // Fallback chain: Service Lines → Locations → Years Established → Transaction Type.
-  // Mirrors supabase/functions/generate-listing-content/index.ts so new listings
-  // from either path land on the same metric shape.
-  const numLocations = deal.number_of_locations || 0;
-  const foundedYear =
-    deal.founded_year && deal.founded_year > 0 && deal.founded_year <= new Date().getFullYear()
-      ? deal.founded_year
-      : 0;
-  let metric3Label: string;
-  let metric3Value: string;
-  let metric3Subtitle: string;
-  if (services.length > 0) {
-    metric3Label = 'Service Lines';
-    metric3Value = `${services.length}`;
-    metric3Subtitle = 'Diversified offerings';
-  } else if (numLocations > 0) {
-    metric3Label = 'Locations';
-    metric3Value = `${numLocations}`;
-    metric3Subtitle = 'Across service area';
-  } else if (foundedYear > 0) {
-    metric3Label = 'Years Established';
-    metric3Value = `${new Date().getFullYear() - foundedYear}`;
-    metric3Subtitle = `Founded ${foundedYear}`;
-  } else {
-    metric3Label = 'Transaction Type';
-    metric3Value = '100% Sale';
-    metric3Subtitle = 'Full equity exit';
-  }
-
   return {
     title: generateAnonymousTitle(deal),
     description: generateAnonymousDescription(deal),
@@ -926,12 +896,11 @@ export function anonymizeDealToListing(deal: DealData): AnonymizedListingData {
     internal_company_name: deal.internal_company_name || '',
     internal_notes: `Created from deal: ${deal.internal_company_name || deal.id}`,
     company_website: deal.website || '',
-    // Custom metrics (GAP 6) — auto-populate from deal data.
-    // metric_3_type is always 'custom'; the legacy 'employees' type is deprecated.
-    metric_3_type: 'custom',
-    metric_3_custom_label: metric3Label,
-    metric_3_custom_value: metric3Value,
-    metric_3_custom_subtitle: metric3Subtitle,
+    // Custom metrics (GAP 6) — auto-populate from deal data
+    metric_3_type: services.length > 0 ? 'custom' : 'employees',
+    metric_3_custom_label: services.length > 0 ? 'Service Lines' : '',
+    metric_3_custom_value: services.length > 0 ? `${services.length}` : '',
+    metric_3_custom_subtitle: services.length > 0 ? 'Diversified offerings' : '',
     metric_4_type: 'ebitda_margin',
     metric_4_custom_label: '',
     metric_4_custom_value: '',

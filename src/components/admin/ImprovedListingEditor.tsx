@@ -84,7 +84,7 @@ const listingFormSchema = z.object({
   custom_metric_label: z.string().nullable().optional(),
   custom_metric_value: z.string().nullable().optional(),
   custom_metric_subtitle: z.string().nullable().optional(),
-  metric_3_type: z.enum(['custom']).default('custom'),
+  metric_3_type: z.enum(['employees', 'custom']).default('employees'),
   metric_3_custom_label: z.string().nullable().optional(),
   metric_3_custom_value: z.string().nullable().optional(),
   metric_3_custom_subtitle: z.string().nullable().optional(),
@@ -135,7 +135,7 @@ type ListingFormInput = {
   custom_metric_label?: string;
   custom_metric_value?: string;
   custom_metric_subtitle?: string;
-  metric_3_type?: 'custom';
+  metric_3_type?: 'employees' | 'custom';
   metric_3_custom_label?: string;
   metric_3_custom_value?: string;
   metric_3_custom_subtitle?: string;
@@ -195,8 +195,7 @@ const convertListingToFormInput = (listing?: AdminListing): ListingFormInput => 
     custom_metric_label: listing?.custom_metric_label || '',
     custom_metric_value: listing?.custom_metric_value || '',
     custom_metric_subtitle: listing?.custom_metric_subtitle || '',
-    // Legacy 'employees' metric type is deprecated — coerce all rows to 'custom'
-    metric_3_type: 'custom' as const,
+    metric_3_type: listing?.metric_3_type || 'employees',
     metric_3_custom_label: listing?.metric_3_custom_label || '',
     metric_3_custom_value: listing?.metric_3_custom_value || '',
     metric_3_custom_subtitle: listing?.metric_3_custom_subtitle || '',
@@ -339,17 +338,22 @@ export function ImprovedListingEditor({
         });
       if (data.ebitda_metric_subtitle)
         form.setValue('ebitda_metric_subtitle', data.ebitda_metric_subtitle, { shouldDirty: true });
-      // metric_3 is now custom-only. Legacy 'employees' type from the generator is ignored.
-      if (data.metric_3_type === 'custom') {
-        form.setValue('metric_3_type', 'custom', { shouldDirty: true });
-        if (data.metric_3_custom_label)
-          form.setValue('metric_3_custom_label', data.metric_3_custom_label, { shouldDirty: true });
-        if (data.metric_3_custom_value)
-          form.setValue('metric_3_custom_value', data.metric_3_custom_value, { shouldDirty: true });
-        if (data.metric_3_custom_subtitle)
-          form.setValue('metric_3_custom_subtitle', data.metric_3_custom_subtitle, {
-            shouldDirty: true,
-          });
+      if (data.metric_3_type) {
+        form.setValue('metric_3_type', data.metric_3_type, { shouldDirty: true });
+        if (data.metric_3_type === 'custom') {
+          if (data.metric_3_custom_label)
+            form.setValue('metric_3_custom_label', data.metric_3_custom_label, {
+              shouldDirty: true,
+            });
+          if (data.metric_3_custom_value)
+            form.setValue('metric_3_custom_value', data.metric_3_custom_value, {
+              shouldDirty: true,
+            });
+          if (data.metric_3_custom_subtitle)
+            form.setValue('metric_3_custom_subtitle', data.metric_3_custom_subtitle, {
+              shouldDirty: true,
+            });
+        }
       }
       if (data.metric_4_type)
         form.setValue('metric_4_type', data.metric_4_type, { shouldDirty: true });
@@ -527,7 +531,7 @@ export function ImprovedListingEditor({
         custom_metric_label: formData.custom_metric_label || null,
         custom_metric_value: formData.custom_metric_value || null,
         custom_metric_subtitle: formData.custom_metric_subtitle || null,
-        metric_3_type: 'custom',
+        metric_3_type: formData.metric_3_type || 'employees',
         metric_3_custom_label: formData.metric_3_custom_label || null,
         metric_3_custom_value: formData.metric_3_custom_value || null,
         metric_3_custom_subtitle: formData.metric_3_custom_subtitle || null,

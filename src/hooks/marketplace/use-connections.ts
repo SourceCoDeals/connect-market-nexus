@@ -57,6 +57,45 @@ export const useRequestConnection = () => {
       const parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
       const requestId = parsedResult.request_id;
 
+      // Attach first-touch attribution data to the connection request (fire-and-forget)
+      try {
+        const firstTouchRaw = localStorage.getItem('sourceco_first_touch');
+        if (firstTouchRaw) {
+          const firstTouch = JSON.parse(firstTouchRaw);
+          const utmParams: Record<string, string> = {};
+          const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+          try {
+            const searchParams = new URLSearchParams(window.location.search);
+            for (const key of keys) {
+              const val = searchParams.get(key);
+              if (val) utmParams[key] = val;
+            }
+          } catch {
+            /* ignore */
+          }
+
+          const sourceMetadata: Record<string, unknown> = {
+            page_url: window.location.href,
+            referrer: document.referrer || null,
+            ...utmParams,
+            first_touch: firstTouch,
+          };
+
+          supabase
+            .from('connection_requests')
+            .update({ source_metadata: sourceMetadata as Record<string, unknown> } as Record<
+              string,
+              unknown
+            >)
+            .eq('id', requestId)
+            .then(({ error: metaErr }) => {
+              if (metaErr) console.error('Failed to attach UTM metadata:', metaErr);
+            });
+        }
+      } catch {
+        /* ignore localStorage errors */
+      }
+
       const userId = authUser.id;
 
       // Log activity
@@ -81,12 +120,12 @@ export const useRequestConnection = () => {
       }
 
       // Calculate deal-specific buyer quality score (fire-and-forget)
-      import("@/lib/remarketing/queueScoring")
+      import('@/lib/remarketing/queueScoring')
         .then(({ queueBuyerQualityScoring }) =>
           queueBuyerQualityScoring([userId], {
             deal_request_message: message?.trim() || null,
             connection_request_id: requestId,
-          })
+          }),
         )
         .catch((err) => console.error('Buyer quality score calc failed:', err));
 
@@ -219,7 +258,8 @@ export const useAllConnectionStatuses = () => {
 
         const map = new Map<string, { exists: boolean; status: string; id: string }>();
         for (const row of data || []) {
-          if (row.listing_id) map.set(row.listing_id, { exists: true, status: row.status, id: row.id });
+          if (row.listing_id)
+            map.set(row.listing_id, { exists: true, status: row.status, id: row.id });
         }
         return map;
       } catch (error: unknown) {

@@ -49,7 +49,8 @@ const ListingCard = memo(function ListingCard({
   const { data: agreementStatus } = useMyAgreementStatus(!!user);
   const profileComplete = user ? isProfileComplete(user) : true;
   const profilePct = user ? getProfileCompletionPercentage(user) : 100;
-  const buyerBlocked = user?.buyer_type === 'businessOwner' || user?.buyer_type === 'business_owner';
+  const buyerBlocked =
+    user?.buyer_type === 'businessOwner' || user?.buyer_type === 'business_owner';
   const feeCovered = agreementStatus?.fee_covered ?? true;
   const ndaCovered = agreementStatus?.nda_covered ?? true;
 
@@ -175,6 +176,8 @@ const ListingCard = memo(function ListingCard({
                 ebitda={listing.ebitda}
                 description={listing.description}
                 formatCurrency={formatCurrency}
+                fullTimeEmployees={listing.full_time_employees}
+                partTimeEmployees={listing.part_time_employees}
                 viewType={viewType}
               />
 

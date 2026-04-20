@@ -148,7 +148,15 @@ const ListingPreview = () => {
                           subtitle: listing.metric_3_custom_subtitle ?? undefined,
                         },
                       ]
-                    : []),
+                    : (listing.full_time_employees || 0) + (listing.part_time_employees || 0) > 0
+                      ? [
+                          {
+                            label: 'Team Size',
+                            value: `${(listing.full_time_employees || 0) + (listing.part_time_employees || 0)}`,
+                            subtitle: `${listing.full_time_employees || 0} FT, ${listing.part_time_employees || 0} PT`,
+                          },
+                        ]
+                      : []),
                   ...(listing.metric_4_type === 'custom' && listing.metric_4_custom_label
                     ? [
                         {

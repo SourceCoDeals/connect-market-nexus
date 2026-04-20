@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useListingIntelligence, useListingJourneys } from '@/hooks/use-listing-intelligence';
-import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 export function ListingIntelligenceTab() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,7 +27,7 @@ export function ListingIntelligenceTab() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedListingId, setSelectedListingId] = useState<string>();
 
-  const { data: intelligenceData, isLoading, error, refetch } = useListingIntelligence(30);
+  const { data: intelligenceData, isLoading } = useListingIntelligence(30);
   const { data: journeyData } = useListingJourneys(selectedListingId);
 
   const listings = intelligenceData?.listingPerformance || [];
@@ -81,16 +80,6 @@ export function ListingIntelligenceTab() {
         return <Eye className="h-4 w-4 text-gray-500" />;
     }
   };
-
-  if (error) {
-    return (
-      <DashboardErrorBanner
-        title="Couldn't load listing intelligence"
-        error={error as Error}
-        onRetry={() => refetch()}
-      />
-    );
-  }
 
   if (isLoading) {
     return (
