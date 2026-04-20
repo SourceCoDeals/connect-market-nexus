@@ -26,6 +26,12 @@ dist-ssr
 # Supabase CLI temp files
 supabase/.temp/
 
+# Sync bundle artifacts (local-only, do not commit)
+sync-bundle-trimmed.zip
+sync-bundle-trimmed*.zip
+frontend-src*.zip
+_sync_scratch/
+
 # Environment variables (never commit secrets)
 .env
 .env.local
