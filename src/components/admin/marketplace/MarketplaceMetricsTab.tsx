@@ -43,6 +43,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 // ── Timeline presets ──
 
@@ -613,6 +614,10 @@ export function MarketplaceMetricsTab() {
   const metrics = current.data;
   const prev = previous.data;
   const isLoading = current.isLoading;
+  // Previously `isLoading || !metrics` gated every section. When the query
+  // errored, isLoading flipped to false but metrics stayed undefined, so the
+  // tab was stuck on a skeleton forever with no signal of what broke.
+  const queryError = (current.error || previous.error) as Error | null | undefined;
 
   const rangeLabel = useMemo(() => {
     return `${format(new Date(range.from), 'MMM d, yyyy')} – ${format(new Date(range.to), 'MMM d, yyyy')}`;
@@ -682,8 +687,19 @@ export function MarketplaceMetricsTab() {
         </div>
       </div>
 
+      {queryError && (
+        <DashboardErrorBanner
+          title="Couldn't load marketplace metrics"
+          error={queryError}
+          onRetry={() => {
+            current.refetch();
+            previous.refetch();
+          }}
+        />
+      )}
+
       {/* Hero KPIs */}
-      {isLoading || !metrics ? (
+      {queryError ? null : isLoading || !metrics ? (
         <LoadingGrid cols={5} />
       ) : (
         <div className="grid gap-4 md:grid-cols-5">
@@ -774,7 +790,7 @@ export function MarketplaceMetricsTab() {
           </TabsTrigger>
         </TabsList>
 
-        {isLoading || !metrics ? (
+        {queryError ? null : isLoading || !metrics ? (
           <div className="mt-6">
             <LoadingGrid cols={4} />
           </div>

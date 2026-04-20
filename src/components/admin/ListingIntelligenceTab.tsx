@@ -1,60 +1,96 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, TrendingUp, Eye, Heart, MessageSquare, AlertCircle, CheckCircle } from "lucide-react";
-import { useState } from "react";
-import { useListingIntelligence, useListingJourneys } from "@/hooks/use-listing-intelligence";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Search,
+  TrendingUp,
+  Eye,
+  Heart,
+  MessageSquare,
+  AlertCircle,
+  CheckCircle,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useListingIntelligence, useListingJourneys } from '@/hooks/use-listing-intelligence';
+import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 export function ListingIntelligenceTab() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("performance_score");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('performance_score');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [selectedListingId, setSelectedListingId] = useState<string>();
-  
-  const { data: intelligenceData, isLoading } = useListingIntelligence(30);
+
+  const { data: intelligenceData, isLoading, error, refetch } = useListingIntelligence(30);
   const { data: journeyData } = useListingJourneys(selectedListingId);
 
   const listings = intelligenceData?.listingPerformance || [];
   const averages = intelligenceData?.averageMetrics;
 
-  const filteredListings = listings.filter(listing => {
-    const matchesSearch = !searchTerm || 
+  const filteredListings = listings.filter((listing) => {
+    const matchesSearch =
+      !searchTerm ||
       listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       listing.category.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = categoryFilter === "all" || listing.category === categoryFilter;
-    
+
+    const matchesCategory = categoryFilter === 'all' || listing.category === categoryFilter;
+
     return matchesSearch && matchesCategory;
   });
 
   const sortedListings = [...filteredListings].sort((a, b) => {
     switch (sortBy) {
-      case 'performance_score': return b.performance_score - a.performance_score;
-      case 'views': return b.views - a.views;
-      case 'conversion_rate': return b.conversion_rate - a.conversion_rate;
-      case 'revenue': return b.revenue - a.revenue;
-      default: return 0;
+      case 'performance_score':
+        return b.performance_score - a.performance_score;
+      case 'views':
+        return b.views - a.views;
+      case 'conversion_rate':
+        return b.conversion_rate - a.conversion_rate;
+      case 'revenue':
+        return b.revenue - a.revenue;
+      default:
+        return 0;
     }
   });
 
-  const categories = [...new Set(listings.map(l => l.category))].filter(Boolean);
+  const categories = [...new Set(listings.map((l) => l.category))].filter(Boolean);
 
   const getPerformanceBadge = (score: number) => {
     if (score >= 70) return { variant: 'default' as const, label: 'High', color: 'text-green-600' };
-    if (score >= 40) return { variant: 'secondary' as const, label: 'Medium', color: 'text-yellow-600' };
+    if (score >= 40)
+      return { variant: 'secondary' as const, label: 'Medium', color: 'text-yellow-600' };
     return { variant: 'outline' as const, label: 'Low', color: 'text-red-600' };
   };
 
   const getJourneyStageIcon = (stage: string) => {
     switch (stage) {
-      case 'connected': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'serious': return <MessageSquare className="h-4 w-4 text-blue-500" />;
-      case 'interested': return <Heart className="h-4 w-4 text-orange-500" />;
-      default: return <Eye className="h-4 w-4 text-gray-500" />;
+      case 'connected':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'serious':
+        return <MessageSquare className="h-4 w-4 text-blue-500" />;
+      case 'interested':
+        return <Heart className="h-4 w-4 text-orange-500" />;
+      default:
+        return <Eye className="h-4 w-4 text-gray-500" />;
     }
   };
+
+  if (error) {
+    return (
+      <DashboardErrorBanner
+        title="Couldn't load listing intelligence"
+        error={error as Error}
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -78,7 +114,9 @@ export function ListingIntelligenceTab() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold">Listing Intelligence</h2>
-        <p className="text-muted-foreground">Deep insights into listing performance and user behavior</p>
+        <p className="text-muted-foreground">
+          Deep insights into listing performance and user behavior
+        </p>
       </div>
 
       {/* Performance Overview */}
@@ -151,8 +189,10 @@ export function ListingIntelligenceTab() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      {categories.map(category => (
-                        <SelectItem key={category} value={category}>{category}</SelectItem>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -174,10 +214,13 @@ export function ListingIntelligenceTab() {
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {sortedListings.map((listing) => {
                   const performance = getPerformanceBadge(listing.performance_score);
-                  
+
                   return (
-                    <div key={listing.id} className="p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
-                         onClick={() => setSelectedListingId(listing.id)}>
+                    <div
+                      key={listing.id}
+                      className="p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
+                      onClick={() => setSelectedListingId(listing.id)}
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <h4 className="font-medium text-sm mb-1">{listing.title}</h4>
@@ -191,7 +234,7 @@ export function ListingIntelligenceTab() {
                           {listing.performance_score} {performance.label}
                         </Badge>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <Eye className="h-4 w-4 text-muted-foreground" />
@@ -230,7 +273,9 @@ export function ListingIntelligenceTab() {
             <Card>
               <CardHeader>
                 <CardTitle>User Journeys: {journeyData[0].listing_title}</CardTitle>
-                <CardDescription>Detailed user interaction patterns for this listing</CardDescription>
+                <CardDescription>
+                  Detailed user interaction patterns for this listing
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -248,25 +293,34 @@ export function ListingIntelligenceTab() {
                           </Badge>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-muted-foreground">
                         <div>
                           <span className="font-medium">{journey.total_views}</span> views
                         </div>
                         <div>
-                          <span className="font-medium">{(journey.time_spent / 60).toFixed(1)}m</span> time spent
+                          <span className="font-medium">
+                            {(journey.time_spent / 60).toFixed(1)}m
+                          </span>{' '}
+                          time spent
                         </div>
-                        <div>
-                          First view: {new Date(journey.first_view).toLocaleDateString()}
-                        </div>
+                        <div>First view: {new Date(journey.first_view).toLocaleDateString()}</div>
                         <div>
                           Last active: {new Date(journey.last_activity).toLocaleDateString()}
                         </div>
                       </div>
 
                       <div className="flex gap-2 mt-2">
-                        {journey.saved && <Badge variant="outline" className="text-xs">Saved</Badge>}
-                        {journey.connected && <Badge variant="default" className="text-xs">Connected</Badge>}
+                        {journey.saved && (
+                          <Badge variant="outline" className="text-xs">
+                            Saved
+                          </Badge>
+                        )}
+                        {journey.connected && (
+                          <Badge variant="default" className="text-xs">
+                            Connected
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -276,7 +330,9 @@ export function ListingIntelligenceTab() {
           ) : (
             <Card>
               <CardContent className="py-8 text-center">
-                <p className="text-muted-foreground">Select a listing from the Performance tab to view user journeys</p>
+                <p className="text-muted-foreground">
+                  Select a listing from the Performance tab to view user journeys
+                </p>
               </CardContent>
             </Card>
           )}
@@ -292,10 +348,13 @@ export function ListingIntelligenceTab() {
               <CardContent>
                 <div className="space-y-3">
                   {sortedListings
-                    .filter(l => l.performance_score < 30)
+                    .filter((l) => l.performance_score < 30)
                     .slice(0, 5)
                     .map((listing) => (
-                      <div key={listing.id} className="p-3 border border-red-200 rounded-lg bg-red-50">
+                      <div
+                        key={listing.id}
+                        className="p-3 border border-red-200 rounded-lg bg-red-50"
+                      >
                         <div className="flex items-center gap-2 mb-2">
                           <AlertCircle className="h-4 w-4 text-red-500" />
                           <h4 className="font-medium text-sm">{listing.title}</h4>
@@ -305,7 +364,9 @@ export function ListingIntelligenceTab() {
                         </div>
                         <div className="space-y-1">
                           {listing.optimization_suggestions.map((suggestion) => (
-                            <p key={suggestion} className="text-xs text-red-700">• {suggestion}</p>
+                            <p key={suggestion} className="text-xs text-red-700">
+                              • {suggestion}
+                            </p>
                           ))}
                         </div>
                       </div>
@@ -322,10 +383,13 @@ export function ListingIntelligenceTab() {
               <CardContent>
                 <div className="space-y-3">
                   {sortedListings
-                    .filter(l => l.performance_score >= 70)
+                    .filter((l) => l.performance_score >= 70)
                     .slice(0, 3)
                     .map((listing) => (
-                      <div key={listing.id} className="p-3 border border-green-200 rounded-lg bg-green-50">
+                      <div
+                        key={listing.id}
+                        className="p-3 border border-green-200 rounded-lg bg-green-50"
+                      >
                         <div className="flex items-center gap-2 mb-2">
                           <CheckCircle className="h-4 w-4 text-green-500" />
                           <h4 className="font-medium text-sm">{listing.title}</h4>
@@ -338,10 +402,16 @@ export function ListingIntelligenceTab() {
                             <span className="font-medium">{listing.views}</span> views
                           </div>
                           <div>
-                            <span className="font-medium">{listing.conversion_rate.toFixed(1)}%</span> conversion
+                            <span className="font-medium">
+                              {listing.conversion_rate.toFixed(1)}%
+                            </span>{' '}
+                            conversion
                           </div>
                           <div>
-                            <span className="font-medium">{(listing.avg_view_duration / 60).toFixed(1)}m</span> avg time
+                            <span className="font-medium">
+                              {(listing.avg_view_duration / 60).toFixed(1)}m
+                            </span>{' '}
+                            avg time
                           </div>
                         </div>
                       </div>

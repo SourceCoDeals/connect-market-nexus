@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { FileText, CheckCircle, XCircle, HelpCircle, Clock, Users, MessageSquare } from 'lucide-react';
+import {
+  FileText,
+  CheckCircle,
+  XCircle,
+  HelpCircle,
+  Clock,
+  Users,
+  MessageSquare,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useMyPortalUser } from '@/hooks/portal/use-portal-users';
@@ -12,7 +20,13 @@ import type { PortalDealPush } from '@/types/portal';
 
 export default function PortalDashboard() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: portalUser, isLoading: userLoading, status } = useMyPortalUser(slug);
+  const {
+    data: portalUser,
+    isLoading: userLoading,
+    status,
+    error: userError,
+    refetch: refetchUser,
+  } = useMyPortalUser(slug);
   const { data: deals, isLoading: dealsLoading } = useMyPortalDeals(portalUser?.portal_org?.id);
   const { data: messageSummaries } = usePortalMessageSummaries(
     portalUser?.portal_org?.id,
@@ -20,7 +34,26 @@ export default function PortalDashboard() {
   );
   const [companyModalDeal, setCompanyModalDeal] = useState<PortalDealPush | null>(null);
 
-  if (userLoading || status === 'pending') return <div className="py-12 text-center text-muted-foreground">Loading portal...</div>;
+  if (userLoading || status === 'pending')
+    return <div className="py-12 text-center text-muted-foreground">Loading portal...</div>;
+
+  // Separate "query errored" from "no access" — before this, both paths hit
+  // the generic "You do not have access" screen, which hid real failures like
+  // RLS denials, missing migrations, or network errors.
+  if (userError) {
+    return (
+      <div className="py-12 max-w-xl mx-auto px-4 text-center">
+        <p className="text-sm font-semibold text-red-800 mb-2">Couldn't load your portal</p>
+        <p className="text-xs text-muted-foreground mb-4 break-words">
+          {(userError as Error).message || 'The portal access query failed.'}
+        </p>
+        <Button variant="outline" onClick={() => refetchUser()}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
   if (!portalUser) {
     return (
       <div className="py-12 text-center">
@@ -79,7 +112,8 @@ export default function PortalDashboard() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-blue-900">
-                    {totalUnread} new message{totalUnread !== 1 ? 's' : ''} across {dealsWithUnread} deal{dealsWithUnread !== 1 ? 's' : ''}
+                    {totalUnread} new message{totalUnread !== 1 ? 's' : ''} across {dealsWithUnread}{' '}
+                    deal{dealsWithUnread !== 1 ? 's' : ''}
                   </p>
                   <p className="text-xs text-blue-700">Click to view your deals and respond</p>
                 </div>
@@ -133,7 +167,9 @@ export default function PortalDashboard() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Deals</CardTitle>
             <Link to={`/portal/${slug}/deals`}>
-              <Button variant="outline" size="sm">View All Deals</Button>
+              <Button variant="outline" size="sm">
+                View All Deals
+              </Button>
             </Link>
           </CardHeader>
           <CardContent>
@@ -150,12 +186,10 @@ export default function PortalDashboard() {
                   const hasUnread = (msgSummary?.unread || 0) > 0;
 
                   return (
-                    <Link
-                      key={deal.id}
-                      to={`/portal/${slug}/deals/${deal.id}`}
-                      className="block"
-                    >
-                      <div className={`flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors ${hasUnread ? 'border-blue-200 bg-blue-50/50' : ''}`}>
+                    <Link key={deal.id} to={`/portal/${slug}/deals/${deal.id}`} className="block">
+                      <div
+                        className={`flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors ${hasUnread ? 'border-blue-200 bg-blue-50/50' : ''}`}
+                      >
                         <div className="flex items-center gap-3 min-w-0">
                           <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
                           <div className="min-w-0">
@@ -172,14 +206,18 @@ export default function PortalDashboard() {
                             </button>
                             <p className="text-xs text-muted-foreground truncate">
                               {deal.deal_snapshot?.industry}
-                              {deal.deal_snapshot?.geography && ` — ${deal.deal_snapshot.geography}`}
+                              {deal.deal_snapshot?.geography &&
+                                ` — ${deal.deal_snapshot.geography}`}
                             </p>
                             {/* Latest message preview */}
                             {msgSummary && msgSummary.total > 0 && (
-                              <p className={`text-xs truncate mt-0.5 ${hasUnread ? 'text-blue-700 font-medium' : 'text-muted-foreground'}`}>
+                              <p
+                                className={`text-xs truncate mt-0.5 ${hasUnread ? 'text-blue-700 font-medium' : 'text-muted-foreground'}`}
+                              >
                                 <MessageSquare className="h-3 w-3 inline mr-1" />
-                                {msgSummary.latest_sender_type === 'admin' ? 'SourceCo' : 'You'}:{' '}
-                                {msgSummary.latest_message || ''}
+                                {msgSummary.latest_sender_type === 'admin'
+                                  ? 'SourceCo'
+                                  : 'You'}: {msgSummary.latest_message || ''}
                               </p>
                             )}
                           </div>
@@ -192,7 +230,9 @@ export default function PortalDashboard() {
                           )}
                           <PushStatusBadge status={deal.status} />
                           {deal.priority !== 'standard' && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${deal.priority === 'urgent' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full ${deal.priority === 'urgent' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}
+                            >
                               {deal.priority}
                             </span>
                           )}

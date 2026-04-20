@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { AlertTriangle, Trophy, FileSignature, Clock } from 'lucide-react';
 import { usePipelineMetrics } from './usePipelineMetrics';
+import { DashboardErrorBanner } from './DashboardErrorBanner';
 import { formatCurrency, type Timeframe } from '../useDashboardData';
 
 interface PipelineTabProps {
@@ -20,7 +21,7 @@ function formatInt(n: number): string {
 }
 
 export function PipelineTab({ timeframe }: PipelineTabProps) {
-  const { loading, kpis, stageRows, atRisk, closedWonLog, ndaFeeCounts } =
+  const { loading, error, retry, kpis, stageRows, atRisk, closedWonLog, ndaFeeCounts } =
     usePipelineMetrics(timeframe);
 
   // Biggest stage (for funnel width normalization)
@@ -28,8 +29,11 @@ export function PipelineTab({ timeframe }: PipelineTabProps) {
 
   return (
     <div className="space-y-5">
+      {error && (
+        <DashboardErrorBanner title="Couldn't load Pipeline data" error={error} onRetry={retry} />
+      )}
       {/* In-period KPIs (respect timeframe filter) */}
-      {loading ? (
+      {loading && !error ? (
         <div className="grid gap-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />

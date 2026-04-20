@@ -81,7 +81,12 @@ const ENGAGED_STATUSES = new Set([
 export function useIntrosMetrics(timeframe: Timeframe) {
   const fromDate = getFromDate(timeframe);
 
-  const { data: intros, isLoading: introsLoading } = useQuery({
+  const {
+    data: intros,
+    isLoading: introsLoading,
+    error: introsError,
+    refetch: refetchIntros,
+  } = useQuery({
     queryKey: ['intros', 'all'],
     queryFn: async (): Promise<IntroRow[]> => {
       const { data, error } = await (supabase as any)
@@ -94,7 +99,12 @@ export function useIntrosMetrics(timeframe: Timeframe) {
     staleTime: 2 * 60_000,
   });
 
-  const { data: meetings, isLoading: meetingsLoading } = useQuery({
+  const {
+    data: meetings,
+    isLoading: meetingsLoading,
+    error: meetingsError,
+    refetch: refetchMeetings,
+  } = useQuery({
     queryKey: ['intros', 'meetings'],
     queryFn: async (): Promise<MeetingRow[]> => {
       const { data, error } = await (supabase as any)
@@ -198,8 +208,16 @@ export function useIntrosMetrics(timeframe: Timeframe) {
     introToMeetingRate,
   };
 
+  const error = (introsError || meetingsError) as Error | null | undefined;
+  const retry = () => {
+    refetchIntros();
+    refetchMeetings();
+  };
+
   return {
     loading: introsLoading || meetingsLoading,
+    error: error || null,
+    retry,
     kpis,
     statusBreakdown,
     weeklyTrend,

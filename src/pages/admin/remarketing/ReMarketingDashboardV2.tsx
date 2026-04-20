@@ -21,6 +21,7 @@ import { BarChart3, DollarSign, Send, Target, Trophy, TrendingUp } from 'lucide-
 import { DashboardFilters } from './DashboardFilters';
 import { useDashboardData, formatCurrency, type Timeframe } from './useDashboardData';
 import { TabErrorBoundary } from './dashboard-tabs/TabErrorBoundary';
+import { DashboardErrorBanner } from './dashboard-tabs/DashboardErrorBanner';
 
 // Lazy-load tab bodies so the dashboard initial bundle only includes the
 // currently-active tab. Each tab is around 300-500 lines; laziness keeps
@@ -79,7 +80,7 @@ const ReMarketingDashboardV2 = () => {
 
   // Call this in the shell for the hero strip. Deal Supply tab also calls it;
   // TanStack Query shares the result via queryKey so there's no double-fetch.
-  const { loading, cards, outreachStats } = useDashboardData(timeframe);
+  const { loading, cards, outreachStats, statsError, refetchStats } = useDashboardData(timeframe);
 
   // ─── Hero strip metrics ────────────────────────────────────────────────
   const heroMetrics = useMemo<HeroMetric[]>(() => {
@@ -160,8 +161,19 @@ const ReMarketingDashboardV2 = () => {
         <DashboardFilters timeframe={timeframe} onTimeframeChange={setTimeframe} />
       </div>
 
+      {/* Surface the RPC failure loudly — without this, the hero strip renders
+          with all-zero fallbacks and the tabs go blank, leaving the user with
+          no signal that anything is broken. Mirrors the V1 dashboard banner. */}
+      {statsError && (
+        <DashboardErrorBanner
+          title="Couldn't load dashboard stats"
+          error={statsError}
+          onRetry={() => refetchStats()}
+        />
+      )}
+
       {/* Persistent Hero Strip — 6 KPIs */}
-      {loading ? (
+      {loading && !statsError ? (
         <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />

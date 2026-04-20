@@ -119,7 +119,12 @@ const STALL_DAYS = 30;
 export function usePipelineMetrics(timeframe: Timeframe) {
   const fromDate = getFromDate(timeframe);
 
-  const { data: stages } = useQuery({
+  const {
+    data: stages,
+    isLoading: stagesLoading,
+    error: stagesError,
+    refetch: refetchStages,
+  } = useQuery({
     queryKey: ['pipeline', 'stages'],
     queryFn: async (): Promise<DealStage[]> => {
       const { data, error } = await (supabase as any)
@@ -133,7 +138,12 @@ export function usePipelineMetrics(timeframe: Timeframe) {
     staleTime: 5 * 60_000,
   });
 
-  const { data: deals, isLoading: dealsLoading } = useQuery({
+  const {
+    data: deals,
+    isLoading: dealsLoading,
+    error: dealsError,
+    refetch: refetchDeals,
+  } = useQuery({
     queryKey: ['pipeline', 'deals'],
     queryFn: async (): Promise<PipelineDeal[]> => {
       const { data, error } = await (supabase as any)
@@ -301,8 +311,21 @@ export function usePipelineMetrics(timeframe: Timeframe) {
     feeSignedInPeriod: dealsWithFeeSigned.filter((d) => tsAtOrAfter(d.updated_at)).length,
   };
 
+  // Previously `loading: dealsLoading || !stages` — if the stages query
+  // errored, `stages` stayed undefined forever and the tab was stuck on
+  // skeleton loaders with no escape hatch. Now `loading` tracks isLoading
+  // directly so an error transitions out of the loading state and the tab
+  // can render an error banner instead.
+  const error = (stagesError || dealsError) as Error | null | undefined;
+  const retry = () => {
+    refetchStages();
+    refetchDeals();
+  };
+
   return {
-    loading: dealsLoading || !stages,
+    loading: dealsLoading || stagesLoading,
+    error: error || null,
+    retry,
     kpis,
     stageRows,
     atRisk,

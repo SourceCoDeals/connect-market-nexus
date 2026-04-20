@@ -48,17 +48,31 @@ function CardLoading() {
   );
 }
 
+// When a card's query fails, render a compact error row so the user sees the
+// reason instead of a silent blank. Each card is independent — one broken RPC
+// doesn't take down the whole hub.
+function CardError({ error }: { error: Error }) {
+  return (
+    <div className="flex items-start gap-2 py-3 text-xs text-red-700">
+      <span className="mt-0.5">⚠</span>
+      <span className="break-words">{error.message || 'Query failed'}</span>
+    </div>
+  );
+}
+
 // ─── Document Signing Card ───
 
 function DocumentSigningCard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['ops-hub-doc-requests'],
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('document_requests')
-        .select('id, firm_id, agreement_type, status, requested_at, firm_agreements!inner(primary_company_name)')
+        .select(
+          'id, firm_id, agreement_type, status, requested_at, firm_agreements!inner(primary_company_name)',
+        )
         .in('status', ['requested', 'email_sent'])
         .order('requested_at', { ascending: false })
         .limit(5);
@@ -77,7 +91,9 @@ function DocumentSigningCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {isLoading ? (
+        {error ? (
+          <CardError error={error as Error} />
+        ) : isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -92,7 +108,10 @@ function DocumentSigningCard() {
                   <span className="font-medium text-foreground">
                     {req.agreement_type === 'nda' ? 'NDA' : 'Fee Agreement'}
                   </span>
-                  <span className="text-muted-foreground"> — {(req.firm_agreements as any)?.primary_company_name ?? 'Unknown'}</span>
+                  <span className="text-muted-foreground">
+                    {' '}
+                    — {(req.firm_agreements as any)?.primary_company_name ?? 'Unknown'}
+                  </span>
                 </div>
                 <span className="text-xs text-muted-foreground/60 shrink-0 ml-2">
                   {req.requested_at ? timeAgo(req.requested_at) : ''}
@@ -118,14 +137,16 @@ function DocumentSigningCard() {
 
 function UnreadMessagesCard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['ops-hub-unread-messages'],
     staleTime: 30_000,
     queryFn: async () => {
       // Get recent unread buyer messages, join to connection_requests + profiles for buyer name
       const { data, error } = await supabase
         .from('connection_messages')
-        .select('id, connection_request_id, body, created_at, connection_requests!inner(id, user_id, profiles!connection_requests_user_id_profiles_fkey(first_name, last_name, company_name))')
+        .select(
+          'id, connection_request_id, body, created_at, connection_requests!inner(id, user_id, profiles!connection_requests_user_id_profiles_fkey(first_name, last_name, company_name))',
+        )
         .eq('is_read_by_admin', false)
         .eq('sender_role', 'buyer')
         .order('created_at', { ascending: false })
@@ -133,7 +154,10 @@ function UnreadMessagesCard() {
       if (error) throw error;
 
       // Group by connection_request_id and count
-      const grouped = new Map<string, { name: string; company: string | null; count: number; lastAt: string; requestId: string }>();
+      const grouped = new Map<
+        string,
+        { name: string; company: string | null; count: number; lastAt: string; requestId: string }
+      >();
       for (const msg of data ?? []) {
         const cr = msg.connection_requests as any;
         const profile = cr?.profiles;
@@ -165,7 +189,9 @@ function UnreadMessagesCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {isLoading ? (
+        {error ? (
+          <CardError error={error as Error} />
+        ) : isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -178,17 +204,13 @@ function UnreadMessagesCard() {
               >
                 <div className="min-w-0 truncate">
                   <span className="font-medium text-foreground">{t.name}</span>
-                  {t.company && (
-                    <span className="text-muted-foreground"> @ {t.company}</span>
-                  )}
+                  {t.company && <span className="text-muted-foreground"> @ {t.company}</span>}
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
                   <Badge variant="destructive" className="text-[10px] h-5">
                     {t.count}
                   </Badge>
-                  <span className="text-xs text-muted-foreground/60">
-                    {timeAgo(t.lastAt)}
-                  </span>
+                  <span className="text-xs text-muted-foreground/60">{timeAgo(t.lastAt)}</span>
                 </div>
               </div>
             ))}
@@ -211,13 +233,15 @@ function UnreadMessagesCard() {
 
 function ConnectionRequestsCard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['ops-hub-pending-connections'],
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('connection_requests')
-        .select('id, user_id, listing_id, created_at, profiles!connection_requests_user_id_profiles_fkey(first_name, last_name), listings!inner(title)')
+        .select(
+          'id, user_id, listing_id, created_at, profiles!connection_requests_user_id_profiles_fkey(first_name, last_name), listings!inner(title)',
+        )
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(5);
@@ -236,7 +260,9 @@ function ConnectionRequestsCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {isLoading ? (
+        {error ? (
+          <CardError error={error as Error} />
+        ) : isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -251,7 +277,10 @@ function ConnectionRequestsCard() {
                   <span className="font-medium text-foreground">
                     {(r.profiles as any)?.first_name} {(r.profiles as any)?.last_name}
                   </span>
-                  <span className="text-muted-foreground"> → {(r.listings as any)?.title ?? 'Unknown'}</span>
+                  <span className="text-muted-foreground">
+                    {' '}
+                    → {(r.listings as any)?.title ?? 'Unknown'}
+                  </span>
                 </div>
                 <span className="text-xs text-muted-foreground/60 shrink-0 ml-2">
                   {timeAgo(r.created_at)}
@@ -277,7 +306,7 @@ function ConnectionRequestsCard() {
 
 function UserApprovalsCard() {
   const navigate = useNavigate();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['ops-hub-pending-users'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -302,7 +331,9 @@ function UserApprovalsCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {isLoading ? (
+        {error ? (
+          <CardError error={error as Error} />
+        ) : isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -342,7 +373,7 @@ function UserApprovalsCard() {
 // ─── Data Room Access Card ───
 
 function DataRoomAccessCard() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['ops-hub-data-room-access'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -367,7 +398,9 @@ function DataRoomAccessCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {isLoading ? (
+        {error ? (
+          <CardError error={error as Error} />
+        ) : isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -405,7 +438,7 @@ function DataRoomAccessCard() {
 // ─── Recent Data Room Activity Card ───
 
 function DataRoomActivityCard() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['ops-hub-data-room-activity'],
     staleTime: 30_000,
     queryFn: async () => {
@@ -423,7 +456,12 @@ function DataRoomActivityCard() {
       const { data: profiles } = userIds.length
         ? await supabase.from('profiles').select('id, first_name, last_name').in('id', userIds)
         : { data: [] };
-      const nameMap = new Map((profiles ?? []).map((p: any) => [p.id, `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim()]));
+      const nameMap = new Map(
+        (profiles ?? []).map((p: any) => [
+          p.id,
+          `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim(),
+        ]),
+      );
 
       return data.map((log: any) => ({
         ...log,
@@ -457,7 +495,9 @@ function DataRoomActivityCard() {
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {isLoading ? (
+        {error ? (
+          <CardError error={error as Error} />
+        ) : isLoading ? (
           <CardLoading />
         ) : !data?.length ? (
           <EmptyState />
@@ -472,9 +512,7 @@ function DataRoomActivityCard() {
                   <Badge variant="outline" className="text-[10px] h-5 mr-2">
                     {ACTION_LABELS[log.action] ?? log.action.replace(/_/g, ' ')}
                   </Badge>
-                  <span className="text-muted-foreground text-xs">
-                    {log.user_display}
-                  </span>
+                  <span className="text-muted-foreground text-xs">{log.user_display}</span>
                 </div>
                 <span className="text-xs text-muted-foreground/60 shrink-0 ml-2">
                   {timeAgo(log.created_at)}

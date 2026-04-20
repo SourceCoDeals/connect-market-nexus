@@ -1,18 +1,25 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw, Eye, Heart, MessageSquare, UserPlus, Search as SearchIcon } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { useState } from "react";
-import { useRecentActivity } from "@/hooks/use-recent-activity";
-import { useFilterEngine } from "@/hooks/use-filter-engine";
-import { FilterBar, ACTIVITY_FIELDS } from "@/components/filters";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { RefreshCw, Eye, Heart, MessageSquare, UserPlus, Search as SearchIcon } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { useState } from 'react';
+import { useRecentActivity } from '@/hooks/use-recent-activity';
+import { useFilterEngine } from '@/hooks/use-filter-engine';
+import { FilterBar, ACTIVITY_FIELDS } from '@/components/filters';
+import { DashboardErrorBanner } from '@/components/common/DashboardErrorBanner';
 
 export function RecentActivityTab() {
   const [limit, setLimit] = useState(50);
 
-  const { data: activities = [], isLoading, refetch } = useRecentActivity(limit);
+  const { data: activities = [], isLoading, refetch, error } = useRecentActivity(limit);
 
   const {
     filteredItems: filteredActivities,
@@ -25,30 +32,57 @@ export function RecentActivityTab() {
 
   const getActivityIcon = (type: string) => {
     switch (type) {
-      case 'signup': return <UserPlus className="h-4 w-4 text-green-500" />;
-      case 'listing_view': return <Eye className="h-4 w-4 text-blue-500" />;
-      case 'save': return <Heart className="h-4 w-4 text-red-500" />;
-      case 'connection_request': return <MessageSquare className="h-4 w-4 text-purple-500" />;
-      case 'search': return <SearchIcon className="h-4 w-4 text-orange-500" />;
-      default: return <div className="h-4 w-4 bg-gray-300 rounded-full" />;
+      case 'signup':
+        return <UserPlus className="h-4 w-4 text-green-500" />;
+      case 'listing_view':
+        return <Eye className="h-4 w-4 text-blue-500" />;
+      case 'save':
+        return <Heart className="h-4 w-4 text-red-500" />;
+      case 'connection_request':
+        return <MessageSquare className="h-4 w-4 text-purple-500" />;
+      case 'search':
+        return <SearchIcon className="h-4 w-4 text-orange-500" />;
+      default:
+        return <div className="h-4 w-4 bg-gray-300 rounded-full" />;
     }
   };
 
-  const getActivityBadgeColor = (type: string): "default" | "secondary" | "destructive" | "outline" => {
+  const getActivityBadgeColor = (
+    type: string,
+  ): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (type) {
-      case 'signup': return 'default';
-      case 'listing_view': return 'secondary';
-      case 'save': return 'destructive';
-      case 'connection_request': return 'outline';
-      case 'search': return 'secondary';
-      default: return 'outline';
+      case 'signup':
+        return 'default';
+      case 'listing_view':
+        return 'secondary';
+      case 'save':
+        return 'destructive';
+      case 'connection_request':
+        return 'outline';
+      case 'search':
+        return 'secondary';
+      default:
+        return 'outline';
     }
   };
 
-  const activityTypeCounts = activities.reduce((acc, activity) => {
-    acc[activity.activity_type] = (acc[activity.activity_type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const activityTypeCounts = activities.reduce(
+    (acc, activity) => {
+      acc[activity.activity_type] = (acc[activity.activity_type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  if (error) {
+    return (
+      <DashboardErrorBanner
+        title="Couldn't load recent activity"
+        error={error as Error}
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -155,14 +189,18 @@ export function RecentActivityTab() {
           <div className="space-y-3 max-h-96 overflow-y-auto">
             {filteredActivities.length > 0 ? (
               filteredActivities.map((activity) => (
-                <div key={activity.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/30 transition-colors">
-                  <div className="flex-shrink-0">
-                    {getActivityIcon(activity.activity_type)}
-                  </div>
+                <div
+                  key={activity.id}
+                  className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex-shrink-0">{getActivityIcon(activity.activity_type)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-medium text-sm truncate">{activity.user_name}</p>
-                      <Badge variant={getActivityBadgeColor(activity.activity_type)} className="text-xs">
+                      <Badge
+                        variant={getActivityBadgeColor(activity.activity_type)}
+                        className="text-xs"
+                      >
                         {activity.activity_type.replace('_', ' ')}
                       </Badge>
                     </div>
@@ -202,7 +240,7 @@ export function RecentActivityTab() {
               <div className="flex justify-between items-center">
                 <span className="text-sm">Most active users today</span>
                 <span className="text-sm font-medium">
-                  {[...new Set(filteredActivities.map(a => a.user_email))].length} unique users
+                  {[...new Set(filteredActivities.map((a) => a.user_email))].length} unique users
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -214,8 +252,14 @@ export function RecentActivityTab() {
               <div className="flex justify-between items-center">
                 <span className="text-sm">Conversion rate</span>
                 <span className="text-sm font-medium">
-                  {activityTypeCounts.listing_view > 0 ?
-                    ((activityTypeCounts.connection_request || 0) / activityTypeCounts.listing_view * 100).toFixed(1) : 0}%
+                  {activityTypeCounts.listing_view > 0
+                    ? (
+                        ((activityTypeCounts.connection_request || 0) /
+                          activityTypeCounts.listing_view) *
+                        100
+                      ).toFixed(1)
+                    : 0}
+                  %
                 </span>
               </div>
             </div>
@@ -231,7 +275,8 @@ export function RecentActivityTab() {
             <div className="space-y-2">
               {activityTypeCounts.connection_request > 5 && (
                 <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                  <strong>High connection activity:</strong> Consider following up with interested users
+                  <strong>High connection activity:</strong> Consider following up with interested
+                  users
                 </div>
               )}
               {activityTypeCounts.search > 10 && (

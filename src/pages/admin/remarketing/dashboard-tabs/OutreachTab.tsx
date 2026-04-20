@@ -6,6 +6,7 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Mail, Phone, Linkedin, TrendingUp } from 'lucide-react';
 import { useOutreachMetrics } from './useOutreachMetrics';
+import { DashboardErrorBanner } from './DashboardErrorBanner';
 import type { Timeframe } from '../useDashboardData';
 
 interface OutreachTabProps {
@@ -26,15 +27,26 @@ function formatInt(n: number): string {
 }
 
 export function OutreachTab({ timeframe }: OutreachTabProps) {
-  const { loading, kpis, smartleadCampaigns, heyreachCampaigns, weeklyTrend, replyCategories } =
-    useOutreachMetrics(timeframe);
+  const {
+    loading,
+    error,
+    retry,
+    kpis,
+    smartleadCampaigns,
+    heyreachCampaigns,
+    weeklyTrend,
+    replyCategories,
+  } = useOutreachMetrics(timeframe);
 
   const totalReplies = replyCategories.reduce((s, r) => s + r.count, 0) || 1;
 
   return (
     <div className="space-y-5">
+      {error && (
+        <DashboardErrorBanner title="Couldn't load Outreach data" error={error} onRetry={retry} />
+      )}
       {/* KPI Row — 6 */}
-      {loading ? (
+      {loading && !error ? (
         <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Skeleton key={i} className="h-20 rounded-xl" />
