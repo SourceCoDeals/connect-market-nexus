@@ -68,6 +68,8 @@ vector_port = 54328
 backend = "postgres"
 
 [functions]
+[functions.backfill-match-tool-leads-enrichment]
+verify_jwt = false
 [functions.publish-listing]
 verify_jwt = false
 [functions.send-connection-notification]
@@ -149,6 +151,8 @@ verify_jwt = false
 [functions.aggregate-daily-metrics]
 verify_jwt = false
 [functions.backfill-daily-metrics]
+verify_jwt = false
+[functions.backfill-valuation-leads]
 verify_jwt = false
 [functions.enrich-session-metadata]
 verify_jwt = false
