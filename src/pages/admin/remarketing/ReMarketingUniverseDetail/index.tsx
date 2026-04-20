@@ -49,6 +49,7 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
+  ListChecks,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -67,6 +68,7 @@ import { useAIUIActionHandler } from '@/hooks/useAIUIActionHandler';
 import { useUniverseData } from './useUniverseData';
 import { useUniverseActions } from './useUniverseActions';
 import { UniverseTab } from './UniverseTab';
+import { EntityTasksTab } from '@/components/daily-tasks/EntityTasksTab';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -83,38 +85,62 @@ const ReMarketingUniverseDetail = () => {
     queryClient,
 
     // Form state
-    formData, setFormData,
-    sizeCriteria, setSizeCriteria,
-    geographyCriteria, setGeographyCriteria,
-    serviceCriteria, setServiceCriteria,
-    buyerTypesCriteria, setBuyerTypesCriteria,
-    scoringBehavior, setScoringBehavior,
-    documents, setDocuments,
-    maGuideContent, setMaGuideContent,
-    targetBuyerTypes, setTargetBuyerTypes,
+    formData,
+    setFormData,
+    sizeCriteria,
+    setSizeCriteria,
+    geographyCriteria,
+    setGeographyCriteria,
+    serviceCriteria,
+    setServiceCriteria,
+    buyerTypesCriteria,
+    setBuyerTypesCriteria,
+    scoringBehavior,
+    setScoringBehavior,
+    documents,
+    setDocuments,
+    maGuideContent,
+    setMaGuideContent,
+    targetBuyerTypes,
+    setTargetBuyerTypes,
 
     // Dialog/UI state
-    addDealDialogOpen, setAddDealDialogOpen,
-    addDealDefaultTab, setAddDealDefaultTab,
-    importDealsDialogOpen, setImportDealsDialogOpen,
-    showCriteriaEdit, setShowCriteriaEdit,
-    documentsOpen, setDocumentsOpen,
+    addDealDialogOpen,
+    setAddDealDialogOpen,
+    addDealDefaultTab,
+    setAddDealDefaultTab,
+    importDealsDialogOpen,
+    setImportDealsDialogOpen,
+    showCriteriaEdit,
+    setShowCriteriaEdit,
+    documentsOpen,
+    setDocumentsOpen,
     isParsing,
-    importBuyersDialogOpen, setImportBuyersDialogOpen,
-    addBuyerDialogOpen, setAddBuyerDialogOpen,
-    showBuyerEnrichDialog, setShowBuyerEnrichDialog,
-    selectedBuyerIds, setSelectedBuyerIds,
-    editingHeader, setEditingHeader,
+    importBuyersDialogOpen,
+    setImportBuyersDialogOpen,
+    addBuyerDialogOpen,
+    setAddBuyerDialogOpen,
+    showBuyerEnrichDialog,
+    setShowBuyerEnrichDialog,
+    selectedBuyerIds,
+    setSelectedBuyerIds,
+    editingHeader,
+    setEditingHeader,
 
     // Query data
-    universe: _universe, isLoading,
+    universe: _universe,
+    isLoading,
     buyers,
-    universeDeals, refetchDeals,
+    universeDeals,
+    refetchDeals,
 
     // Enrichment hooks
     queueProgress,
-    enrichmentSummary, showEnrichmentSummary, dismissEnrichmentSummary,
-    queueBuyers, resetQueueEnrichment,
+    enrichmentSummary,
+    showEnrichmentSummary,
+    dismissEnrichmentSummary,
+    queueBuyers,
+    resetQueueEnrichment,
 
     // Mutation
     saveMutation,
@@ -306,6 +332,10 @@ const ReMarketingUniverseDetail = () => {
               <Users className="mr-2 h-4 w-4" />
               Universe
             </TabsTrigger>
+            <TabsTrigger value="tasks">
+              <ListChecks className="mr-2 h-4 w-4" />
+              Tasks
+            </TabsTrigger>
             <TabsTrigger value="configuration">
               <Settings className="mr-2 h-4 w-4" />
               Configuration & Research
@@ -342,7 +372,18 @@ const ReMarketingUniverseDetail = () => {
             />
           </TabsContent>
 
-          {/* TAB 2: Configuration & Research */}
+          {/* TAB 2: Tasks — assigned to this buyer universe */}
+          <TabsContent value="tasks" className="space-y-4">
+            {id && (
+              <EntityTasksTab
+                entityType="buyer_universe"
+                entityId={id}
+                entityName={formData.name}
+              />
+            )}
+          </TabsContent>
+
+          {/* TAB 3: Configuration & Research */}
           <TabsContent value="configuration" className="space-y-6">
             {/* AI Research & M&A Guide - Primary section */}
             {id && (
@@ -669,7 +710,11 @@ const ReMarketingUniverseDetail = () => {
           onOpenChange={setAddDealDialogOpen}
           universeId={id}
           defaultTab={addDealDefaultTab}
-          existingDealIds={universeDeals?.map((d) => (d.listing as { id?: string } | null)?.id).filter(Boolean) as string[] || []}
+          existingDealIds={
+            (universeDeals
+              ?.map((d) => (d.listing as { id?: string } | null)?.id)
+              .filter(Boolean) as string[]) || []
+          }
           onDealAdded={() => {
             refetchDeals();
             setAddDealDialogOpen(false);
@@ -743,7 +788,6 @@ const ReMarketingUniverseDetail = () => {
           </Card>
         </div>
       )}
-
 
       {/* Buyer Enrichment Selection Dialog */}
       <Dialog open={showBuyerEnrichDialog} onOpenChange={setShowBuyerEnrichDialog}>
