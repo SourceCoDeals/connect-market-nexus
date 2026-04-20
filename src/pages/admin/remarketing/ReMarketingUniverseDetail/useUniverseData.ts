@@ -429,6 +429,12 @@ export function useUniverseData() {
       };
 
       if (isNew) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!saveData.owner_id) saveData.owner_id = user?.id ?? null;
+        if (!saveData.created_by) saveData.created_by = user?.id ?? null;
+
         const { data, error } = await supabase
           .from('buyer_universes')
           .insert([saveData] as never)
