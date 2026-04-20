@@ -79,10 +79,13 @@ interface UniverseRowProps {
     archived: boolean;
     fee_agreement_required: boolean;
     ma_guide_content?: string | null;
+    manual_rank_override?: number | null;
   };
   stats: { total: number; enriched: number; withTranscripts: number };
   deals: number;
   isSelected: boolean;
+  rankIndex: number;
+  rankDraggable: boolean;
   onToggleSelect: (id: string, e: React.MouseEvent) => void;
   onArchive: (params: { id: string; archived: boolean }) => void;
   onDelete: (id: string) => void;
@@ -93,12 +96,24 @@ export function UniverseRow({
   stats,
   deals,
   isSelected,
+  rankIndex,
+  rankDraggable,
   onToggleSelect,
   onArchive,
   onDelete,
 }: UniverseRowProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: universe.id,
+    disabled: !rankDraggable,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   const websiteIntel = stats.total > 0 ? Math.round((stats.enriched / stats.total) * 50) : 0;
   const transcriptIntel =
@@ -107,7 +122,11 @@ export function UniverseRow({
 
   return (
     <TableRow
-      className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''}`}
+      ref={setNodeRef}
+      style={style}
+      className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''} ${
+        isDragging ? 'bg-muted/80 opacity-80 shadow-lg z-50' : ''
+      }`}
       onClick={() => navigate(`/admin/buyers/universes/${universe.id}`)}
     >
       <TableCell onClick={(e) => onToggleSelect(universe.id, e)}>
@@ -116,6 +135,24 @@ export function UniverseRow({
           onCheckedChange={() => {}}
           aria-label={`Select ${universe.name}`}
         />
+      </TableCell>
+      <TableCell className="w-[72px]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Drag to reorder"
+            className={`flex-shrink-0 touch-none p-0.5 rounded transition-colors ${
+              rankDraggable
+                ? 'cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground hover:bg-muted'
+                : 'cursor-not-allowed text-muted-foreground/30'
+            }`}
+            {...(rankDraggable ? attributes : {})}
+            {...(rankDraggable ? listeners : {})}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </button>
+          <span className="text-xs text-muted-foreground tabular-nums">{rankIndex + 1}</span>
+        </div>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-3">
