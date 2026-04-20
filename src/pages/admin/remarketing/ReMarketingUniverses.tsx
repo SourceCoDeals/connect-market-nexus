@@ -117,6 +117,9 @@ const ReMarketingUniverses = () => {
     isDealEnriching,
     handleBulkDealEnrich,
 
+    // Universe drag-and-drop
+    handleUniverseDragEnd,
+
     // Navigation & params
     navigate,
     setSearchParams,
@@ -165,6 +168,10 @@ const ReMarketingUniverses = () => {
   });
 
   const flaggedSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const universeSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
@@ -327,98 +334,118 @@ const ReMarketingUniverses = () => {
           {/* Universes Table */}
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40px]">
-                      <Checkbox
-                        checked={allSelected}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Select all"
-                        className={
-                          someSelected && !allSelected ? 'data-[state=checked]:bg-primary/50' : ''
-                        }
-                      />
-                    </TableHead>
-                    <SortableHeader field="name">Industry / Universe</SortableHeader>
-                    <SortableHeader field="buyers">Buyers</SortableHeader>
-                    <SortableHeader field="deals">Deals</SortableHeader>
-                    <SortableHeader field="coverage">Intelligence Coverage</SortableHeader>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={i}>
-                        <TableCell>
-                          <Skeleton className="h-4 w-4" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-40" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-12" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-4 w-12" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-8 w-32" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-5 w-16" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-8 w-8" />
+              <DndContext
+                sensors={universeSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleUniverseDragEnd}
+              >
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Select all"
+                          className={
+                            someSelected && !allSelected ? 'data-[state=checked]:bg-primary/50' : ''
+                          }
+                        />
+                      </TableHead>
+                      <SortableHeader field="rank">#</SortableHeader>
+                      <SortableHeader field="name">Industry / Universe</SortableHeader>
+                      <SortableHeader field="buyers">Buyers</SortableHeader>
+                      <SortableHeader field="deals">Deals</SortableHeader>
+                      <SortableHeader field="coverage">Intelligence Coverage</SortableHeader>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i}>
+                          <TableCell>
+                            <Skeleton className="h-4 w-4" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-10" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-40" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-12" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-4 w-12" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-8 w-32" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-5 w-16" />
+                          </TableCell>
+                          <TableCell>
+                            <Skeleton className="h-8 w-8" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : sortedUniverses.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          <Globe2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No universes found</p>
+                          <p className="text-sm">Create your first buyer universe to get started</p>
+                          <Button
+                            variant="outline"
+                            className="mt-4"
+                            onClick={() =>
+                              setSearchParams((prev) => {
+                                const n = new URLSearchParams(prev);
+                                n.set('new', 'true');
+                                return n;
+                              })
+                            }
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Universe
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : sortedUniverses.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        <Globe2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No universes found</p>
-                        <p className="text-sm">Create your first buyer universe to get started</p>
-                        <Button
-                          variant="outline"
-                          className="mt-4"
-                          onClick={() =>
-                            setSearchParams((prev) => {
-                              const n = new URLSearchParams(prev);
-                              n.set('new', 'true');
-                              return n;
-                            })
-                          }
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Create Universe
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    sortedUniverses.map((universe) => (
-                      <UniverseRow
-                        key={universe.id}
-                        universe={{ ...universe, fee_agreement_required: universe.fee_agreement_required ?? false }}
-                        stats={
-                          buyerStats?.[universe.id] || {
-                            total: 0,
-                            enriched: 0,
-                            withTranscripts: 0,
-                          }
-                        }
-                        deals={dealStats?.[universe.id] || 0}
-                        isSelected={selectedIds.has(universe.id)}
-                        onToggleSelect={toggleSelect}
-                        onArchive={(params) => archiveMutation.mutate(params)}
-                        onDelete={(id) => deleteMutation.mutate(id)}
-                      />
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      <SortableContext
+                        items={sortedUniverses.map((u) => u.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {sortedUniverses.map((universe, idx) => (
+                          <UniverseRow
+                            key={universe.id}
+                            universe={{
+                              ...universe,
+                              fee_agreement_required: universe.fee_agreement_required ?? false,
+                            }}
+                            stats={
+                              buyerStats?.[universe.id] || {
+                                total: 0,
+                                enriched: 0,
+                                withTranscripts: 0,
+                              }
+                            }
+                            deals={dealStats?.[universe.id] || 0}
+                            isSelected={selectedIds.has(universe.id)}
+                            rankIndex={idx}
+                            rankDraggable={sortField === 'rank'}
+                            onToggleSelect={toggleSelect}
+                            onArchive={(params) => archiveMutation.mutate(params)}
+                            onDelete={(id) => deleteMutation.mutate(id)}
+                          />
+                        ))}
+                      </SortableContext>
+                    )}
+                  </TableBody>
+                </Table>
+              </DndContext>
             </CardContent>
           </Card>
         </>
