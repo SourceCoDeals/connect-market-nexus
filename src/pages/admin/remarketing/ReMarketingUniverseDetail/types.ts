@@ -5,9 +5,9 @@ import {
   BuyerTypesCriteria,
   ScoringBehavior,
   DocumentReference,
-  TargetBuyerTypeConfig
-} from "@/types/remarketing";
-import { UseMutationResult } from "@tanstack/react-query";
+  TargetBuyerTypeConfig,
+} from '@/types/remarketing';
+import { UseMutationResult } from '@tanstack/react-query';
 
 export interface UniverseFormData {
   name: string;
@@ -17,6 +17,7 @@ export interface UniverseFormData {
   size_weight: number;
   service_weight: number;
   owner_goals_weight: number;
+  owner_id: string | null;
 }
 
 export interface UniverseFormState {
