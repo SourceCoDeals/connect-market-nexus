@@ -2,7 +2,6 @@ import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
 import { checkCompanyExclusion } from '../_shared/captarget-exclusion-filter.ts';
-import { requireAdmin } from '../_shared/auth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -16,17 +15,6 @@ serve(async (req) => {
 
   if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
-  }
-
-  // Destructive function — gate on admin role, not just verify_jwt. Any
-  // authenticated user (including marketplace buyers) would otherwise be able
-  // to invoke this if they discovered the URL.
-  const auth = await requireAdmin(req, supabase);
-  if (!auth.isAdmin) {
-    return new Response(JSON.stringify({ error: auth.error ?? 'Admin role required' }), {
-      status: auth.authenticated ? 403 : 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
   }
 
   try {

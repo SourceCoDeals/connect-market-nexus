@@ -98,7 +98,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
       .maybeSingle();
 
     if (suppressed) {
-      console.warn(`[email-sender] SUPPRESSED | to=${options.to} | reason=${suppressed.reason} | template=${options.templateName}`);
+      console.warn(
+        `[email-sender] SUPPRESSED | to=${options.to} | reason=${suppressed.reason} | template=${options.templateName}`,
+      );
       return { success: false, error: `Email suppressed: ${suppressed.reason}` };
     }
   } catch (e) {
@@ -106,13 +108,16 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   }
 
   const correlationId = crypto.randomUUID();
-  const senderEmail = options.senderEmail || VERIFIED_SENDER_EMAIL;
   const senderName = options.senderName || VERIFIED_SENDER_NAME;
   const replyTo = options.replyTo || options.senderEmail || DEFAULT_REPLY_TO;
 
-  // Send directly from the admin's email for better inbox placement
-  const brevoSenderName = senderName;
-  const brevoSenderEmail = senderEmail;
+  // Always send FROM the verified support@ address for deliverability.
+  // Admin identity goes in display name + reply-to only.
+  const brevoSenderEmail = VERIFIED_SENDER_EMAIL;
+  const brevoSenderName =
+    options.senderEmail && options.senderEmail !== VERIFIED_SENDER_EMAIL
+      ? `${senderName} via SourceCo`
+      : senderName;
 
   // ── Step 1: Create outbound_emails record (status=queued) ──
   let emailId: string | undefined;
@@ -123,7 +128,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
         template_name: options.templateName,
         recipient_email: options.to,
         recipient_name: options.toName || options.to,
-        sender_email: senderEmail,
+        sender_email: VERIFIED_SENDER_EMAIL,
         sender_name: senderName,
         reply_to_email: replyTo,
         correlation_id: correlationId,
@@ -160,7 +165,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   payload.replyTo = { email: replyTo, name: senderName };
 
   if (options.attachments && options.attachments.length > 0) {
-    payload.attachment = options.attachments.map(a => ({
+    payload.attachment = options.attachments.map((a) => ({
       name: a.name,
       content: a.content,
       ...(a.contentType ? { contentType: a.contentType } : {}),
@@ -177,7 +182,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     };
   }
 
-  console.log(`[email-sender] SENDING | template=${options.templateName} | to=${options.to} | from=${brevoSenderName} <${brevoSenderEmail}> | replyTo=${replyTo} | attachments=${options.attachments?.length || 0} | correlationId=${correlationId}`);
+  console.log(
+    `[email-sender] SENDING | template=${options.templateName} | to=${options.to} | from=${brevoSenderName} <${brevoSenderEmail}> | replyTo=${replyTo} | attachments=${options.attachments?.length || 0} | correlationId=${correlationId}`,
+  );
 
   // ── Step 3: Send with retry ──
   let lastError = '';
@@ -188,7 +195,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Content-Type': 'application/json',
           'api-key': brevoApiKey,
         },
@@ -214,7 +221,9 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
           await insertEvent(supabase, emailId, 'accepted', { providerMessageId });
         }
 
-        console.log(`[email-sender] SUCCESS | to=${options.to} | template=${options.templateName} | providerMsgId=${providerMessageId} | correlationId=${correlationId}`);
+        console.log(
+          `[email-sender] SUCCESS | to=${options.to} | template=${options.templateName} | providerMsgId=${providerMessageId} | correlationId=${correlationId}`,
+        );
 
         return {
           success: true,
@@ -233,19 +242,25 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
 
       // 5xx = retry
       lastError = `HTTP ${response.status}: ${JSON.stringify(data)}`;
-      console.warn(`[email-sender] Server error (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${lastError}`);
+      console.warn(
+        `[email-sender] Server error (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${lastError}`,
+      );
     } catch (err: unknown) {
       lastError = err instanceof Error ? err.message : String(err);
-      console.warn(`[email-sender] Fetch error (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${lastError}`);
+      console.warn(
+        `[email-sender] Fetch error (attempt ${attempt + 1}/${MAX_RETRIES + 1}): ${lastError}`,
+      );
     }
 
     if (attempt < MAX_RETRIES) {
-      await new Promise(r => setTimeout(r, RETRY_BASE_MS * Math.pow(2, attempt)));
+      await new Promise((r) => setTimeout(r, RETRY_BASE_MS * Math.pow(2, attempt)));
     }
   }
 
   // All attempts failed
-  console.error(`[email-sender] FAILED | to=${options.to} | template=${options.templateName} | error=${lastError} | correlationId=${correlationId}`);
+  console.error(
+    `[email-sender] FAILED | to=${options.to} | template=${options.templateName} | error=${lastError} | correlationId=${correlationId}`,
+  );
 
   if (emailId) {
     await updateEmailStatus(supabase, emailId, 'failed', {
@@ -289,13 +304,11 @@ async function insertEvent(
   data: Record<string, unknown> = {},
 ): Promise<void> {
   try {
-    await supabase
-      .from('email_events')
-      .insert({
-        outbound_email_id: emailId,
-        event_type: eventType,
-        event_data: data,
-      });
+    await supabase.from('email_events').insert({
+      outbound_email_id: emailId,
+      event_type: eventType,
+      event_data: data,
+    });
   } catch (e) {
     console.warn('[email-sender] Failed to insert event:', e);
   }

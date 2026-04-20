@@ -108,50 +108,36 @@ export async function saveContactsToCrm(
       }
     }
 
-    // Route through contacts_upsert so we (a) don't trip the
-    // 20260625000008 INSERT revoke for authenticated callers and (b)
-    // don't pass `created_by`, which is not a column in public.contacts
-    // — the prior direct .insert failed with "column does not exist"
-    // on every tool invocation. The RPC also dedupes on email /
-    // linkedin_url via resolve_contact_identity so we don't bloat the
-    // table with duplicates when the AI re-proposes the same contact.
-    const trimmedLinkedin = contact.linkedin_url?.trim() || null;
-    if (!email && !trimmedLinkedin) {
-      errors.push(
-        `Failed to save ${firstName} ${lastName}: requires at least one of email or linkedin_url`,
-      );
-      continue;
-    }
-    const { data: upsertedId, error: insertError } = await (supabase as any).rpc(
-      'contacts_upsert',
-      {
-        p_identity: { email, linkedin_url: trimmedLinkedin },
-        p_fields: {
-          first_name: firstName || 'Unknown',
-          last_name: lastName,
-          email,
-          phone,
-          title: contact.title?.trim() || null,
-          linkedin_url: trimmedLinkedin,
-          contact_type: contactType,
-          remarketing_buyer_id: buyerId || null,
-          listing_id: listingId || null,
-        },
-        p_source: 'ai_command_center',
-      },
-    );
+    // Insert
+    const { data: inserted, error: insertError } = await (supabase as any)
+      .from('contacts')
+      .insert({
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone,
+        title: contact.title?.trim() || null,
+        linkedin_url: contact.linkedin_url?.trim() || null,
+        company_name: contact.company_name?.trim() || null,
+        contact_type: contactType,
+        remarketing_buyer_id: buyerId || null,
+        listing_id: listingId || null,
+        source: 'ai_command_center',
+        created_by: userId,
+        archived: false,
+      })
+      .select('id, first_name, last_name, email')
+      .single();
 
-    if (insertError || typeof upsertedId !== 'string') {
-      errors.push(
-        `Failed to save ${firstName} ${lastName}: ${insertError?.message || 'unknown error'}`,
-      );
+    if (insertError) {
+      errors.push(`Failed to save ${firstName} ${lastName}: ${insertError.message}`);
       continue;
     }
 
     saved.push({
-      id: upsertedId,
-      name: `${firstName} ${lastName}`.trim(),
-      email,
+      id: inserted.id,
+      name: `${inserted.first_name} ${inserted.last_name}`.trim(),
+      email: inserted.email,
     });
   }
 

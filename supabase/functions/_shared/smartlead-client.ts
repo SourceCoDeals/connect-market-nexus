@@ -231,30 +231,6 @@ export function updateLeadCategory(campaignId: number, leadId: number, category:
   });
 }
 
-/**
- * Pause all email activity for a specific lead across a campaign.
- * Smartlead exposes this via POST /leads/{lead_id}/pause-lead-by-campaign
- * and it's what their UI's "Pause" button calls. Used by propagate-dnc to
- * stop future sends when a contact is marked do_not_contact in the CRM.
- */
-export function pauseLeadInCampaign(campaignId: number, leadId: number) {
-  return smartleadRequest({
-    method: 'POST',
-    path: `/leads/${leadId}/pause-lead-by-campaign/${campaignId}`,
-  });
-}
-
-/**
- * Look up a lead by email (across all campaigns). Returns an array of
- * campaign participations so a DNC propagation can pause every one.
- */
-export function findLeadByEmail(email: string) {
-  return smartleadRequest({
-    path: `/leads/`,
-    queryParams: { email },
-  });
-}
-
 /** Fetch all leads from entire account (global) */
 export function getGlobalLeads(offset = 0, limit = 100) {
   return smartleadRequest({

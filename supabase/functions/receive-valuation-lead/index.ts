@@ -1,7 +1,6 @@
 import { serve } from 'https://deno.land/std@0.190.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { getCorsHeaders, corsPreflightResponse } from '../_shared/cors.ts';
-import { timingSafeEqual } from '../_shared/security.ts';
 
 /** Safely read a nested .value from calculator_inputs objects. */
 function inputVal(inputs: Record<string, unknown>, key: string): unknown {
@@ -34,6 +33,27 @@ function businessNameFromDomain(website: string | null): string | null {
   return null;
 }
 
+/**
+ * Email validity check — mirror of src/lib/email-validation.ts.
+ * Rejects junk strings the enricher writes (e.g. "no email found", "none").
+ */
+function isValidEmail(s?: string | null): boolean {
+  if (!s) return false;
+  const t = String(s).trim().toLowerCase();
+  if (!t || t.length < 5) return false;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)) return false;
+  if (t.includes('no email')) return false;
+  if (t === 'none' || t === 'n/a' || t === 'na' || t === 'null' || t === 'undefined') return false;
+  return true;
+}
+
+function pickValidEmail(...candidates: (string | null | undefined)[]): string | null {
+  for (const c of candidates) {
+    if (isValidEmail(c)) return (c as string).trim();
+  }
+  return null;
+}
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return corsPreflightResponse(req);
@@ -46,23 +66,6 @@ serve(async (req: Request) => {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  }
-
-  // Optional shared-secret check. When VALUATION_WEBHOOK_SECRET is configured,
-  // the caller must present it in the x-webhook-secret header. When it is not
-  // set, the endpoint stays open for backwards compatibility with the existing
-  // calculator form — operators should set this ASAP. Matches the clay /
-  // phoneburner webhook pattern.
-  const webhookSecret = Deno.env.get('VALUATION_WEBHOOK_SECRET');
-  if (webhookSecret) {
-    const provided = req.headers.get('x-webhook-secret');
-    if (!provided || !timingSafeEqual(provided, webhookSecret)) {
-      console.warn('[receive-valuation-lead] Invalid webhook secret');
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
   }
 
   try {
@@ -116,19 +119,15 @@ serve(async (req: Request) => {
       country: body.country ?? null,
       country_code: body.country_code ?? null,
       received_at: new Date().toISOString(),
+      raw_body: body,
     };
 
-    // incoming_leads is an audit-trail table for raw webhook payloads.
-    // The primary operational leads table is inbound_leads.
-    // TODO: Consider renaming to valuation_lead_audit_log for clarity.
-    // Use ignoreDuplicates so both initial_unlock and full_report raw payloads are preserved
     const { error: incomingError } = await supabaseAdmin
       .from('incoming_leads')
       .upsert(incomingRow, { onConflict: 'email', ignoreDuplicates: false });
 
     if (incomingError) {
       console.error('incoming_leads upsert error:', incomingError);
-      // Non-fatal — continue to valuation_leads
     }
 
     // ─── 2. Extract structured fields & upsert into valuation_leads ──
@@ -165,13 +164,46 @@ serve(async (req: Request) => {
     const region = body.region as string | null;
     const locationStr = [city, region].filter(Boolean).join(', ') || null;
 
-    // All auto calculator submissions → single "auto_shop" type.
-    // Raw service_type is preserved in raw_calculator_inputs for later classification.
-    const calculatorType = 'auto_shop';
+    // Extract exit intent fields from top-level body (general calculator)
+    // or from calculator_inputs (auto_shop calculator)
+    const exitTiming = toStr(body.exit_timing) || toStr(inputVal(ci, 'exit_timing'));
+    const openToIntros =
+      body.open_to_buyer ?? (inputVal(ci, 'open_to_intros') as boolean | null) ?? null;
+
+    // Determine calculator type from lead source
+    const calculatorType = leadSource === 'valuation_calculator' ? 'general' : 'auto_shop';
 
     const now = new Date().toISOString();
 
-    // ─── Atomic upsert via RPC — no race condition possible ──
+    // ─── Extract new complete payload sections ──
+    const bp = body.business_profile as Record<string, unknown> | null;
+    const fd = body.financial_details as Record<string, unknown> | null;
+    const ei = body.exit_intent as Record<string, unknown> | null;
+    const rd = body.readiness_drivers as Record<string, unknown> | null;
+    const cr = body.calculated_results as Record<string, unknown> | null;
+    const bodyTags = body.tags as Record<string, unknown> | null;
+    const sessionMeta = body.session_metadata as Record<string, unknown> | null;
+
+    // Flattened fields from new payload (with fallback to old format)
+    const grossMargin = toNum(bp?.grossMargin) ?? toNum(inputVal(ci, 'gross_margin'));
+    const prevRevenue = toNum(bp?.prevRevenue);
+    const yearsInBusiness = toStr(bp?.yearsInBusiness) ?? toStr(inputVal(ci, 'years_in_business'));
+    const ownedAssets = toNum(bp?.ownedAssets);
+    const customIndustry = toStr(bp?.customIndustry);
+    const exitStructure = toStr(ei?.structure);
+    const exitInvolvement = toStr(ei?.involvement);
+    const buyerIntroPhone = toStr(ei?.buyerIntroPhone);
+    const buyerIntroEmail = toStr(ei?.buyerIntroEmail);
+    const marketingOptIn = body.marketing_opt_in ?? null;
+    const calcSessionId = toStr(body.session_id);
+    const userLocation = toStr(body.user_location);
+
+    // Valuation insights from calculated_results
+    const valuationInsights = cr?.insights ?? vr?.insights ?? null;
+
+    // Readiness score from calculated_results or valuation_result
+    const readinessScore =
+      toNum(cr?.readinessScore) ?? toNum(vr?.readinessScore) ?? toNum(vr?.readiness_score);
     const businessName = businessNameFromDomain(website) ?? null;
 
     try {
@@ -181,25 +213,51 @@ serve(async (req: Request) => {
         p_email: email,
         p_website: website ?? null,
         p_business_name: businessName,
-        p_industry: serviceType ?? null,
-        p_region: region ?? null,
+        p_industry: serviceType ?? toStr(bp?.industry) ?? null,
+        p_region: region ?? toStr(bp?.region) ?? null,
         p_location: locationStr,
-        p_revenue: revenue,
-        p_ebitda: ebitda,
-        p_valuation_low: toNum(businessValue?.low),
-        p_valuation_mid: toNum(businessValue?.mid),
-        p_valuation_high: toNum(businessValue?.high),
-        p_quality_tier: (vr?.tier as string) ?? null,
-        p_quality_label: qualityLabel?.label ?? null,
+        p_revenue: revenue ?? toNum(bp?.revenue),
+        p_ebitda: ebitda ?? toNum(bp?.ebitda),
+        p_valuation_low: toNum(businessValue?.low) ?? toNum(cr?.valuationLow),
+        p_valuation_mid: toNum(businessValue?.mid) ?? toNum(cr?.valuationMid),
+        p_valuation_high: toNum(businessValue?.high) ?? toNum(cr?.valuationHigh),
+        p_quality_tier: (vr?.tier as string) ?? toStr(cr?.tier) ?? null,
+        p_quality_label: qualityLabel?.label ?? toStr(cr?.qualityLabel) ?? null,
         p_buyer_lane: buyerLane?.title ?? null,
-        p_growth_trend: growthTrend,
-        p_owner_dependency: ownerDependency,
+        p_growth_trend: growthTrend ?? toStr(bp?.revenueGrowthRate),
+        p_owner_dependency: ownerDependency ?? toStr(rd?.ownerDependency),
         p_locations_count: locationsCount,
         p_lead_source: leadSource,
         p_source_submission_id: body.external_lead_id ?? null,
         p_raw_calculator_inputs: calculator_inputs,
         p_raw_valuation_results: valuation_result,
         p_calculator_specific_data: propertyValue ? { propertyValue } : null,
+        p_exit_timing: exitTiming ?? toStr(ei?.timeline),
+        p_open_to_intros: openToIntros ?? (ei?.openToBuyer as boolean | null) ?? null,
+        // New complete payload fields
+        p_marketing_opt_in: marketingOptIn,
+        p_calculator_session_id: calcSessionId,
+        p_user_location: userLocation,
+        p_gross_margin: grossMargin,
+        p_prev_revenue: prevRevenue,
+        p_years_in_business: yearsInBusiness,
+        p_owned_assets: ownedAssets,
+        p_custom_industry: customIndustry,
+        p_exit_structure: exitStructure,
+        p_exit_involvement: exitInvolvement,
+        p_buyer_intro_phone: buyerIntroPhone,
+        p_buyer_intro_email: buyerIntroEmail,
+        p_financial_details: fd ?? null,
+        p_readiness_drivers: rd ?? null,
+        p_exit_intent_details: ei ?? null,
+        p_tags: bodyTags ?? null,
+        p_session_metadata: sessionMeta ?? null,
+        p_valuation_insights: valuationInsights
+          ? Array.isArray(valuationInsights)
+            ? valuationInsights
+            : [valuationInsights]
+          : null,
+        p_readiness_score: readinessScore,
       });
 
       if (rpcError) {
@@ -219,6 +277,42 @@ serve(async (req: Request) => {
           website: website ?? undefined,
           business_name: businessName ?? undefined,
         });
+
+        // Fire-and-forget: enrich company data from website
+        if (website) {
+          triggerWebsiteEnrichment(supabaseAdmin, {
+            valuation_lead_id: mergedId,
+            website,
+          });
+        }
+
+        // Fire-and-forget: auto-send owner outreach email
+        // Gates: valid (non-junk) email + opted in (marketing or open to intros) +
+        // not auto-quarantined by the trigger.
+        // Prefer the explicit buyer_intro_email if it's valid; otherwise fall back
+        // to the submitted email. Junk strings like "no email found" are rejected.
+        const outreachEmail = pickValidEmail(buyerIntroEmail, email);
+        const optedIn = marketingOptIn === true || openToIntros === true;
+        if (outreachEmail && optedIn) {
+          triggerOwnerOutreach(supabaseAdmin, {
+            valuation_lead_id: mergedId,
+            email: outreachEmail,
+            full_name,
+            business_name: businessName ?? undefined,
+            revenue: revenue ?? toNum(bp?.revenue) ?? undefined,
+            ebitda: ebitda ?? toNum(bp?.ebitda) ?? undefined,
+            valuation_mid: toNum(businessValue?.mid) ?? toNum(cr?.valuationMid) ?? undefined,
+            valuation_low: toNum(businessValue?.low) ?? toNum(cr?.valuationLow) ?? undefined,
+            valuation_high: toNum(businessValue?.high) ?? toNum(cr?.valuationHigh) ?? undefined,
+            quality_tier: (vr?.tier as string) ?? toStr(cr?.tier) ?? undefined,
+            industry: serviceType ?? toStr(bp?.industry) ?? undefined,
+            exit_timing: exitTiming ?? toStr(ei?.timeline) ?? undefined,
+          });
+        } else {
+          console.log(
+            `[receive-valuation-lead] Outreach skipped for ${email}: validEmail=${!!outreachEmail}, optedIn=${optedIn}`,
+          );
+        }
       }
     } catch (structuredErr) {
       // ─── FALLBACK: minimal safe insert so the lead is NEVER lost ──
@@ -253,7 +347,6 @@ serve(async (req: Request) => {
             `Lead saved via FALLBACK: ${email} → valuation_leads (minimal, type=${calculatorType})`,
           );
 
-          // Trigger contact finding for fallback-saved leads too
           if (fallbackRows?.id) {
             triggerContactFinding(supabaseAdmin, {
               valuation_lead_id: fallbackRows.id,
@@ -262,6 +355,13 @@ serve(async (req: Request) => {
               website: website ?? undefined,
               business_name: businessName ?? undefined,
             });
+
+            if (website) {
+              triggerWebsiteEnrichment(supabaseAdmin, {
+                valuation_lead_id: fallbackRows.id,
+                website,
+              });
+            }
           }
         }
       } catch (fallbackCatchErr) {
@@ -285,7 +385,6 @@ serve(async (req: Request) => {
 /**
  * Fire-and-forget: invoke find-valuation-lead-contacts to auto-discover
  * the lead's LinkedIn URL and phone number.
- * Errors are logged but never block the webhook response.
  */
 function triggerContactFinding(
   supabaseAdmin: ReturnType<typeof createClient>,
@@ -323,4 +422,115 @@ function triggerContactFinding(
         err,
       );
     });
+}
+
+/**
+ * Fire-and-forget: invoke enrich-valuation-lead-website to scrape
+ * and extract company intelligence from the lead's website.
+ */
+function triggerWebsiteEnrichment(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  payload: {
+    valuation_lead_id: string;
+    website: string;
+  },
+): void {
+  supabaseAdmin.functions
+    .invoke('enrich-valuation-lead-website', {
+      body: payload,
+      headers: {
+        'x-internal-secret': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      },
+    })
+    .then((res) => {
+      if (res.error) {
+        console.error(
+          `[receive-valuation-lead] Website enrichment failed for ${payload.website}:`,
+          res.error,
+        );
+      } else {
+        console.log(
+          `[receive-valuation-lead] Website enrichment completed for ${payload.website}:`,
+          JSON.stringify(res.data),
+        );
+      }
+    })
+    .catch((err: unknown) => {
+      console.error(
+        `[receive-valuation-lead] Website enrichment invocation error for ${payload.website}:`,
+        err,
+      );
+    });
+}
+
+/**
+ * Fire-and-forget: invoke send-valuation-lead-outreach to send a 1:1
+ * intro email to the business owner who just submitted a valuation.
+ * Only called when the lead has a valid email and explicitly opted in.
+ */
+function triggerOwnerOutreach(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  payload: {
+    valuation_lead_id: string;
+    email: string;
+    full_name: string;
+    business_name?: string;
+    revenue?: number;
+    ebitda?: number;
+    valuation_mid?: number;
+    valuation_low?: number;
+    valuation_high?: number;
+    quality_tier?: string;
+    industry?: string;
+    exit_timing?: string;
+  },
+): void {
+  // Defer slightly so the lead row + any synchronous triggers settle.
+  setTimeout(() => {
+    supabaseAdmin.functions
+      .invoke('send-valuation-lead-outreach', {
+        body: {
+          valuationLeadId: payload.valuation_lead_id,
+          leadEmail: payload.email,
+          leadName: payload.full_name,
+          businessName: payload.business_name ?? null,
+          templateKind: 'intro',
+          // Default sender for auto-sends — Adam Haile, Head of Growth
+          senderEmail: 'adam.haile@sourcecodeals.com',
+          senderName: 'Adam Haile',
+          senderTitle: 'Head of Growth',
+          isResend: false,
+          revenue: payload.revenue ?? null,
+          ebitda: payload.ebitda ?? null,
+          valuationMid: payload.valuation_mid ?? null,
+          valuationLow: payload.valuation_low ?? null,
+          valuationHigh: payload.valuation_high ?? null,
+          qualityTier: payload.quality_tier ?? null,
+          industry: payload.industry ?? null,
+          exitTiming: payload.exit_timing ?? null,
+        },
+        headers: {
+          'x-internal-secret': Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        },
+      })
+      .then((res) => {
+        if (res.error) {
+          console.error(
+            `[receive-valuation-lead] Owner outreach failed for ${payload.email}:`,
+            res.error,
+          );
+        } else {
+          console.log(
+            `[receive-valuation-lead] Owner outreach sent for ${payload.email}:`,
+            JSON.stringify(res.data),
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        console.error(
+          `[receive-valuation-lead] Owner outreach invocation error for ${payload.email}:`,
+          err,
+        );
+      });
+  }, 2_000);
 }

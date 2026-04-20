@@ -71,7 +71,28 @@ serve(async (req: Request) => {
       });
     }
 
-    // 5. Extract phone from flexible payload
+    // 5. Extract phone from flexible payload — reject sentinel "no phone found" strings
+    const FAILURE_SENTINELS = new Set([
+      '',
+      'n/a',
+      'na',
+      'none',
+      'null',
+      'undefined',
+      'no phone found',
+      'no phone',
+      'not found',
+      'no result',
+      'no results',
+      'phone not found',
+    ]);
+    const cleanResult = (v: unknown): string | null => {
+      if (typeof v !== 'string') return null;
+      const t = v.trim();
+      if (!t) return null;
+      if (FAILURE_SENTINELS.has(t.toLowerCase())) return null;
+      return t;
+    };
     const resultPhone =
       [
         payload.phone,
@@ -84,8 +105,8 @@ serve(async (req: Request) => {
         payload.cell_phone,
         payload.direct_phone,
       ]
-        .find((value): value is string => typeof value === 'string' && value.trim().length > 0)
-        ?.trim() || null;
+        .map(cleanResult)
+        .find((v): v is string => v !== null) || null;
 
     // 6. Update tracking row
     const { error: updateErr } = await supabase
@@ -125,7 +146,7 @@ serve(async (req: Request) => {
         p_source: 'clay_phone',
         p_enrichment: {
           provider: 'clay_phone',
-          confidence: 'verified', // Clay "high" → canonical 'verified' (contacts.confidence CHECK)
+          confidence: 'high',
           source_query: `clay_phone:${request.linkedin_url}`,
         },
       });
@@ -166,7 +187,7 @@ serve(async (req: Request) => {
             p_source: 'clay_phone',
             p_enrichment: {
               provider: 'clay_phone',
-              confidence: 'verified',
+              confidence: 'high',
               source_query: `clay_phone:${request.linkedin_url}`,
             },
           });

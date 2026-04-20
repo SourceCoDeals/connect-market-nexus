@@ -320,20 +320,7 @@ async function syncCampaign(
     offset += PAGE_SIZE;
   }
 
-  // See sync-smartlead-messages for the watermark semantics. In short:
-  // advance last_synced_at on any successful completion — to the activity
-  // high-water mark if we saw activity, or to (sync_start - 5min) on first
-  // successful run with zero activity, so monitoring can distinguish "never
-  // ran" from "ran and found nothing".
-  const bufferMs = 5 * 60 * 1000;
-  const completionWatermark = new Date(startedAt - bufferMs);
-  let newWatermark: Date | null = null;
-  if (latestActivityAt && (!lastSyncedAt || latestActivityAt > lastSyncedAt)) {
-    newWatermark = latestActivityAt;
-  } else if (!lastSyncedAt) {
-    newWatermark = completionWatermark;
-  }
-
+  // See sync-smartlead-messages for why we guard latestActivityAt.
   const syncStateUpdate: Record<string, unknown> = {
     channel: 'heyreach',
     external_campaign_id: campaign.heyreach_campaign_id,
@@ -344,8 +331,8 @@ async function syncCampaign(
       ((stateRow as { messages_synced_total?: number } | null)?.messages_synced_total || 0) +
       result.messages_upserted,
   };
-  if (newWatermark) {
-    syncStateUpdate.last_synced_at = newWatermark.toISOString();
+  if (latestActivityAt && (!lastSyncedAt || latestActivityAt > lastSyncedAt)) {
+    syncStateUpdate.last_synced_at = latestActivityAt.toISOString();
   }
   await supabase
     .from('outreach_sync_state')
@@ -469,17 +456,7 @@ async function upsertMessage(
 
   const { event_type, message_type, direction } = classifyMessage(msg);
   const body = msg.body || msg.text || msg.message || msg.content || null;
-  const fromUrl = normalizeLinkedInUrl(msg.senderLinkedInUrl || msg.sender_linkedin_url);
-  const toUrl = normalizeLinkedInUrl(msg.recipientLinkedInUrl || msg.recipient_linkedin_url);
-  const leadUrl = normalizeLinkedInUrl(
-    conv.leadLinkedInUrl || conv.lead_linkedin_url || conv.leadProfileUrl || conv.linkedInUrl,
-  );
 
-  // Production schema aligns heyreach_messages with smartlead_messages:
-  // LinkedIn URLs live in from_address / to_addresses (treated as "addresses"),
-  // the lead's own URL in linkedin_url, and message_type is recovered from
-  // event_type rather than persisted. We keep message_type in raw_payload for
-  // forensics so classification output isn't lost.
   const row = {
     heyreach_message_id: messageId,
     heyreach_lead_id: (conv.id || conv.conversationId) ?? null,
@@ -489,15 +466,17 @@ async function upsertMessage(
     remarketing_buyer_id: anchor.remarketing_buyer_id,
     listing_id: anchor.listing_id,
     direction,
-    from_address: fromUrl,
-    to_addresses: toUrl ? [toUrl] : [],
-    linkedin_url: leadUrl,
+    from_linkedin_url:
+      normalizeLinkedInUrl(msg.senderLinkedInUrl || msg.sender_linkedin_url) || null,
+    to_linkedin_url:
+      normalizeLinkedInUrl(msg.recipientLinkedInUrl || msg.recipient_linkedin_url) || null,
+    message_type,
     subject: msg.subject || null,
     body_text: body,
     sent_at: sentAt,
     synced_at: new Date().toISOString(),
     event_type,
-    raw_payload: { ...(msg as unknown as Record<string, unknown>), message_type },
+    raw_payload: msg as unknown as Record<string, unknown>,
   };
 
   const { error } = await supabase.from('heyreach_messages').upsert([row], {
@@ -537,11 +516,7 @@ async function insertUnmatched(
 
   const sentAt = msg.sentAt || msg.sent_at || msg.timestamp || msg.createdAt;
   const { event_type, message_type, direction } = classifyMessage(msg);
-  const fromUrl = normalizeLinkedInUrl(msg.senderLinkedInUrl || msg.sender_linkedin_url);
-  const toUrl = normalizeLinkedInUrl(msg.recipientLinkedInUrl || msg.recipient_linkedin_url);
 
-  // Prod schema for heyreach_unmatched_messages uses from_address / to_addresses
-  // (same shape as smartlead_unmatched). message_type is preserved in raw_payload.
   const row = {
     heyreach_message_id: messageId,
     heyreach_lead_id: conv.id || conv.conversationId || null,
@@ -552,13 +527,14 @@ async function insertUnmatched(
     lead_last_name: conv.leadLastName || conv.last_name || null,
     lead_company_name: conv.companyName || conv.company_name || null,
     direction,
-    from_address: fromUrl,
-    to_addresses: toUrl ? [toUrl] : [],
+    from_linkedin_url: msg.senderLinkedInUrl || msg.sender_linkedin_url || null,
+    to_linkedin_url: msg.recipientLinkedInUrl || msg.recipient_linkedin_url || null,
+    message_type,
     subject: msg.subject || null,
     body_text: msg.body || msg.text || msg.message || msg.content || null,
     sent_at: sentAt ? new Date(sentAt as string).toISOString() : null,
     event_type,
-    raw_payload: { ...(msg as unknown as Record<string, unknown>), message_type },
+    raw_payload: msg as unknown as Record<string, unknown>,
     reason,
     last_attempted_at: new Date().toISOString(),
   };

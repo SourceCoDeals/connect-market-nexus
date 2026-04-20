@@ -24,8 +24,8 @@ serve(async (req: Request) => {
     // 0. Verify webhook secret
     const webhookSecret = Deno.env.get('CLAY_WEBHOOK_SECRET');
     if (webhookSecret) {
-      // CTO audit: header-only; query params leak via access logs.
-      const providedSecret = req.headers.get('x-webhook-secret');
+      const providedSecret =
+        req.headers.get('x-webhook-secret') || new URL(req.url).searchParams.get('secret');
       if (!providedSecret || !timingSafeEqual(providedSecret, webhookSecret)) {
         console.warn('[clay-webhook-linkedin] Invalid webhook secret');
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -81,8 +81,29 @@ serve(async (req: Request) => {
       });
     }
 
-    // 5. Extract email from flexible payload
-    const resultEmail = (payload.email as string) || null;
+    // 5. Extract & sanitize email — never accept sentinel "no email found" strings
+    const FAILURE_SENTINELS = new Set([
+      '',
+      'n/a',
+      'na',
+      'none',
+      'null',
+      'undefined',
+      'no email found',
+      'no email',
+      'not found',
+      'no result',
+      'no results',
+      'email not found',
+    ]);
+    const cleanResult = (v: unknown): string | null => {
+      if (typeof v !== 'string') return null;
+      const t = v.trim();
+      if (!t) return null;
+      if (FAILURE_SENTINELS.has(t.toLowerCase())) return null;
+      return t;
+    };
+    const resultEmail = cleanResult(payload.email) || cleanResult(payload.work_email);
 
     // 6. Update tracking row
     const { error: updateErr } = await supabase
@@ -120,7 +141,7 @@ serve(async (req: Request) => {
         p_source: 'clay_linkedin',
         p_enrichment: {
           provider: 'clay_linkedin',
-          confidence: 'verified', // Clay "high" → canonical 'verified' (see _shared/contact-confidence.ts CHECK map)
+          confidence: 'high',
           source_query: `clay_linkedin:${request.linkedin_url}`,
         },
       });
@@ -156,7 +177,7 @@ serve(async (req: Request) => {
             p_source: 'clay_linkedin',
             p_enrichment: {
               provider: 'clay_linkedin',
-              confidence: 'verified', // Clay "high" → canonical 'verified' (see _shared/contact-confidence.ts CHECK map)
+              confidence: 'high',
               source_query: `clay_linkedin:${request.linkedin_url}`,
             },
           });

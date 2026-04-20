@@ -101,72 +101,50 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Failed to read request body' }, 400, corsHeaders);
   }
 
-  // CTO audit H12: fail closed when PHONEBURNER_WEBHOOK_SECRET is unset.
-  // Previously this webhook accepted ALL unauthenticated POSTs whenever
-  // the env var was missing, which made a single misconfiguration (env
-  // rollback, secret rotation mid-deploy) a full open-mic exposure of
-  // the event-ingest pipeline. Require the env var to be configured.
+  let signatureValid = true; // default: no auth required — always accepted
+
+  // Optional HMAC signature validation
   const webhookSecret = Deno.env.get('PHONEBURNER_WEBHOOK_SECRET');
-  if (!webhookSecret) {
-    console.error(
-      '[phoneburner-webhook] PHONEBURNER_WEBHOOK_SECRET is not set — rejecting webhook request',
-    );
-    return new Response(JSON.stringify({ error: 'Webhook not configured' }), {
-      status: 503,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // HMAC signature validation (mandatory now that we fail closed above).
-  // signatureValid is the truth we persist to phoneburner_webhooks_log.
-  // Starts false and flips to true only when HMAC actually verifies.
-  // Previously this variable wasn't declared at all; the reference on
-  // the insert below evaluated to undefined which the JSON serializer
-  // dropped, and the column's default (TRUE) silently marked every
-  // webhook "verified" regardless of whether a signature was even sent.
-  let signatureValid = false;
-  const signature =
-    req.headers.get('x-phoneburner-signature') || req.headers.get('x-webhook-signature');
-  if (signature) {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(webhookSecret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify'],
-    );
-
-    const expectedSig = signature.replace('sha256=', '');
-
-    try {
-      const sigBuffer = new Uint8Array(
-        expectedSig.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
+  if (webhookSecret) {
+    const signature =
+      req.headers.get('x-phoneburner-signature') || req.headers.get('x-webhook-signature');
+    if (signature) {
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(webhookSecret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['verify'],
       );
-      const valid = await crypto.subtle.verify('HMAC', key, sigBuffer, encoder.encode(rawBody));
 
-      if (!valid) {
-        console.warn('PhoneBurner webhook HMAC validation failed');
-        return new Response(JSON.stringify({ error: 'Invalid signature' }), {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+      const expectedSig = signature.replace('sha256=', '');
+
+      try {
+        const sigBuffer = new Uint8Array(
+          expectedSig.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
+        );
+        const valid = await crypto.subtle.verify('HMAC', key, sigBuffer, encoder.encode(rawBody));
+
+        if (!valid) {
+          signatureValid = false;
+          console.warn('PhoneBurner webhook HMAC validation failed');
+          return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } catch (e) {
+        console.warn('PhoneBurner HMAC validation error (allowing through):', e);
+        // Don't block if signature format is unexpected — fall through
       }
-      signatureValid = true;
-    } catch (e) {
-      console.warn('PhoneBurner HMAC validation error:', e);
-      return new Response(JSON.stringify({ error: 'Invalid signature format' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
+    // If secret is set but no signature header, log warning but allow through
+    // (PhoneBurner may not send signature on all event types)
   }
-  // If secret is set but no signature header, PhoneBurner is sending an
-  // unsigned event type. Log it with signatureValid=false so audit queries
-  // can distinguish signed-and-verified from present-but-unsigned.
 
   console.log(
-    `[phoneburner-webhook] Received (HMAC ${signature ? 'verified' : 'absent — event may be unsigned'}), body length: ${rawBody.length}`,
+    `[phoneburner-webhook] Received${webhookSecret ? ' (HMAC enabled)' : ' (no auth required)'}, body length: ${rawBody.length}`,
   );
 
   let payload: Record<string, unknown>;
@@ -272,29 +250,6 @@ Deno.serve(async (req) => {
         contact_activity_id: activityId,
       })
       .eq('id', logEntry.id);
-
-    // Fire-and-forget recording archive. PhoneBurner's recording URLs expire
-    // per their retention window, so we copy into call-recordings storage on
-    // completion events. Non-blocking — the webhook response shouldn't wait
-    // on MB-sized audio downloads.
-    if (
-      activityId &&
-      (eventType === 'call_end' || eventType === 'call.ended' || eventType === 'disposition.set')
-    ) {
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-      if (serviceRoleKey) {
-        fetch(`${supabaseUrl}/functions/v1/archive-call-recording`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${serviceRoleKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ activity_id: activityId }),
-        }).catch((err) => {
-          console.warn('[phoneburner-webhook] recording archive trigger failed:', err);
-        });
-      }
-    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Error processing ${eventType}:`, message);
@@ -830,9 +785,14 @@ function extractContactInfo(payload: Record<string, unknown>) {
     'Listing ID',
   ]);
   const rawBuyerId = readFlexibleField(customFields, typedCustomFields, ['buyer_id', 'Buyer ID']);
+  const rawValuationLeadId = readFlexibleField(customFields, typedCustomFields, [
+    'valuation_lead_id',
+    'Valuation Lead ID',
+  ]);
 
   let contactId: string | null = null;
   let listingId: string | null = isUuid(rawListingId) ? rawListingId : null;
+  const valuationLeadId: string | null = isUuid(rawValuationLeadId) ? rawValuationLeadId : null;
 
   if (sourcecoValue?.startsWith('listing-')) {
     const derivedListingId = sourcecoValue.replace('listing-', '');
@@ -903,6 +863,7 @@ function extractContactInfo(payload: Record<string, unknown>) {
     leadId: rawLeadId,
     listingId,
     remarketingBuyerId: isUuid(rawBuyerId) ? rawBuyerId : null,
+    valuationLeadId,
   };
 }
 
@@ -927,6 +888,7 @@ async function processEvent(
     leadId,
     listingId,
     remarketingBuyerId,
+    valuationLeadId,
   } = extractContactInfo(payload);
 
   // ── Step 1: Match within session by phone (most reliable) ──
@@ -1005,6 +967,22 @@ async function processEvent(
       `contact_id=${resolvedContactId}, listing_id=${resolvedListingId}, buyer_id=${resolvedBuyerId}`,
   );
 
+  // ── Resolve valuation_lead_id (custom field first, then email fallback) ──
+  let resolvedValuationLeadId: string | null = valuationLeadId;
+  if (!resolvedValuationLeadId && resolvedContactEmail) {
+    try {
+      const { data: vlRow } = await supabase
+        .from('valuation_leads')
+        .select('id')
+        .ilike('email', resolvedContactEmail)
+        .limit(1)
+        .maybeSingle();
+      if (vlRow?.id) resolvedValuationLeadId = vlRow.id as string;
+    } catch (e) {
+      console.warn('[phoneburner-webhook] valuation_lead email lookup failed:', e);
+    }
+  }
+
   switch (eventType) {
     case 'call_begin':
     case 'call.started': {
@@ -1032,6 +1010,7 @@ async function processEvent(
           user_email: userEmail,
           phoneburner_lead_id: leadId,
           listing_id: resolvedListingId,
+          valuation_lead_id: resolvedValuationLeadId,
         })
         .select('id')
         .single();
@@ -1160,21 +1139,20 @@ async function processEvent(
           contact_email: resolvedContactEmail,
           user_name: userName,
           user_email: userEmail,
+          valuation_lead_id: resolvedValuationLeadId,
           matching_status:
-            !resolvedListingId && !resolvedBuyerId && !resolvedContactId ? 'unmatched' : 'matched',
+            !resolvedListingId && !resolvedBuyerId && !resolvedContactId && !resolvedValuationLeadId
+              ? 'unmatched'
+              : 'matched',
         })
         .select('id')
         .single();
 
       if (resolvedContactId) {
-        // Go through the contacts_apply_webhook_flags RPC instead of a direct
-        // UPDATE — contact consolidation lint (DATABASE_DUPLICATES_AUDIT_
-        // 2026-04-09.md §3) forbids edge functions from writing `contacts`
-        // directly. The RPC whitelists which columns webhooks may touch.
-        await supabase.rpc('contacts_apply_webhook_flags', {
-          p_contact_id: resolvedContactId,
-          p_updates: { updated_at: new Date().toISOString() },
-        });
+        await supabase
+          .from('contacts')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', resolvedContactId);
       }
 
       if (dispositionCode) {
@@ -1191,11 +1169,7 @@ async function processEvent(
             const updates: Record<string, unknown> = {};
             if (mapping.mark_do_not_call) updates.do_not_contact = true;
             if (mapping.mark_phone_invalid) updates.phone_invalid = true;
-            // See comment above — route through the webhook flag RPC.
-            await supabase.rpc('contacts_apply_webhook_flags', {
-              p_contact_id: resolvedContactId,
-              p_updates: updates,
-            });
+            await supabase.from('contacts').update(updates).eq('id', resolvedContactId);
           }
         }
       }

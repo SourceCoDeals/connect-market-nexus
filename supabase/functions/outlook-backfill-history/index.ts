@@ -214,8 +214,6 @@ Deno.serve(async (req) => {
     // engine itself is fine. We forward our service-role Authorization header
     // so the sync function's `requireServiceRole` check passes.
     const backfillPromise = (async () => {
-      let syncCallOk = false;
-      let errorMessage: string | null = null;
       try {
         const syncResp = await fetch(`${supabaseUrl}/functions/v1/outlook-sync-emails`, {
           method: 'POST',
@@ -240,73 +238,17 @@ Deno.serve(async (req) => {
           } catch {
             // non-JSON body
           }
-          errorMessage = `Sync call failed with status ${syncResp.status}`;
+          // Do not finalize the row here: the sync function now owns the
+          // progress lifecycle end-to-end, and this handoff can legitimately
+          // 504 even while the downstream sync keeps running.
           console.error(
             '[outlook-backfill-history] background sync call failed:',
             syncResp.status,
             errBody,
           );
-          return;
-        }
-
-        syncCallOk = true;
-
-        // After the pull, promote any rows the sync engine placed in the
-        // unmatched queue so they land against today's contact set immediately.
-        try {
-          await supabase.rpc('rematch_unmatched_outlook_emails', {
-            p_contact_ids: null,
-          });
-        } catch (e) {
-          console.error('[outlook-backfill-history] background rematch failed:', e);
         }
       } catch (e) {
-        errorMessage = (e as Error).message || 'Background task threw';
         console.error('[outlook-backfill-history] background task threw:', e);
-      } finally {
-        // Finalize the progress state. The DB row is the source of truth:
-        //   - `backfill_next_link` is NULL  → sync reached the cutoff, mark completed
-        //   - `backfill_next_link` is SET   → sync stopped early (page-fetch error
-        //     inside the engine's loop writes a checkpoint with the failed-page
-        //     cursor and `break`s; the handler still returns HTTP 200, so we
-        //     can't trust `syncResp.ok` alone to decide completed vs failed).
-        //     We preserve the cursor so Resume picks up exactly where it stopped.
-        try {
-          const { data: postSync } = await supabase
-            .from('email_connections')
-            .select('backfill_next_link, backfill_pages_processed')
-            .eq('sourceco_user_id', targetUserId)
-            .maybeSingle();
-
-          const cursorRemaining =
-            postSync?.backfill_next_link !== null && postSync?.backfill_next_link !== undefined;
-          const actuallySucceeded = syncCallOk && !cursorRemaining;
-
-          const finalState: Record<string, unknown> = {
-            backfill_completed_at: new Date().toISOString(),
-            backfill_heartbeat_at: new Date().toISOString(),
-          };
-          if (actuallySucceeded) {
-            finalState.backfill_status = 'completed';
-            finalState.backfill_next_link = null;
-            finalState.backfill_error_message = null;
-          } else {
-            finalState.backfill_status = 'failed';
-            finalState.backfill_error_message =
-              errorMessage ||
-              (cursorRemaining
-                ? 'Sync stopped before reaching the cutoff. Click Resume to continue from the last checkpoint.'
-                : 'Unknown error');
-            // backfill_next_link is intentionally NOT cleared — it's the
-            // resume cursor the operator needs to pick up from.
-          }
-          await supabase
-            .from('email_connections')
-            .update(finalState)
-            .eq('sourceco_user_id', targetUserId);
-        } catch (finalErr) {
-          console.error('[outlook-backfill-history] failed to finalize progress state:', finalErr);
-        }
       }
     })();
 

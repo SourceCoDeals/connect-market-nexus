@@ -225,82 +225,62 @@ Deno.serve(async (req) => {
     }
 
     // ── Link to buyer_transcripts ──
-    // CTO audit H7: batch the upserts. Previously this loop issued one
-    // DB round-trip per matched buyer, producing 100+ round-trips on a
-    // single popular meeting. Now one upsert call regardless of count.
     let buyerLinked = 0;
-    if (matchedBuyerIds.size > 0) {
-      const buyerRows = Array.from(matchedBuyerIds).map((buyerId) => ({
-        buyer_id: buyerId,
-        fireflies_transcript_id: transcriptId,
-        title: transcript.title || 'Untitled',
-        call_date: transcript.date ? new Date(transcript.date).toISOString() : null,
-        participants: attendees,
-        duration_minutes: durationMinutes,
-        summary: transcript.summary?.overview || null,
-        linked_at: new Date().toISOString(),
-        linked_by: 'fireflies_webhook',
-      }));
+    for (const buyerId of matchedBuyerIds) {
       try {
-        const { error: buyerUpsertErr } = await (supabase as any)
-          .from('buyer_transcripts')
-          .upsert(buyerRows, {
-            onConflict: 'buyer_id,fireflies_transcript_id',
-            ignoreDuplicates: true,
-          });
-        if (buyerUpsertErr) {
-          console.error('[fireflies-webhook] Batch buyer upsert failed:', buyerUpsertErr);
-        } else {
-          buyerLinked = buyerRows.length;
-        }
+        await (supabase as any).from('buyer_transcripts').upsert(
+          {
+            buyer_id: buyerId,
+            fireflies_transcript_id: transcriptId,
+            title: transcript.title || 'Untitled',
+            call_date: transcript.date ? new Date(transcript.date).toISOString() : null,
+            participants: attendees,
+            duration_minutes: durationMinutes,
+            summary: transcript.summary?.overview || null,
+            linked_at: new Date().toISOString(),
+            linked_by: 'fireflies_webhook',
+          },
+          { onConflict: 'buyer_id,fireflies_transcript_id', ignoreDuplicates: true },
+        );
+        buyerLinked++;
       } catch (e) {
-        console.error('[fireflies-webhook] Batch buyer upsert threw:', e);
+        console.error(`[fireflies-webhook] Failed to link buyer ${buyerId}:`, e);
       }
     }
 
     // ── Link to deal_transcripts ──
-    // Same batch pattern. `.select('id')` returns the rows that were
-    // actually INSERTED (ignoreDuplicates: true returns no rows for
-    // pre-existing pairs), so linkedTranscriptIds still only contains
-    // transcripts that are new.
     let dealLinked = 0;
     const linkedTranscriptIds: string[] = [];
-    if (matchedListingIds.size > 0) {
-      const dealRows = Array.from(matchedListingIds).map((listingId) => ({
-        listing_id: listingId,
-        fireflies_transcript_id: transcriptId,
-        title: transcript.title || 'Untitled',
-        call_date: transcript.date ? new Date(transcript.date).toISOString() : null,
-        participants: attendees,
-        meeting_attendees: attendees.map((a: any) => a.email).filter(Boolean),
-        duration_minutes: durationMinutes,
-        transcript_text: transcriptText,
-        has_content: hasContent,
-        source: 'fireflies',
-        auto_linked: true,
-        match_type: dealMatchType,
-        external_participants: externalParticipants,
-      }));
+    for (const listingId of matchedListingIds) {
       try {
-        const { data: inserted, error: dealUpsertErr } = await (supabase as any)
+        const { data: inserted } = await (supabase as any)
           .from('deal_transcripts')
-          .upsert(dealRows, {
-            onConflict: 'listing_id,fireflies_transcript_id',
-            ignoreDuplicates: true,
-          })
+          .upsert(
+            {
+              listing_id: listingId,
+              fireflies_transcript_id: transcriptId,
+              title: transcript.title || 'Untitled',
+              call_date: transcript.date ? new Date(transcript.date).toISOString() : null,
+              participants: attendees,
+              meeting_attendees: attendees.map((a: any) => a.email).filter(Boolean),
+              duration_minutes: durationMinutes,
+              transcript_text: transcriptText,
+              has_content: hasContent,
+              source: 'fireflies',
+              auto_linked: true,
+              match_type: dealMatchType,
+              external_participants: externalParticipants,
+            },
+            { onConflict: 'listing_id,fireflies_transcript_id', ignoreDuplicates: true },
+          )
           .select('id');
-        if (dealUpsertErr) {
-          console.error('[fireflies-webhook] Batch deal upsert failed:', dealUpsertErr);
-        } else if (inserted) {
-          for (const row of inserted) {
-            if (row?.id) {
-              linkedTranscriptIds.push(row.id);
-              dealLinked++;
-            }
-          }
+
+        if (inserted?.[0]?.id) {
+          linkedTranscriptIds.push(inserted[0].id);
+          dealLinked++;
         }
       } catch (e) {
-        console.error('[fireflies-webhook] Batch deal upsert threw:', e);
+        console.error(`[fireflies-webhook] Failed to link deal ${listingId}:`, e);
       }
     }
 

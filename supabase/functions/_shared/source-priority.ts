@@ -1,15 +1,10 @@
 /**
  * Source Priority System for Deal Enrichment
+ * Implements field-level source tracking per Whispers spec:
+ * Priority: Transcript (100) > Data Room (90) > Notes (80) > Website (60) > CSV (40) > Manual (20)
  *
- * Priority: Transcript (100) > Manual (95) > Data Room (90) > Notes (80) >
- *           Website (60) > CSV (40)
- *
- * Manual sits above data room on purpose: a human who types a value into the
- * admin UI has reviewed and corrected the data, and must NOT be silently
- * overwritten by a later AI extraction from an uploaded CIM. Transcripts still
- * win over manual because they can represent the seller's own words captured
- * after the manual edit. Higher priority sources can overwrite equal-or-lower
- * priority ones.
+ * Higher priority sources can overwrite lower priority sources.
+ * Prevents low-quality data from corrupting high-quality extractions.
  */
 
 export type ExtractionSource = 'transcript' | 'data_room' | 'notes' | 'website' | 'csv' | 'manual';
@@ -25,14 +20,14 @@ export interface FieldSource {
 export type ExtractionSources = Record<string, FieldSource>;
 
 // Source priority scores (higher number = higher priority)
-// Manual sits above data room so human edits survive subsequent CIM uploads.
+// Whispers spec: transcript:100 > data_room:90 > notes:80 > website:60 > csv:40 > manual:20
 const SOURCE_PRIORITY: Record<ExtractionSource, number> = {
-  transcript: 100, // Highest - direct from seller on a recorded call
-  manual: 95, // Human admin edit - above any AI extraction below
+  transcript: 100, // Highest - call transcripts are most authoritative
   data_room: 90, // Data room documents (CIMs, financials, legal docs)
   notes: 80, // Broker notes and internal memos
   website: 60, // Website scraping
   csv: 40, // CSV imports
+  manual: 20, // Manual entry (lowest priority, can be overridden)
 };
 
 // Fields that should never be overwritten once set from transcripts

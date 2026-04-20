@@ -1538,19 +1538,7 @@ Deno.serve(async (req: Request) => {
           p_source: c.source || 'find_contacts',
           p_enrichment: {
             provider: c.source || 'find_contacts',
-            // Map provider confidence label to the canonical CHECK values
-            // ('verified'|'likely'|'guessed'|'unverified'). Passing 'high'
-            // / 'medium' / 'low' raw violated the CHECK constraint and the
-            // RPC silently swallowed the error, so every enrichment dropped
-            // on the floor.
-            confidence:
-              c.confidence === 'high'
-                ? 'verified'
-                : c.confidence === 'medium'
-                  ? 'likely'
-                  : c.confidence === 'low'
-                    ? 'guessed'
-                    : 'likely',
+            confidence: c.confidence || 'medium',
             source_query: `find_contacts:${companyName}`,
           },
         });
