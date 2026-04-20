@@ -45,6 +45,7 @@ export function computeActivityStats(entries: UnifiedActivityEntry[]): ActivityS
   let callsConnected = 0;
   let linkedInReplied = 0;
   let linkedInConnected = 0;
+  let meetingsAttended = 0;
 
   const emailEntries: UnifiedActivityEntry[] = [];
   const callEntries: UnifiedActivityEntry[] = [];
@@ -66,6 +67,10 @@ export function computeActivityStats(entries: UnifiedActivityEntry[]): ActivityS
     } else if (e.channel === 'meeting') {
       totalMeetings++;
       meetingEntries.push(e);
+      // A meeting with measurable duration counts as attended engagement.
+      const durMin = e.details?.duration_minutes;
+      const durSec = e.details?.call_duration_seconds;
+      if ((durMin && durMin > 0) || (durSec && durSec > 0)) meetingsAttended++;
     } else {
       totalCalls++;
       callEntries.push(e);
@@ -87,7 +92,14 @@ export function computeActivityStats(entries: UnifiedActivityEntry[]): ActivityS
   };
 
   if (lastEntry) {
-    if (emailsOpened > 0 && emailsReplied === 0 && callsConnected === 0) {
+    if (meetingsAttended > 0 && daysSinceLastContact !== null && daysSinceLastContact <= 7) {
+      nextBestAction = {
+        action: 'Send Follow-up Email',
+        icon: 'mail',
+        reason: 'Recent meeting with this buyer — send a recap email while it\u2019s fresh.',
+        timing: 'within 1 day',
+      };
+    } else if (emailsOpened > 0 && emailsReplied === 0 && callsConnected === 0) {
       nextBestAction = {
         action: 'Schedule Call',
         icon: 'phone',
