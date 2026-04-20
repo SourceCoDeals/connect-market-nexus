@@ -14,6 +14,10 @@ export interface AgreementEmailRequest {
   recipientName?: string;
   /** Only for admin-triggered sends */
   firmId?: string;
+  /** Admin sender email for reply-to */
+  senderEmail?: string;
+  /** Admin sender display name */
+  senderName?: string;
 }
 
 export interface AgreementEmailResult {
